@@ -85,7 +85,6 @@ import { cn } from '@/lib/utils';
 import { navigation, type NavItem, type NavGroup } from '@/config/navigation';
 import { useAuthStore } from '@/stores/auth-store';
 import { useUIStore } from '@/stores/ui-store';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Tooltip,
   TooltipContent,
@@ -332,8 +331,8 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <ScrollArea className="flex-1 px-2 py-2">
-        <div className="space-y-0.5">
+      <nav className="flex-1 overflow-y-auto px-2 py-2 min-h-0">
+        <div className="space-y-0.5 pb-4">
           {navigation.map((group) => (
             <SidebarGroup
               key={group.id}
@@ -342,7 +341,7 @@ export function Sidebar() {
             />
           ))}
         </div>
-      </ScrollArea>
+      </nav>
 
       {/* Collapse toggle */}
       <div className="shrink-0 border-t border-navy-700 p-2">

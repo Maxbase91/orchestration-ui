@@ -18,6 +18,7 @@ import { PortalInvoices } from '@/features/suppliers/portal/portal-invoices'
 import { PortalSourcing } from '@/features/suppliers/portal/portal-sourcing'
 import { PortalDocuments } from '@/features/suppliers/portal/portal-documents'
 import { PortalMessages } from '@/features/suppliers/portal/portal-messages'
+import { SupplierMessagesPage } from '@/features/suppliers/supplier-messages-page'
 import { ApprovalsPage } from '@/features/approvals/approvals-page'
 import { DelegationPage } from '@/features/approvals/delegation-page'
 import { RoutingRulesPage } from '@/features/admin/routing-rules/routing-rules-page'
@@ -97,6 +98,7 @@ export function App() {
             <Route path="/suppliers/onboarding" element={<PlaceholderPage title="Onboarding Pipeline" />} />
             <Route path="/suppliers/risk" element={<PlaceholderPage title="Risk & Compliance" />} />
             <Route path="/suppliers/portal-admin" element={<PlaceholderPage title="Supplier Portal Admin" />} />
+            <Route path="/suppliers/messages" element={<SupplierMessagesPage />} />
             <Route path="/suppliers/:id" element={<SupplierProfilePage />} />
 
             {/* Contracts */}

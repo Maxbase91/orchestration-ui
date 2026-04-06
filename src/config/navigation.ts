@@ -131,6 +131,7 @@ export const navigation: NavGroup[] = [
           { id: 'onboarding-pipeline', label: 'Onboarding Pipeline', icon: 'UserPlus', path: '/suppliers/onboarding', visibleTo: supplierMgmtRoles },
           { id: 'risk-compliance', label: 'Risk & Compliance', icon: 'ShieldCheck', path: '/suppliers/risk', visibleTo: supplierMgmtRoles },
           { id: 'supplier-portal-admin', label: 'Supplier Portal Admin', icon: 'Settings', path: '/suppliers/portal-admin', visibleTo: supplierMgmtRoles },
+          { id: 'supplier-messages', label: 'Messages', icon: 'MessageSquare', path: '/suppliers/messages', visibleTo: supplierMgmtRoles },
         ],
       },
     ],
