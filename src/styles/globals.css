@@ -1,0 +1,93 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  /* Navy palette */
+  --color-navy-50: #f0f2f7;
+  --color-navy-100: #d9dfe9;
+  --color-navy-200: #b3bfd3;
+  --color-navy-300: #8d9fbd;
+  --color-navy-400: #677fa7;
+  --color-navy-500: #415f91;
+  --color-navy-600: #344c74;
+  --color-navy-700: #273957;
+  --color-navy-800: #1B2A4A;
+  --color-navy-900: #111b30;
+  --color-navy-950: #0a1019;
+
+  /* Medium Blue */
+  --color-blue-500: #2D5F8A;
+  --color-blue-400: #3d7aad;
+  --color-blue-300: #5e9ac6;
+  --color-blue-200: #8fbddb;
+  --color-blue-100: #c7deee;
+  --color-blue-50: #eef4f9;
+
+  /* Amber/Orange */
+  --color-amber-500: #D4782F;
+  --color-amber-400: #e09350;
+  --color-amber-300: #e8ae78;
+  --color-amber-200: #f0c9a0;
+  --color-amber-100: #f8e4cf;
+  --color-amber-50: #fdf5ee;
+
+  /* Status colors */
+  --color-status-success: #2E7D4F;
+  --color-status-warning: #D4782F;
+  --color-status-danger: #B5392E;
+  --color-status-info: #2D5F8A;
+
+  /* Surface / Background */
+  --color-surface: #F3F5F9;
+  --color-card: #FFFFFF;
+
+  /* Text */
+  --color-text-primary: #1E1E1E;
+  --color-text-secondary: #4A5568;
+  --color-text-muted: #718096;
+
+  /* Shadows */
+  --shadow-card: 0 1px 4px rgba(0, 0, 0, 0.08);
+
+  /* Radius */
+  --radius-card: 6px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  /* shadcn/ui CSS variables */
+  --color-background: #F3F5F9;
+  --color-foreground: #1E1E1E;
+  --color-muted: #e2e5eb;
+  --color-muted-foreground: #4A5568;
+  --color-popover: #FFFFFF;
+  --color-popover-foreground: #1E1E1E;
+  --color-primary: #1B2A4A;
+  --color-primary-foreground: #FFFFFF;
+  --color-secondary: #e2e5eb;
+  --color-secondary-foreground: #1B2A4A;
+  --color-accent: #D4782F;
+  --color-accent-foreground: #FFFFFF;
+  --color-destructive: #B5392E;
+  --color-destructive-foreground: #FFFFFF;
+  --color-border: #d1d5db;
+  --color-input: #d1d5db;
+  --color-ring: #2D5F8A;
+  --color-chart-1: #1B2A4A;
+  --color-chart-2: #2D5F8A;
+  --color-chart-3: #D4782F;
+  --color-chart-4: #2E7D4F;
+  --color-chart-5: #B5392E;
+
+  --radius: 0.375rem;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+}
