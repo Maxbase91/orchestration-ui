@@ -53,7 +53,7 @@ export const navigation: NavGroup[] = [
         icon: 'CheckCircle',
         visibleTo: allInternal,
         children: [
-          { id: 'my-approvals', label: 'My Approvals', icon: 'CheckCircle', path: '/approvals/my', visibleTo: allInternal },
+          { id: 'my-approvals', label: 'My Approvals', icon: 'CheckCircle', path: '/approvals', visibleTo: allInternal },
           { id: 'delegation', label: 'Delegation', icon: 'UserCheck', path: '/approvals/delegation', visibleTo: allInternal },
         ],
       },
@@ -63,7 +63,7 @@ export const navigation: NavGroup[] = [
         icon: 'ListTodo',
         visibleTo: allInternal,
         children: [
-          { id: 'my-tasks', label: 'My Tasks', icon: 'ListTodo', path: '/tasks/my', visibleTo: allInternal },
+          { id: 'my-tasks', label: 'My Tasks', icon: 'ListTodo', path: '/tasks', visibleTo: allInternal },
           { id: 'team-tasks', label: 'Team Tasks', icon: 'Users', path: '/tasks/team', visibleTo: ['procurement-manager', 'operations-lead'] },
         ],
       },
@@ -80,7 +80,7 @@ export const navigation: NavGroup[] = [
         icon: 'Workflow',
         visibleTo: coreInternal,
         children: [
-          { id: 'active-workflows', label: 'Active Workflows', icon: 'Workflow', path: '/workflows/active', visibleTo: coreInternal },
+          { id: 'active-workflows', label: 'Active Workflows', icon: 'Workflow', path: '/workflows', visibleTo: coreInternal },
           { id: 'workflow-monitor', label: 'Workflow Monitor', icon: 'Monitor', path: '/workflows/monitor', visibleTo: coreInternal },
           { id: 'bottlenecks', label: 'Bottlenecks & Alerts', icon: 'AlertTriangle', path: '/workflows/bottlenecks', visibleTo: coreInternal },
         ],
@@ -108,8 +108,8 @@ export const navigation: NavGroup[] = [
         icon: 'Calendar',
         visibleTo: sourcingRoles,
         children: [
-          { id: 'active-events', label: 'Active Events', icon: 'Calendar', path: '/sourcing/events', visibleTo: sourcingRoles },
-          { id: 'new-event', label: 'New Event', icon: 'CalendarPlus', path: '/sourcing/events/new', visibleTo: sourcingRoles },
+          { id: 'active-events', label: 'Active Events', icon: 'Calendar', path: '/sourcing', visibleTo: sourcingRoles },
+          { id: 'new-event', label: 'New Event', icon: 'CalendarPlus', path: '/sourcing/new', visibleTo: sourcingRoles },
           { id: 'sourcing-templates', label: 'Templates', icon: 'LayoutTemplate', path: '/sourcing/templates', visibleTo: sourcingRoles },
           { id: 'evaluation-centre', label: 'Evaluation Centre', icon: 'Award', path: '/sourcing/evaluation', visibleTo: sourcingRoles },
         ],
@@ -166,7 +166,7 @@ export const navigation: NavGroup[] = [
         visibleTo: coreInternal,
         children: [
           { id: 'open-pos', label: 'Open POs', icon: 'ShoppingCart', path: '/purchasing/orders', visibleTo: coreInternal },
-          { id: 'goods-receipt', label: 'Goods Receipt', icon: 'PackageCheck', path: '/purchasing/goods-receipt', visibleTo: coreInternal },
+          { id: 'goods-receipt', label: 'Goods Receipt', icon: 'PackageCheck', path: '/purchasing/receipt', visibleTo: coreInternal },
         ],
       },
       {
@@ -176,7 +176,7 @@ export const navigation: NavGroup[] = [
         visibleTo: coreInternal,
         children: [
           { id: 'invoice-queue', label: 'Invoice Queue', icon: 'Receipt', path: '/purchasing/invoices', visibleTo: coreInternal },
-          { id: 'three-way-match', label: 'Three-Way Match', icon: 'GitMerge', path: '/purchasing/three-way-match', visibleTo: coreInternal },
+          { id: 'three-way-match', label: 'Three-Way Match', icon: 'GitMerge', path: '/purchasing/match', visibleTo: coreInternal },
           { id: 'payment-tracker', label: 'Payment Tracker', icon: 'CreditCard', path: '/purchasing/payments', visibleTo: coreInternal },
         ],
       },
@@ -196,7 +196,7 @@ export const navigation: NavGroup[] = [
           { id: 'spend-overview', label: 'Spend Overview', icon: 'PieChart', path: '/analytics/spend', visibleTo: coreInternal },
           { id: 'compliance-kpis', label: 'Compliance KPIs', icon: 'ShieldCheck', path: '/analytics/compliance', visibleTo: coreInternal },
           { id: 'pipeline-cycle-time', label: 'Pipeline & Cycle Time', icon: 'Timer', path: '/analytics/pipeline', visibleTo: coreInternal },
-          { id: 'supplier-performance', label: 'Supplier Performance', icon: 'TrendingUp', path: '/analytics/supplier-performance', visibleTo: coreInternal },
+          { id: 'supplier-performance', label: 'Supplier Performance', icon: 'TrendingUp', path: '/analytics/suppliers', visibleTo: coreInternal },
         ],
       },
       {
@@ -205,9 +205,9 @@ export const navigation: NavGroup[] = [
         icon: 'FileBarChart',
         visibleTo: coreInternal,
         children: [
-          { id: 'report-builder', label: 'Report Builder', icon: 'FileBarChart', path: '/analytics/reports/builder', visibleTo: coreInternal },
+          { id: 'report-builder', label: 'Report Builder', icon: 'FileBarChart', path: '/analytics/reports', visibleTo: coreInternal },
           { id: 'scheduled-reports', label: 'Scheduled Reports', icon: 'CalendarClock', path: '/analytics/reports/scheduled', visibleTo: coreInternal },
-          { id: 'exports', label: 'Exports', icon: 'Download', path: '/analytics/reports/exports', visibleTo: coreInternal },
+          { id: 'exports', label: 'Exports', icon: 'Download', path: '/analytics/exports', visibleTo: coreInternal },
         ],
       },
     ],
@@ -217,14 +217,14 @@ export const navigation: NavGroup[] = [
     label: 'Admin',
     visibleTo: ['admin'],
     items: [
-      { id: 'routing-rules', label: 'Routing Rules', icon: 'Route', path: '/admin/routing-rules', visibleTo: ['admin'] },
-      { id: 'approval-chains', label: 'Approval Chains', icon: 'Link', path: '/admin/approval-chains', visibleTo: ['admin'] },
-      { id: 'workflow-designer', label: 'Workflow Designer', icon: 'PenTool', path: '/admin/workflow-designer', visibleTo: ['admin'] },
-      { id: 'ai-agent-config', label: 'AI Agent Configuration', icon: 'Bot', path: '/admin/ai-agents', visibleTo: ['admin'] },
+      { id: 'routing-rules', label: 'Routing Rules', icon: 'Route', path: '/admin/rules', visibleTo: ['admin'] },
+      { id: 'approval-chains', label: 'Approval Chains', icon: 'Link', path: '/admin/approvals', visibleTo: ['admin'] },
+      { id: 'workflow-designer', label: 'Workflow Designer', icon: 'PenTool', path: '/admin/workflows', visibleTo: ['admin'] },
+      { id: 'ai-agent-config', label: 'AI Agent Configuration', icon: 'Bot', path: '/admin/agents', visibleTo: ['admin'] },
       { id: 'policy-management', label: 'Policy Management', icon: 'ScrollText', path: '/admin/policies', visibleTo: ['admin'] },
       { id: 'user-management', label: 'User Management', icon: 'Users', path: '/admin/users', visibleTo: ['admin'] },
-      { id: 'system-health', label: 'System Health', icon: 'Activity', path: '/admin/system-health', visibleTo: ['admin'] },
-      { id: 'audit-log', label: 'Audit Log', icon: 'History', path: '/admin/audit-log', visibleTo: ['admin'] },
+      { id: 'system-health', label: 'System Health', icon: 'Activity', path: '/admin/health', visibleTo: ['admin'] },
+      { id: 'audit-log', label: 'Audit Log', icon: 'History', path: '/admin/audit', visibleTo: ['admin'] },
     ],
   },
   {
@@ -232,9 +232,9 @@ export const navigation: NavGroup[] = [
     label: 'Help',
     visibleTo: allRoles,
     items: [
-      { id: 'ai-assistant', label: 'AI Assistant', icon: 'MessageSquare', path: '/help/ai-assistant', visibleTo: allRoles },
-      { id: 'knowledge-base', label: 'Knowledge Base', icon: 'BookOpen', path: '/help/knowledge-base', visibleTo: allRoles },
-      { id: 'contact-support', label: 'Contact Support', icon: 'HelpCircle', path: '/help/contact', visibleTo: allRoles },
+      { id: 'ai-assistant', label: 'AI Assistant', icon: 'MessageSquare', path: '/help/assistant', visibleTo: allRoles },
+      { id: 'knowledge-base', label: 'Knowledge Base', icon: 'BookOpen', path: '/help/kb', visibleTo: allRoles },
+      { id: 'contact-support', label: 'Contact Support', icon: 'HelpCircle', path: '/help/support', visibleTo: allRoles },
     ],
   },
 ];

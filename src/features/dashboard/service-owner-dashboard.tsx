@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AlertCircle } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 import { requests } from '@/data/requests';
@@ -15,6 +16,7 @@ const activeStatuses = new Set([
 
 export function ServiceOwnerDashboard() {
   const { currentUser } = useAuthStore();
+  const navigate = useNavigate();
 
   const myRequests = useMemo(() => {
     return requests
@@ -51,9 +53,10 @@ export function ServiceOwnerDashboard() {
 
           <div className="space-y-2">
             {myRequests.map((r) => (
-              <div
+              <button
                 key={r.id}
-                className="flex items-center justify-between gap-4 rounded border border-gray-100 bg-white p-3 hover:bg-gray-50 transition-colors"
+                onClick={() => navigate(`/requests/${r.id}`)}
+                className="w-full flex items-center justify-between gap-4 rounded border border-gray-100 bg-white p-3 hover:bg-gray-50 transition-colors cursor-pointer text-left"
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -66,7 +69,7 @@ export function ServiceOwnerDashboard() {
                   <p className="text-sm font-semibold text-gray-900">{formatCurrency(r.value, r.currency)}</p>
                   <p className="mt-0.5 text-xs text-gray-400">{formatRelativeTime(r.updatedAt)}</p>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         </div>

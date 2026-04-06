@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { CheckCircle, AlertTriangle, FileSearch } from 'lucide-react';
 import type { ProcurementRequest } from '@/data/types';
 import { getUserById } from '@/data/users';
@@ -41,11 +42,12 @@ function getAiAssessment(request: ProcurementRequest): { label: string; ok: bool
 }
 
 export function ValidationQueueCard({ request }: ValidationQueueCardProps) {
+  const navigate = useNavigate();
   const requestor = getUserById(request.requestorId);
   const assessments = getAiAssessment(request);
 
   return (
-    <div className="rounded-md border border-gray-200 bg-white p-4 shadow-sm">
+    <div className="rounded-md border border-gray-200 bg-white p-4 shadow-sm cursor-pointer hover:border-gray-300 transition-colors" onClick={() => navigate(`/requests/${request.id}`)}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
@@ -95,12 +97,12 @@ export function ValidationQueueCard({ request }: ValidationQueueCardProps) {
         </div>
       </div>
 
-      <div className="mt-3 flex gap-2">
+      <div className="mt-3 flex gap-2" onClick={(e) => e.stopPropagation()}>
         <Button size="sm" variant="default" className="flex-1">
           <CheckCircle className="size-3.5" />
           Validate
         </Button>
-        <Button size="sm" variant="outline" className="flex-1">
+        <Button size="sm" variant="outline" className="flex-1" onClick={() => navigate(`/requests/${request.id}`)}>
           <FileSearch className="size-3.5" />
           Review
         </Button>

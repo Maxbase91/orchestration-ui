@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, Clock, ArrowLeftCircle } from 'lucide-react';
 import { requests } from '@/data/requests';
 import { getUserById } from '@/data/users';
@@ -6,6 +7,7 @@ import { StatusBadge } from '@/components/shared/status-badge';
 import { formatCurrency } from '@/lib/format';
 
 export function AttentionRequiredList() {
+  const navigate = useNavigate();
   const flaggedItems = useMemo(() => {
     return requests
       .filter((r) => r.isOverdue || r.status === 'referred-back')
@@ -25,9 +27,10 @@ export function AttentionRequiredList() {
       {flaggedItems.map((r) => {
         const owner = getUserById(r.ownerId);
         return (
-          <div
+          <button
             key={r.id}
-            className="flex items-start gap-3 rounded-md border border-gray-100 bg-white p-3"
+            onClick={() => navigate(`/requests/${r.id}`)}
+            className="w-full flex items-start gap-3 rounded-md border border-gray-100 bg-white p-3 hover:bg-gray-50 transition-colors cursor-pointer text-left"
           >
             <div className={`mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full ${r.isOverdue ? 'bg-red-50 text-red-500' : 'bg-amber-50 text-amber-500'}`}>
               {r.isOverdue ? <Clock className="size-3.5" /> : <ArrowLeftCircle className="size-3.5" />}
@@ -50,7 +53,7 @@ export function AttentionRequiredList() {
                 {owner && <span>Owner: {owner.name}</span>}
               </div>
             </div>
-          </div>
+          </button>
         );
       })}
     </div>

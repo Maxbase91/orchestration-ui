@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Clock, AlertTriangle, MessageCircleQuestion } from 'lucide-react';
 import { requests } from '@/data/requests';
 import { getUserById } from '@/data/users';
@@ -26,6 +27,7 @@ const unresolvedQueries: UnresolvedQuery[] = [
 ];
 
 export function OperationsLeadDashboard() {
+  const navigate = useNavigate();
   const bottleneckData = useMemo(() => {
     return requests
       .filter((r) => activeStatuses.has(r.status))
@@ -82,7 +84,7 @@ export function OperationsLeadDashboard() {
                       : 'text-green-600 bg-green-50';
 
                   return (
-                    <tr key={r.id} className="border-b border-gray-50 hover:bg-gray-50">
+                    <tr key={r.id} className="border-b border-gray-50 hover:bg-gray-50 cursor-pointer" onClick={() => navigate(`/requests/${r.id}`)}>
                       <td className="py-2.5 pr-3 font-mono text-xs text-gray-400">{r.id}</td>
                       <td className="py-2.5 pr-3 max-w-[200px] truncate font-medium text-gray-900">{r.title}</td>
                       <td className="py-2.5 pr-3"><StatusBadge status={r.status} size="sm" /></td>
@@ -109,7 +111,7 @@ export function OperationsLeadDashboard() {
             <h2 className="text-lg font-semibold text-gray-900 mb-4">SLA Tracker</h2>
             <div className="space-y-2">
               {slaAtRisk.slice(0, 5).map((r) => (
-                <div key={r.id} className="flex items-center gap-3 rounded border border-gray-100 p-2.5">
+                <button key={r.id} onClick={() => navigate(`/requests/${r.id}`)} className="w-full flex items-center gap-3 rounded border border-gray-100 p-2.5 hover:bg-gray-50 transition-colors cursor-pointer text-left">
                   <div className={`flex size-7 shrink-0 items-center justify-center rounded-full ${r.isOverdue ? 'bg-red-50 text-red-500' : 'bg-amber-50 text-amber-500'}`}>
                     {r.isOverdue ? <AlertTriangle className="size-3.5" /> : <Clock className="size-3.5" />}
                   </div>
@@ -120,7 +122,7 @@ export function OperationsLeadDashboard() {
                   <span className={`text-xs font-bold ${r.isOverdue ? 'text-red-600' : 'text-amber-600'}`}>
                     {r.daysInStage}d
                   </span>
-                </div>
+                </button>
               ))}
             </div>
           </div>
@@ -130,7 +132,7 @@ export function OperationsLeadDashboard() {
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Unresolved Queries</h2>
             <div className="space-y-2">
               {unresolvedQueries.map((q) => (
-                <div key={q.id} className="rounded border border-gray-100 p-3">
+                <button key={q.id} onClick={() => navigate(`/requests/${q.requestId}`)} className="w-full rounded border border-gray-100 p-3 hover:bg-gray-50 transition-colors cursor-pointer text-left">
                   <div className="flex items-center gap-2 mb-1">
                     <MessageCircleQuestion className="size-3.5 text-blue-500" />
                     <span className="text-xs font-mono text-gray-400">{q.requestId}</span>
@@ -141,7 +143,7 @@ export function OperationsLeadDashboard() {
                     <span>&middot;</span>
                     <span>{formatRelativeTime(q.askedAt)}</span>
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           </div>
