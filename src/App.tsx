@@ -42,17 +42,29 @@ import { NotificationsPage } from '@/features/notifications/notifications-page'
 import { SettingsPage } from '@/features/settings/settings-page'
 import { AuditLogPage } from '@/features/settings/audit-log-page'
 import { AIChatOverlay } from '@/features/ai-assistant/ai-chat-overlay'
-
-function PlaceholderPage({ title }: { title: string }) {
-  return (
-    <div className="flex items-center justify-center h-64">
-      <div className="text-center">
-        <h2 className="text-xl font-semibold text-text-primary">{title}</h2>
-        <p className="text-text-muted mt-2">Coming soon</p>
-      </div>
-    </div>
-  )
-}
+import { NewEventPage } from '@/features/sourcing/new-event-page'
+import { SourcingTemplatesPage } from '@/features/sourcing/sourcing-templates-page'
+import { PortalAdminPage } from '@/features/suppliers/portal-admin-page'
+import { ApprovalChainsPage } from '@/features/admin/approval-chains-page'
+import { PolicyManagementPage } from '@/features/admin/policy-management-page'
+import { UserManagementPage } from '@/features/admin/user-management-page'
+import { SystemHealthPage } from '@/features/admin/system-health-page'
+import { AIAssistantPage } from '@/features/help/ai-assistant-page'
+import { KnowledgeBasePage } from '@/features/help/knowledge-base-page'
+import { ContactSupportPage } from '@/features/help/contact-support-page'
+import { MyTasksPage } from '@/features/tasks/my-tasks-page'
+import { TeamTasksPage } from '@/features/tasks/team-tasks-page'
+import { BottlenecksPage } from '@/features/workflows/bottlenecks-page'
+import { DemandPipelinePage } from '@/features/pipeline/demand-pipeline-page'
+import { SourcingPipelinePage } from '@/features/pipeline/sourcing-pipeline-page'
+import { OnboardingPipelinePage } from '@/features/suppliers/onboarding-pipeline-page'
+import { RiskCompliancePage } from '@/features/suppliers/risk-compliance-page'
+import { RenewalsPage } from '@/features/contracts/renewals-page'
+import { TemplatesPage } from '@/features/contracts/templates-page'
+import { GoodsReceiptPage } from '@/features/purchasing/goods-receipt-page'
+import { PaymentTrackerPage } from '@/features/purchasing/payment-tracker-page'
+import { ScheduledReportsPage } from '@/features/analytics/scheduled-reports-page'
+import { ExportsPage } from '@/features/analytics/exports-page'
 
 export function App() {
   return (
@@ -74,46 +86,46 @@ export function App() {
             <Route path="/approvals/delegation" element={<DelegationPage />} />
 
             {/* Tasks */}
-            <Route path="/tasks" element={<PlaceholderPage title="My Tasks" />} />
-            <Route path="/tasks/team" element={<PlaceholderPage title="Team Tasks" />} />
+            <Route path="/tasks" element={<MyTasksPage />} />
+            <Route path="/tasks/team" element={<TeamTasksPage />} />
 
             {/* Workflows */}
             <Route path="/workflows" element={<ActiveWorkflowsPage />} />
             <Route path="/workflows/monitor" element={<WorkflowMonitorPage />} />
-            <Route path="/workflows/bottlenecks" element={<PlaceholderPage title="Bottlenecks & Alerts" />} />
+            <Route path="/workflows/bottlenecks" element={<BottlenecksPage />} />
 
             {/* Pipeline */}
-            <Route path="/pipeline/demand" element={<PlaceholderPage title="Demand Pipeline" />} />
-            <Route path="/pipeline/sourcing" element={<PlaceholderPage title="Sourcing Pipeline" />} />
+            <Route path="/pipeline/demand" element={<DemandPipelinePage />} />
+            <Route path="/pipeline/sourcing" element={<SourcingPipelinePage />} />
 
             {/* Sourcing */}
             <Route path="/sourcing" element={<EventListPage />} />
-            <Route path="/sourcing/new" element={<PlaceholderPage title="New Event" />} />
-            <Route path="/sourcing/templates" element={<PlaceholderPage title="Templates" />} />
+            <Route path="/sourcing/new" element={<NewEventPage />} />
+            <Route path="/sourcing/templates" element={<SourcingTemplatesPage />} />
             <Route path="/sourcing/evaluation" element={<EvaluationCentrePage />} />
             <Route path="/sourcing/:id" element={<EventDetailPage />} />
 
             {/* Suppliers */}
             <Route path="/suppliers" element={<SupplierDirectoryPage />} />
-            <Route path="/suppliers/onboarding" element={<PlaceholderPage title="Onboarding Pipeline" />} />
-            <Route path="/suppliers/risk" element={<PlaceholderPage title="Risk & Compliance" />} />
-            <Route path="/suppliers/portal-admin" element={<PlaceholderPage title="Supplier Portal Admin" />} />
+            <Route path="/suppliers/onboarding" element={<OnboardingPipelinePage />} />
+            <Route path="/suppliers/risk" element={<RiskCompliancePage />} />
+            <Route path="/suppliers/portal-admin" element={<PortalAdminPage />} />
             <Route path="/suppliers/messages" element={<SupplierMessagesPage />} />
             <Route path="/suppliers/:id" element={<SupplierProfilePage />} />
 
             {/* Contracts */}
             <Route path="/contracts" element={<ContractRegisterPage />} />
-            <Route path="/contracts/renewals" element={<PlaceholderPage title="Renewals & Expiries" />} />
-            <Route path="/contracts/templates" element={<PlaceholderPage title="Contract Templates" />} />
+            <Route path="/contracts/renewals" element={<RenewalsPage />} />
+            <Route path="/contracts/templates" element={<TemplatesPage />} />
             <Route path="/contracts/:id" element={<ContractDetailPage />} />
 
             {/* Purchasing */}
             <Route path="/purchasing/orders" element={<POListPage />} />
             <Route path="/purchasing/orders/:id" element={<PODetailPage />} />
-            <Route path="/purchasing/receipt" element={<PlaceholderPage title="Goods Receipt" />} />
+            <Route path="/purchasing/receipt" element={<GoodsReceiptPage />} />
             <Route path="/purchasing/invoices" element={<InvoiceQueuePage />} />
             <Route path="/purchasing/match" element={<ThreeWayMatchPage />} />
-            <Route path="/purchasing/payments" element={<PlaceholderPage title="Payment Tracker" />} />
+            <Route path="/purchasing/payments" element={<PaymentTrackerPage />} />
 
             {/* Analytics */}
             <Route path="/analytics/spend" element={<SpendDashboardPage />} />
@@ -121,17 +133,17 @@ export function App() {
             <Route path="/analytics/pipeline" element={<PipelineDashboardPage />} />
             <Route path="/analytics/suppliers" element={<SupplierPerformancePage />} />
             <Route path="/analytics/reports" element={<ReportBuilderPage />} />
-            <Route path="/analytics/reports/scheduled" element={<PlaceholderPage title="Scheduled Reports" />} />
-            <Route path="/analytics/exports" element={<PlaceholderPage title="Exports" />} />
+            <Route path="/analytics/reports/scheduled" element={<ScheduledReportsPage />} />
+            <Route path="/analytics/exports" element={<ExportsPage />} />
 
             {/* Admin */}
             <Route path="/admin/rules" element={<RoutingRulesPage />} />
-            <Route path="/admin/approvals" element={<PlaceholderPage title="Approval Chains" />} />
+            <Route path="/admin/approvals" element={<ApprovalChainsPage />} />
             <Route path="/admin/workflows" element={<WorkflowDesignerPage />} />
             <Route path="/admin/agents" element={<AIAgentsPage />} />
-            <Route path="/admin/policies" element={<PlaceholderPage title="Policy Management" />} />
-            <Route path="/admin/users" element={<PlaceholderPage title="User Management" />} />
-            <Route path="/admin/health" element={<PlaceholderPage title="System Health" />} />
+            <Route path="/admin/policies" element={<PolicyManagementPage />} />
+            <Route path="/admin/users" element={<UserManagementPage />} />
+            <Route path="/admin/health" element={<SystemHealthPage />} />
             <Route path="/admin/audit" element={<AuditLogPage />} />
 
             {/* Notifications & Settings */}
@@ -139,9 +151,9 @@ export function App() {
             <Route path="/settings" element={<SettingsPage />} />
 
             {/* Help */}
-            <Route path="/help/assistant" element={<PlaceholderPage title="AI Assistant" />} />
-            <Route path="/help/kb" element={<PlaceholderPage title="Knowledge Base" />} />
-            <Route path="/help/support" element={<PlaceholderPage title="Contact Support" />} />
+            <Route path="/help/assistant" element={<AIAssistantPage />} />
+            <Route path="/help/kb" element={<KnowledgeBasePage />} />
+            <Route path="/help/support" element={<ContactSupportPage />} />
           </Route>
 
           {/* Supplier Portal routes */}
