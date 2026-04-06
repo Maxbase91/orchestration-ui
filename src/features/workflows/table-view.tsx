@@ -6,6 +6,8 @@ import { getUserById } from '@/data/users';
 import { getStatusLabel } from '@/lib/status';
 import type { ProcurementRequest } from '@/data/types';
 import { cn } from '@/lib/utils';
+import { getIntegrationsForRequest } from '@/data/system-integrations';
+import { systemColors } from '@/data/system-integrations';
 
 type Row = ProcurementRequest & Record<string, unknown>;
 
@@ -83,6 +85,22 @@ export function TableView({ requests }: TableViewProps) {
       render: (item) => {
         const user = getUserById(item.ownerId as string);
         return <span className="text-sm">{user?.name ?? '—'}</span>;
+      },
+    },
+    {
+      key: 'systemIntegration',
+      label: 'System',
+      render: (item) => {
+        const integrations = getIntegrationsForRequest(item.id);
+        const active = integrations.find((i) => i.status !== 'completed');
+        if (!active) return <span className="text-sm text-muted-foreground">—</span>;
+        const colors = systemColors[active.system];
+        return (
+          <span className={cn('inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium', colors)}>
+            <span className="size-1.5 rounded-full bg-current" />
+            {active.systemLabel}
+          </span>
+        );
       },
     },
     {

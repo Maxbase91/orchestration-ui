@@ -51,6 +51,16 @@ export const aiAgents: AIAgent[] = [
     lastUpdated: '2024-12-20T11:00:00Z',
     description: 'Recommends optimal suppliers for new procurement requests based on category match, performance scores, risk ratings, capacity, and pricing history. Currently in pilot — accuracy below threshold for production deployment.',
   },
+  {
+    id: 'AI-006',
+    name: 'PR Compliance Reviewer',
+    type: 'validation',
+    status: 'active',
+    accuracy: 96.1,
+    decisionsMade: 534,
+    lastUpdated: '2025-01-08',
+    description: 'Reviews purchase requisitions before PO creation. Validates budget availability, contract coverage, supplier compliance status, and policy adherence. Produces a compliance report with pass/fail decision and detailed findings.',
+  },
 ];
 
 export function getAgentById(id: string): AIAgent | undefined {

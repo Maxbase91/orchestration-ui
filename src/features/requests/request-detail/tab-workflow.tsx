@@ -11,6 +11,8 @@ import { ReferBackDialog } from './components/refer-back-dialog';
 import { ReassignDialog } from './components/reassign-dialog';
 import { LifecycleStepper } from './components/lifecycle-stepper';
 import { getStatusLabel } from '@/lib/status';
+import { getIntegrationsForRequest } from '@/data/system-integrations';
+import { SystemIntegrationTimeline } from '@/components/shared/system-integration-timeline';
 
 interface TabWorkflowProps {
   request: ProcurementRequest;
@@ -22,6 +24,7 @@ export function TabWorkflow({ request }: TabWorkflowProps) {
   const [reassignOpen, setReassignOpen] = useState(false);
 
   const owner = getUserById(request.ownerId);
+  const integrations = getIntegrationsForRequest(request.id);
 
   const events: TimelineEvent[] = history.map((entry, index) => {
     const user = getUserById(entry.ownerId);
@@ -98,6 +101,13 @@ export function TabWorkflow({ request }: TabWorkflowProps) {
           </div>
         </div>
       </div>
+
+      {integrations.length > 0 && (
+        <div className="bg-card rounded-md shadow-[0_1px_4px_rgba(0,0,0,0.08)] p-6">
+          <h3 className="text-sm font-semibold text-gray-900 mb-4">System Integrations</h3>
+          <SystemIntegrationTimeline integrations={integrations} />
+        </div>
+      )}
 
       <ReferBackDialog open={referBackOpen} onOpenChange={setReferBackOpen} request={request} />
       <ReassignDialog open={reassignOpen} onOpenChange={setReassignOpen} />

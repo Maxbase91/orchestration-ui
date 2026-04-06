@@ -8,6 +8,8 @@ import { ProcessStepper, type Step } from '@/components/shared/process-stepper';
 import { getPurchaseOrderById } from '@/data/purchase-orders';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { GoodsReceiptForm } from './components/goods-receipt-form';
+import { getComplianceReport } from '@/data/compliance-reports';
+import { ComplianceReportCard } from '@/components/shared/compliance-report-card';
 
 const poStages = ['draft', 'submitted', 'acknowledged', 'received', 'closed'] as const;
 
@@ -39,6 +41,7 @@ export function PODetailPage() {
 
   const effectiveStatus = po.status === 'partially-received' ? 'received' : po.status;
   const steps = getSteps(effectiveStatus);
+  const complianceReport = po.requestId ? getComplianceReport(po.requestId) : undefined;
 
   return (
     <div className="space-y-5">
@@ -68,6 +71,12 @@ export function PODetailPage() {
           <ProcessStepper steps={steps} />
         </CardContent>
       </Card>
+
+      {complianceReport && (
+        <div className="bg-card rounded-md shadow-[0_1px_4px_rgba(0,0,0,0.08)] p-6">
+          <ComplianceReportCard report={complianceReport} defaultExpanded />
+        </div>
+      )}
 
       <Card>
         <CardHeader><CardTitle className="text-base">Line Items</CardTitle></CardHeader>

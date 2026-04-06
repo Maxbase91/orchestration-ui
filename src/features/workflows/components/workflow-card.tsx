@@ -9,7 +9,11 @@ import {
   ArrowRight,
   ArrowDown,
   AlertTriangle,
+  Sparkles,
 } from 'lucide-react';
+import { getComplianceReport } from '@/data/compliance-reports';
+import { getIntegrationsForRequest } from '@/data/system-integrations';
+import { SystemIntegrationBadge } from '@/components/shared/system-integration-badge';
 
 const priorityConfig: Record<string, { icon: typeof ArrowUp; color: string }> = {
   urgent: { icon: AlertTriangle, color: 'text-red-600' },
@@ -42,6 +46,10 @@ export function WorkflowCard({ request, onClick }: WorkflowCardProps) {
   const owner = getUserById(request.ownerId);
   const priority = priorityConfig[request.priority] ?? priorityConfig.medium;
   const PriorityIcon = priority.icon;
+
+  const complianceReport = getComplianceReport(request.id);
+  const integrations = getIntegrationsForRequest(request.id);
+  const activeIntegration = integrations.find((i) => i.status !== 'completed');
 
   const isApproachingSLA = request.daysInStage >= 4 && !request.isOverdue;
   const borderClass = request.isOverdue
@@ -99,6 +107,20 @@ export function WorkflowCard({ request, onClick }: WorkflowCardProps) {
           {request.daysInStage}d in stage
         </span>
       </div>
+
+      {(complianceReport || activeIntegration) && (
+        <div className="mt-2 flex items-center gap-2 flex-wrap">
+          {complianceReport && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-purple-50 border border-purple-200 px-2 py-0.5 text-[10px] font-medium text-purple-700">
+              <Sparkles className="size-2.5" />
+              AI Reviewed
+            </span>
+          )}
+          {activeIntegration && (
+            <SystemIntegrationBadge integration={activeIntegration} compact />
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -3,6 +3,8 @@ import type { ProcurementRequest, RequestStatus, StageHistoryEntry } from '@/dat
 import { getStageHistoryByRequestId } from '@/data/stage-history';
 import { getUserById } from '@/data/users';
 import { formatDate } from '@/lib/format';
+import { getIntegrationsForRequest } from '@/data/system-integrations';
+import { systemLabels, systemColors } from '@/data/system-integrations';
 
 const LIFECYCLE_STAGES: { id: RequestStatus; label: string }[] = [
   { id: 'intake', label: 'Intake' },
@@ -77,6 +79,20 @@ export function LifecycleStepper({ request }: LifecycleStepperProps) {
       daysInStep,
     };
   });
+
+  // Attach system integration info to matching steps
+  const integrations = getIntegrationsForRequest(request.id);
+  for (const integration of integrations) {
+    const matchingStep = steps.find((s) => s.id === integration.stage);
+    if (matchingStep) {
+      matchingStep.systemIntegration = {
+        system: integration.system,
+        systemLabel: systemLabels[integration.system],
+        status: integration.status,
+        colorClass: systemColors[integration.system],
+      };
+    }
+  }
 
   return <ProcessStepper steps={steps} />;
 }

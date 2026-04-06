@@ -4,6 +4,8 @@ import { getSupplierById } from '@/data/suppliers';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { getAISummary } from '@/lib/mock-ai';
 import { AISuggestionCard } from '@/components/shared/ai-suggestion-card';
+import { ComplianceReportCard } from '@/components/shared/compliance-report-card';
+import { getComplianceReport } from '@/data/compliance-reports';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 const DEUBA_LABELS: Record<string, string> = {
@@ -42,6 +44,7 @@ export function TabOverview({ request }: TabOverviewProps) {
   const owner = getUserById(request.ownerId);
   const supplier = request.supplierId ? getSupplierById(request.supplierId) : undefined;
   const summary = getAISummary('request', request.id);
+  const complianceReport = getComplianceReport(request.id);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -77,6 +80,11 @@ export function TabOverview({ request }: TabOverviewProps) {
         <AISuggestionCard title="Request Summary" confidence={0.92}>
           <p>{summary}</p>
         </AISuggestionCard>
+        {complianceReport && (
+          <div className="mt-4">
+            <ComplianceReportCard report={complianceReport} />
+          </div>
+        )}
       </div>
     </div>
   );

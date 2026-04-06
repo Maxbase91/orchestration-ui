@@ -10,12 +10,28 @@ interface Step {
   date?: string;
   owner?: string;
   daysInStep?: number;
+  systemIntegration?: {
+    system: string;
+    systemLabel: string;
+    status: string;
+    colorClass: string;
+  };
 }
 
 interface ProcessStepperProps {
   steps: Step[];
   onStepClick?: (stepId: string) => void;
 }
+
+const integrationStatusLabels: Record<string, string> = {
+  'pending-handover': 'Pending',
+  'submitted': 'Submitted',
+  'awaiting-response': 'Awaiting response',
+  'processing': 'Processing',
+  'completed': 'Completed',
+  'error': 'Error',
+  'timeout': 'Timeout',
+};
 
 const stepStyles: Record<StepStatus, { dot: string; line: string; label: string }> = {
   completed: {
@@ -84,6 +100,13 @@ export function ProcessStepper({ steps, onStepClick }: ProcessStepperProps) {
               )}
               {step.daysInStep !== undefined && (
                 <p className="text-[10px] text-muted-foreground">{step.daysInStep}d</p>
+              )}
+              {step.systemIntegration && (
+                <div className={cn('mt-1 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium', step.systemIntegration.colorClass)}>
+                  <span className="size-1.5 rounded-full bg-current" />
+                  {step.systemIntegration.systemLabel}
+                  <span className="opacity-70">— {integrationStatusLabels[step.systemIntegration.status] ?? step.systemIntegration.status}</span>
+                </div>
               )}
             </div>
             {!isLast && (
