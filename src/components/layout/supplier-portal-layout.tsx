@@ -1,4 +1,4 @@
-import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   Home,
   Building2,
@@ -9,6 +9,7 @@ import {
   MessageSquare,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuthStore } from '@/stores/auth-store';
 import { RoleSwitcher } from './role-switcher';
 import { NotificationBell } from './notification-bell';
 
@@ -23,8 +24,13 @@ const portalNavItems = [
 ];
 
 export function SupplierPortalLayout() {
+  const { currentRole } = useAuthStore();
   const location = useLocation();
   const navigate = useNavigate();
+
+  if (currentRole !== 'supplier') {
+    return <Navigate to="/" replace />;
+  }
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-surface">
