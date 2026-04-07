@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react';
-import { ArrowLeft, ArrowRight, Save, Send } from 'lucide-react';
+import { useState, useCallback, Component, type ReactNode, type ErrorInfo } from 'react';
+import { ArrowLeft, ArrowRight, Save, Send, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { StepCategory } from './step-category';
@@ -67,6 +67,27 @@ const STEPS = [
 function generateRequestId(): string {
   const num = Math.floor(1000 + Math.random() * 9000);
   return `REQ-2025-${num}`;
+}
+
+class StepErrorBoundary extends Component<{ children: ReactNode; onReset: () => void }, { error: Error | null }> {
+  state: { error: Error | null } = { error: null };
+  static getDerivedStateFromError(error: Error) { return { error }; }
+  componentDidCatch(error: Error, info: ErrorInfo) { console.error('Step error:', error, info); }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <AlertTriangle className="size-8 text-amber-500 mb-3" />
+          <p className="text-sm font-medium text-gray-900 mb-1">Something went wrong in this step</p>
+          <p className="text-xs text-gray-500 mb-4 max-w-md">{this.state.error.message}</p>
+          <Button size="sm" variant="outline" onClick={() => { this.setState({ error: null }); this.props.onReset(); }}>
+            Start Over
+          </Button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 export function NewRequestPage() {
@@ -185,6 +206,7 @@ export function NewRequestPage() {
 
       {/* Step Content */}
       <div className="rounded-lg border border-gray-200 bg-white p-6">
+        <StepErrorBoundary onReset={handleReset}>
         {currentStep === 1 && (
           <StepCategory
             category={formData.category}
@@ -247,6 +269,7 @@ export function NewRequestPage() {
             onReset={handleReset}
           />
         )}
+        </StepErrorBoundary>
       </div>
 
       {/* Navigation */}

@@ -155,13 +155,16 @@ export function StepCategory({ category, categoryDescription, onUpdate }: StepCa
     const selectedCategory = af.category ?? aiSuggestions[0]?.category ?? category;
     const cat = CATEGORIES.find((c) => c.id === selectedCategory);
 
-    onUpdate({
+    const updates: Record<string, string> = {
       category: selectedCategory,
       categoryDescription: cat?.name ?? selectedCategory ?? categoryDescription,
       title: inputValue,
-      commodityCode: af.commodityCode,
-      commodityCodeLabel: af.commodityCodeLabel,
-    });
+    };
+    // Only set commodity fields if they have values — avoid overwriting with undefined
+    if (af.commodityCode) updates.commodityCode = af.commodityCode;
+    if (af.commodityCodeLabel) updates.commodityCodeLabel = af.commodityCodeLabel;
+
+    onUpdate(updates as { category: string; categoryDescription: string });
     setAccepted(true);
   };
 
