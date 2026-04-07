@@ -218,6 +218,7 @@ export const navigation: NavGroup[] = [
     visibleTo: ['admin'],
     items: [
       { id: 'routing-rules', label: 'Routing Rules', icon: 'Route', path: '/admin/rules', visibleTo: ['admin'] },
+      { id: 'form-builder', label: 'Form Builder', icon: 'ClipboardList', path: '/admin/forms', visibleTo: ['admin'] },
       { id: 'approval-chains', label: 'Approval Chains', icon: 'Link', path: '/admin/approvals', visibleTo: ['admin'] },
       { id: 'workflow-designer', label: 'Workflow Designer', icon: 'PenTool', path: '/admin/workflows', visibleTo: ['admin'] },
       { id: 'ai-agent-config', label: 'AI Agent Configuration', icon: 'Bot', path: '/admin/agents', visibleTo: ['admin'] },

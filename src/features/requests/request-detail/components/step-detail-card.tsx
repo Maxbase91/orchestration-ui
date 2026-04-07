@@ -1,10 +1,12 @@
-import { forwardRef } from 'react';
+import { forwardRef, useState, useCallback } from 'react';
+import { toast } from 'sonner';
 import type { WorkflowStepDetail } from '@/data/workflow-step-details';
 import type { StageHistoryEntry } from '@/data/types';
 import { getUserById } from '@/data/users';
 import { formatDate } from '@/lib/format';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import {
@@ -18,9 +20,15 @@ import {
   ClipboardList,
   Timer,
   Shield,
+  PenLine,
 } from 'lucide-react';
 import { systemColors, systemLabels } from '@/data/system-integrations';
 import type { ExternalSystem } from '@/data/system-integrations';
+import { getSubmissionForStage } from '@/data/form-submissions';
+import { getFormTemplate, getFormsForStage } from '@/data/form-templates';
+import type { FormTemplate } from '@/data/form-templates';
+import { FormSubmissionView } from '@/components/shared/form-submission-view';
+import { DynamicForm } from '@/components/shared/dynamic-form';
 
 interface StepDetailCardProps {
   stage: string;
@@ -31,6 +39,8 @@ interface StepDetailCardProps {
   isExpanded: boolean;
   onToggle: () => void;
   isHighlighted?: boolean;
+  requestId?: string;
+  requestCategory?: string;
 }
 
 const statusConfig: Record<string, { borderClass: string; badgeClass: string; label: string }> = {
@@ -66,7 +76,7 @@ function getDurationLabel(enteredAt: string, completedAt?: string): string {
 
 export const StepDetailCard = forwardRef<HTMLDivElement, StepDetailCardProps>(
   function StepDetailCard(
-    { stageLabel, status, detail, stageHistory, isExpanded, onToggle, isHighlighted },
+    { stage, stageLabel, status, detail, stageHistory, isExpanded, onToggle, isHighlighted, requestId, requestCategory },
     ref,
   ) {
     const config = statusConfig[status];
@@ -267,37 +277,14 @@ export const StepDetailCard = forwardRef<HTMLDivElement, StepDetailCardProps>(
                 </div>
               )}
 
-              {/* Forms Completed */}
-              {detail?.formsCompleted && detail.formsCompleted.length > 0 && (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                    <ClipboardList className="size-3.5" />
-                    Forms Completed
-                  </div>
-                  {detail.formsCompleted.map((form, fi) => (
-                    <div key={fi} className="pl-5 space-y-1">
-                      <p className="text-sm font-medium text-gray-800">{form.formName}</p>
-                      <p className="text-[11px] text-muted-foreground">
-                        Completed {formatDate(form.completedAt)}
-                      </p>
-                      <div className="mt-1 rounded-md border border-gray-200 overflow-hidden">
-                        <table className="w-full text-xs">
-                          <tbody>
-                            {form.fields.map((field, idx) => (
-                              <tr key={idx} className={idx % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
-                                <td className="px-3 py-1.5 font-medium text-gray-600 w-1/3">
-                                  {field.label}
-                                </td>
-                                <td className="px-3 py-1.5 text-gray-900">{field.value}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+              {/* Forms Completed - Enhanced with FormSubmission data */}
+              <FormsSection
+                stage={stage}
+                status={status}
+                detail={detail}
+                requestId={requestId}
+                requestCategory={requestCategory}
+              />
 
               {/* Documents Added */}
               {detail?.documentsAdded && detail.documentsAdded.length > 0 && (
@@ -405,3 +392,135 @@ export const StepDetailCard = forwardRef<HTMLDivElement, StepDetailCardProps>(
     );
   },
 );
+
+// ── Forms Section ───────────────────────────────────────────────────
+
+function FormsSection({
+  stage,
+  status,
+  detail,
+  requestId,
+  requestCategory,
+}: {
+  stage: string;
+  status: string;
+  detail?: WorkflowStepDetail;
+  requestId?: string;
+  requestCategory?: string;
+}) {
+  const [expandedFormId, setExpandedFormId] = useState<string | null>(null);
+  const [submittedForms, setSubmittedForms] = useState<Set<string>>(new Set());
+
+  // Get actual form submissions for this stage
+  const submissions = requestId ? getSubmissionForStage(requestId, stage) : [];
+
+  // For current steps, check for triggered forms that haven't been submitted
+  const triggeredForms: FormTemplate[] = [];
+  if (status === 'current') {
+    const allFormsForStage = getFormsForStage(stage);
+    for (const form of allFormsForStage) {
+      // Check trigger conditions
+      if (form.triggerConditions && form.triggerConditions.length > 0) {
+        const conditionMet = form.triggerConditions.some((cond) => {
+          if (cond.field === 'category' && cond.operator === 'equals') {
+            return requestCategory === cond.value;
+          }
+          return true;
+        });
+        if (!conditionMet) continue;
+      }
+      // Check if already submitted
+      const alreadySubmitted = submissions.some((s) => s.formTemplateId === form.id);
+      if (!alreadySubmitted && !submittedForms.has(form.id)) {
+        triggeredForms.push(form);
+      }
+    }
+  }
+
+  const handleFormSubmit = useCallback(
+    (formId: string) => {
+      setSubmittedForms((prev) => new Set([...prev, formId]));
+      setExpandedFormId(null);
+      toast.success('Form submitted');
+    },
+    [],
+  );
+
+  const hasSubmissions = submissions.length > 0;
+  const hasTriggeredForms = triggeredForms.length > 0;
+  const hasLegacyForms = detail?.formsCompleted && detail.formsCompleted.length > 0;
+
+  if (!hasSubmissions && !hasTriggeredForms && !hasLegacyForms) return null;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+        <ClipboardList className="size-3.5" />
+        {status === 'current' && hasTriggeredForms ? 'Forms' : 'Forms Completed'}
+      </div>
+
+      {/* Actual form submissions (preferred over legacy) */}
+      {submissions.map((sub) => {
+        const template = getFormTemplate(sub.formTemplateId);
+        return (
+          <div key={sub.id} className="pl-5">
+            <FormSubmissionView submission={sub} template={template} compact />
+          </div>
+        );
+      })}
+
+      {/* Legacy forms (only show if no real submission for this stage) */}
+      {!hasSubmissions && hasLegacyForms && detail?.formsCompleted?.map((form, fi) => (
+        <div key={fi} className="pl-5 space-y-1">
+          <p className="text-sm font-medium text-gray-800">{form.formName}</p>
+          <p className="text-[11px] text-muted-foreground">
+            Completed {formatDate(form.completedAt)}
+          </p>
+          <div className="mt-1 rounded-md border border-gray-200 overflow-hidden">
+            <table className="w-full text-xs">
+              <tbody>
+                {form.fields.map((field, idx) => (
+                  <tr key={idx} className={idx % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
+                    <td className="px-3 py-1.5 font-medium text-gray-600 w-1/3">
+                      {field.label}
+                    </td>
+                    <td className="px-3 py-1.5 text-gray-900">{field.value}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ))}
+
+      {/* Triggered forms for current step that need completion */}
+      {triggeredForms.map((form) => (
+        <div key={form.id} className="pl-5 space-y-2">
+          <div className="rounded-md border border-amber-200 bg-amber-50/50 p-3">
+            <p className="text-sm font-medium text-gray-800">{form.name}</p>
+            <p className="mt-0.5 text-xs text-gray-500">{form.description}</p>
+            {expandedFormId === form.id ? (
+              <div className="mt-3">
+                <DynamicForm
+                  template={form}
+                  onSubmit={() => handleFormSubmit(form.id)}
+                  onCancel={() => setExpandedFormId(null)}
+                />
+              </div>
+            ) : (
+              <Button
+                size="sm"
+                variant="outline"
+                className="mt-2 text-xs"
+                onClick={() => setExpandedFormId(form.id)}
+              >
+                <PenLine className="size-3" />
+                Fill Out Form
+              </Button>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}

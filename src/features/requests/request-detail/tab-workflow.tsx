@@ -228,6 +228,8 @@ export function TabWorkflow({ request }: TabWorkflowProps) {
               isExpanded={expandedStages.has(stage.id)}
               onToggle={() => toggleStage(stage.id)}
               isHighlighted={highlightedStage === stage.id}
+              requestId={request.id}
+              requestCategory={request.category}
             />
           ))}
         </div>

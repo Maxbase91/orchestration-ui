@@ -1,9 +1,12 @@
-import { useEffect, useState } from 'react';
-import { Loader2, Info } from 'lucide-react';
+import { useEffect, useState, useCallback } from 'react';
+import { Loader2, Info, ChevronDown, ChevronUp, AlertTriangle, CheckCircle } from 'lucide-react';
 import { ComplianceCheckResult } from './components/compliance-check-result';
 import { AISuggestionCard } from '@/components/shared/ai-suggestion-card';
 import { formatCurrency } from '@/lib/format';
 import { suppliers } from '@/data/suppliers';
+import { getFormTemplate } from '@/data/form-templates';
+import { DynamicForm } from '@/components/shared/dynamic-form';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { BuyingChannel } from '@/data/types';
 
 interface ComplianceData {
@@ -187,6 +190,161 @@ export function StepCompliance({
           Some checks require attention. Review the warnings above before proceeding.
         </div>
       )}
+
+      {/* Risk Assessment Triage Form */}
+      <RiskAssessmentTriageSection
+        category={category}
+        supplierName={suppliers.find((s) => s.id === supplierId)?.name ?? ''}
+        estimatedValue={estimatedValue}
+      />
+
+      {/* IT Security Assessment (software only) */}
+      {category === 'software' && (
+        <ITSecurityAssessmentSection />
+      )}
     </div>
+  );
+}
+
+// ── Risk Assessment Triage Section ──────────────────────────────────
+
+function RiskAssessmentTriageSection({
+  category,
+  supplierName,
+  estimatedValue,
+}: {
+  category: string;
+  supplierName: string;
+  estimatedValue: number;
+}) {
+  const [collapsed, setCollapsed] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [triageResult, setTriageResult] = useState<'full-sra' | 'no-action' | null>(null);
+
+  const handleTriageSubmit = useCallback(
+    (values: Record<string, string | string[] | boolean>) => {
+      const sraStatus = values['f001-sra-status'] as string;
+      const dataSensitivity = values['f001-data-sensitivity'] as string;
+      const needsFullSRA =
+        sraStatus === 'no' ||
+        sraStatus === 'unknown' ||
+        dataSensitivity === 'high' ||
+        dataSensitivity === 'critical';
+      setTriageResult(needsFullSRA ? 'full-sra' : 'no-action');
+      setSubmitted(true);
+    },
+    [],
+  );
+
+  const template = getFormTemplate('FORM-001');
+  if (!template) return null;
+
+  const prePopulateContext: Record<string, string> = {
+    supplierName,
+    value: String(estimatedValue),
+    category,
+  };
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <button
+          type="button"
+          onClick={() => setCollapsed(!collapsed)}
+          className="flex w-full items-center justify-between text-left"
+        >
+          <CardTitle className="text-sm">Risk Assessment Triage</CardTitle>
+          {collapsed ? (
+            <ChevronDown className="size-4 text-gray-400" />
+          ) : (
+            <ChevronUp className="size-4 text-gray-400" />
+          )}
+        </button>
+        <p className="text-xs text-muted-foreground">
+          Complete this short questionnaire to determine risk assessment requirements.
+        </p>
+      </CardHeader>
+      {!collapsed && (
+        <CardContent className="space-y-4">
+          {!submitted ? (
+            <DynamicForm
+              template={template}
+              prePopulateContext={prePopulateContext}
+              onSubmit={handleTriageSubmit}
+            />
+          ) : triageResult === 'full-sra' ? (
+            <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4">
+              <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />
+              <div>
+                <p className="text-sm font-medium text-amber-800">
+                  Full Supplier Risk Assessment required
+                </p>
+                <p className="mt-1 text-xs text-amber-700">
+                  A detailed questionnaire will be triggered during the Validation stage.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-start gap-3 rounded-lg border border-green-200 bg-green-50 p-4">
+              <CheckCircle className="mt-0.5 size-4 shrink-0 text-green-600" />
+              <div>
+                <p className="text-sm font-medium text-green-800">
+                  No additional risk assessment required at this time.
+                </p>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      )}
+    </Card>
+  );
+}
+
+// ── IT Security Assessment Section ──────────────────────────────────
+
+function ITSecurityAssessmentSection() {
+  const [collapsed, setCollapsed] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+
+  const template = getFormTemplate('FORM-006');
+  if (!template) return null;
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <button
+          type="button"
+          onClick={() => setCollapsed(!collapsed)}
+          className="flex w-full items-center justify-between text-left"
+        >
+          <CardTitle className="text-sm">IT Security Assessment</CardTitle>
+          {collapsed ? (
+            <ChevronDown className="size-4 text-gray-400" />
+          ) : (
+            <ChevronUp className="size-4 text-gray-400" />
+          )}
+        </button>
+        <p className="text-xs text-muted-foreground">
+          Required for software and SaaS procurement to ensure IT security compliance.
+        </p>
+      </CardHeader>
+      {!collapsed && (
+        <CardContent>
+          {!submitted ? (
+            <DynamicForm
+              template={template}
+              onSubmit={() => setSubmitted(true)}
+            />
+          ) : (
+            <div className="flex items-start gap-3 rounded-lg border border-green-200 bg-green-50 p-4">
+              <CheckCircle className="mt-0.5 size-4 shrink-0 text-green-600" />
+              <p className="text-sm font-medium text-green-800">
+                IT Security Assessment submitted.
+              </p>
+            </div>
+          )}
+        </CardContent>
+      )}
+    </Card>
   );
 }

@@ -22,6 +22,7 @@ import { SupplierMessagesPage } from '@/features/suppliers/supplier-messages-pag
 import { ApprovalsPage } from '@/features/approvals/approvals-page'
 import { DelegationPage } from '@/features/approvals/delegation-page'
 import { RoutingRulesPage } from '@/features/admin/routing-rules/routing-rules-page'
+import { FormBuilderPage } from '@/features/admin/forms/form-builder-page'
 import { AIAgentsPage } from '@/features/admin/ai-agents/ai-agents-page'
 import { WorkflowDesignerPage } from '@/features/admin/workflow-designer/workflow-designer-page'
 import { EventListPage } from '@/features/sourcing/event-list-page'
@@ -138,6 +139,7 @@ export function App() {
 
             {/* Admin */}
             <Route path="/admin/rules" element={<RoutingRulesPage />} />
+            <Route path="/admin/forms" element={<FormBuilderPage />} />
             <Route path="/admin/approvals" element={<ApprovalChainsPage />} />
             <Route path="/admin/workflows" element={<WorkflowDesignerPage />} />
             <Route path="/admin/agents" element={<AIAgentsPage />} />
