@@ -102,13 +102,13 @@ export function getAICategorySuggestions(input: string): { category: string; con
   const suggestions: { category: string; confidence: number }[] = [];
 
   const categoryKeywords: Record<string, string[]> = {
-    software: ['software', 'license', 'saas', 'platform', 'subscription', 'cloud', 'app', 'tool'],
-    goods: ['hardware', 'equipment', 'furniture', 'device', 'laptop', 'sensor', 'supplies', 'material'],
-    services: ['service', 'cleaning', 'catering', 'facility', 'management', 'maintenance', 'travel'],
-    consulting: ['consulting', 'advisory', 'audit', 'strategy', 'assessment', 'review', 'transformation'],
-    'contingent-labour': ['temp', 'contractor', 'staffing', 'contingent', 'resource', 'developer', 'analyst'],
-    'contract-renewal': ['renewal', 'renew', 'extend', 'extension'],
-    'supplier-onboarding': ['onboard', 'new supplier', 'register supplier', 'vendor registration'],
+    software: ['software', 'license', 'saas', 'platform', 'subscription', 'cloud', 'app', 'tool', 'system', 'application', 'database', 'crm', 'erp', 'sap', 'salesforce', 'databricks', 'microsoft', 'digital'],
+    goods: ['hardware', 'equipment', 'furniture', 'device', 'laptop', 'sensor', 'supplies', 'material', 'buy', 'purchase', 'order', 'chair', 'desk', 'monitor', 'phone', 'printer', 'server', 'product', 'item', 'office'],
+    services: ['service', 'cleaning', 'catering', 'facility', 'management', 'maintenance', 'travel', 'security', 'support', 'outsourc', 'manage', 'operate', 'provider'],
+    consulting: ['consulting', 'advisory', 'audit', 'strategy', 'assessment', 'review', 'transformation', 'consultant', 'advice', 'expert', 'analyse', 'analyze', 'recommend', 'engage'],
+    'contingent-labour': ['temp', 'contractor', 'staffing', 'contingent', 'resource', 'developer', 'analyst', 'freelance', 'interim', 'worker', 'hire', 'augment', 'external staff'],
+    'contract-renewal': ['renewal', 'renew', 'extend', 'extension', 'expir', 'expire', 'continue', 'prolong'],
+    'supplier-onboarding': ['onboard', 'new supplier', 'register supplier', 'vendor registration', 'new vendor', 'add supplier', 'register vendor'],
   };
 
   for (const [category, keywords] of Object.entries(categoryKeywords)) {

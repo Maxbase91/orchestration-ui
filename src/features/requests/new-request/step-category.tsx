@@ -294,28 +294,41 @@ export function StepCategory({ category, categoryDescription, onUpdate }: StepCa
         </div>
       )}
 
-      {/* Category-only suggestions (fallback when no full guidance) */}
-      {aiSuggestions.length > 0 && !aiGuidance && !accepted && (
-        <AISuggestionCard
-          title="Category suggestions based on your description"
-          confidence={Math.round(aiSuggestions[0].confidence * 100)}
-          showExplanation
-          explanation="The AI matched keywords in your description against known procurement categories."
-        >
-          <div className="space-y-2">
+      {/* Category-only suggestions (shown alongside or as fallback) */}
+      {aiSuggestions.length > 0 && !accepted && (
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-gray-500">
+            {aiGuidance ? 'Other matching categories' : 'Suggested categories based on your description'}
+          </p>
+          <div className="flex flex-wrap gap-2">
             {aiSuggestions.map((s) => (
               <button
                 key={s.category}
                 type="button"
                 onClick={() => handleAiCategoryAccept(s)}
-                className="flex w-full items-center justify-between rounded-md border border-blue-200 bg-white px-3 py-2 text-left text-sm transition-colors hover:bg-blue-50"
+                className="inline-flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm transition-colors hover:bg-blue-50 hover:border-blue-200"
               >
                 <span className="font-medium text-gray-900">{categoryLabel(s.category)}</span>
-                <span className="text-xs text-gray-500">{Math.round(s.confidence * 100)}% match</span>
+                <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500">{Math.round(s.confidence * 100)}%</span>
               </button>
             ))}
           </div>
-        </AISuggestionCard>
+        </div>
+      )}
+
+      {/* Fallback when text entered but no matches */}
+      {inputValue.length >= 3 && aiSuggestions.length === 0 && !aiGuidance && !accepted && (
+        <div className="rounded-md border border-amber-200 bg-amber-50/50 p-3 flex items-start gap-2">
+          <HelpCircle className="size-4 text-amber-500 mt-0.5 shrink-0" />
+          <div>
+            <p className="text-sm text-amber-800">
+              I couldn&apos;t identify a specific category from your description. Try adding more detail, or select a category below.
+            </p>
+            <p className="text-xs text-amber-600 mt-1">
+              Tip: mention what you&apos;re buying (e.g., &quot;laptops&quot;, &quot;consulting&quot;, &quot;software license&quot;) or the action needed (&quot;renew&quot;, &quot;onboard supplier&quot;).
+            </p>
+          </div>
+        </div>
       )}
 
       {/* Manual category selection */}

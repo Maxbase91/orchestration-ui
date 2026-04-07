@@ -82,6 +82,36 @@ export const aiResponses: AIResponse[] = [
     suggestions: ['Check Sodexo contract scope', 'Review employee satisfaction scores', 'Consider competitive tender if renewal'],
     autoFill: { category: 'services', commodityCode: '90101600', commodityCodeLabel: 'Catering services', buyingChannel: 'procurement-led' },
   },
+  {
+    keywords: ['buy', 'purchase', 'order', 'need', 'want', 'get', 'procure'],
+    context: 'intake',
+    response: 'I can help you get started. Based on your description, I will identify the right category, buying channel, and approval path. Please add a few more details about what you need — such as the type of product or service, estimated value, or supplier name.',
+    confidence: 0.7,
+    suggestions: ['Specify the product or service type', 'Include an estimated budget', 'Mention the supplier if known'],
+  },
+  {
+    keywords: ['chair', 'desk', 'monitor', 'screen', 'keyboard', 'mouse', 'headset', 'office supplies'],
+    context: 'intake',
+    response: 'Office equipment and supplies can typically be ordered through our catalogue channel for items under €5K. For larger orders or custom specifications, a Business-Led or Procurement-Led channel may apply.',
+    confidence: 0.88,
+    suggestions: ['Check catalogue for standard items', 'Get ergonomic assessment if needed', 'Confirm budget with cost centre owner'],
+    autoFill: { category: 'goods', commodityCode: '56101500', commodityCodeLabel: 'Office furniture and equipment', buyingChannel: 'catalogue' },
+  },
+  {
+    keywords: ['train', 'training', 'course', 'workshop', 'certification', 'learn'],
+    context: 'intake',
+    response: 'Training and professional development requests are categorised as services. For external training providers, standard Business-Led channel applies under €25K. Group bookings or annual training programmes may require Procurement-Led sourcing.',
+    confidence: 0.85,
+    suggestions: ['Check L&D approved provider list', 'Compare online vs in-person options', 'Bundle with team training for better rates'],
+    autoFill: { category: 'services', commodityCode: '86132000', commodityCodeLabel: 'Training services', buyingChannel: 'business-led' },
+  },
+  {
+    keywords: ['help', 'not sure', 'how do i', 'what do i', 'which', 'process'],
+    context: 'intake',
+    response: 'No problem — I can guide you through the right process. Try describing what you need in plain language. For example: "I need new laptops for my team" or "We want to hire a consulting firm for a strategy review". I will identify the category, route, and approvals needed.',
+    confidence: 0.75,
+    suggestions: ['Describe the product or service you need', 'Mention the approximate value', 'Include the timeline or urgency'],
+  },
 
   // Chat context
   {
