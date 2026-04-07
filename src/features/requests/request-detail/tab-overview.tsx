@@ -8,8 +8,8 @@ import { ComplianceReportCard } from '@/components/shared/compliance-report-card
 import { getComplianceReport } from '@/data/compliance-reports';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
-const DEUBA_LABELS: Record<string, string> = {
-  'gp-led': 'GP-Led',
+const BUYING_CHANNEL_LABELS: Record<string, string> = {
+  'procurement-led': 'Procurement-Led',
   'business-led': 'Business-Led',
   'direct-po': 'Direct PO',
   'framework-call-off': 'Framework Call-Off',
@@ -58,7 +58,7 @@ export function TabOverview({ request }: TabOverviewProps) {
               <DetailRow label="Category" value={CATEGORY_LABELS[request.category] ?? request.category} />
               <DetailRow label="Supplier" value={supplier?.name} />
               <DetailRow label="Value" value={formatCurrency(request.value, request.currency)} />
-              <DetailRow label="DEUBA / Buying Channel" value={DEUBA_LABELS[request.deuba] ?? request.deuba} />
+              <DetailRow label="Buying Channel" value={BUYING_CHANNEL_LABELS[request.buyingChannel] ?? request.buyingChannel} />
               <DetailRow label="Commodity Code" value={`${request.commodityCode} - ${request.commodityCodeLabel}`} />
               <DetailRow label="Cost Centre" value={request.costCentre} />
               <DetailRow label="Budget Owner" value={request.budgetOwner} />

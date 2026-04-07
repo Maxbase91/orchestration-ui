@@ -80,16 +80,16 @@ export function VendorManagerDashboard() {
             title="Pre-Validation Summary"
             confidence={92}
             showExplanation
-            explanation="AI analysis based on historical validation patterns, DEUBA rules, commodity code mappings, and supplier TPRA status."
+            explanation="AI analysis based on historical validation patterns, buying channel rules, commodity code mappings, and supplier SRA status."
           >
             <ul className="space-y-2 list-none">
               <li className="flex items-start gap-2">
                 <span className="mt-1 size-1.5 shrink-0 rounded-full bg-green-400" />
-                <span>{validationQueue.filter((r) => r.deuba === 'gp-led' || r.deuba === 'framework-call-off').length} requests have correct DEUBA classification.</span>
+                <span>{validationQueue.filter((r) => r.buyingChannel === 'procurement-led' || r.buyingChannel === 'framework-call-off').length} requests have correct buying channel classification.</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="mt-1 size-1.5 shrink-0 rounded-full bg-amber-400" />
-                <span>{validationQueue.filter((r) => r.deuba === 'business-led' || r.deuba === 'direct-po').length} requests may need DEUBA reclassification.</span>
+                <span>{validationQueue.filter((r) => r.buyingChannel === 'business-led' || r.buyingChannel === 'direct-po').length} requests may need buying channel reclassification.</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="mt-1 size-1.5 shrink-0 rounded-full bg-red-400" />

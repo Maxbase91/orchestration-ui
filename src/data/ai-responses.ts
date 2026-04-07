@@ -8,7 +8,7 @@ export const aiResponses: AIResponse[] = [
     response: 'Based on our records, we have existing framework agreements with AWS (SUP-006) and Microsoft Azure (SUP-007). I recommend using the framework call-off channel for faster processing. Current cloud spend is €1.57M annually.',
     confidence: 0.92,
     suggestions: ['Use existing AWS framework agreement', 'Compare with Azure pricing', 'Check reserved instance discounts'],
-    autoFill: { category: 'software', commodityCode: '81112200', commodityCodeLabel: 'Cloud computing services', deuba: 'framework-call-off' },
+    autoFill: { category: 'software', commodityCode: '81112200', commodityCodeLabel: 'Cloud computing services', buyingChannel: 'framework-call-off' },
   },
   {
     keywords: ['laptop', 'computer', 'hardware', 'device', 'workstation'],
@@ -16,15 +16,15 @@ export const aiResponses: AIResponse[] = [
     response: 'IT hardware requests can be processed through our Lenovo catalogue agreement (CON-016). For orders under €25K, the catalogue channel applies with simplified approval. Current framework pricing is 15% below list.',
     confidence: 0.95,
     suggestions: ['Use Lenovo catalogue', 'Check current inventory', 'Verify specs with IT standards'],
-    autoFill: { category: 'goods', commodityCode: '43211500', commodityCodeLabel: 'Laptop computers', deuba: 'catalogue' },
+    autoFill: { category: 'goods', commodityCode: '43211500', commodityCodeLabel: 'Laptop computers', buyingChannel: 'catalogue' },
   },
   {
     keywords: ['consulting', 'advisory', 'strategy', 'transformation'],
     context: 'intake',
-    response: 'Consulting engagements always require GP-led procurement per policy. I have identified 5 approved consulting suppliers on our panel. For engagements above €500K, dual VP approval is required.',
+    response: 'Consulting engagements always require Procurement-led procurement per policy. I have identified 5 approved consulting suppliers on our panel. For engagements above €500K, dual VP approval is required.',
     confidence: 0.88,
     suggestions: ['Check approved supplier panel', 'Prepare business case', 'Consider competitive tender'],
-    autoFill: { category: 'consulting', deuba: 'gp-led' },
+    autoFill: { category: 'consulting', buyingChannel: 'procurement-led' },
   },
   {
     keywords: ['temp', 'temporary', 'contractor', 'contingent', 'staff', 'augment'],
@@ -32,12 +32,12 @@ export const aiResponses: AIResponse[] = [
     response: 'Contingent labour requests should use our framework agreements with Randstad (IT/technical) or Hays (finance/professional). Framework rates apply. Average time-to-fill is 2 weeks from approval.',
     confidence: 0.91,
     suggestions: ['Use Randstad for IT roles', 'Use Hays for finance roles', 'Check rate card compliance'],
-    autoFill: { category: 'contingent-labour', deuba: 'framework-call-off' },
+    autoFill: { category: 'contingent-labour', buyingChannel: 'framework-call-off' },
   },
   {
     keywords: ['renewal', 'renew', 'extend', 'extension', 'contract expir'],
     context: 'intake',
-    response: 'I have checked the contract register. Please specify which contract is up for renewal. For renewals under €50K, business-led channel applies. Above €50K requires GP-led with market benchmark.',
+    response: 'I have checked the contract register. Please specify which contract is up for renewal. For renewals under €50K, business-led channel applies. Above €50K requires Procurement-led with market benchmark.',
     confidence: 0.85,
     suggestions: ['Review contract performance', 'Benchmark against market rates', 'Consider recompete vs direct renewal'],
     autoFill: { category: 'contract-renewal' },
@@ -48,15 +48,15 @@ export const aiResponses: AIResponse[] = [
     response: 'SAP-related requests should be routed through the IT Procurement team (Sarah Chen). We have an existing enterprise agreement with SAP SE (SUP-002). Current contract utilisation is at 100%.',
     confidence: 0.94,
     suggestions: ['Contact SAP account manager', 'Review current license utilisation', 'Check volume discount tiers'],
-    autoFill: { category: 'software', commodityCode: '43231500', commodityCodeLabel: 'Enterprise application software', deuba: 'gp-led' },
+    autoFill: { category: 'software', commodityCode: '43231500', commodityCodeLabel: 'Enterprise application software', buyingChannel: 'procurement-led' },
   },
   {
     keywords: ['furniture', 'desk', 'chair', 'office', 'ergonomic'],
     context: 'intake',
-    response: 'Office furniture requests can use our framework agreement (CON-015). For standard ergonomic items, the catalogue channel applies. Custom or bulk orders above €25K require GP-led procurement.',
+    response: 'Office furniture requests can use our framework agreement (CON-015). For standard ergonomic items, the catalogue channel applies. Custom or bulk orders above €25K require Procurement-led procurement.',
     confidence: 0.90,
     suggestions: ['Check framework catalogue', 'Verify ergonomic standards compliance', 'Bulk discount available for >50 units'],
-    autoFill: { category: 'goods', commodityCode: '56101500', commodityCodeLabel: 'Office furniture', deuba: 'framework-call-off' },
+    autoFill: { category: 'goods', commodityCode: '56101500', commodityCodeLabel: 'Office furniture', buyingChannel: 'framework-call-off' },
   },
   {
     keywords: ['marketing', 'campaign', 'agency', 'brand', 'advertising'],
@@ -64,7 +64,7 @@ export const aiResponses: AIResponse[] = [
     response: 'Marketing services engagement. We have an active retainer with WPP (CON-011) expiring March 2025. For new scope, consider whether it fits the existing retainer or requires separate procurement.',
     confidence: 0.87,
     suggestions: ['Check WPP retainer availability', 'Review campaign brief', 'Consider competitive pitch for large scope'],
-    autoFill: { category: 'services', commodityCode: '80141600', commodityCodeLabel: 'Marketing campaign management', deuba: 'gp-led' },
+    autoFill: { category: 'services', commodityCode: '80141600', commodityCodeLabel: 'Marketing campaign management', buyingChannel: 'procurement-led' },
   },
   {
     keywords: ['security', 'audit', 'penetration', 'vulnerability', 'compliance'],
@@ -72,7 +72,7 @@ export const aiResponses: AIResponse[] = [
     response: 'Security audit requests typically fall under IT consulting. Deloitte (SUP-003) is our incumbent for ISO 27001 audits. For new assessments, consider whether continuity with existing auditor adds value.',
     confidence: 0.86,
     suggestions: ['Check Deloitte contract availability', 'Review previous audit findings', 'Verify compliance calendar'],
-    autoFill: { category: 'consulting', commodityCode: '81111800', commodityCodeLabel: 'Information security', deuba: 'gp-led' },
+    autoFill: { category: 'consulting', commodityCode: '81111800', commodityCodeLabel: 'Information security', buyingChannel: 'procurement-led' },
   },
   {
     keywords: ['catering', 'food', 'canteen', 'meal', 'restaurant'],
@@ -80,7 +80,7 @@ export const aiResponses: AIResponse[] = [
     response: 'Catering services fall under facilities management. Current provider is Sodexo (SUP-012, CON-017). For site-specific requests, check if covered under existing contract scope.',
     confidence: 0.89,
     suggestions: ['Check Sodexo contract scope', 'Review employee satisfaction scores', 'Consider competitive tender if renewal'],
-    autoFill: { category: 'services', commodityCode: '90101600', commodityCodeLabel: 'Catering services', deuba: 'gp-led' },
+    autoFill: { category: 'services', commodityCode: '90101600', commodityCodeLabel: 'Catering services', buyingChannel: 'procurement-led' },
   },
 
   // Chat context
@@ -182,7 +182,7 @@ export const aiResponses: AIResponse[] = [
   {
     keywords: ['onboard', 'new supplier', 'register', 'add supplier'],
     context: 'supplier',
-    response: 'To onboard a new supplier, you need to submit a supplier onboarding request. The process includes due diligence, sanctions screening, financial checks, and TPRA assessment. Average onboarding time is 3-4 weeks.',
+    response: 'To onboard a new supplier, you need to submit a supplier onboarding request. The process includes due diligence, sanctions screening, financial checks, and SRA assessment. Average onboarding time is 3-4 weeks.',
     confidence: 0.92,
     suggestions: ['Start onboarding', 'Check if supplier exists', 'View onboarding requirements'],
   },
@@ -194,11 +194,11 @@ export const aiResponses: AIResponse[] = [
     suggestions: ['View performance scorecard', 'Schedule review meeting', 'Compare against benchmarks'],
   },
   {
-    keywords: ['tpra', 'third party', 'risk assessment', 'due diligence'],
+    keywords: ['sra', 'third party', 'risk assessment', 'due diligence'],
     context: 'supplier',
-    response: 'Two suppliers have TPRA status requiring attention: Capgemini (expiring Feb 2025) and Konica Minolta (expiring Jan 2025). Three suppliers have not been assessed yet: Databricks, TechBridge, and GreenEnergy.',
+    response: 'Two suppliers have SRA status requiring attention: Capgemini (expiring Feb 2025) and Konica Minolta (expiring Jan 2025). Three suppliers have not been assessed yet: Databricks, TechBridge, and GreenEnergy.',
     confidence: 0.91,
-    suggestions: ['Initiate TPRA renewal', 'View assessment calendar', 'Check screening results'],
+    suggestions: ['Initiate SRA renewal', 'View assessment calendar', 'Check screening results'],
   },
   {
     keywords: ['sanction', 'screening', 'flag', 'compliance check'],
@@ -212,7 +212,7 @@ export const aiResponses: AIResponse[] = [
   {
     keywords: ['policy', 'rule', 'guideline', 'procedure'],
     context: 'general',
-    response: 'I can help with procurement policy questions. Key policies: minimum 3 quotes for spend >€25K, competitive tender for >€100K, framework agreements take priority, all consulting requires GP-led channel. Which area would you like more detail on?',
+    response: 'I can help with procurement policy questions. Key policies: minimum 3 quotes for spend >€25K, competitive tender for >€100K, framework agreements take priority, all consulting requires Procurement-led channel. Which area would you like more detail on?',
     confidence: 0.88,
     suggestions: ['View procurement policy', 'Check buying channel rules', 'Review approval thresholds'],
   },
@@ -231,9 +231,9 @@ export const aiResponses: AIResponse[] = [
     suggestions: ['Browse commodity codes', 'Search by keyword', 'View category tree'],
   },
   {
-    keywords: ['buying channel', 'route', 'channel', 'deuba'],
+    keywords: ['buying channel', 'route', 'channel', 'buying channel'],
     context: 'general',
-    response: 'Five buying channels are available: GP-led (full procurement support), Business-led (self-service with oversight), Direct PO (pre-approved suppliers), Framework Call-off (existing agreements), and Catalogue (standardised items). Channel is auto-assigned based on category and value.',
+    response: 'Five buying channels are available: Procurement-led (full procurement support), Business-led (self-service with oversight), Direct PO (pre-approved suppliers), Framework Call-off (existing agreements), and Catalogue (standardised items). Channel is auto-assigned based on category and value.',
     confidence: 0.92,
     suggestions: ['View channel decision tree', 'Check routing rules', 'Override channel assignment'],
   },
@@ -285,7 +285,7 @@ export const aiResponses: AIResponse[] = [
     response: 'Data and AI platform requests should be routed through IT Procurement. We are currently evaluating Databricks (REQ-2024-0009). Check if your requirements overlap before submitting a new request to avoid duplication.',
     confidence: 0.87,
     suggestions: ['Check existing AI/ML requests', 'Review Databricks evaluation', 'Contact data platform team'],
-    autoFill: { category: 'software', commodityCode: '43232100', commodityCodeLabel: 'Data analytics platforms', deuba: 'gp-led' },
+    autoFill: { category: 'software', commodityCode: '43232100', commodityCodeLabel: 'Data analytics platforms', buyingChannel: 'procurement-led' },
   },
   {
     keywords: ['print', 'printer', 'copier', 'scan'],
@@ -293,7 +293,7 @@ export const aiResponses: AIResponse[] = [
     response: 'Managed print services are provided by Konica Minolta (SUP-016). The current contract (REQ-2024-0008) is under renewal. For urgent print needs, contact facilities directly.',
     confidence: 0.88,
     suggestions: ['Check current contract status', 'Contact facilities', 'Request service ticket'],
-    autoFill: { category: 'contract-renewal', commodityCode: '44103100', commodityCodeLabel: 'Managed print services', deuba: 'business-led' },
+    autoFill: { category: 'contract-renewal', commodityCode: '44103100', commodityCodeLabel: 'Managed print services', buyingChannel: 'business-led' },
   },
   {
     keywords: ['travel', 'flight', 'hotel', 'booking'],
@@ -309,7 +309,7 @@ export const aiResponses: AIResponse[] = [
     response: 'Insurance procurement is managed centrally through the Risk team. Current cyber insurance renewal in progress (REQ-2024-0011). For other insurance types, contact the risk management team.',
     confidence: 0.83,
     suggestions: ['Contact risk team', 'View current policies', 'Check coverage limits'],
-    autoFill: { category: 'services', commodityCode: '84131500', commodityCodeLabel: 'Insurance services', deuba: 'gp-led' },
+    autoFill: { category: 'services', commodityCode: '84131500', commodityCodeLabel: 'Insurance services', buyingChannel: 'procurement-led' },
   },
   {
     keywords: ['warehouse', 'logistics', 'storage', 'distribution'],
@@ -317,7 +317,7 @@ export const aiResponses: AIResponse[] = [
     response: 'Warehouse and logistics equipment requests should include detailed specifications and safety requirements. We have an existing relationship with Jungheinrich (SUP-018) for material handling equipment.',
     confidence: 0.85,
     suggestions: ['Check Jungheinrich catalogue', 'Include safety specs', 'Contact warehouse manager'],
-    autoFill: { category: 'goods', commodityCode: '24102000', commodityCodeLabel: 'Industrial shelving and racking', deuba: 'business-led' },
+    autoFill: { category: 'goods', commodityCode: '24102000', commodityCodeLabel: 'Industrial shelving and racking', buyingChannel: 'business-led' },
   },
   {
     keywords: ['crm', 'salesforce', 'customer', 'sales tool'],
@@ -325,7 +325,7 @@ export const aiResponses: AIResponse[] = [
     response: 'CRM platform requests fall under IT Procurement. We have an active Salesforce agreement (SUP-023). An expansion request is currently in approval (REQ-2024-0031). Check if your needs are covered by the expansion scope.',
     confidence: 0.90,
     suggestions: ['Review current Salesforce scope', 'Check expansion request', 'Contact IT procurement'],
-    autoFill: { category: 'software', commodityCode: '43231500', commodityCodeLabel: 'CRM software', deuba: 'gp-led' },
+    autoFill: { category: 'software', commodityCode: '43231500', commodityCodeLabel: 'CRM software', buyingChannel: 'procurement-led' },
   },
   {
     keywords: ['translation', 'localisation', 'language', 'interpret'],
@@ -333,7 +333,7 @@ export const aiResponses: AIResponse[] = [
     response: 'Translation and localisation services can be procured business-led for values under €25K. For larger scopes, competitive quotes are required. A request for product documentation translation is currently in intake (REQ-2024-0034).',
     confidence: 0.84,
     suggestions: ['Check existing translation requests', 'Get competitive quotes', 'Review language requirements'],
-    autoFill: { category: 'services', commodityCode: '82121500', commodityCodeLabel: 'Translation services', deuba: 'business-led' },
+    autoFill: { category: 'services', commodityCode: '82121500', commodityCodeLabel: 'Translation services', buyingChannel: 'business-led' },
   },
   {
     keywords: ['facility', 'building', 'maintenance', 'clean'],
@@ -341,7 +341,7 @@ export const aiResponses: AIResponse[] = [
     response: 'Facilities services are managed through our FM providers. Cushman & Wakefield handles London and Amsterdam (contracting in progress), and Sodexo covers Frankfurt catering. For cleaning, a consolidation RFP is active.',
     confidence: 0.87,
     suggestions: ['Check existing FM contracts', 'Submit facilities request', 'Contact facilities manager'],
-    autoFill: { category: 'services', commodityCode: '80131500', commodityCodeLabel: 'Facilities management', deuba: 'gp-led' },
+    autoFill: { category: 'services', commodityCode: '80131500', commodityCodeLabel: 'Facilities management', buyingChannel: 'procurement-led' },
   },
   {
     keywords: ['sensor', 'iot', 'industrial', 'manufacturing', 'factory'],
@@ -349,7 +349,7 @@ export const aiResponses: AIResponse[] = [
     response: 'Industrial IoT and sensor requests should go through the manufacturing category. Siemens (SUP-008) is our preferred supplier for industrial-grade sensors. An IoT procurement is currently in approval (REQ-2024-0023).',
     confidence: 0.88,
     suggestions: ['Check Siemens catalogue', 'Review IoT standards', 'Contact manufacturing engineering'],
-    autoFill: { category: 'goods', commodityCode: '41113600', commodityCodeLabel: 'Industrial sensors', deuba: 'gp-led' },
+    autoFill: { category: 'goods', commodityCode: '41113600', commodityCodeLabel: 'Industrial sensors', buyingChannel: 'procurement-led' },
   },
   {
     keywords: ['network', 'switch', 'router', 'cisco', 'connectivity'],
@@ -357,7 +357,7 @@ export const aiResponses: AIResponse[] = [
     response: 'Network equipment procurement is managed by IT Procurement. A refresh programme for network switches is currently in sourcing (REQ-2024-0028). Check if your requirements can be included in the existing scope.',
     confidence: 0.86,
     suggestions: ['Check existing refresh programme', 'Review network standards', 'Contact network team'],
-    autoFill: { category: 'goods', commodityCode: '43222600', commodityCodeLabel: 'Network switches', deuba: 'gp-led' },
+    autoFill: { category: 'goods', commodityCode: '43222600', commodityCodeLabel: 'Network switches', buyingChannel: 'procurement-led' },
   },
   {
     keywords: ['event', 'conference', 'venue', 'summit', 'meeting space'],
@@ -365,7 +365,7 @@ export const aiResponses: AIResponse[] = [
     response: 'Event and venue procurement can be business-led for values under €50K. For larger events, competitive quotes from at least 3 venues are required. Early booking is recommended for preferred dates.',
     confidence: 0.83,
     suggestions: ['Check preferred venue list', 'Get competitive quotes', 'Review event policy'],
-    autoFill: { category: 'services', commodityCode: '80141800', commodityCodeLabel: 'Event management', deuba: 'business-led' },
+    autoFill: { category: 'services', commodityCode: '80141800', commodityCodeLabel: 'Event management', buyingChannel: 'business-led' },
   },
   {
     keywords: ['tax', 'advisory', 'accounting', 'audit'],
@@ -373,7 +373,7 @@ export const aiResponses: AIResponse[] = [
     response: 'Tax and audit services are managed through Professional Services procurement. KPMG (SUP-004) and Deloitte (SUP-003) are on our approved panel. KPMG handles tax advisory, Deloitte covers audit.',
     confidence: 0.89,
     suggestions: ['Check approved panel', 'Review existing engagements', 'Contact Professional Services team'],
-    autoFill: { category: 'consulting', commodityCode: '84111500', commodityCodeLabel: 'Tax advisory services', deuba: 'gp-led' },
+    autoFill: { category: 'consulting', commodityCode: '84111500', commodityCodeLabel: 'Tax advisory services', buyingChannel: 'procurement-led' },
   },
   {
     keywords: ['energy', 'renewable', 'carbon offset', 'sustainability'],
@@ -381,6 +381,6 @@ export const aiResponses: AIResponse[] = [
     response: 'Sustainability and energy procurement is coordinated through the Sustainability team. We are onboarding GreenEnergy GmbH (SUP-022) for carbon offset services. A supplier onboarding request is in intake.',
     confidence: 0.82,
     suggestions: ['Contact sustainability team', 'Check GreenEnergy onboarding', 'Review ESG requirements'],
-    autoFill: { category: 'services', commodityCode: '83101800', commodityCodeLabel: 'Renewable energy services', deuba: 'gp-led' },
+    autoFill: { category: 'services', commodityCode: '83101800', commodityCodeLabel: 'Renewable energy services', buyingChannel: 'procurement-led' },
   },
 ];

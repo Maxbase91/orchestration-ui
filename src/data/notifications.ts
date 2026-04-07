@@ -105,7 +105,7 @@ export const notifications: Notification[] = [
     id: 'NOT-011',
     type: 'ai-insight',
     title: 'AI: Supplier risk alert - Capgemini',
-    description: 'TPRA for Capgemini (SUP-005) expires 2025-02-28. Recommend initiating reassessment.',
+    description: 'SRA for Capgemini (SUP-005) expires 2025-02-28. Recommend initiating reassessment.',
     timestamp: '2025-01-06T10:00:00Z',
     isRead: false,
     actionUrl: '/suppliers/SUP-005',

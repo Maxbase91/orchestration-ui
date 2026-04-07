@@ -5,7 +5,7 @@ import { AISuggestionCard } from '@/components/shared/ai-suggestion-card';
 import { formatDate } from '@/lib/format';
 import type { Supplier } from '@/data/types';
 
-const tpraIcons = {
+const sraIcons = {
   valid: ShieldCheck,
   expiring: ShieldAlert,
   expired: ShieldX,
@@ -17,13 +17,13 @@ interface ProfileRiskTabProps {
 }
 
 export function ProfileRiskTab({ supplier }: ProfileRiskTabProps) {
-  const TpraIcon = tpraIcons[supplier.tpraStatus];
+  const SraIcon = sraIcons[supplier.sraStatus];
   const riskSuggestion =
     supplier.riskRating === 'high' || supplier.riskRating === 'critical'
       ? `${supplier.name} is classified as ${supplier.riskRating.toUpperCase()} risk. Consider enhanced due diligence and more frequent monitoring cycles.`
-      : supplier.tpraStatus === 'expiring' || supplier.tpraStatus === 'expired'
-        ? `The TPRA for ${supplier.name} is ${supplier.tpraStatus}. Schedule a reassessment to maintain compliance.`
-        : `${supplier.name} has a stable risk profile. Next assessment recommended before TPRA expiry.`;
+      : supplier.sraStatus === 'expiring' || supplier.sraStatus === 'expired'
+        ? `The SRA for ${supplier.name} is ${supplier.sraStatus}. Schedule a reassessment to maintain compliance.`
+        : `${supplier.name} has a stable risk profile. Next assessment recommended before SRA expiry.`;
 
   return (
     <div className="space-y-6">
@@ -34,16 +34,16 @@ export function ProfileRiskTab({ supplier }: ProfileRiskTabProps) {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card className="py-4">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Third-Party Risk Assessment</CardTitle>
+            <CardTitle className="text-sm">Supplier Risk Assessment</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-3">
-              <TpraIcon className="size-6 text-muted-foreground" />
+              <SraIcon className="size-6 text-muted-foreground" />
               <div>
-                <StatusBadge status={supplier.tpraStatus} />
-                {supplier.tpraExpiryDate && (
+                <StatusBadge status={supplier.sraStatus} />
+                {supplier.sraExpiryDate && (
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Expires: {formatDate(supplier.tpraExpiryDate)}
+                    Expires: {formatDate(supplier.sraExpiryDate)}
                   </p>
                 )}
               </div>

@@ -25,8 +25,8 @@ interface RequestFormData {
   commodityCode: string;
   commodityCodeLabel: string;
   // Step 3
-  deubaResult: string;
-  tpraStatus: string;
+  buyingChannelResult: string;
+  sraStatus: string;
   policyChecks: { label: string; passed: boolean; detail: string }[];
   duplicateCheck: string | null;
   // Step 4
@@ -48,8 +48,8 @@ const INITIAL_DATA: RequestFormData = {
   costCentre: '',
   commodityCode: '',
   commodityCodeLabel: '',
-  deubaResult: '',
-  tpraStatus: '',
+  buyingChannelResult: '',
+  sraStatus: '',
   policyChecks: [],
   duplicateCheck: null,
   additionalReviewers: [],
@@ -85,7 +85,7 @@ export function NewRequestPage() {
       case 2:
         return !!formData.title && formData.estimatedValue > 0;
       case 3:
-        return !!formData.deubaResult;
+        return !!formData.buyingChannelResult;
       case 4:
         return true;
       default:
@@ -241,7 +241,7 @@ export function NewRequestPage() {
               costCentre: formData.costCentre,
               deliveryDate: formData.deliveryDate,
               isUrgent: formData.isUrgent,
-              deubaResult: formData.deubaResult,
+              buyingChannelResult: formData.buyingChannelResult,
               commodityCodeLabel: formData.commodityCodeLabel,
             }}
             onReset={handleReset}

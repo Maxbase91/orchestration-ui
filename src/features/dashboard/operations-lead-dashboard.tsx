@@ -23,7 +23,7 @@ interface UnresolvedQuery {
 const unresolvedQueries: UnresolvedQuery[] = [
   { id: 'Q1', requestId: 'REQ-2024-0009', question: 'Can you provide the updated business case with ROI projections for Year 2-3?', askedBy: 'Dr. Katrin Bauer', askedAt: '2025-01-06T10:00:00Z' },
   { id: 'Q2', requestId: 'REQ-2024-0012', question: 'Safety review flagged racking load capacity. Please confirm revised specifications.', askedBy: 'Anna Muller', askedAt: '2025-01-07T14:00:00Z' },
-  { id: 'Q3', requestId: 'REQ-2024-0008', question: 'Is Konica Minolta TPRA renewal in progress? Status needed before validation can proceed.', askedBy: 'Anna Kowalski', askedAt: '2025-01-05T09:00:00Z' },
+  { id: 'Q3', requestId: 'REQ-2024-0008', question: 'Is Konica Minolta SRA renewal in progress? Status needed before validation can proceed.', askedBy: 'Anna Kowalski', askedAt: '2025-01-05T09:00:00Z' },
 ];
 
 export function OperationsLeadDashboard() {

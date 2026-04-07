@@ -11,8 +11,8 @@ import { systemColors } from '@/data/system-integrations';
 
 type Row = ProcurementRequest & Record<string, unknown>;
 
-const DEUBA_LABELS: Record<string, string> = {
-  'gp-led': 'GP-Led',
+const BUYING_CHANNEL_LABELS: Record<string, string> = {
+  'procurement-led': 'Procurement-Led',
   'business-led': 'Business-Led',
   'direct-po': 'Direct PO',
   'framework-call-off': 'Framework',
@@ -162,11 +162,11 @@ export function TableView({ requests }: TableViewProps) {
       ),
     },
     {
-      key: 'deuba',
-      label: 'DEUBA',
+      key: 'buyingChannel',
+      label: 'Buying Channel',
       render: (item) => (
         <span className="text-xs">
-          {DEUBA_LABELS[item.deuba as string] ?? (item.deuba as string)}
+          {BUYING_CHANNEL_LABELS[item.buyingChannel as string] ?? (item.buyingChannel as string)}
         </span>
       ),
     },

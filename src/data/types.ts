@@ -1,7 +1,7 @@
 export type RequestStatus = 'draft' | 'intake' | 'validation' | 'approval' | 'sourcing' | 'contracting' | 'po' | 'receipt' | 'invoice' | 'payment' | 'completed' | 'cancelled' | 'referred-back';
 export type RequestCategory = 'goods' | 'services' | 'software' | 'consulting' | 'contingent-labour' | 'contract-renewal' | 'supplier-onboarding';
 export type Priority = 'low' | 'medium' | 'high' | 'urgent';
-export type BuyingChannel = 'gp-led' | 'business-led' | 'direct-po' | 'framework-call-off' | 'catalogue';
+export type BuyingChannel = 'procurement-led' | 'business-led' | 'direct-po' | 'framework-call-off' | 'catalogue';
 export type RiskRating = 'low' | 'medium' | 'high' | 'critical';
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'delegated';
 
@@ -31,7 +31,7 @@ export interface ProcurementRequest {
   supplierId?: string;
   contractId?: string;
   poId?: string;
-  deuba: BuyingChannel;
+  buyingChannel: BuyingChannel;
   commodityCode: string;
   commodityCodeLabel: string;
   costCentre: string;
@@ -104,8 +104,8 @@ export interface Supplier {
   activeContracts: number;
   totalSpend12m: number;
   onboardingStatus: 'completed' | 'in-progress' | 'not-started';
-  tpraStatus: 'valid' | 'expiring' | 'expired' | 'not-assessed';
-  tpraExpiryDate?: string;
+  sraStatus: 'valid' | 'expiring' | 'expired' | 'not-assessed';
+  sraExpiryDate?: string;
   screeningStatus: 'clear' | 'flagged' | 'pending';
   categories: string[];
   tier: 1 | 2 | 3;

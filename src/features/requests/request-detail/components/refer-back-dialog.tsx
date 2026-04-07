@@ -31,8 +31,8 @@ const PREVIOUS_STEPS = [
 const REASONS = [
   { value: 'incomplete', label: 'Incomplete information' },
   { value: 'incorrect-category', label: 'Incorrect category' },
-  { value: 'deuba-mismatch', label: 'DEUBA mismatch' },
-  { value: 'tpra-required', label: 'TPRA required' },
+  { value: 'classification-mismatch', label: 'Classification mismatch' },
+  { value: 'sra-required', label: 'Risk assessment required' },
   { value: 'other', label: 'Other' },
 ];
 

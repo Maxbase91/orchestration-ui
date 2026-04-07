@@ -67,7 +67,7 @@ export const workflowTemplates: WorkflowTemplate[] = [
   {
     id: 'WF-003',
     name: 'Supplier Onboarding',
-    description: 'Workflow for onboarding new suppliers including due diligence, screening, and TPRA assessment.',
+    description: 'Workflow for onboarding new suppliers including due diligence, screening, and SRA assessment.',
     type: 'onboarding',
     nodes: [
       { id: 'n1', type: 'start', label: 'Onboarding Request', x: 50, y: 200 },
@@ -76,7 +76,7 @@ export const workflowTemplates: WorkflowTemplate[] = [
       { id: 'n4', type: 'parallel', label: 'Parallel Checks', x: 500, y: 200 },
       { id: 'n5', type: 'stage', label: 'Sanctions Screening', x: 650, y: 80 },
       { id: 'n6', type: 'stage', label: 'Financial Check', x: 650, y: 200 },
-      { id: 'n7', type: 'stage', label: 'TPRA Assessment', x: 650, y: 320 },
+      { id: 'n7', type: 'stage', label: 'SRA Assessment', x: 650, y: 320 },
       { id: 'n8', type: 'decision', label: 'Risk Decision', x: 850, y: 200 },
       { id: 'n9', type: 'stage', label: 'Compliance Approval', x: 1000, y: 100 },
       { id: 'n10', type: 'stage', label: 'System Setup', x: 1150, y: 200 },

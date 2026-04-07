@@ -16,7 +16,7 @@ import type { RoutingRule, BuyingChannel } from '@/data/types';
 import { toast } from 'sonner';
 
 const BUYING_CHANNEL_OPTIONS: { value: BuyingChannel; label: string }[] = [
-  { value: 'gp-led', label: 'GP-Led Sourcing' },
+  { value: 'procurement-led', label: 'Procurement-Led Sourcing' },
   { value: 'business-led', label: 'Business-Led' },
   { value: 'direct-po', label: 'Direct PO' },
   { value: 'framework-call-off', label: 'Framework Call-Off' },
@@ -61,7 +61,7 @@ const FIELD_LABELS: Record<string, string> = {
 };
 
 const CHANNEL_LABELS: Record<string, string> = {
-  'gp-led': 'GP-Led Sourcing',
+  'procurement-led': 'Procurement-Led Sourcing',
   'business-led': 'Business-Led',
   'direct-po': 'Direct PO',
   'framework-call-off': 'Framework Call-Off',
@@ -77,7 +77,7 @@ export function RuleEditorPanel({ rule }: RuleEditorPanelProps) {
   const [status, setStatus] = useState<'active' | 'draft' | 'disabled'>('draft');
   const [conditions, setConditions] = useState<{ field: string; operator: string; value: string }[]>([]);
   const [logicMode, setLogicMode] = useState<'AND' | 'OR'>('AND');
-  const [buyingChannel, setBuyingChannel] = useState<BuyingChannel>('gp-led');
+  const [buyingChannel, setBuyingChannel] = useState<BuyingChannel>('procurement-led');
   const [approvalChain, setApprovalChain] = useState('line-manager');
   const [triggerNotification, setTriggerNotification] = useState(false);
   const [flagForReview, setFlagForReview] = useState(false);

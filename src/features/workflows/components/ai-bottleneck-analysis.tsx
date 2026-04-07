@@ -35,13 +35,13 @@ export function AIBottleneckAnalysis() {
         </AISuggestionCard>
 
         <AISuggestionCard
-          title="DVMO validation queue backlog"
+          title="Vendor Management validation queue backlog"
           confidence={0.94}
           showExplanation
           explanation="Queue depth calculated from validation-stage request count. Throughput rate based on 14-day rolling average of validation completions (4 per day). ETA = 22 / 4 = 5.5 working days."
         >
           <p>
-            DVMO validation queue has 22 items. At current throughput (4/day),
+            Vendor Management validation queue has 22 items. At current throughput (4/day),
             this will take 5.5 working days to clear. Consider temporary
             resource allocation.
           </p>

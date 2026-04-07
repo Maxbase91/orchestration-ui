@@ -325,7 +325,7 @@ export function Sidebar() {
         </div>
         {!sidebarCollapsed && (
           <span className="text-sm font-semibold text-white tracking-tight truncate">
-            GP Procurement
+            Procurement Platform
           </span>
         )}
       </div>

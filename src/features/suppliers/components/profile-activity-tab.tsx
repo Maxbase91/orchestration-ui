@@ -41,7 +41,7 @@ function getMockActivity(supplier: Supplier): ActivityEvent[] {
       id: 'act-4',
       icon: ShieldCheck,
       title: 'Risk Assessment Completed',
-      description: `TPRA completed with rating: ${supplier.riskRating}.`,
+      description: `SRA completed with rating: ${supplier.riskRating}.`,
       timestamp: '2024-10-10',
       color: 'text-purple-600 bg-purple-50',
     },

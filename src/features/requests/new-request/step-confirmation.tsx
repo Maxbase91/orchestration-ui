@@ -15,7 +15,7 @@ interface StepConfirmationProps {
     costCentre: string;
     deliveryDate: string;
     isUrgent: boolean;
-    deubaResult: string;
+    buyingChannelResult: string;
     commodityCodeLabel: string;
   };
   onReset: () => void;
@@ -43,7 +43,7 @@ export function StepConfirmation({ requestId, data, onReset }: StepConfirmationP
     { label: 'Cost Centre', value: data.costCentre || 'Not specified' },
     { label: 'Delivery Date', value: data.deliveryDate || 'Not specified' },
     { label: 'Urgent', value: data.isUrgent ? 'Yes' : 'No' },
-    { label: 'Buying Channel', value: data.deubaResult || 'TBD' },
+    { label: 'Buying Channel', value: data.buyingChannelResult || 'TBD' },
     { label: 'Commodity', value: data.commodityCodeLabel || 'Not specified' },
   ];
 

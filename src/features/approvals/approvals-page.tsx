@@ -26,7 +26,7 @@ const aiSummaries: Record<string, string> = {
   'REQ-2024-0014':
     'Management consulting engagement with McKinsey for operating model redesign across 3 business units. €1.85M over 6 months. CEO-sponsored transformation programme targeting €20M cost reduction. Finance has already approved; dual VP sign-off required.',
   'REQ-2024-0023':
-    'Industrial IoT sensor procurement from Siemens for factory floor predictive maintenance. €140K for 200 sensors. ROI projection shows 45% reduction in unplanned downtime and €1.2M annual maintenance savings. TPRA valid.',
+    'Industrial IoT sensor procurement from Siemens for factory floor predictive maintenance. €140K for 200 sensors. ROI projection shows 45% reduction in unplanned downtime and €1.2M annual maintenance savings. SRA valid.',
   'REQ-2024-0031':
     'Salesforce CRM expansion including 200 additional licenses and Service Cloud module. €540K annually, up from €420K. Sales team growth drives the license increase. Budget allocated under CC-SALES-001.',
 };

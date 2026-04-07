@@ -14,11 +14,11 @@ interface ValidationQueueCardProps {
 function getAiAssessment(request: ProcurementRequest): { label: string; ok: boolean }[] {
   const assessments: { label: string; ok: boolean }[] = [];
 
-  // DEUBA check
-  if (request.deuba === 'gp-led' || request.deuba === 'framework-call-off') {
-    assessments.push({ label: 'DEUBA appears correct', ok: true });
+  // Buying channel check
+  if (request.buyingChannel === 'procurement-led' || request.buyingChannel === 'framework-call-off') {
+    assessments.push({ label: 'Buying channel appears correct', ok: true });
   } else {
-    assessments.push({ label: 'DEUBA classification may need review', ok: false });
+    assessments.push({ label: 'Buying channel classification may need review', ok: false });
   }
 
   // Commodity code check
@@ -26,7 +26,7 @@ function getAiAssessment(request: ProcurementRequest): { label: string; ok: bool
     assessments.push({ label: `Commodity code ${request.commodityCode} matches "${request.commodityCodeLabel}"`, ok: true });
   }
 
-  // TPRA check based on supplier
+  // SRA check based on supplier
   if (request.supplierId) {
     assessments.push({ label: 'Supplier linked', ok: true });
   } else {
@@ -63,8 +63,8 @@ export function ValidationQueueCard({ request }: ValidationQueueCardProps) {
 
       <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-600">
         <div>
-          <span className="text-gray-400">DEUBA:</span>{' '}
-          <span className="font-medium">{getStatusLabel(request.deuba)}</span>
+          <span className="text-gray-400">Buying Channel:</span>{' '}
+          <span className="font-medium">{getStatusLabel(request.buyingChannel)}</span>
         </div>
         <div>
           <span className="text-gray-400">Commodity:</span>{' '}

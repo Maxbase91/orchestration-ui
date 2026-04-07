@@ -21,10 +21,10 @@ const riskBadgeStyles: Record<string, string> = {
   critical: 'bg-red-200 text-red-800',
 };
 
-const tpraLabels: Record<string, string> = {
-  valid: 'TPRA Valid',
-  expiring: 'TPRA Expiring',
-  expired: 'TPRA Expired',
+const sraLabels: Record<string, string> = {
+  valid: 'SRA Valid',
+  expiring: 'SRA Expiring',
+  expired: 'SRA Expired',
   'not-assessed': 'Not Assessed',
 };
 
@@ -105,14 +105,14 @@ export function SupplierAutocomplete({ value, supplierId, onSelect }: SupplierAu
               </span>
             </div>
             <div className="flex items-center gap-1.5">
-              {selectedSupplier.tpraStatus === 'valid' ? (
+              {selectedSupplier.sraStatus === 'valid' ? (
                 <ShieldCheck className="size-3.5 text-green-500" />
-              ) : selectedSupplier.tpraStatus === 'expiring' ? (
+              ) : selectedSupplier.sraStatus === 'expiring' ? (
                 <AlertTriangle className="size-3.5 text-amber-500" />
               ) : (
                 <ShieldAlert className="size-3.5 text-red-500" />
               )}
-              <span className="text-gray-600">{tpraLabels[selectedSupplier.tpraStatus]}</span>
+              <span className="text-gray-600">{sraLabels[selectedSupplier.sraStatus]}</span>
             </div>
             <div className="text-gray-600">
               Onboarding: <span className="font-medium">{selectedSupplier.onboardingStatus}</span>

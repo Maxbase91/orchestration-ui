@@ -52,10 +52,10 @@ const columns: Column<SupplierRow>[] = [
     render: (s) => <span className="text-sm">{formatCurrency(s.totalSpend12m as number)}</span>,
   },
   {
-    key: 'tpraStatus',
-    label: 'TPRA Status',
+    key: 'sraStatus',
+    label: 'SRA Status',
     sortable: true,
-    render: (s) => <StatusBadge status={s.tpraStatus as string} size="sm" />,
+    render: (s) => <StatusBadge status={s.sraStatus as string} size="sm" />,
   },
   {
     key: 'onboardingStatus',

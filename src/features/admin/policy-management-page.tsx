@@ -34,7 +34,7 @@ const policies: Policy[] = [
     description:
       'Defines spending thresholds and the appropriate buying channel for each value band.',
     fullText:
-      'All procurement requests must be routed through the correct buying channel based on estimated value. Requests under EUR 10,000 may use the catalogue or direct PO channel. Requests between EUR 10,000 and EUR 100,000 require GP-led procurement with standard approval. Requests above EUR 100,000 require competitive tendering and VP-level approval.\n\nFramework agreements take priority over ad-hoc procurement wherever an approved framework exists. Business units must check the framework register before initiating new sourcing activities.\n\nExceptions to buying channel rules require documented justification and approval from the VP Procurement. All exceptions are tracked and reported quarterly.',
+      'All procurement requests must be routed through the correct buying channel based on estimated value. Requests under EUR 10,000 may use the catalogue or direct PO channel. Requests between EUR 10,000 and EUR 100,000 require Procurement-led procurement with standard approval. Requests above EUR 100,000 require competitive tendering and VP-level approval.\n\nFramework agreements take priority over ad-hoc procurement wherever an approved framework exists. Business units must check the framework register before initiating new sourcing activities.\n\nExceptions to buying channel rules require documented justification and approval from the VP Procurement. All exceptions are tracked and reported quarterly.',
   },
   {
     id: 'pol-2',
@@ -44,9 +44,9 @@ const policies: Policy[] = [
     version: '2.1',
     owner: 'Lisa Nakamura',
     description:
-      'Mandatory third-party risk assessment (TPRA) requirements for all suppliers.',
+      'Mandatory supplier risk assessment (SRA) requirements for all suppliers.',
     fullText:
-      'All suppliers must undergo a Third-Party Risk Assessment (TPRA) before any contract can be executed. The assessment covers financial stability, sanctions screening, data protection compliance, ESG criteria, and business continuity capabilities.\n\nTPRA assessments are valid for 24 months and must be renewed before expiry. Suppliers with expiring assessments will be flagged 90 days in advance. No new purchase orders may be issued against suppliers with expired TPRAs.\n\nHigh-risk suppliers require enhanced due diligence including on-site audits and independent verification of financial statements. Critical suppliers must maintain a minimum performance score of 70/100.',
+      'All suppliers must undergo a Supplier Risk Assessment (SRA) before any contract can be executed. The assessment covers financial stability, sanctions screening, data protection compliance, ESG criteria, and business continuity capabilities.\n\nSRA assessments are valid for 24 months and must be renewed before expiry. Suppliers with expiring assessments will be flagged 90 days in advance. No new purchase orders may be issued against suppliers with expired SRAs.\n\nHigh-risk suppliers require enhanced due diligence including on-site audits and independent verification of financial statements. Critical suppliers must maintain a minimum performance score of 70/100.',
   },
   {
     id: 'pol-3',
@@ -94,7 +94,7 @@ const policies: Policy[] = [
     description:
       'Requirements for engaging external consultants and advisory firms.',
     fullText:
-      'All consulting engagements must be GP-led regardless of value. A detailed scope of work, deliverables, and success criteria must be defined before procurement begins. Rate cards must be benchmarked against market data annually.\n\nFor engagements above EUR 100,000, a minimum of three competitive proposals is required. Single-source justifications require VP Procurement approval. Engagements above EUR 500,000 require dual VP approval.\n\nPerformance reviews are mandatory at project milestones. Consultants with performance scores below 60/100 will be removed from the approved panel.',
+      'All consulting engagements must be Procurement-led regardless of value. A detailed scope of work, deliverables, and success criteria must be defined before procurement begins. Rate cards must be benchmarked against market data annually.\n\nFor engagements above EUR 100,000, a minimum of three competitive proposals is required. Single-source justifications require VP Procurement approval. Engagements above EUR 500,000 require dual VP approval.\n\nPerformance reviews are mandatory at project milestones. Consultants with performance scores below 60/100 will be removed from the approved panel.',
   },
   {
     id: 'pol-7',

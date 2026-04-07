@@ -163,7 +163,7 @@ export const stageHistory: StageHistoryEntry[] = [
   // REQ-2024-0019 (TechBridge onboarding - validation)
   { requestId: 'REQ-2024-0019', stage: 'draft', enteredAt: '2024-12-10T11:00:00Z', completedAt: '2024-12-10T11:15:00Z', ownerId: 'u5', action: 'submitted' },
   { requestId: 'REQ-2024-0019', stage: 'intake', enteredAt: '2024-12-10T11:15:00Z', completedAt: '2024-12-13T10:00:00Z', ownerId: 'u9', action: 'accepted' },
-  { requestId: 'REQ-2024-0019', stage: 'validation', enteredAt: '2024-12-13T10:00:00Z', ownerId: 'u9', notes: 'Screening and TPRA in progress' },
+  { requestId: 'REQ-2024-0019', stage: 'validation', enteredAt: '2024-12-13T10:00:00Z', ownerId: 'u9', notes: 'Screening and SRA in progress' },
 
   // REQ-2024-0020 (Cleaning services - sourcing)
   { requestId: 'REQ-2024-0020', stage: 'draft', enteredAt: '2024-11-15T09:00:00Z', completedAt: '2024-11-15T09:15:00Z', ownerId: 'u6', action: 'submitted' },

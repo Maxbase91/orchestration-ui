@@ -57,7 +57,7 @@ export function getAISummary(type: 'request' | 'supplier' | 'contract', id: stri
     const referText = req.referBackCount > 0 ? ` It has been referred back ${req.referBackCount} time(s).` : '';
 
     return `${req.title} is currently in the "${req.status}" stage (day ${req.daysInStage}). ` +
-      `Value: €${req.value.toLocaleString()}, priority: ${req.priority}, buying channel: ${req.deuba}. ` +
+      `Value: €${req.value.toLocaleString()}, priority: ${req.priority}, buying channel: ${req.buyingChannel}. ` +
       `Category: ${req.category}, commodity: ${req.commodityCodeLabel}.${overdueText}${referText}`;
   }
 
@@ -68,15 +68,15 @@ export function getAISummary(type: 'request' | 'supplier' | 'contract', id: stri
     const riskText = sup.riskRating === 'high' || sup.riskRating === 'critical'
       ? ` Risk rating is ${sup.riskRating.toUpperCase()} — exercise caution.`
       : '';
-    const tpraText = sup.tpraStatus === 'expiring'
-      ? ` TPRA is expiring on ${sup.tpraExpiryDate} — renewal action needed.`
-      : sup.tpraStatus === 'expired'
-        ? ' TPRA has EXPIRED — reassessment required before new engagements.'
+    const sraText = sup.sraStatus === 'expiring'
+      ? ` SRA is expiring on ${sup.sraExpiryDate} — renewal action needed.`
+      : sup.sraStatus === 'expired'
+        ? ' SRA has EXPIRED — reassessment required before new engagements.'
         : '';
 
     return `${sup.name} (${sup.country}) is a Tier ${sup.tier} supplier with ${sup.activeContracts} active contract(s). ` +
       `12-month spend: €${sup.totalSpend12m.toLocaleString()}, performance score: ${sup.performanceScore}/100. ` +
-      `Onboarding: ${sup.onboardingStatus}, screening: ${sup.screeningStatus}.${riskText}${tpraText}`;
+      `Onboarding: ${sup.onboardingStatus}, screening: ${sup.screeningStatus}.${riskText}${sraText}`;
   }
 
   if (type === 'contract') {

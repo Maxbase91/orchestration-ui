@@ -104,10 +104,10 @@ const accountColumns: Column<PortalAccount>[] = [
 ];
 
 export function PortalAdminPage() {
-  const [companyName, setCompanyName] = useState('GP Procurement');
+  const [companyName, setCompanyName] = useState('Procurement Platform');
   const [primaryColor, setPrimaryColor] = useState('#3B82F6');
   const [welcomeMessage, setWelcomeMessage] = useState(
-    'Welcome to the GP Procurement Supplier Portal. Please complete your profile and upload required documents.'
+    'Welcome to the Procurement Platform Supplier Portal. Please complete your profile and upload required documents.'
   );
 
   return (

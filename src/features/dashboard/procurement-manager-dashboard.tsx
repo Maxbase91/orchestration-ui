@@ -93,7 +93,7 @@ export function ProcurementManagerDashboard() {
             title="Strategic Insights"
             confidence={91}
             showExplanation
-            explanation="Based on analysis of current request pipeline, supplier TPRA dates, and historical demand patterns."
+            explanation="Based on analysis of current request pipeline, supplier SRA dates, and historical demand patterns."
           >
             <ul className="space-y-2 list-none">
               <li className="flex items-start gap-2">
@@ -102,7 +102,7 @@ export function ProcurementManagerDashboard() {
               </li>
               <li className="flex items-start gap-2">
                 <span className="mt-1 size-1.5 shrink-0 rounded-full bg-red-400" />
-                <span>2 suppliers have expiring TPRAs this month.</span>
+                <span>2 suppliers have expiring SRAs this month.</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="mt-1 size-1.5 shrink-0 rounded-full bg-blue-400" />

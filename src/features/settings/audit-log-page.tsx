@@ -43,7 +43,7 @@ const auditEntries: AuditRow[] = [
   { id: 'AUD-013', timestamp: '2025-01-06T17:00:00Z', user: 'System', action: 'SLA Warning', objectType: 'Request', objectId: 'REQ-2024-0008', detail: 'Validation stage SLA exceeded (30 days)', ipAddress: '-' },
   { id: 'AUD-014', timestamp: '2025-01-06T14:30:00Z', user: 'Sarah Chen', action: 'Referred Back', objectType: 'Request', objectId: 'REQ-2024-0009', detail: 'Referred back: additional business case needed', ipAddress: '10.0.1.31' },
   { id: 'AUD-015', timestamp: '2025-01-06T13:00:00Z', user: 'System', action: 'Matched', objectType: 'Invoice', objectId: 'INV-010', detail: 'Invoice partially matched against PO-010', ipAddress: '-' },
-  { id: 'AUD-016', timestamp: '2025-01-06T10:00:00Z', user: 'AI Agent', action: 'Risk Alert', objectType: 'Supplier', objectId: 'SUP-005', detail: 'TPRA expiry alert for Capgemini', ipAddress: '-' },
+  { id: 'AUD-016', timestamp: '2025-01-06T10:00:00Z', user: 'AI Agent', action: 'Risk Alert', objectType: 'Supplier', objectId: 'SUP-005', detail: 'SRA expiry alert for Capgemini', ipAddress: '-' },
   { id: 'AUD-017', timestamp: '2025-01-06T09:15:00Z', user: 'Marcus Johnson', action: 'Commented', objectType: 'Request', objectId: 'REQ-2024-0010', detail: 'Internal note: shortlisted 3 TMCs', ipAddress: '10.0.1.45' },
   { id: 'AUD-018', timestamp: '2025-01-05T14:00:00Z', user: 'Christine Dupont', action: 'Rule Updated', objectType: 'Rule', objectId: 'RULE-003', detail: 'Updated consulting threshold from €100K to €75K', ipAddress: '10.0.1.10' },
   { id: 'AUD-019', timestamp: '2025-01-05T11:30:00Z', user: 'Robert Fischer', action: 'Approved', objectType: 'Request', objectId: 'REQ-2024-0023', detail: 'Finance approval for IoT sensors', ipAddress: '10.0.3.12' },
@@ -67,7 +67,7 @@ const auditEntries: AuditRow[] = [
   { id: 'AUD-037', timestamp: '2024-12-18T16:00:00Z', user: 'Dr. Katrin Bauer', action: 'Approved', objectType: 'Request', objectId: 'REQ-2024-0016', detail: 'Finance approval for laptop refresh programme', ipAddress: '10.0.3.10' },
   { id: 'AUD-038', timestamp: '2024-12-17T11:00:00Z', user: 'System', action: 'Reminder', objectType: 'Request', objectId: 'REQ-2024-0007', detail: 'Approval reminder sent for Java developers request', ipAddress: '-' },
   { id: 'AUD-039', timestamp: '2024-12-16T09:00:00Z', user: 'Henrik Larsson', action: 'Policy Updated', objectType: 'Policy', objectId: 'POL-002', detail: 'Updated competitive tender threshold to €100K', ipAddress: '10.0.1.11' },
-  { id: 'AUD-040', timestamp: '2024-12-15T14:30:00Z', user: 'David Kowalski', action: 'TPRA Initiated', objectType: 'Supplier', objectId: 'SUP-008', detail: 'Initiated TPRA renewal for Siemens AG', ipAddress: '10.0.1.60' },
+  { id: 'AUD-040', timestamp: '2024-12-15T14:30:00Z', user: 'David Kowalski', action: 'SRA Initiated', objectType: 'Supplier', objectId: 'SUP-008', detail: 'Initiated SRA renewal for Siemens AG', ipAddress: '10.0.1.60' },
 ];
 
 const uniqueUsers = [...new Set(auditEntries.map((e) => e.user))].sort();

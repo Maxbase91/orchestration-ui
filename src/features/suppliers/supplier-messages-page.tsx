@@ -146,7 +146,7 @@ const threads: Thread[] = [
   {
     id: 'thread-5',
     supplierName: 'Deloitte',
-    subject: 'TPRA Questionnaire Submission',
+    subject: 'SRA Questionnaire Submission',
     lastMessage: 'Questionnaire submitted. Please review at your convenience.',
     lastTimestamp: '2025-01-04 12:00',
     unread: false,
@@ -155,7 +155,7 @@ const threads: Thread[] = [
         id: 'm10',
         sender: 'Anna Kowalski',
         senderInitials: 'AK',
-        content: 'Hi Sarah, as part of the annual TPRA refresh, we require Deloitte to complete the updated risk questionnaire. The deadline is January 31.',
+        content: 'Hi Sarah, as part of the annual SRA refresh, we require Deloitte to complete the updated risk questionnaire. The deadline is January 31.',
         timestamp: '2025-01-02 09:00',
         isInternal: true,
       },

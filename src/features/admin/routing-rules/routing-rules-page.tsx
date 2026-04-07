@@ -18,7 +18,7 @@ export function RoutingRulesPage() {
       name: 'New Rule',
       status: 'draft',
       conditions: [{ field: 'value', operator: 'greater_than', value: '' }],
-      action: { buyingChannel: 'gp-led', approvalChain: 'line-manager' },
+      action: { buyingChannel: 'procurement-led', approvalChain: 'line-manager' },
       description: '',
       matchCount: 0,
       lastModified: new Date().toISOString(),

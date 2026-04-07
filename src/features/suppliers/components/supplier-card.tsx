@@ -45,7 +45,7 @@ export function SupplierCard({ supplier }: SupplierCardProps) {
   const navigate = useNavigate();
   const flag = countryFlags[supplier.countryCode] ?? '';
 
-  const hasTpra = supplier.tpraStatus === 'valid' || supplier.tpraStatus === 'expiring';
+  const hasSra = supplier.sraStatus === 'valid' || supplier.sraStatus === 'expiring';
   const hasScreening = supplier.screeningStatus === 'clear';
   const hasCerts = supplier.certifications.length > 0 && supplier.certifications.every((c) => c.status !== 'expired');
 
@@ -79,7 +79,7 @@ export function SupplierCard({ supplier }: SupplierCardProps) {
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
-          <ComplianceCheck label="TPRA" pass={hasTpra} />
+          <ComplianceCheck label="SRA" pass={hasSra} />
           <ComplianceCheck label="Screening" pass={hasScreening} />
           <ComplianceCheck label="Certificates" pass={hasCerts} />
         </div>

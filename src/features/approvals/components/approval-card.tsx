@@ -180,7 +180,7 @@ export function ApprovalCard({
             </div>
             <div>
               <span className="text-gray-400">Channel:</span>{' '}
-              {getStatusLabel(request.deuba)}
+              {getStatusLabel(request.buyingChannel)}
             </div>
             <div>
               <span className="text-gray-400">Delivery:</span>{' '}

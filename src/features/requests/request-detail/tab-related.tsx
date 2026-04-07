@@ -12,14 +12,14 @@ interface TabRelatedProps {
   request: ProcurementRequest;
 }
 
-const tpraIcons = {
+const sraIcons = {
   valid: ShieldCheck,
   expiring: ShieldAlert,
   expired: ShieldX,
   'not-assessed': ShieldQuestion,
 };
 
-const tpraColors = {
+const sraColors = {
   valid: 'text-green-600',
   expiring: 'text-amber-600',
   expired: 'text-red-600',
@@ -152,7 +152,7 @@ export function TabRelated({ request }: TabRelatedProps) {
         </Card>
       )}
 
-      {/* Risk / TPRA Status */}
+      {/* Risk / SRA Status */}
       {supplier && (
         <Card>
           <CardHeader>
@@ -165,26 +165,26 @@ export function TabRelated({ request }: TabRelatedProps) {
                 <StatusBadge status={supplier.riskRating} size="sm" />
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">TPRA Status</span>
+                <span className="text-sm text-muted-foreground">SRA Status</span>
                 <div className="flex items-center gap-1.5">
                   {(() => {
-                    const Icon = tpraIcons[supplier.tpraStatus];
-                    const color = tpraColors[supplier.tpraStatus];
+                    const Icon = sraIcons[supplier.sraStatus];
+                    const color = sraColors[supplier.sraStatus];
                     return (
                       <>
                         <Icon className={`size-4 ${color}`} />
                         <span className={`text-sm font-medium ${color}`}>
-                          {supplier.tpraStatus.charAt(0).toUpperCase() + supplier.tpraStatus.slice(1).replace('-', ' ')}
+                          {supplier.sraStatus.charAt(0).toUpperCase() + supplier.sraStatus.slice(1).replace('-', ' ')}
                         </span>
                       </>
                     );
                   })()}
                 </div>
               </div>
-              {supplier.tpraExpiryDate && (
+              {supplier.sraExpiryDate && (
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">TPRA Expiry</span>
-                  <span className="text-sm">{formatDate(supplier.tpraExpiryDate)}</span>
+                  <span className="text-sm text-muted-foreground">SRA Expiry</span>
+                  <span className="text-sm">{formatDate(supplier.sraExpiryDate)}</span>
                 </div>
               )}
               <div className="flex items-center justify-between">

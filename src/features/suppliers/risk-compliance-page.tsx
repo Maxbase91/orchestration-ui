@@ -13,8 +13,8 @@ interface SupplierRow extends Record<string, unknown> {
   id: string;
   name: string;
   riskRating: RiskRating;
-  tpraStatus: string;
-  tpraExpiry: string;
+  sraStatus: string;
+  sraExpiry: string;
   screeningStatus: string;
   certCount: number;
   expiringCerts: number;
@@ -28,7 +28,7 @@ const riskColors: Record<RiskRating, string> = {
   critical: 'bg-red-100 text-red-700',
 };
 
-const tpraColors: Record<string, string> = {
+const sraColors: Record<string, string> = {
   valid: 'bg-green-100 text-green-700',
   expiring: 'bg-amber-100 text-amber-700',
   expired: 'bg-red-100 text-red-700',
@@ -44,7 +44,7 @@ const screeningColors: Record<string, string> = {
 export function RiskCompliancePage() {
   const navigate = useNavigate();
   const [riskFilter, setRiskFilter] = useState<string>('all');
-  const [tpraFilter, setTpraFilter] = useState<string>('all');
+  const [sraFilter, setTpraFilter] = useState<string>('all');
 
   const rows = useMemo<SupplierRow[]>(() => {
     return suppliers.map((s) => {
@@ -53,8 +53,8 @@ export function RiskCompliancePage() {
         id: s.id,
         name: s.name,
         riskRating: s.riskRating,
-        tpraStatus: s.tpraStatus,
-        tpraExpiry: s.tpraExpiryDate ?? '',
+        sraStatus: s.sraStatus,
+        sraExpiry: s.sraExpiryDate ?? '',
         screeningStatus: s.screeningStatus,
         certCount: s.certifications.length,
         expiringCerts,
@@ -68,14 +68,14 @@ export function RiskCompliancePage() {
     if (riskFilter !== 'all') {
       result = result.filter((r) => r.riskRating === riskFilter);
     }
-    if (tpraFilter !== 'all') {
-      result = result.filter((r) => r.tpraStatus === tpraFilter);
+    if (sraFilter !== 'all') {
+      result = result.filter((r) => r.sraStatus === sraFilter);
     }
     return result;
-  }, [rows, riskFilter, tpraFilter]);
+  }, [rows, riskFilter, sraFilter]);
 
   const suppliersAtRisk = rows.filter((r) => r.riskRating === 'high' || r.riskRating === 'critical').length;
-  const expiringTPRAs = rows.filter((r) => r.tpraStatus === 'expiring' || r.tpraStatus === 'expired').length;
+  const expiringSRAs = rows.filter((r) => r.sraStatus === 'expiring' || r.sraStatus === 'expired').length;
   const pendingScreenings = rows.filter((r) => r.screeningStatus === 'pending').length;
 
   const columns: Column<SupplierRow>[] = [
@@ -96,20 +96,20 @@ export function RiskCompliancePage() {
       ),
     },
     {
-      key: 'tpraStatus',
-      label: 'TPRA Status',
+      key: 'sraStatus',
+      label: 'SRA Status',
       render: (row) => (
-        <span className={cn('inline-flex px-2 py-0.5 rounded-full text-xs font-medium capitalize', tpraColors[row.tpraStatus as string] ?? '')}>
-          {(row.tpraStatus as string).replace('-', ' ')}
+        <span className={cn('inline-flex px-2 py-0.5 rounded-full text-xs font-medium capitalize', sraColors[row.sraStatus as string] ?? '')}>
+          {(row.sraStatus as string).replace('-', ' ')}
         </span>
       ),
     },
     {
-      key: 'tpraExpiry',
-      label: 'TPRA Expiry',
+      key: 'sraExpiry',
+      label: 'SRA Expiry',
       sortable: true,
       render: (row) => {
-        const val = row.tpraExpiry as string;
+        const val = row.sraExpiry as string;
         if (!val) return <span className="text-xs text-muted-foreground">N/A</span>;
         return <span className="text-sm">{formatDate(val)}</span>;
       },
@@ -149,7 +149,7 @@ export function RiskCompliancePage() {
     <div className="space-y-6">
       <PageHeader
         title="Risk & Compliance"
-        subtitle="Monitor supplier risk ratings, TPRA status, and compliance certifications"
+        subtitle="Monitor supplier risk ratings, SRA status, and compliance certifications"
         actions={
           <div className="flex items-center gap-2">
             <Select value={riskFilter} onValueChange={setRiskFilter}>
@@ -164,12 +164,12 @@ export function RiskCompliancePage() {
                 <SelectItem value="low">Low</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={tpraFilter} onValueChange={setTpraFilter}>
+            <Select value={sraFilter} onValueChange={setTpraFilter}>
               <SelectTrigger className="w-[160px]">
-                <SelectValue placeholder="TPRA status" />
+                <SelectValue placeholder="SRA status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All TPRA</SelectItem>
+                <SelectItem value="all">All SRA</SelectItem>
                 <SelectItem value="valid">Valid</SelectItem>
                 <SelectItem value="expiring">Expiring</SelectItem>
                 <SelectItem value="expired">Expired</SelectItem>
@@ -182,7 +182,7 @@ export function RiskCompliancePage() {
 
       <div className="grid gap-4 sm:grid-cols-3">
         <KPICard label="Suppliers at Risk" value={suppliersAtRisk} trend={{ direction: 'up', percentage: 8 }} />
-        <KPICard label="Expiring/Expired TPRAs" value={expiringTPRAs} trend={{ direction: 'up', percentage: 12 }} />
+        <KPICard label="Expiring/Expired SRAs" value={expiringSRAs} trend={{ direction: 'up', percentage: 12 }} />
         <KPICard label="Pending Screenings" value={pendingScreenings} />
       </div>
 

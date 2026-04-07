@@ -14,14 +14,14 @@ export function ComplianceKPIPage() {
     [],
   );
 
-  const tpraValidCount = useMemo(
-    () => suppliers.filter((s) => s.tpraStatus === 'valid').length,
+  const sraValidCount = useMemo(
+    () => suppliers.filter((s) => s.sraStatus === 'valid').length,
     [],
   );
 
-  const tpraCoverage = useMemo(
-    () => Math.round((tpraValidCount / suppliers.length) * 100),
-    [tpraValidCount],
+  const sraCoverage = useMemo(
+    () => Math.round((sraValidCount / suppliers.length) * 100),
+    [sraValidCount],
   );
 
   const breachChartData = useMemo(
@@ -52,8 +52,8 @@ export function ComplianceKPIPage() {
     [],
   );
 
-  // Mock DEUBA accuracy trend
-  const deubaData = useMemo(
+  // Mock buying channel classification accuracy trend
+  const classificationData = useMemo(
     () => [82, 83, 84, 85, 85, 86, 86, 87, 87, 88, 87, 87],
     [],
   );
@@ -81,18 +81,18 @@ export function ComplianceKPIPage() {
           sparklineData={kpiData.map((d) => d.firstTimeRight)}
         />
         <KPICard
-          label="DEUBA Accuracy"
+          label="Classification Accuracy"
           value={87}
           format="percentage"
           trend={{ direction: 'up', percentage: 6 }}
-          sparklineData={deubaData}
+          sparklineData={classificationData}
         />
         <KPICard
-          label="TPRA Coverage"
-          value={tpraCoverage}
+          label="SRA Coverage"
+          value={sraCoverage}
           format="percentage"
           trend={{ direction: 'up', percentage: 3 }}
-          sparklineData={[62, 65, 68, 70, 72, 73, 74, 75, 76, 77, 78, tpraCoverage]}
+          sparklineData={[62, 65, 68, 70, 72, 73, 74, 75, 76, 77, 78, sraCoverage]}
         />
         <KPICard
           label="Screening Duplication"

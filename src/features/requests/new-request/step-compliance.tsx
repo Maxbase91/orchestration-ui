@@ -7,8 +7,8 @@ import { suppliers } from '@/data/suppliers';
 import type { BuyingChannel } from '@/data/types';
 
 interface ComplianceData {
-  deubaResult: string;
-  tpraStatus: string;
+  buyingChannelResult: string;
+  sraStatus: string;
   policyChecks: { label: string; passed: boolean; detail: string }[];
   duplicateCheck: string | null;
 }
@@ -23,10 +23,10 @@ interface StepComplianceProps {
 
 function determineBuyingChannel(category: string, value: number): { channel: BuyingChannel; label: string } {
   if (value < 25000) return { channel: 'catalogue', label: 'Catalogue / Direct PO' };
-  if (category === 'consulting' || value > 100000) return { channel: 'gp-led', label: 'GP-Led Procurement' };
+  if (category === 'consulting' || value > 100000) return { channel: 'procurement-led', label: 'Procurement-Led Sourcing' };
   if (category === 'contingent-labour') return { channel: 'framework-call-off', label: 'Framework Call-Off' };
   if (value <= 50000) return { channel: 'business-led', label: 'Business-Led' };
-  return { channel: 'gp-led', label: 'GP-Led Procurement' };
+  return { channel: 'procurement-led', label: 'Procurement-Led Sourcing' };
 }
 
 function generatePolicyChecks(
@@ -59,15 +59,15 @@ function generatePolicyChecks(
   });
 
   checks.push({
-    label: 'TPRA assessment valid',
-    passed: supplier ? supplier.tpraStatus === 'valid' : false,
+    label: 'SRA assessment valid',
+    passed: supplier ? supplier.sraStatus === 'valid' : false,
     detail: supplier
-      ? supplier.tpraStatus === 'valid'
-        ? `TPRA valid until ${supplier.tpraExpiryDate}`
-        : supplier.tpraStatus === 'expiring'
-          ? `TPRA expiring on ${supplier.tpraExpiryDate}; renewal recommended`
-          : 'TPRA assessment required before engagement'
-      : 'Supplier not selected; TPRA status unknown',
+      ? supplier.sraStatus === 'valid'
+        ? `SRA valid until ${supplier.sraExpiryDate}`
+        : supplier.sraStatus === 'expiring'
+          ? `SRA expiring on ${supplier.sraExpiryDate}; renewal recommended`
+          : 'SRA assessment required before engagement'
+      : 'Supplier not selected; SRA status unknown',
   });
 
   checks.push({
@@ -100,9 +100,9 @@ export function StepCompliance({
       const policyChecks = generatePolicyChecks(estimatedValue, category, supplierId, isUrgent);
 
       const data: ComplianceData = {
-        deubaResult: label,
-        tpraStatus: supplier
-          ? `${supplier.name}: ${supplier.tpraStatus}${supplier.tpraExpiryDate ? ` (expires ${supplier.tpraExpiryDate})` : ''}`
+        buyingChannelResult: label,
+        sraStatus: supplier
+          ? `${supplier.name}: ${supplier.sraStatus}${supplier.sraExpiryDate ? ` (expires ${supplier.sraExpiryDate})` : ''}`
           : 'Will be initiated upon submission',
         policyChecks,
         duplicateCheck: null,
@@ -122,7 +122,7 @@ export function StepCompliance({
         <Loader2 className="size-8 animate-spin text-blue-500" />
         <p className="mt-4 text-sm font-medium">Running compliance checks...</p>
         <p className="mt-1 text-xs text-gray-400">
-          Checking DEUBA, TPRA, policy rules, and duplicate requests
+          Checking buying channel, SRA, policy rules, and duplicate requests
         </p>
       </div>
     );
@@ -134,24 +134,24 @@ export function StepCompliance({
 
   return (
     <div className="space-y-6">
-      {/* DEUBA Determination */}
+      {/* Buying Channel Classification */}
       <div className="rounded-lg border border-blue-200 bg-blue-50/60 p-4">
         <div className="flex items-start gap-2">
           <Info className="mt-0.5 size-4 shrink-0 text-blue-500" />
           <div>
-            <p className="text-sm font-medium text-gray-900">DEUBA Determination</p>
+            <p className="text-sm font-medium text-gray-900">Buying Channel Classification</p>
             <p className="mt-1 text-sm text-gray-700">
               Based on value ({formatCurrency(estimatedValue)}), category ({category}), this is classified as:{' '}
-              <span className="font-semibold text-blue-700">{result.deubaResult}</span>
+              <span className="font-semibold text-blue-700">{result.buyingChannelResult}</span>
             </p>
           </div>
         </div>
       </div>
 
-      {/* TPRA Status */}
+      {/* SRA Status */}
       <div className="rounded-lg border border-gray-200 bg-white p-4">
-        <p className="text-sm font-medium text-gray-900">TPRA Status</p>
-        <p className="mt-1 text-sm text-gray-600">{result.tpraStatus}</p>
+        <p className="text-sm font-medium text-gray-900">SRA Status</p>
+        <p className="mt-1 text-sm text-gray-600">{result.sraStatus}</p>
       </div>
 
       {/* Policy Checks */}
