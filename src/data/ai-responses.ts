@@ -106,6 +106,14 @@ export const aiResponses: AIResponse[] = [
     autoFill: { category: 'services', commodityCode: '86132000', commodityCodeLabel: 'Training services', buyingChannel: 'business-led' },
   },
   {
+    keywords: ['catalogue', 'catalog', 'office supplies', 'stationery', 'toner', 'paper', 'standard item', 'reorder', 'supplies'],
+    context: 'intake',
+    response: 'This looks like a standard catalogue item. You can order directly from our approved catalogues without going through the full procurement process. Select "Catalogue Purchase" to browse available items.',
+    confidence: 0.96,
+    suggestions: ['Browse IT catalogue', 'Browse office supplies', 'Check approved items'],
+    autoFill: { category: 'catalogue', buyingChannel: 'catalogue' },
+  },
+  {
     keywords: ['help', 'not sure', 'how do i', 'what do i', 'which', 'process'],
     context: 'intake',
     response: 'No problem — I can guide you through the right process. Try describing what you need in plain language. For example: "I need new laptops for my team" or "We want to hire a consulting firm for a strategy review". I will identify the category, route, and approvals needed.',

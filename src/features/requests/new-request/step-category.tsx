@@ -7,6 +7,7 @@ import {
   Users,
   RefreshCw,
   UserPlus,
+  ShoppingBag,
   HelpCircle,
   ArrowRight,
   Sparkles,
@@ -21,6 +22,13 @@ import { getAIResponse, getAICategorySuggestions } from '@/lib/mock-ai';
 import type { RequestCategory } from '@/data/types';
 
 const CATEGORIES = [
+  {
+    id: 'catalogue' as RequestCategory,
+    name: 'Catalogue Purchase',
+    description: 'Standard items from approved catalogues — office supplies, IT accessories, PPE',
+    timeline: '~2 days',
+    icon: ShoppingBag,
+  },
   {
     id: 'goods' as RequestCategory,
     name: 'Goods',
@@ -201,8 +209,54 @@ export function StepCategory({ category, categoryDescription, onUpdate }: StepCa
         />
       </div>
 
-      {/* AI Guidance Card — full intelligent routing */}
-      {aiGuidance && !accepted && (
+      {/* AI Guidance Card — catalogue variant (green) */}
+      {aiGuidance && !accepted && aiGuidance.autoFill?.category === 'catalogue' && (
+        <div className="rounded-md border-l-2 border-green-400 bg-green-50/70 p-4 space-y-4">
+          <div className="flex items-start gap-2">
+            <ShoppingBag className="size-4 shrink-0 text-green-500 mt-0.5" />
+            <div className="flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-medium text-green-600">Catalogue item detected</span>
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-green-200 text-green-600">
+                  {Math.round(aiGuidance.confidence * 100)}% confidence
+                </Badge>
+              </div>
+              <p className="mt-2 text-sm text-gray-700">{aiGuidance.response}</p>
+
+              {aiGuidance.suggestions && aiGuidance.suggestions.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {aiGuidance.suggestions.map((s, i) => (
+                    <span key={i} className="inline-flex items-center gap-1 rounded-full bg-white border border-green-200 px-2.5 py-1 text-xs text-gray-600">
+                      <ArrowRight className="size-3 text-green-500" />
+                      {s}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              <div className="mt-4 flex items-center gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    onUpdate({ category: 'catalogue', categoryDescription: 'Catalogue Purchase' });
+                    setAccepted(true);
+                  }}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  <ShoppingBag className="size-3.5" />
+                  Browse Catalogue
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setAiGuidance(null)}>
+                  Choose manually
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AI Guidance Card — full intelligent routing (non-catalogue) */}
+      {aiGuidance && !accepted && aiGuidance.autoFill?.category !== 'catalogue' && (
         <div className="rounded-md border-l-2 border-blue-400 bg-blue-50/70 p-4 space-y-4">
           <div className="flex items-start gap-2">
             <Sparkles className="size-4 shrink-0 text-blue-500 mt-0.5" />

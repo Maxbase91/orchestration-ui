@@ -17,6 +17,7 @@ interface StepConfirmationProps {
     isUrgent: boolean;
     buyingChannelResult: string;
     commodityCodeLabel: string;
+    catalogueItems?: { itemId: string; name: string; quantity: number; unitPrice: number; supplierId: string }[];
   };
   onReset: () => void;
 }
@@ -29,6 +30,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   'contingent-labour': 'Contingent Labour',
   'contract-renewal': 'Contract Renewal',
   'supplier-onboarding': 'Supplier Onboarding',
+  'catalogue': 'Catalogue Purchase',
 };
 
 export function StepConfirmation({ requestId, data, onReset }: StepConfirmationProps) {
@@ -74,6 +76,28 @@ export function StepConfirmation({ requestId, data, onReset }: StepConfirmationP
           ))}
         </div>
       </div>
+
+      {/* Catalogue items breakdown */}
+      {data.catalogueItems && data.catalogueItems.length > 0 && (
+        <div className="rounded-lg border border-gray-200 bg-white">
+          <div className="border-b border-gray-100 px-4 py-3">
+            <h3 className="text-sm font-semibold text-gray-900">Catalogue Items ({data.catalogueItems.length})</h3>
+          </div>
+          <div className="divide-y divide-gray-50">
+            {data.catalogueItems.map((item) => (
+              <div key={item.itemId} className="flex items-center justify-between px-4 py-2.5">
+                <div>
+                  <span className="text-sm font-medium text-gray-900">{item.name}</span>
+                  <span className="text-xs text-gray-400 ml-2">x{item.quantity}</span>
+                </div>
+                <span className="text-sm text-gray-700">
+                  {'\u20AC'}{(item.quantity * item.unitPrice).toLocaleString('de-DE', { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Next steps */}
       <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">

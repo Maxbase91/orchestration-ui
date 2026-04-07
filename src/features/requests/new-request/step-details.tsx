@@ -6,6 +6,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AISuggestionCard } from '@/components/shared/ai-suggestion-card';
 import { SupplierAutocomplete } from './components/supplier-autocomplete';
+import { ServiceDescriptionGenerator } from './components/service-description-generator';
 import { getAICommodityCode } from '@/lib/mock-ai';
 import type { Supplier } from '@/data/types';
 
@@ -25,6 +26,7 @@ const CATEGORY_TITLES: Record<string, string> = {
   'contingent-labour': 'Contingent labour request',
   'contract-renewal': 'Contract renewal',
   'supplier-onboarding': 'Supplier onboarding',
+  'catalogue': 'Catalogue purchase order',
 };
 
 interface StepDetailsData {
@@ -149,6 +151,15 @@ export function StepDetails({ category, data, onUpdate }: StepDetailsProps) {
           </Select>
         </div>
       </div>
+
+      {/* AI Service Description Generator — for services, consulting, contingent-labour */}
+      {(['services', 'consulting', 'contingent-labour'] as string[]).includes(category) && (
+        <ServiceDescriptionGenerator
+          category={category}
+          supplierName={data.supplier || undefined}
+          onGenerated={(description) => onUpdate({ businessJustification: description })}
+        />
+      )}
 
       {/* Business Justification */}
       <div className="space-y-1.5">

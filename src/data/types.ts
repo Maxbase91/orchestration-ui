@@ -1,5 +1,5 @@
 export type RequestStatus = 'draft' | 'intake' | 'validation' | 'approval' | 'sourcing' | 'contracting' | 'po' | 'receipt' | 'invoice' | 'payment' | 'completed' | 'cancelled' | 'referred-back';
-export type RequestCategory = 'goods' | 'services' | 'software' | 'consulting' | 'contingent-labour' | 'contract-renewal' | 'supplier-onboarding';
+export type RequestCategory = 'goods' | 'services' | 'software' | 'consulting' | 'contingent-labour' | 'contract-renewal' | 'supplier-onboarding' | 'catalogue';
 export type Priority = 'low' | 'medium' | 'high' | 'urgent';
 export type BuyingChannel = 'procurement-led' | 'business-led' | 'direct-po' | 'framework-call-off' | 'catalogue';
 export type RiskRating = 'low' | 'medium' | 'high' | 'critical';

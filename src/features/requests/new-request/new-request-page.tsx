@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { StepCategory } from './step-category';
 import { StepDetails } from './step-details';
+import { StepCatalogue } from './step-catalogue';
 import { StepCompliance } from './step-compliance';
 import { StepRoutingPreview } from './step-routing-preview';
 import { StepConfirmation } from './step-confirmation';
@@ -24,6 +25,8 @@ interface RequestFormData {
   costCentre: string;
   commodityCode: string;
   commodityCodeLabel: string;
+  // Catalogue items
+  catalogueItems: { itemId: string; name: string; quantity: number; unitPrice: number; supplierId: string }[];
   // Step 3
   buyingChannelResult: string;
   sraStatus: string;
@@ -48,6 +51,7 @@ const INITIAL_DATA: RequestFormData = {
   costCentre: '',
   commodityCode: '',
   commodityCodeLabel: '',
+  catalogueItems: [],
   buyingChannelResult: '',
   sraStatus: '',
   policyChecks: [],
@@ -104,6 +108,9 @@ export function NewRequestPage() {
       case 1:
         return !!formData.category;
       case 2:
+        if (formData.category === 'catalogue') {
+          return formData.catalogueItems.length > 0;
+        }
         return !!formData.title && formData.estimatedValue > 0;
       case 3:
         return !!formData.buyingChannelResult;
@@ -214,7 +221,12 @@ export function NewRequestPage() {
             onUpdate={(d) => updateFormData(d)}
           />
         )}
-        {currentStep === 2 && (
+        {currentStep === 2 && formData.category === 'catalogue' && (
+          <StepCatalogue
+            onUpdate={(d) => updateFormData(d)}
+          />
+        )}
+        {currentStep === 2 && formData.category !== 'catalogue' && (
           <StepDetails
             category={formData.category}
             data={{
@@ -265,6 +277,7 @@ export function NewRequestPage() {
               isUrgent: formData.isUrgent,
               buyingChannelResult: formData.buyingChannelResult,
               commodityCodeLabel: formData.commodityCodeLabel,
+              catalogueItems: formData.catalogueItems,
             }}
             onReset={handleReset}
           />
