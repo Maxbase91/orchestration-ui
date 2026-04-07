@@ -29,11 +29,21 @@ What can I help you with?`,
 const FALLBACK_RESPONSE =
   "I'm not sure I understand that question. Could you try rephrasing? I can help with request status, procurement policies, supplier information, spend analytics, and approval workflows.";
 
+export function openAIChat() {
+  window.dispatchEvent(new CustomEvent('open-ai-chat'));
+}
+
 export function AIChatOverlay() {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessageData[]>([WELCOME_MESSAGE]);
   const [isTyping, setIsTyping] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = () => setOpen(true);
+    window.addEventListener('open-ai-chat', handler);
+    return () => window.removeEventListener('open-ai-chat', handler);
+  }, []);
 
   const scrollToBottom = useCallback(() => {
     if (scrollRef.current) {

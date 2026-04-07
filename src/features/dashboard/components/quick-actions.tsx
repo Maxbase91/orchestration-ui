@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { Role } from '@/config/roles';
+import { openAIChat } from '@/features/ai-assistant/ai-chat-overlay';
 
 interface QuickAction {
   label: string;
@@ -66,7 +67,7 @@ export const serviceOwnerActions: QuickAction[] = [
   { label: 'New Request', icon: Plus, to: '/requests/new', variant: 'default' },
   { label: 'Track a Request', icon: Search, to: '/requests' },
   { label: 'My Approvals', icon: CheckCircle, to: '/approvals' },
-  { label: 'Ask AI Assistant', icon: Sparkles },
+  { label: 'Ask AI Assistant', icon: Sparkles, onClick: openAIChat },
 ];
 
 export const procurementManagerActions: QuickAction[] = [
