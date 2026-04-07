@@ -3,6 +3,7 @@ import { getRequestById } from '@/data/requests';
 import { RequestHeader } from './components/request-header';
 import { LifecycleStepper } from './components/lifecycle-stepper';
 import { TabOverview } from './tab-overview';
+import { TabCompliance } from './tab-compliance';
 import { TabWorkflow } from './tab-workflow';
 import { TabComments } from './tab-comments';
 import { TabApprovals } from './tab-approvals';
@@ -42,6 +43,7 @@ export function RequestDetailPage() {
       <Tabs defaultValue="overview">
         <TabsList variant="line" className="w-full justify-start border-b">
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="compliance">Compliance</TabsTrigger>
           <TabsTrigger value="workflow">Workflow</TabsTrigger>
           <TabsTrigger value="comments">Comments</TabsTrigger>
           <TabsTrigger value="approvals">Approvals</TabsTrigger>
@@ -51,6 +53,9 @@ export function RequestDetailPage() {
         </TabsList>
         <TabsContent value="overview" className="pt-4">
           <TabOverview request={request} />
+        </TabsContent>
+        <TabsContent value="compliance" className="pt-4">
+          <TabCompliance request={request} />
         </TabsContent>
         <TabsContent value="workflow" className="pt-4">
           <TabWorkflow request={request} />
