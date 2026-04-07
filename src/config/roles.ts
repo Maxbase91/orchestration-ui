@@ -7,7 +7,7 @@ export interface RoleConfig {
 }
 
 export const roles: RoleConfig[] = [
-  { id: 'service-owner', label: 'Service Owner', description: 'Business user who needs to buy something' },
+  { id: 'service-owner', label: 'Requestor / End User', description: 'Business user who needs to buy something' },
   { id: 'procurement-manager', label: 'Strategic Procurement Manager', description: 'Manages demand pipeline and sourcing strategy' },
   { id: 'vendor-manager', label: 'Vendor Manager', description: 'Validates sourcing requests and compliance' },
   { id: 'operations-lead', label: 'Procurement Operations Lead', description: 'Handles operational queries and workflows' },

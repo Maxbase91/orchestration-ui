@@ -7,6 +7,7 @@ import { AISuggestionCard } from '@/components/shared/ai-suggestion-card';
 import { DemandPipelineChart } from './components/demand-pipeline-chart';
 import { WorkloadChart } from './components/workload-chart';
 import { AttentionRequiredList } from './components/attention-required-list';
+import { QuickActions, procurementManagerActions } from './components/quick-actions';
 
 const activeStatuses = new Set([
   'intake', 'validation', 'approval', 'sourcing', 'contracting', 'po', 'receipt', 'invoice', 'referred-back',
@@ -38,6 +39,12 @@ export function ProcurementManagerDashboard() {
 
   return (
     <div className="space-y-6">
+      {/* Quick Actions */}
+      <div className="bg-card rounded-md shadow-[0_1px_4px_rgba(0,0,0,0.08)] p-4">
+        <h2 className="text-lg font-semibold text-gray-900 mb-3">Quick Actions</h2>
+        <QuickActions actions={procurementManagerActions} />
+      </div>
+
       {/* KPI Row */}
       <div className="grid grid-cols-4 gap-4">
         <KPICard

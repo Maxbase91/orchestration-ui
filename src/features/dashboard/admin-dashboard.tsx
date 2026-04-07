@@ -1,8 +1,14 @@
 import { SystemHealthPanel, RecentChangesLog, ConfigurationAlerts } from './components/system-health-panel';
+import { QuickActions, adminActions } from './components/quick-actions';
 
 export function AdminDashboard() {
   return (
     <div className="space-y-6">
+      {/* Quick Actions */}
+      <div className="bg-card rounded-md shadow-[0_1px_4px_rgba(0,0,0,0.08)] p-4">
+        <h2 className="text-lg font-semibold text-gray-900 mb-3">Quick Actions</h2>
+        <QuickActions actions={adminActions} />
+      </div>
       {/* System Health KPIs */}
       <SystemHealthPanel />
 

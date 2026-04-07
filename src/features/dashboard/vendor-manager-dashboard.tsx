@@ -6,6 +6,7 @@ import { StatusBadge } from '@/components/shared/status-badge';
 import { KPICard } from '@/components/shared/kpi-card';
 import { AISuggestionCard } from '@/components/shared/ai-suggestion-card';
 import { ValidationQueueCard } from './components/validation-queue-card';
+import { QuickActions, vendorManagerActions } from './components/quick-actions';
 
 const completedLikeStatuses = new Set([
   'approval', 'sourcing', 'contracting', 'po', 'receipt', 'invoice', 'payment', 'completed',
@@ -25,6 +26,12 @@ export function VendorManagerDashboard() {
 
   return (
     <div className="space-y-6">
+      {/* Quick Actions */}
+      <div className="bg-card rounded-md shadow-[0_1px_4px_rgba(0,0,0,0.08)] p-4">
+        <h2 className="text-lg font-semibold text-gray-900 mb-3">Quick Actions</h2>
+        <QuickActions actions={vendorManagerActions} />
+      </div>
+
       {/* KPI Row */}
       <div className="grid grid-cols-4 gap-4">
         <KPICard
