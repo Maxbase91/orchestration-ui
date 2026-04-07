@@ -221,6 +221,12 @@ export interface AIAgent {
   description: string;
 }
 
+export interface AIResponseLink {
+  label: string;
+  path: string;
+  icon?: string;
+}
+
 export interface AIResponse {
   keywords: string[];
   context: 'intake' | 'chat' | 'approval' | 'supplier' | 'general';
@@ -228,4 +234,5 @@ export interface AIResponse {
   confidence: number;
   suggestions?: string[];
   autoFill?: Record<string, string>;
+  links?: AIResponseLink[];
 }

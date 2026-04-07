@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -16,14 +17,22 @@ import { ChatInput } from './components/chat-input';
 const WELCOME_MESSAGE: ChatMessageData = {
   id: 'welcome',
   role: 'assistant',
-  content: `Hello! I'm your procurement assistant. I can help you with:
-- Finding requests and their status
-- Understanding procurement policies
-- Navigating the platform
-- Answering questions about suppliers and contracts
+  content: `Hello! I'm your procurement assistant. I can help you navigate the platform and get things done quickly. Here are some things I can do:
 
-What can I help you with?`,
+• **Create a request** — I'll guide you through the right process
+• **Track a request** — find status and next steps
+• **Find a supplier** — search, view profiles, check risk
+• **Check approvals** — see what's pending
+• **View analytics** — spend, compliance, pipeline
+
+Just ask me what you need, or use the quick links below.`,
   timestamp: new Date().toISOString(),
+  links: [
+    { label: 'Create New Request', path: '/requests/new' },
+    { label: 'My Requests', path: '/requests/my' },
+    { label: 'My Approvals', path: '/approvals' },
+    { label: 'Supplier Directory', path: '/suppliers' },
+  ],
 };
 
 const FALLBACK_RESPONSE =
@@ -34,6 +43,7 @@ export function openAIChat() {
 }
 
 export function AIChatOverlay() {
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessageData[]>([WELCOME_MESSAGE]);
   const [isTyping, setIsTyping] = useState(false);
@@ -78,6 +88,7 @@ export function AIChatOverlay() {
         content: aiResult?.response ?? FALLBACK_RESPONSE,
         timestamp: new Date().toISOString(),
         suggestions: aiResult?.suggestions,
+        links: aiResult?.links,
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
@@ -87,6 +98,11 @@ export function AIChatOverlay() {
 
   function handleSuggestionClick(text: string) {
     handleSend(text);
+  }
+
+  function handleLinkClick(path: string) {
+    setOpen(false);
+    navigate(path);
   }
 
   return (
@@ -124,6 +140,7 @@ export function AIChatOverlay() {
                   key={msg.id}
                   message={msg}
                   onSuggestionClick={handleSuggestionClick}
+                  onLinkClick={handleLinkClick}
                 />
               ))}
               {isTyping && (

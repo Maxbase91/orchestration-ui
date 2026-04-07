@@ -1,7 +1,10 @@
 const suggestions = [
-  'Where is my request?',
-  'How do I buy software?',
-  'Show pending approvals',
+  'I want to buy something',
+  'Track my request',
+  'Show my approvals',
+  'Find a supplier',
+  'Check spend analytics',
+  'What can you do?',
 ];
 
 interface SuggestedActionsProps {
