@@ -148,14 +148,16 @@ export function StepCategory({ category, categoryDescription, onUpdate }: StepCa
   };
 
   const handleAcceptGuidance = () => {
-    if (!aiGuidance?.autoFill) return;
+    if (!aiGuidance) return;
 
-    const af = aiGuidance.autoFill;
-    const cat = CATEGORIES.find((c) => c.id === af.category);
+    const af = aiGuidance.autoFill ?? {};
+    // Use autoFill category, or fall back to best category suggestion
+    const selectedCategory = af.category ?? aiSuggestions[0]?.category ?? category;
+    const cat = CATEGORIES.find((c) => c.id === selectedCategory);
 
     onUpdate({
-      category: af.category ?? category,
-      categoryDescription: cat?.name ?? af.category ?? categoryDescription,
+      category: selectedCategory,
+      categoryDescription: cat?.name ?? selectedCategory ?? categoryDescription,
       title: inputValue,
       commodityCode: af.commodityCode,
       commodityCodeLabel: af.commodityCodeLabel,
@@ -262,15 +264,22 @@ export function StepCategory({ category, categoryDescription, onUpdate }: StepCa
               )}
 
               {/* Accept / Change buttons */}
-              <div className="mt-4 flex items-center gap-2">
-                <Button size="sm" onClick={handleAcceptGuidance}>
-                  <CheckCircle className="size-3.5" />
-                  Accept & continue with this route
-                </Button>
-                <Button size="sm" variant="ghost" onClick={() => setAiGuidance(null)}>
-                  Choose manually
-                </Button>
-              </div>
+              {(aiGuidance.autoFill?.category || aiSuggestions.length > 0) && (
+                <div className="mt-4 flex items-center gap-2">
+                  <Button size="sm" onClick={handleAcceptGuidance}>
+                    <CheckCircle className="size-3.5" />
+                    Accept & continue with this route
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setAiGuidance(null)}>
+                    Choose manually
+                  </Button>
+                </div>
+              )}
+              {!aiGuidance.autoFill?.category && aiSuggestions.length === 0 && (
+                <div className="mt-4">
+                  <p className="text-xs text-blue-600">Add more detail or select a category below to continue.</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
