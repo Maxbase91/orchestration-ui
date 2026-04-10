@@ -30,6 +30,7 @@ import { DashboardWidgetCard } from './components/dashboard-widget-card';
 import { QuickActionsEditor } from './components/quick-actions-editor';
 import { AddWidgetDialog } from './components/add-widget-dialog';
 import { openAIChat } from '@/features/ai-assistant/ai-chat-overlay';
+import { SmartCommandBar } from './components/smart-command-bar';
 
 const qaIconMap: Record<string, LucideIcon> = {
   Plus, Search, CheckCircle, Sparkles, FileText, AlertTriangle, Building2,
@@ -83,6 +84,8 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      <SmartCommandBar />
+
       {/* Welcome */}
       <div className="flex items-start justify-between">
         <div>
