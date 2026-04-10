@@ -1,6 +1,5 @@
 import { Sparkles, User, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { format, parseISO } from 'date-fns';
 
 export interface ChatMessageLink {
   label: string;
@@ -27,56 +26,52 @@ export function ChatMessage({ message, onSuggestionClick, onLinkClick }: ChatMes
 
   return (
     <div className={cn('flex gap-2', isUser ? 'flex-row-reverse' : 'flex-row')}>
-      {/* Avatar */}
       <div
         className={cn(
-          'flex size-7 shrink-0 items-center justify-center rounded-full',
+          'flex size-6 shrink-0 items-center justify-center rounded-full',
           isUser ? 'bg-gray-800' : 'bg-amber-100'
         )}
       >
         {isUser ? (
-          <User className="size-3.5 text-white" />
+          <User className="size-3 text-white" />
         ) : (
-          <Sparkles className="size-3.5 text-amber-600" />
+          <Sparkles className="size-3 text-amber-600" />
         )}
       </div>
 
-      {/* Bubble */}
-      <div className={cn('max-w-[85%] space-y-2')}>
+      <div className={cn('max-w-[85%] space-y-1.5')}>
         <div
           className={cn(
-            'rounded-lg px-3 py-2 text-sm',
-            isUser
-              ? 'bg-gray-800 text-white'
-              : 'bg-blue-50 text-gray-900'
+            'rounded-lg px-3 py-2 text-[13px] leading-relaxed',
+            isUser ? 'bg-gray-800 text-white' : 'bg-gray-50 text-gray-800'
           )}
         >
           <p className="whitespace-pre-wrap">{message.content}</p>
         </div>
 
-        {/* Action Links */}
+        {/* Links — compact inline style */}
         {message.links && message.links.length > 0 && (
-          <div className="space-y-1">
-            {message.links.map((link) => (
+          <div className="flex flex-wrap gap-1">
+            {message.links.slice(0, 3).map((link) => (
               <button
-                key={link.path}
-                className="flex w-full items-center gap-2 rounded-md border border-blue-200 bg-white px-3 py-2 text-left text-xs font-medium text-blue-700 transition-colors hover:bg-blue-50"
+                key={link.path + link.label}
+                className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[11px] font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors"
                 onClick={() => onLinkClick?.(link.path)}
               >
-                <ArrowRight className="size-3.5 shrink-0" />
+                <ArrowRight className="size-3" />
                 {link.label}
               </button>
             ))}
           </div>
         )}
 
-        {/* Suggestions */}
+        {/* Suggestions — max 3 */}
         {message.suggestions && message.suggestions.length > 0 && (
           <div className="flex flex-wrap gap-1">
-            {message.suggestions.map((suggestion) => (
+            {message.suggestions.slice(0, 3).map((suggestion) => (
               <button
                 key={suggestion}
-                className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs text-blue-700 transition-colors hover:bg-blue-100"
+                className="rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-[11px] text-gray-600 hover:bg-gray-100 transition-colors"
                 onClick={() => onSuggestionClick?.(suggestion)}
               >
                 {suggestion}
@@ -84,10 +79,6 @@ export function ChatMessage({ message, onSuggestionClick, onLinkClick }: ChatMes
             ))}
           </div>
         )}
-
-        <p className={cn('text-[10px] text-muted-foreground', isUser ? 'text-right' : 'text-left')}>
-          {format(parseISO(message.timestamp), 'HH:mm')}
-        </p>
       </div>
     </div>
   );

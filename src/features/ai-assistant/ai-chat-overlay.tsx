@@ -17,22 +17,8 @@ import { ChatInput } from './components/chat-input';
 const WELCOME_MESSAGE: ChatMessageData = {
   id: 'welcome',
   role: 'assistant',
-  content: `Hello! I'm your procurement assistant. I can help you navigate the platform and get things done quickly. Here are some things I can do:
-
-• **Create a request** — I'll guide you through the right process
-• **Track a request** — find status and next steps
-• **Find a supplier** — search, view profiles, check risk
-• **Check approvals** — see what's pending
-• **View analytics** — spend, compliance, pipeline
-
-Just ask me what you need, or use the quick links below.`,
+  content: 'Hi! How can I help you today?',
   timestamp: new Date().toISOString(),
-  links: [
-    { label: 'Create New Request', path: '/requests/new' },
-    { label: 'My Requests', path: '/requests/my' },
-    { label: 'My Approvals', path: '/approvals' },
-    { label: 'Supplier Directory', path: '/suppliers' },
-  ],
 };
 
 const FALLBACK_RESPONSE =
@@ -119,13 +105,11 @@ export function AIChatOverlay() {
 
       {/* Chat panel */}
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="right" className="flex w-[400px] flex-col gap-0 p-0 sm:max-w-[400px]">
-          <SheetHeader className="border-b px-4 py-3">
-            <SheetTitle className="flex items-center gap-2 text-base">
-              <div className="flex size-7 items-center justify-center rounded-full bg-amber-100">
-                <Sparkles className="size-4 text-amber-600" />
-              </div>
-              AI Assistant
+        <SheetContent side="right" className="flex w-[360px] flex-col gap-0 p-0 sm:max-w-[360px]">
+          <SheetHeader className="border-b px-4 py-2.5">
+            <SheetTitle className="flex items-center gap-2 text-sm">
+              <Sparkles className="size-4 text-amber-500" />
+              Assistant
             </SheetTitle>
             <SheetDescription className="sr-only">
               Ask questions about procurement
@@ -145,14 +129,14 @@ export function AIChatOverlay() {
               ))}
               {isTyping && (
                 <div className="flex gap-2">
-                  <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-amber-100">
-                    <Sparkles className="size-3.5 text-amber-600" />
+                  <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-amber-100">
+                    <Sparkles className="size-3 text-amber-600" />
                   </div>
-                  <div className="rounded-lg bg-blue-50 px-3 py-2">
+                  <div className="rounded-lg bg-gray-50 px-3 py-2">
                     <div className="flex gap-1">
-                      <span className="size-1.5 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: '0ms' }} />
-                      <span className="size-1.5 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: '150ms' }} />
-                      <span className="size-1.5 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: '300ms' }} />
+                      <span className="size-1.5 animate-bounce rounded-full bg-gray-300" style={{ animationDelay: '0ms' }} />
+                      <span className="size-1.5 animate-bounce rounded-full bg-gray-300" style={{ animationDelay: '150ms' }} />
+                      <span className="size-1.5 animate-bounce rounded-full bg-gray-300" style={{ animationDelay: '300ms' }} />
                     </div>
                   </div>
                 </div>
@@ -161,7 +145,7 @@ export function AIChatOverlay() {
           </ScrollArea>
 
           {/* Input */}
-          <div className="border-t p-3">
+          <div className="border-t p-2.5">
             <ChatInput onSend={handleSend} disabled={isTyping} />
           </div>
         </SheetContent>
