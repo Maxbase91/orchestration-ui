@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { StepCategory } from './step-category';
 import { StepDetails } from './step-details';
+import { StepChatIntake } from './step-chat-intake';
 import { StepCatalogue } from './step-catalogue';
 import { StepCompliance } from './step-compliance';
 import { StepRoutingPreview } from './step-routing-preview';
@@ -143,7 +144,7 @@ export function NewRequestPage() {
   };
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className={cn("mx-auto space-y-6", currentStep === 2 && !['catalogue', 'contract-renewal', 'supplier-onboarding'].includes(formData.category) ? 'max-w-5xl' : 'max-w-3xl')}>
       {/* Header */}
       <div>
         <h1 className="text-xl font-semibold text-gray-900">New Request</h1>
@@ -226,9 +227,29 @@ export function NewRequestPage() {
             onUpdate={(d) => updateFormData(d)}
           />
         )}
-        {currentStep === 2 && formData.category !== 'catalogue' && (
+        {currentStep === 2 && ['contract-renewal', 'supplier-onboarding'].includes(formData.category) && (
           <StepDetails
             category={formData.category}
+            data={{
+              title: formData.title,
+              supplier: formData.supplier,
+              supplierId: formData.supplierId,
+              estimatedValue: formData.estimatedValue,
+              currency: formData.currency,
+              businessJustification: formData.businessJustification,
+              deliveryDate: formData.deliveryDate,
+              isUrgent: formData.isUrgent,
+              costCentre: formData.costCentre,
+              commodityCode: formData.commodityCode,
+              commodityCodeLabel: formData.commodityCodeLabel,
+            }}
+            onUpdate={(d) => updateFormData(d)}
+          />
+        )}
+        {currentStep === 2 && !['catalogue', 'contract-renewal', 'supplier-onboarding'].includes(formData.category) && (
+          <StepChatIntake
+            category={formData.category}
+            categoryDescription={formData.categoryDescription}
             data={{
               title: formData.title,
               supplier: formData.supplier,
@@ -250,6 +271,7 @@ export function NewRequestPage() {
             category={formData.category}
             estimatedValue={formData.estimatedValue}
             supplierId={formData.supplierId}
+            supplier={formData.supplier}
             isUrgent={formData.isUrgent}
             onUpdate={(d) => updateFormData(d)}
           />

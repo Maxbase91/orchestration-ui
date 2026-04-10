@@ -1,9 +1,10 @@
-import { useEffect, useState, useCallback } from 'react';
-import { Loader2, Info, ChevronDown, ChevronUp, AlertTriangle, CheckCircle } from 'lucide-react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
+import { Loader2, Info, ChevronDown, ChevronUp, AlertTriangle, CheckCircle, Sparkles, Circle, MinusCircle, Clock } from 'lucide-react';
 import { ComplianceCheckResult } from './components/compliance-check-result';
 import { AISuggestionCard } from '@/components/shared/ai-suggestion-card';
 import { formatCurrency } from '@/lib/format';
 import { suppliers } from '@/data/suppliers';
+import { contracts } from '@/data/contracts';
 import { getFormTemplate } from '@/data/form-templates';
 import { DynamicForm } from '@/components/shared/dynamic-form';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,6 +21,7 @@ interface StepComplianceProps {
   category: string;
   estimatedValue: number;
   supplierId: string;
+  supplier?: string;
   isUrgent: boolean;
   onUpdate: (data: ComplianceData) => void;
 }
@@ -89,6 +91,7 @@ export function StepCompliance({
   category,
   estimatedValue,
   supplierId,
+  supplier,
   isUrgent,
   onUpdate,
 }: StepComplianceProps) {
@@ -202,6 +205,14 @@ export function StepCompliance({
       {category === 'software' && (
         <ITSecurityAssessmentSection />
       )}
+
+      {/* Smart Assessment */}
+      <SmartAssessmentSection
+        supplier={supplier ?? ''}
+        supplierId={supplierId}
+        category={category}
+        estimatedValue={estimatedValue}
+      />
     </div>
   );
 }
@@ -296,6 +307,165 @@ function RiskAssessmentTriageSection({
           )}
         </CardContent>
       )}
+    </Card>
+  );
+}
+
+// ── Smart Assessment Section ──────────────────────────────────────────
+
+function SmartAssessmentSection({
+  supplier,
+  supplierId,
+  category,
+  estimatedValue,
+}: {
+  supplier: string;
+  supplierId: string;
+  category: string;
+  estimatedValue: number;
+}) {
+  const assessment = useMemo(() => {
+    // Vendor match
+    const matchedSupplier = supplierId
+      ? suppliers.find((s) => s.id === supplierId)
+      : supplier
+        ? suppliers.find((s) => s.name.toLowerCase().includes(supplier.toLowerCase()))
+        : null;
+
+    // Contract coverage
+    const matchedContracts = matchedSupplier
+      ? contracts.filter((c) => c.supplierId === matchedSupplier.id && (c.status === 'active' || c.status === 'expiring'))
+      : [];
+    const hasActiveContract = matchedContracts.some((c) => c.status === 'active');
+    const hasExpiringContract = matchedContracts.some((c) => c.status === 'expiring');
+
+    // Buying channel determines sourcing need
+    const needsSourcing = estimatedValue >= 25000 && category !== 'contingent-labour' && !hasActiveContract;
+    const needsContracting = !hasActiveContract;
+    const needsVPApproval = estimatedValue > 100000;
+
+    // Build steps
+    const steps = [
+      { name: 'Intake', status: 'completed' as const, days: 0, detail: 'Completed' },
+      { name: 'Validation', status: 'current' as const, days: 2, detail: 'Buying channel classification + vendor check' },
+      { name: 'Approval', status: 'future' as const, days: needsVPApproval ? 5 : 3, detail: needsVPApproval ? 'Budget Owner → Finance → VP Procurement' : 'Budget Owner → Finance' },
+      { name: 'Sourcing', status: (needsSourcing ? 'future' : 'skipped') as 'future' | 'skipped', days: 10, detail: needsSourcing ? 'Procurement-Led Sourcing via SAP Ariba' : `Skipped — ${hasActiveContract ? 'framework agreement available' : 'below threshold'}` },
+      { name: 'Contracting', status: (needsContracting ? 'future' : 'skipped') as 'future' | 'skipped', days: 15, detail: needsContracting ? 'Contract required — via Sirion CLM' : `Skipped — existing contract (${matchedContracts[0]?.title ?? 'active'})` },
+      { name: 'Purchase Order', status: 'future' as const, days: 2, detail: 'PO creation in SAP S/4HANA' },
+      { name: 'Receipt & Payment', status: 'future' as const, days: 5, detail: 'Goods receipt + invoice matching + payment' },
+    ];
+
+    const totalDays = steps.filter((s) => s.status !== 'skipped').reduce((sum, s) => sum + s.days, 0);
+
+    return { matchedSupplier, matchedContracts, hasActiveContract, hasExpiringContract, steps, totalDays };
+  }, [supplier, supplierId, category, estimatedValue]);
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <Sparkles className="size-4 text-[#2D5F8A]" />
+          Smart Assessment — Estimated Processing Path
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Vendor Match */}
+        {(supplier || supplierId) && (
+          <div className={`flex items-start gap-2 rounded-lg border p-3 ${assessment.matchedSupplier ? 'border-green-200 bg-green-50' : 'border-amber-200 bg-amber-50'}`}>
+            {assessment.matchedSupplier ? (
+              <CheckCircle className="size-4 text-green-600 mt-0.5 shrink-0" />
+            ) : (
+              <AlertTriangle className="size-4 text-amber-600 mt-0.5 shrink-0" />
+            )}
+            <div>
+              <p className={`text-sm font-medium ${assessment.matchedSupplier ? 'text-green-800' : 'text-amber-800'}`}>
+                {assessment.matchedSupplier
+                  ? `Existing vendor — ${assessment.matchedSupplier.name}, ${assessment.matchedSupplier.country}, Risk: ${assessment.matchedSupplier.riskRating}, ${assessment.matchedSupplier.activeContracts} active contracts`
+                  : 'New vendor — supplier onboarding will be required'}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Contract Coverage */}
+        {assessment.matchedSupplier && (
+          <div className={`flex items-start gap-2 rounded-lg border p-3 ${assessment.hasActiveContract ? 'border-green-200 bg-green-50' : assessment.hasExpiringContract ? 'border-amber-200 bg-amber-50' : 'border-red-200 bg-red-50'}`}>
+            {assessment.hasActiveContract ? (
+              <CheckCircle className="size-4 text-green-600 mt-0.5 shrink-0" />
+            ) : assessment.hasExpiringContract ? (
+              <AlertTriangle className="size-4 text-amber-600 mt-0.5 shrink-0" />
+            ) : (
+              <MinusCircle className="size-4 text-red-600 mt-0.5 shrink-0" />
+            )}
+            <div>
+              <p className={`text-sm font-medium ${assessment.hasActiveContract ? 'text-green-800' : assessment.hasExpiringContract ? 'text-amber-800' : 'text-red-800'}`}>
+                {assessment.hasActiveContract
+                  ? `Active contract — ${assessment.matchedContracts[0]?.title}, valid until ${assessment.matchedContracts[0]?.endDate}, ${assessment.matchedContracts[0]?.utilisationPercentage}% utilised`
+                  : assessment.hasExpiringContract
+                    ? `Contract expiring — ${assessment.matchedContracts[0]?.title}, renewal recommended`
+                    : 'No existing contract — contracting step required'}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* SRA Status */}
+        {assessment.matchedSupplier && (
+          <div className={`flex items-start gap-2 rounded-lg border p-3 ${assessment.matchedSupplier.sraStatus === 'valid' ? 'border-green-200 bg-green-50' : assessment.matchedSupplier.sraStatus === 'expiring' ? 'border-amber-200 bg-amber-50' : 'border-red-200 bg-red-50'}`}>
+            {assessment.matchedSupplier.sraStatus === 'valid' ? (
+              <CheckCircle className="size-4 text-green-600 mt-0.5 shrink-0" />
+            ) : (
+              <AlertTriangle className="size-4 text-amber-600 mt-0.5 shrink-0" />
+            )}
+            <p className={`text-sm font-medium ${assessment.matchedSupplier.sraStatus === 'valid' ? 'text-green-800' : 'text-amber-800'}`}>
+              {assessment.matchedSupplier.sraStatus === 'valid'
+                ? `SRA valid until ${assessment.matchedSupplier.sraExpiryDate}`
+                : assessment.matchedSupplier.sraStatus === 'expiring'
+                  ? `SRA expiring on ${assessment.matchedSupplier.sraExpiryDate} — renewal recommended`
+                  : 'SRA assessment required before engagement'}
+            </p>
+          </div>
+        )}
+
+        {/* Estimated Journey */}
+        <div className="space-y-2 pt-2">
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Estimated Processing Steps</p>
+          <div className="space-y-1">
+            {assessment.steps.map((step, i) => (
+              <div key={i} className="flex items-start gap-3 py-1.5">
+                <div className="mt-0.5 shrink-0">
+                  {step.status === 'completed' && <CheckCircle className="size-4 text-green-500" />}
+                  {step.status === 'current' && <Circle className="size-4 text-blue-500 fill-blue-500" />}
+                  {step.status === 'future' && <Circle className="size-4 text-gray-300" />}
+                  {step.status === 'skipped' && <MinusCircle className="size-4 text-gray-300" />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className={`text-sm font-medium ${step.status === 'skipped' ? 'text-gray-400 line-through' : step.status === 'completed' ? 'text-green-700' : step.status === 'current' ? 'text-blue-700' : 'text-gray-700'}`}>
+                      {step.name}
+                    </span>
+                    {step.status === 'future' && step.days > 0 && (
+                      <span className="inline-flex items-center gap-1 text-[10px] text-gray-400">
+                        <Clock className="size-3" />~{step.days}d
+                      </span>
+                    )}
+                    {step.status === 'skipped' && (
+                      <span className="text-[10px] text-gray-400 italic">skipped</span>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-0.5">{step.detail}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
+            <Clock className="size-4 text-[#2D5F8A]" />
+            <span className="text-sm font-semibold text-gray-900">
+              Estimated total: ~{assessment.totalDays} business days
+            </span>
+          </div>
+        </div>
+      </CardContent>
     </Card>
   );
 }
