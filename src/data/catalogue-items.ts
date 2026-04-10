@@ -62,12 +62,30 @@ export const catalogueItems: CatalogueItem[] = [
   { id: 'PS-005', name: 'Laminating Pouches A4 100pk', description: 'Glossy laminating pouches, 125 micron', unitPrice: 15, unit: 'pack', catalogueId: 'print-stationery', catalogueName: 'Print & Stationery', supplierName: 'Staples', supplierId: 'SUP-CAT-007', leadTime: '2-3 days' },
 ];
 
+const STOP_WORDS = new Set([
+  'i', 'want', 'to', 'buy', 'buying', 'purchase', 'purchasing', 'order',
+  'ordering', 'need', 'get', 'some', 'a', 'an', 'the', 'for', 'of',
+  'my', 'me', 'please', 'can', 'could', 'would', 'like', 'new',
+]);
+
 export function searchCatalogueItems(query: string): CatalogueItem[] {
-  const q = query.toLowerCase();
-  return catalogueItems.filter(
-    (item) =>
-      item.name.toLowerCase().includes(q) ||
-      item.description.toLowerCase().includes(q) ||
-      item.catalogueName.toLowerCase().includes(q)
-  );
+  const words = query
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((w) => w.length > 1 && !STOP_WORDS.has(w));
+
+  if (words.length === 0) return [];
+
+  return catalogueItems
+    .map((item) => {
+      const haystack = `${item.name} ${item.description} ${item.catalogueName}`.toLowerCase();
+      let score = 0;
+      for (const word of words) {
+        if (haystack.includes(word)) score += 1;
+      }
+      return { item, score };
+    })
+    .filter((r) => r.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .map((r) => r.item);
 }
