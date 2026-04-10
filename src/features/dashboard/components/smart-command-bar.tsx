@@ -97,15 +97,9 @@ function fallbackDetect(input: string): AIResult {
   };
 }
 
-const chipSuggestions = [
-  { label: 'Buy office supplies', query: 'I want to buy office supplies' },
-  { label: 'Order paper', query: 'I need to order paper' },
-  { label: 'New procurement request', query: 'I need to create a new procurement request' },
-  { label: 'Track my request', query: 'Where is my procurement request?' },
-  { label: 'Check approvals', query: 'Show me my pending approvals' },
-  { label: 'Find a supplier', query: 'I need to find a supplier' },
-  { label: 'View spend', query: 'Show me the spend analytics dashboard' },
-];
+// Auto-navigate routes: when intent is navigation or new-request,
+// go directly to the first link instead of showing suggestions
+const AUTO_NAVIGATE_INTENTS = new Set(['navigation', 'new-request']);
 
 export function SmartCommandBar() {
   const navigate = useNavigate();
@@ -124,13 +118,23 @@ export function SmartCommandBar() {
     setLoading(true);
     // Try Groq API first, fall back to local detection
     const aiResult = await queryAI(query);
-    if (aiResult) {
-      setResult(aiResult);
-    } else {
-      setResult(fallbackDetect(query));
-    }
+    const finalResult = aiResult ?? fallbackDetect(query);
     setLoading(false);
-  }, []);
+
+    // Auto-navigate: for navigation and new-request intents, go directly
+    // to the destination instead of showing links. Only show results inline
+    // for catalogue intent (where user needs to pick items) or general.
+    if (AUTO_NAVIGATE_INTENTS.has(finalResult.intent) && finalResult.links?.length) {
+      const primaryLink = finalResult.links[0];
+      toast.info(finalResult.message, { duration: 4000 });
+      navigate(primaryLink.path);
+      setInput('');
+      setResult(null);
+      return;
+    }
+
+    setResult(finalResult);
+  }, [navigate]);
 
   // Debounce
   useEffect(() => {
@@ -185,11 +189,6 @@ export function SmartCommandBar() {
     setTimeout(() => { setCart([]); setInput(''); setResult(null); setOrderSuccess(null); setQuantities({}); }, 3000);
   };
 
-  const handleChip = (query: string) => {
-    setInput(query);
-    doSearch(query);
-  };
-
   const handleNavigate = (path: string) => {
     navigate(path);
     setInput('');
@@ -227,17 +226,6 @@ export function SmartCommandBar() {
             </div>
           )}
         </form>
-
-        {/* Suggestion Chips (no input) */}
-        {!result && !loading && (
-          <div className="flex flex-wrap items-center justify-center gap-2 mt-4">
-            {chipSuggestions.map((s) => (
-              <Button key={s.label} variant="outline" size="sm" className="text-xs" onClick={() => handleChip(s.query)}>
-                {s.label}
-              </Button>
-            ))}
-          </div>
-        )}
 
         {/* Loading state */}
         {loading && (
@@ -361,16 +349,6 @@ export function SmartCommandBar() {
               </div>
             )}
 
-            {/* Follow-up suggestions */}
-            {result.suggestions && result.suggestions.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 pt-2">
-                {result.suggestions.map((s) => (
-                  <button key={s} onClick={() => handleChip(s)} className="rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs text-gray-600 hover:bg-gray-100">
-                    {s}
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
         )}
       </div>
