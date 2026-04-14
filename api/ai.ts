@@ -59,24 +59,55 @@ CRITICAL RULES — be ACTION-oriented, not suggestion-oriented:
 - Always include at least one link in links[].
 - For catalogue items, match item names loosely — "paper" matches "A4 Paper 500pk".
 
-CLASSIFICATION MODE: If the user message starts with "CLASSIFY THIS PROCUREMENT REQUEST", you must also include these fields in your JSON response:
-- "category": one of "goods", "services", "software", "consulting", "contingent-labour", "contract-renewal", "supplier-onboarding", "catalogue"
-- "extractedTitle": a professional short title for the request (e.g., "Digital Transformation Consulting — Accenture")
-- "extractedSupplier": the supplier name if mentioned, or empty string
-- "extractedValue": estimated value as number if mentioned, or 0
-- "generatedDescription": a professional 2-3 sentence description of the procurement need, suitable as a business justification
+CLASSIFICATION MODE: If the user message starts with "CLASSIFY THIS PROCUREMENT REQUEST", you MUST classify using these rules:
 
-Category rules:
-- "consulting" = strategy, advisory, audit, assessment, transformation, management consulting
-- "services" = facilities, cleaning, catering, maintenance, managed services, operational services
-- "software" = licences, SaaS, cloud, subscriptions, IT platforms
-- "goods" = physical products, hardware, equipment, furniture, materials
-- "contingent-labour" = temporary staff, contractors, freelancers
-- "contract-renewal" = renewing or extending an existing contract
-- "supplier-onboarding" = registering a new vendor
-- "catalogue" = standard low-value items (office supplies, stationery, cables)
+PROCUREMENT CATEGORY RULES:
 
-IMPORTANT: "business consulting" = consulting, NOT goods. "IT consulting" = consulting. "strategy advisory" = consulting.`;
+CATALOGUE: Pre-approved items for direct ordering. Fast track 2-3 days.
+Examples: office supplies (paper, pens, toner, folders), IT peripherals (keyboards, mice, headsets, webcams, cables, USB hubs), standard monitors under €500, catering (coffee, tea, water, cups), safety equipment (gloves, hard hats, vests), print & stationery, standard laptops (ThinkPad T14) when no custom config needed.
+Threshold: Items under €500, total order under €5K.
+NOT catalogue: Custom specs, bulk >€5K, items requiring configuration.
+
+GOODS: Physical products requiring procurement process. Not in catalogue.
+Examples: bulk laptop orders (>5 units or custom config), servers, workstations, custom furniture (standing desks, ergonomic chairs, bulk fit-outs), industrial equipment, vehicles, warehouse racking.
+Threshold: Items >€500 or requiring specification/custom/bulk.
+
+SERVICES: Ongoing operational services by external providers. NOT one-off advisory.
+Examples: facilities management (cleaning, maintenance, security), catering services, travel management, managed print, waste management, training programmes.
+NOT services: One-off advisory/strategy = consulting. Staff augmentation = contingent-labour.
+
+SOFTWARE: Software licences, SaaS, cloud services, IT platforms.
+Examples: SaaS (Salesforce, SAP, ServiceNow), cloud (AWS, Azure, GCP), licences (Microsoft 365, Adobe), dev tools, cybersecurity tools.
+NOT software: IT consulting/implementation = consulting. Hardware = goods.
+
+CONSULTING: Professional advisory, strategy, project-based intellectual services. Provider brings own methodology.
+Examples: management consulting, IT consulting, business consulting, digital transformation, financial advisory, legal advisory, market research, ESG advisory.
+NOT consulting: Managed services = services. Staff under your direction = contingent-labour.
+
+CONTINGENT-LABOUR: Temporary workers/contractors under company's direction.
+Examples: IT contractors (devs, architects, PMs), interim managers, admin temps, seasonal workers.
+NOT contingent-labour: Consulting firms with own methodology = consulting.
+
+CONTRACT-RENEWAL: Extending/renewing existing supplier contract.
+SUPPLIER-ONBOARDING: Registering new vendor not yet in system.
+
+KEY RULES:
+- "business consulting" = CONSULTING (never goods)
+- "IT consulting" = CONSULTING (never software)
+- "I need a laptop" = CATALOGUE (standard available)
+- "50 custom laptops" = GOODS (bulk/custom)
+- "office supplies" / "paper" / "pens" = CATALOGUE
+- "cleaning service" = SERVICES
+- "SAP license" = SOFTWARE
+- "temp developer" = CONTINGENT-LABOUR
+- "renew contract" = CONTRACT-RENEWAL
+
+For CLASSIFY mode, include these fields in response:
+- "category": one of the categories above
+- "extractedTitle": professional short title
+- "extractedSupplier": supplier name if mentioned, or ""
+- "extractedValue": estimated value as number, or 0
+- "generatedDescription": professional 2-3 sentence business justification`;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {

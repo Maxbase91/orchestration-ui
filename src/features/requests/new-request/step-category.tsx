@@ -17,7 +17,6 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { CategoryTile } from './components/category-tile';
-import { searchCatalogueItems } from '@/data/catalogue-items';
 import { suppliers } from '@/data/suppliers';
 import type { RequestCategory } from '@/data/types';
 
@@ -95,20 +94,7 @@ export function StepCategory({ category, categoryDescription: _categoryDescripti
     setAiResult(null);
     setAccepted(false);
 
-    // Check catalogue items first
-    const catalogueMatches = searchCatalogueItems(text);
-    if (catalogueMatches.length >= 2) {
-      // Clearly a catalogue request
-      const cat = CATEGORIES.find((c) => c.id === 'catalogue')!;
-      onUpdate({ category: 'catalogue', categoryDescription: cat.name, title: text });
-      setLoading(false);
-      setAccepted(true);
-      setAiResult({ category: 'catalogue', title: text, supplier: '', estimatedValue: 0, description: '', confidence: 0.95 });
-      if (onAutoAdvance) setTimeout(onAutoAdvance, 500);
-      return;
-    }
-
-    // Use LLM to classify
+    // Use LLM to classify — it has the full classification knowledge base
     const result = await classifyWithAI(text);
     setLoading(false);
 
