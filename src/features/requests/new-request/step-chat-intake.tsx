@@ -59,9 +59,27 @@ const COST_CENTRE_LABELS: Record<string, string> = {
   'CC-5001': 'HR',
 };
 
+function buildWelcomeMessage(category: string, data: StepChatIntakeProps['data']): string {
+  const parts: string[] = [];
+
+  // Acknowledge what's already known
+  if (data.title || data.supplier || data.estimatedValue > 0) {
+    parts.push("Great, I've got some details from your initial request:");
+    if (data.title) parts.push(`• **${data.title}**`);
+    if (data.supplier) parts.push(`• Supplier: ${data.supplier}`);
+    if (data.estimatedValue > 0) parts.push(`• Value: €${data.estimatedValue.toLocaleString()}`);
+    if (data.businessJustification) parts.push(`\nHere's the description I've drafted:\n"${data.businessJustification}"\n\nWould you like to refine this, or shall I ask you a few questions to make it stronger?`);
+    else parts.push('\nLet me ask a few quick questions to complete your request.');
+  } else {
+    parts.push(WELCOME_MESSAGES[category] ?? WELCOME_MESSAGES.goods);
+  }
+
+  return parts.join('\n');
+}
+
 export function StepChatIntake({ category, categoryDescription, data, onUpdate }: StepChatIntakeProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([
-    { role: 'assistant', content: WELCOME_MESSAGES[category] ?? WELCOME_MESSAGES.goods },
+    { role: 'assistant', content: buildWelcomeMessage(category, data) },
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);

@@ -220,6 +220,7 @@ export function NewRequestPage() {
             category={formData.category}
             categoryDescription={formData.categoryDescription}
             onUpdate={(d) => updateFormData(d)}
+            onAutoAdvance={() => setCurrentStep(2)}
           />
         )}
         {currentStep === 2 && formData.category === 'catalogue' && (

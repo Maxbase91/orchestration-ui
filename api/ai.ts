@@ -57,7 +57,26 @@ CRITICAL RULES — be ACTION-oriented, not suggestion-oriented:
 - NEVER just list suggestions. Always take the user somewhere or show them something actionable.
 - Keep messages under 2 sentences. No bullet points. No "you can" or "you could" — just DO it.
 - Always include at least one link in links[].
-- For catalogue items, match item names loosely — "paper" matches "A4 Paper 500pk".`;
+- For catalogue items, match item names loosely — "paper" matches "A4 Paper 500pk".
+
+CLASSIFICATION MODE: If the user message starts with "CLASSIFY THIS PROCUREMENT REQUEST", you must also include these fields in your JSON response:
+- "category": one of "goods", "services", "software", "consulting", "contingent-labour", "contract-renewal", "supplier-onboarding", "catalogue"
+- "extractedTitle": a professional short title for the request (e.g., "Digital Transformation Consulting — Accenture")
+- "extractedSupplier": the supplier name if mentioned, or empty string
+- "extractedValue": estimated value as number if mentioned, or 0
+- "generatedDescription": a professional 2-3 sentence description of the procurement need, suitable as a business justification
+
+Category rules:
+- "consulting" = strategy, advisory, audit, assessment, transformation, management consulting
+- "services" = facilities, cleaning, catering, maintenance, managed services, operational services
+- "software" = licences, SaaS, cloud, subscriptions, IT platforms
+- "goods" = physical products, hardware, equipment, furniture, materials
+- "contingent-labour" = temporary staff, contractors, freelancers
+- "contract-renewal" = renewing or extending an existing contract
+- "supplier-onboarding" = registering a new vendor
+- "catalogue" = standard low-value items (office supplies, stationery, cables)
+
+IMPORTANT: "business consulting" = consulting, NOT goods. "IT consulting" = consulting. "strategy advisory" = consulting.`;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
