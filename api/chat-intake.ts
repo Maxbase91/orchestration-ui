@@ -77,6 +77,8 @@ Respond with ONLY JSON:
 
 Only include fields you have actually extracted. serviceDescription fields should accumulate — include ALL previously collected fields plus any new ones from this turn.`;
 
+export const config = { maxDuration: 30 };
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 

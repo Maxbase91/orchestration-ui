@@ -138,6 +138,8 @@ For CLASSIFY mode, include these fields in response:
 - "extractedValue": estimated value as number, or 0
 - "generatedDescription": professional 2-3 sentence business justification`;
 
+export const config = { maxDuration: 30 };
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
