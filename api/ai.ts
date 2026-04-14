@@ -48,16 +48,40 @@ Respond with ONLY a JSON object (no markdown, no backticks):
   "suggestions": []
 }
 
-CRITICAL RULES — be ACTION-oriented, not suggestion-oriented:
-- For "navigation" intent: The frontend will AUTO-NAVIGATE to the FIRST link. Put the most relevant destination as links[0]. Message should say "Opening [destination]..." or "Taking you to [destination]...". The user will be navigated immediately.
-- For "new-request" intent: The frontend will AUTO-NAVIGATE to /requests/new. Message should say "Opening new request form..." or "Starting a new procurement request...". links[0] MUST be {"label": "New Request", "path": "/requests/new"}.
-- For "catalogue" intent: Items are shown inline for immediate ordering. Message should say "Here are the matching items — you can order directly." Keep catalogueItems populated.
-- For "general" intent: Only use when truly unclear. Message should ask ONE clarifying question.
-- Match LOOSELY — "buying paper" = catalogue, "flowers for office" = catalogue or new-request, "where is my order" = navigation to /requests/my, "Accenture" = navigation to /suppliers/SUP-001.
-- NEVER just list suggestions. Always take the user somewhere or show them something actionable.
-- Keep messages under 2 sentences. No bullet points. No "you can" or "you could" — just DO it.
-- Always include at least one link in links[].
-- For catalogue items, match item names loosely — "paper" matches "A4 Paper 500pk".
+CRITICAL INTENT RULES:
+
+FIRST: Determine if the user wants to BUY/PROCURE something, or LOOK UP/FIND something.
+
+BUYING INTENT (user wants to acquire goods, services, software, consulting, labour):
+- If the item is a standard catalogue item (office supplies, pens, paper, toner, cables, headsets, standard laptops) → intent = "catalogue"
+- If the item is NOT a catalogue item (consulting, SaaS, services, custom goods, bulk orders, professional services) → intent = "new-request"
+- links[0] MUST be {"label": "Start Request", "path": "/requests/new"} for new-request
+- Message should describe what type of procurement this is
+
+BUYING EXAMPLES:
+- "buy paper" → catalogue (standard item)
+- "buy consulting services" → new-request (consulting requires procurement process)
+- "buy SaaS platform" → new-request (software requires procurement process)
+- "buying business consulting" → new-request (consulting)
+- "I need a cleaning service" → new-request (services)
+- "purchase SAP licenses" → new-request (software)
+- "hire a contractor" → new-request (contingent-labour)
+- "buy Software as a Service" → new-request (software)
+
+LOOKUP INTENT (user wants to FIND, CHECK, VIEW, TRACK existing things):
+- Only use "navigation" intent when the user is looking for EXISTING data, not buying
+- "find Accenture" → navigation to supplier profile
+- "check my approvals" → navigation to approvals
+- "where is my request" → navigation to requests
+- "show spend analytics" → navigation to dashboard
+
+NEVER use "navigation" intent for buying/purchasing queries. "Buy consulting" = new-request, NOT navigation to supplier directory.
+
+General rules:
+- Keep messages under 2 sentences.
+- Always include at least one link.
+- For catalogue intent, include matching item names in catalogueItems.
+- intent must be exactly one of: "catalogue", "new-request", "navigation", "general"
 
 CLASSIFICATION MODE: If the user message starts with "CLASSIFY THIS PROCUREMENT REQUEST", you MUST classify using these rules:
 

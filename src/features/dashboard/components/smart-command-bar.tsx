@@ -126,7 +126,15 @@ export function SmartCommandBar() {
         return;
       }
 
-      const intent = aiResult.intent ?? 'general';
+      let intent = aiResult.intent ?? 'general';
+
+      // Safety: if the LLM returns navigation but the user clearly wants to BUY something,
+      // override to new-request. The LLM sometimes confuses "buy X" with "find X".
+      const buyWords = ['buy', 'buying', 'purchase', 'purchasing', 'procure', 'acquire', 'engage', 'hire', 'contract for'];
+      const queryLower = query.toLowerCase();
+      if (intent === 'navigation' && buyWords.some((w) => queryLower.includes(w))) {
+        intent = 'new-request';
+      }
 
       // CATALOGUE — show items inline for ordering
       if (intent === 'catalogue') {
