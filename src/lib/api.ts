@@ -333,7 +333,7 @@ export async function apiGetSuppliers(): Promise<Supplier[]> {
 
 export async function apiGetSupplier(id: string): Promise<Supplier | null> {
   try {
-    const res = await fetch(`/api/suppliers/${id}`);
+    const res = await fetch(`/api/suppliers?id=${id}`);
     if (!res.ok) throw new Error('API error');
     const data = (await res.json()) as DbRecord;
     return mapDbToSupplier(data);
@@ -355,7 +355,7 @@ export async function apiGetContracts(): Promise<Contract[]> {
 
 export async function apiGetContract(id: string): Promise<Contract | null> {
   try {
-    const res = await fetch(`/api/contracts/${id}`);
+    const res = await fetch(`/api/contracts?id=${id}`);
     if (!res.ok) throw new Error('API error');
     const data = (await res.json()) as DbRecord;
     return mapDbToContract(data);
