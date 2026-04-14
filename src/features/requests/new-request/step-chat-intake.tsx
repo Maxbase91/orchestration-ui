@@ -247,17 +247,24 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
         setMessages((prev) => [...prev, { role: 'assistant', content: result.nextQuestion }]);
       }
 
-      if (result.complete) {
+      // Only mark complete if minimum fields are actually filled
+      const hasTitle = !!(data.title || (result.extracted as Record<string, unknown>)?.title);
+      const hasValue = (data.estimatedValue > 0) || ((result.extracted as Record<string, unknown>)?.estimatedValue as number > 0);
+      const actuallyComplete = result.complete && hasTitle && hasValue;
+
+      if (actuallyComplete) {
         setIsComplete(true);
         setSummary(result.summary ?? '');
-        if (result.nextQuestion) {
-          // LLM sent a completion message as nextQuestion
-        } else {
+        if (!result.nextQuestion) {
           setMessages((prev) => [
             ...prev,
             { role: 'assistant', content: result.summary ?? 'All details captured. You can proceed to validation.' },
           ]);
         }
+      } else if (result.complete && !actuallyComplete) {
+        // LLM said complete but we're missing fields — ask for what's missing
+        const missing = !hasTitle ? "What's the title or description of this request?" : "What's the estimated value?";
+        setMessages((prev) => [...prev, { role: 'assistant', content: missing }]);
       }
     } catch {
       // LLM unavailable — collect essentials only, skip SOW
@@ -269,7 +276,9 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
 
       setMessages((prev) => [...prev, { role: 'assistant', content: fallback.nextQuestion }]);
 
-      if (fallback.complete) {
+      const fbHasTitle = !!(data.title || fallback.extracted.title);
+      const fbHasValue = (data.estimatedValue > 0) || (fallback.extracted.estimatedValue as number > 0);
+      if (fallback.complete && fbHasTitle && fbHasValue) {
         setIsComplete(true);
         setSummary('Essentials captured. Service description can be added later.');
       }
