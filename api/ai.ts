@@ -1,6 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-
-const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
+import { callLLM } from './_llm';
 
 const SYSTEM_PROMPT = `You are an AI assistant embedded in a Procurement Orchestration Platform. Your job is to understand what the user needs and TAKE ACTION — navigate them directly to the right place or help them complete a purchase. Do NOT just suggest — ACT.
 
@@ -144,52 +143,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) {
-    return res.status(500).json({ error: 'GROQ_API_KEY not configured' });
-  }
-
   const { query } = req.body;
   if (!query || typeof query !== 'string') {
     return res.status(400).json({ error: 'Missing query parameter' });
   }
 
   try {
-    const response = await fetch(GROQ_API_URL, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: query },
-        ],
-        temperature: 0.3,
-        max_tokens: 1024,
-        response_format: { type: 'json_object' },
-      }),
+    const content = await callLLM({
+      messages: [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: query },
+      ],
+      temperature: 0.3,
+      maxTokens: 1024,
     });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Groq API error:', response.status, errorText);
-      return res.status(502).json({ error: 'LLM API error', detail: errorText });
-    }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
-
-    if (!content) {
-      return res.status(502).json({ error: 'Empty response from LLM' });
-    }
 
     const parsed = JSON.parse(content);
     return res.status(200).json(parsed);
   } catch (error) {
     console.error('AI handler error:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(502).json({ error: 'All LLM providers failed' });
   }
 }

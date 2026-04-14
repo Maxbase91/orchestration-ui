@@ -1,6 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-
-const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
+import { callLLM } from './_llm';
 
 const SYSTEM_PROMPT = `You are a procurement intake assistant. Collect request details through natural conversation — ONE question at a time.
 
@@ -81,39 +80,26 @@ Only include fields you have actually extracted. serviceDescription fields shoul
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) return res.status(500).json({ error: 'GROQ_API_KEY not configured' });
-
   const { messages, category, extractedSoFar } = req.body;
 
   const systemMessage = `${SYSTEM_PROMPT}\n\nRequest category: ${category}\nData collected so far: ${JSON.stringify(extractedSoFar ?? {})}`;
 
   try {
-    const response = await fetch(GROQ_API_URL, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
-        messages: [{ role: 'system', content: systemMessage }, ...(messages ?? [])],
-        temperature: 0.4,
-        max_tokens: 1024,
-        response_format: { type: 'json_object' },
-      }),
+    const content = await callLLM({
+      messages: [
+        { role: 'system', content: systemMessage },
+        ...(messages ?? []).map((m: { role: string; content: string }) => ({
+          role: m.role as 'user' | 'assistant',
+          content: m.content,
+        })),
+      ],
+      temperature: 0.4,
+      maxTokens: 1024,
     });
-
-    if (!response.ok) {
-      const err = await response.text();
-      console.error('Groq chat-intake error:', response.status, err);
-      return res.status(502).json({ error: 'LLM API error' });
-    }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
-    if (!content) return res.status(502).json({ error: 'Empty LLM response' });
 
     return res.status(200).json(JSON.parse(content));
   } catch (error) {
     console.error('Chat intake error:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(502).json({ error: 'All LLM providers failed' });
   }
 }
