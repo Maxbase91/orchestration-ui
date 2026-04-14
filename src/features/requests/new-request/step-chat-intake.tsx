@@ -1,13 +1,15 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Sparkles, Send, User, CheckCircle, Circle, Loader2, AlertTriangle } from 'lucide-react';
+import { Sparkles, Send, User, CheckCircle, Circle, Loader2, AlertTriangle, FileText, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { suppliers } from '@/data/suppliers';
 import { getAICommodityCode } from '@/lib/mock-ai';
 import { formatCurrency } from '@/lib/format';
+import type { ServiceDescription } from './new-request-page';
 
 interface StepChatIntakeProps {
   category: string;
@@ -51,6 +53,18 @@ const FIELD_LABELS: { key: string; label: string }[] = [
   { key: 'businessJustification', label: 'Justification' },
 ];
 
+const SOW_SECTIONS: { key: string; label: string }[] = [
+  { key: 'objective', label: 'Objective' },
+  { key: 'scope', label: 'Scope of Work' },
+  { key: 'deliverables', label: 'Deliverables' },
+  { key: 'timeline', label: 'Timeline' },
+  { key: 'resources', label: 'Resources' },
+  { key: 'acceptanceCriteria', label: 'Acceptance Criteria' },
+  { key: 'pricingModel', label: 'Pricing Model' },
+  { key: 'location', label: 'Location' },
+  { key: 'dependencies', label: 'Dependencies' },
+];
+
 const COST_CENTRE_LABELS: Record<string, string> = {
   'CC-1001': 'Marketing',
   'CC-2001': 'IT',
@@ -86,6 +100,7 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
   const [isComplete, setIsComplete] = useState(false);
   const [summary, setSummary] = useState('');
   const [error, setError] = useState(false);
+  const [svcDesc, setSvcDesc] = useState<Partial<ServiceDescription>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -138,6 +153,7 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
             deliveryDate: data.deliveryDate || undefined,
             businessJustification: data.businessJustification || undefined,
             costCentre: data.costCentre || undefined,
+            serviceDescription: svcDesc,
           },
         }),
       });
@@ -177,6 +193,21 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
         }
 
         onUpdate(updates);
+      }
+
+      // Merge service description sections
+      if (result.serviceDescription) {
+        setSvcDesc((prev: Partial<ServiceDescription>) => {
+          const merged = { ...prev };
+          for (const [key, value] of Object.entries(result.serviceDescription)) {
+            if (value && typeof value === 'string' && value.trim()) {
+              merged[key as keyof ServiceDescription] = value as string;
+            }
+          }
+          // Pass to parent
+          onUpdate({ serviceDescription: merged });
+          return merged;
+        });
       }
 
       // Add assistant response
@@ -306,79 +337,121 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
         </div>
       </div>
 
-      {/* Summary Card (2/5) */}
-      <div className="lg:col-span-2 space-y-4">
-        <div className="rounded-lg border border-gray-200 bg-white p-4 space-y-4 sticky top-4">
-          <div className="flex items-center gap-2">
-            <Sparkles className="size-4 text-[#2D5F8A]" />
-            <h3 className="text-sm font-semibold text-gray-900">Request Summary</h3>
-          </div>
+      {/* Right Sidebar (2/5) */}
+      <div className="lg:col-span-2 space-y-4 sticky top-4">
+        <Tabs defaultValue={Object.keys(svcDesc).length > 0 ? 'sow' : 'summary'}>
+          <TabsList className="w-full">
+            <TabsTrigger value="summary" className="flex-1 text-xs">Summary</TabsTrigger>
+            <TabsTrigger value="sow" className="flex-1 text-xs">
+              Service Description
+              {Object.keys(svcDesc).filter((k) => k !== 'narrative' && svcDesc[k as keyof ServiceDescription]).length > 0 && (
+                <Badge variant="secondary" className="ml-1 text-[9px] px-1 py-0">
+                  {Object.keys(svcDesc).filter((k) => k !== 'narrative' && svcDesc[k as keyof ServiceDescription]).length}
+                </Badge>
+              )}
+            </TabsTrigger>
+          </TabsList>
 
-          {/* Progress */}
-          <div>
-            <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-              <span>{filledCount} of {FIELD_LABELS.length} fields captured</span>
-              <span>{Math.round((filledCount / FIELD_LABELS.length) * 100)}%</span>
-            </div>
-            <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden">
-              <div
-                className="h-full rounded-full bg-[#2D5F8A] transition-all duration-500"
-                style={{ width: `${(filledCount / FIELD_LABELS.length) * 100}%` }}
-              />
-            </div>
-          </div>
+          {/* REQUEST SUMMARY TAB */}
+          <TabsContent value="summary">
+            <div className="rounded-lg border border-gray-200 bg-white p-4 space-y-4">
+              {/* Progress */}
+              <div>
+                <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+                  <span>{filledCount} of {FIELD_LABELS.length} fields</span>
+                  <span>{Math.round((filledCount / FIELD_LABELS.length) * 100)}%</span>
+                </div>
+                <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                  <div className="h-full rounded-full bg-[#2D5F8A] transition-all duration-500" style={{ width: `${(filledCount / FIELD_LABELS.length) * 100}%` }} />
+                </div>
+              </div>
 
-          {/* Fields */}
-          <div className="space-y-2.5">
-            {FIELD_LABELS.map(({ key, label }) => {
-              const value = getFieldValue(key);
-              const filled = !!value;
-              return (
-                <div key={key} className="flex items-start gap-2">
-                  {filled ? (
-                    <CheckCircle className="size-4 text-green-500 mt-0.5 shrink-0" />
-                  ) : (
-                    <Circle className="size-4 text-gray-300 mt-0.5 shrink-0" />
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">{label}</p>
-                    <p className={cn('text-sm truncate', filled ? 'text-gray-900' : 'text-gray-300 italic')}>
-                      {filled ? value : 'Pending...'}
-                    </p>
+              <div className="space-y-2">
+                {FIELD_LABELS.map(({ key, label }) => {
+                  const value = getFieldValue(key);
+                  const filled = !!value;
+                  return (
+                    <div key={key} className="flex items-start gap-2">
+                      {filled ? <CheckCircle className="size-3.5 text-green-500 mt-0.5 shrink-0" /> : <Circle className="size-3.5 text-gray-300 mt-0.5 shrink-0" />}
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wider">{label}</p>
+                        <p className={cn('text-xs truncate', filled ? 'text-gray-900' : 'text-gray-300 italic')}>{filled ? value : 'Pending...'}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {data.commodityCode && (
+                <div className="rounded-md bg-blue-50 border border-blue-100 px-2 py-1.5">
+                  <p className="text-[9px] font-medium text-blue-600 uppercase tracking-wider">Commodity</p>
+                  <p className="text-[11px] text-blue-800">{data.commodityCode} — {data.commodityCodeLabel}</p>
+                </div>
+              )}
+              {data.supplierId && (
+                <div className="rounded-md bg-green-50 border border-green-100 px-2 py-1.5">
+                  <p className="text-[9px] font-medium text-green-600 uppercase tracking-wider">Supplier Matched</p>
+                  <p className="text-[11px] text-green-800">{data.supplier}</p>
+                </div>
+              )}
+              {isComplete && (
+                <div className="rounded-md bg-green-50 border border-green-200 p-2 text-center">
+                  <CheckCircle className="size-4 text-green-600 mx-auto mb-0.5" />
+                  <p className="text-xs font-medium text-green-800">Ready for validation</p>
+                </div>
+              )}
+            </div>
+          </TabsContent>
+
+          {/* SERVICE DESCRIPTION TAB */}
+          <TabsContent value="sow">
+            <div className="rounded-lg border border-gray-200 bg-white p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <FileText className="size-3.5 text-[#2D5F8A]" />
+                  <h4 className="text-xs font-semibold text-gray-900">Service Description</h4>
+                </div>
+                {svcDesc.narrative && (
+                  <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={() => { navigator.clipboard.writeText(svcDesc.narrative ?? ''); toast.success('Copied to clipboard'); }}>
+                    <Copy className="size-3" />Copy
+                  </Button>
+                )}
+              </div>
+
+              {/* SOW Sections */}
+              {SOW_SECTIONS.map(({ key, label }) => {
+                const value = svcDesc[key as keyof ServiceDescription];
+                return (
+                  <div key={key}>
+                    <div className="flex items-center gap-1.5">
+                      {value ? <CheckCircle className="size-3 text-green-500 shrink-0" /> : <Circle className="size-3 text-gray-300 shrink-0" />}
+                      <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">{label}</p>
+                    </div>
+                    {value ? (
+                      <p className="text-[11px] text-gray-700 mt-0.5 pl-[18px] leading-relaxed">{value}</p>
+                    ) : (
+                      <p className="text-[11px] text-gray-300 italic mt-0.5 pl-[18px]">Will be captured during conversation...</p>
+                    )}
+                  </div>
+                );
+              })}
+
+              {/* Narrative Summary */}
+              {svcDesc.narrative && (
+                <div className="mt-3 pt-3 border-t border-gray-100">
+                  <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">Narrative Summary</p>
+                  <div className="rounded-md bg-gray-50 border border-gray-200 p-3">
+                    <p className="text-[11px] text-gray-700 leading-relaxed whitespace-pre-wrap">{svcDesc.narrative}</p>
                   </div>
                 </div>
-              );
-            })}
-          </div>
+              )}
 
-          {/* Commodity Code (auto-derived) */}
-          {data.commodityCode && (
-            <div className="rounded-md bg-blue-50 border border-blue-100 px-3 py-2">
-              <p className="text-[10px] font-medium text-blue-600 uppercase tracking-wider">Auto-derived</p>
-              <p className="text-xs text-blue-800 mt-0.5">
-                Commodity: {data.commodityCode} — {data.commodityCodeLabel}
-              </p>
+              {Object.keys(svcDesc).filter((k) => k !== 'narrative' && svcDesc[k as keyof ServiceDescription]).length === 0 && (
+                <p className="text-xs text-gray-400 text-center py-4">The service description will build up as you answer the assistant's questions.</p>
+              )}
             </div>
-          )}
-
-          {/* Supplier match */}
-          {data.supplierId && (
-            <div className="rounded-md bg-green-50 border border-green-100 px-3 py-2">
-              <p className="text-[10px] font-medium text-green-600 uppercase tracking-wider">Supplier Matched</p>
-              <p className="text-xs text-green-800 mt-0.5">
-                {data.supplier} found in supplier directory
-              </p>
-            </div>
-          )}
-
-          {/* Ready indicator */}
-          {isComplete && (
-            <div className="rounded-md bg-green-50 border border-green-200 p-3 text-center">
-              <CheckCircle className="size-5 text-green-600 mx-auto mb-1" />
-              <p className="text-sm font-medium text-green-800">Ready for validation</p>
-            </div>
-          )}
-        </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

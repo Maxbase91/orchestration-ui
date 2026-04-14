@@ -12,6 +12,19 @@ import { StepCompliance } from './step-compliance';
 import { StepRoutingPreview } from './step-routing-preview';
 import { StepConfirmation } from './step-confirmation';
 
+export interface ServiceDescription {
+  objective: string;
+  scope: string;
+  deliverables: string;
+  timeline: string;
+  resources: string;
+  acceptanceCriteria: string;
+  pricingModel: string;
+  location: string;
+  dependencies: string;
+  narrative: string; // Full narrative summary
+}
+
 interface RequestFormData {
   // Step 1
   category: string;
@@ -28,6 +41,7 @@ interface RequestFormData {
   costCentre: string;
   commodityCode: string;
   commodityCodeLabel: string;
+  serviceDescription: ServiceDescription | null;
   // Catalogue items
   catalogueItems: { itemId: string; name: string; quantity: number; unitPrice: number; supplierId: string }[];
   // Step 3
@@ -54,6 +68,7 @@ const INITIAL_DATA: RequestFormData = {
   costCentre: '',
   commodityCode: '',
   commodityCodeLabel: '',
+  serviceDescription: null,
   catalogueItems: [],
   buyingChannelResult: '',
   sraStatus: '',
