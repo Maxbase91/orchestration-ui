@@ -62,7 +62,7 @@ async function callGroq(
   jsonMode: boolean,
 ): Promise<string | null> {
   const body: Record<string, unknown> = {
-    model: 'llama-3.3-70b-versatile',
+    model: 'llama-3.1-8b-instant',
     messages,
     temperature,
     max_tokens: maxTokens,
