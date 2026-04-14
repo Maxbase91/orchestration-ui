@@ -99,7 +99,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(200).json(JSON.parse(content));
   } catch (error) {
-    console.error('Chat intake error:', error);
-    return res.status(502).json({ error: 'All LLM providers failed' });
+    const msg = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Chat intake error:', msg);
+    return res.status(502).json({ error: msg });
   }
 }

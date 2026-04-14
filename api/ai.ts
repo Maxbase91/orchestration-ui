@@ -161,7 +161,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const parsed = JSON.parse(content);
     return res.status(200).json(parsed);
   } catch (error) {
-    console.error('AI handler error:', error);
-    return res.status(502).json({ error: 'All LLM providers failed' });
+    const msg = error instanceof Error ? error.message : 'Unknown error';
+    console.error('AI handler error:', msg);
+    return res.status(502).json({ error: msg });
   }
 }

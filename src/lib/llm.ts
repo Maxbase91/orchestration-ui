@@ -17,6 +17,7 @@ interface LLMOptions {
 
 export async function callLLM(options: LLMOptions): Promise<string> {
   const { messages, temperature = 0.3, maxTokens = 1024, jsonMode = true } = options;
+  const errors: string[] = [];
 
   // Try Groq first
   const groqKey = process.env.GROQ_API_KEY;
@@ -24,9 +25,14 @@ export async function callLLM(options: LLMOptions): Promise<string> {
     try {
       const result = await callGroq(groqKey, messages, temperature, maxTokens, jsonMode);
       if (result) return result;
+      errors.push('Groq returned null');
     } catch (e) {
-      console.warn('Groq failed, trying Gemini fallback:', e);
+      const msg = e instanceof Error ? e.message : String(e);
+      errors.push(`Groq: ${msg}`);
+      console.warn('Groq failed:', msg);
     }
+  } else {
+    errors.push('GROQ_API_KEY not set');
   }
 
   // Fallback to Gemini
@@ -35,12 +41,17 @@ export async function callLLM(options: LLMOptions): Promise<string> {
     try {
       const result = await callGemini(geminiKey, messages, temperature, maxTokens);
       if (result) return result;
+      errors.push('Gemini returned null');
     } catch (e) {
-      console.warn('Gemini also failed:', e);
+      const msg = e instanceof Error ? e.message : String(e);
+      errors.push(`Gemini: ${msg}`);
+      console.warn('Gemini failed:', msg);
     }
+  } else {
+    errors.push('GEMINI_API_KEY not set');
   }
 
-  throw new Error('All LLM providers failed');
+  throw new Error(`All LLM providers failed: ${errors.join('; ')}`);
 }
 
 async function callGroq(
