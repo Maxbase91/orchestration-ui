@@ -331,14 +331,24 @@ function normalizeKeys<T extends Record<string, unknown>>(rows: T[]): T[] {
   });
 }
 
+// Tables where the id is auto-generated UUID — strip the id field
+const UUID_ID_TABLES = new Set(['stage_history', 'comments', 'service_descriptions']);
+
 async function insertBatch<T extends Record<string, unknown>>(table: string, rows: T[], batchSize = 50): Promise<number> {
-  const normalized = normalizeKeys(rows);
+  let normalized = normalizeKeys(rows);
+  if (UUID_ID_TABLES.has(table)) {
+    normalized = normalized.map((row) => {
+      const { id: _id, ...rest } = row;
+      return rest as T;
+    });
+  }
   let inserted = 0;
   for (let i = 0; i < normalized.length; i += batchSize) {
     const batch = normalized.slice(i, i + batchSize);
     const { error } = await supabaseQuery(table, {
       method: 'POST',
       body: batch,
+      upsert: true,
     });
     if (error) {
       console.error(`Error inserting into ${table} (batch ${i}):`, error);
@@ -355,11 +365,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // Check if already seeded (idempotent)
+    // Check if already seeded (skip unless ?force=true)
+    const force = req.query.force === 'true';
     const { data: existingUsers } = await supabaseQuery<unknown[]>('users', { select: 'id' });
-    if (Array.isArray(existingUsers) && existingUsers.length > 0) {
+    if (!force && Array.isArray(existingUsers) && existingUsers.length > 0) {
       return res.status(200).json({
-        message: 'Database already seeded. Skipping.',
+        message: 'Database already seeded. Add ?force=true to re-seed (inserts will be skipped for existing IDs).',
         counts: { users: existingUsers.length },
       });
     }
