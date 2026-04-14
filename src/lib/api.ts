@@ -1,10 +1,12 @@
 // Client-side API wrapper with fallback to mock data
 
-import type { ProcurementRequest, Comment } from '../data/types';
+import type { ProcurementRequest, Comment, Supplier, Contract } from '../data/types';
 import { requests as mockRequests } from '../data/requests';
 import { comments as mockComments } from '../data/comments';
 import { stageHistory as mockStageHistory } from '../data/stage-history';
 import { serviceDescriptions as mockServiceDescriptions } from '../data/service-descriptions';
+import { suppliers as mockSuppliers } from '../data/suppliers';
+import { contracts as mockContracts } from '../data/contracts';
 
 // --- snake_case <-> camelCase mapping ---
 
@@ -268,5 +270,114 @@ export async function apiSaveConversation(data: {
   if (!res.ok) {
     const err = await res.json();
     throw new Error(err.error ?? 'Failed to save conversation');
+  }
+}
+
+// --- Supplier helpers ---
+
+function mapDbToSupplier(row: DbRecord): Supplier {
+  return {
+    id: row.id as string,
+    name: row.name as string,
+    country: (row.country ?? '') as string,
+    countryCode: (row.country_code ?? row.countryCode ?? '') as string,
+    riskRating: (row.risk_rating ?? row.riskRating ?? 'low') as Supplier['riskRating'],
+    activeContracts: (row.active_contracts ?? row.activeContracts ?? 0) as number,
+    totalSpend12m: (row.total_spend_12m ?? row.totalSpend12m ?? 0) as number,
+    onboardingStatus: (row.onboarding_status ?? row.onboardingStatus ?? 'not-started') as Supplier['onboardingStatus'],
+    sraStatus: (row.sra_status ?? row.sraStatus ?? 'not-assessed') as Supplier['sraStatus'],
+    sraExpiryDate: (row.sra_expiry_date ?? row.sraExpiryDate) as string | undefined,
+    screeningStatus: (row.screening_status ?? row.screeningStatus ?? 'pending') as Supplier['screeningStatus'],
+    categories: (row.categories ?? []) as string[],
+    tier: (row.tier ?? 3) as Supplier['tier'],
+    duns: (row.duns ?? '') as string,
+    address: (row.address ?? '') as string,
+    primaryContact: (row.primary_contact ?? row.primaryContact ?? '') as string,
+    primaryContactEmail: (row.primary_contact_email ?? row.primaryContactEmail ?? '') as string,
+    certifications: [],
+    spendHistory: [],
+    performanceScore: (row.performance_score ?? row.performanceScore ?? 0) as number,
+  };
+}
+
+function mapDbToContract(row: DbRecord): Contract {
+  return {
+    id: row.id as string,
+    title: row.title as string,
+    supplierId: (row.supplier_id ?? row.supplierId ?? '') as string,
+    supplierName: (row.supplier_name ?? row.supplierName ?? '') as string,
+    value: (row.value ?? 0) as number,
+    startDate: (row.start_date ?? row.startDate ?? '') as string,
+    endDate: (row.end_date ?? row.endDate ?? '') as string,
+    status: (row.status ?? 'draft') as Contract['status'],
+    ownerId: (row.owner_id ?? row.ownerId ?? '') as string,
+    ownerName: (row.owner_name ?? row.ownerName ?? '') as string,
+    department: (row.department ?? '') as string,
+    category: (row.category ?? '') as string,
+    renewalDate: (row.renewal_date ?? row.renewalDate) as string | undefined,
+    utilisationPercentage: (row.utilisation_percentage ?? row.utilisationPercentage ?? 0) as number,
+    linkedRequestIds: [],
+  };
+}
+
+export async function apiGetSuppliers(): Promise<Supplier[]> {
+  try {
+    const res = await fetch('/api/suppliers');
+    if (!res.ok) throw new Error('API error');
+    const data = (await res.json()) as DbRecord[];
+    return data.map(mapDbToSupplier);
+  } catch {
+    return mockSuppliers;
+  }
+}
+
+export async function apiGetSupplier(id: string): Promise<Supplier | null> {
+  try {
+    const res = await fetch(`/api/suppliers/${id}`);
+    if (!res.ok) throw new Error('API error');
+    const data = (await res.json()) as DbRecord;
+    return mapDbToSupplier(data);
+  } catch {
+    return mockSuppliers.find((s) => s.id === id) ?? null;
+  }
+}
+
+export async function apiGetContracts(): Promise<Contract[]> {
+  try {
+    const res = await fetch('/api/contracts');
+    if (!res.ok) throw new Error('API error');
+    const data = (await res.json()) as DbRecord[];
+    return data.map(mapDbToContract);
+  } catch {
+    return mockContracts;
+  }
+}
+
+export async function apiGetContract(id: string): Promise<Contract | null> {
+  try {
+    const res = await fetch(`/api/contracts/${id}`);
+    if (!res.ok) throw new Error('API error');
+    const data = (await res.json()) as DbRecord;
+    return mapDbToContract(data);
+  } catch {
+    return mockContracts.find((c) => c.id === id) ?? null;
+  }
+}
+
+export async function apiWorkflowAction(data: {
+  requestId: string;
+  action: string;
+  newStatus: string;
+  ownerId?: string;
+  notes?: string;
+}): Promise<void> {
+  const res = await fetch('/api/workflow-action', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error ?? 'Failed to execute workflow action');
   }
 }

@@ -1,10 +1,11 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/shared/page-header';
 import { DataTable, type Column } from '@/components/shared/data-table';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { FilterBar, type FilterConfig } from '@/components/shared/filter-bar';
-import { contracts } from '@/data/contracts';
+import { contracts as mockContracts } from '@/data/contracts';
+import { apiGetContracts } from '@/lib/api';
 import { formatCurrency, formatDate } from '@/lib/format';
 import type { Contract } from '@/data/types';
 
@@ -17,37 +18,39 @@ const tabs: { id: TabFilter; label: string }[] = [
   { id: 'expired', label: 'Expired' },
 ];
 
-const filterConfigs: FilterConfig[] = [
-  {
-    key: 'status',
-    label: 'Status',
-    type: 'select',
-    options: [
-      { label: 'Draft', value: 'draft' },
-      { label: 'Under Review', value: 'under-review' },
-      { label: 'Active', value: 'active' },
-      { label: 'Expiring', value: 'expiring' },
-      { label: 'Expired', value: 'expired' },
-      { label: 'Terminated', value: 'terminated' },
-    ],
-  },
-  {
-    key: 'supplier',
-    label: 'Supplier',
-    type: 'select',
-    options: Array.from(new Set(contracts.map((c) => c.supplierName)))
-      .sort()
-      .map((s) => ({ label: s, value: s })),
-  },
-  {
-    key: 'category',
-    label: 'Category',
-    type: 'select',
-    options: Array.from(new Set(contracts.map((c) => c.category)))
-      .sort()
-      .map((c) => ({ label: c, value: c })),
-  },
-];
+function buildFilterConfigs(allContracts: Contract[]): FilterConfig[] {
+  return [
+    {
+      key: 'status',
+      label: 'Status',
+      type: 'select',
+      options: [
+        { label: 'Draft', value: 'draft' },
+        { label: 'Under Review', value: 'under-review' },
+        { label: 'Active', value: 'active' },
+        { label: 'Expiring', value: 'expiring' },
+        { label: 'Expired', value: 'expired' },
+        { label: 'Terminated', value: 'terminated' },
+      ],
+    },
+    {
+      key: 'supplier',
+      label: 'Supplier',
+      type: 'select',
+      options: Array.from(new Set(allContracts.map((c) => c.supplierName)))
+        .sort()
+        .map((s) => ({ label: s, value: s })),
+    },
+    {
+      key: 'category',
+      label: 'Category',
+      type: 'select',
+      options: Array.from(new Set(allContracts.map((c) => c.category)))
+        .sort()
+        .map((c) => ({ label: c, value: c })),
+    },
+  ];
+}
 
 function daysUntilExpiry(endDate: string): number {
   const end = new Date(endDate);
@@ -116,9 +119,16 @@ export function ContractRegisterPage() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<TabFilter>('all');
   const [filters, setFilters] = useState<Record<string, string | string[]>>({});
+  const [allContracts, setAllContracts] = useState<Contract[]>(mockContracts);
+
+  useEffect(() => {
+    apiGetContracts().then(setAllContracts);
+  }, []);
+
+  const filterConfigs = useMemo(() => buildFilterConfigs(allContracts), [allContracts]);
 
   const filtered = useMemo(() => {
-    let result = contracts;
+    let result = allContracts;
 
     if (tab === 'active') result = result.filter((c) => c.status === 'active');
     else if (tab === 'expiring') result = result.filter((c) => c.status === 'expiring');

@@ -165,7 +165,84 @@ CREATE TABLE IF NOT EXISTS notifications (
   related_id TEXT
 );
 
+-- Suppliers
+CREATE TABLE IF NOT EXISTS suppliers (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  country TEXT,
+  country_code TEXT,
+  risk_rating TEXT DEFAULT 'low',
+  active_contracts INTEGER DEFAULT 0,
+  total_spend_12m NUMERIC DEFAULT 0,
+  onboarding_status TEXT DEFAULT 'not-started',
+  sra_status TEXT DEFAULT 'not-assessed',
+  sra_expiry_date TEXT,
+  screening_status TEXT DEFAULT 'pending',
+  categories TEXT[],
+  tier INTEGER DEFAULT 3,
+  duns TEXT,
+  address TEXT,
+  primary_contact TEXT,
+  primary_contact_email TEXT,
+  performance_score INTEGER DEFAULT 0,
+  created_at TIMESTAMP DEFAULT now()
+);
+
+-- Contracts
+CREATE TABLE IF NOT EXISTS contracts (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  supplier_id TEXT,
+  supplier_name TEXT,
+  value NUMERIC DEFAULT 0,
+  start_date TEXT,
+  end_date TEXT,
+  status TEXT DEFAULT 'draft',
+  owner_id TEXT,
+  owner_name TEXT,
+  department TEXT,
+  category TEXT,
+  renewal_date TEXT,
+  utilisation_percentage INTEGER DEFAULT 0,
+  created_at TIMESTAMP DEFAULT now()
+);
+
+-- Purchase Orders
+CREATE TABLE IF NOT EXISTS purchase_orders (
+  id TEXT PRIMARY KEY,
+  supplier_id TEXT,
+  supplier_name TEXT,
+  value NUMERIC DEFAULT 0,
+  status TEXT DEFAULT 'draft',
+  created_at TIMESTAMP DEFAULT now(),
+  delivery_date TEXT,
+  contract_id TEXT,
+  request_id TEXT,
+  line_items JSONB DEFAULT '[]'
+);
+
+-- Invoices
+CREATE TABLE IF NOT EXISTS invoices (
+  id TEXT PRIMARY KEY,
+  supplier_id TEXT,
+  supplier_name TEXT,
+  amount NUMERIC DEFAULT 0,
+  currency TEXT DEFAULT 'EUR',
+  status TEXT DEFAULT 'submitted',
+  invoice_date TEXT,
+  due_date TEXT,
+  po_id TEXT,
+  match_status TEXT DEFAULT 'unmatched',
+  match_variance NUMERIC,
+  paid_date TEXT,
+  created_at TIMESTAMP DEFAULT now()
+);
+
 -- Enable RLS with open access (no auth)
+ALTER TABLE suppliers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE contracts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE purchase_orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE invoices ENABLE ROW LEVEL SECURITY;
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE stage_history ENABLE ROW LEVEL SECURITY;
@@ -178,6 +255,10 @@ ALTER TABLE form_submissions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE approval_entries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 
+CREATE POLICY "Allow all" ON suppliers FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all" ON contracts FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all" ON purchase_orders FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all" ON invoices FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON users FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON requests FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON stage_history FOR ALL USING (true) WITH CHECK (true);
@@ -197,3 +278,18 @@ CREATE INDEX IF NOT EXISTS idx_requests_owner ON requests(owner_id);
 CREATE INDEX IF NOT EXISTS idx_stage_history_request ON stage_history(request_id);
 CREATE INDEX IF NOT EXISTS idx_comments_request ON comments(request_id);
 CREATE INDEX IF NOT EXISTS idx_ai_conversations_request ON ai_conversations(request_id);
+
+-- Indexes for new tables
+CREATE INDEX IF NOT EXISTS idx_suppliers_risk_rating ON suppliers(risk_rating);
+CREATE INDEX IF NOT EXISTS idx_suppliers_sra_status ON suppliers(sra_status);
+CREATE INDEX IF NOT EXISTS idx_contracts_status ON contracts(status);
+CREATE INDEX IF NOT EXISTS idx_contracts_supplier ON contracts(supplier_id);
+CREATE INDEX IF NOT EXISTS idx_purchase_orders_status ON purchase_orders(status);
+CREATE INDEX IF NOT EXISTS idx_purchase_orders_supplier ON purchase_orders(supplier_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices(status);
+CREATE INDEX IF NOT EXISTS idx_invoices_supplier ON invoices(supplier_id);
+CREATE INDEX IF NOT EXISTS idx_compliance_reports_request ON compliance_reports(request_id);
+CREATE INDEX IF NOT EXISTS idx_system_integrations_request ON system_integrations(request_id);
+CREATE INDEX IF NOT EXISTS idx_approval_entries_request ON approval_entries(request_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON notifications(is_read);
+CREATE INDEX IF NOT EXISTS idx_form_submissions_request ON form_submissions(request_id);

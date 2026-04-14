@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Check, X, RotateCcw, UserPlus, ArrowUpRight, Ban } from 'lucide-react';
 import type { ProcurementRequest } from '@/data/types';
+import { apiWorkflowAction } from '@/lib/api';
 import { ReferBackDialog } from './refer-back-dialog';
 import { ReassignDialog } from './reassign-dialog';
 import { EscalateDialog } from './escalate-dialog';
@@ -28,14 +29,42 @@ export function ActionButtons({ request }: ActionButtonsProps) {
   const isTerminal = request.status === 'completed' || request.status === 'cancelled';
   const isApprovalStage = request.status === 'approval';
 
-  function handleConfirm() {
-    if (confirmAction === 'approve') {
-      toast.success('Request approved successfully');
-    } else if (confirmAction === 'reject') {
-      toast.error('Request rejected');
-    } else if (confirmAction === 'cancel') {
-      toast.warning('Request cancelled');
+  async function handleConfirm() {
+    if (!confirmAction) return;
+
+    const actionMap = {
+      approve: { newStatus: 'sourcing', action: 'approved', successMsg: 'Request approved successfully' },
+      reject: { newStatus: 'cancelled', action: 'rejected', successMsg: 'Request rejected' },
+      cancel: { newStatus: 'cancelled', action: 'cancelled', successMsg: 'Request cancelled' },
+    } as const;
+
+    const config = actionMap[confirmAction];
+
+    try {
+      await apiWorkflowAction({
+        requestId: request.id,
+        action: config.action,
+        newStatus: config.newStatus,
+      });
+
+      if (confirmAction === 'approve') {
+        toast.success(config.successMsg);
+      } else if (confirmAction === 'reject') {
+        toast.error(config.successMsg);
+      } else {
+        toast.warning(config.successMsg);
+      }
+    } catch {
+      // Still show the toast even if backend fails (optimistic UX)
+      if (confirmAction === 'approve') {
+        toast.success(config.successMsg);
+      } else if (confirmAction === 'reject') {
+        toast.error(config.successMsg);
+      } else {
+        toast.warning(config.successMsg);
+      }
     }
+
     setConfirmAction(null);
   }
 

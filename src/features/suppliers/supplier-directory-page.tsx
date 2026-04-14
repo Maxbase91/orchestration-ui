@@ -1,11 +1,13 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/shared/page-header';
 import { SearchInput } from '@/components/shared/search-input';
 import { FilterBar, type FilterConfig } from '@/components/shared/filter-bar';
 import { ViewToggle } from '@/components/shared/view-toggle';
-import { suppliers } from '@/data/suppliers';
+import { suppliers as mockSuppliers } from '@/data/suppliers';
+import { apiGetSuppliers } from '@/lib/api';
+import type { Supplier } from '@/data/types';
 import { SupplierCard } from './components/supplier-card';
 import { SupplierTable } from './components/supplier-table';
 
@@ -14,65 +16,74 @@ const views = [
   { id: 'table', label: 'Table', icon: 'table' },
 ];
 
-const filterConfigs: FilterConfig[] = [
-  {
-    key: 'riskRating',
-    label: 'Risk Rating',
-    type: 'select',
-    options: [
-      { label: 'Low', value: 'low' },
-      { label: 'Medium', value: 'medium' },
-      { label: 'High', value: 'high' },
-      { label: 'Critical', value: 'critical' },
-    ],
-  },
-  {
-    key: 'contractStatus',
-    label: 'Contract Status',
-    type: 'select',
-    options: [
-      { label: 'Active', value: 'active' },
-      { label: 'Expired', value: 'expired' },
-      { label: 'None', value: 'none' },
-    ],
-  },
-  {
-    key: 'onboardingStatus',
-    label: 'Onboarding',
-    type: 'select',
-    options: [
-      { label: 'Completed', value: 'completed' },
-      { label: 'In Progress', value: 'in-progress' },
-      { label: 'Not Started', value: 'not-started' },
-    ],
-  },
-  {
-    key: 'tier',
-    label: 'Tier',
-    type: 'select',
-    options: [
-      { label: 'Tier 1', value: '1' },
-      { label: 'Tier 2', value: '2' },
-      { label: 'Tier 3', value: '3' },
-    ],
-  },
-  {
-    key: 'country',
-    label: 'Country',
-    type: 'select',
-    options: Array.from(new Set(suppliers.map((s) => s.country)))
-      .sort()
-      .map((c) => ({ label: c, value: c })),
-  },
-];
+function buildFilterConfigs(allSuppliers: Supplier[]): FilterConfig[] {
+  return [
+    {
+      key: 'riskRating',
+      label: 'Risk Rating',
+      type: 'select',
+      options: [
+        { label: 'Low', value: 'low' },
+        { label: 'Medium', value: 'medium' },
+        { label: 'High', value: 'high' },
+        { label: 'Critical', value: 'critical' },
+      ],
+    },
+    {
+      key: 'contractStatus',
+      label: 'Contract Status',
+      type: 'select',
+      options: [
+        { label: 'Active', value: 'active' },
+        { label: 'Expired', value: 'expired' },
+        { label: 'None', value: 'none' },
+      ],
+    },
+    {
+      key: 'onboardingStatus',
+      label: 'Onboarding',
+      type: 'select',
+      options: [
+        { label: 'Completed', value: 'completed' },
+        { label: 'In Progress', value: 'in-progress' },
+        { label: 'Not Started', value: 'not-started' },
+      ],
+    },
+    {
+      key: 'tier',
+      label: 'Tier',
+      type: 'select',
+      options: [
+        { label: 'Tier 1', value: '1' },
+        { label: 'Tier 2', value: '2' },
+        { label: 'Tier 3', value: '3' },
+      ],
+    },
+    {
+      key: 'country',
+      label: 'Country',
+      type: 'select',
+      options: Array.from(new Set(allSuppliers.map((s) => s.country)))
+        .sort()
+        .map((c) => ({ label: c, value: c })),
+    },
+  ];
+}
 
 export function SupplierDirectoryPage() {
   const [view, setView] = useState('grid');
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState<Record<string, string | string[]>>({});
+  const [allSuppliers, setAllSuppliers] = useState<Supplier[]>(mockSuppliers);
+
+  useEffect(() => {
+    apiGetSuppliers().then(setAllSuppliers);
+  }, []);
+
+  const filterConfigs = useMemo(() => buildFilterConfigs(allSuppliers), [allSuppliers]);
 
   const filtered = useMemo(() => {
-    let result = suppliers;
+    let result = allSuppliers;
 
     if (search) {
       const q = search.toLowerCase();

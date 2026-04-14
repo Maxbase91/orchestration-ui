@@ -1,9 +1,12 @@
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PageHeader } from '@/components/shared/page-header';
 import { getSupplierById } from '@/data/suppliers';
+import { apiGetSupplier } from '@/lib/api';
+import type { Supplier } from '@/data/types';
 import { riskColors, countryFlags } from './components/supplier-card';
 import { ProfileOverviewTab } from './components/profile-overview-tab';
 import { ProfileContractsTab } from './components/profile-contracts-tab';
@@ -16,7 +19,14 @@ import { ProfileActivityTab } from './components/profile-activity-tab';
 export function SupplierProfilePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const supplier = id ? getSupplierById(id) : undefined;
+  const [supplier, setSupplier] = useState<Supplier | undefined>(id ? getSupplierById(id) : undefined);
+
+  useEffect(() => {
+    if (!id) return;
+    apiGetSupplier(id).then((s) => {
+      if (s) setSupplier(s);
+    });
+  }, [id]);
 
   if (!supplier) {
     return (
