@@ -1,5 +1,7 @@
+import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { getRequestById } from '@/data/requests';
+import { apiGetRequest } from '@/lib/api';
 import { RequestHeader } from './components/request-header';
 import { LifecycleStepper } from './components/lifecycle-stepper';
 import { TabOverview } from './tab-overview';
@@ -16,7 +18,18 @@ import { FileQuestion } from 'lucide-react';
 
 export function RequestDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const request = id ? getRequestById(id) : undefined;
+  const [request, setRequest] = useState(id ? getRequestById(id) : undefined);
+
+  useEffect(() => {
+    if (!id) return;
+    apiGetRequest(id)
+      .then((result) => {
+        if (result) setRequest(result.request);
+      })
+      .catch(() => {
+        // Keep mock data fallback
+      });
+  }, [id]);
 
   if (!request) {
     return (

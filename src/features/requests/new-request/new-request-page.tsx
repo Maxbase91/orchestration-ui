@@ -1,9 +1,13 @@
 import { useState, useCallback, useEffect, Component, type ReactNode, type ErrorInfo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, Save, Send, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Save, Send, AlertTriangle, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { suppliers } from '@/data/suppliers';
+import { useAuthStore } from '@/stores/auth-store';
+import { apiCreateRequest, apiSaveServiceDescription } from '@/lib/api';
+import type { RequestCategory, BuyingChannel } from '@/data/types';
 import { StepCategory } from './step-category';
 import { StepDetails } from './step-details';
 import { StepChatIntake } from './step-chat-intake';
@@ -125,6 +129,8 @@ export function NewRequestPage() {
   const [formData, setFormData] = useState<RequestFormData>(INITIAL_DATA);
   const [requestId, setRequestId] = useState('');
   const [initialized, setInitialized] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { currentUser } = useAuthStore();
 
   // Read URL params on mount — skip to Step 2 if pre-filled from home page
   useEffect(() => {
@@ -193,10 +199,43 @@ export function NewRequestPage() {
     }
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (currentStep === 4) {
       // Submit
       const id = generateRequestId();
+      setIsSubmitting(true);
+      try {
+        await apiCreateRequest({
+          id,
+          title: formData.title,
+          category: formData.category as RequestCategory,
+          status: 'intake',
+          priority: formData.isUrgent ? 'urgent' : 'medium',
+          value: formData.estimatedValue,
+          currency: formData.currency,
+          supplierId: formData.supplierId,
+          buyingChannel: (formData.buyingChannelResult || 'procurement-led') as BuyingChannel,
+          commodityCode: formData.commodityCode,
+          commodityCodeLabel: formData.commodityCodeLabel,
+          costCentre: formData.costCentre,
+          businessJustification: formData.businessJustification,
+          deliveryDate: formData.deliveryDate,
+          isUrgent: formData.isUrgent,
+          requestorId: currentUser.id,
+          ownerId: currentUser.id,
+        });
+
+        if (formData.serviceDescription) {
+          await apiSaveServiceDescription(id, formData.serviceDescription as unknown as Record<string, string>);
+        }
+
+        toast.success('Request submitted successfully');
+      } catch (e) {
+        console.warn('Failed to persist request:', e);
+        // Continue anyway — the UI will work with the generated ID
+      } finally {
+        setIsSubmitting(false);
+      }
       setRequestId(id);
       setCurrentStep(5);
     } else {
@@ -399,13 +438,20 @@ export function NewRequestPage() {
             )}
             <Button
               onClick={handleNext}
-              disabled={!canProceed()}
+              disabled={!canProceed() || isSubmitting}
             >
               {currentStep === 4 ? (
-                <>
-                  <Send className="size-4" />
-                  Submit Request
-                </>
+                isSubmitting ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" />
+                    Submitting...
+                  </>
+                ) : (
+                  <>
+                    <Send className="size-4" />
+                    Submit Request
+                  </>
+                )
               ) : (
                 <>
                   Next

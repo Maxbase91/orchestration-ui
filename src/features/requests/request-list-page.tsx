@@ -1,6 +1,8 @@
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { requests } from '@/data/requests';
+import { requests as mockRequests } from '@/data/requests';
 import { getUserById } from '@/data/users';
+import { apiGetRequests } from '@/lib/api';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { PriorityIndicator } from '@/components/shared/priority-indicator';
 import { formatCurrency } from '@/lib/format';
@@ -30,6 +32,19 @@ interface RequestListPageProps {
 
 export function RequestListPage({ title, filterMine = false }: RequestListPageProps) {
   const navigate = useNavigate();
+  const [requests, setRequests] = useState(mockRequests);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    apiGetRequests()
+      .then((result) => {
+        if (result.length > 0) setRequests(result);
+      })
+      .catch(() => {
+        // Keep mock data
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
   // For "My Requests" we show a subset; for demo we just show all
   const displayRequests = filterMine
@@ -39,6 +54,9 @@ export function RequestListPage({ title, filterMine = false }: RequestListPagePr
   return (
     <div className="space-y-4">
       <h1 className="text-xl font-semibold text-gray-900">{title}</h1>
+      {loading && (
+        <p className="text-sm text-muted-foreground">Loading requests...</p>
+      )}
       <Card>
         <CardContent className="p-0">
           <Table>

@@ -4,6 +4,8 @@ import { getCommentsByRequestId } from '@/data/comments';
 import { CommentThread, type Comment as ThreadComment } from '@/components/shared/comment-thread';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatRelativeTime } from '@/lib/format';
+import { apiAddComment } from '@/lib/api';
+import { useAuthStore } from '@/stores/auth-store';
 
 interface TabCommentsProps {
   request: ProcurementRequest;
@@ -11,6 +13,7 @@ interface TabCommentsProps {
 
 export function TabComments({ request }: TabCommentsProps) {
   const baseComments = getCommentsByRequestId(request.id);
+  const { currentUser } = useAuthStore();
   const [localComments, setLocalComments] = useState<ThreadComment[]>(() =>
     baseComments.map((c) => ({
       id: c.id,
@@ -26,13 +29,23 @@ export function TabComments({ request }: TabCommentsProps) {
   function handleAddComment(content: string, isInternal: boolean) {
     const newComment: ThreadComment = {
       id: `CMT-local-${Date.now()}`,
-      author: 'You',
-      authorInitials: 'YO',
+      author: currentUser.name,
+      authorInitials: currentUser.initials,
       content,
       timestamp: 'just now',
       isInternal,
     };
     setLocalComments((prev) => [...prev, newComment]);
+
+    // Persist to API (fire-and-forget)
+    apiAddComment(request.id, {
+      authorId: currentUser.id,
+      authorName: currentUser.name,
+      content,
+      isInternal,
+    }).catch((e) => {
+      console.warn('Failed to persist comment:', e);
+    });
   }
 
   return (
