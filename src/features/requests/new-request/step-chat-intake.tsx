@@ -297,15 +297,33 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
             </div>
           )}
 
-          {/* Complete banner */}
+          {/* Complete banner + generated narrative */}
           {isComplete && (
-            <div className="flex items-center gap-2 rounded-lg bg-green-50 border border-green-200 p-3">
-              <CheckCircle className="size-5 text-green-600 shrink-0" />
-              <div>
-                <p className="text-sm font-medium text-green-800">Request details captured</p>
-                {summary && <p className="text-xs text-green-600 mt-0.5">{summary}</p>}
-                <p className="text-xs text-green-600 mt-1">Click <strong>Next</strong> to proceed to validation.</p>
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 rounded-lg bg-green-50 border border-green-200 p-3">
+                <CheckCircle className="size-5 text-green-600 shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-green-800">Request details captured</p>
+                  {summary && <p className="text-xs text-green-600 mt-0.5">{summary}</p>}
+                  <p className="text-xs text-green-600 mt-1">Click <strong>Next</strong> to proceed to validation.</p>
+                </div>
               </div>
+
+              {/* Show generated narrative if available */}
+              {svcDesc.narrative && (
+                <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <FileText className="size-4 text-[#2D5F8A]" />
+                      <p className="text-xs font-semibold text-gray-700">Generated Service Description</p>
+                    </div>
+                    <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={() => { navigator.clipboard.writeText(svcDesc.narrative ?? ''); toast.success('Copied to clipboard'); }}>
+                      <Copy className="size-3" />Copy
+                    </Button>
+                  </div>
+                  <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{svcDesc.narrative}</p>
+                </div>
+              )}
             </div>
           )}
 
