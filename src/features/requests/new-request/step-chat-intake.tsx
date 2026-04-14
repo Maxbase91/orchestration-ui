@@ -49,7 +49,6 @@ const FIELD_LABELS: { key: string; label: string }[] = [
   { key: 'supplier', label: 'Supplier' },
   { key: 'estimatedValue', label: 'Estimated Value' },
   { key: 'deliveryDate', label: 'Delivery Timeline' },
-  { key: 'costCentre', label: 'Cost Centre' },
   { key: 'businessJustification', label: 'Justification' },
 ];
 
@@ -65,30 +64,19 @@ const SOW_SECTIONS: { key: string; label: string }[] = [
   { key: 'dependencies', label: 'Dependencies' },
 ];
 
-const COST_CENTRE_LABELS: Record<string, string> = {
-  'CC-1001': 'Marketing',
-  'CC-2001': 'IT',
-  'CC-3001': 'Operations',
-  'CC-4001': 'Finance',
-  'CC-5001': 'HR',
-};
 
-// --- Deterministic fallback when LLM is unavailable ---
+// --- Deterministic fallback: only collect essentials, skip SOW ---
 function localFallbackResponse(
   userText: string,
   data: StepChatIntakeProps['data'],
-  svcDesc: Partial<ServiceDescription>,
 ): {
   extracted: Record<string, unknown>;
-  serviceDescription?: Partial<ServiceDescription>;
   nextQuestion: string;
   complete: boolean;
 } {
-  const text = userText.toLowerCase();
   const extracted: Record<string, unknown> = {};
-  const sow: Partial<ServiceDescription> = {};
 
-  // Try to extract a value (e.g., "150k", "200,000", "€50000")
+  // Try to extract a value
   const valueMatch = userText.match(/[\d,]+[kK]|\d[\d,.]+/);
   if (valueMatch && !data.estimatedValue) {
     let val = valueMatch[0].replace(/,/g, '');
@@ -97,55 +85,25 @@ function localFallbackResponse(
     if (num > 0) extracted.estimatedValue = num;
   }
 
-  // Try to extract cost centre
-  const ccMatch = text.match(/cc-\d+|marketing|finance|operations|hr\b/i);
-  if (ccMatch && !data.costCentre) {
-    const ccMap: Record<string, string> = { marketing: 'CC-1001', it: 'CC-2001', operations: 'CC-3001', finance: 'CC-4001', hr: 'CC-5001' };
-    extracted.costCentre = ccMap[ccMatch[0].toLowerCase()] ?? ccMatch[0].toUpperCase();
-  }
-
-  // Use the text as whatever field is most needed
-  if (!data.title && !svcDesc.objective) {
+  // Use text as title if we don't have one
+  if (!data.title) {
     extracted.title = userText;
-    sow.objective = userText;
-  } else if (!svcDesc.scope && svcDesc.objective) {
-    sow.scope = userText;
-  } else if (!svcDesc.deliverables && svcDesc.scope) {
-    sow.deliverables = userText;
-  } else if (!data.businessJustification) {
     extracted.businessJustification = userText;
   }
 
-  // Determine next question based on what's missing
-  let nextQuestion: string;
-  let complete = false;
-
-  if (!data.title && !svcDesc.objective) {
-    nextQuestion = 'Got it. Could you describe the main objective of this engagement?';
-  } else if (!data.estimatedValue) {
-    nextQuestion = "What's the estimated budget for this? (e.g., €50,000 or 150k)";
-  } else if (!svcDesc.scope) {
-    nextQuestion = "What should be included in scope — and is there anything explicitly out of scope?";
-  } else if (!svcDesc.deliverables) {
-    nextQuestion = "What are the key deliverables you'd expect? For example, reports, recommendations, implementation plans?";
-  } else if (!data.costCentre) {
-    nextQuestion = "Which cost centre should this be charged to? Options: Marketing (CC-1001), IT (CC-2001), Operations (CC-3001), Finance (CC-4001), HR (CC-5001)";
-  } else if (!svcDesc.timeline) {
-    nextQuestion = "What's the expected timeline or duration?";
-  } else {
-    nextQuestion = "Thanks — I've captured the essentials. Click Next to proceed to validation.";
-    complete = true;
-    // Generate a basic narrative if we have enough
-    if (svcDesc.objective && !svcDesc.narrative) {
-      sow.narrative = `${svcDesc.objective}\n\n${svcDesc.scope ? `Scope: ${svcDesc.scope}\n\n` : ''}${svcDesc.deliverables ? `Key deliverables: ${svcDesc.deliverables}` : ''}`;
-    }
+  // Simple 3-step flow: title → value → done
+  if (!data.title) {
+    return { extracted, nextQuestion: "Thanks. What's the estimated budget? (e.g., €50,000 or 150k)", complete: false };
+  }
+  if (!data.estimatedValue && !extracted.estimatedValue) {
+    return { extracted, nextQuestion: "What's the estimated value for this request?", complete: false };
   }
 
+  // We have enough — mark complete
   return {
     extracted,
-    serviceDescription: Object.keys(sow).length > 0 ? sow : undefined,
-    nextQuestion,
-    complete,
+    nextQuestion: "Got the essentials. Click Next to proceed to validation.",
+    complete: true,
   };
 }
 
@@ -200,7 +158,6 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
   const getFieldValue = (key: string): string => {
     if (key === 'category') return categoryDescription;
     if (key === 'estimatedValue') return data.estimatedValue > 0 ? formatCurrency(data.estimatedValue) : '';
-    if (key === 'costCentre') return data.costCentre ? `${data.costCentre} ${COST_CENTRE_LABELS[data.costCentre] ?? ''}` : '';
     return String((data as Record<string, unknown>)[key] ?? '');
   };
 
@@ -228,7 +185,6 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
             estimatedValue: data.estimatedValue || undefined,
             deliveryDate: data.deliveryDate || undefined,
             businessJustification: data.businessJustification || undefined,
-            costCentre: data.costCentre || undefined,
             serviceDescription: svcDesc,
           },
         }),
@@ -304,26 +260,18 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
         }
       }
     } catch {
-      // LLM unavailable — fall back to deterministic conversation
-      const fallback = localFallbackResponse(text, data, svcDesc);
+      // LLM unavailable — collect essentials only, skip SOW
+      const fallback = localFallbackResponse(text, data);
 
-      // Extract any data from the user's message locally
-      if (fallback.extracted) {
+      if (Object.keys(fallback.extracted).length > 0) {
         onUpdate(fallback.extracted);
-      }
-      if (fallback.serviceDescription) {
-        setSvcDesc((prev: Partial<ServiceDescription>) => {
-          const merged = { ...prev, ...fallback.serviceDescription };
-          onUpdate({ serviceDescription: merged });
-          return merged;
-        });
       }
 
       setMessages((prev) => [...prev, { role: 'assistant', content: fallback.nextQuestion }]);
 
       if (fallback.complete) {
         setIsComplete(true);
-        setSummary('Request details captured (offline mode).');
+        setSummary('Essentials captured. Service description can be added later.');
       }
     } finally {
       setIsTyping(false);
