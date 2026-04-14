@@ -22,7 +22,7 @@ import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { catalogueItems, type CatalogueItem } from '@/data/catalogue-items';
+import { catalogueItems, searchCatalogueItems, type CatalogueItem } from '@/data/catalogue-items';
 import { openAIChat } from '@/features/ai-assistant/ai-chat-overlay';
 import { formatCurrency } from '@/lib/format';
 
@@ -205,62 +205,81 @@ export function SmartCommandBar() {
       return;
     }
 
-    // For 'buy' and 'unknown' intents — ALWAYS ask the LLM first.
-    // The LLM has the classification knowledge base and knows the difference
-    // between "business consulting" (consulting) and "buy paper" (catalogue).
-
+    // For 'buy' and 'unknown' intents — ask the LLM to classify.
+    // Wrap in try/catch so errors don't crash the page.
     setLoading(true);
-    const aiResult = await queryGroq(query);
-    setLoading(false);
+    try {
+      const aiResult = await queryGroq(query);
+      setLoading(false);
 
-    if (aiResult) {
-      // LLM says catalogue — show items inline for direct ordering
-      if (aiResult.intent === 'catalogue') {
-        const resolved = (aiResult.catalogueItems ?? [])
-          .map((ai) => catalogueItems.find((c) =>
-            c.name.toLowerCase().includes(ai.name.toLowerCase()) ||
-            ai.name.toLowerCase().includes(c.name.toLowerCase())
-          ))
-          .filter((x): x is CatalogueItem => x !== null);
+      if (aiResult) {
+        const llmIntent = aiResult.intent ?? 'general';
 
-        if (resolved.length > 0) {
-          setCatalogueResults(resolved);
-          setCatalogueMessage(aiResult.message);
+        // CATALOGUE — resolve items locally (don't rely on LLM item IDs)
+        if (llmIntent === 'catalogue') {
+          const localMatches = searchCatalogueItems(query);
+          if (localMatches.length > 0) {
+            setCatalogueResults(localMatches.slice(0, 9));
+            setCatalogueMessage(aiResult.message || `Found ${localMatches.length} matching items — order directly.`);
+          } else {
+            setCatalogueResults([]);
+            setCatalogueMessage(aiResult.message || 'Browse our catalogues below.');
+          }
           setShowCatalogue(true);
           return;
         }
-        // No resolved items — show catalogue categories for browsing
-        setCatalogueResults([]);
-        setCatalogueMessage(aiResult.message || 'Browse our catalogues to find what you need.');
-        setShowCatalogue(true);
-        return;
-      }
 
-      // LLM says new-request (consulting, goods, services, etc.) — go to request form
-      if (aiResult.intent === 'new-request') {
-        toast.info(aiResult.message, { duration: 4000 });
-        navigate('/requests/new');
+        // NEW-REQUEST — navigate to request form
+        if (llmIntent === 'new-request') {
+          toast.info(aiResult.message || 'Opening new request...', { duration: 4000 });
+          navigate('/requests/new');
+          setInput('');
+          return;
+        }
+
+        // NAVIGATION — go to first link
+        if (aiResult.links?.length) {
+          toast.info(aiResult.message || 'Navigating...', { duration: 4000 });
+          navigate(aiResult.links[0].path);
+          setInput('');
+          return;
+        }
+
+        // General/other — open AI chat
+        toast.info(aiResult.message || 'Opening AI Assistant...', { duration: 4000 });
+        openAIChat();
         setInput('');
-        return;
-      }
-
-      // LLM says navigation — go to first link
-      if (aiResult.links?.length) {
-        toast.info(aiResult.message, { duration: 4000 });
-        navigate(aiResult.links[0].path);
+      } else {
+        // API failed — fall back to local catalogue search for buy intent
+        if (intent === 'buy') {
+          const localMatches = searchCatalogueItems(query);
+          if (localMatches.length > 0) {
+            setCatalogueResults(localMatches.slice(0, 9));
+            setCatalogueMessage(`Found ${localMatches.length} matching items.`);
+            setShowCatalogue(true);
+            return;
+          }
+        }
+        // Total fallback
+        toast.info('Opening AI Assistant...', { duration: 3000 });
+        openAIChat();
         setInput('');
-        return;
       }
-
-      // General/other — open AI chat
-      toast.info(aiResult.message, { duration: 4000 });
-      openAIChat();
-    } else {
-      // Total fallback — open AI chat
-      toast.info('Opening AI Assistant for help...', { duration: 3000 });
-      openAIChat();
+    } catch {
+      setLoading(false);
+      // Error — fall back gracefully
+      if (intent === 'buy') {
+        const localMatches = searchCatalogueItems(query);
+        if (localMatches.length > 0) {
+          setCatalogueResults(localMatches.slice(0, 9));
+          setCatalogueMessage(`Found ${localMatches.length} matching items.`);
+          setShowCatalogue(true);
+          return;
+        }
+      }
+      toast.error('Something went wrong. Try again or use the AI Assistant.');
+      setInput('');
     }
-    setInput('');
   }, [input, navigate]);
 
   // --- Cart logic ---
