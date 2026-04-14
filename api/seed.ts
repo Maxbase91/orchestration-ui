@@ -4,18 +4,18 @@ import { supabaseQuery } from '../src/lib/supabase.js';
 // Seed data inlined for Vercel serverless (can't import Vite app source)
 
 const USERS = [
-  { id: 'u1', name: 'Anna Müller', email: 'anna.mueller@company.com', role: 'Procurement Lead', department: 'Global Procurement', initials: 'AM', is_ooo: false },
+  { id: 'u1', name: 'Anna Müller', email: 'anna.mueller@company.com', role: 'Procurement Lead', department: 'Global Procurement', initials: 'AM', is_ooo: false, delegate_id: null },
   { id: 'u2', name: 'Thomas Weber', email: 'thomas.weber@company.com', role: 'Procurement Lead', department: 'Global Procurement', initials: 'TW', is_ooo: true, delegate_id: 'u1' },
-  { id: 'u3', name: 'Sarah Chen', email: 'sarah.chen@company.com', role: 'Category Manager', department: 'IT Procurement', initials: 'SC', is_ooo: false },
-  { id: 'u4', name: 'Marcus Johnson', email: 'marcus.johnson@company.com', role: 'Category Manager', department: 'Professional Services', initials: 'MJ', is_ooo: false },
-  { id: 'u5', name: 'Elena Petrova', email: 'elena.petrova@company.com', role: 'Business Requestor', department: 'Engineering', initials: 'EP', is_ooo: false },
-  { id: 'u6', name: "James O'Brien", email: 'james.obrien@company.com', role: 'Business Requestor', department: 'Marketing', initials: 'JO', is_ooo: false },
-  { id: 'u7', name: 'Dr. Katrin Bauer', email: 'katrin.bauer@company.com', role: 'Finance Approver', department: 'Finance', initials: 'KB', is_ooo: false },
+  { id: 'u3', name: 'Sarah Chen', email: 'sarah.chen@company.com', role: 'Category Manager', department: 'IT Procurement', initials: 'SC', is_ooo: false, delegate_id: null },
+  { id: 'u4', name: 'Marcus Johnson', email: 'marcus.johnson@company.com', role: 'Category Manager', department: 'Professional Services', initials: 'MJ', is_ooo: false, delegate_id: null },
+  { id: 'u5', name: 'Elena Petrova', email: 'elena.petrova@company.com', role: 'Business Requestor', department: 'Engineering', initials: 'EP', is_ooo: false, delegate_id: null },
+  { id: 'u6', name: "James O'Brien", email: 'james.obrien@company.com', role: 'Business Requestor', department: 'Marketing', initials: 'JO', is_ooo: false, delegate_id: null },
+  { id: 'u7', name: 'Dr. Katrin Bauer', email: 'katrin.bauer@company.com', role: 'Finance Approver', department: 'Finance', initials: 'KB', is_ooo: false, delegate_id: null },
   { id: 'u8', name: 'Robert Fischer', email: 'robert.fischer@company.com', role: 'Finance Approver', department: 'Finance', initials: 'RF', is_ooo: true, delegate_id: 'u7' },
-  { id: 'u9', name: 'Lisa Nakamura', email: 'lisa.nakamura@company.com', role: 'Supplier Manager', department: 'Supplier Relations', initials: 'LN', is_ooo: false },
-  { id: 'u10', name: 'David Kowalski', email: 'david.kowalski@company.com', role: 'Supplier Manager', department: 'Supplier Relations', initials: 'DK', is_ooo: false },
-  { id: 'u11', name: 'Christine Dupont', email: 'christine.dupont@company.com', role: 'VP Procurement', department: 'Global Procurement', initials: 'CD', is_ooo: false },
-  { id: 'u12', name: 'Henrik Larsson', email: 'henrik.larsson@company.com', role: 'VP Procurement', department: 'Global Procurement', initials: 'HL', is_ooo: false },
+  { id: 'u9', name: 'Lisa Nakamura', email: 'lisa.nakamura@company.com', role: 'Supplier Manager', department: 'Supplier Relations', initials: 'LN', is_ooo: false, delegate_id: null },
+  { id: 'u10', name: 'David Kowalski', email: 'david.kowalski@company.com', role: 'Supplier Manager', department: 'Supplier Relations', initials: 'DK', is_ooo: false, delegate_id: null },
+  { id: 'u11', name: 'Christine Dupont', email: 'christine.dupont@company.com', role: 'VP Procurement', department: 'Global Procurement', initials: 'CD', is_ooo: false, delegate_id: null },
+  { id: 'u12', name: 'Henrik Larsson', email: 'henrik.larsson@company.com', role: 'VP Procurement', department: 'Global Procurement', initials: 'HL', is_ooo: false, delegate_id: null },
 ];
 
 const REQUESTS = [
@@ -316,10 +316,26 @@ const SERVICE_DESCRIPTIONS = [
   { request_id: 'REQ-2024-0009', objective: 'Conduct a comprehensive cybersecurity audit to identify vulnerabilities, assess risk posture, and provide remediation recommendations aligned with ISO 27001 standards.', scope: 'In scope: network security assessment, application security testing, access control review, incident response evaluation. Out of scope: remediation implementation.', deliverables: '1) Vulnerability assessment report, 2) Penetration testing results, 3) Risk assessment matrix, 4) Remediation roadmap, 5) Executive summary presentation.', timeline: '8 weeks: Scoping (week 1), Assessment (weeks 2-5), Analysis and reporting (weeks 6-7), Executive presentation (week 8).', resources: 'Lead Security Consultant (CISSP), Penetration Tester (OSCP), Security Analyst, GRC Specialist.', acceptance_criteria: 'All critical and high-severity findings documented with remediation guidance.', pricing_model: 'Fixed price for defined scope.', location: 'On-site for network assessment, remote for analysis and reporting.', dependencies: 'Network access credentials provided. Testing windows agreed. Legal authorisation for penetration testing signed.', narrative: 'A comprehensive cybersecurity audit engagement to assess the organisation security posture against ISO 27001 standards.' },
 ];
 
+// Normalize all objects in an array to have the same keys (Supabase requires this)
+function normalizeKeys<T extends Record<string, unknown>>(rows: T[]): T[] {
+  const allKeys = new Set<string>();
+  for (const row of rows) {
+    for (const key of Object.keys(row)) allKeys.add(key);
+  }
+  return rows.map((row) => {
+    const normalized: Record<string, unknown> = {};
+    for (const key of allKeys) {
+      normalized[key] = key in row ? row[key] : null;
+    }
+    return normalized as T;
+  });
+}
+
 async function insertBatch<T extends Record<string, unknown>>(table: string, rows: T[], batchSize = 50): Promise<number> {
+  const normalized = normalizeKeys(rows);
   let inserted = 0;
-  for (let i = 0; i < rows.length; i += batchSize) {
-    const batch = rows.slice(i, i + batchSize);
+  for (let i = 0; i < normalized.length; i += batchSize) {
+    const batch = normalized.slice(i, i + batchSize);
     const { error } = await supabaseQuery(table, {
       method: 'POST',
       body: batch,
