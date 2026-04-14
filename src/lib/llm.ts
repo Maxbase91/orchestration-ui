@@ -62,7 +62,7 @@ async function callGroq(
   jsonMode: boolean,
 ): Promise<string | null> {
   const body: Record<string, unknown> = {
-    model: 'llama-3.1-8b-instant',
+    model: 'llama-3.3-70b-versatile',
     messages,
     temperature,
     max_tokens: maxTokens,
@@ -92,7 +92,11 @@ async function callGroq(
   }
 
   const data = await response.json();
-  return data.choices?.[0]?.message?.content ?? null;
+  const content = data.choices?.[0]?.message?.content;
+  if (!content) {
+    console.error('Groq empty content. Full response:', JSON.stringify(data).slice(0, 500));
+  }
+  return content ?? null;
 }
 
 async function callGemini(
