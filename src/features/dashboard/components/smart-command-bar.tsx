@@ -22,7 +22,7 @@ import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { catalogueItems, searchCatalogueItems, type CatalogueItem } from '@/data/catalogue-items';
+import { searchCatalogueItems, catalogueItems, type CatalogueItem } from '@/data/catalogue-items';
 import { openAIChat } from '@/features/ai-assistant/ai-chat-overlay';
 import { formatCurrency } from '@/lib/format';
 
@@ -33,93 +33,19 @@ interface CartItem {
   quantity: number;
 }
 
-type Intent = 'buy' | 'lookup' | 'policy' | 'create' | 'unknown';
-
-// --- Structured Intent Recognition ---
-
-function classifyIntent(input: string): Intent {
-  const lower = input.toLowerCase();
-
-  const buyWords = ['buy', 'buying', 'purchase', 'purchasing', 'order', 'ordering',
-    'need', 'want', 'get', 'reorder', 'catalogue', 'catalog', 'supplies', 'shop'];
-  if (buyWords.some((w) => lower.includes(w))) return 'buy';
-
-  const lookupWords = ['find', 'search', 'where', 'show', 'check', 'view', 'open',
-    'look', 'status', 'track', 'locate', 'see', 'display', 'my '];
-  if (lookupWords.some((w) => lower.includes(w))) return 'lookup';
-
-  const policyWords = ['policy', 'rule', 'process', 'how do', 'how to', 'what is',
-    'explain', 'help', 'guide', 'threshold', 'limit', 'allowed', 'compliance',
-    'when should', 'why', 'who approves'];
-  if (policyWords.some((w) => lower.includes(w))) return 'policy';
-
-  const createWords = ['create', 'new', 'start', 'submit', 'raise', 'initiate',
-    'onboard', 'register', 'set up', 'setup'];
-  if (createWords.some((w) => lower.includes(w))) return 'create';
-
-  return 'unknown';
+interface AILink {
+  label: string;
+  path: string;
 }
 
-// --- Lookup entity extraction ---
-
-const SUPPLIER_MAP: Record<string, string> = {
-  accenture: '/suppliers/SUP-001',
-  sap: '/suppliers/SUP-002',
-  deloitte: '/suppliers/SUP-003',
-  kpmg: '/suppliers/SUP-004',
-  capgemini: '/suppliers/SUP-005',
-  aws: '/suppliers/SUP-006',
-  'amazon web services': '/suppliers/SUP-006',
-  microsoft: '/suppliers/SUP-007',
-  siemens: '/suppliers/SUP-008',
-  bosch: '/suppliers/SUP-009',
-};
-
-function resolveLookupRoute(input: string): { path: string; label: string } | null {
-  const lower = input.toLowerCase();
-
-  // Check supplier names first
-  for (const [name, path] of Object.entries(SUPPLIER_MAP)) {
-    if (lower.includes(name)) return { path, label: `Opening ${name.charAt(0).toUpperCase() + name.slice(1)} profile` };
-  }
-
-  // Entity keywords
-  if (lower.includes('approval')) return { path: '/approvals', label: 'Opening your approvals' };
-  if (lower.includes('my request') || lower.includes('my order')) return { path: '/requests/my', label: 'Opening your requests' };
-  if (lower.includes('request')) return { path: '/requests', label: 'Opening all requests' };
-  if (lower.includes('contract') && lower.includes('renew')) return { path: '/contracts/renewals', label: 'Opening contract renewals' };
-  if (lower.includes('contract')) return { path: '/contracts', label: 'Opening contract register' };
-  if (lower.includes('invoice')) return { path: '/purchasing/invoices', label: 'Opening invoice queue' };
-  if (lower.includes('purchase order') || lower.includes(' po ') || lower.includes(' pos')) return { path: '/purchasing/orders', label: 'Opening purchase orders' };
-  if (lower.includes('payment')) return { path: '/purchasing/payments', label: 'Opening payment tracker' };
-  if (lower.includes('spend') || lower.includes('analytics') || lower.includes('budget')) return { path: '/analytics/spend', label: 'Opening spend dashboard' };
-  if (lower.includes('supplier') || lower.includes('vendor')) return { path: '/suppliers', label: 'Opening supplier directory' };
-  if (lower.includes('workflow') || lower.includes('pipeline')) return { path: '/workflows', label: 'Opening active workflows' };
-  if (lower.includes('bottleneck') || lower.includes('stuck')) return { path: '/workflows/bottlenecks', label: 'Opening bottlenecks' };
-  if (lower.includes('task')) return { path: '/tasks', label: 'Opening your tasks' };
-  if (lower.includes('notification')) return { path: '/notifications', label: 'Opening notifications' };
-  if (lower.includes('sourcing') || lower.includes('rfp') || lower.includes('tender')) return { path: '/sourcing', label: 'Opening sourcing events' };
-  if (lower.includes('risk') || lower.includes('compliance')) return { path: '/suppliers/risk', label: 'Opening risk & compliance' };
-  if (lower.includes('report')) return { path: '/analytics/reports', label: 'Opening report builder' };
-
-  return null;
+interface ProposalState {
+  type: 'catalogue' | 'action' | 'options';
+  message: string;
+  catalogueItems: CatalogueItem[];
+  links: AILink[];
 }
 
-// --- Create intent routing ---
-
-function resolveCreateRoute(input: string): { path: string; label: string } {
-  const lower = input.toLowerCase();
-
-  if (lower.includes('vendor') || lower.includes('supplier') || lower.includes('onboard'))
-    return { path: '/requests/new', label: 'Opening supplier onboarding request' };
-  if (lower.includes('sourcing') || lower.includes('rfp') || lower.includes('rfq') || lower.includes('tender') || lower.includes('event'))
-    return { path: '/sourcing/new', label: 'Opening new sourcing event' };
-  if (lower.includes('contract'))
-    return { path: '/requests/new', label: 'Opening new contract request' };
-  return { path: '/requests/new', label: 'Opening new request form' };
-}
-
-// --- Catalogue categories for browsing ---
+// --- Catalogue categories ---
 
 const CATALOGUE_CATEGORIES = [
   { id: 'it-equipment', name: 'IT Equipment', icon: Monitor },
@@ -130,24 +56,25 @@ const CATALOGUE_CATEGORIES = [
   { id: 'print-stationery', name: 'Print & Stationery', icon: Printer },
 ];
 
-// --- Groq API fallback for unknown intent ---
+// --- Groq API ---
 
 interface AIResult {
   intent: string;
   message: string;
-  catalogueItems: { name: string; price: number; unit: string; id: string }[];
-  links: { label: string; path: string }[];
+  catalogueItems?: { name: string; price: number; unit: string; id: string }[];
+  links?: AILink[];
+  category?: string;
 }
 
 async function queryGroq(input: string): Promise<AIResult | null> {
   try {
-    const response = await fetch('/api/ai', {
+    const res = await fetch('/api/ai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query: input }),
     });
-    if (!response.ok) throw new Error('API error');
-    return await response.json();
+    if (!res.ok) throw new Error('API error');
+    return await res.json();
   } catch {
     return null;
   }
@@ -161,126 +88,128 @@ export function SmartCommandBar() {
   const navigate = useNavigate();
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [proposal, setProposal] = useState<ProposalState | null>(null);
 
-  // Buy intent state
+  // Catalogue state
   const [showCatalogue, setShowCatalogue] = useState(false);
   const [catalogueResults, setCatalogueResults] = useState<CatalogueItem[]>([]);
-  const [catalogueMessage, setCatalogueMessage] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [orderSuccess, setOrderSuccess] = useState<string | null>(null);
 
-  // --- Submit handler (ONLY fires on Enter) ---
+  // --- Submit: EVERYTHING goes through Groq ---
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     const query = input.trim();
     if (!query) return;
 
-    const intent = classifyIntent(query);
-
-    // Lookup and policy/create intents can be resolved locally — fast path
-    if (intent === 'lookup') {
-      const route = resolveLookupRoute(query);
-      if (route) {
-        toast.info(route.label, { duration: 3000 });
-        navigate(route.path);
-        setInput('');
-        return;
-      }
-      // Couldn't resolve locally — fall through to LLM
-    }
-
-    if (intent === 'policy') {
-      toast.info('Opening AI Assistant...', { duration: 3000 });
-      openAIChat();
-      setInput('');
-      return;
-    }
-
-    if (intent === 'create') {
-      const route = resolveCreateRoute(query);
-      toast.info(route.label, { duration: 3000 });
-      navigate(route.path);
-      setInput('');
-      return;
-    }
-
-    // For 'buy' and 'unknown' intents — ask the LLM to classify.
-    // Wrap in try/catch so errors don't crash the page.
+    setProposal(null);
+    setShowCatalogue(false);
     setLoading(true);
+
     try {
       const aiResult = await queryGroq(query);
       setLoading(false);
 
-      if (aiResult) {
-        const llmIntent = aiResult.intent ?? 'general';
-
-        // CATALOGUE — resolve items locally (don't rely on LLM item IDs)
-        if (llmIntent === 'catalogue') {
-          const localMatches = searchCatalogueItems(query);
-          if (localMatches.length > 0) {
-            setCatalogueResults(localMatches.slice(0, 9));
-            setCatalogueMessage(aiResult.message || `Found ${localMatches.length} matching items — order directly.`);
-          } else {
-            setCatalogueResults([]);
-            setCatalogueMessage(aiResult.message || 'Browse our catalogues below.');
-          }
-          setShowCatalogue(true);
-          return;
-        }
-
-        // NEW-REQUEST — navigate to request form
-        if (llmIntent === 'new-request') {
-          toast.info(aiResult.message || 'Opening new request...', { duration: 4000 });
-          navigate('/requests/new');
-          setInput('');
-          return;
-        }
-
-        // NAVIGATION — go to first link
-        if (aiResult.links?.length) {
-          toast.info(aiResult.message || 'Navigating...', { duration: 4000 });
-          navigate(aiResult.links[0].path);
-          setInput('');
-          return;
-        }
-
-        // General/other — open AI chat
-        toast.info(aiResult.message || 'Opening AI Assistant...', { duration: 4000 });
-        openAIChat();
-        setInput('');
-      } else {
-        // API failed — fall back to local catalogue search for buy intent
-        if (intent === 'buy') {
-          const localMatches = searchCatalogueItems(query);
-          if (localMatches.length > 0) {
-            setCatalogueResults(localMatches.slice(0, 9));
-            setCatalogueMessage(`Found ${localMatches.length} matching items.`);
-            setShowCatalogue(true);
-            return;
-          }
-        }
-        // Total fallback
-        toast.info('Opening AI Assistant...', { duration: 3000 });
-        openAIChat();
-        setInput('');
+      if (!aiResult) {
+        // API failed — show fallback proposal
+        setProposal({
+          type: 'options',
+          message: "I couldn't process that right now. What would you like to do?",
+          catalogueItems: [],
+          links: [
+            { label: 'Create New Request', path: '/requests/new' },
+            { label: 'Browse Catalogue', path: '/requests/new' },
+            { label: 'Open AI Assistant', path: '__ai_chat__' },
+          ],
+        });
+        return;
       }
-    } catch {
-      setLoading(false);
-      // Error — fall back gracefully
-      if (intent === 'buy') {
+
+      const intent = aiResult.intent ?? 'general';
+
+      // CATALOGUE — show items inline for ordering
+      if (intent === 'catalogue') {
         const localMatches = searchCatalogueItems(query);
         if (localMatches.length > 0) {
           setCatalogueResults(localMatches.slice(0, 9));
-          setCatalogueMessage(`Found ${localMatches.length} matching items.`);
-          setShowCatalogue(true);
-          return;
         }
+        setShowCatalogue(true);
+        setProposal({
+          type: 'catalogue',
+          message: aiResult.message || `Found matching catalogue items. Order directly — no approval needed.`,
+          catalogueItems: [],
+          links: [],
+        });
+        return;
       }
-      toast.error('Something went wrong. Try again or use the AI Assistant.');
+
+      // NEW-REQUEST — show proposal with confirmation, don't auto-navigate
+      if (intent === 'new-request') {
+        setProposal({
+          type: 'action',
+          message: aiResult.message || 'This requires a procurement request.',
+          catalogueItems: [],
+          links: [
+            { label: 'Start Request', path: '/requests/new' },
+            { label: 'Browse Catalogue Instead', path: '__show_catalogue__' },
+          ],
+        });
+        return;
+      }
+
+      // NAVIGATION — show options for the user to confirm
+      if (intent === 'navigation' && aiResult.links?.length) {
+        setProposal({
+          type: 'options',
+          message: aiResult.message || 'Here is what I found:',
+          catalogueItems: [],
+          links: aiResult.links.slice(0, 4),
+        });
+        return;
+      }
+
+      // GENERAL / OTHER — show options
+      setProposal({
+        type: 'options',
+        message: aiResult.message || 'How can I help?',
+        catalogueItems: [],
+        links: [
+          ...(aiResult.links?.slice(0, 3) ?? []),
+          { label: 'Create New Request', path: '/requests/new' },
+          { label: 'Open AI Assistant', path: '__ai_chat__' },
+        ],
+      });
+    } catch {
+      setLoading(false);
+      setProposal({
+        type: 'options',
+        message: 'Something went wrong. Please try again.',
+        catalogueItems: [],
+        links: [
+          { label: 'Create New Request', path: '/requests/new' },
+          { label: 'Open AI Assistant', path: '__ai_chat__' },
+        ],
+      });
+    }
+  }, [input]);
+
+  // --- Handle link click from proposal ---
+  const handleLinkClick = (path: string) => {
+    if (path === '__ai_chat__') {
+      openAIChat();
+      setProposal(null);
+      setInput('');
+    } else if (path === '__show_catalogue__') {
+      setProposal(null);
+      setCatalogueResults([]);
+      setShowCatalogue(true);
+    } else {
+      navigate(path);
+      setProposal(null);
       setInput('');
     }
-  }, [input, navigate]);
+  };
 
   // --- Cart logic ---
   const getQty = useCallback((id: string) => quantities[id] ?? 1, [quantities]);
@@ -303,21 +232,19 @@ export function SmartCommandBar() {
     const id = `REQ-2025-${Math.floor(1000 + Math.random() * 9000)}`;
     toast.success(`Order submitted! ${id} \u2014 ${cart.map((c) => c.item.name).join(', ')}. Delivery: 2-3 business days.`);
     setOrderSuccess(id);
-    setTimeout(() => { setCart([]); setInput(''); setShowCatalogue(false); setCatalogueResults([]); setOrderSuccess(null); setQuantities({}); }, 3000);
+    setTimeout(() => { setCart([]); setInput(''); setShowCatalogue(false); setCatalogueResults([]); setOrderSuccess(null); setQuantities({}); setProposal(null); }, 3000);
   };
 
   const handleBrowseCategory = (catId: string) => {
     const items = catalogueItems.filter((i) => i.catalogueId === catId);
-    const catName = CATALOGUE_CATEGORIES.find((c) => c.id === catId)?.name ?? catId;
     setCatalogueResults(items);
-    setCatalogueMessage(`Showing all items in ${catName}`);
   };
 
-  const handleCloseCatalogue = () => {
+  const handleClear = () => {
+    setInput('');
+    setProposal(null);
     setShowCatalogue(false);
     setCatalogueResults([]);
-    setCatalogueMessage('');
-    setInput('');
   };
 
   // ============================================================
@@ -335,13 +262,13 @@ export function SmartCommandBar() {
           <h2 className="text-lg font-semibold text-gray-900">What do you need?</h2>
         </div>
 
-        {/* Search Input — ONLY fires on Enter */}
+        {/* Search Input */}
         <form onSubmit={handleSubmit} className="relative max-w-2xl mx-auto">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-5 text-gray-400" />
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Press Enter to search — e.g. 'buy paper', 'find Accenture', 'how do approvals work'"
+            placeholder="Press Enter — e.g. 'buy paper', 'consulting services', 'find Accenture'"
             className="h-12 pl-12 pr-10 text-base rounded-lg"
           />
           {loading && (
@@ -349,8 +276,8 @@ export function SmartCommandBar() {
               <Loader2 className="size-4 animate-spin text-[#2D5F8A]" />
             </div>
           )}
-          {!loading && input && (
-            <button type="button" onClick={() => { setInput(''); setShowCatalogue(false); setCatalogueResults([]); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+          {!loading && (input || proposal || showCatalogue) && (
+            <button type="button" onClick={handleClear} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
               <X className="size-4" />
             </button>
           )}
@@ -360,25 +287,52 @@ export function SmartCommandBar() {
         {loading && (
           <div className="flex items-center justify-center gap-2 mt-6 text-sm text-gray-500">
             <Loader2 className="size-4 animate-spin" />
-            Thinking...
+            Analysing...
           </div>
         )}
 
-        {/* Catalogue View */}
-        {showCatalogue && !loading && (
-          <div className="mt-6 max-w-3xl mx-auto space-y-4">
-            {/* Message */}
-            <div className="flex items-start justify-between gap-3">
+        {/* ── PROPOSAL CARD (non-catalogue) ── */}
+        {proposal && !showCatalogue && !loading && (
+          <div className="mt-6 max-w-2xl mx-auto">
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-3">
               <div className="flex items-start gap-2">
                 <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-blue-100 mt-0.5">
                   <Sparkles className="size-3 text-[#2D5F8A]" />
                 </div>
-                <p className="text-sm text-gray-700">{catalogueMessage}</p>
+                <p className="text-sm text-gray-700">{proposal.message}</p>
               </div>
-              <button type="button" onClick={handleCloseCatalogue} className="text-gray-400 hover:text-gray-600 shrink-0">
-                <X className="size-4" />
-              </button>
+
+              {proposal.links.length > 0 && (
+                <div className="flex flex-wrap gap-2 pl-8">
+                  {proposal.links.map((link, i) => (
+                    <Button
+                      key={link.path + i}
+                      variant={i === 0 ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => handleLinkClick(link.path)}
+                    >
+                      <ArrowRight className="size-3.5" />
+                      {link.label}
+                    </Button>
+                  ))}
+                </div>
+              )}
             </div>
+          </div>
+        )}
+
+        {/* ── CATALOGUE VIEW ── */}
+        {showCatalogue && !loading && (
+          <div className="mt-6 max-w-3xl mx-auto space-y-4">
+            {/* Catalogue message */}
+            {proposal && (
+              <div className="flex items-start gap-2">
+                <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-blue-100 mt-0.5">
+                  <Sparkles className="size-3 text-[#2D5F8A]" />
+                </div>
+                <p className="text-sm text-gray-700">{proposal.message}</p>
+              </div>
+            )}
 
             {/* Order Success */}
             {orderSuccess && (
@@ -388,7 +342,7 @@ export function SmartCommandBar() {
               </div>
             )}
 
-            {/* Catalogue Category Tiles (always shown when catalogue is open) */}
+            {/* Category tiles */}
             <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
               {CATALOGUE_CATEGORIES.map((cat) => {
                 const Icon = cat.icon;
@@ -407,7 +361,7 @@ export function SmartCommandBar() {
               })}
             </div>
 
-            {/* Catalogue Items */}
+            {/* Items */}
             {catalogueResults.length > 0 && !orderSuccess && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {catalogueResults.slice(0, 9).map((item) => {
@@ -468,10 +422,10 @@ export function SmartCommandBar() {
               </div>
             )}
 
-            {/* Footer: alternative action */}
+            {/* Footer */}
             {!orderSuccess && (
               <div className="flex items-center gap-3 pt-1">
-                <Button variant="link" size="sm" className="text-xs text-gray-500 px-0" onClick={() => { navigate('/requests/new'); setShowCatalogue(false); }}>
+                <Button variant="link" size="sm" className="text-xs text-gray-500 px-0" onClick={() => { navigate('/requests/new'); handleClear(); }}>
                   Not in the catalogue? Create a procurement request <ArrowRight className="size-3 ml-1" />
                 </Button>
               </div>
