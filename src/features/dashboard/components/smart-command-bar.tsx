@@ -64,6 +64,10 @@ interface AIResult {
   catalogueItems?: { name: string; price: number; unit: string; id: string }[];
   links?: AILink[];
   category?: string;
+  extractedTitle?: string;
+  extractedSupplier?: string;
+  extractedValue?: number;
+  generatedDescription?: string;
 }
 
 async function queryGroq(input: string): Promise<AIResult | null> {
@@ -152,14 +156,31 @@ export function SmartCommandBar() {
         return;
       }
 
-      // NEW-REQUEST — show proposal with confirmation, don't auto-navigate
+      // NEW-REQUEST — show proposal with pre-filled link
       if (intent === 'new-request') {
+        // Build URL with pre-filled data so Step 1 is skipped
+        const params = new URLSearchParams();
+        params.set('step', '2');
+        const cat = aiResult.category ?? 'goods';
+        params.set('category', cat);
+        if (aiResult.extractedTitle) params.set('title', aiResult.extractedTitle);
+        if (aiResult.extractedSupplier) params.set('supplier', aiResult.extractedSupplier);
+        if (aiResult.extractedValue) params.set('value', String(aiResult.extractedValue));
+        if (aiResult.generatedDescription) params.set('description', aiResult.generatedDescription);
+
+        const categoryLabels: Record<string, string> = {
+          goods: 'Goods', services: 'Services', software: 'Software / IT',
+          consulting: 'Consulting', 'contingent-labour': 'Contingent Labour',
+          'contract-renewal': 'Contract Renewal', 'supplier-onboarding': 'Supplier Onboarding',
+        };
+        const catLabel = categoryLabels[cat] ?? cat;
+
         setProposal({
           type: 'action',
-          message: aiResult.message || 'This requires a procurement request.',
+          message: aiResult.message || `This is a ${catLabel} request.`,
           catalogueItems: [],
           links: [
-            { label: 'Start Request', path: '/requests/new' },
+            { label: `Start ${catLabel} Request`, path: `/requests/new?${params.toString()}` },
             { label: 'Browse Catalogue Instead', path: '__show_catalogue__' },
           ],
         });

@@ -82,6 +82,12 @@ General rules:
 - Always include at least one link.
 - For catalogue intent, include matching item names in catalogueItems.
 - intent must be exactly one of: "catalogue", "new-request", "navigation", "general"
+- For "new-request" intent, ALWAYS include these extra fields in your JSON response:
+  "category": the procurement category (goods, services, software, consulting, contingent-labour, contract-renewal, supplier-onboarding)
+  "extractedTitle": professional short title for the request
+  "extractedSupplier": supplier name if mentioned, or ""
+  "extractedValue": estimated value as number, or 0
+  "generatedDescription": professional 2-3 sentence business justification
 
 CLASSIFICATION MODE: If the user message starts with "CLASSIFY THIS PROCUREMENT REQUEST", you MUST classify using these rules:
 

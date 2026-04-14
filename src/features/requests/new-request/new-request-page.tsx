@@ -1,7 +1,9 @@
-import { useState, useCallback, Component, type ReactNode, type ErrorInfo } from 'react';
+import { useState, useCallback, useEffect, Component, type ReactNode, type ErrorInfo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Save, Send, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { suppliers } from '@/data/suppliers';
 import { StepCategory } from './step-category';
 import { StepDetails } from './step-details';
 import { StepChatIntake } from './step-chat-intake';
@@ -95,10 +97,64 @@ class StepErrorBoundary extends Component<{ children: ReactNode; onReset: () => 
   }
 }
 
+const CATEGORY_LABELS: Record<string, string> = {
+  goods: 'Goods', services: 'Services', software: 'Software / IT',
+  consulting: 'Consulting', 'contingent-labour': 'Contingent Labour',
+  'contract-renewal': 'Contract Renewal', 'supplier-onboarding': 'Supplier Onboarding',
+  catalogue: 'Catalogue Purchase',
+};
+
 export function NewRequestPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<RequestFormData>(INITIAL_DATA);
   const [requestId, setRequestId] = useState('');
+  const [initialized, setInitialized] = useState(false);
+
+  // Read URL params on mount — skip to Step 2 if pre-filled from home page
+  useEffect(() => {
+    if (initialized) return;
+    setInitialized(true);
+
+    const step = searchParams.get('step');
+    const category = searchParams.get('category');
+
+    if (step === '2' && category) {
+      const title = searchParams.get('title') ?? '';
+      const supplierName = searchParams.get('supplier') ?? '';
+      const description = searchParams.get('description') ?? '';
+      const value = Number(searchParams.get('value') ?? 0);
+
+      // Match supplier against directory
+      let supplierId = '';
+      let resolvedSupplier = supplierName;
+      if (supplierName) {
+        const matched = suppliers.find((s) =>
+          s.name.toLowerCase().includes(supplierName.toLowerCase()) ||
+          supplierName.toLowerCase().includes(s.name.toLowerCase())
+        );
+        if (matched) {
+          supplierId = matched.id;
+          resolvedSupplier = matched.name;
+        }
+      }
+
+      setFormData((prev) => ({
+        ...prev,
+        category,
+        categoryDescription: CATEGORY_LABELS[category] ?? category,
+        title,
+        supplier: resolvedSupplier,
+        supplierId,
+        estimatedValue: value,
+        businessJustification: description,
+      }));
+      setCurrentStep(2);
+
+      // Clear search params so refresh doesn't re-trigger
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams, initialized]);
 
   const updateFormData = useCallback((updates: Partial<RequestFormData>) => {
     setFormData((prev) => ({ ...prev, ...updates }));
