@@ -22,7 +22,7 @@ import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { searchCatalogueItems, catalogueItems, type CatalogueItem } from '@/data/catalogue-items';
+import { catalogueItems, type CatalogueItem } from '@/data/catalogue-items';
 import { openAIChat } from '@/features/ai-assistant/ai-chat-overlay';
 import { formatCurrency } from '@/lib/format';
 
@@ -178,64 +178,45 @@ export function SmartCommandBar() {
 
     const intent = classifyIntent(query);
 
-    switch (intent) {
-      case 'buy': {
-        const matched = searchCatalogueItems(query);
-        if (matched.length > 0) {
-          // Show catalogue items inline
-          setCatalogueResults(matched.slice(0, 9));
-          setCatalogueMessage(`Found ${matched.length} item${matched.length !== 1 ? 's' : ''} matching "${query}" — order directly, no approval needed.`);
-          setShowCatalogue(true);
-        } else {
-          // No catalogue match — show categories + offer new request
-          setCatalogueResults([]);
-          setCatalogueMessage(`No exact catalogue match for "${query}". Browse a catalogue below, or create a procurement request.`);
-          setShowCatalogue(true);
-        }
-        return;
-      }
-
-      case 'lookup': {
-        const route = resolveLookupRoute(query);
-        if (route) {
-          toast.info(route.label, { duration: 3000 });
-          navigate(route.path);
-          setInput('');
-          return;
-        }
-        // Couldn't resolve locally — fall through to LLM
-        break;
-      }
-
-      case 'policy': {
-        toast.info('Opening AI Assistant...', { duration: 3000 });
-        openAIChat();
-        setInput('');
-        return;
-      }
-
-      case 'create': {
-        const route = resolveCreateRoute(query);
+    // Lookup and policy/create intents can be resolved locally — fast path
+    if (intent === 'lookup') {
+      const route = resolveLookupRoute(query);
+      if (route) {
         toast.info(route.label, { duration: 3000 });
         navigate(route.path);
         setInput('');
         return;
       }
-
-      case 'unknown':
-      default:
-        break;
+      // Couldn't resolve locally — fall through to LLM
     }
 
-    // --- Fallback: send to Groq LLM ---
+    if (intent === 'policy') {
+      toast.info('Opening AI Assistant...', { duration: 3000 });
+      openAIChat();
+      setInput('');
+      return;
+    }
+
+    if (intent === 'create') {
+      const route = resolveCreateRoute(query);
+      toast.info(route.label, { duration: 3000 });
+      navigate(route.path);
+      setInput('');
+      return;
+    }
+
+    // For 'buy' and 'unknown' intents — ALWAYS ask the LLM first.
+    // The LLM has the classification knowledge base and knows the difference
+    // between "business consulting" (consulting) and "buy paper" (catalogue).
+
     setLoading(true);
     const aiResult = await queryGroq(query);
     setLoading(false);
 
     if (aiResult) {
-      // If LLM says catalogue, try resolving items
-      if (aiResult.intent === 'catalogue' && aiResult.catalogueItems?.length) {
-        const resolved = aiResult.catalogueItems
+      // LLM says catalogue — show items inline for direct ordering
+      if (aiResult.intent === 'catalogue') {
+        const resolved = (aiResult.catalogueItems ?? [])
           .map((ai) => catalogueItems.find((c) =>
             c.name.toLowerCase().includes(ai.name.toLowerCase()) ||
             ai.name.toLowerCase().includes(c.name.toLowerCase())
@@ -248,9 +229,22 @@ export function SmartCommandBar() {
           setShowCatalogue(true);
           return;
         }
+        // No resolved items — show catalogue categories for browsing
+        setCatalogueResults([]);
+        setCatalogueMessage(aiResult.message || 'Browse our catalogues to find what you need.');
+        setShowCatalogue(true);
+        return;
       }
 
-      // If LLM returned links, navigate to first one
+      // LLM says new-request (consulting, goods, services, etc.) — go to request form
+      if (aiResult.intent === 'new-request') {
+        toast.info(aiResult.message, { duration: 4000 });
+        navigate('/requests/new');
+        setInput('');
+        return;
+      }
+
+      // LLM says navigation — go to first link
       if (aiResult.links?.length) {
         toast.info(aiResult.message, { duration: 4000 });
         navigate(aiResult.links[0].path);
@@ -258,7 +252,7 @@ export function SmartCommandBar() {
         return;
       }
 
-      // Show message as toast and open AI chat for more help
+      // General/other — open AI chat
       toast.info(aiResult.message, { duration: 4000 });
       openAIChat();
     } else {
