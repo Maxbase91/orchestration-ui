@@ -84,6 +84,58 @@ async function queryGroq(input: string): Promise<AIResult | null> {
   }
 }
 
+// --- Deterministic fallback when LLM is unavailable ---
+
+const SUPPLIER_ROUTES: Record<string, string> = {
+  accenture: '/suppliers/SUP-001', sap: '/suppliers/SUP-002', deloitte: '/suppliers/SUP-003',
+  kpmg: '/suppliers/SUP-004', capgemini: '/suppliers/SUP-005', aws: '/suppliers/SUP-006',
+  microsoft: '/suppliers/SUP-007', siemens: '/suppliers/SUP-008', bosch: '/suppliers/SUP-009',
+};
+
+function localClassify(query: string): AIResult {
+  const q = query.toLowerCase();
+
+  // Check catalogue items first
+  const catItems = searchCatalogueItems(query);
+  if (catItems.length > 0) {
+    return { intent: 'catalogue', message: `Found ${catItems.length} matching catalogue items.`, links: [] };
+  }
+
+  // Buy intent — check if it's a procurement request
+  const buyWords = ['buy', 'buying', 'purchase', 'purchasing', 'need', 'want', 'order', 'procure', 'hire', 'engage'];
+  if (buyWords.some((w) => q.includes(w))) {
+    // Determine category
+    let category = 'goods';
+    if (/consult|advisory|strategy|audit|transformation/.test(q)) category = 'consulting';
+    else if (/service|cleaning|catering|maintenance|travel|training/.test(q)) category = 'services';
+    else if (/software|saas|license|cloud|platform|app/.test(q)) category = 'software';
+    else if (/temp|contractor|staff|developer|freelance|hire/.test(q)) category = 'contingent-labour';
+    else if (/renew|extend|renewal/.test(q)) category = 'contract-renewal';
+    else if (/onboard|new supplier|new vendor/.test(q)) category = 'supplier-onboarding';
+
+    const labels: Record<string, string> = { goods: 'Goods', services: 'Services', software: 'Software / IT', consulting: 'Consulting', 'contingent-labour': 'Contingent Labour', 'contract-renewal': 'Contract Renewal', 'supplier-onboarding': 'Supplier Onboarding' };
+    return {
+      intent: 'new-request', message: `This is a ${labels[category] ?? category} request.`,
+      category, extractedTitle: query, links: [{ label: `Start ${labels[category]} Request`, path: '/requests/new' }],
+    };
+  }
+
+  // Lookup — check for navigation keywords
+  for (const [name, path] of Object.entries(SUPPLIER_ROUTES)) {
+    if (q.includes(name)) return { intent: 'navigation', message: `Opening ${name} profile.`, links: [{ label: `${name.charAt(0).toUpperCase() + name.slice(1)} Profile`, path }] };
+  }
+  if (/approval/.test(q)) return { intent: 'navigation', message: 'Opening approvals.', links: [{ label: 'My Approvals', path: '/approvals' }] };
+  if (/request|track|order/.test(q)) return { intent: 'navigation', message: 'Opening requests.', links: [{ label: 'My Requests', path: '/requests/my' }] };
+  if (/contract/.test(q)) return { intent: 'navigation', message: 'Opening contracts.', links: [{ label: 'Contracts', path: '/contracts' }] };
+  if (/invoice/.test(q)) return { intent: 'navigation', message: 'Opening invoices.', links: [{ label: 'Invoices', path: '/purchasing/invoices' }] };
+  if (/spend|analytics|budget/.test(q)) return { intent: 'navigation', message: 'Opening spend dashboard.', links: [{ label: 'Spend Dashboard', path: '/analytics/spend' }] };
+  if (/supplier|vendor/.test(q)) return { intent: 'navigation', message: 'Opening supplier directory.', links: [{ label: 'Suppliers', path: '/suppliers' }] };
+  if (/workflow|pipeline/.test(q)) return { intent: 'navigation', message: 'Opening workflows.', links: [{ label: 'Active Workflows', path: '/workflows' }] };
+
+  // General fallback
+  return { intent: 'general', message: 'How can I help? Try describing what you need.', links: [{ label: 'Create New Request', path: '/requests/new' }, { label: 'Open AI Assistant', path: '__ai_chat__' }] };
+}
+
 // ============================================================
 // COMPONENT
 // ============================================================
@@ -115,113 +167,79 @@ export function SmartCommandBar() {
       const aiResult = await queryGroq(query);
       setLoading(false);
 
-      if (!aiResult) {
-        // API failed — show fallback proposal
-        setProposal({
-          type: 'options',
-          message: "I couldn't process that right now. What would you like to do?",
-          catalogueItems: [],
-          links: [
-            { label: 'Create New Request', path: '/requests/new' },
-            { label: 'Browse Catalogue', path: '/requests/new' },
-            { label: 'Open AI Assistant', path: '__ai_chat__' },
-          ],
-        });
-        return;
-      }
-
-      let intent = aiResult.intent ?? 'general';
-
-      // Safety: if the LLM returns navigation but the user clearly wants to BUY something,
-      // override to new-request. The LLM sometimes confuses "buy X" with "find X".
-      const buyWords = ['buy', 'buying', 'purchase', 'purchasing', 'procure', 'acquire', 'engage', 'hire', 'contract for'];
-      const queryLower = query.toLowerCase();
-      if (intent === 'navigation' && buyWords.some((w) => queryLower.includes(w))) {
-        intent = 'new-request';
-      }
-
-      // CATALOGUE — show items inline for ordering
-      if (intent === 'catalogue') {
-        const localMatches = searchCatalogueItems(query);
-        if (localMatches.length > 0) {
-          setCatalogueResults(localMatches.slice(0, 9));
-        }
-        setShowCatalogue(true);
-        setProposal({
-          type: 'catalogue',
-          message: aiResult.message || `Found matching catalogue items. Order directly — no approval needed.`,
-          catalogueItems: [],
-          links: [],
-        });
-        return;
-      }
-
-      // NEW-REQUEST — show proposal with pre-filled link
-      if (intent === 'new-request') {
-        // Build URL with pre-filled data so Step 1 is skipped
-        const params = new URLSearchParams();
-        params.set('step', '2');
-        const cat = aiResult.category ?? 'goods';
-        params.set('category', cat);
-        if (aiResult.extractedTitle) params.set('title', aiResult.extractedTitle);
-        if (aiResult.extractedSupplier) params.set('supplier', aiResult.extractedSupplier);
-        if (aiResult.extractedValue) params.set('value', String(aiResult.extractedValue));
-        if (aiResult.generatedDescription) params.set('description', aiResult.generatedDescription);
-
-        const categoryLabels: Record<string, string> = {
-          goods: 'Goods', services: 'Services', software: 'Software / IT',
-          consulting: 'Consulting', 'contingent-labour': 'Contingent Labour',
-          'contract-renewal': 'Contract Renewal', 'supplier-onboarding': 'Supplier Onboarding',
-        };
-        const catLabel = categoryLabels[cat] ?? cat;
-
-        setProposal({
-          type: 'action',
-          message: aiResult.message || `This is a ${catLabel} request.`,
-          catalogueItems: [],
-          links: [
-            { label: `Start ${catLabel} Request`, path: `/requests/new?${params.toString()}` },
-            { label: 'Browse Catalogue Instead', path: '__show_catalogue__' },
-          ],
-        });
-        return;
-      }
-
-      // NAVIGATION — show options for the user to confirm
-      if (intent === 'navigation' && aiResult.links?.length) {
-        setProposal({
-          type: 'options',
-          message: aiResult.message || 'Here is what I found:',
-          catalogueItems: [],
-          links: aiResult.links.slice(0, 4),
-        });
-        return;
-      }
-
-      // GENERAL / OTHER — show options
-      setProposal({
-        type: 'options',
-        message: aiResult.message || 'How can I help?',
-        catalogueItems: [],
-        links: [
-          ...(aiResult.links?.slice(0, 3) ?? []),
-          { label: 'Create New Request', path: '/requests/new' },
-          { label: 'Open AI Assistant', path: '__ai_chat__' },
-        ],
-      });
+      // Use LLM result, or fall back to local classifier
+      const result = aiResult ?? localClassify(query);
+      processResult(result, query);
     } catch {
       setLoading(false);
+      // Error — fall back to deterministic local classifier
+      processResult(localClassify(query), query);
+    }
+  }, [input]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // --- Process an AI result (from LLM or local fallback) ---
+  const processResult = useCallback((aiResult: AIResult, query: string) => {
+    let intent = aiResult.intent ?? 'general';
+
+    // Safety: buying words should never route to navigation
+    const buyWords = ['buy', 'buying', 'purchase', 'purchasing', 'procure', 'acquire', 'engage', 'hire', 'contract for'];
+    if (intent === 'navigation' && buyWords.some((w) => query.toLowerCase().includes(w))) {
+      intent = 'new-request';
+    }
+
+    // CATALOGUE
+    if (intent === 'catalogue') {
+      const localMatches = searchCatalogueItems(query);
+      if (localMatches.length > 0) setCatalogueResults(localMatches.slice(0, 9));
+      setShowCatalogue(true);
       setProposal({
-        type: 'options',
-        message: 'Something went wrong. Please try again.',
+        type: 'catalogue',
+        message: aiResult.message || 'Found matching catalogue items. Order directly — no approval needed.',
+        catalogueItems: [], links: [],
+      });
+      return;
+    }
+
+    // NEW-REQUEST
+    if (intent === 'new-request') {
+      const params = new URLSearchParams();
+      params.set('step', '2');
+      const cat = aiResult.category ?? 'goods';
+      params.set('category', cat);
+      if (aiResult.extractedTitle) params.set('title', aiResult.extractedTitle);
+      if (aiResult.extractedSupplier) params.set('supplier', aiResult.extractedSupplier);
+      if (aiResult.extractedValue) params.set('value', String(aiResult.extractedValue));
+      if (aiResult.generatedDescription) params.set('description', aiResult.generatedDescription);
+
+      const labels: Record<string, string> = { goods: 'Goods', services: 'Services', software: 'Software / IT', consulting: 'Consulting', 'contingent-labour': 'Contingent Labour', 'contract-renewal': 'Contract Renewal', 'supplier-onboarding': 'Supplier Onboarding' };
+      const catLabel = labels[cat] ?? cat;
+
+      setProposal({
+        type: 'action',
+        message: aiResult.message || `This is a ${catLabel} request.`,
         catalogueItems: [],
         links: [
-          { label: 'Create New Request', path: '/requests/new' },
-          { label: 'Open AI Assistant', path: '__ai_chat__' },
+          { label: `Start ${catLabel} Request`, path: `/requests/new?${params.toString()}` },
+          { label: 'Browse Catalogue Instead', path: '__show_catalogue__' },
         ],
       });
+      return;
     }
-  }, [input]);
+
+    // NAVIGATION
+    if (intent === 'navigation' && aiResult.links?.length) {
+      setProposal({ type: 'options', message: aiResult.message || 'Here is what I found:', catalogueItems: [], links: aiResult.links.slice(0, 4) });
+      return;
+    }
+
+    // GENERAL
+    setProposal({
+      type: 'options',
+      message: aiResult.message || 'How can I help?',
+      catalogueItems: [],
+      links: [...(aiResult.links?.slice(0, 3) ?? []), { label: 'Create New Request', path: '/requests/new' }, { label: 'Open AI Assistant', path: '__ai_chat__' }],
+    });
+  }, []);
 
   // --- Handle link click from proposal ---
   const handleLinkClick = (path: string) => {

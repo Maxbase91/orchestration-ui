@@ -79,6 +79,34 @@ async function classifyWithAI(input: string): Promise<AIClassification | null> {
   }
 }
 
+function localClassify(input: string): AIClassification {
+  const q = input.toLowerCase();
+  let category = 'goods';
+  if (/consult|advisory|strategy|audit|transformation|business consulting/.test(q)) category = 'consulting';
+  else if (/service|cleaning|catering|maintenance|travel|training|managed/.test(q)) category = 'services';
+  else if (/software|saas|license|cloud|platform|subscription|app/.test(q)) category = 'software';
+  else if (/temp|contractor|staff|developer|freelance|hire|interim/.test(q)) category = 'contingent-labour';
+  else if (/renew|extend|renewal|expir/.test(q)) category = 'contract-renewal';
+  else if (/onboard|new supplier|new vendor|register/.test(q)) category = 'supplier-onboarding';
+  else if (/paper|pen|toner|cable|headset|mouse|keyboard|office supplies/.test(q)) category = 'catalogue';
+
+  // Extract supplier name if mentioned
+  let supplier = '';
+  const supplierNames = ['accenture', 'sap', 'deloitte', 'kpmg', 'capgemini', 'aws', 'microsoft', 'siemens', 'bosch'];
+  for (const name of supplierNames) {
+    if (q.includes(name)) { supplier = name.charAt(0).toUpperCase() + name.slice(1); break; }
+  }
+
+  return {
+    category,
+    title: input,
+    supplier,
+    estimatedValue: 0,
+    description: `Procurement request for ${input}.`,
+    confidence: 0.7,
+  };
+}
+
 export function StepCategory({ category, categoryDescription: _categoryDescription, onUpdate, onAutoAdvance }: StepCategoryProps) {
   const [inputValue, setInputValue] = useState('');
   const [loading, setLoading] = useState(false);
@@ -94,20 +122,24 @@ export function StepCategory({ category, categoryDescription: _categoryDescripti
     setAiResult(null);
     setAccepted(false);
 
-    // Use LLM to classify — it has the full classification knowledge base
-    const result = await classifyWithAI(text);
+    // Try LLM first, fall back to local keyword classification
+    let result = await classifyWithAI(text);
+
+    if (!result) {
+      // LLM unavailable — use local deterministic classification
+      result = localClassify(text);
+    }
+
     setLoading(false);
 
-    if (result) {
-      // Validate category exists
-      const validCat = CATEGORIES.find((c) => c.id === result.category);
-      if (validCat) {
-        result.category = validCat.id;
-      } else {
-        result.category = 'goods'; // fallback
-      }
-      setAiResult(result);
+    // Validate category exists
+    const validCat = CATEGORIES.find((c) => c.id === result.category);
+    if (validCat) {
+      result.category = validCat.id;
+    } else {
+      result.category = 'goods';
     }
+    setAiResult(result);
   };
 
   const handleAccept = () => {
