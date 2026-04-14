@@ -67,7 +67,6 @@ async function callGroq(
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(15000),
   });
 
   if (response.status === 429) {
@@ -121,7 +120,6 @@ async function callGemini(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(15000),
   });
 
   if (response.status === 429) {
