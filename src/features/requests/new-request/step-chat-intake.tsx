@@ -73,6 +73,82 @@ const COST_CENTRE_LABELS: Record<string, string> = {
   'CC-5001': 'HR',
 };
 
+// --- Deterministic fallback when LLM is unavailable ---
+function localFallbackResponse(
+  userText: string,
+  data: StepChatIntakeProps['data'],
+  svcDesc: Partial<ServiceDescription>,
+): {
+  extracted: Record<string, unknown>;
+  serviceDescription?: Partial<ServiceDescription>;
+  nextQuestion: string;
+  complete: boolean;
+} {
+  const text = userText.toLowerCase();
+  const extracted: Record<string, unknown> = {};
+  const sow: Partial<ServiceDescription> = {};
+
+  // Try to extract a value (e.g., "150k", "200,000", "€50000")
+  const valueMatch = userText.match(/[\d,]+[kK]|\d[\d,.]+/);
+  if (valueMatch && !data.estimatedValue) {
+    let val = valueMatch[0].replace(/,/g, '');
+    if (val.toLowerCase().endsWith('k')) val = String(Number(val.slice(0, -1)) * 1000);
+    const num = Number(val);
+    if (num > 0) extracted.estimatedValue = num;
+  }
+
+  // Try to extract cost centre
+  const ccMatch = text.match(/cc-\d+|marketing|finance|operations|hr\b/i);
+  if (ccMatch && !data.costCentre) {
+    const ccMap: Record<string, string> = { marketing: 'CC-1001', it: 'CC-2001', operations: 'CC-3001', finance: 'CC-4001', hr: 'CC-5001' };
+    extracted.costCentre = ccMap[ccMatch[0].toLowerCase()] ?? ccMatch[0].toUpperCase();
+  }
+
+  // Use the text as whatever field is most needed
+  if (!data.title && !svcDesc.objective) {
+    extracted.title = userText;
+    sow.objective = userText;
+  } else if (!svcDesc.scope && svcDesc.objective) {
+    sow.scope = userText;
+  } else if (!svcDesc.deliverables && svcDesc.scope) {
+    sow.deliverables = userText;
+  } else if (!data.businessJustification) {
+    extracted.businessJustification = userText;
+  }
+
+  // Determine next question based on what's missing
+  let nextQuestion: string;
+  let complete = false;
+
+  if (!data.title && !svcDesc.objective) {
+    nextQuestion = 'Got it. Could you describe the main objective of this engagement?';
+  } else if (!data.estimatedValue) {
+    nextQuestion = "What's the estimated budget for this? (e.g., €50,000 or 150k)";
+  } else if (!svcDesc.scope) {
+    nextQuestion = "What should be included in scope — and is there anything explicitly out of scope?";
+  } else if (!svcDesc.deliverables) {
+    nextQuestion = "What are the key deliverables you'd expect? For example, reports, recommendations, implementation plans?";
+  } else if (!data.costCentre) {
+    nextQuestion = "Which cost centre should this be charged to? Options: Marketing (CC-1001), IT (CC-2001), Operations (CC-3001), Finance (CC-4001), HR (CC-5001)";
+  } else if (!svcDesc.timeline) {
+    nextQuestion = "What's the expected timeline or duration?";
+  } else {
+    nextQuestion = "Thanks — I've captured the essentials. Click Next to proceed to validation.";
+    complete = true;
+    // Generate a basic narrative if we have enough
+    if (svcDesc.objective && !svcDesc.narrative) {
+      sow.narrative = `${svcDesc.objective}\n\n${svcDesc.scope ? `Scope: ${svcDesc.scope}\n\n` : ''}${svcDesc.deliverables ? `Key deliverables: ${svcDesc.deliverables}` : ''}`;
+    }
+  }
+
+  return {
+    extracted,
+    serviceDescription: Object.keys(sow).length > 0 ? sow : undefined,
+    nextQuestion,
+    complete,
+  };
+}
+
 function buildWelcomeMessage(category: string, data: StepChatIntakeProps['data']): string {
   const parts: string[] = [];
 
@@ -228,12 +304,27 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
         }
       }
     } catch {
-      setError(true);
-      toast.error('Failed to connect to AI. You can continue typing or switch to form mode.');
-      setMessages((prev) => [
-        ...prev,
-        { role: 'assistant', content: "I'm having trouble connecting. Could you try again, or click 'Next' to proceed with what we have so far?" },
-      ]);
+      // LLM unavailable — fall back to deterministic conversation
+      const fallback = localFallbackResponse(text, data, svcDesc);
+
+      // Extract any data from the user's message locally
+      if (fallback.extracted) {
+        onUpdate(fallback.extracted);
+      }
+      if (fallback.serviceDescription) {
+        setSvcDesc((prev: Partial<ServiceDescription>) => {
+          const merged = { ...prev, ...fallback.serviceDescription };
+          onUpdate({ serviceDescription: merged });
+          return merged;
+        });
+      }
+
+      setMessages((prev) => [...prev, { role: 'assistant', content: fallback.nextQuestion }]);
+
+      if (fallback.complete) {
+        setIsComplete(true);
+        setSummary('Request details captured (offline mode).');
+      }
     } finally {
       setIsTyping(false);
     }
