@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { callLLM } from './_llm.js';
+import { callLLM } from '../src/lib/llm.js';
 
 const SYSTEM_PROMPT = `You are an AI assistant embedded in a Procurement Orchestration Platform. Your job is to understand what the user needs and TAKE ACTION — navigate them directly to the right place or help them complete a purchase. Do NOT just suggest — ACT.
 

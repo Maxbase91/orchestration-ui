@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { callLLM } from './_llm.js';
+import { callLLM } from '../src/lib/llm.js';
 
 const SYSTEM_PROMPT = `You are a procurement intake assistant. Collect request details through natural conversation — ONE question at a time.
 

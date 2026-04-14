@@ -28,5 +28,5 @@
     "noFallthroughCasesInSwitch": true
   },
   "include": ["src"],
-  "exclude": ["src/lib/supabase.ts"]
+  "exclude": ["src/lib/supabase.ts", "src/lib/llm.ts"]
 }
