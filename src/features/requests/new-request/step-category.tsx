@@ -17,7 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { CategoryTile } from './components/category-tile';
-import { suppliers } from '@/data/suppliers';
+import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
 import type { RequestCategory } from '@/data/types';
 
 const CATEGORIES = [
@@ -112,6 +112,7 @@ export function StepCategory({ category, categoryDescription: _categoryDescripti
   const [loading, setLoading] = useState(false);
   const [aiResult, setAiResult] = useState<AIClassification | null>(null);
   const [accepted, setAccepted] = useState(false);
+  const { data: suppliers = [] } = useSuppliers();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

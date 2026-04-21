@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
-import { suppliers } from '@/data/suppliers';
+import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
 import { getAICommodityCode } from '@/lib/mock-ai';
 import { formatCurrency } from '@/lib/format';
 import type { ServiceDescription } from './new-request-page';
@@ -126,6 +126,7 @@ function buildWelcomeMessage(category: string, data: StepChatIntakeProps['data']
 }
 
 export function StepChatIntake({ category, categoryDescription, data, onUpdate }: StepChatIntakeProps) {
+  const { data: suppliers = [] } = useSuppliers();
   const [messages, setMessages] = useState<ChatMessage[]>([
     { role: 'assistant', content: buildWelcomeMessage(category, data) },
   ]);

@@ -62,7 +62,7 @@ export function EntityEditSheet<K extends EntityKey>({
     setDraft((d) => ({ ...d, [key]: value }) as Partial<EntityRecordMap[K]>);
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
     for (const field of config.fields) {
       if (field.required && !field.readOnly) {
         const v = (draft as Record<string, unknown>)[field.key];
@@ -72,27 +72,37 @@ export function EntityEditSheet<K extends EntityKey>({
         }
       }
     }
-    if (mode === 'edit' && record) {
-      update(config.key, config.getId(record), draft);
-      toast.success(`${entityLabels[config.key].singular} updated.`);
-    } else if (mode === 'create') {
-      const id = (draft as { id?: string }).id;
-      if (!id) {
-        toast.error('Record ID is required.');
-        return;
+    try {
+      if (mode === 'edit' && record) {
+        await update(config.key, config.getId(record), draft);
+        toast.success(`${entityLabels[config.key].singular} updated.`);
+      } else if (mode === 'create') {
+        const id = (draft as { id?: string }).id;
+        if (!id) {
+          toast.error('Record ID is required.');
+          return;
+        }
+        await create(config.key, draft as EntityRecordMap[K]);
+        toast.success(`${entityLabels[config.key].singular} created.`);
       }
-      create(config.key, draft as EntityRecordMap[K]);
-      toast.success(`${entityLabels[config.key].singular} created.`);
+      onOpenChange(false);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Save failed';
+      toast.error(`Save failed: ${message}`);
     }
-    onOpenChange(false);
   }
 
-  function handleDelete() {
+  async function handleDelete() {
     if (!record) return;
-    if (!confirm(`Delete ${config.getDisplayLabel(record)}? This cannot be undone within this session.`)) return;
-    remove(config.key, config.getId(record));
-    toast.success(`${entityLabels[config.key].singular} deleted.`);
-    onOpenChange(false);
+    if (!confirm(`Delete ${config.getDisplayLabel(record)}? This cannot be undone.`)) return;
+    try {
+      await remove(config.key, config.getId(record));
+      toast.success(`${entityLabels[config.key].singular} deleted.`);
+      onOpenChange(false);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Delete failed';
+      toast.error(`Delete failed: ${message}`);
+    }
   }
 
   const title =

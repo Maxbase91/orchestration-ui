@@ -1,12 +1,13 @@
 import { useSearchParams } from 'react-router-dom';
-import { AlertCircle, RotateCcw } from 'lucide-react';
+import { AlertCircle, Database, RotateCcw } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/shared/page-header';
-import { useDatabaseAdminStore } from '@/stores/database-admin-store';
+import { useDatabaseAdminStore, isLiveEntity } from '@/stores/database-admin-store';
 import type { EntityKey } from '@/stores/database-admin-store';
 import { EntityTableView } from './components/entity-table-view';
 import { entityConfigs } from './entity-configs';
+import { useSyncAdminStore } from './use-sync-store';
 
 const TAB_ORDER: { key: EntityKey; label: string }[] = [
   { key: 'supplier', label: 'Suppliers' },
@@ -22,6 +23,7 @@ const TAB_ORDER: { key: EntityKey; label: string }[] = [
 const DEFAULT_TAB: EntityKey = 'supplier';
 
 export function DatabaseAdminPage() {
+  useSyncAdminStore();
   const [params, setParams] = useSearchParams();
   const reset = useDatabaseAdminStore((s) => s.reset);
 
@@ -74,11 +76,10 @@ export function DatabaseAdminPage() {
       <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
         <AlertCircle className="mt-0.5 size-4 shrink-0" />
         <div>
-          <p className="font-medium">Session-only edits</p>
+          <p className="font-medium">Partial Supabase migration in progress</p>
           <p className="text-xs">
-            Changes made here are in-memory for this browser session. They appear in the Audit Log,
-            but other feature pages (Suppliers, Contracts, etc.) still read the original seed data.
-            This view is for platform admins to understand the data model and simulate edits.
+            Live tabs write to Supabase and reflect in every feature page.
+            Pending tabs are still session-only until they migrate (see plan). All edits are captured in the Audit Log.
           </p>
         </div>
       </div>
@@ -88,6 +89,9 @@ export function DatabaseAdminPage() {
           {TAB_ORDER.map((t) => (
             <TabsTrigger key={t.key} value={t.key}>
               {t.label}
+              {isLiveEntity(t.key) && (
+                <Database className="ml-1 size-3 text-emerald-600" aria-label="Live (Supabase)" />
+              )}
               <CountBadge entity={t.key} />
             </TabsTrigger>
           ))}

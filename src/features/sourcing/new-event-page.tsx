@@ -24,7 +24,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { PageHeader } from '@/components/shared/page-header';
-import { suppliers } from '@/data/suppliers';
+import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
 
 const STEPS = [
   'Event Details',
@@ -60,6 +60,7 @@ interface RequirementSection {
 
 export function NewEventPage() {
   const navigate = useNavigate();
+  const { data: suppliers = [] } = useSuppliers();
   const [step, setStep] = useState(0);
 
   // Step 1: Event details

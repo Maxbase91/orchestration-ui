@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/shared/page-header';
-import { suppliers } from '@/data/suppliers';
+import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
 import { cn } from '@/lib/utils';
 import { MapPin, Tag } from 'lucide-react';
 import type { Supplier } from '@/data/types';
@@ -57,6 +57,7 @@ function SupplierCard({ supplier, onClick }: { supplier: Supplier; onClick: () =
 
 export function OnboardingPipelinePage() {
   const navigate = useNavigate();
+  const { data: suppliers = [] } = useSuppliers();
 
   const grouped = useMemo(() => {
     const groups: Record<string, Supplier[]> = {};
@@ -64,7 +65,7 @@ export function OnboardingPipelinePage() {
       groups[col.key] = suppliers.filter((s) => s.onboardingStatus === col.key);
     }
     return groups;
-  }, []);
+  }, [suppliers]);
 
   return (
     <div className="space-y-6">

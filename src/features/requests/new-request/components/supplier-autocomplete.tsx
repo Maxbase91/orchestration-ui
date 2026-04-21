@@ -4,7 +4,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { suppliers } from '@/data/suppliers';
+import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
 import { formatCurrency } from '@/lib/format';
 import type { Supplier } from '@/data/types';
 
@@ -30,6 +30,7 @@ const sraLabels: Record<string, string> = {
 
 export function SupplierAutocomplete({ value, supplierId, onSelect }: SupplierAutocompleteProps) {
   const [open, setOpen] = useState(false);
+  const { data: suppliers = [] } = useSuppliers();
   const selectedSupplier = suppliers.find((s) => s.id === supplierId);
 
   return (

@@ -3,12 +3,11 @@
 // ones that are used externally and will be slimmed down as each entity
 // migrates to the db-layer hooks (see plan file).
 
-import type { ProcurementRequest, Comment, Supplier, Contract } from '../data/types';
+import type { ProcurementRequest, Comment, Contract } from '../data/types';
 import { requests as mockRequests } from '../data/requests';
 import { comments as mockComments } from '../data/comments';
 import { stageHistory as mockStageHistory } from '../data/stage-history';
 import { serviceDescriptions as mockServiceDescriptions } from '../data/service-descriptions';
-import { suppliers as mockSuppliers } from '../data/suppliers';
 import { contracts as mockContracts } from '../data/contracts';
 import {
   mapDbToRequest,
@@ -16,7 +15,6 @@ import {
   mapDbToComment,
   mapDbToStageHistory,
   mapDbToServiceDescription,
-  mapDbToSupplier,
   mapDbToContract,
 } from './db/mappers';
 
@@ -191,29 +189,11 @@ export async function apiSaveConversation(data: {
   }
 }
 
-// --- Supplier + Contract helpers (use shared mappers) ---
-
-export async function apiGetSuppliers(): Promise<Supplier[]> {
-  try {
-    const res = await fetch('/api/suppliers');
-    if (!res.ok) throw new Error('API error');
-    const data = (await res.json()) as DbRecord[];
-    return data.map(mapDbToSupplier);
-  } catch {
-    return mockSuppliers;
-  }
-}
-
-export async function apiGetSupplier(id: string): Promise<Supplier | null> {
-  try {
-    const res = await fetch(`/api/suppliers?id=${id}`);
-    if (!res.ok) throw new Error('API error');
-    const data = (await res.json()) as DbRecord;
-    return mapDbToSupplier(data);
-  } catch {
-    return mockSuppliers.find((s) => s.id === id) ?? null;
-  }
-}
+// --- Contract helpers (use shared mappers) ---
+//
+// Suppliers have moved to `src/lib/db/suppliers.ts` + React Query hooks in
+// Wave 1. `apiGetSuppliers` / `apiGetSupplier` are intentionally gone — import
+// `useSuppliers` / `useSupplier` from `@/lib/db/hooks/use-suppliers` instead.
 
 export async function apiGetContracts(): Promise<Contract[]> {
   try {

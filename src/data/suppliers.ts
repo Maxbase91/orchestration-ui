@@ -1,3 +1,10 @@
+// Seed data only — not read by the runtime app.
+//
+// Suppliers moved to Supabase in Wave 1. UI reads via `@/lib/db/hooks/use-suppliers`.
+// This file remains as the source of truth for `api/admin/seed.ts` to import
+// during database seeding. Once the seed is owned by a separate data bundle
+// (follow-up), this file can be deleted.
+
 import type { Supplier } from './types';
 
 export const suppliers: Supplier[] = [

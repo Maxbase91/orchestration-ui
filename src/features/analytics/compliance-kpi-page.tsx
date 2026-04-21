@@ -4,10 +4,11 @@ import { KPICard } from '@/components/shared/kpi-card';
 import { BarChartWidget } from '@/components/charts/bar-chart-widget';
 import { LineChartWidget } from '@/components/charts/line-chart-widget';
 import { kpiData, getLatestKPI } from '@/data/kpi-data';
-import { suppliers } from '@/data/suppliers';
+import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
 
 export function ComplianceKPIPage() {
   const latest = getLatestKPI();
+  const { data: suppliers = [] } = useSuppliers();
 
   const totalPolicyBreaches = useMemo(
     () => kpiData.reduce((sum, d) => sum + d.policyBreaches, 0),
@@ -16,12 +17,12 @@ export function ComplianceKPIPage() {
 
   const sraValidCount = useMemo(
     () => suppliers.filter((s) => s.sraStatus === 'valid').length,
-    [],
+    [suppliers],
   );
 
   const sraCoverage = useMemo(
-    () => Math.round((sraValidCount / suppliers.length) * 100),
-    [sraValidCount],
+    () => (suppliers.length === 0 ? 0 : Math.round((sraValidCount / suppliers.length) * 100)),
+    [sraValidCount, suppliers.length],
   );
 
   const breachChartData = useMemo(

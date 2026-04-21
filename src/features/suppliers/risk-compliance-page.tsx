@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/shared/page-header';
 import { KPICard } from '@/components/shared/kpi-card';
 import { DataTable, type Column } from '@/components/shared/data-table';
-import { suppliers } from '@/data/suppliers';
+import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
 import { formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -46,6 +46,8 @@ export function RiskCompliancePage() {
   const [riskFilter, setRiskFilter] = useState<string>('all');
   const [sraFilter, setTpraFilter] = useState<string>('all');
 
+  const { data: suppliers = [] } = useSuppliers();
+
   const rows = useMemo<SupplierRow[]>(() => {
     return suppliers.map((s) => {
       const expiringCerts = s.certifications.filter((c) => c.status === 'expiring' || c.status === 'expired').length;
@@ -61,7 +63,7 @@ export function RiskCompliancePage() {
         tier: s.tier,
       };
     });
-  }, []);
+  }, [suppliers]);
 
   const filtered = useMemo(() => {
     let result = rows;

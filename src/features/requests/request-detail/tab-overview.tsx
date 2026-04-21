@@ -3,7 +3,7 @@ import { FileText, Copy, CheckCircle, ChevronDown, ChevronUp } from 'lucide-reac
 import { toast } from 'sonner';
 import type { ProcurementRequest } from '@/data/types';
 import { getUserById } from '@/data/users';
-import { getSupplierById } from '@/data/suppliers';
+import { useSupplierLookup, useSuppliers } from '@/lib/db/hooks/use-suppliers';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { getAISummary } from '@/lib/mock-ai';
 import { AISuggestionCard } from '@/components/shared/ai-suggestion-card';
@@ -57,9 +57,11 @@ const SOW_LABELS: Record<string, string> = {
 };
 
 export function TabOverview({ request }: TabOverviewProps) {
+  useSuppliers();
+  const lookupSupplier = useSupplierLookup();
   const requestor = getUserById(request.requestorId);
   const owner = getUserById(request.ownerId);
-  const supplier = request.supplierId ? getSupplierById(request.supplierId) : undefined;
+  const supplier = lookupSupplier(request.supplierId);
   const summary = getAISummary('request', request.id);
   const complianceReport = getComplianceReport(request.id);
   const svcDesc = getServiceDescription(request.id);

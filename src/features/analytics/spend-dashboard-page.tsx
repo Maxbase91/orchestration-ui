@@ -4,11 +4,13 @@ import { KPICard } from '@/components/shared/kpi-card';
 import { BarChartWidget } from '@/components/charts/bar-chart-widget';
 import { PieChartWidget } from '@/components/charts/pie-chart-widget';
 import { kpiData } from '@/data/kpi-data';
-import { suppliers } from '@/data/suppliers';
+import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
 import { contracts } from '@/data/contracts';
 import { formatCurrency } from '@/lib/format';
 
 export function SpendDashboardPage() {
+  const { data: suppliers = [] } = useSuppliers();
+
   const totalSpendYTD = useMemo(
     () => kpiData.reduce((sum, d) => sum + d.totalSpend, 0),
     [],
@@ -27,7 +29,7 @@ export function SpendDashboardPage() {
   const topSupplier = useMemo(() => {
     const active = suppliers.filter((s) => s.totalSpend12m > 0);
     return active.sort((a, b) => b.totalSpend12m - a.totalSpend12m)[0];
-  }, []);
+  }, [suppliers]);
 
   const avgContractValue = useMemo(() => {
     const activeContracts = contracts.filter((c) => c.status === 'active');
@@ -60,7 +62,7 @@ export function SpendDashboardPage() {
   const topSuppliersBySpend = useMemo(() => {
     const active = suppliers.filter((s) => s.totalSpend12m > 0);
     return active.sort((a, b) => b.totalSpend12m - a.totalSpend12m).slice(0, 20);
-  }, []);
+  }, [suppliers]);
 
   const maxSupplierSpend = useMemo(
     () => (topSuppliersBySpend.length > 0 ? topSuppliersBySpend[0].totalSpend12m : 1),

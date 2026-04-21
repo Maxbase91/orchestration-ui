@@ -1,8 +1,13 @@
-import type { AIResponse } from '@/data/types';
+import type { AIResponse, Supplier } from '@/data/types';
 import { aiResponses } from '@/data/ai-responses';
 import { getRequestById } from '@/data/requests';
-import { getSupplierById } from '@/data/suppliers';
 import { getContractById } from '@/data/contracts';
+import { queryClient } from '@/lib/query-client';
+
+function getSupplierFromCache(id: string): Supplier | undefined {
+  const list = queryClient.getQueryData<Supplier[]>(['suppliers', 'list']);
+  return list?.find((s) => s.id === id);
+}
 
 export function getAIResponse(input: string, context: string): AIResponse | null {
   const normalised = input.toLowerCase();
@@ -62,7 +67,7 @@ export function getAISummary(type: 'request' | 'supplier' | 'contract', id: stri
   }
 
   if (type === 'supplier') {
-    const sup = getSupplierById(id);
+    const sup = getSupplierFromCache(id);
     if (!sup) return 'Supplier not found.';
 
     const riskText = sup.riskRating === 'high' || sup.riskRating === 'critical'

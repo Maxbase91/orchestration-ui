@@ -2,16 +2,18 @@ import { useMemo } from 'react';
 import { AlertTriangle, Star } from 'lucide-react';
 import { PageHeader } from '@/components/shared/page-header';
 import { BarChartWidget } from '@/components/charts/bar-chart-widget';
-import { suppliers } from '@/data/suppliers';
+import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
 import { formatCurrency } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
 const RISK_ORDER: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
 
 export function SupplierPerformancePage() {
+  const { data: suppliers = [] } = useSuppliers();
+
   const scoredSuppliers = useMemo(
     () => suppliers.filter((s) => s.performanceScore > 0).sort((a, b) => b.performanceScore - a.performanceScore),
-    [],
+    [suppliers],
   );
 
   const topPerformers = useMemo(() => scoredSuppliers.slice(0, 5), [scoredSuppliers]);
@@ -35,7 +37,7 @@ export function SupplierPerformancePage() {
       suppliers
         .filter((s) => s.totalSpend12m > 0)
         .sort((a, b) => (RISK_ORDER[a.riskRating] ?? 4) - (RISK_ORDER[b.riskRating] ?? 4)),
-    [],
+    [suppliers],
   );
 
   return (

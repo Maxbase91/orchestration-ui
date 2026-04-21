@@ -1,12 +1,12 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { getSupplierById } from '@/data/suppliers';
+import { useSupplier } from '@/lib/db/hooks/use-suppliers';
 
 const PORTAL_SUPPLIER_ID = 'SUP-001';
 
 export function PortalProfile() {
-  const supplier = getSupplierById(PORTAL_SUPPLIER_ID);
+  const { data: supplier } = useSupplier(PORTAL_SUPPLIER_ID);
 
   if (!supplier) {
     return <p className="text-sm text-muted-foreground">Supplier not found.</p>;

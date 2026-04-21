@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShieldAlert } from 'lucide-react';
-import { suppliers } from '@/data/suppliers';
+import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
 import { cn } from '@/lib/utils';
 
 const riskColors: Record<string, string> = {
@@ -11,13 +11,14 @@ const riskColors: Record<string, string> = {
 
 export function WidgetSupplierRisk() {
   const navigate = useNavigate();
+  const { data: suppliers = [] } = useSuppliers();
 
   const atRisk = useMemo(
     () =>
       suppliers
         .filter((s) => s.riskRating === 'high' || s.riskRating === 'critical' || s.sraStatus === 'expired')
         .slice(0, 5),
-    [],
+    [suppliers],
   );
 
   if (atRisk.length === 0) {

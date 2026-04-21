@@ -10,7 +10,6 @@ import type {
   AuditEntry,
   RiskAssessment,
 } from '@/data/types';
-import { suppliers as seedSuppliers } from '@/data/suppliers';
 import { contracts as seedContracts } from '@/data/contracts';
 import { purchaseOrders as seedPOs } from '@/data/purchase-orders';
 import { invoices as seedInvoices } from '@/data/invoices';
@@ -19,6 +18,23 @@ import { approvalEntries as seedApprovals } from '@/data/approval-entries';
 import { workflowTemplates as seedWorkflows } from '@/data/workflows';
 import { riskAssessments as seedRiskAssessments } from '@/data/risk-assessments';
 import { useAuthStore } from '@/stores/auth-store';
+import { queryClient } from '@/lib/query-client';
+import {
+  createSupplier as dbCreateSupplier,
+  updateSupplier as dbUpdateSupplier,
+  deleteSupplier as dbDeleteSupplier,
+} from '@/lib/db/suppliers';
+
+/**
+ * Which entities are backed by Supabase (edits persist across sessions and
+ * propagate to every feature page) vs. still session-only local clones of
+ * mock data. As each entity is migrated in Wave 1/2/3 it moves into LIVE_ENTITIES.
+ */
+const LIVE_ENTITIES = new Set<string>(['supplier']);
+
+export function isLiveEntity(key: string): boolean {
+  return LIVE_ENTITIES.has(key);
+}
 
 export type EntityKey =
   | 'supplier'
@@ -51,9 +67,11 @@ interface DatabaseAdminState {
   approval: ApprovalEntry[];
   workflow: WorkflowTemplate[];
   audit: AuditEntry[];
-  update: <K extends EntityKey>(key: K, id: string, patch: Partial<EntityRecordMap[K]>) => void;
-  create: <K extends EntityKey>(key: K, record: EntityRecordMap[K]) => void;
-  remove: <K extends EntityKey>(key: K, id: string) => void;
+  /** Replace an entity's cached list — used by the sync hook to mirror Supabase data into the store. */
+  syncList: <K extends EntityKey>(key: K, list: EntityRecordMap[K][]) => void;
+  update: <K extends EntityKey>(key: K, id: string, patch: Partial<EntityRecordMap[K]>) => Promise<void>;
+  create: <K extends EntityKey>(key: K, record: EntityRecordMap[K]) => Promise<void>;
+  remove: <K extends EntityKey>(key: K, id: string) => Promise<void>;
   reset: () => void;
 }
 
@@ -81,8 +99,25 @@ function makeAuditEntry(
   };
 }
 
-export const useDatabaseAdminStore = create<DatabaseAdminState>((set) => ({
-  supplier: cloneRecords(seedSuppliers),
+function localUpdate<K extends EntityKey>(
+  state: DatabaseAdminState,
+  key: K,
+  id: string,
+  patch: Partial<EntityRecordMap[K]>,
+  auditDetail: string,
+): DatabaseAdminState {
+  const list = state[key] as EntityRecordMap[K][];
+  const idx = list.findIndex((r) => (r as { id: string }).id === id);
+  if (idx === -1) return state;
+  const next = [...list];
+  next[idx] = { ...list[idx], ...patch } as EntityRecordMap[K];
+  const audit = makeAuditEntry('record.update', key, id, auditDetail);
+  return { ...state, [key]: next, audit: [audit, ...state.audit] } as DatabaseAdminState;
+}
+
+export const useDatabaseAdminStore = create<DatabaseAdminState>((set, get) => ({
+  // Live entities initialise empty; the sync hook populates them from Supabase.
+  supplier: [],
   contract: cloneRecords(seedContracts),
   riskAssessment: cloneRecords(seedRiskAssessments),
   purchaseOrder: cloneRecords(seedPOs),
@@ -91,53 +126,70 @@ export const useDatabaseAdminStore = create<DatabaseAdminState>((set) => ({
   approval: cloneRecords(seedApprovals),
   workflow: cloneRecords(seedWorkflows),
   audit: [],
-  update: (key, id, patch) =>
+  syncList: (key, list) =>
+    set((state) => ({ ...state, [key]: list } as DatabaseAdminState)),
+  update: async (key, id, patch) => {
+    const changedKeys = Object.keys(patch as Record<string, unknown>).join(', ');
+    const detail = `Updated fields: ${changedKeys || '(none)'} via Admin → Database`;
+    if (key === 'supplier') {
+      const saved = await dbUpdateSupplier(id, patch as Partial<Supplier>);
+      await queryClient.invalidateQueries({ queryKey: ['suppliers'] });
+      set((state) => {
+        const list = state.supplier;
+        const idx = list.findIndex((s) => s.id === id);
+        const next = idx >= 0 ? [...list.slice(0, idx), saved, ...list.slice(idx + 1)] : [saved, ...list];
+        const audit = makeAuditEntry('record.update', 'supplier', id, detail);
+        return { ...state, supplier: next, audit: [audit, ...state.audit] };
+      });
+      return;
+    }
+    set((state) => localUpdate(state, key, id, patch, detail));
+  },
+  create: async (key, record) => {
+    const id = (record as { id: string }).id;
+    const detail = `Created new ${key} record via Admin → Database`;
+    if (key === 'supplier') {
+      const saved = await dbCreateSupplier(record as Supplier);
+      await queryClient.invalidateQueries({ queryKey: ['suppliers'] });
+      set((state) => {
+        const audit = makeAuditEntry('record.create', 'supplier', saved.id, detail);
+        return { ...state, supplier: [saved, ...state.supplier], audit: [audit, ...state.audit] };
+      });
+      return;
+    }
     set((state) => {
       const list = state[key] as EntityRecordMap[typeof key][];
-      const idx = list.findIndex((r) => (r as { id: string }).id === id);
-      if (idx === -1) return state;
-      const next = [...list];
-      next[idx] = { ...list[idx], ...patch } as EntityRecordMap[typeof key];
-      const changedKeys = Object.keys(patch as Record<string, unknown>).join(', ');
-      const audit = makeAuditEntry(
-        'record.update',
-        key,
-        id,
-        `Updated fields: ${changedKeys || '(none)'} via Admin → Database`,
-      );
-      return { ...state, [key]: next, audit: [audit, ...state.audit] } as DatabaseAdminState;
-    }),
-  create: (key, record) =>
-    set((state) => {
-      const list = state[key] as EntityRecordMap[typeof key][];
-      const id = (record as { id: string }).id;
-      const audit = makeAuditEntry(
-        'record.create',
-        key,
-        id,
-        `Created new ${key} record via Admin → Database`,
-      );
+      const audit = makeAuditEntry('record.create', key, id, detail);
       return {
         ...state,
         [key]: [record, ...list],
         audit: [audit, ...state.audit],
       } as DatabaseAdminState;
-    }),
-  remove: (key, id) =>
+    });
+  },
+  remove: async (key, id) => {
+    const detail = `Deleted ${key} record via Admin → Database`;
+    if (key === 'supplier') {
+      await dbDeleteSupplier(id);
+      await queryClient.invalidateQueries({ queryKey: ['suppliers'] });
+      set((state) => {
+        const audit = makeAuditEntry('record.delete', 'supplier', id, detail);
+        return { ...state, supplier: state.supplier.filter((s) => s.id !== id), audit: [audit, ...state.audit] };
+      });
+      return;
+    }
     set((state) => {
       const list = state[key] as EntityRecordMap[typeof key][];
       const next = list.filter((r) => (r as { id: string }).id !== id);
-      const audit = makeAuditEntry(
-        'record.delete',
-        key,
-        id,
-        `Deleted ${key} record via Admin → Database`,
-      );
+      const audit = makeAuditEntry('record.delete', key, id, detail);
       return { ...state, [key]: next, audit: [audit, ...state.audit] } as DatabaseAdminState;
-    }),
-  reset: () =>
+    });
+  },
+  reset: () => {
+    // Only resets session-only entities; Supabase-backed entities (suppliers, …)
+    // are re-synced by the hook on next fetch.
     set({
-      supplier: cloneRecords(seedSuppliers),
+      ...get(),
       contract: cloneRecords(seedContracts),
       riskAssessment: cloneRecords(seedRiskAssessments),
       purchaseOrder: cloneRecords(seedPOs),
@@ -146,7 +198,9 @@ export const useDatabaseAdminStore = create<DatabaseAdminState>((set) => ({
       approval: cloneRecords(seedApprovals),
       workflow: cloneRecords(seedWorkflows),
       audit: [],
-    }),
+    });
+    queryClient.invalidateQueries({ queryKey: ['suppliers'] });
+  },
 }));
 
 export const entityLabels: Record<EntityKey, { singular: string; plural: string; route?: string }> = {

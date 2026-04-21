@@ -1,5 +1,5 @@
 import type { ProcurementRequest } from '@/data/types';
-import { getSupplierById } from '@/data/suppliers';
+import { useSupplierLookup, useSuppliers } from '@/lib/db/hooks/use-suppliers';
 import { getContractById, getContractsBySupplier } from '@/data/contracts';
 import { requests } from '@/data/requests';
 import { StatusBadge } from '@/components/shared/status-badge';
@@ -27,7 +27,9 @@ const sraColors = {
 };
 
 export function TabRelated({ request }: TabRelatedProps) {
-  const supplier = request.supplierId ? getSupplierById(request.supplierId) : undefined;
+  useSuppliers();
+  const lookupSupplier = useSupplierLookup();
+  const supplier = lookupSupplier(request.supplierId);
   const contract = request.contractId ? getContractById(request.contractId) : undefined;
 
   // Other contracts for same supplier

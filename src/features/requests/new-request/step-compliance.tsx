@@ -3,7 +3,8 @@ import { Loader2, Info, ChevronDown, ChevronUp, AlertTriangle, CheckCircle, Spar
 import { ComplianceCheckResult } from './components/compliance-check-result';
 import { AISuggestionCard } from '@/components/shared/ai-suggestion-card';
 import { formatCurrency } from '@/lib/format';
-import { suppliers } from '@/data/suppliers';
+import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
+import type { Supplier } from '@/data/types';
 import { contracts } from '@/data/contracts';
 import { findMatchingRiskAssessments } from '@/data/risk-assessments';
 import { getFormTemplate } from '@/data/form-templates';
@@ -48,7 +49,8 @@ function generatePolicyChecks(
   value: number,
   category: string,
   supplierId: string,
-  _isUrgent: boolean
+  _isUrgent: boolean,
+  suppliers: Supplier[],
 ): { label: string; passed: boolean; detail: string }[] {
   const supplier = suppliers.find((s) => s.id === supplierId);
   const checks: { label: string; passed: boolean; detail: string }[] = [];
@@ -107,13 +109,14 @@ export function StepCompliance({
 }: StepComplianceProps) {
   const [loading, setLoading] = useState(true);
   const [result, setResult] = useState<ComplianceData | null>(null);
+  const { data: suppliers = [] } = useSuppliers();
 
   useEffect(() => {
     setLoading(true);
     const timer = setTimeout(() => {
       const { label } = determineBuyingChannel(category, estimatedValue);
       const supplier = suppliers.find((s) => s.id === supplierId);
-      const policyChecks = generatePolicyChecks(estimatedValue, category, supplierId, isUrgent);
+      const policyChecks = generatePolicyChecks(estimatedValue, category, supplierId, isUrgent, suppliers);
 
       const matches = findMatchingRiskAssessments({ supplierId });
       const matchingRiskAssessments: MatchingRiskAssessmentSummary[] = matches.map((m) => ({
@@ -148,7 +151,7 @@ export function StepCompliance({
     }, 1200);
 
     return () => clearTimeout(timer);
-  }, [category, estimatedValue, supplierId, isUrgent]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [category, estimatedValue, supplierId, isUrgent, suppliers]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) {
     return (
@@ -385,6 +388,7 @@ function SmartAssessmentSection({
   category: string;
   estimatedValue: number;
 }) {
+  const { data: suppliers = [] } = useSuppliers();
   const assessment = useMemo(() => {
     // Vendor match
     const matchedSupplier = supplierId
@@ -419,7 +423,7 @@ function SmartAssessmentSection({
     const totalDays = steps.filter((s) => s.status !== 'skipped').reduce((sum, s) => sum + s.days, 0);
 
     return { matchedSupplier, matchedContracts, hasActiveContract, hasExpiringContract, steps, totalDays };
-  }, [supplier, supplierId, category, estimatedValue]);
+  }, [supplier, supplierId, category, estimatedValue, suppliers]);
 
   return (
     <Card>

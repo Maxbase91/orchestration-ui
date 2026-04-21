@@ -1,12 +1,11 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/shared/page-header';
 import { SearchInput } from '@/components/shared/search-input';
 import { FilterBar, type FilterConfig } from '@/components/shared/filter-bar';
 import { ViewToggle } from '@/components/shared/view-toggle';
-import { suppliers as mockSuppliers } from '@/data/suppliers';
-import { apiGetSuppliers } from '@/lib/api';
+import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
 import type { Supplier } from '@/data/types';
 import { SupplierCard } from './components/supplier-card';
 import { SupplierTable } from './components/supplier-table';
@@ -74,16 +73,12 @@ export function SupplierDirectoryPage() {
   const [view, setView] = useState('grid');
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState<Record<string, string | string[]>>({});
-  const [allSuppliers, setAllSuppliers] = useState<Supplier[]>(mockSuppliers);
-
-  useEffect(() => {
-    apiGetSuppliers().then(setAllSuppliers);
-  }, []);
+  const { data: allSuppliers = [] } = useSuppliers();
 
   const filterConfigs = useMemo(() => buildFilterConfigs(allSuppliers), [allSuppliers]);
 
   const filtered = useMemo(() => {
-    let result = allSuppliers;
+    let result: Supplier[] = allSuppliers;
 
     if (search) {
       const q = search.toLowerCase();
@@ -122,7 +117,7 @@ export function SupplierDirectoryPage() {
     }
 
     return result;
-  }, [search, filters]);
+  }, [allSuppliers, search, filters]);
 
   return (
     <div className="space-y-5">

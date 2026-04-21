@@ -4,7 +4,7 @@ import { ArrowLeft, ArrowRight, Save, Send, AlertTriangle, Loader2 } from 'lucid
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { suppliers } from '@/data/suppliers';
+import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
 import { useAuthStore } from '@/stores/auth-store';
 import { apiCreateRequest, apiSaveServiceDescription } from '@/lib/api';
 import type { RequestCategory, BuyingChannel } from '@/data/types';
@@ -131,10 +131,13 @@ export function NewRequestPage() {
   const [initialized, setInitialized] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { currentUser } = useAuthStore();
+  const { data: suppliers = [] } = useSuppliers();
 
-  // Read URL params on mount — skip to Step 2 if pre-filled from home page
+  // Read URL params on mount — skip to Step 2 if pre-filled from home page.
+  // Depend on suppliers so the directory match runs once suppliers load.
   useEffect(() => {
     if (initialized) return;
+    if (suppliers.length === 0) return; // wait for suppliers to load before matching
     setInitialized(true);
 
     const step = searchParams.get('step');
@@ -175,7 +178,7 @@ export function NewRequestPage() {
       // Clear search params so refresh doesn't re-trigger
       setSearchParams({}, { replace: true });
     }
-  }, [searchParams, setSearchParams, initialized]);
+  }, [searchParams, setSearchParams, initialized, suppliers]);
 
   const updateFormData = useCallback((updates: Partial<RequestFormData>) => {
     setFormData((prev) => ({ ...prev, ...updates }));
