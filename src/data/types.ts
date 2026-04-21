@@ -210,6 +210,35 @@ export interface WorkflowTemplate {
   edges: { source: string; target: string; label?: string }[];
 }
 
+export type RiskAssessmentCategory =
+  | 'security'
+  | 'financial'
+  | 'operational'
+  | 'data-privacy'
+  | 'compliance'
+  | 'esg';
+export type RiskAssessmentStatus = 'draft' | 'in-review' | 'completed' | 'expired';
+
+export interface RiskAssessment {
+  id: string;
+  title: string;
+  subjectType: 'supplier' | 'contract';
+  supplierId?: string;
+  contractId?: string;
+  category: RiskAssessmentCategory;
+  riskLevel: RiskRating;
+  score: number;
+  status: RiskAssessmentStatus;
+  assessorId: string;
+  assessorName: string;
+  assessedAt: string;
+  validUntil: string;
+  summary: string;
+  mitigations: string[];
+  reusable: boolean;
+  linkedRequestIds: string[];
+}
+
 export interface AIAgent {
   id: string;
   name: string;

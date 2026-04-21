@@ -1,6 +1,7 @@
 import type { ProcurementRequest } from '@/data/types';
 import { getIntakeCompliance } from '@/data/request-compliance';
 import { getComplianceReport } from '@/data/compliance-reports';
+import { riskAssessments } from '@/data/risk-assessments';
 import { ComplianceReportCard } from '@/components/shared/compliance-report-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +15,7 @@ import {
   Search,
   Flag,
   Info,
+  Recycle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -161,6 +163,42 @@ export function TabCompliance({ request }: TabComplianceProps) {
           </div>
         </CardContent>
       </Card>
+
+      {/* Reused Risk Assessments */}
+      {intake.matchingRiskAssessmentIds && intake.matchingRiskAssessmentIds.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <Recycle className="size-4 text-emerald-600" />
+              <CardTitle className="text-base">Reused Risk Assessments</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {intake.matchingRiskAssessmentIds.map((raId) => {
+                const ra = riskAssessments.find((r) => r.id === raId);
+                if (!ra) return null;
+                return (
+                  <div
+                    key={raId}
+                    className="flex items-start justify-between gap-3 rounded-md border border-emerald-100 bg-emerald-50/40 px-3 py-2"
+                  >
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">{ra.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {ra.id} · {ra.category} · {ra.riskLevel} risk · valid until {ra.validUntil}
+                      </p>
+                    </div>
+                    <Badge variant="outline" className="bg-emerald-100 text-emerald-700 border-emerald-200">
+                      Reused
+                    </Badge>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Risk Flags */}
       {intake.riskFlags.length > 0 && (

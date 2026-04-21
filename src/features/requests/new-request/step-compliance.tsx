@@ -1,20 +1,30 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { Loader2, Info, ChevronDown, ChevronUp, AlertTriangle, CheckCircle, Sparkles, Circle, MinusCircle, Clock } from 'lucide-react';
+import { Loader2, Info, ChevronDown, ChevronUp, AlertTriangle, CheckCircle, Sparkles, Circle, MinusCircle, Clock, Recycle } from 'lucide-react';
 import { ComplianceCheckResult } from './components/compliance-check-result';
 import { AISuggestionCard } from '@/components/shared/ai-suggestion-card';
 import { formatCurrency } from '@/lib/format';
 import { suppliers } from '@/data/suppliers';
 import { contracts } from '@/data/contracts';
+import { findMatchingRiskAssessments } from '@/data/risk-assessments';
 import { getFormTemplate } from '@/data/form-templates';
 import { DynamicForm } from '@/components/shared/dynamic-form';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import type { BuyingChannel } from '@/data/types';
+import type { BuyingChannel, RiskAssessment } from '@/data/types';
+
+interface MatchingRiskAssessmentSummary {
+  id: string;
+  title: string;
+  riskLevel: RiskAssessment['riskLevel'];
+  category: RiskAssessment['category'];
+  validUntil: string;
+}
 
 interface ComplianceData {
   buyingChannelResult: string;
   sraStatus: string;
   policyChecks: { label: string; passed: boolean; detail: string }[];
   duplicateCheck: string | null;
+  matchingRiskAssessments: MatchingRiskAssessmentSummary[];
 }
 
 interface StepComplianceProps {
@@ -105,6 +115,23 @@ export function StepCompliance({
       const supplier = suppliers.find((s) => s.id === supplierId);
       const policyChecks = generatePolicyChecks(estimatedValue, category, supplierId, isUrgent);
 
+      const matches = findMatchingRiskAssessments({ supplierId });
+      const matchingRiskAssessments: MatchingRiskAssessmentSummary[] = matches.map((m) => ({
+        id: m.id,
+        title: m.title,
+        riskLevel: m.riskLevel,
+        category: m.category,
+        validUntil: m.validUntil,
+      }));
+
+      if (matchingRiskAssessments.length > 0) {
+        policyChecks.push({
+          label: 'Risk assessment reuse',
+          passed: true,
+          detail: `${matchingRiskAssessments.length} existing risk assessment${matchingRiskAssessments.length > 1 ? 's' : ''} can be reused — no new SRA required at intake.`,
+        });
+      }
+
       const data: ComplianceData = {
         buyingChannelResult: label,
         sraStatus: supplier
@@ -112,6 +139,7 @@ export function StepCompliance({
           : 'Will be initiated upon submission',
         policyChecks,
         duplicateCheck: null,
+        matchingRiskAssessments,
       };
 
       setResult(data);
@@ -159,6 +187,39 @@ export function StepCompliance({
         <p className="text-sm font-medium text-gray-900">SRA Status</p>
         <p className="mt-1 text-sm text-gray-600">{result.sraStatus}</p>
       </div>
+
+      {/* Matching Risk Assessments (reuse) */}
+      {result.matchingRiskAssessments.length > 0 && (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 p-4">
+          <div className="flex items-start gap-2">
+            <Recycle className="mt-0.5 size-4 shrink-0 text-emerald-600" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-emerald-900">
+                {result.matchingRiskAssessments.length} existing risk assessment
+                {result.matchingRiskAssessments.length > 1 ? 's' : ''} eligible for reuse
+              </p>
+              <p className="mt-0.5 text-xs text-emerald-800/80">
+                These assessments are valid and cover the selected supplier. A new SRA is not required at intake.
+              </p>
+              <ul className="mt-2 space-y-1.5">
+                {result.matchingRiskAssessments.map((ra) => (
+                  <li
+                    key={ra.id}
+                    className="flex items-center justify-between gap-2 rounded-md bg-white/70 px-2.5 py-1.5 text-xs"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-gray-900 truncate">{ra.title}</p>
+                      <p className="text-[11px] text-gray-500">
+                        {ra.id} · {ra.category} · {ra.riskLevel} risk · valid until {ra.validUntil}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Policy Checks */}
       <div>

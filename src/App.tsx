@@ -50,6 +50,7 @@ import { ApprovalChainsPage } from '@/features/admin/approval-chains-page'
 import { PolicyManagementPage } from '@/features/admin/policy-management-page'
 import { UserManagementPage } from '@/features/admin/user-management-page'
 import { SystemHealthPage } from '@/features/admin/system-health-page'
+import { DatabaseAdminPage } from '@/features/admin/database/database-admin-page'
 import { AIAssistantPage } from '@/features/help/ai-assistant-page'
 import { KnowledgeBasePage } from '@/features/help/knowledge-base-page'
 import { ContactSupportPage } from '@/features/help/contact-support-page'
@@ -138,6 +139,7 @@ export function App() {
             <Route path="/analytics/exports" element={<ExportsPage />} />
 
             {/* Admin */}
+            <Route path="/admin/database" element={<DatabaseAdminPage />} />
             <Route path="/admin/rules" element={<RoutingRulesPage />} />
             <Route path="/admin/forms" element={<FormBuilderPage />} />
             <Route path="/admin/approvals" element={<ApprovalChainsPage />} />

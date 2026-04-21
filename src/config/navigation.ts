@@ -217,6 +217,7 @@ export const navigation: NavGroup[] = [
     label: 'Admin',
     visibleTo: ['admin'],
     items: [
+      { id: 'database', label: 'Database', icon: 'Database', path: '/admin/database', visibleTo: ['admin'] },
       { id: 'routing-rules', label: 'Routing Rules', icon: 'Route', path: '/admin/rules', visibleTo: ['admin'] },
       { id: 'form-builder', label: 'Form Builder', icon: 'ClipboardList', path: '/admin/forms', visibleTo: ['admin'] },
       { id: 'approval-chains', label: 'Approval Chains', icon: 'Link', path: '/admin/approvals', visibleTo: ['admin'] },

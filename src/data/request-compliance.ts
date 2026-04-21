@@ -20,6 +20,7 @@ export interface IntakeComplianceRecord {
     detail: string;
   };
   riskFlags: string[];
+  matchingRiskAssessmentIds?: string[];
 }
 
 export const intakeComplianceRecords: IntakeComplianceRecord[] = [
@@ -908,6 +909,20 @@ export const intakeComplianceRecords: IntakeComplianceRecord[] = [
     riskFlags: [],
   },
 ];
+
+import { riskAssessments } from './risk-assessments';
+
+// Back-fill matchingRiskAssessmentIds from RiskAssessment.linkedRequestIds so seed records
+// reflect the new entity without each being touched by hand.
+for (const record of intakeComplianceRecords) {
+  if (record.matchingRiskAssessmentIds && record.matchingRiskAssessmentIds.length > 0) continue;
+  const matches = riskAssessments
+    .filter((ra) => ra.reusable && ra.status === 'completed' && ra.linkedRequestIds.includes(record.requestId))
+    .map((ra) => ra.id);
+  if (matches.length > 0) {
+    record.matchingRiskAssessmentIds = matches;
+  }
+}
 
 export function getIntakeCompliance(requestId: string): IntakeComplianceRecord | undefined {
   return intakeComplianceRecords.find((r) => r.requestId === requestId);

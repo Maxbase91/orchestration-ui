@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/select';
 import { DataTable, type Column } from '@/components/shared/data-table';
 import { formatDate } from '@/lib/format';
+import { useDatabaseAdminStore } from '@/stores/database-admin-store';
 
 interface AuditRow {
   id: string;
@@ -70,9 +71,9 @@ const auditEntries: AuditRow[] = [
   { id: 'AUD-040', timestamp: '2024-12-15T14:30:00Z', user: 'David Kowalski', action: 'SRA Initiated', objectType: 'Supplier', objectId: 'SUP-008', detail: 'Initiated SRA renewal for Siemens AG', ipAddress: '10.0.1.60' },
 ];
 
-const uniqueUsers = [...new Set(auditEntries.map((e) => e.user))].sort();
-const uniqueActions = [...new Set(auditEntries.map((e) => e.action))].sort();
-const uniqueObjectTypes = [...new Set(auditEntries.map((e) => e.objectType))].sort();
+const baseUniqueUsers = [...new Set(auditEntries.map((e) => e.user))].sort();
+const baseUniqueActions = [...new Set(auditEntries.map((e) => e.action))].sort();
+const baseUniqueObjectTypes = [...new Set(auditEntries.map((e) => e.objectType))].sort();
 
 const PAGE_SIZE = 15;
 
@@ -129,8 +130,38 @@ export function AuditLogPage() {
   const [objectTypeFilter, setObjectTypeFilter] = useState('all');
   const [page, setPage] = useState(0);
 
+  const sessionAudit = useDatabaseAdminStore((s) => s.audit);
+  const sessionRows: AuditRow[] = useMemo(
+    () =>
+      sessionAudit.map((e) => ({
+        id: e.id,
+        timestamp: e.timestamp,
+        user: e.userName,
+        action: e.action,
+        objectType: e.objectType,
+        objectId: e.objectId,
+        detail: e.detail,
+        ipAddress: '-',
+      })),
+    [sessionAudit],
+  );
+
+  const allEntries = useMemo(() => [...sessionRows, ...auditEntries], [sessionRows]);
+  const uniqueUsers = useMemo(
+    () => [...new Set([...sessionRows.map((e) => e.user), ...baseUniqueUsers])].sort(),
+    [sessionRows],
+  );
+  const uniqueActions = useMemo(
+    () => [...new Set([...sessionRows.map((e) => e.action), ...baseUniqueActions])].sort(),
+    [sessionRows],
+  );
+  const uniqueObjectTypes = useMemo(
+    () => [...new Set([...sessionRows.map((e) => e.objectType), ...baseUniqueObjectTypes])].sort(),
+    [sessionRows],
+  );
+
   const filtered = useMemo(() => {
-    return auditEntries.filter((entry) => {
+    return allEntries.filter((entry) => {
       if (dateFrom && entry.timestamp < dateFrom) return false;
       if (dateTo && entry.timestamp > dateTo + 'T23:59:59Z') return false;
       if (userFilter !== 'all' && entry.user !== userFilter) return false;
@@ -138,7 +169,7 @@ export function AuditLogPage() {
       if (objectTypeFilter !== 'all' && entry.objectType !== objectTypeFilter) return false;
       return true;
     });
-  }, [dateFrom, dateTo, userFilter, actionFilter, objectTypeFilter]);
+  }, [allEntries, dateFrom, dateTo, userFilter, actionFilter, objectTypeFilter]);
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
