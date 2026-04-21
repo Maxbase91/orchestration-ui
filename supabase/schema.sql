@@ -184,9 +184,15 @@ CREATE TABLE IF NOT EXISTS suppliers (
   address TEXT,
   primary_contact TEXT,
   primary_contact_email TEXT,
+  certifications JSONB DEFAULT '[]',
+  spend_history JSONB DEFAULT '[]',
   performance_score INTEGER DEFAULT 0,
   created_at TIMESTAMP DEFAULT now()
 );
+
+-- If an existing deployment pre-dates the JSONB columns, add them idempotently.
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS certifications JSONB DEFAULT '[]';
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS spend_history JSONB DEFAULT '[]';
 
 -- Contracts
 CREATE TABLE IF NOT EXISTS contracts (
@@ -238,6 +244,90 @@ CREATE TABLE IF NOT EXISTS invoices (
   created_at TIMESTAMP DEFAULT now()
 );
 
+-- ── New Wave 1 tables ──────────────────────────────────────────────
+
+-- Risk Assessments (first-class; previously implicit in Supplier + compliance fields)
+CREATE TABLE IF NOT EXISTS risk_assessments (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  subject_type TEXT NOT NULL CHECK (subject_type IN ('supplier', 'contract')),
+  supplier_id TEXT REFERENCES suppliers(id) ON DELETE SET NULL,
+  contract_id TEXT REFERENCES contracts(id) ON DELETE SET NULL,
+  category TEXT NOT NULL,
+  risk_level TEXT NOT NULL DEFAULT 'low',
+  score INTEGER DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'draft',
+  assessor_id TEXT,
+  assessor_name TEXT,
+  assessed_at TIMESTAMP,
+  valid_until DATE,
+  summary TEXT,
+  mitigations TEXT[] DEFAULT '{}',
+  reusable BOOLEAN DEFAULT false,
+  linked_request_ids TEXT[] DEFAULT '{}',
+  created_at TIMESTAMP DEFAULT now()
+);
+
+-- Audit Entries (persisted audit log; replaces in-memory array in admin store)
+CREATE TABLE IF NOT EXISTS audit_entries (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  timestamp TIMESTAMP DEFAULT now(),
+  user_id TEXT,
+  user_name TEXT,
+  action TEXT NOT NULL,
+  object_type TEXT NOT NULL,
+  object_id TEXT NOT NULL,
+  detail TEXT,
+  type TEXT DEFAULT 'human',
+  request_id TEXT REFERENCES requests(id) ON DELETE SET NULL
+);
+
+-- ── FK hardening for existing tables ──────────────────────────────
+-- Re-defined as idempotent ALTERs so existing deployments pick them up.
+-- Wrapped in DO blocks because PostgreSQL has no "ADD CONSTRAINT IF NOT EXISTS".
+
+DO $$ BEGIN
+  ALTER TABLE contracts
+    ADD CONSTRAINT contracts_supplier_id_fkey
+    FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE SET NULL;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  ALTER TABLE purchase_orders
+    ADD CONSTRAINT purchase_orders_supplier_id_fkey
+    FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE SET NULL;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  ALTER TABLE purchase_orders
+    ADD CONSTRAINT purchase_orders_contract_id_fkey
+    FOREIGN KEY (contract_id) REFERENCES contracts(id) ON DELETE SET NULL;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  ALTER TABLE purchase_orders
+    ADD CONSTRAINT purchase_orders_request_id_fkey
+    FOREIGN KEY (request_id) REFERENCES requests(id) ON DELETE SET NULL;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  ALTER TABLE invoices
+    ADD CONSTRAINT invoices_supplier_id_fkey
+    FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE SET NULL;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  ALTER TABLE invoices
+    ADD CONSTRAINT invoices_po_id_fkey
+    FOREIGN KEY (po_id) REFERENCES purchase_orders(id) ON DELETE SET NULL;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  ALTER TABLE approval_entries
+    ADD CONSTRAINT approval_entries_approver_id_fkey
+    FOREIGN KEY (approver_id) REFERENCES users(id) ON DELETE SET NULL;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
 -- Enable RLS with open access (no auth)
 ALTER TABLE suppliers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE contracts ENABLE ROW LEVEL SECURITY;
@@ -254,6 +344,8 @@ ALTER TABLE system_integrations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE form_submissions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE approval_entries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE risk_assessments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE audit_entries ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Allow all" ON suppliers FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON contracts FOR ALL USING (true) WITH CHECK (true);
@@ -270,6 +362,8 @@ CREATE POLICY "Allow all" ON system_integrations FOR ALL USING (true) WITH CHECK
 CREATE POLICY "Allow all" ON form_submissions FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON approval_entries FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON notifications FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all" ON risk_assessments FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all" ON audit_entries FOR ALL USING (true) WITH CHECK (true);
 
 -- Indexes for common queries
 CREATE INDEX IF NOT EXISTS idx_requests_status ON requests(status);
@@ -293,3 +387,9 @@ CREATE INDEX IF NOT EXISTS idx_system_integrations_request ON system_integration
 CREATE INDEX IF NOT EXISTS idx_approval_entries_request ON approval_entries(request_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON notifications(is_read);
 CREATE INDEX IF NOT EXISTS idx_form_submissions_request ON form_submissions(request_id);
+CREATE INDEX IF NOT EXISTS idx_risk_assessments_supplier ON risk_assessments(supplier_id);
+CREATE INDEX IF NOT EXISTS idx_risk_assessments_contract ON risk_assessments(contract_id);
+CREATE INDEX IF NOT EXISTS idx_risk_assessments_status ON risk_assessments(status);
+CREATE INDEX IF NOT EXISTS idx_risk_assessments_reusable ON risk_assessments(reusable) WHERE reusable = true;
+CREATE INDEX IF NOT EXISTS idx_audit_entries_timestamp ON audit_entries(timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_entries_object ON audit_entries(object_type, object_id);

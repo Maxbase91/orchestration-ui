@@ -1,4 +1,7 @@
-// Client-side API wrapper with fallback to mock data
+// Client-side API wrapper with fallback to mock data.
+// NOTE: Mappers live in `src/lib/db/mappers.ts`; this module re-exports the
+// ones that are used externally and will be slimmed down as each entity
+// migrates to the db-layer hooks (see plan file).
 
 import type { ProcurementRequest, Comment, Supplier, Contract } from '../data/types';
 import { requests as mockRequests } from '../data/requests';
@@ -7,106 +10,21 @@ import { stageHistory as mockStageHistory } from '../data/stage-history';
 import { serviceDescriptions as mockServiceDescriptions } from '../data/service-descriptions';
 import { suppliers as mockSuppliers } from '../data/suppliers';
 import { contracts as mockContracts } from '../data/contracts';
+import {
+  mapDbToRequest,
+  mapRequestToDb,
+  mapDbToComment,
+  mapDbToStageHistory,
+  mapDbToServiceDescription,
+  mapDbToSupplier,
+  mapDbToContract,
+} from './db/mappers';
 
-// --- snake_case <-> camelCase mapping ---
+export { mapDbToRequest, mapRequestToDb };
 
 type DbRecord = Record<string, unknown>;
 
-const REQUEST_FIELD_MAP: Record<string, string> = {
-  requestorId: 'requestor_id',
-  ownerId: 'owner_id',
-  supplierId: 'supplier_id',
-  supplierName: 'supplier_name',
-  contractId: 'contract_id',
-  poId: 'po_id',
-  buyingChannel: 'buying_channel',
-  commodityCode: 'commodity_code',
-  commodityCodeLabel: 'commodity_code_label',
-  costCentre: 'cost_centre',
-  budgetOwner: 'budget_owner',
-  businessJustification: 'business_justification',
-  deliveryDate: 'delivery_date',
-  isUrgent: 'is_urgent',
-  createdAt: 'created_at',
-  updatedAt: 'updated_at',
-  slaDeadline: 'sla_deadline',
-  daysInStage: 'days_in_stage',
-  isOverdue: 'is_overdue',
-  referBackCount: 'refer_back_count',
-};
-
-const REVERSE_REQUEST_MAP: Record<string, string> = Object.fromEntries(
-  Object.entries(REQUEST_FIELD_MAP).map(([k, v]) => [v, k]),
-);
-
-export function mapDbToRequest(row: DbRecord): ProcurementRequest {
-  const result: DbRecord = {};
-  for (const [key, value] of Object.entries(row)) {
-    const camelKey = REVERSE_REQUEST_MAP[key] ?? key;
-    result[camelKey] = value;
-  }
-  return result as unknown as ProcurementRequest;
-}
-
-export function mapRequestToDb(data: Partial<ProcurementRequest>): DbRecord {
-  const result: DbRecord = {};
-  for (const [key, value] of Object.entries(data)) {
-    const snakeKey = REQUEST_FIELD_MAP[key] ?? key;
-    result[snakeKey] = value;
-  }
-  return result;
-}
-
-function mapDbToComment(row: DbRecord): Comment {
-  return {
-    id: row.id as string,
-    requestId: (row.request_id ?? row.requestId) as string,
-    authorId: (row.author_id ?? row.authorId) as string,
-    authorName: (row.author_name ?? row.authorName) as string,
-    authorInitials: (row.author_initials ?? row.authorInitials ?? '') as string,
-    content: row.content as string,
-    timestamp: (row.created_at ?? row.timestamp) as string,
-    isInternal: (row.is_internal ?? row.isInternal ?? false) as boolean,
-  };
-}
-
-interface MappedStageHistory {
-  requestId: string;
-  stage: string;
-  enteredAt: string;
-  completedAt?: string;
-  ownerId: string;
-  action?: string;
-  notes?: string;
-}
-
-function mapDbToStageHistory(row: DbRecord): MappedStageHistory {
-  return {
-    requestId: (row.request_id ?? row.requestId) as string,
-    stage: row.stage as string,
-    enteredAt: (row.entered_at ?? row.enteredAt) as string,
-    completedAt: (row.completed_at ?? row.completedAt) as string | undefined,
-    ownerId: (row.owner_id ?? row.ownerId) as string,
-    action: row.action as string | undefined,
-    notes: row.notes as string | undefined,
-  };
-}
-
-function mapDbToServiceDescription(row: DbRecord) {
-  return {
-    requestId: (row.request_id ?? row.requestId) as string,
-    objective: row.objective as string,
-    scope: row.scope as string,
-    deliverables: row.deliverables as string,
-    timeline: row.timeline as string,
-    resources: row.resources as string,
-    acceptanceCriteria: (row.acceptance_criteria ?? row.acceptanceCriteria) as string,
-    pricingModel: (row.pricing_model ?? row.pricingModel) as string,
-    location: row.location as string,
-    dependencies: row.dependencies as string,
-    narrative: row.narrative as string,
-  };
-}
+type MappedStageHistory = ReturnType<typeof mapDbToStageHistory>;
 
 // --- API functions ---
 
@@ -273,52 +191,7 @@ export async function apiSaveConversation(data: {
   }
 }
 
-// --- Supplier helpers ---
-
-function mapDbToSupplier(row: DbRecord): Supplier {
-  return {
-    id: row.id as string,
-    name: row.name as string,
-    country: (row.country ?? '') as string,
-    countryCode: (row.country_code ?? row.countryCode ?? '') as string,
-    riskRating: (row.risk_rating ?? row.riskRating ?? 'low') as Supplier['riskRating'],
-    activeContracts: (row.active_contracts ?? row.activeContracts ?? 0) as number,
-    totalSpend12m: (row.total_spend_12m ?? row.totalSpend12m ?? 0) as number,
-    onboardingStatus: (row.onboarding_status ?? row.onboardingStatus ?? 'not-started') as Supplier['onboardingStatus'],
-    sraStatus: (row.sra_status ?? row.sraStatus ?? 'not-assessed') as Supplier['sraStatus'],
-    sraExpiryDate: (row.sra_expiry_date ?? row.sraExpiryDate) as string | undefined,
-    screeningStatus: (row.screening_status ?? row.screeningStatus ?? 'pending') as Supplier['screeningStatus'],
-    categories: (row.categories ?? []) as string[],
-    tier: (row.tier ?? 3) as Supplier['tier'],
-    duns: (row.duns ?? '') as string,
-    address: (row.address ?? '') as string,
-    primaryContact: (row.primary_contact ?? row.primaryContact ?? '') as string,
-    primaryContactEmail: (row.primary_contact_email ?? row.primaryContactEmail ?? '') as string,
-    certifications: [],
-    spendHistory: [],
-    performanceScore: (row.performance_score ?? row.performanceScore ?? 0) as number,
-  };
-}
-
-function mapDbToContract(row: DbRecord): Contract {
-  return {
-    id: row.id as string,
-    title: row.title as string,
-    supplierId: (row.supplier_id ?? row.supplierId ?? '') as string,
-    supplierName: (row.supplier_name ?? row.supplierName ?? '') as string,
-    value: (row.value ?? 0) as number,
-    startDate: (row.start_date ?? row.startDate ?? '') as string,
-    endDate: (row.end_date ?? row.endDate ?? '') as string,
-    status: (row.status ?? 'draft') as Contract['status'],
-    ownerId: (row.owner_id ?? row.ownerId ?? '') as string,
-    ownerName: (row.owner_name ?? row.ownerName ?? '') as string,
-    department: (row.department ?? '') as string,
-    category: (row.category ?? '') as string,
-    renewalDate: (row.renewal_date ?? row.renewalDate) as string | undefined,
-    utilisationPercentage: (row.utilisation_percentage ?? row.utilisationPercentage ?? 0) as number,
-    linkedRequestIds: [],
-  };
-}
+// --- Supplier + Contract helpers (use shared mappers) ---
 
 export async function apiGetSuppliers(): Promise<Supplier[]> {
   try {
