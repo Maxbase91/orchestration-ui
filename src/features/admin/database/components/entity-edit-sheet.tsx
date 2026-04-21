@@ -112,18 +112,19 @@ export function EntityEditSheet<K extends EntityKey>({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="sm:max-w-2xl flex flex-col p-0">
-        <SheetHeader className="border-b px-6 py-4">
+      <SheetContent className="w-full sm:max-w-2xl flex flex-col p-0 h-full">
+        <SheetHeader className="shrink-0 border-b px-6 py-4">
           <SheetTitle>{title}</SheetTitle>
           <SheetDescription>
             {mode === 'edit'
-              ? `Edit fields below. Changes are saved to the session-only admin database.`
+              ? 'Edit fields below. Save to persist changes.'
               : `Create a new ${entityLabels[config.key].singular.toLowerCase()} record.`}
           </SheetDescription>
         </SheetHeader>
 
-        <ScrollArea className="flex-1 px-6 py-4">
-          <div className="space-y-4">
+        {/* min-h-0 lets the flex child shrink so the ScrollArea's viewport can scroll. */}
+        <ScrollArea className="flex-1 min-h-0 px-6 py-4">
+          <div className="space-y-4 pb-2">
             {config.fields.map((field) => (
               <FieldRenderer
                 key={field.key}
@@ -152,7 +153,7 @@ export function EntityEditSheet<K extends EntityKey>({
           </div>
         </ScrollArea>
 
-        <SheetFooter className="flex-row items-center justify-between border-t px-6 py-3">
+        <SheetFooter className="shrink-0 flex-row items-center justify-between border-t px-6 py-3">
           {mode === 'edit' ? (
             <Button variant="ghost" size="sm" className="text-red-600" onClick={handleDelete}>
               Delete
