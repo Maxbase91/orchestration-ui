@@ -8,7 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { BarChartWidget } from '@/components/charts/bar-chart-widget';
-import { getContractById } from '@/data/contracts';
+import { useContract } from '@/lib/db/hooks/use-contracts';
 import { purchaseOrders } from '@/data/purchase-orders';
 import { invoices } from '@/data/invoices';
 import { formatCurrency, formatDate } from '@/lib/format';
@@ -39,7 +39,7 @@ const mockDocuments = [
 export function ContractDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const contract = id ? getContractById(id) : undefined;
+  const { data: contract } = useContract(id);
   const [obligations, setObligations] = useState(mockObligations);
 
   if (!contract) {

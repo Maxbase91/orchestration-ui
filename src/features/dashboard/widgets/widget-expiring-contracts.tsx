@@ -1,11 +1,12 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FileWarning } from 'lucide-react';
-import { contracts } from '@/data/contracts';
+import { useContracts } from '@/lib/db/hooks/use-contracts';
 import { differenceInDays, parseISO } from 'date-fns';
 
 export function WidgetExpiringContracts() {
   const navigate = useNavigate();
+  const { data: contracts = [] } = useContracts();
 
   const expiring = useMemo(() => {
     const now = new Date();
@@ -21,7 +22,7 @@ export function WidgetExpiringContracts() {
       }))
       .sort((a, b) => a.daysUntilExpiry - b.daysUntilExpiry)
       .slice(0, 5);
-  }, []);
+  }, [contracts]);
 
   if (expiring.length === 0) {
     return <p className="text-sm text-muted-foreground">No contracts expiring soon.</p>;

@@ -10,7 +10,6 @@ import type {
   AuditEntry,
   RiskAssessment,
 } from '@/data/types';
-import { contracts as seedContracts } from '@/data/contracts';
 import { purchaseOrders as seedPOs } from '@/data/purchase-orders';
 import { invoices as seedInvoices } from '@/data/invoices';
 import { requests as seedRequests } from '@/data/requests';
@@ -24,13 +23,18 @@ import {
   updateSupplier as dbUpdateSupplier,
   deleteSupplier as dbDeleteSupplier,
 } from '@/lib/db/suppliers';
+import {
+  createContract as dbCreateContract,
+  updateContract as dbUpdateContract,
+  deleteContract as dbDeleteContract,
+} from '@/lib/db/contracts';
 
 /**
  * Which entities are backed by Supabase (edits persist across sessions and
  * propagate to every feature page) vs. still session-only local clones of
  * mock data. As each entity is migrated in Wave 1/2/3 it moves into LIVE_ENTITIES.
  */
-const LIVE_ENTITIES = new Set<string>(['supplier']);
+const LIVE_ENTITIES = new Set<string>(['supplier', 'contract']);
 
 export function isLiveEntity(key: string): boolean {
   return LIVE_ENTITIES.has(key);
@@ -118,7 +122,7 @@ function localUpdate<K extends EntityKey>(
 export const useDatabaseAdminStore = create<DatabaseAdminState>((set, get) => ({
   // Live entities initialise empty; the sync hook populates them from Supabase.
   supplier: [],
-  contract: cloneRecords(seedContracts),
+  contract: [],
   riskAssessment: cloneRecords(seedRiskAssessments),
   purchaseOrder: cloneRecords(seedPOs),
   invoice: cloneRecords(seedInvoices),
@@ -143,6 +147,18 @@ export const useDatabaseAdminStore = create<DatabaseAdminState>((set, get) => ({
       });
       return;
     }
+    if (key === 'contract') {
+      const saved = await dbUpdateContract(id, patch as Partial<Contract>);
+      await queryClient.invalidateQueries({ queryKey: ['contracts'] });
+      set((state) => {
+        const list = state.contract;
+        const idx = list.findIndex((c) => c.id === id);
+        const next = idx >= 0 ? [...list.slice(0, idx), saved, ...list.slice(idx + 1)] : [saved, ...list];
+        const audit = makeAuditEntry('record.update', 'contract', id, detail);
+        return { ...state, contract: next, audit: [audit, ...state.audit] };
+      });
+      return;
+    }
     set((state) => localUpdate(state, key, id, patch, detail));
   },
   create: async (key, record) => {
@@ -154,6 +170,15 @@ export const useDatabaseAdminStore = create<DatabaseAdminState>((set, get) => ({
       set((state) => {
         const audit = makeAuditEntry('record.create', 'supplier', saved.id, detail);
         return { ...state, supplier: [saved, ...state.supplier], audit: [audit, ...state.audit] };
+      });
+      return;
+    }
+    if (key === 'contract') {
+      const saved = await dbCreateContract(record as Contract);
+      await queryClient.invalidateQueries({ queryKey: ['contracts'] });
+      set((state) => {
+        const audit = makeAuditEntry('record.create', 'contract', saved.id, detail);
+        return { ...state, contract: [saved, ...state.contract], audit: [audit, ...state.audit] };
       });
       return;
     }
@@ -178,6 +203,15 @@ export const useDatabaseAdminStore = create<DatabaseAdminState>((set, get) => ({
       });
       return;
     }
+    if (key === 'contract') {
+      await dbDeleteContract(id);
+      await queryClient.invalidateQueries({ queryKey: ['contracts'] });
+      set((state) => {
+        const audit = makeAuditEntry('record.delete', 'contract', id, detail);
+        return { ...state, contract: state.contract.filter((c) => c.id !== id), audit: [audit, ...state.audit] };
+      });
+      return;
+    }
     set((state) => {
       const list = state[key] as EntityRecordMap[typeof key][];
       const next = list.filter((r) => (r as { id: string }).id !== id);
@@ -186,11 +220,10 @@ export const useDatabaseAdminStore = create<DatabaseAdminState>((set, get) => ({
     });
   },
   reset: () => {
-    // Only resets session-only entities; Supabase-backed entities (suppliers, …)
-    // are re-synced by the hook on next fetch.
+    // Only resets session-only entities; Supabase-backed entities (suppliers,
+    // contracts, …) are re-synced by the sync hook on next fetch.
     set({
       ...get(),
-      contract: cloneRecords(seedContracts),
       riskAssessment: cloneRecords(seedRiskAssessments),
       purchaseOrder: cloneRecords(seedPOs),
       invoice: cloneRecords(seedInvoices),
@@ -200,6 +233,7 @@ export const useDatabaseAdminStore = create<DatabaseAdminState>((set, get) => ({
       audit: [],
     });
     queryClient.invalidateQueries({ queryKey: ['suppliers'] });
+    queryClient.invalidateQueries({ queryKey: ['contracts'] });
   },
 }));
 

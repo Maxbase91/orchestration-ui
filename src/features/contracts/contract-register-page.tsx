@@ -1,11 +1,10 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/shared/page-header';
 import { DataTable, type Column } from '@/components/shared/data-table';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { FilterBar, type FilterConfig } from '@/components/shared/filter-bar';
-import { contracts as mockContracts } from '@/data/contracts';
-import { apiGetContracts } from '@/lib/api';
+import { useContracts } from '@/lib/db/hooks/use-contracts';
 import { formatCurrency, formatDate } from '@/lib/format';
 import type { Contract } from '@/data/types';
 
@@ -119,16 +118,12 @@ export function ContractRegisterPage() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<TabFilter>('all');
   const [filters, setFilters] = useState<Record<string, string | string[]>>({});
-  const [allContracts, setAllContracts] = useState<Contract[]>(mockContracts);
-
-  useEffect(() => {
-    apiGetContracts().then(setAllContracts);
-  }, []);
+  const { data: allContracts = [] } = useContracts();
 
   const filterConfigs = useMemo(() => buildFilterConfigs(allContracts), [allContracts]);
 
   const filtered = useMemo(() => {
-    let result = allContracts;
+    let result: Contract[] = allContracts;
 
     if (tab === 'active') result = result.filter((c) => c.status === 'active');
     else if (tab === 'expiring') result = result.filter((c) => c.status === 'expiring');
@@ -150,7 +145,7 @@ export function ContractRegisterPage() {
     }
 
     return result;
-  }, [tab, filters]);
+  }, [allContracts, tab, filters]);
 
   const tableData = filtered.map((c) => ({ ...c } as Contract & Record<string, unknown>));
 

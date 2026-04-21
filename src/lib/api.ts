@@ -3,19 +3,17 @@
 // ones that are used externally and will be slimmed down as each entity
 // migrates to the db-layer hooks (see plan file).
 
-import type { ProcurementRequest, Comment, Contract } from '../data/types';
+import type { ProcurementRequest, Comment } from '../data/types';
 import { requests as mockRequests } from '../data/requests';
 import { comments as mockComments } from '../data/comments';
 import { stageHistory as mockStageHistory } from '../data/stage-history';
 import { serviceDescriptions as mockServiceDescriptions } from '../data/service-descriptions';
-import { contracts as mockContracts } from '../data/contracts';
 import {
   mapDbToRequest,
   mapRequestToDb,
   mapDbToComment,
   mapDbToStageHistory,
   mapDbToServiceDescription,
-  mapDbToContract,
 } from './db/mappers';
 
 export { mapDbToRequest, mapRequestToDb };
@@ -189,33 +187,10 @@ export async function apiSaveConversation(data: {
   }
 }
 
-// --- Contract helpers (use shared mappers) ---
-//
-// Suppliers have moved to `src/lib/db/suppliers.ts` + React Query hooks in
-// Wave 1. `apiGetSuppliers` / `apiGetSupplier` are intentionally gone — import
-// `useSuppliers` / `useSupplier` from `@/lib/db/hooks/use-suppliers` instead.
-
-export async function apiGetContracts(): Promise<Contract[]> {
-  try {
-    const res = await fetch('/api/contracts');
-    if (!res.ok) throw new Error('API error');
-    const data = (await res.json()) as DbRecord[];
-    return data.map(mapDbToContract);
-  } catch {
-    return mockContracts;
-  }
-}
-
-export async function apiGetContract(id: string): Promise<Contract | null> {
-  try {
-    const res = await fetch(`/api/contracts?id=${id}`);
-    if (!res.ok) throw new Error('API error');
-    const data = (await res.json()) as DbRecord;
-    return mapDbToContract(data);
-  } catch {
-    return mockContracts.find((c) => c.id === id) ?? null;
-  }
-}
+// Suppliers and contracts have moved to `src/lib/db/suppliers.ts` /
+// `src/lib/db/contracts.ts` + React Query hooks. Use `useSuppliers` /
+// `useSupplier` / `useContracts` / `useContract` from
+// `@/lib/db/hooks/*` instead of any deleted apiGetX wrappers.
 
 export async function apiWorkflowAction(data: {
   requestId: string;

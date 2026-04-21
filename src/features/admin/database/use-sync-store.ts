@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
+import { useContracts } from '@/lib/db/hooks/use-contracts';
 import { useDatabaseAdminStore } from '@/stores/database-admin-store';
 
 /**
@@ -10,6 +11,7 @@ import { useDatabaseAdminStore } from '@/stores/database-admin-store';
  */
 export function useSyncAdminStore() {
   const { data: suppliers, isSuccess: suppliersLoaded } = useSuppliers();
+  const { data: contracts, isSuccess: contractsLoaded } = useContracts();
   const syncList = useDatabaseAdminStore((s) => s.syncList);
 
   useEffect(() => {
@@ -17,4 +19,10 @@ export function useSyncAdminStore() {
       syncList('supplier', suppliers);
     }
   }, [suppliersLoaded, suppliers, syncList]);
+
+  useEffect(() => {
+    if (contractsLoaded && contracts) {
+      syncList('contract', contracts);
+    }
+  }, [contractsLoaded, contracts, syncList]);
 }

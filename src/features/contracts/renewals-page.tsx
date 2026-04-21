@@ -4,7 +4,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { KPICard } from '@/components/shared/kpi-card';
 import { DataTable, type Column } from '@/components/shared/data-table';
 import { StatusBadge } from '@/components/shared/status-badge';
-import { contracts } from '@/data/contracts';
+import { useContracts } from '@/lib/db/hooks/use-contracts';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -29,6 +29,7 @@ const today = new Date();
 export function RenewalsPage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabFilter>('all');
+  const { data: contracts = [] } = useContracts();
 
   const rows = useMemo<ContractRow[]>(() => {
     return contracts.map((c) => {
@@ -44,7 +45,7 @@ export function RenewalsPage() {
         status: c.status,
       };
     });
-  }, []);
+  }, [contracts]);
 
   const filtered = useMemo(() => {
     switch (activeTab) {

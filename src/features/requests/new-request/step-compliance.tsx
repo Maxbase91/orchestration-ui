@@ -5,7 +5,7 @@ import { AISuggestionCard } from '@/components/shared/ai-suggestion-card';
 import { formatCurrency } from '@/lib/format';
 import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
 import type { Supplier } from '@/data/types';
-import { contracts } from '@/data/contracts';
+import { useContracts } from '@/lib/db/hooks/use-contracts';
 import { findMatchingRiskAssessments } from '@/data/risk-assessments';
 import { getFormTemplate } from '@/data/form-templates';
 import { DynamicForm } from '@/components/shared/dynamic-form';
@@ -389,6 +389,7 @@ function SmartAssessmentSection({
   estimatedValue: number;
 }) {
   const { data: suppliers = [] } = useSuppliers();
+  const { data: contracts = [] } = useContracts();
   const assessment = useMemo(() => {
     // Vendor match
     const matchedSupplier = supplierId
@@ -423,7 +424,7 @@ function SmartAssessmentSection({
     const totalDays = steps.filter((s) => s.status !== 'skipped').reduce((sum, s) => sum + s.days, 0);
 
     return { matchedSupplier, matchedContracts, hasActiveContract, hasExpiringContract, steps, totalDays };
-  }, [supplier, supplierId, category, estimatedValue, suppliers]);
+  }, [supplier, supplierId, category, estimatedValue, suppliers, contracts]);
 
   return (
     <Card>

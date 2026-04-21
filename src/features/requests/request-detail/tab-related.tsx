@@ -1,6 +1,6 @@
 import type { ProcurementRequest } from '@/data/types';
 import { useSupplierLookup, useSuppliers } from '@/lib/db/hooks/use-suppliers';
-import { getContractById, getContractsBySupplier } from '@/data/contracts';
+import { useContractLookup, useContracts } from '@/lib/db/hooks/use-contracts';
 import { requests } from '@/data/requests';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,13 +28,15 @@ const sraColors = {
 
 export function TabRelated({ request }: TabRelatedProps) {
   useSuppliers();
+  useContracts();
   const lookupSupplier = useSupplierLookup();
+  const { byId: lookupContract, bySupplier: contractsBySupplier } = useContractLookup();
   const supplier = lookupSupplier(request.supplierId);
-  const contract = request.contractId ? getContractById(request.contractId) : undefined;
+  const contract = lookupContract(request.contractId);
 
   // Other contracts for same supplier
   const supplierContracts = request.supplierId
-    ? getContractsBySupplier(request.supplierId).filter((c) => c.id !== request.contractId)
+    ? contractsBySupplier(request.supplierId).filter((c) => c.id !== request.contractId)
     : [];
 
   // Previous requests for same supplier

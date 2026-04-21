@@ -5,11 +5,12 @@ import { BarChartWidget } from '@/components/charts/bar-chart-widget';
 import { PieChartWidget } from '@/components/charts/pie-chart-widget';
 import { kpiData } from '@/data/kpi-data';
 import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
-import { contracts } from '@/data/contracts';
+import { useContracts } from '@/lib/db/hooks/use-contracts';
 import { formatCurrency } from '@/lib/format';
 
 export function SpendDashboardPage() {
   const { data: suppliers = [] } = useSuppliers();
+  const { data: contracts = [] } = useContracts();
 
   const totalSpendYTD = useMemo(
     () => kpiData.reduce((sum, d) => sum + d.totalSpend, 0),
@@ -37,7 +38,7 @@ export function SpendDashboardPage() {
     return Math.round(
       activeContracts.reduce((sum, c) => sum + c.value, 0) / activeContracts.length,
     );
-  }, []);
+  }, [contracts]);
 
   const monthlySpendData = useMemo(
     () =>

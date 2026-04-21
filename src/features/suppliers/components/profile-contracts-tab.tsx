@@ -2,7 +2,7 @@ import { AlertTriangle } from 'lucide-react';
 import { DataTable, type Column } from '@/components/shared/data-table';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { formatCurrency, formatDate } from '@/lib/format';
-import { getContractsBySupplier } from '@/data/contracts';
+import { useContractLookup, useContracts } from '@/lib/db/hooks/use-contracts';
 import type { Contract } from '@/data/types';
 
 type ContractRow = Contract & Record<string, unknown>;
@@ -53,7 +53,9 @@ interface ProfileContractsTabProps {
 }
 
 export function ProfileContractsTab({ supplierId }: ProfileContractsTabProps) {
-  const contracts = getContractsBySupplier(supplierId);
+  useContracts();
+  const { bySupplier } = useContractLookup();
+  const contracts = bySupplier(supplierId);
 
   const expiringContracts = contracts.filter((c) => {
     if (c.status !== 'active' && c.status !== 'expiring') return false;

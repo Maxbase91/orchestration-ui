@@ -1,12 +1,16 @@
-import type { AIResponse, Supplier } from '@/data/types';
+import type { AIResponse, Supplier, Contract } from '@/data/types';
 import { aiResponses } from '@/data/ai-responses';
 import { getRequestById } from '@/data/requests';
-import { getContractById } from '@/data/contracts';
 import { queryClient } from '@/lib/query-client';
 
 function getSupplierFromCache(id: string): Supplier | undefined {
   const list = queryClient.getQueryData<Supplier[]>(['suppliers', 'list']);
   return list?.find((s) => s.id === id);
+}
+
+function getContractFromCache(id: string): Contract | undefined {
+  const list = queryClient.getQueryData<Contract[]>(['contracts', 'list']);
+  return list?.find((c) => c.id === id);
 }
 
 export function getAIResponse(input: string, context: string): AIResponse | null {
@@ -85,7 +89,7 @@ export function getAISummary(type: 'request' | 'supplier' | 'contract', id: stri
   }
 
   if (type === 'contract') {
-    const con = getContractById(id);
+    const con = getContractFromCache(id);
     if (!con) return 'Contract not found.';
 
     const statusText = con.status === 'expiring'
