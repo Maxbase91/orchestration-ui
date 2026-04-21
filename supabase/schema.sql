@@ -347,6 +347,25 @@ ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE risk_assessments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_entries ENABLE ROW LEVEL SECURITY;
 
+-- Policies are recreated idempotently so this script can be re-run.
+DROP POLICY IF EXISTS "Allow all" ON suppliers;
+DROP POLICY IF EXISTS "Allow all" ON contracts;
+DROP POLICY IF EXISTS "Allow all" ON purchase_orders;
+DROP POLICY IF EXISTS "Allow all" ON invoices;
+DROP POLICY IF EXISTS "Allow all" ON users;
+DROP POLICY IF EXISTS "Allow all" ON requests;
+DROP POLICY IF EXISTS "Allow all" ON stage_history;
+DROP POLICY IF EXISTS "Allow all" ON service_descriptions;
+DROP POLICY IF EXISTS "Allow all" ON ai_conversations;
+DROP POLICY IF EXISTS "Allow all" ON comments;
+DROP POLICY IF EXISTS "Allow all" ON compliance_reports;
+DROP POLICY IF EXISTS "Allow all" ON system_integrations;
+DROP POLICY IF EXISTS "Allow all" ON form_submissions;
+DROP POLICY IF EXISTS "Allow all" ON approval_entries;
+DROP POLICY IF EXISTS "Allow all" ON notifications;
+DROP POLICY IF EXISTS "Allow all" ON risk_assessments;
+DROP POLICY IF EXISTS "Allow all" ON audit_entries;
+
 CREATE POLICY "Allow all" ON suppliers FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON contracts FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON purchase_orders FOR ALL USING (true) WITH CHECK (true);
