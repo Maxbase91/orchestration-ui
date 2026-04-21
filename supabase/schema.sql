@@ -93,10 +93,13 @@ CREATE TABLE IF NOT EXISTS comments (
   request_id TEXT REFERENCES requests(id) ON DELETE CASCADE,
   author_id TEXT,
   author_name TEXT,
+  author_initials TEXT,
   content TEXT NOT NULL,
   is_internal BOOLEAN DEFAULT false,
   created_at TIMESTAMP DEFAULT now()
 );
+
+ALTER TABLE comments ADD COLUMN IF NOT EXISTS author_initials TEXT;
 
 -- Compliance Reports
 CREATE TABLE IF NOT EXISTS compliance_reports (
