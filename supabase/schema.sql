@@ -58,6 +58,14 @@ CREATE TABLE IF NOT EXISTS stage_history (
   notes TEXT
 );
 
+-- Natural composite key so the seed can upsert without duplicating rows on re-run.
+-- (request_id, stage) alone is not unique — e.g. refer-back cycles re-enter 'sourcing'.
+DO $$ BEGIN
+  ALTER TABLE stage_history
+    ADD CONSTRAINT stage_history_natural_key
+    UNIQUE (request_id, stage, entered_at);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
 -- Service Descriptions (SOW)
 CREATE TABLE IF NOT EXISTS service_descriptions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -87,9 +95,9 @@ CREATE TABLE IF NOT EXISTS ai_conversations (
   updated_at TIMESTAMP DEFAULT now()
 );
 
--- Comments
+-- Comments (TEXT PK so mock IDs like CMT-001 round-trip through the seed idempotently)
 CREATE TABLE IF NOT EXISTS comments (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id TEXT PRIMARY KEY,
   request_id TEXT REFERENCES requests(id) ON DELETE CASCADE,
   author_id TEXT,
   author_name TEXT,
@@ -100,6 +108,18 @@ CREATE TABLE IF NOT EXISTS comments (
 );
 
 ALTER TABLE comments ADD COLUMN IF NOT EXISTS author_initials TEXT;
+
+-- Migrate existing deployments from UUID PK to TEXT PK. Safe because all mock IDs are TEXT-shaped.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'comments' AND column_name = 'id' AND data_type = 'uuid'
+  ) THEN
+    ALTER TABLE comments ALTER COLUMN id DROP DEFAULT;
+    ALTER TABLE comments ALTER COLUMN id TYPE TEXT USING id::text;
+  END IF;
+END $$;
 
 -- Compliance Reports
 CREATE TABLE IF NOT EXISTS compliance_reports (
@@ -142,9 +162,9 @@ CREATE TABLE IF NOT EXISTS form_submissions (
   status TEXT DEFAULT 'completed'
 );
 
--- Approval Entries
+-- Approval Entries (TEXT PK so mock IDs like APR-001 round-trip through the seed idempotently)
 CREATE TABLE IF NOT EXISTS approval_entries (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id TEXT PRIMARY KEY,
   request_id TEXT REFERENCES requests(id) ON DELETE CASCADE,
   approver_id TEXT,
   approver_name TEXT,
@@ -155,6 +175,18 @@ CREATE TABLE IF NOT EXISTS approval_entries (
   comments TEXT,
   delegated_to TEXT
 );
+
+-- Migrate existing deployments from UUID PK to TEXT PK.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'approval_entries' AND column_name = 'id' AND data_type = 'uuid'
+  ) THEN
+    ALTER TABLE approval_entries ALTER COLUMN id DROP DEFAULT;
+    ALTER TABLE approval_entries ALTER COLUMN id TYPE TEXT USING id::text;
+  END IF;
+END $$;
 
 -- Notifications
 CREATE TABLE IF NOT EXISTS notifications (

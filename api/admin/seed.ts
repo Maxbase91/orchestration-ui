@@ -109,7 +109,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       'id',
     );
 
-    // 7. Stage history (FK to requests). UUID PK; upsert by (request_id, stage).
+    // 7. Stage history (FK to requests). Upsert by natural key (request_id, stage, entered_at).
     counts.stage_history = await upsert(
       'stage_history',
       stageHistory.map((s) => ({
@@ -121,13 +121,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         action: s.action ?? null,
         notes: s.notes ?? null,
       })),
+      'request_id,stage,entered_at',
     );
 
-    // 8. Comments (FK to requests). UUID PK; seed is inherently insert-once.
+    // 8. Comments (TEXT PK — mock CMT-xxx IDs).
     counts.comments = await upsert(
       'comments',
-      comments.map((c) =>
-        mapCommentToDb({
+      comments.map((c) => ({
+        id: c.id,
+        ...mapCommentToDb({
           requestId: c.requestId,
           authorId: c.authorId,
           authorName: c.authorName,
@@ -135,7 +137,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           content: c.content,
           isInternal: c.isInternal,
         }),
-      ),
+        created_at: c.timestamp,
+      })),
+      'id',
     );
 
     // 9. Service descriptions (FK+UNIQUE to requests).
