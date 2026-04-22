@@ -60,14 +60,13 @@ CREATE TABLE IF NOT EXISTS stage_history (
 
 -- Natural composite key so the seed can upsert without duplicating rows on re-run.
 -- (request_id, stage) alone is not unique — e.g. refer-back cycles re-enter 'sourcing'.
-DO $$ BEGIN
-  ALTER TABLE stage_history
-    ADD CONSTRAINT stage_history_natural_key
-    UNIQUE (request_id, stage, entered_at);
-EXCEPTION
-  WHEN duplicate_object THEN NULL;
-  WHEN duplicate_table THEN NULL;
-END $$;
+-- Fully idempotent: drops both the constraint and any orphaned backing index
+-- before re-adding, so re-runs work regardless of prior partial state.
+ALTER TABLE stage_history DROP CONSTRAINT IF EXISTS stage_history_natural_key;
+DROP INDEX IF EXISTS stage_history_natural_key;
+ALTER TABLE stage_history
+  ADD CONSTRAINT stage_history_natural_key
+  UNIQUE (request_id, stage, entered_at);
 
 -- Service Descriptions (SOW)
 CREATE TABLE IF NOT EXISTS service_descriptions (
