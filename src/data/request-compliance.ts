@@ -4,7 +4,7 @@
 // backfill of `matchingRiskAssessmentIds` still run at import time so the
 // seed endpoint gets consistent data.
 
-import { riskAssessments } from './risk-assessments';
+import { riskAssessments } from './risk-assessments.js';
 
 export interface IntakeComplianceRecord {
   requestId: string;
