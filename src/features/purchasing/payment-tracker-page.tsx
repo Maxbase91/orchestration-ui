@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { PageHeader } from '@/components/shared/page-header';
 import { KPICard } from '@/components/shared/kpi-card';
 import { DataTable, type Column } from '@/components/shared/data-table';
-import { invoices } from '@/data/invoices';
+import { useInvoices } from '@/lib/db/hooks/use-invoices';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -67,6 +67,7 @@ function PaymentStepper({ status }: { status: string }) {
 }
 
 export function PaymentTrackerPage() {
+  const { data: invoices = [] } = useInvoices();
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
   const rows = useMemo<InvoiceRow[]>(() => {
@@ -90,7 +91,7 @@ export function PaymentTrackerPage() {
         status: inv.status,
       };
     });
-  }, []);
+  }, [invoices]);
 
   const filtered = useMemo(() => {
     if (statusFilter === 'all') return rows;

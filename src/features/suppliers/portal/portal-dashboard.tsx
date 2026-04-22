@@ -2,7 +2,7 @@ import { AlertCircle, Bell, CreditCard } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { formatCurrency, formatDate } from '@/lib/format';
-import { getInvoicesBySupplier } from '@/data/invoices';
+import { useInvoiceLookup, useInvoices } from '@/lib/db/hooks/use-invoices';
 import { useSupplier } from '@/lib/db/hooks/use-suppliers';
 
 // Mock: portal user is supplier SUP-001 (Accenture)
@@ -10,7 +10,9 @@ const PORTAL_SUPPLIER_ID = 'SUP-001';
 
 export function PortalDashboard() {
   const { data: supplier } = useSupplier(PORTAL_SUPPLIER_ID);
-  const invoices = getInvoicesBySupplier(PORTAL_SUPPLIER_ID).slice(0, 5);
+  useInvoices();
+  const { bySupplier: invoicesBySupplier } = useInvoiceLookup();
+  const invoices = invoicesBySupplier(PORTAL_SUPPLIER_ID).slice(0, 5);
   const supplierName = supplier?.name ?? 'Supplier';
   const isOnboarding = supplier?.onboardingStatus === 'in-progress';
 

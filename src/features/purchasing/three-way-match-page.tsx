@@ -12,7 +12,7 @@ import {
 import { PageHeader } from '@/components/shared/page-header';
 import { MatchVisualizer, type MatchField } from './components/match-visualizer';
 import { PaymentTracker } from './components/payment-tracker';
-import { invoices as allInvoices } from '@/data/invoices';
+import { useInvoices } from '@/lib/db/hooks/use-invoices';
 import { formatCurrency } from '@/lib/format';
 
 interface MatchScenario {
@@ -80,6 +80,7 @@ const matchScenarios: MatchScenario[] = [
 ];
 
 export function ThreeWayMatchPage() {
+  const { data: allInvoices = [] } = useInvoices();
   const [selectedInvoice, setSelectedInvoice] = useState<string>(matchScenarios[0].invoiceId);
 
   const scenario = matchScenarios.find((s) => s.invoiceId === selectedInvoice);

@@ -10,7 +10,7 @@ import { StatusBadge } from '@/components/shared/status-badge';
 import { BarChartWidget } from '@/components/charts/bar-chart-widget';
 import { useContract } from '@/lib/db/hooks/use-contracts';
 import { usePurchaseOrders } from '@/lib/db/hooks/use-purchase-orders';
-import { invoices } from '@/data/invoices';
+import { useInvoices } from '@/lib/db/hooks/use-invoices';
 import { formatCurrency, formatDate } from '@/lib/format';
 
 interface Obligation {
@@ -41,6 +41,7 @@ export function ContractDetailPage() {
   const navigate = useNavigate();
   const { data: contract } = useContract(id);
   const { data: purchaseOrders = [] } = usePurchaseOrders();
+  const { data: invoices = [] } = useInvoices();
   const [obligations, setObligations] = useState(mockObligations);
 
   if (!contract) {

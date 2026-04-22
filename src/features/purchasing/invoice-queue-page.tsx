@@ -4,7 +4,7 @@ import { DataTable, type Column } from '@/components/shared/data-table';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { AISuggestionCard } from '@/components/shared/ai-suggestion-card';
 import { FilterBar, type FilterConfig } from '@/components/shared/filter-bar';
-import { invoices } from '@/data/invoices';
+import { useInvoices } from '@/lib/db/hooks/use-invoices';
 import { formatCurrency, formatDate } from '@/lib/format';
 import type { Invoice } from '@/data/types';
 
@@ -78,6 +78,7 @@ const columns: Column<Invoice & Record<string, unknown>>[] = [
 ];
 
 export function InvoiceQueuePage() {
+  const { data: invoices = [] } = useInvoices();
   const [filters, setFilters] = useState<Record<string, string | string[]>>({});
   const [showAI, setShowAI] = useState(true);
 
@@ -98,7 +99,7 @@ export function InvoiceQueuePage() {
     }
 
     return result;
-  }, [filters]);
+  }, [invoices, filters]);
 
   const tableData = filtered.map((inv) => ({ ...inv } as Invoice & Record<string, unknown>));
 

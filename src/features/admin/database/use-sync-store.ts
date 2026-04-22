@@ -3,6 +3,7 @@ import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
 import { useContracts } from '@/lib/db/hooks/use-contracts';
 import { useRiskAssessments } from '@/lib/db/hooks/use-risk-assessments';
 import { usePurchaseOrders } from '@/lib/db/hooks/use-purchase-orders';
+import { useInvoices } from '@/lib/db/hooks/use-invoices';
 import { useDatabaseAdminStore } from '@/stores/database-admin-store';
 
 /**
@@ -16,6 +17,7 @@ export function useSyncAdminStore() {
   const { data: contracts, isSuccess: contractsLoaded } = useContracts();
   const { data: riskAssessments, isSuccess: riskAssessmentsLoaded } = useRiskAssessments();
   const { data: purchaseOrders, isSuccess: purchaseOrdersLoaded } = usePurchaseOrders();
+  const { data: invoices, isSuccess: invoicesLoaded } = useInvoices();
   const syncList = useDatabaseAdminStore((s) => s.syncList);
 
   useEffect(() => {
@@ -41,4 +43,10 @@ export function useSyncAdminStore() {
       syncList('purchaseOrder', purchaseOrders);
     }
   }, [purchaseOrdersLoaded, purchaseOrders, syncList]);
+
+  useEffect(() => {
+    if (invoicesLoaded && invoices) {
+      syncList('invoice', invoices);
+    }
+  }, [invoicesLoaded, invoices, syncList]);
 }

@@ -10,7 +10,6 @@ import type {
   AuditEntry,
   RiskAssessment,
 } from '@/data/types';
-import { invoices as seedInvoices } from '@/data/invoices';
 import { requests as seedRequests } from '@/data/requests';
 import { approvalEntries as seedApprovals } from '@/data/approval-entries';
 import { workflowTemplates as seedWorkflows } from '@/data/workflows';
@@ -36,13 +35,24 @@ import {
   updatePurchaseOrder as dbUpdatePurchaseOrder,
   deletePurchaseOrder as dbDeletePurchaseOrder,
 } from '@/lib/db/purchase-orders';
+import {
+  createInvoice as dbCreateInvoice,
+  updateInvoice as dbUpdateInvoice,
+  deleteInvoice as dbDeleteInvoice,
+} from '@/lib/db/invoices';
 
 /**
  * Which entities are backed by Supabase (edits persist across sessions and
  * propagate to every feature page) vs. still session-only local clones of
  * mock data. As each entity is migrated in Wave 1/2/3 it moves into LIVE_ENTITIES.
  */
-const LIVE_ENTITIES = new Set<string>(['supplier', 'contract', 'riskAssessment', 'purchaseOrder']);
+const LIVE_ENTITIES = new Set<string>([
+  'supplier',
+  'contract',
+  'riskAssessment',
+  'purchaseOrder',
+  'invoice',
+]);
 
 export function isLiveEntity(key: string): boolean {
   return LIVE_ENTITIES.has(key);
@@ -133,7 +143,7 @@ export const useDatabaseAdminStore = create<DatabaseAdminState>((set, get) => ({
   contract: [],
   riskAssessment: [],
   purchaseOrder: [],
-  invoice: cloneRecords(seedInvoices),
+  invoice: [],
   request: cloneRecords(seedRequests),
   approval: cloneRecords(seedApprovals),
   workflow: cloneRecords(seedWorkflows),
@@ -191,6 +201,18 @@ export const useDatabaseAdminStore = create<DatabaseAdminState>((set, get) => ({
       });
       return;
     }
+    if (key === 'invoice') {
+      const saved = await dbUpdateInvoice(id, patch as Partial<Invoice>);
+      await queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      set((state) => {
+        const list = state.invoice;
+        const idx = list.findIndex((i) => i.id === id);
+        const next = idx >= 0 ? [...list.slice(0, idx), saved, ...list.slice(idx + 1)] : [saved, ...list];
+        const audit = makeAuditEntry('record.update', 'invoice', id, detail);
+        return { ...state, invoice: next, audit: [audit, ...state.audit] };
+      });
+      return;
+    }
     set((state) => localUpdate(state, key, id, patch, detail));
   },
   create: async (key, record) => {
@@ -229,6 +251,15 @@ export const useDatabaseAdminStore = create<DatabaseAdminState>((set, get) => ({
       set((state) => {
         const audit = makeAuditEntry('record.create', 'purchaseOrder', saved.id, detail);
         return { ...state, purchaseOrder: [saved, ...state.purchaseOrder], audit: [audit, ...state.audit] };
+      });
+      return;
+    }
+    if (key === 'invoice') {
+      const saved = await dbCreateInvoice(record as Invoice);
+      await queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      set((state) => {
+        const audit = makeAuditEntry('record.create', 'invoice', saved.id, detail);
+        return { ...state, invoice: [saved, ...state.invoice], audit: [audit, ...state.audit] };
       });
       return;
     }
@@ -280,6 +311,15 @@ export const useDatabaseAdminStore = create<DatabaseAdminState>((set, get) => ({
       });
       return;
     }
+    if (key === 'invoice') {
+      await dbDeleteInvoice(id);
+      await queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      set((state) => {
+        const audit = makeAuditEntry('record.delete', 'invoice', id, detail);
+        return { ...state, invoice: state.invoice.filter((i) => i.id !== id), audit: [audit, ...state.audit] };
+      });
+      return;
+    }
     set((state) => {
       const list = state[key] as EntityRecordMap[typeof key][];
       const next = list.filter((r) => (r as { id: string }).id !== id);
@@ -292,7 +332,6 @@ export const useDatabaseAdminStore = create<DatabaseAdminState>((set, get) => ({
     // re-synced by the sync hook on next fetch.
     set({
       ...get(),
-      invoice: cloneRecords(seedInvoices),
       request: cloneRecords(seedRequests),
       approval: cloneRecords(seedApprovals),
       workflow: cloneRecords(seedWorkflows),
@@ -302,6 +341,7 @@ export const useDatabaseAdminStore = create<DatabaseAdminState>((set, get) => ({
     queryClient.invalidateQueries({ queryKey: ['contracts'] });
     queryClient.invalidateQueries({ queryKey: ['risk-assessments'] });
     queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
+    queryClient.invalidateQueries({ queryKey: ['invoices'] });
   },
 }));
 

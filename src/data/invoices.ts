@@ -1,3 +1,8 @@
+// Seed data only — not read by the runtime app.
+//
+// Invoices moved to Supabase in Wave 1. UI reads via
+// `@/lib/db/hooks/use-invoices`.
+
 import type { Invoice } from './types';
 
 export const invoices: Invoice[] = [

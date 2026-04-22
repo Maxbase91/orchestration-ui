@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DataTable, type Column } from '@/components/shared/data-table';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { formatCurrency, formatDate } from '@/lib/format';
-import { getInvoicesBySupplier } from '@/data/invoices';
+import { useInvoiceLookup, useInvoices } from '@/lib/db/hooks/use-invoices';
 import type { Invoice } from '@/data/types';
 
 const PORTAL_SUPPLIER_ID = 'SUP-001';
@@ -60,7 +60,9 @@ const columns: Column<InvoiceRow>[] = [
 ];
 
 export function PortalInvoices() {
-  const invoices = getInvoicesBySupplier(PORTAL_SUPPLIER_ID);
+  useInvoices();
+  const { bySupplier: invoicesBySupplier } = useInvoiceLookup();
+  const invoices = invoicesBySupplier(PORTAL_SUPPLIER_ID);
   const paidInvoices = invoices.filter((inv) => inv.status === 'paid');
   const pendingInvoices = invoices.filter((inv) => inv.status !== 'paid');
 
