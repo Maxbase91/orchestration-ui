@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/shared/status-badge';
-import { getUserById } from '@/data/users';
+import { useUserLookup, useUsers } from '@/lib/db/hooks/use-users';
 import { formatDate } from '@/lib/format';
 import type { ProcurementRequest } from '@/data/types';
 import {
@@ -21,6 +21,8 @@ interface StuckRequestsTableProps {
 }
 
 export function StuckRequestsTable({ requests }: StuckRequestsTableProps) {
+  useUsers();
+  const lookupUser = useUserLookup();
   const stuckRequests = requests
     .filter((r) => r.daysInStage > SLA_DAYS)
     .sort((a, b) => b.daysInStage - a.daysInStage);
@@ -60,7 +62,7 @@ export function StuckRequestsTable({ requests }: StuckRequestsTableProps) {
         </TableHeader>
         <TableBody>
           {stuckRequests.map((req) => {
-            const owner = getUserById(req.ownerId);
+            const owner = lookupUser(req.ownerId);
             const daysOverdue = req.daysInStage - SLA_DAYS;
 
             return (

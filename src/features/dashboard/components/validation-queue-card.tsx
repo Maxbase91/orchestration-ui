@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle, AlertTriangle, FileSearch } from 'lucide-react';
 import type { ProcurementRequest } from '@/data/types';
-import { getUserById } from '@/data/users';
+import { useUserLookup, useUsers } from '@/lib/db/hooks/use-users';
 import { formatCurrency } from '@/lib/format';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { getStatusLabel } from '@/lib/status';
@@ -43,7 +43,9 @@ function getAiAssessment(request: ProcurementRequest): { label: string; ok: bool
 
 export function ValidationQueueCard({ request }: ValidationQueueCardProps) {
   const navigate = useNavigate();
-  const requestor = getUserById(request.requestorId);
+  useUsers();
+  const lookupUser = useUserLookup();
+  const requestor = lookupUser(request.requestorId);
   const assessments = getAiAssessment(request);
 
   return (

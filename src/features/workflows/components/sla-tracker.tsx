@@ -1,6 +1,6 @@
 import { SLACountdown } from '@/components/shared/sla-countdown';
 import { StatusBadge } from '@/components/shared/status-badge';
-import { getUserById } from '@/data/users';
+import { useUserLookup, useUsers } from '@/lib/db/hooks/use-users';
 import { formatCurrency } from '@/lib/format';
 import type { ProcurementRequest } from '@/data/types';
 import { cn } from '@/lib/utils';
@@ -10,6 +10,8 @@ interface SLATrackerProps {
 }
 
 export function SLATracker({ requests }: SLATrackerProps) {
+  useUsers();
+  const lookupUser = useUserLookup();
   // Show requests that have an SLA deadline (approaching or past)
   const slaRequests = requests
     .filter((r) => r.slaDeadline)
@@ -54,7 +56,7 @@ export function SLATracker({ requests }: SLATrackerProps) {
       </div>
       <div className="grid gap-2 p-3 sm:grid-cols-2 lg:grid-cols-3">
         {allTracked.map((req) => {
-          const owner = getUserById(req.ownerId);
+          const owner = lookupUser(req.ownerId);
           return (
             <div
               key={req.id}

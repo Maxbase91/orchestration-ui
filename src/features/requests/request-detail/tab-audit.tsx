@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { ProcurementRequest } from '@/data/types';
 import { getStageHistoryByRequestId } from '@/data/stage-history';
-import { getUserById } from '@/data/users';
+import { useUserLookup, useUsers } from '@/lib/db/hooks/use-users';
 // format used directly via date-fns below
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -30,11 +30,13 @@ interface TabAuditProps {
 }
 
 export function TabAudit({ request }: TabAuditProps) {
+  useUsers();
+  const lookupUser = useUserLookup();
   const history = getStageHistoryByRequestId(request.id);
   const [actionFilter, setActionFilter] = useState<string>('all');
 
   const auditEntries = history.map((entry, index) => {
-    const user = getUserById(entry.ownerId);
+    const user = lookupUser(entry.ownerId);
     return {
       id: `${entry.requestId}-${index}`,
       timestamp: entry.enteredAt,

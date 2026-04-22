@@ -25,8 +25,7 @@ import { AISuggestionCard } from '@/components/shared/ai-suggestion-card';
 import { OOOWarning } from './ooo-warning';
 import { formatCurrency } from '@/lib/format';
 import { getStatusLabel } from '@/lib/status';
-import { getUserById } from '@/data/users';
-import { users } from '@/data/users';
+import { useUserLookup, useUsers } from '@/lib/db/hooks/use-users';
 import type { ProcurementRequest, ApprovalEntry } from '@/data/types';
 
 interface ApprovalCardProps {
@@ -70,13 +69,15 @@ export function ApprovalCard({
   const [delegateId, setDelegateId] = useState('');
   const [showOOOWarning, setShowOOOWarning] = useState(false);
 
-  const requestor = getUserById(request.requestorId);
+  const { data: users = [] } = useUsers();
+  const lookupUser = useUserLookup();
+  const requestor = lookupUser(request.requestorId);
   const priorityCfg = priorityConfig[request.priority] ?? priorityConfig.medium;
 
   // Check if any approver in the chain is OOO
   const oooApprover = users.find((u) => u.id === approval.approverId && u.isOOO);
   const oooDelegate = oooApprover?.delegateId
-    ? getUserById(oooApprover.delegateId)
+    ? lookupUser(oooApprover.delegateId)
     : undefined;
 
   const handleApprove = () => {
@@ -108,7 +109,7 @@ export function ApprovalCard({
 
   const handleDelegate = () => {
     if (!delegateId) return;
-    const delegate = getUserById(delegateId);
+    const delegate = lookupUser(delegateId);
     onActionComplete('delegated');
     toast.success(`${request.id} delegated to ${delegate?.name}`, {
       description: request.title,

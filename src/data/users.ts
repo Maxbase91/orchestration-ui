@@ -1,3 +1,8 @@
+// Seed data only — not read by the runtime app.
+//
+// Users moved to Supabase in Wave 1. UI reads via `@/lib/db/hooks/use-users`.
+// This file remains as the source of truth for `api/admin/seed.ts`.
+
 import type { User } from './types';
 
 export const users: User[] = [

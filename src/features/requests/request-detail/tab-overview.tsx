@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { FileText, Copy, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { toast } from 'sonner';
 import type { ProcurementRequest } from '@/data/types';
-import { getUserById } from '@/data/users';
+import { useUserLookup, useUsers } from '@/lib/db/hooks/use-users';
 import { useSupplierLookup, useSuppliers } from '@/lib/db/hooks/use-suppliers';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { getAISummary } from '@/lib/mock-ai';
@@ -58,9 +58,11 @@ const SOW_LABELS: Record<string, string> = {
 
 export function TabOverview({ request }: TabOverviewProps) {
   useSuppliers();
+  useUsers();
   const lookupSupplier = useSupplierLookup();
-  const requestor = getUserById(request.requestorId);
-  const owner = getUserById(request.ownerId);
+  const lookupUser = useUserLookup();
+  const requestor = lookupUser(request.requestorId);
+  const owner = lookupUser(request.ownerId);
   const supplier = lookupSupplier(request.supplierId);
   const summary = getAISummary('request', request.id);
   const complianceReport = getComplianceReport(request.id);

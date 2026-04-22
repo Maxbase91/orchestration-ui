@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { users } from '@/data/users';
+import { useUsers } from '@/lib/db/hooks/use-users';
 import { toast } from 'sonner';
 
 interface ReassignDialogProps {
@@ -26,6 +26,7 @@ interface ReassignDialogProps {
 }
 
 export function ReassignDialog({ open, onOpenChange }: ReassignDialogProps) {
+  const { data: users = [] } = useUsers();
   const [userId, setUserId] = useState('');
   const [reason, setReason] = useState('');
 

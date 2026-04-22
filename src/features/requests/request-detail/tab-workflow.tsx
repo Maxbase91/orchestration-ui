@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useMemo } from 'react';
 import type { ProcurementRequest, RequestStatus, StageHistoryEntry } from '@/data/types';
 import { getStageHistoryByRequestId } from '@/data/stage-history';
-import { getUserById } from '@/data/users';
+import { useUserLookup, useUsers } from '@/lib/db/hooks/use-users';
 import { getIntegrationsForRequest } from '@/data/system-integrations';
 import { getStepDetailsForRequest } from '@/data/workflow-step-details';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -40,10 +40,12 @@ function getDaysInStep(entry: StageHistoryEntry): number | undefined {
 }
 
 export function TabWorkflow({ request }: TabWorkflowProps) {
+  useUsers();
+  const lookupUser = useUserLookup();
   const history = getStageHistoryByRequestId(request.id);
   const stepDetails = getStepDetailsForRequest(request.id);
   const integrations = getIntegrationsForRequest(request.id);
-  const owner = getUserById(request.ownerId);
+  const owner = lookupUser(request.ownerId);
 
   const [referBackOpen, setReferBackOpen] = useState(false);
   const [reassignOpen, setReassignOpen] = useState(false);
@@ -102,7 +104,7 @@ export function TabWorkflow({ request }: TabWorkflowProps) {
         status = 'future';
       }
 
-      const stageOwner = entry ? getUserById(entry.ownerId) : undefined;
+      const stageOwner = entry ? lookupUser(entry.ownerId) : undefined;
       const daysInStep = entry ? getDaysInStep(entry) : undefined;
 
       const step: Step = {

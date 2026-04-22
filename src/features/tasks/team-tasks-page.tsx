@@ -5,7 +5,7 @@ import { DataTable, type Column } from '@/components/shared/data-table';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { requests } from '@/data/requests';
 import { approvalEntries } from '@/data/approval-entries';
-import { users, getUserById } from '@/data/users';
+import { useUserLookup, useUsers } from '@/lib/db/hooks/use-users';
 import { formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { AlertCircle, ArrowUp, ArrowRight, ArrowDown } from 'lucide-react';
@@ -51,6 +51,8 @@ const PriorityIndicator = ({ priority }: { priority: string }) => {
 
 export function TeamTasksPage() {
   const navigate = useNavigate();
+  const { data: users = [] } = useUsers();
+  const lookupUser = useUserLookup();
   const [selectedUser, setSelectedUser] = useState<string>('all');
 
   const allTasks = useMemo<TaskRow[]>(() => {
@@ -61,7 +63,7 @@ export function TeamTasksPage() {
     // Active requests
     const activeRequests = requests.filter((r) => activeStatuses.includes(r.status));
     for (const r of activeRequests) {
-      const owner = getUserById(r.ownerId);
+      const owner = lookupUser(r.ownerId);
       result.push({
         id: `task-req-${r.id}`,
         title: r.title,
@@ -108,7 +110,7 @@ export function TeamTasksPage() {
     });
 
     return result;
-  }, []);
+  }, [lookupUser]);
 
   const filteredTasks = useMemo(() => {
     if (selectedUser === 'all') return allTasks;

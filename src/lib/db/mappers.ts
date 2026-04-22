@@ -10,9 +10,40 @@ import type {
   ApprovalEntry,
   RiskAssessment,
   StageHistoryEntry,
+  User,
 } from '../../data/types';
 
 type DbRecord = Record<string, unknown>;
+
+// ── Users ───────────────────────────────────────────────────────────
+
+export function mapDbToUser(row: DbRecord): User {
+  return {
+    id: row.id as string,
+    name: row.name as string,
+    email: (row.email ?? '') as string,
+    role: (row.role ?? '') as string,
+    department: (row.department ?? '') as string,
+    initials: (row.initials ?? '') as string,
+    isOOO: (row.is_ooo ?? row.isOOO ?? false) as boolean,
+    delegateId: (row.delegate_id ?? row.delegateId) as string | undefined,
+    avatar: row.avatar as string | undefined,
+  };
+}
+
+export function mapUserToDb(u: Partial<User>): DbRecord {
+  const out: DbRecord = {};
+  if (u.id !== undefined) out.id = u.id;
+  if (u.name !== undefined) out.name = u.name;
+  if (u.email !== undefined) out.email = u.email;
+  if (u.role !== undefined) out.role = u.role;
+  if (u.department !== undefined) out.department = u.department;
+  if (u.initials !== undefined) out.initials = u.initials;
+  if (u.isOOO !== undefined) out.is_ooo = u.isOOO;
+  if (u.delegateId !== undefined) out.delegate_id = u.delegateId;
+  if (u.avatar !== undefined) out.avatar = u.avatar;
+  return out;
+}
 
 // ── Requests ────────────────────────────────────────────────────────
 

@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/select';
 import { PageHeader } from '@/components/shared/page-header';
 import { DataTable, type Column } from '@/components/shared/data-table';
-import { users } from '@/data/users';
+import { useUsers } from '@/lib/db/hooks/use-users';
 
 interface UserRow {
   id: string;
@@ -40,22 +40,27 @@ const mockLastLogins: Record<string, string> = {
   u12: '2026-04-03 15:10',
 };
 
-const userRows: UserRow[] = users.map((u) => ({
-  id: u.id,
-  name: u.name,
-  email: u.email,
-  role: u.role,
-  department: u.department,
-  isOOO: u.isOOO,
-  lastLogin: mockLastLogins[u.id] ?? '2026-04-01 10:00',
-}));
-
-const allRoles = [...new Set(users.map((u) => u.role))];
-const allDepartments = [...new Set(users.map((u) => u.department))];
-
 export function UserManagementPage() {
+  const { data: users = [] } = useUsers();
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [deptFilter, setDeptFilter] = useState<string>('all');
+
+  const userRows: UserRow[] = useMemo(
+    () =>
+      users.map((u) => ({
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        role: u.role,
+        department: u.department,
+        isOOO: u.isOOO,
+        lastLogin: mockLastLogins[u.id] ?? '2026-04-01 10:00',
+      })),
+    [users],
+  );
+
+  const allRoles = useMemo(() => [...new Set(users.map((u) => u.role))], [users]);
+  const allDepartments = useMemo(() => [...new Set(users.map((u) => u.department))], [users]);
 
   const filtered = useMemo(() => {
     return userRows.filter((u) => {
@@ -63,7 +68,7 @@ export function UserManagementPage() {
       if (deptFilter !== 'all' && u.department !== deptFilter) return false;
       return true;
     });
-  }, [roleFilter, deptFilter]);
+  }, [userRows, roleFilter, deptFilter]);
 
   const activeCount = users.filter((u) => !u.isOOO).length;
   const oooCount = users.filter((u) => u.isOOO).length;

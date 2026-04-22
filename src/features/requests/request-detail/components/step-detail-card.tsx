@@ -2,7 +2,7 @@ import { forwardRef, useState, useCallback } from 'react';
 import { toast } from 'sonner';
 import type { WorkflowStepDetail } from '@/data/workflow-step-details';
 import type { StageHistoryEntry } from '@/data/types';
-import { getUserById } from '@/data/users';
+import { useUserLookup, useUsers } from '@/lib/db/hooks/use-users';
 import { formatDate } from '@/lib/format';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -79,12 +79,14 @@ export const StepDetailCard = forwardRef<HTMLDivElement, StepDetailCardProps>(
     { stage, stageLabel, status, detail, stageHistory, isExpanded, onToggle, isHighlighted, requestId, requestCategory },
     ref,
   ) {
+    useUsers();
+    const lookupUser = useUserLookup();
     const config = statusConfig[status];
     const isFuture = status === 'future' || status === 'skipped';
 
     // Determine handler info from detail or stage history
     const handler = detail?.handler;
-    const historyUser = stageHistory?.ownerId ? getUserById(stageHistory.ownerId) : undefined;
+    const historyUser = stageHistory?.ownerId ? lookupUser(stageHistory.ownerId) : undefined;
     const handlerName = handler?.name ?? historyUser?.name ?? 'Unassigned';
     const handlerRole = handler?.role ?? historyUser?.role;
 

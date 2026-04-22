@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { users } from '@/data/users';
+import { useUsers } from '@/lib/db/hooks/use-users';
 
 interface Delegation {
   id: string;
@@ -33,6 +33,7 @@ const initialDelegations: Delegation[] = [
 ];
 
 export function DelegationManager() {
+  const { data: users = [] } = useUsers();
   const [delegations, setDelegations] = useState<Delegation[]>(initialDelegations);
   const [showForm, setShowForm] = useState(false);
   const [delegateId, setDelegateId] = useState('');

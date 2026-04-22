@@ -2,7 +2,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/lib/format';
-import { getUserById } from '@/data/users';
+import { useUserLookup, useUsers } from '@/lib/db/hooks/use-users';
 import type { ProcurementRequest } from '@/data/types';
 import {
   ArrowUp,
@@ -42,8 +42,10 @@ export function WorkflowCard({ request, onClick }: WorkflowCardProps) {
     transition,
   };
 
-  const requestor = getUserById(request.requestorId);
-  const owner = getUserById(request.ownerId);
+  useUsers();
+  const lookupUser = useUserLookup();
+  const requestor = lookupUser(request.requestorId);
+  const owner = lookupUser(request.ownerId);
   const priority = priorityConfig[request.priority] ?? priorityConfig.medium;
   const PriorityIcon = priority.icon;
 

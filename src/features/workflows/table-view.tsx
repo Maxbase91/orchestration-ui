@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { DataTable, type Column } from '@/components/shared/data-table';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { formatCurrency } from '@/lib/format';
-import { getUserById } from '@/data/users';
+import { useUserLookup, useUsers } from '@/lib/db/hooks/use-users';
 import { getStatusLabel } from '@/lib/status';
 import type { ProcurementRequest } from '@/data/types';
 import { cn } from '@/lib/utils';
@@ -25,6 +25,8 @@ interface TableViewProps {
 
 export function TableView({ requests }: TableViewProps) {
   const navigate = useNavigate();
+  useUsers();
+  const lookupUser = useUserLookup();
 
   const columns: Column<Row>[] = [
     {
@@ -48,7 +50,7 @@ export function TableView({ requests }: TableViewProps) {
       key: 'requestorId',
       label: 'Requestor',
       render: (item) => {
-        const user = getUserById(item.requestorId as string);
+        const user = lookupUser(item.requestorId as string);
         return <span className="text-sm">{user?.name ?? '—'}</span>;
       },
     },
@@ -83,7 +85,7 @@ export function TableView({ requests }: TableViewProps) {
       key: 'ownerId',
       label: 'Owner',
       render: (item) => {
-        const user = getUserById(item.ownerId as string);
+        const user = lookupUser(item.ownerId as string);
         return <span className="text-sm">{user?.name ?? '—'}</span>;
       },
     },

@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Clock, AlertTriangle, MessageCircleQuestion } from 'lucide-react';
 import { requests } from '@/data/requests';
-import { getUserById } from '@/data/users';
+import { useUserLookup, useUsers } from '@/lib/db/hooks/use-users';
 import { formatRelativeTime } from '@/lib/format';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { WorkflowHealthCards } from './components/workflow-health-cards';
@@ -28,6 +28,8 @@ const unresolvedQueries: UnresolvedQuery[] = [
 
 export function OperationsLeadDashboard() {
   const navigate = useNavigate();
+  useUsers();
+  const lookupUser = useUserLookup();
   const bottleneckData = useMemo(() => {
     return requests
       .filter((r) => activeStatuses.has(r.status))
@@ -71,7 +73,7 @@ export function OperationsLeadDashboard() {
               </thead>
               <tbody>
                 {bottleneckData.slice(0, 12).map((r) => {
-                  const owner = getUserById(r.ownerId);
+                  const owner = lookupUser(r.ownerId);
                   const slaStatus = r.isOverdue
                     ? 'Breached'
                     : r.daysInStage > 20

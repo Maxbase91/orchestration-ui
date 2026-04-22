@@ -2,12 +2,14 @@ import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, Clock, ArrowLeftCircle } from 'lucide-react';
 import { requests } from '@/data/requests';
-import { getUserById } from '@/data/users';
+import { useUserLookup, useUsers } from '@/lib/db/hooks/use-users';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { formatCurrency } from '@/lib/format';
 
 export function AttentionRequiredList() {
   const navigate = useNavigate();
+  useUsers();
+  const lookupUser = useUserLookup();
   const flaggedItems = useMemo(() => {
     return requests
       .filter((r) => r.isOverdue || r.status === 'referred-back')
@@ -25,7 +27,7 @@ export function AttentionRequiredList() {
   return (
     <div className="space-y-3">
       {flaggedItems.map((r) => {
-        const owner = getUserById(r.ownerId);
+        const owner = lookupUser(r.ownerId);
         return (
           <button
             key={r.id}

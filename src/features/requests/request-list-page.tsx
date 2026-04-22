@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { requests as mockRequests } from '@/data/requests';
-import { getUserById } from '@/data/users';
+import { useUserLookup, useUsers } from '@/lib/db/hooks/use-users';
 import { apiGetRequests } from '@/lib/api';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { PriorityIndicator } from '@/components/shared/priority-indicator';
@@ -32,6 +32,8 @@ interface RequestListPageProps {
 
 export function RequestListPage({ title, filterMine = false }: RequestListPageProps) {
   const navigate = useNavigate();
+  useUsers();
+  const lookupUser = useUserLookup();
   const [requests, setRequests] = useState(mockRequests);
   const [loading, setLoading] = useState(true);
 
@@ -74,7 +76,7 @@ export function RequestListPage({ title, filterMine = false }: RequestListPagePr
             </TableHeader>
             <TableBody>
               {displayRequests.map((req) => {
-                const owner = getUserById(req.ownerId);
+                const owner = lookupUser(req.ownerId);
                 return (
                   <TableRow
                     key={req.id}
