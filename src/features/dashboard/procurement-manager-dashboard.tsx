@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useRequests } from '@/lib/db/hooks/use-requests';
-import { getLatestKPI, kpiData } from '@/data/kpi-data';
+import { useKpiData, useLatestKpi } from '@/lib/db/hooks/use-kpi-data';
 import { formatCurrency } from '@/lib/format';
 import { KPICard } from '@/components/shared/kpi-card';
 import { AISuggestionCard } from '@/components/shared/ai-suggestion-card';
@@ -14,7 +14,8 @@ const activeStatuses = new Set([
 ]);
 
 export function ProcurementManagerDashboard() {
-  const latestKPI = getLatestKPI();
+  const { data: kpiData = [] } = useKpiData();
+  const latestKPI = useLatestKpi();
   const { data: requests = [] } = useRequests();
 
   const { openDemandCount, openDemandValue, activeSourcingCount, avgCycleTime, complianceRate } = useMemo(() => {
@@ -26,8 +27,8 @@ export function ProcurementManagerDashboard() {
       openDemandCount: active.length,
       openDemandValue: totalValue,
       activeSourcingCount: sourcing.length,
-      avgCycleTime: latestKPI.avgCycleTime,
-      complianceRate: latestKPI.complianceRate,
+      avgCycleTime: latestKPI?.avgCycleTime ?? 0,
+      complianceRate: latestKPI?.complianceRate ?? 0,
     };
   }, [latestKPI, requests]);
 
@@ -36,7 +37,7 @@ export function ProcurementManagerDashboard() {
     sourcing: kpiData.map((k) => k.activeSourcing),
     cycleTime: kpiData.map((k) => k.avgCycleTime),
     compliance: kpiData.map((k) => k.complianceRate),
-  }), []);
+  }), [kpiData]);
 
   return (
     <div className="space-y-6">

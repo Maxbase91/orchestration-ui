@@ -3,7 +3,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { KPICard } from '@/components/shared/kpi-card';
 import { BarChartWidget } from '@/components/charts/bar-chart-widget';
 import { PieChartWidget } from '@/components/charts/pie-chart-widget';
-import { kpiData } from '@/data/kpi-data';
+import { useKpiData } from '@/lib/db/hooks/use-kpi-data';
 import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
 import { useContracts } from '@/lib/db/hooks/use-contracts';
 import { formatCurrency } from '@/lib/format';
@@ -11,15 +11,16 @@ import { formatCurrency } from '@/lib/format';
 export function SpendDashboardPage() {
   const { data: suppliers = [] } = useSuppliers();
   const { data: contracts = [] } = useContracts();
+  const { data: kpiData = [] } = useKpiData();
 
   const totalSpendYTD = useMemo(
     () => kpiData.reduce((sum, d) => sum + d.totalSpend, 0),
-    [],
+    [kpiData],
   );
 
   const totalManagedSpend = useMemo(
     () => kpiData.reduce((sum, d) => sum + d.managedSpend, 0),
-    [],
+    [kpiData],
   );
 
   const managedPct = useMemo(
@@ -46,7 +47,7 @@ export function SpendDashboardPage() {
         name: d.month.slice(5),
         value: d.totalSpend,
       })),
-    [],
+    [kpiData],
   );
 
   const categorySpendData = useMemo(

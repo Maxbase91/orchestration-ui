@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
-import { aiAgents } from '@/data/ai-agents';
+import { useAiAgents } from '@/lib/db/hooks/use-ai-agents';
 import type { Node } from '@xyflow/react';
 
 interface NodeConfigPanelProps {
@@ -18,6 +18,7 @@ interface NodeConfigPanelProps {
 }
 
 export function NodeConfigPanel({ node, onUpdate, onDelete, onClose }: NodeConfigPanelProps) {
+  const { data: aiAgents = [] } = useAiAgents();
   const [formData, setFormData] = useState<Record<string, unknown>>({ ...node.data });
 
   useEffect(() => {

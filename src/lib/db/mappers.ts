@@ -20,6 +20,7 @@ import type { SystemIntegration } from '../../data/system-integrations.js';
 import type { FormSubmission } from '../../data/form-submissions.js';
 import type { FormTemplate } from '../../data/form-templates.js';
 import type { IntakeComplianceRecord } from '../../data/request-compliance.js';
+import type { AIAgent, KPIDataPoint } from '../../data/types.js';
 
 type DbRecord = Record<string, unknown>;
 
@@ -175,6 +176,68 @@ export function mapFormSubmissionToDb(s: Partial<FormSubmission>): DbRecord {
   if (s.submittedAt !== undefined) out.submitted_at = s.submittedAt;
   if (s.values !== undefined) out.field_values = s.values;
   if (s.status !== undefined) out.status = s.status;
+  return out;
+}
+
+// ── AI Agents ───────────────────────────────────────────────────────
+
+export function mapDbToAiAgent(row: DbRecord): AIAgent {
+  return {
+    id: row.id as string,
+    name: row.name as string,
+    type: (row.type ?? 'classification') as AIAgent['type'],
+    status: (row.status ?? 'draft') as AIAgent['status'],
+    accuracy: (row.accuracy ?? 0) as number,
+    decisionsMade: (row.decisions_made ?? row.decisionsMade ?? 0) as number,
+    lastUpdated: (row.last_updated ?? row.lastUpdated ?? '') as string,
+    description: (row.description ?? '') as string,
+  };
+}
+
+export function mapAiAgentToDb(a: Partial<AIAgent>): DbRecord {
+  const out: DbRecord = {};
+  if (a.id !== undefined) out.id = a.id;
+  if (a.name !== undefined) out.name = a.name;
+  if (a.type !== undefined) out.type = a.type;
+  if (a.status !== undefined) out.status = a.status;
+  if (a.accuracy !== undefined) out.accuracy = a.accuracy;
+  if (a.decisionsMade !== undefined) out.decisions_made = a.decisionsMade;
+  if (a.lastUpdated !== undefined) out.last_updated = a.lastUpdated;
+  if (a.description !== undefined) out.description = a.description;
+  return out;
+}
+
+// ── KPI Data Points ─────────────────────────────────────────────────
+
+export function mapDbToKpi(row: DbRecord): KPIDataPoint {
+  return {
+    month: row.month as string,
+    openDemand: (row.open_demand ?? row.openDemand ?? 0) as number,
+    activeSourcing: (row.active_sourcing ?? row.activeSourcing ?? 0) as number,
+    avgCycleTime: (row.avg_cycle_time ?? row.avgCycleTime ?? 0) as number,
+    complianceRate: (row.compliance_rate ?? row.complianceRate ?? 0) as number,
+    totalSpend: (row.total_spend ?? row.totalSpend ?? 0) as number,
+    managedSpend: (row.managed_spend ?? row.managedSpend ?? 0) as number,
+    policyBreaches: (row.policy_breaches ?? row.policyBreaches ?? 0) as number,
+    firstTimeRight: (row.first_time_right ?? row.firstTimeRight ?? 0) as number,
+    requestsCompleted: (row.requests_completed ?? row.requestsCompleted ?? 0) as number,
+    requestsSubmitted: (row.requests_submitted ?? row.requestsSubmitted ?? 0) as number,
+  };
+}
+
+export function mapKpiToDb(k: Partial<KPIDataPoint>): DbRecord {
+  const out: DbRecord = {};
+  if (k.month !== undefined) out.month = k.month;
+  if (k.openDemand !== undefined) out.open_demand = k.openDemand;
+  if (k.activeSourcing !== undefined) out.active_sourcing = k.activeSourcing;
+  if (k.avgCycleTime !== undefined) out.avg_cycle_time = k.avgCycleTime;
+  if (k.complianceRate !== undefined) out.compliance_rate = k.complianceRate;
+  if (k.totalSpend !== undefined) out.total_spend = k.totalSpend;
+  if (k.managedSpend !== undefined) out.managed_spend = k.managedSpend;
+  if (k.policyBreaches !== undefined) out.policy_breaches = k.policyBreaches;
+  if (k.firstTimeRight !== undefined) out.first_time_right = k.firstTimeRight;
+  if (k.requestsCompleted !== undefined) out.requests_completed = k.requestsCompleted;
+  if (k.requestsSubmitted !== undefined) out.requests_submitted = k.requestsSubmitted;
   return out;
 }
 

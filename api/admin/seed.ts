@@ -54,6 +54,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       { formSubmissions },
       { formTemplates },
       { intakeComplianceRecords },
+      { aiAgents },
+      { kpiData },
       mappers,
     ] = await Promise.all([
       import('../../src/data/users.js'),
@@ -73,6 +75,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       import('../../src/data/form-submissions.js'),
       import('../../src/data/form-templates.js'),
       import('../../src/data/request-compliance.js'),
+      import('../../src/data/ai-agents.js'),
+      import('../../src/data/kpi-data.js'),
       import('../../src/lib/db/mappers.js'),
     ]);
 
@@ -91,6 +95,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       mapFormSubmissionToDb,
       mapFormTemplateToDb,
       mapIntakeComplianceToDb,
+      mapAiAgentToDb,
+      mapKpiToDb,
     } = mappers;
 
     // 1. Users (no FK dependencies).
@@ -258,6 +264,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       'intake_compliance_records',
       intakeWithMatches.map((r) => mapIntakeComplianceToDb(r)),
       'request_id',
+    );
+
+    // 18. AI agents.
+    counts.ai_agents = await upsert(
+      'ai_agents',
+      aiAgents.map((a) => mapAiAgentToDb(a)),
+      'id',
+    );
+
+    // 19. KPI data (monthly snapshots).
+    counts.kpi_data = await upsert(
+      'kpi_data',
+      kpiData.map((k) => mapKpiToDb(k)),
+      'month',
     );
 
     return res.status(201).json({ message: 'Seed complete', counts });

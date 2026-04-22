@@ -341,6 +341,34 @@ CREATE TABLE IF NOT EXISTS risk_assessments (
   created_at TIMESTAMP DEFAULT now()
 );
 
+-- AI Agents (admin-configurable)
+CREATE TABLE IF NOT EXISTS ai_agents (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  type TEXT NOT NULL,
+  status TEXT DEFAULT 'draft',
+  accuracy NUMERIC DEFAULT 0,
+  decisions_made INTEGER DEFAULT 0,
+  last_updated TEXT,
+  description TEXT,
+  created_at TIMESTAMP DEFAULT now()
+);
+
+-- KPI snapshots (one row per month)
+CREATE TABLE IF NOT EXISTS kpi_data (
+  month TEXT PRIMARY KEY,
+  open_demand INTEGER DEFAULT 0,
+  active_sourcing INTEGER DEFAULT 0,
+  avg_cycle_time NUMERIC DEFAULT 0,
+  compliance_rate NUMERIC DEFAULT 0,
+  total_spend NUMERIC DEFAULT 0,
+  managed_spend NUMERIC DEFAULT 0,
+  policy_breaches INTEGER DEFAULT 0,
+  first_time_right NUMERIC DEFAULT 0,
+  requests_completed INTEGER DEFAULT 0,
+  requests_submitted INTEGER DEFAULT 0
+);
+
 -- Form Templates (admin-configurable dynamic forms)
 CREATE TABLE IF NOT EXISTS form_templates (
   id TEXT PRIMARY KEY,
@@ -448,6 +476,8 @@ ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE risk_assessments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE form_templates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE intake_compliance_records ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ai_agents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE kpi_data ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_entries ENABLE ROW LEVEL SECURITY;
 
 -- Policies are recreated idempotently so this script can be re-run.
@@ -469,6 +499,8 @@ DROP POLICY IF EXISTS "Allow all" ON notifications;
 DROP POLICY IF EXISTS "Allow all" ON risk_assessments;
 DROP POLICY IF EXISTS "Allow all" ON form_templates;
 DROP POLICY IF EXISTS "Allow all" ON intake_compliance_records;
+DROP POLICY IF EXISTS "Allow all" ON ai_agents;
+DROP POLICY IF EXISTS "Allow all" ON kpi_data;
 DROP POLICY IF EXISTS "Allow all" ON audit_entries;
 
 CREATE POLICY "Allow all" ON suppliers FOR ALL USING (true) WITH CHECK (true);
@@ -489,6 +521,8 @@ CREATE POLICY "Allow all" ON notifications FOR ALL USING (true) WITH CHECK (true
 CREATE POLICY "Allow all" ON risk_assessments FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON form_templates FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON intake_compliance_records FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all" ON ai_agents FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all" ON kpi_data FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON audit_entries FOR ALL USING (true) WITH CHECK (true);
 
 -- Indexes for common queries

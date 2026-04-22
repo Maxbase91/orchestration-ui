@@ -1,8 +1,8 @@
-import { useState, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/shared/page-header';
-import { aiAgents } from '@/data/ai-agents';
+import { useAiAgents } from '@/lib/db/hooks/use-ai-agents';
 import type { AIAgent } from '@/data/types';
 import { AgentLibrary } from './components/agent-library';
 import { AgentConfigForm } from './components/agent-config-form';
@@ -10,7 +10,11 @@ import { AgentTestPanel } from './components/agent-test-panel';
 import { AgentPerformance } from './components/agent-performance';
 
 export function AIAgentsPage() {
-  const [agents, setAgents] = useState<AIAgent[]>(aiAgents);
+  const { data: serverAgents = [] } = useAiAgents();
+  const [agents, setAgents] = useState<AIAgent[]>([]);
+  useEffect(() => {
+    if (agents.length === 0 && serverAgents.length > 0) setAgents(serverAgents);
+  }, [agents.length, serverAgents]);
   const [selectedAgent, setSelectedAgent] = useState<AIAgent | null>(null);
 
   const handleAddAgent = useCallback(() => {

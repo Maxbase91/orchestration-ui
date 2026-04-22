@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { PageHeader } from '@/components/shared/page-header';
 import { BarChartWidget } from '@/components/charts/bar-chart-widget';
 import { LineChartWidget } from '@/components/charts/line-chart-widget';
-import { kpiData } from '@/data/kpi-data';
+import { useKpiData } from '@/lib/db/hooks/use-kpi-data';
 import { useRequests } from '@/lib/db/hooks/use-requests';
 
 const FUNNEL_STAGES = [
@@ -17,6 +17,7 @@ const STAGE_COLORS = ['#1B2A4A', '#2D5F8A', '#D4782F', '#2E7D4F', '#718096'];
 
 export function PipelineDashboardPage() {
   const { data: requests = [] } = useRequests();
+  const { data: kpiData = [] } = useKpiData();
   const funnelData = useMemo(() => {
     const activeRequests = requests.filter((r) => r.status !== 'completed' && r.status !== 'cancelled');
     return FUNNEL_STAGES.map((stage) => ({
@@ -55,7 +56,7 @@ export function PipelineDashboardPage() {
         name: d.month.slice(5),
         value: d.requestsCompleted,
       })),
-    [],
+    [kpiData],
   );
 
   // Ageing brackets per request

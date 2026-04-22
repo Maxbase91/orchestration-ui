@@ -3,16 +3,17 @@ import { PageHeader } from '@/components/shared/page-header';
 import { KPICard } from '@/components/shared/kpi-card';
 import { BarChartWidget } from '@/components/charts/bar-chart-widget';
 import { LineChartWidget } from '@/components/charts/line-chart-widget';
-import { kpiData, getLatestKPI } from '@/data/kpi-data';
+import { useKpiData, useLatestKpi } from '@/lib/db/hooks/use-kpi-data';
 import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
 
 export function ComplianceKPIPage() {
-  const latest = getLatestKPI();
+  const { data: kpiData = [] } = useKpiData();
+  const latest = useLatestKpi();
   const { data: suppliers = [] } = useSuppliers();
 
   const totalPolicyBreaches = useMemo(
     () => kpiData.reduce((sum, d) => sum + d.policyBreaches, 0),
-    [],
+    [kpiData],
   );
 
   const sraValidCount = useMemo(
@@ -31,7 +32,7 @@ export function ComplianceKPIPage() {
         name: d.month.slice(5),
         value: d.policyBreaches,
       })),
-    [],
+    [kpiData],
   );
 
   const firstTimeRightData = useMemo(
@@ -40,7 +41,7 @@ export function ComplianceKPIPage() {
         name: d.month.slice(5),
         value: d.firstTimeRight,
       })),
-    [],
+    [kpiData],
   );
 
   const cycleTimeByCategoryData = useMemo(
@@ -76,7 +77,7 @@ export function ComplianceKPIPage() {
         />
         <KPICard
           label="First Time Right Rate"
-          value={latest.firstTimeRight}
+          value={latest?.firstTimeRight ?? 0}
           format="percentage"
           trend={{ direction: 'up', percentage: 25 }}
           sparklineData={kpiData.map((d) => d.firstTimeRight)}
@@ -103,7 +104,7 @@ export function ComplianceKPIPage() {
         />
         <KPICard
           label="Avg Request Cycle Time"
-          value={`${latest.avgCycleTime} days`}
+          value={`${latest?.avgCycleTime ?? 0} days`}
           trend={{ direction: 'down', percentage: 31 }}
           sparklineData={kpiData.map((d) => d.avgCycleTime)}
         />
