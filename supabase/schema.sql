@@ -137,10 +137,6 @@ CREATE TABLE IF NOT EXISTS compliance_reports (
   generated_at TIMESTAMP DEFAULT now()
 );
 
-DO $$ BEGIN
-  ALTER TABLE compliance_reports ADD CONSTRAINT compliance_reports_request_id_key UNIQUE (request_id);
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
 -- System Integration Handovers (TEXT PK for INT-xxx mock IDs)
 CREATE TABLE IF NOT EXISTS system_integrations (
   id TEXT PRIMARY KEY,
