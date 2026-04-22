@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -17,6 +17,7 @@ import { useDroppable } from '@dnd-kit/core';
 import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/lib/format';
 import { apiWorkflowAction } from '@/lib/api';
+import { queryClient } from '@/lib/query-client';
 import type { ProcurementRequest, RequestStatus } from '@/data/types';
 import { WorkflowCard } from './components/workflow-card';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
@@ -102,6 +103,13 @@ export function KanbanView({ requests, onCardClick }: KanbanViewProps) {
   const [items, setItems] = useState(requests);
   const [activeId, setActiveId] = useState<string | null>(null);
 
+  // Keep local drag-state in sync with server data. After apiWorkflowAction
+  // invalidates the query, React Query refetches and the new `requests` prop
+  // replaces any stale optimistic update.
+  useEffect(() => {
+    setItems(requests);
+  }, [requests]);
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
   );
@@ -149,16 +157,23 @@ export function KanbanView({ requests, onCardClick }: KanbanViewProps) {
       requestId: activeItem.id,
       action: 'kanban-move',
       newStatus: targetStage,
-    }).catch(() => {
-      // Revert on failure
-      setItems((prev) =>
-        prev.map((r) =>
-          r.id === activeItem.id
-            ? { ...r, status: activeItem.status, daysInStage: activeItem.daysInStage }
-            : r,
-        ),
-      );
-    });
+    })
+      .then(() => {
+        // Refresh request list + the affected request's stage history so the
+        // UI reflects the new server state everywhere, not just this component.
+        queryClient.invalidateQueries({ queryKey: ['requests'] });
+        queryClient.invalidateQueries({ queryKey: ['stage-history'] });
+      })
+      .catch(() => {
+        // Revert the optimistic move on failure.
+        setItems((prev) =>
+          prev.map((r) =>
+            r.id === activeItem.id
+              ? { ...r, status: activeItem.status, daysInStage: activeItem.daysInStage }
+              : r,
+          ),
+        );
+      });
   }
 
   const grouped = STAGE_ORDER.reduce<Record<string, ProcurementRequest[]>>(

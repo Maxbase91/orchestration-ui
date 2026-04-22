@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Check, X, RotateCcw, UserPlus, ArrowUpRight, Ban } from 'lucide-react';
 import type { ProcurementRequest } from '@/data/types';
 import { apiWorkflowAction } from '@/lib/api';
+import { queryClient } from '@/lib/query-client';
 import { ReferBackDialog } from './refer-back-dialog';
 import { ReassignDialog } from './reassign-dialog';
 import { EscalateDialog } from './escalate-dialog';
@@ -47,6 +48,11 @@ export function ActionButtons({ request }: ActionButtonsProps) {
         newStatus: config.newStatus,
       });
 
+      // Refetch so the request header, lifecycle stepper, workflow tab and
+      // audit tab all reflect the new status without requiring a page reload.
+      queryClient.invalidateQueries({ queryKey: ['requests'] });
+      queryClient.invalidateQueries({ queryKey: ['stage-history'] });
+
       if (confirmAction === 'approve') {
         toast.success(config.successMsg);
       } else if (confirmAction === 'reject') {
@@ -54,15 +60,9 @@ export function ActionButtons({ request }: ActionButtonsProps) {
       } else {
         toast.warning(config.successMsg);
       }
-    } catch {
-      // Still show the toast even if backend fails (optimistic UX)
-      if (confirmAction === 'approve') {
-        toast.success(config.successMsg);
-      } else if (confirmAction === 'reject') {
-        toast.error(config.successMsg);
-      } else {
-        toast.warning(config.successMsg);
-      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Action failed';
+      toast.error(`Action failed: ${message}`);
     }
 
     setConfirmAction(null);
