@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
 import { useAuthStore } from '@/stores/auth-store';
-import { apiCreateRequest, apiSaveServiceDescription } from '@/lib/api';
+import { apiCreateRequest } from '@/lib/api';
+import { saveServiceDescription } from '@/lib/db/service-descriptions';
 import type { RequestCategory, BuyingChannel } from '@/data/types';
 import { StepCategory } from './step-category';
 import { StepDetails } from './step-details';
@@ -229,7 +230,19 @@ export function NewRequestPage() {
         });
 
         if (formData.serviceDescription) {
-          await apiSaveServiceDescription(id, formData.serviceDescription as unknown as Record<string, string>);
+          const sow = formData.serviceDescription as unknown as Record<string, string>;
+          await saveServiceDescription(id, {
+            objective: sow.objective ?? '',
+            scope: sow.scope ?? '',
+            deliverables: sow.deliverables ?? '',
+            timeline: sow.timeline ?? '',
+            resources: sow.resources ?? '',
+            acceptanceCriteria: sow.acceptanceCriteria ?? '',
+            pricingModel: sow.pricingModel ?? '',
+            location: sow.location ?? '',
+            dependencies: sow.dependencies ?? '',
+            narrative: sow.narrative ?? '',
+          });
         }
 
         toast.success('Request submitted successfully');

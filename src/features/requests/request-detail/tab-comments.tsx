@@ -1,10 +1,9 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { ProcurementRequest } from '@/data/types';
-import { getCommentsByRequestId } from '@/data/comments';
+import { useCommentsByRequest, useAddComment } from '@/lib/db/hooks/use-comments';
 import { CommentThread, type Comment as ThreadComment } from '@/components/shared/comment-thread';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatRelativeTime } from '@/lib/format';
-import { apiAddComment } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth-store';
 
 interface TabCommentsProps {
@@ -12,58 +11,72 @@ interface TabCommentsProps {
 }
 
 export function TabComments({ request }: TabCommentsProps) {
-  const baseComments = getCommentsByRequestId(request.id);
+  const { data: baseComments = [] } = useCommentsByRequest(request.id);
   const { currentUser } = useAuthStore();
-  const [localComments, setLocalComments] = useState<ThreadComment[]>(() =>
-    baseComments.map((c) => ({
-      id: c.id,
-      author: c.authorName,
-      authorInitials: c.authorInitials,
-      content: c.content,
-      timestamp: formatRelativeTime(c.timestamp),
-      isInternal: c.isInternal,
-      attachments: c.attachments,
-    }))
+  const addCommentMutation = useAddComment();
+  const [optimistic, setOptimistic] = useState<ThreadComment[]>([]);
+
+  const comments = useMemo<ThreadComment[]>(
+    () => [
+      ...baseComments.map((c) => ({
+        id: c.id,
+        author: c.authorName,
+        authorInitials: c.authorInitials,
+        content: c.content,
+        timestamp: formatRelativeTime(c.timestamp),
+        isInternal: c.isInternal,
+      })),
+      ...optimistic,
+    ],
+    [baseComments, optimistic],
   );
 
   function handleAddComment(content: string, isInternal: boolean) {
-    const newComment: ThreadComment = {
-      id: `CMT-local-${Date.now()}`,
+    const tempId = `CMT-local-${Date.now()}`;
+    const tempComment: ThreadComment = {
+      id: tempId,
       author: currentUser.name,
       authorInitials: currentUser.initials,
       content,
       timestamp: 'just now',
       isInternal,
     };
-    setLocalComments((prev) => [...prev, newComment]);
+    setOptimistic((prev) => [...prev, tempComment]);
 
-    // Persist to API (fire-and-forget)
-    apiAddComment(request.id, {
-      authorId: currentUser.id,
-      authorName: currentUser.name,
-      content,
-      isInternal,
-    }).catch((e) => {
-      console.warn('Failed to persist comment:', e);
-    });
+    addCommentMutation.mutate(
+      {
+        requestId: request.id,
+        authorId: currentUser.id,
+        authorName: currentUser.name,
+        authorInitials: currentUser.initials,
+        content,
+        isInternal,
+      },
+      {
+        onSuccess: () => {
+          // Remove the optimistic placeholder — the real comment is now in the cache.
+          setOptimistic((prev) => prev.filter((c) => c.id !== tempId));
+        },
+      },
+    );
   }
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-base">
-          Comments ({localComments.length})
+          Comments ({comments.length})
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {localComments.length === 0 ? (
+        {comments.length === 0 ? (
           <p className="text-sm text-muted-foreground py-4 text-center">
             No comments yet. Be the first to add one.
           </p>
         ) : (
-          <CommentThread comments={localComments} onAddComment={handleAddComment} />
+          <CommentThread comments={comments} onAddComment={handleAddComment} />
         )}
-        {localComments.length === 0 && (
+        {comments.length === 0 && (
           <CommentThread comments={[]} onAddComment={handleAddComment} />
         )}
       </CardContent>

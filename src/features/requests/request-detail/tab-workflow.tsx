@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useMemo } from 'react';
 import type { ProcurementRequest, RequestStatus, StageHistoryEntry } from '@/data/types';
-import { getStageHistoryByRequestId } from '@/data/stage-history';
+import { useStageHistoryByRequest } from '@/lib/db/hooks/use-stage-history';
 import { useUserLookup, useUsers } from '@/lib/db/hooks/use-users';
 import { getIntegrationsForRequest } from '@/data/system-integrations';
 import { getStepDetailsForRequest } from '@/data/workflow-step-details';
@@ -42,7 +42,7 @@ function getDaysInStep(entry: StageHistoryEntry): number | undefined {
 export function TabWorkflow({ request }: TabWorkflowProps) {
   useUsers();
   const lookupUser = useUserLookup();
-  const history = getStageHistoryByRequestId(request.id);
+  const { data: history = [] } = useStageHistoryByRequest(request.id);
   const stepDetails = getStepDetailsForRequest(request.id);
   const integrations = getIntegrationsForRequest(request.id);
   const owner = lookupUser(request.ownerId);

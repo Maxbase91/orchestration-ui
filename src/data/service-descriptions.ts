@@ -1,3 +1,6 @@
+// Seed data only — not read by the runtime app.
+// Service descriptions moved to Supabase in Wave 1.
+
 export interface ServiceDescriptionRecord {
   requestId: string;
   objective: string;

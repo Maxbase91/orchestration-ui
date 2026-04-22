@@ -1,6 +1,6 @@
 import { ProcessStepper, type Step } from '@/components/shared/process-stepper';
 import type { ProcurementRequest, RequestStatus, StageHistoryEntry } from '@/data/types';
-import { getStageHistoryByRequestId } from '@/data/stage-history';
+import { useStageHistoryByRequest } from '@/lib/db/hooks/use-stage-history';
 import { useUserLookup, useUsers } from '@/lib/db/hooks/use-users';
 import { formatDate } from '@/lib/format';
 import { getIntegrationsForRequest } from '@/data/system-integrations';
@@ -32,7 +32,7 @@ interface LifecycleStepperProps {
 export function LifecycleStepper({ request }: LifecycleStepperProps) {
   useUsers();
   const lookupUser = useUserLookup();
-  const history = getStageHistoryByRequestId(request.id);
+  const { data: history = [] } = useStageHistoryByRequest(request.id);
 
   const completedStages = new Set<string>();
   const stageEntries = new Map<string, StageHistoryEntry>();

@@ -1,3 +1,6 @@
+// Seed data only — not read by the runtime app.
+// Comments moved to Supabase in Wave 1.
+
 import type { Comment } from './types';
 
 export const comments: Comment[] = [
