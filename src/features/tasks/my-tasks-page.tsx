@@ -4,7 +4,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { DataTable, type Column } from '@/components/shared/data-table';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { useAuthStore } from '@/stores/auth-store';
-import { requests } from '@/data/requests';
+import { useRequests } from '@/lib/db/hooks/use-requests';
 import { useApprovals } from '@/lib/db/hooks/use-approvals';
 import { formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -50,6 +50,7 @@ export function MyTasksPage() {
   const navigate = useNavigate();
   const currentUser = useAuthStore((s) => s.currentUser);
   const { data: approvalEntries = [] } = useApprovals();
+  const { data: requests = [] } = useRequests();
 
   const tasks = useMemo<TaskRow[]>(() => {
     const result: TaskRow[] = [];
@@ -103,7 +104,7 @@ export function MyTasksPage() {
     });
 
     return result;
-  }, [currentUser.id, approvalEntries]);
+  }, [currentUser.id, approvalEntries, requests]);
 
   const columns: Column<TaskRow>[] = [
     {

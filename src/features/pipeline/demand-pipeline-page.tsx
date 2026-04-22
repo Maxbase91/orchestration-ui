@@ -4,7 +4,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { KPICard } from '@/components/shared/kpi-card';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { DemandPipelineChart } from '@/features/dashboard/components/demand-pipeline-chart';
-import { requests } from '@/data/requests';
+import { useRequests } from '@/lib/db/hooks/use-requests';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -21,11 +21,12 @@ const PIPELINE_STAGES: { key: RequestStatus; label: string }[] = [
 
 export function DemandPipelinePage() {
   const navigate = useNavigate();
+  const { data: requests = [] } = useRequests();
   const [expandedStages, setExpandedStages] = useState<Set<string>>(new Set(['intake', 'approval']));
 
   const pipelineRequests = useMemo(() => {
     return requests.filter((r) => PIPELINE_STAGES.some((s) => s.key === r.status));
-  }, []);
+  }, [requests]);
 
   const grouped = useMemo(() => {
     const groups: Record<string, typeof requests> = {};

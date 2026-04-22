@@ -1,12 +1,13 @@
 import { useMemo } from 'react';
 import { CheckCircle } from 'lucide-react';
-import { requests } from '@/data/requests';
+import { useRequests } from '@/lib/db/hooks/use-requests';
 import { ValidationQueueCard } from '../components/validation-queue-card';
 
 export function WidgetValidationQueue() {
+  const { data: requests = [] } = useRequests();
   const queue = useMemo(
     () => requests.filter((r) => r.status === 'validation').slice(0, 5),
-    [],
+    [requests],
   );
 
   if (queue.length === 0) {

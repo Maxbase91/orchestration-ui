@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { PageHeader } from '@/components/shared/page-header';
 import { AISuggestionCard } from '@/components/shared/ai-suggestion-card';
-import { requests } from '@/data/requests';
+import { useRequests } from '@/lib/db/hooks/use-requests';
 import type { RequestStatus } from '@/data/types';
 import { BottleneckChart } from './components/bottleneck-chart';
 import { StuckRequestsTable } from './components/stuck-requests-table';
@@ -34,9 +34,10 @@ const STAGE_LABELS: Record<string, string> = {
 };
 
 export function WorkflowMonitorPage() {
+  const { data: requests = [] } = useRequests();
   const activeRequests = useMemo(
     () => requests.filter((r) => ACTIVE_STATUSES.has(r.status)),
-    [],
+    [requests],
   );
 
   // Calculate the #1 bottleneck stage

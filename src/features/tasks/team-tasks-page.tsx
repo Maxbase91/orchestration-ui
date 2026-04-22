@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/shared/page-header';
 import { DataTable, type Column } from '@/components/shared/data-table';
 import { StatusBadge } from '@/components/shared/status-badge';
-import { requests } from '@/data/requests';
+import { useRequests } from '@/lib/db/hooks/use-requests';
 import { useApprovals } from '@/lib/db/hooks/use-approvals';
 import { useUserLookup, useUsers } from '@/lib/db/hooks/use-users';
 import { formatDate } from '@/lib/format';
@@ -53,6 +53,7 @@ export function TeamTasksPage() {
   const navigate = useNavigate();
   const { data: users = [] } = useUsers();
   const { data: approvalEntries = [] } = useApprovals();
+  const { data: requests = [] } = useRequests();
   const lookupUser = useUserLookup();
   const [selectedUser, setSelectedUser] = useState<string>('all');
 
@@ -111,7 +112,7 @@ export function TeamTasksPage() {
     });
 
     return result;
-  }, [lookupUser, approvalEntries]);
+  }, [lookupUser, approvalEntries, requests]);
 
   const filteredTasks = useMemo(() => {
     if (selectedUser === 'all') return allTasks;

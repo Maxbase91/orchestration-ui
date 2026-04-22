@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { CheckCircle, ClipboardList } from 'lucide-react';
-import { requests } from '@/data/requests';
+import { useRequests } from '@/lib/db/hooks/use-requests';
 import { formatCurrency, formatRelativeTime } from '@/lib/format';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { KPICard } from '@/components/shared/kpi-card';
@@ -13,16 +13,18 @@ const completedLikeStatuses = new Set([
 ]);
 
 export function VendorManagerDashboard() {
+  const { data: requests = [] } = useRequests();
+
   const validationQueue = useMemo(() => {
     return requests.filter((r) => r.status === 'validation');
-  }, []);
+  }, [requests]);
 
   const recentlyValidated = useMemo(() => {
     return requests
       .filter((r) => completedLikeStatuses.has(r.status))
       .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
       .slice(0, 10);
-  }, []);
+  }, [requests]);
 
   return (
     <div className="space-y-6">

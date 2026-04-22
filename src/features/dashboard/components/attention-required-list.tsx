@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, Clock, ArrowLeftCircle } from 'lucide-react';
-import { requests } from '@/data/requests';
+import { useRequests } from '@/lib/db/hooks/use-requests';
 import { useUserLookup, useUsers } from '@/lib/db/hooks/use-users';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { formatCurrency } from '@/lib/format';
@@ -10,6 +10,7 @@ export function AttentionRequiredList() {
   const navigate = useNavigate();
   useUsers();
   const lookupUser = useUserLookup();
+  const { data: requests = [] } = useRequests();
   const flaggedItems = useMemo(() => {
     return requests
       .filter((r) => r.isOverdue || r.status === 'referred-back')
@@ -18,7 +19,7 @@ export function AttentionRequiredList() {
         if (!a.isOverdue && b.isOverdue) return 1;
         return b.daysInStage - a.daysInStage;
       });
-  }, []);
+  }, [requests]);
 
   if (flaggedItems.length === 0) {
     return <p className="text-sm text-gray-500">No items require attention.</p>;

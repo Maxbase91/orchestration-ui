@@ -1,8 +1,6 @@
-import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { requests as mockRequests } from '@/data/requests';
+import { useRequests } from '@/lib/db/hooks/use-requests';
 import { useUserLookup, useUsers } from '@/lib/db/hooks/use-users';
-import { apiGetRequests } from '@/lib/api';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { PriorityIndicator } from '@/components/shared/priority-indicator';
 import { formatCurrency } from '@/lib/format';
@@ -34,19 +32,7 @@ export function RequestListPage({ title, filterMine = false }: RequestListPagePr
   const navigate = useNavigate();
   useUsers();
   const lookupUser = useUserLookup();
-  const [requests, setRequests] = useState(mockRequests);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    apiGetRequests()
-      .then((result) => {
-        if (result.length > 0) setRequests(result);
-      })
-      .catch(() => {
-        // Keep mock data
-      })
-      .finally(() => setLoading(false));
-  }, []);
+  const { data: requests = [], isLoading: loading } = useRequests();
 
   // For "My Requests" we show a subset; for demo we just show all
   const displayRequests = filterMine

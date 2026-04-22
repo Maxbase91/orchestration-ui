@@ -3,7 +3,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { BarChartWidget } from '@/components/charts/bar-chart-widget';
 import { LineChartWidget } from '@/components/charts/line-chart-widget';
 import { kpiData } from '@/data/kpi-data';
-import { requests } from '@/data/requests';
+import { useRequests } from '@/lib/db/hooks/use-requests';
 
 const FUNNEL_STAGES = [
   { key: 'intake', label: 'Intake', statuses: ['intake', 'draft'] },
@@ -16,6 +16,7 @@ const FUNNEL_STAGES = [
 const STAGE_COLORS = ['#1B2A4A', '#2D5F8A', '#D4782F', '#2E7D4F', '#718096'];
 
 export function PipelineDashboardPage() {
+  const { data: requests = [] } = useRequests();
   const funnelData = useMemo(() => {
     const activeRequests = requests.filter((r) => r.status !== 'completed' && r.status !== 'cancelled');
     return FUNNEL_STAGES.map((stage) => ({
@@ -24,7 +25,7 @@ export function PipelineDashboardPage() {
         (stage.statuses as readonly string[]).includes(r.status),
       ).length,
     }));
-  }, []);
+  }, [requests]);
 
   const totalFunnel = useMemo(
     () => funnelData.reduce((sum, d) => sum + d.count, 0),

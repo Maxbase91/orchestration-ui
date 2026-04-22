@@ -2,7 +2,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { BottleneckChart } from '@/features/workflows/components/bottleneck-chart';
 import { StuckRequestsTable } from '@/features/workflows/components/stuck-requests-table';
 import { AIBottleneckAnalysis } from '@/features/workflows/components/ai-bottleneck-analysis';
-import { requests } from '@/data/requests';
+import { useRequests } from '@/lib/db/hooks/use-requests';
 import { AlertTriangle, Clock, ArrowUpRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -56,6 +56,8 @@ function formatEscalationDate(iso: string) {
 }
 
 export function BottlenecksPage() {
+  const { data: requests = [] } = useRequests();
+
   return (
     <div className="space-y-6">
       <PageHeader title="Bottlenecks & Alerts" subtitle="Identify and resolve process delays" />

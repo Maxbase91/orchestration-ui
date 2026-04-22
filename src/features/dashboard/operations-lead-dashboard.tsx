@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Clock, AlertTriangle, MessageCircleQuestion } from 'lucide-react';
-import { requests } from '@/data/requests';
+import { useRequests } from '@/lib/db/hooks/use-requests';
 import { useUserLookup, useUsers } from '@/lib/db/hooks/use-users';
 import { formatRelativeTime } from '@/lib/format';
 import { StatusBadge } from '@/components/shared/status-badge';
@@ -30,18 +30,19 @@ export function OperationsLeadDashboard() {
   const navigate = useNavigate();
   useUsers();
   const lookupUser = useUserLookup();
+  const { data: requests = [] } = useRequests();
   const bottleneckData = useMemo(() => {
     return requests
       .filter((r) => activeStatuses.has(r.status))
       .sort((a, b) => b.daysInStage - a.daysInStage);
-  }, []);
+  }, [requests]);
 
   const slaAtRisk = useMemo(() => {
     return requests.filter((r) => {
       if (!activeStatuses.has(r.status)) return false;
       return r.isOverdue || r.daysInStage > 20;
     }).sort((a, b) => b.daysInStage - a.daysInStage);
-  }, []);
+  }, [requests]);
 
   return (
     <div className="space-y-6">

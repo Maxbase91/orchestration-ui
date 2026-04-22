@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { requests } from '@/data/requests';
+import { useRequests } from '@/lib/db/hooks/use-requests';
 import { BarChartWidget } from '@/components/charts/bar-chart-widget';
 import type { RequestStatus } from '@/data/types';
 
@@ -13,6 +13,7 @@ const stageOrder: { key: RequestStatus; label: string }[] = [
 ];
 
 export function DemandPipelineChart() {
+  const { data: requests = [] } = useRequests();
   const data = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const stage of stageOrder) {
@@ -27,7 +28,7 @@ export function DemandPipelineChart() {
       name: stage.label,
       value: counts[stage.key],
     }));
-  }, []);
+  }, [requests]);
 
   return (
     <BarChartWidget

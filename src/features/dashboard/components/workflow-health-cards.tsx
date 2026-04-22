@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { requests } from '@/data/requests';
+import { useRequests } from '@/lib/db/hooks/use-requests';
 import { KPICard } from '@/components/shared/kpi-card';
 
 const activeStatuses = new Set([
@@ -9,6 +9,7 @@ const activeStatuses = new Set([
 const stuckStatuses = new Set(['referred-back']);
 
 export function WorkflowHealthCards() {
+  const { data: requests = [] } = useRequests();
   const { activeCount, stuckCount, avgDays } = useMemo(() => {
     const active = requests.filter((r) => activeStatuses.has(r.status));
     const stuck = requests.filter(
@@ -22,7 +23,7 @@ export function WorkflowHealthCards() {
       stuckCount: stuck.length,
       avgDays: avg,
     };
-  }, []);
+  }, [requests]);
 
   return (
     <div className="grid grid-cols-3 gap-4">

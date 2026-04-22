@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
 import { useAuthStore } from '@/stores/auth-store';
-import { apiCreateRequest } from '@/lib/api';
+import { createRequest } from '@/lib/db/requests';
 import { saveServiceDescription } from '@/lib/db/service-descriptions';
+import { queryClient } from '@/lib/query-client';
 import type { RequestCategory, BuyingChannel } from '@/data/types';
 import { StepCategory } from './step-category';
 import { StepDetails } from './step-details';
@@ -209,7 +210,7 @@ export function NewRequestPage() {
       const id = generateRequestId();
       setIsSubmitting(true);
       try {
-        await apiCreateRequest({
+        await createRequest({
           id,
           title: formData.title,
           category: formData.category as RequestCategory,
@@ -245,6 +246,7 @@ export function NewRequestPage() {
           });
         }
 
+        queryClient.invalidateQueries({ queryKey: ['requests'] });
         toast.success('Request submitted successfully');
       } catch (e) {
         console.warn('Failed to persist request:', e);

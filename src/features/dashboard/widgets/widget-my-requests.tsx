@@ -1,9 +1,8 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { requests as mockRequests } from '@/data/requests';
+import { useRequests } from '@/lib/db/hooks/use-requests';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { formatCurrency } from '@/lib/format';
-import { apiGetRequests } from '@/lib/api';
 
 const activeStatuses = new Set([
   'draft', 'intake', 'validation', 'approval', 'sourcing', 'contracting', 'po', 'receipt', 'invoice', 'referred-back',
@@ -11,17 +10,7 @@ const activeStatuses = new Set([
 
 export function WidgetMyRequests() {
   const navigate = useNavigate();
-  const [requests, setRequests] = useState(mockRequests);
-
-  useEffect(() => {
-    apiGetRequests()
-      .then((result) => {
-        if (result.length > 0) setRequests(result);
-      })
-      .catch(() => {
-        // Keep mock data
-      });
-  }, []);
+  const { data: requests = [] } = useRequests();
 
   const activeRequests = useMemo(
     () => requests.filter((r) => activeStatuses.has(r.status)).slice(0, 8),

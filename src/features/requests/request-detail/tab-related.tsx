@@ -1,7 +1,7 @@
 import type { ProcurementRequest } from '@/data/types';
 import { useSupplierLookup, useSuppliers } from '@/lib/db/hooks/use-suppliers';
 import { useContractLookup, useContracts } from '@/lib/db/hooks/use-contracts';
-import { requests } from '@/data/requests';
+import { useRequestLookup, useRequests } from '@/lib/db/hooks/use-requests';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatCurrency, formatDate } from '@/lib/format';
@@ -29,8 +29,10 @@ const sraColors = {
 export function TabRelated({ request }: TabRelatedProps) {
   useSuppliers();
   useContracts();
+  useRequests();
   const lookupSupplier = useSupplierLookup();
   const { byId: lookupContract, bySupplier: contractsBySupplier } = useContractLookup();
+  const { bySupplier: requestsBySupplier } = useRequestLookup();
   const supplier = lookupSupplier(request.supplierId);
   const contract = lookupContract(request.contractId);
 
@@ -40,9 +42,7 @@ export function TabRelated({ request }: TabRelatedProps) {
     : [];
 
   // Previous requests for same supplier
-  const relatedRequests = request.supplierId
-    ? requests.filter((r) => r.supplierId === request.supplierId && r.id !== request.id)
-    : [];
+  const relatedRequests = requestsBySupplier(request.supplierId).filter((r) => r.id !== request.id);
 
   return (
     <div className="space-y-6">

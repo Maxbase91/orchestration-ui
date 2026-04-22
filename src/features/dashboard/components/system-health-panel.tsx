@@ -1,14 +1,15 @@
 import { useMemo } from 'react';
 import { Settings, AlertTriangle } from 'lucide-react';
-import { requests } from '@/data/requests';
+import { useRequests } from '@/lib/db/hooks/use-requests';
 import { KPICard } from '@/components/shared/kpi-card';
 
 export function SystemHealthPanel() {
+  const { data: requests = [] } = useRequests();
   const requestVolume = useMemo(() => {
     // Simulate: today = 3, this week = 8, this month = 15
     const total = requests.length;
     return { today: 3, week: 8, month: total };
-  }, []);
+  }, [requests.length]);
 
   return (
     <div className="grid grid-cols-3 gap-4">

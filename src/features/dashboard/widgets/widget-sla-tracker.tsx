@@ -1,10 +1,11 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Timer } from 'lucide-react';
-import { requests } from '@/data/requests';
+import { useRequests } from '@/lib/db/hooks/use-requests';
 
 export function WidgetSLATracker() {
   const navigate = useNavigate();
+  const { data: requests = [] } = useRequests();
 
   const atRisk = useMemo(
     () =>
@@ -12,7 +13,7 @@ export function WidgetSLATracker() {
         .filter((r) => r.isOverdue || r.daysInStage > 20)
         .sort((a, b) => b.daysInStage - a.daysInStage)
         .slice(0, 4),
-    [],
+    [requests],
   );
 
   if (atRisk.length === 0) {

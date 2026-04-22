@@ -1,6 +1,5 @@
-import type { AIResponse, Supplier, Contract } from '@/data/types';
+import type { AIResponse, Supplier, Contract, ProcurementRequest } from '@/data/types';
 import { aiResponses } from '@/data/ai-responses';
-import { getRequestById } from '@/data/requests';
 import { queryClient } from '@/lib/query-client';
 
 function getSupplierFromCache(id: string): Supplier | undefined {
@@ -11,6 +10,11 @@ function getSupplierFromCache(id: string): Supplier | undefined {
 function getContractFromCache(id: string): Contract | undefined {
   const list = queryClient.getQueryData<Contract[]>(['contracts', 'list']);
   return list?.find((c) => c.id === id);
+}
+
+function getRequestFromCache(id: string): ProcurementRequest | undefined {
+  const list = queryClient.getQueryData<ProcurementRequest[]>(['requests', 'list']);
+  return list?.find((r) => r.id === id);
 }
 
 export function getAIResponse(input: string, context: string): AIResponse | null {
@@ -59,7 +63,7 @@ export function getAIResponse(input: string, context: string): AIResponse | null
 
 export function getAISummary(type: 'request' | 'supplier' | 'contract', id: string): string {
   if (type === 'request') {
-    const req = getRequestById(id);
+    const req = getRequestFromCache(id);
     if (!req) return 'Request not found.';
 
     const overdueText = req.isOverdue ? ' This request is OVERDUE and requires immediate attention.' : '';

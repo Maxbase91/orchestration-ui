@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertCircle } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
-import { requests } from '@/data/requests';
+import { useRequests } from '@/lib/db/hooks/use-requests';
 import { notifications } from '@/data/notifications';
 import { formatCurrency, formatRelativeTime } from '@/lib/format';
 import { StatusBadge } from '@/components/shared/status-badge';
@@ -17,18 +17,19 @@ const activeStatuses = new Set([
 export function ServiceOwnerDashboard() {
   const { currentUser } = useAuthStore();
   const navigate = useNavigate();
+  const { data: requests = [] } = useRequests();
 
   const myRequests = useMemo(() => {
     return requests
       .filter((r) => r.requestorId === currentUser.id || activeStatuses.has(r.status))
       .slice(0, 8);
-  }, [currentUser.id]);
+  }, [currentUser.id, requests]);
 
   const actionsRequired = useMemo(() => {
     return requests.filter(
       (r) => r.status === 'referred-back' || (r.status === 'approval' && r.isOverdue)
     ).length;
-  }, []);
+  }, [requests]);
 
   return (
     <div className="space-y-6">

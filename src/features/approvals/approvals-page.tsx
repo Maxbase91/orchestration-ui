@@ -16,7 +16,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { ApprovalCard } from './components/approval-card';
 import { BulkApproveDialog } from './components/bulk-approve-dialog';
 import { useApprovals } from '@/lib/db/hooks/use-approvals';
-import { requests } from '@/data/requests';
+import { useRequests } from '@/lib/db/hooks/use-requests';
 import type { ApprovalStatus, ProcurementRequest, ApprovalEntry } from '@/data/types';
 
 // AI summaries for each request in approval stage
@@ -42,6 +42,7 @@ interface ApprovalItem {
 
 export function ApprovalsPage() {
   const { data: approvalEntries = [] } = useApprovals();
+  const { data: requests = [] } = useRequests();
   const [statusFilter, setStatusFilter] = useState<'all' | ApprovalStatus>('all');
   const [urgencyFilter, setUrgencyFilter] = useState<UrgencyFilter>('all');
   const [valueFilter, setValueFilter] = useState<ValueFilter>('all');
@@ -59,7 +60,7 @@ export function ApprovalsPage() {
         return { request: req, approval: a };
       })
       .filter((item): item is ApprovalItem => item !== null);
-  }, [approvalEntries]);
+  }, [approvalEntries, requests]);
 
   // Apply filters
   const filteredItems = useMemo(() => {

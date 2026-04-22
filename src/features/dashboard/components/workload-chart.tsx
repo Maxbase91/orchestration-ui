@@ -1,11 +1,12 @@
 import { useMemo } from 'react';
-import { requests } from '@/data/requests';
+import { useRequests } from '@/lib/db/hooks/use-requests';
 import { useUserLookup, useUsers } from '@/lib/db/hooks/use-users';
 import { BarChartWidget } from '@/components/charts/bar-chart-widget';
 
 export function WorkloadChart() {
   useUsers();
   const lookupUser = useUserLookup();
+  const { data: requests = [] } = useRequests();
   const data = useMemo(() => {
     const ownerCounts: Record<string, number> = {};
     const activeStatuses = new Set([
@@ -26,7 +27,7 @@ export function WorkloadChart() {
         };
       })
       .sort((a, b) => b.value - a.value);
-  }, [lookupUser]);
+  }, [lookupUser, requests]);
 
   return (
     <BarChartWidget

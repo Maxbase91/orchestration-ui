@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { requests } from '@/data/requests';
+import { useRequests } from '@/lib/db/hooks/use-requests';
 import { getLatestKPI, kpiData } from '@/data/kpi-data';
 import { formatCurrency } from '@/lib/format';
 import { KPICard } from '@/components/shared/kpi-card';
@@ -15,6 +15,7 @@ const activeStatuses = new Set([
 
 export function ProcurementManagerDashboard() {
   const latestKPI = getLatestKPI();
+  const { data: requests = [] } = useRequests();
 
   const { openDemandCount, openDemandValue, activeSourcingCount, avgCycleTime, complianceRate } = useMemo(() => {
     const active = requests.filter((r) => activeStatuses.has(r.status));
@@ -28,7 +29,7 @@ export function ProcurementManagerDashboard() {
       avgCycleTime: latestKPI.avgCycleTime,
       complianceRate: latestKPI.complianceRate,
     };
-  }, [latestKPI]);
+  }, [latestKPI, requests]);
 
   const sparklines = useMemo(() => ({
     openDemand: kpiData.map((k) => k.openDemand),

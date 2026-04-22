@@ -1,12 +1,13 @@
 import { useMemo } from 'react';
-import { requests } from '@/data/requests';
+import { useRequests } from '@/lib/db/hooks/use-requests';
 import { kpiData } from '@/data/kpi-data';
 import { KPICard } from '@/components/shared/kpi-card';
 
 export function WidgetKPISourcing() {
+  const { data: requests = [] } = useRequests();
   const count = useMemo(
     () => requests.filter((r) => r.status === 'sourcing').length,
-    [],
+    [requests],
   );
 
   const sparkline = useMemo(() => kpiData.map((d) => d.activeSourcing), []);

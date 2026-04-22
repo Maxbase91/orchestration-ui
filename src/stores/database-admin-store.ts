@@ -10,7 +10,6 @@ import type {
   AuditEntry,
   RiskAssessment,
 } from '@/data/types';
-import { requests as seedRequests } from '@/data/requests';
 import { workflowTemplates as seedWorkflows } from '@/data/workflows';
 import { useAuthStore } from '@/stores/auth-store';
 import { queryClient } from '@/lib/query-client';
@@ -44,6 +43,11 @@ import {
   updateApproval as dbUpdateApproval,
   deleteApproval as dbDeleteApproval,
 } from '@/lib/db/approvals';
+import {
+  createRequest as dbCreateRequest,
+  updateRequest as dbUpdateRequest,
+  deleteRequest as dbDeleteRequest,
+} from '@/lib/db/requests';
 
 /**
  * Which entities are backed by Supabase (edits persist across sessions and
@@ -57,6 +61,7 @@ const LIVE_ENTITIES = new Set<string>([
   'purchaseOrder',
   'invoice',
   'approval',
+  'request',
 ]);
 
 export function isLiveEntity(key: string): boolean {
@@ -149,7 +154,7 @@ export const useDatabaseAdminStore = create<DatabaseAdminState>((set, get) => ({
   riskAssessment: [],
   purchaseOrder: [],
   invoice: [],
-  request: cloneRecords(seedRequests),
+  request: [],
   approval: [],
   workflow: cloneRecords(seedWorkflows),
   audit: [],
@@ -230,6 +235,18 @@ export const useDatabaseAdminStore = create<DatabaseAdminState>((set, get) => ({
       });
       return;
     }
+    if (key === 'request') {
+      const saved = await dbUpdateRequest(id, patch as Partial<ProcurementRequest>);
+      await queryClient.invalidateQueries({ queryKey: ['requests'] });
+      set((state) => {
+        const list = state.request;
+        const idx = list.findIndex((r) => r.id === id);
+        const next = idx >= 0 ? [...list.slice(0, idx), saved, ...list.slice(idx + 1)] : [saved, ...list];
+        const audit = makeAuditEntry('record.update', 'request', id, detail);
+        return { ...state, request: next, audit: [audit, ...state.audit] };
+      });
+      return;
+    }
     set((state) => localUpdate(state, key, id, patch, detail));
   },
   create: async (key, record) => {
@@ -286,6 +303,15 @@ export const useDatabaseAdminStore = create<DatabaseAdminState>((set, get) => ({
       set((state) => {
         const audit = makeAuditEntry('record.create', 'approval', saved.id, detail);
         return { ...state, approval: [saved, ...state.approval], audit: [audit, ...state.audit] };
+      });
+      return;
+    }
+    if (key === 'request') {
+      const saved = await dbCreateRequest(record as ProcurementRequest);
+      await queryClient.invalidateQueries({ queryKey: ['requests'] });
+      set((state) => {
+        const audit = makeAuditEntry('record.create', 'request', saved.id, detail);
+        return { ...state, request: [saved, ...state.request], audit: [audit, ...state.audit] };
       });
       return;
     }
@@ -355,6 +381,15 @@ export const useDatabaseAdminStore = create<DatabaseAdminState>((set, get) => ({
       });
       return;
     }
+    if (key === 'request') {
+      await dbDeleteRequest(id);
+      await queryClient.invalidateQueries({ queryKey: ['requests'] });
+      set((state) => {
+        const audit = makeAuditEntry('record.delete', 'request', id, detail);
+        return { ...state, request: state.request.filter((r) => r.id !== id), audit: [audit, ...state.audit] };
+      });
+      return;
+    }
     set((state) => {
       const list = state[key] as EntityRecordMap[typeof key][];
       const next = list.filter((r) => (r as { id: string }).id !== id);
@@ -367,7 +402,6 @@ export const useDatabaseAdminStore = create<DatabaseAdminState>((set, get) => ({
     // re-synced by the sync hook on next fetch.
     set({
       ...get(),
-      request: cloneRecords(seedRequests),
       workflow: cloneRecords(seedWorkflows),
       audit: [],
     });
@@ -377,6 +411,7 @@ export const useDatabaseAdminStore = create<DatabaseAdminState>((set, get) => ({
     queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
     queryClient.invalidateQueries({ queryKey: ['invoices'] });
     queryClient.invalidateQueries({ queryKey: ['approvals'] });
+    queryClient.invalidateQueries({ queryKey: ['requests'] });
   },
 }));
 

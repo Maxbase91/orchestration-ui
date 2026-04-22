@@ -1,8 +1,9 @@
 import { useMemo } from 'react';
 import { FileText, CheckCircle, PackageCheck } from 'lucide-react';
-import { requests } from '@/data/requests';
+import { useRequests } from '@/lib/db/hooks/use-requests';
 
 export function WidgetQuickStats() {
+  const { data: requests = [] } = useRequests();
   const stats = useMemo(() => {
     const now = new Date();
     const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -16,7 +17,7 @@ export function WidgetQuickStats() {
     ).length;
 
     return { submitted, approved, completed };
-  }, []);
+  }, [requests]);
 
   return (
     <div className="space-y-3">

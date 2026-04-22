@@ -5,6 +5,7 @@ import { useRiskAssessments } from '@/lib/db/hooks/use-risk-assessments';
 import { usePurchaseOrders } from '@/lib/db/hooks/use-purchase-orders';
 import { useInvoices } from '@/lib/db/hooks/use-invoices';
 import { useApprovals } from '@/lib/db/hooks/use-approvals';
+import { useRequests } from '@/lib/db/hooks/use-requests';
 import { useDatabaseAdminStore } from '@/stores/database-admin-store';
 
 /**
@@ -20,6 +21,7 @@ export function useSyncAdminStore() {
   const { data: purchaseOrders, isSuccess: purchaseOrdersLoaded } = usePurchaseOrders();
   const { data: invoices, isSuccess: invoicesLoaded } = useInvoices();
   const { data: approvals, isSuccess: approvalsLoaded } = useApprovals();
+  const { data: requests, isSuccess: requestsLoaded } = useRequests();
   const syncList = useDatabaseAdminStore((s) => s.syncList);
 
   useEffect(() => {
@@ -57,4 +59,10 @@ export function useSyncAdminStore() {
       syncList('approval', approvals);
     }
   }, [approvalsLoaded, approvals, syncList]);
+
+  useEffect(() => {
+    if (requestsLoaded && requests) {
+      syncList('request', requests);
+    }
+  }, [requestsLoaded, requests, syncList]);
 }

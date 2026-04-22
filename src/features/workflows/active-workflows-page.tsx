@@ -1,12 +1,11 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, Clock, DollarSign, ArrowUpCircle } from 'lucide-react';
 import { PageHeader } from '@/components/shared/page-header';
 import { ViewToggle } from '@/components/shared/view-toggle';
 import { FilterBar, type FilterConfig } from '@/components/shared/filter-bar';
 import { Button } from '@/components/ui/button';
-import { requests as mockRequests } from '@/data/requests';
-import { apiGetRequests } from '@/lib/api';
+import { useRequests } from '@/lib/db/hooks/use-requests';
 import { KanbanView } from './kanban-view';
 import { TableView } from './table-view';
 import { TimelineView } from './timeline-view';
@@ -81,18 +80,8 @@ export function ActiveWorkflowsPage() {
   const [activeView, setActiveView] = useState('kanban');
   const [activeFilters, setActiveFilters] = useState<Record<string, string | string[]>>({});
   const [quickFilter, setQuickFilter] = useState<string | null>(null);
-  const [requests, setRequests] = useState(mockRequests);
+  const { data: requests = [] } = useRequests();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    apiGetRequests()
-      .then((result) => {
-        if (result.length > 0) setRequests(result);
-      })
-      .catch(() => {
-        // Keep mock data
-      });
-  }, []);
 
   // Base set: active requests only
   const activeRequests = useMemo(
