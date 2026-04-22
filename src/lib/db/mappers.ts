@@ -21,6 +21,8 @@ import type { FormSubmission } from '../../data/form-submissions.js';
 import type { FormTemplate } from '../../data/form-templates.js';
 import type { IntakeComplianceRecord } from '../../data/request-compliance.js';
 import type { AIAgent, KPIDataPoint, WorkflowTemplate, RoutingRule } from '../../data/types.js';
+import type { CatalogueItem } from '../../data/catalogue-items.js';
+import type { WorkflowStepDetail } from '../../data/workflow-step-details.js';
 
 type DbRecord = Record<string, unknown>;
 
@@ -293,6 +295,72 @@ export function mapKpiToDb(k: Partial<KPIDataPoint>): DbRecord {
   if (k.requestsCompleted !== undefined) out.requests_completed = k.requestsCompleted;
   if (k.requestsSubmitted !== undefined) out.requests_submitted = k.requestsSubmitted;
   return out;
+}
+
+// ── Catalogue Items ─────────────────────────────────────────────────
+
+export function mapDbToCatalogueItem(row: DbRecord): CatalogueItem {
+  return {
+    id: row.id as string,
+    name: row.name as string,
+    description: (row.description ?? '') as string,
+    unitPrice: (row.unit_price ?? row.unitPrice ?? 0) as number,
+    unit: (row.unit ?? '') as string,
+    catalogueId: (row.catalogue_id ?? row.catalogueId ?? '') as string,
+    catalogueName: (row.catalogue_name ?? row.catalogueName ?? '') as string,
+    supplierId: (row.supplier_id ?? row.supplierId ?? '') as string,
+    supplierName: (row.supplier_name ?? row.supplierName ?? '') as string,
+    leadTime: (row.lead_time ?? row.leadTime ?? '') as string,
+  };
+}
+
+export function mapCatalogueItemToDb(c: Partial<CatalogueItem>): DbRecord {
+  const out: DbRecord = {};
+  if (c.id !== undefined) out.id = c.id;
+  if (c.name !== undefined) out.name = c.name;
+  if (c.description !== undefined) out.description = c.description;
+  if (c.unitPrice !== undefined) out.unit_price = c.unitPrice;
+  if (c.unit !== undefined) out.unit = c.unit;
+  if (c.catalogueId !== undefined) out.catalogue_id = c.catalogueId;
+  if (c.catalogueName !== undefined) out.catalogue_name = c.catalogueName;
+  if (c.supplierId !== undefined) out.supplier_id = c.supplierId;
+  if (c.supplierName !== undefined) out.supplier_name = c.supplierName;
+  if (c.leadTime !== undefined) out.lead_time = c.leadTime;
+  return out;
+}
+
+// ── Workflow Step Details ───────────────────────────────────────────
+
+export function mapDbToWorkflowStepDetail(row: DbRecord): WorkflowStepDetail {
+  return {
+    requestId: (row.request_id ?? row.requestId ?? '') as string,
+    stage: row.stage as string,
+    handler: (row.handler ?? {}) as WorkflowStepDetail['handler'],
+    action: (row.action ?? '') as string,
+    decision: (row.decision ?? undefined) as WorkflowStepDetail['decision'],
+    systemInvolvement: (row.system_involvement ?? row.systemInvolvement) as WorkflowStepDetail['systemInvolvement'],
+    formsCompleted: (row.forms_completed ?? row.formsCompleted) as WorkflowStepDetail['formsCompleted'],
+    documentsAdded: (row.documents_added ?? row.documentsAdded) as WorkflowStepDetail['documentsAdded'],
+    comments: (row.comments ?? undefined) as WorkflowStepDetail['comments'],
+    duration: (row.duration ?? { enteredAt: '', daysInStep: 0 }) as WorkflowStepDetail['duration'],
+    slaStatus: (row.sla_status ?? row.slaStatus ?? 'on-track') as WorkflowStepDetail['slaStatus'],
+  };
+}
+
+export function mapWorkflowStepDetailToDb(d: WorkflowStepDetail): DbRecord {
+  return {
+    request_id: d.requestId,
+    stage: d.stage,
+    handler: d.handler,
+    action: d.action,
+    decision: d.decision ?? null,
+    system_involvement: d.systemInvolvement ?? null,
+    forms_completed: d.formsCompleted ?? [],
+    documents_added: d.documentsAdded ?? [],
+    comments: d.comments ?? [],
+    duration: d.duration,
+    sla_status: d.slaStatus,
+  };
 }
 
 // ── Notifications ───────────────────────────────────────────────────

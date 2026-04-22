@@ -22,7 +22,8 @@ import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { searchCatalogueItems, catalogueItems, type CatalogueItem } from '@/data/catalogue-items';
+import type { CatalogueItem } from '@/data/catalogue-items';
+import { useCatalogueItems } from '@/lib/db/hooks/use-catalogue-items';
 import { openAIChat } from '@/features/ai-assistant/ai-chat-overlay';
 import { formatCurrency } from '@/lib/format';
 
@@ -92,11 +93,37 @@ const SUPPLIER_ROUTES: Record<string, string> = {
   microsoft: '/suppliers/SUP-007', siemens: '/suppliers/SUP-008', bosch: '/suppliers/SUP-009',
 };
 
-function localClassify(query: string): AIResult {
+const CATALOGUE_STOP_WORDS = new Set([
+  'i', 'want', 'to', 'buy', 'buying', 'purchase', 'purchasing', 'order',
+  'ordering', 'need', 'get', 'some', 'a', 'an', 'the', 'for', 'of',
+  'my', 'me', 'please', 'can', 'could', 'would', 'like', 'new',
+]);
+
+function searchCatalogueItems(query: string, items: CatalogueItem[]): CatalogueItem[] {
+  const words = query
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((w) => w.length > 1 && !CATALOGUE_STOP_WORDS.has(w));
+  if (words.length === 0) return [];
+  return items
+    .map((item) => {
+      const haystack = `${item.name} ${item.description} ${item.catalogueName}`.toLowerCase();
+      let score = 0;
+      for (const word of words) {
+        if (haystack.includes(word)) score += 1;
+      }
+      return { item, score };
+    })
+    .filter((r) => r.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .map((r) => r.item);
+}
+
+function localClassify(query: string, catalogueItems: CatalogueItem[]): AIResult {
   const q = query.toLowerCase();
 
   // Check catalogue items first
-  const catItems = searchCatalogueItems(query);
+  const catItems = searchCatalogueItems(query, catalogueItems);
   if (catItems.length > 0) {
     return { intent: 'catalogue', message: `Found ${catItems.length} matching catalogue items.`, links: [] };
   }
@@ -146,6 +173,8 @@ export function SmartCommandBar() {
   const [loading, setLoading] = useState(false);
   const [proposal, setProposal] = useState<ProposalState | null>(null);
 
+  const { data: catalogueItems = [] } = useCatalogueItems();
+
   // Catalogue state
   const [showCatalogue, setShowCatalogue] = useState(false);
   const [catalogueResults, setCatalogueResults] = useState<CatalogueItem[]>([]);
@@ -168,14 +197,14 @@ export function SmartCommandBar() {
       setLoading(false);
 
       // Use LLM result, or fall back to local classifier
-      const result = aiResult ?? localClassify(query);
+      const result = aiResult ?? localClassify(query, catalogueItems);
       processResult(result, query);
     } catch {
       setLoading(false);
       // Error — fall back to deterministic local classifier
-      processResult(localClassify(query), query);
+      processResult(localClassify(query, catalogueItems), query);
     }
-  }, [input]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [input, catalogueItems]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // --- Process an AI result (from LLM or local fallback) ---
   const processResult = useCallback((aiResult: AIResult, query: string) => {
@@ -189,7 +218,7 @@ export function SmartCommandBar() {
 
     // CATALOGUE
     if (intent === 'catalogue') {
-      const localMatches = searchCatalogueItems(query);
+      const localMatches = searchCatalogueItems(query, catalogueItems);
       if (localMatches.length > 0) setCatalogueResults(localMatches.slice(0, 9));
       setShowCatalogue(true);
       setProposal({
@@ -239,7 +268,7 @@ export function SmartCommandBar() {
       catalogueItems: [],
       links: [...(aiResult.links?.slice(0, 3) ?? []), { label: 'Create New Request', path: '/requests/new' }, { label: 'Open AI Assistant', path: '__ai_chat__' }],
     });
-  }, []);
+  }, [catalogueItems]);
 
   // --- Handle link click from proposal ---
   const handleLinkClick = (path: string) => {

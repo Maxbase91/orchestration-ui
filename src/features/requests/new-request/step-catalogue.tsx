@@ -16,7 +16,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { catalogueItems, type CatalogueItem } from '@/data/catalogue-items';
+import type { CatalogueItem } from '@/data/catalogue-items';
+import { useCatalogueItems } from '@/lib/db/hooks/use-catalogue-items';
 
 interface CartItem {
   itemId: string;
@@ -43,43 +44,13 @@ interface SubCatalogue {
   items: CatalogueItem[];
 }
 
-const SUB_CATALOGUES: SubCatalogue[] = [
-  {
-    id: 'it-equipment',
-    name: 'IT Equipment',
-    icon: Monitor,
-    items: catalogueItems.filter((i) => i.catalogueId === 'it-equipment'),
-  },
-  {
-    id: 'office-supplies',
-    name: 'Office Supplies',
-    icon: Briefcase,
-    items: catalogueItems.filter((i) => i.catalogueId === 'office-supplies'),
-  },
-  {
-    id: 'furniture',
-    name: 'Furniture',
-    icon: Package,
-    items: catalogueItems.filter((i) => i.catalogueId === 'furniture'),
-  },
-  {
-    id: 'safety-ppe',
-    name: 'Safety & PPE',
-    icon: Shield,
-    items: catalogueItems.filter((i) => i.catalogueId === 'safety-ppe'),
-  },
-  {
-    id: 'catering-pantry',
-    name: 'Catering & Pantry',
-    icon: Coffee,
-    items: catalogueItems.filter((i) => i.catalogueId === 'catering-pantry'),
-  },
-  {
-    id: 'print-stationery',
-    name: 'Print & Stationery',
-    icon: Printer,
-    items: catalogueItems.filter((i) => i.catalogueId === 'print-stationery'),
-  },
+const CATALOGUE_DEFS: { id: string; name: string; icon: typeof Monitor }[] = [
+  { id: 'it-equipment', name: 'IT Equipment', icon: Monitor },
+  { id: 'office-supplies', name: 'Office Supplies', icon: Briefcase },
+  { id: 'furniture', name: 'Furniture', icon: Package },
+  { id: 'safety-ppe', name: 'Safety & PPE', icon: Shield },
+  { id: 'catering-pantry', name: 'Catering & Pantry', icon: Coffee },
+  { id: 'print-stationery', name: 'Print & Stationery', icon: Printer },
 ];
 
 export function StepCatalogue({ onUpdate }: StepCatalogueProps) {
@@ -88,7 +59,18 @@ export function StepCatalogue({ onUpdate }: StepCatalogueProps) {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
 
-  const activeCatalogue = SUB_CATALOGUES.find((c) => c.id === selectedCatalogue);
+  const { data: catalogueItems = [] } = useCatalogueItems();
+
+  const subCatalogues: SubCatalogue[] = useMemo(
+    () =>
+      CATALOGUE_DEFS.map((def) => ({
+        ...def,
+        items: catalogueItems.filter((i) => i.catalogueId === def.id),
+      })),
+    [catalogueItems],
+  );
+
+  const activeCatalogue = subCatalogues.find((c) => c.id === selectedCatalogue);
 
   const filteredItems = useMemo(() => {
     if (!activeCatalogue) return [];
@@ -141,7 +123,7 @@ export function StepCatalogue({ onUpdate }: StepCatalogueProps) {
     // Determine primary supplier (most items or highest value)
     const supplierSpend: Record<string, { name: string; total: number }> = {};
     for (const item of cart) {
-      const catItem = SUB_CATALOGUES.flatMap((c) => c.items).find((i) => i.id === item.itemId);
+      const catItem = catalogueItems.find((i) => i.id === item.itemId);
       const sName = catItem?.supplierName ?? 'Catalogue Supplier';
       if (!supplierSpend[item.supplierId]) {
         supplierSpend[item.supplierId] = { name: sName, total: 0 };
@@ -176,7 +158,7 @@ export function StepCatalogue({ onUpdate }: StepCatalogueProps) {
           </p>
         </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {SUB_CATALOGUES.map((cat) => {
+          {subCatalogues.map((cat) => {
             const Icon = cat.icon;
             return (
               <button

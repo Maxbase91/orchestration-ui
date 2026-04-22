@@ -58,6 +58,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       { kpiData },
       { workflowTemplates },
       { routingRules },
+      { catalogueItems },
+      { workflowStepDetails },
       mappers,
     ] = await Promise.all([
       import('../../src/data/users.js'),
@@ -81,6 +83,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       import('../../src/data/kpi-data.js'),
       import('../../src/data/workflows.js'),
       import('../../src/data/routing-rules.js'),
+      import('../../src/data/catalogue-items.js'),
+      import('../../src/data/workflow-step-details.js'),
       import('../../src/lib/db/mappers.js'),
     ]);
 
@@ -103,6 +107,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       mapKpiToDb,
       mapWorkflowTemplateToDb,
       mapRoutingRuleToDb,
+      mapCatalogueItemToDb,
+      mapWorkflowStepDetailToDb,
     } = mappers;
 
     // 1. Users (no FK dependencies).
@@ -298,6 +304,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       'routing_rules',
       routingRules.map((r) => mapRoutingRuleToDb(r)),
       'id',
+    );
+
+    // 22. Catalogue items.
+    counts.catalogue_items = await upsert(
+      'catalogue_items',
+      catalogueItems.map((c) => mapCatalogueItemToDb(c)),
+      'id',
+    );
+
+    // 23. Workflow step details (FK to requests).
+    counts.workflow_step_details = await upsert(
+      'workflow_step_details',
+      workflowStepDetails.map((d) => mapWorkflowStepDetailToDb(d)),
+      'request_id,stage',
     );
 
     return res.status(201).json({ message: 'Seed complete', counts });

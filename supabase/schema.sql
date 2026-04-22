@@ -364,6 +364,37 @@ CREATE TABLE IF NOT EXISTS routing_rules (
   category TEXT
 );
 
+-- Catalogue Items (curated goods/services browsable in the intake flow)
+CREATE TABLE IF NOT EXISTS catalogue_items (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT,
+  unit_price NUMERIC NOT NULL DEFAULT 0,
+  unit TEXT,
+  catalogue_id TEXT,
+  catalogue_name TEXT,
+  supplier_id TEXT,
+  supplier_name TEXT,
+  lead_time TEXT
+);
+
+-- Workflow Step Details (per-request stage timeline with forms, comments, docs)
+CREATE TABLE IF NOT EXISTS workflow_step_details (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  request_id TEXT NOT NULL REFERENCES requests(id) ON DELETE CASCADE,
+  stage TEXT NOT NULL,
+  handler JSONB NOT NULL,
+  action TEXT NOT NULL,
+  decision JSONB,
+  system_involvement JSONB,
+  forms_completed JSONB DEFAULT '[]',
+  documents_added JSONB DEFAULT '[]',
+  comments JSONB DEFAULT '[]',
+  duration JSONB NOT NULL,
+  sla_status TEXT NOT NULL DEFAULT 'on-track',
+  UNIQUE (request_id, stage)
+);
+
 -- AI Agents (admin-configurable)
 CREATE TABLE IF NOT EXISTS ai_agents (
   id TEXT PRIMARY KEY,
@@ -503,6 +534,8 @@ ALTER TABLE ai_agents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE kpi_data ENABLE ROW LEVEL SECURITY;
 ALTER TABLE workflow_templates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE routing_rules ENABLE ROW LEVEL SECURITY;
+ALTER TABLE catalogue_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE workflow_step_details ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_entries ENABLE ROW LEVEL SECURITY;
 
 -- Policies are recreated idempotently so this script can be re-run.
@@ -528,6 +561,8 @@ DROP POLICY IF EXISTS "Allow all" ON ai_agents;
 DROP POLICY IF EXISTS "Allow all" ON kpi_data;
 DROP POLICY IF EXISTS "Allow all" ON workflow_templates;
 DROP POLICY IF EXISTS "Allow all" ON routing_rules;
+DROP POLICY IF EXISTS "Allow all" ON catalogue_items;
+DROP POLICY IF EXISTS "Allow all" ON workflow_step_details;
 DROP POLICY IF EXISTS "Allow all" ON audit_entries;
 
 CREATE POLICY "Allow all" ON suppliers FOR ALL USING (true) WITH CHECK (true);
@@ -552,6 +587,8 @@ CREATE POLICY "Allow all" ON ai_agents FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON kpi_data FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON workflow_templates FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON routing_rules FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all" ON catalogue_items FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all" ON workflow_step_details FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON audit_entries FOR ALL USING (true) WITH CHECK (true);
 
 -- Indexes for common queries
@@ -581,4 +618,6 @@ CREATE INDEX IF NOT EXISTS idx_risk_assessments_contract ON risk_assessments(con
 CREATE INDEX IF NOT EXISTS idx_risk_assessments_status ON risk_assessments(status);
 CREATE INDEX IF NOT EXISTS idx_risk_assessments_reusable ON risk_assessments(reusable) WHERE reusable = true;
 CREATE INDEX IF NOT EXISTS idx_audit_entries_timestamp ON audit_entries(timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_workflow_step_details_request ON workflow_step_details(request_id);
+CREATE INDEX IF NOT EXISTS idx_catalogue_items_catalogue ON catalogue_items(catalogue_id);
 CREATE INDEX IF NOT EXISTS idx_audit_entries_object ON audit_entries(object_type, object_id);

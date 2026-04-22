@@ -1,3 +1,7 @@
+// Seed data only — not read by the runtime app.
+// Workflow step details moved to Supabase in Wave 3
+// (UI uses `@/lib/db/hooks/use-workflow-step-details`).
+
 export interface WorkflowStepDetail {
   requestId: string;
   stage: string;

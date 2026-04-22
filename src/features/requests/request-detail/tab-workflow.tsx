@@ -3,7 +3,7 @@ import type { ProcurementRequest, RequestStatus, StageHistoryEntry } from '@/dat
 import { useStageHistoryByRequest } from '@/lib/db/hooks/use-stage-history';
 import { useUserLookup, useUsers } from '@/lib/db/hooks/use-users';
 import { useIntegrationsByRequest } from '@/lib/db/hooks/use-system-integrations';
-import { getStepDetailsForRequest } from '@/data/workflow-step-details';
+import { useWorkflowStepDetailsForRequest } from '@/lib/db/hooks/use-workflow-step-details';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { RotateCcw, UserPlus } from 'lucide-react';
@@ -43,7 +43,7 @@ export function TabWorkflow({ request }: TabWorkflowProps) {
   useUsers();
   const lookupUser = useUserLookup();
   const { data: history = [] } = useStageHistoryByRequest(request.id);
-  const stepDetails = getStepDetailsForRequest(request.id);
+  const { data: stepDetails = [] } = useWorkflowStepDetailsForRequest(request.id);
   const { data: integrations = [] } = useIntegrationsByRequest(request.id);
   const owner = lookupUser(request.ownerId);
 
