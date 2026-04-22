@@ -3,7 +3,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { DataTable, type Column } from '@/components/shared/data-table';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { GoodsReceiptForm } from '@/features/purchasing/components/goods-receipt-form';
-import { purchaseOrders } from '@/data/purchase-orders';
+import { usePurchaseOrders } from '@/lib/db/hooks/use-purchase-orders';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { toast } from 'sonner';
 import type { PurchaseOrder } from '@/data/types';
@@ -22,6 +22,7 @@ const RECEIVABLE_STATUSES = ['submitted', 'acknowledged', 'partially-received'];
 
 export function GoodsReceiptPage() {
   const [selectedPO, setSelectedPO] = useState<PurchaseOrder | null>(null);
+  const { data: purchaseOrders = [] } = usePurchaseOrders();
 
   const rows = useMemo<PORow[]>(() => {
     return purchaseOrders
@@ -40,7 +41,7 @@ export function GoodsReceiptPage() {
           po,
         };
       });
-  }, []);
+  }, [purchaseOrders]);
 
   const columns: Column<PORow>[] = [
     {

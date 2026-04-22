@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/shared/page-header';
 import { DataTable, type Column } from '@/components/shared/data-table';
 import { StatusBadge } from '@/components/shared/status-badge';
-import { purchaseOrders } from '@/data/purchase-orders';
+import { usePurchaseOrders } from '@/lib/db/hooks/use-purchase-orders';
 import { formatCurrency, formatDate } from '@/lib/format';
 import type { PurchaseOrder } from '@/data/types';
 
@@ -37,6 +37,7 @@ const columns: Column<PurchaseOrder & Record<string, unknown>>[] = [
 
 export function POListPage() {
   const navigate = useNavigate();
+  const { data: purchaseOrders = [] } = usePurchaseOrders();
   const tableData = purchaseOrders.map((po) => ({ ...po } as PurchaseOrder & Record<string, unknown>));
 
   return (

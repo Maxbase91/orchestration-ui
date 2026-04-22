@@ -9,7 +9,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { BarChartWidget } from '@/components/charts/bar-chart-widget';
 import { useContract } from '@/lib/db/hooks/use-contracts';
-import { purchaseOrders } from '@/data/purchase-orders';
+import { usePurchaseOrders } from '@/lib/db/hooks/use-purchase-orders';
 import { invoices } from '@/data/invoices';
 import { formatCurrency, formatDate } from '@/lib/format';
 
@@ -40,6 +40,7 @@ export function ContractDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: contract } = useContract(id);
+  const { data: purchaseOrders = [] } = usePurchaseOrders();
   const [obligations, setObligations] = useState(mockObligations);
 
   if (!contract) {

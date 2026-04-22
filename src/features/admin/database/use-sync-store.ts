@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
 import { useContracts } from '@/lib/db/hooks/use-contracts';
 import { useRiskAssessments } from '@/lib/db/hooks/use-risk-assessments';
+import { usePurchaseOrders } from '@/lib/db/hooks/use-purchase-orders';
 import { useDatabaseAdminStore } from '@/stores/database-admin-store';
 
 /**
@@ -14,6 +15,7 @@ export function useSyncAdminStore() {
   const { data: suppliers, isSuccess: suppliersLoaded } = useSuppliers();
   const { data: contracts, isSuccess: contractsLoaded } = useContracts();
   const { data: riskAssessments, isSuccess: riskAssessmentsLoaded } = useRiskAssessments();
+  const { data: purchaseOrders, isSuccess: purchaseOrdersLoaded } = usePurchaseOrders();
   const syncList = useDatabaseAdminStore((s) => s.syncList);
 
   useEffect(() => {
@@ -33,4 +35,10 @@ export function useSyncAdminStore() {
       syncList('riskAssessment', riskAssessments);
     }
   }, [riskAssessmentsLoaded, riskAssessments, syncList]);
+
+  useEffect(() => {
+    if (purchaseOrdersLoaded && purchaseOrders) {
+      syncList('purchaseOrder', purchaseOrders);
+    }
+  }, [purchaseOrdersLoaded, purchaseOrders, syncList]);
 }

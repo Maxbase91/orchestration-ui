@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { ProcessStepper, type Step } from '@/components/shared/process-stepper';
-import { getPurchaseOrderById } from '@/data/purchase-orders';
+import { usePurchaseOrder } from '@/lib/db/hooks/use-purchase-orders';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { GoodsReceiptForm } from './components/goods-receipt-form';
 import { getComplianceReport } from '@/data/compliance-reports';
@@ -25,7 +25,7 @@ function getSteps(currentStatus: string): Step[] {
 export function PODetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const po = id ? getPurchaseOrderById(id) : undefined;
+  const { data: po } = usePurchaseOrder(id);
 
   if (!po) {
     return (

@@ -10,7 +10,6 @@ import type {
   AuditEntry,
   RiskAssessment,
 } from '@/data/types';
-import { purchaseOrders as seedPOs } from '@/data/purchase-orders';
 import { invoices as seedInvoices } from '@/data/invoices';
 import { requests as seedRequests } from '@/data/requests';
 import { approvalEntries as seedApprovals } from '@/data/approval-entries';
@@ -32,13 +31,18 @@ import {
   updateRiskAssessment as dbUpdateRiskAssessment,
   deleteRiskAssessment as dbDeleteRiskAssessment,
 } from '@/lib/db/risk-assessments';
+import {
+  createPurchaseOrder as dbCreatePurchaseOrder,
+  updatePurchaseOrder as dbUpdatePurchaseOrder,
+  deletePurchaseOrder as dbDeletePurchaseOrder,
+} from '@/lib/db/purchase-orders';
 
 /**
  * Which entities are backed by Supabase (edits persist across sessions and
  * propagate to every feature page) vs. still session-only local clones of
  * mock data. As each entity is migrated in Wave 1/2/3 it moves into LIVE_ENTITIES.
  */
-const LIVE_ENTITIES = new Set<string>(['supplier', 'contract', 'riskAssessment']);
+const LIVE_ENTITIES = new Set<string>(['supplier', 'contract', 'riskAssessment', 'purchaseOrder']);
 
 export function isLiveEntity(key: string): boolean {
   return LIVE_ENTITIES.has(key);
@@ -128,7 +132,7 @@ export const useDatabaseAdminStore = create<DatabaseAdminState>((set, get) => ({
   supplier: [],
   contract: [],
   riskAssessment: [],
-  purchaseOrder: cloneRecords(seedPOs),
+  purchaseOrder: [],
   invoice: cloneRecords(seedInvoices),
   request: cloneRecords(seedRequests),
   approval: cloneRecords(seedApprovals),
@@ -175,6 +179,18 @@ export const useDatabaseAdminStore = create<DatabaseAdminState>((set, get) => ({
       });
       return;
     }
+    if (key === 'purchaseOrder') {
+      const saved = await dbUpdatePurchaseOrder(id, patch as Partial<PurchaseOrder>);
+      await queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
+      set((state) => {
+        const list = state.purchaseOrder;
+        const idx = list.findIndex((p) => p.id === id);
+        const next = idx >= 0 ? [...list.slice(0, idx), saved, ...list.slice(idx + 1)] : [saved, ...list];
+        const audit = makeAuditEntry('record.update', 'purchaseOrder', id, detail);
+        return { ...state, purchaseOrder: next, audit: [audit, ...state.audit] };
+      });
+      return;
+    }
     set((state) => localUpdate(state, key, id, patch, detail));
   },
   create: async (key, record) => {
@@ -204,6 +220,15 @@ export const useDatabaseAdminStore = create<DatabaseAdminState>((set, get) => ({
       set((state) => {
         const audit = makeAuditEntry('record.create', 'riskAssessment', saved.id, detail);
         return { ...state, riskAssessment: [saved, ...state.riskAssessment], audit: [audit, ...state.audit] };
+      });
+      return;
+    }
+    if (key === 'purchaseOrder') {
+      const saved = await dbCreatePurchaseOrder(record as PurchaseOrder);
+      await queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
+      set((state) => {
+        const audit = makeAuditEntry('record.create', 'purchaseOrder', saved.id, detail);
+        return { ...state, purchaseOrder: [saved, ...state.purchaseOrder], audit: [audit, ...state.audit] };
       });
       return;
     }
@@ -246,6 +271,15 @@ export const useDatabaseAdminStore = create<DatabaseAdminState>((set, get) => ({
       });
       return;
     }
+    if (key === 'purchaseOrder') {
+      await dbDeletePurchaseOrder(id);
+      await queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
+      set((state) => {
+        const audit = makeAuditEntry('record.delete', 'purchaseOrder', id, detail);
+        return { ...state, purchaseOrder: state.purchaseOrder.filter((p) => p.id !== id), audit: [audit, ...state.audit] };
+      });
+      return;
+    }
     set((state) => {
       const list = state[key] as EntityRecordMap[typeof key][];
       const next = list.filter((r) => (r as { id: string }).id !== id);
@@ -254,12 +288,10 @@ export const useDatabaseAdminStore = create<DatabaseAdminState>((set, get) => ({
     });
   },
   reset: () => {
-    // Only resets session-only entities; Supabase-backed entities (suppliers,
-    // contracts, risk-assessments, …) are re-synced by the sync hook on next
-    // fetch.
+    // Only resets session-only entities; Supabase-backed entities are
+    // re-synced by the sync hook on next fetch.
     set({
       ...get(),
-      purchaseOrder: cloneRecords(seedPOs),
       invoice: cloneRecords(seedInvoices),
       request: cloneRecords(seedRequests),
       approval: cloneRecords(seedApprovals),
@@ -269,6 +301,7 @@ export const useDatabaseAdminStore = create<DatabaseAdminState>((set, get) => ({
     queryClient.invalidateQueries({ queryKey: ['suppliers'] });
     queryClient.invalidateQueries({ queryKey: ['contracts'] });
     queryClient.invalidateQueries({ queryKey: ['risk-assessments'] });
+    queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
   },
 }));
 

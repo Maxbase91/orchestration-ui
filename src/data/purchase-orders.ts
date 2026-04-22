@@ -1,3 +1,8 @@
+// Seed data only — not read by the runtime app.
+//
+// Purchase orders moved to Supabase in Wave 1. UI reads via
+// `@/lib/db/hooks/use-purchase-orders`.
+
 import type { PurchaseOrder } from './types';
 
 export const purchaseOrders: PurchaseOrder[] = [
