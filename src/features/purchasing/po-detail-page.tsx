@@ -8,7 +8,7 @@ import { ProcessStepper, type Step } from '@/components/shared/process-stepper';
 import { usePurchaseOrder } from '@/lib/db/hooks/use-purchase-orders';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { GoodsReceiptForm } from './components/goods-receipt-form';
-import { getComplianceReport } from '@/data/compliance-reports';
+import { useComplianceReport } from '@/lib/db/hooks/use-compliance-reports';
 import { ComplianceReportCard } from '@/components/shared/compliance-report-card';
 
 const poStages = ['draft', 'submitted', 'acknowledged', 'received', 'closed'] as const;
@@ -26,6 +26,7 @@ export function PODetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: po } = usePurchaseOrder(id);
+  const { data: complianceReport } = useComplianceReport(po?.requestId);
 
   if (!po) {
     return (
@@ -41,7 +42,6 @@ export function PODetailPage() {
 
   const effectiveStatus = po.status === 'partially-received' ? 'received' : po.status;
   const steps = getSteps(effectiveStatus);
-  const complianceReport = po.requestId ? getComplianceReport(po.requestId) : undefined;
 
   return (
     <div className="space-y-5">

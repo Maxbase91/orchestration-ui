@@ -1,3 +1,8 @@
+// Shared types + mock seed for form submissions.
+// The `formSubmissions` array is seed-only (Wave 2 migrated reads to
+// `@/lib/db/hooks/use-form-submissions`); the FormSubmission type remains
+// here for direct import by UI components.
+
 export interface FormSubmission {
   id: string;
   formTemplateId: string;

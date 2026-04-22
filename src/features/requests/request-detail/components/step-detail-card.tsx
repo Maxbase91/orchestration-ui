@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import { systemColors, systemLabels } from '@/data/system-integrations';
 import type { ExternalSystem } from '@/data/system-integrations';
-import { getSubmissionForStage } from '@/data/form-submissions';
+import { useSubmissionLookup, useFormSubmissions } from '@/lib/db/hooks/use-form-submissions';
 import { getFormTemplate, getFormsForStage } from '@/data/form-templates';
 import type { FormTemplate } from '@/data/form-templates';
 import { FormSubmissionView } from '@/components/shared/form-submission-view';
@@ -412,9 +412,11 @@ function FormsSection({
 }) {
   const [expandedFormId, setExpandedFormId] = useState<string | null>(null);
   const [submittedForms, setSubmittedForms] = useState<Set<string>>(new Set());
+  useFormSubmissions();
+  const { forStage } = useSubmissionLookup();
 
   // Get actual form submissions for this stage
-  const submissions = requestId ? getSubmissionForStage(requestId, stage) : [];
+  const submissions = forStage(requestId, stage);
 
   // For current steps, check for triggered forms that haven't been submitted
   const triggeredForms: FormTemplate[] = [];

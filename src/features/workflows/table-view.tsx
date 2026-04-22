@@ -6,7 +6,7 @@ import { useUserLookup, useUsers } from '@/lib/db/hooks/use-users';
 import { getStatusLabel } from '@/lib/status';
 import type { ProcurementRequest } from '@/data/types';
 import { cn } from '@/lib/utils';
-import { getIntegrationsForRequest } from '@/data/system-integrations';
+import { useSystemIntegrations, useIntegrationsLookup } from '@/lib/db/hooks/use-system-integrations';
 import { systemColors } from '@/data/system-integrations';
 
 type Row = ProcurementRequest & Record<string, unknown>;
@@ -26,7 +26,9 @@ interface TableViewProps {
 export function TableView({ requests }: TableViewProps) {
   const navigate = useNavigate();
   useUsers();
+  useSystemIntegrations();
   const lookupUser = useUserLookup();
+  const lookupIntegrations = useIntegrationsLookup();
 
   const columns: Column<Row>[] = [
     {
@@ -93,7 +95,7 @@ export function TableView({ requests }: TableViewProps) {
       key: 'systemIntegration',
       label: 'System',
       render: (item) => {
-        const integrations = getIntegrationsForRequest(item.id);
+        const integrations = lookupIntegrations(item.id as string);
         const active = integrations.find((i) => i.status !== 'completed');
         if (!active) return <span className="text-sm text-muted-foreground">—</span>;
         const colors = systemColors[active.system];

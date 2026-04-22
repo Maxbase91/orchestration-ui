@@ -121,10 +121,10 @@ BEGIN
   END IF;
 END $$;
 
--- Compliance Reports
+-- Compliance Reports (one per request — use request_id as the natural key)
 CREATE TABLE IF NOT EXISTS compliance_reports (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  request_id TEXT REFERENCES requests(id) ON DELETE CASCADE,
+  request_id TEXT UNIQUE REFERENCES requests(id) ON DELETE CASCADE,
   agent_id TEXT,
   agent_name TEXT,
   decision TEXT, -- approved, rejected, needs-review
@@ -135,9 +135,13 @@ CREATE TABLE IF NOT EXISTS compliance_reports (
   generated_at TIMESTAMP DEFAULT now()
 );
 
--- System Integration Handovers
+DO $$ BEGIN
+  ALTER TABLE compliance_reports ADD CONSTRAINT compliance_reports_request_id_key UNIQUE (request_id);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- System Integration Handovers (TEXT PK for INT-xxx mock IDs)
 CREATE TABLE IF NOT EXISTS system_integrations (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id TEXT PRIMARY KEY,
   request_id TEXT REFERENCES requests(id) ON DELETE CASCADE,
   system TEXT NOT NULL, -- ariba, coupa-risk, sirion, sap
   system_label TEXT,
@@ -149,9 +153,20 @@ CREATE TABLE IF NOT EXISTS system_integrations (
   detail TEXT
 );
 
--- Form Submissions
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'system_integrations' AND column_name = 'id' AND data_type = 'uuid'
+  ) THEN
+    ALTER TABLE system_integrations ALTER COLUMN id DROP DEFAULT;
+    ALTER TABLE system_integrations ALTER COLUMN id TYPE TEXT USING id::text;
+  END IF;
+END $$;
+
+-- Form Submissions (TEXT PK for FSUB-xxx mock IDs)
 CREATE TABLE IF NOT EXISTS form_submissions (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id TEXT PRIMARY KEY,
   form_template_id TEXT,
   form_name TEXT,
   request_id TEXT REFERENCES requests(id) ON DELETE CASCADE,
@@ -161,6 +176,17 @@ CREATE TABLE IF NOT EXISTS form_submissions (
   field_values JSONB DEFAULT '{}',
   status TEXT DEFAULT 'completed'
 );
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'form_submissions' AND column_name = 'id' AND data_type = 'uuid'
+  ) THEN
+    ALTER TABLE form_submissions ALTER COLUMN id DROP DEFAULT;
+    ALTER TABLE form_submissions ALTER COLUMN id TYPE TEXT USING id::text;
+  END IF;
+END $$;
 
 -- Approval Entries (TEXT PK so mock IDs like APR-001 round-trip through the seed idempotently)
 CREATE TABLE IF NOT EXISTS approval_entries (

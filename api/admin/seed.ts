@@ -14,6 +14,9 @@ import { invoices } from '../../src/data/invoices.js';
 import { approvalEntries } from '../../src/data/approval-entries.js';
 import { riskAssessments } from '../../src/data/risk-assessments.js';
 import { notifications } from '../../src/data/notifications.js';
+import { complianceReports } from '../../src/data/compliance-reports.js';
+import { systemIntegrations } from '../../src/data/system-integrations.js';
+import { formSubmissions } from '../../src/data/form-submissions.js';
 
 import {
   mapRequestToDb,
@@ -25,6 +28,9 @@ import {
   mapRiskAssessmentToDb,
   mapCommentToDb,
   mapNotificationToDb,
+  mapComplianceReportToDb,
+  mapSystemIntegrationToDb,
+  mapFormSubmissionToDb,
 } from '../../src/lib/db/mappers.js';
 
 type DbRow = Record<string, unknown>;
@@ -181,6 +187,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     counts.notifications = await upsert(
       'notifications',
       notifications.map((n) => mapNotificationToDb(n)),
+      'id',
+    );
+
+    // 13. Compliance reports (one per request). Keyed by request_id (UUID PK
+    // is auto-generated, so upsert via request_id).
+    counts.compliance_reports = await upsert(
+      'compliance_reports',
+      complianceReports.map((r) => mapComplianceReportToDb(r)),
+      'request_id',
+    );
+
+    // 14. System integrations.
+    counts.system_integrations = await upsert(
+      'system_integrations',
+      systemIntegrations.map((i) => mapSystemIntegrationToDb(i)),
+      'id',
+    );
+
+    // 15. Form submissions.
+    counts.form_submissions = await upsert(
+      'form_submissions',
+      formSubmissions.map((s) => mapFormSubmissionToDb({
+        ...s,
+        values: s.values,
+      })),
       'id',
     );
 

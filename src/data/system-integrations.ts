@@ -1,3 +1,8 @@
+// Shared types + labels/colors + mock seed for system integrations.
+// The `systemIntegrations` array is seed-only (Wave 2 migrated reads to
+// `@/lib/db/hooks/use-system-integrations`); types + `systemLabels`/`systemColors`
+// constants remain here for direct import.
+
 export type ExternalSystem = 'ariba' | 'coupa-risk' | 'sirion' | 'sap';
 
 export type IntegrationStatus =

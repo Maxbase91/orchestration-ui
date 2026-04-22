@@ -1,3 +1,8 @@
+// Shared types + mock seed for compliance reports.
+// The `complianceReports` array is seed-only (Wave 2 migrated reads to
+// `@/lib/db/hooks/use-compliance-reports`); types remain here because the
+// UI imports them for props typing.
+
 export interface ComplianceCheck {
   id: string;
   category: 'Budget' | 'Contract' | 'Supplier Compliance' | 'Policy' | 'Risk' | 'Value';

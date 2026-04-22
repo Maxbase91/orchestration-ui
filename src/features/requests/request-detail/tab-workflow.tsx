@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useMemo } from 'react';
 import type { ProcurementRequest, RequestStatus, StageHistoryEntry } from '@/data/types';
 import { useStageHistoryByRequest } from '@/lib/db/hooks/use-stage-history';
 import { useUserLookup, useUsers } from '@/lib/db/hooks/use-users';
-import { getIntegrationsForRequest } from '@/data/system-integrations';
+import { useIntegrationsByRequest } from '@/lib/db/hooks/use-system-integrations';
 import { getStepDetailsForRequest } from '@/data/workflow-step-details';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -44,7 +44,7 @@ export function TabWorkflow({ request }: TabWorkflowProps) {
   const lookupUser = useUserLookup();
   const { data: history = [] } = useStageHistoryByRequest(request.id);
   const stepDetails = getStepDetailsForRequest(request.id);
-  const integrations = getIntegrationsForRequest(request.id);
+  const { data: integrations = [] } = useIntegrationsByRequest(request.id);
   const owner = lookupUser(request.ownerId);
 
   const [referBackOpen, setReferBackOpen] = useState(false);

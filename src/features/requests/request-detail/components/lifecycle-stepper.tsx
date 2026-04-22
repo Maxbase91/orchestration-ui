@@ -3,7 +3,7 @@ import type { ProcurementRequest, RequestStatus, StageHistoryEntry } from '@/dat
 import { useStageHistoryByRequest } from '@/lib/db/hooks/use-stage-history';
 import { useUserLookup, useUsers } from '@/lib/db/hooks/use-users';
 import { formatDate } from '@/lib/format';
-import { getIntegrationsForRequest } from '@/data/system-integrations';
+import { useIntegrationsByRequest } from '@/lib/db/hooks/use-system-integrations';
 import { systemLabels, systemColors } from '@/data/system-integrations';
 
 const LIFECYCLE_STAGES: { id: RequestStatus; label: string }[] = [
@@ -33,6 +33,7 @@ export function LifecycleStepper({ request }: LifecycleStepperProps) {
   useUsers();
   const lookupUser = useUserLookup();
   const { data: history = [] } = useStageHistoryByRequest(request.id);
+  const { data: integrations = [] } = useIntegrationsByRequest(request.id);
 
   const completedStages = new Set<string>();
   const stageEntries = new Map<string, StageHistoryEntry>();
@@ -83,7 +84,6 @@ export function LifecycleStepper({ request }: LifecycleStepperProps) {
   });
 
   // Attach system integration info to matching steps
-  const integrations = getIntegrationsForRequest(request.id);
   for (const integration of integrations) {
     const matchingStep = steps.find((s) => s.id === integration.stage);
     if (matchingStep) {

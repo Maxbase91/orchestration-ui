@@ -16,6 +16,104 @@ import type {
 
 type DbRecord = Record<string, unknown>;
 
+// ── Compliance Reports ──────────────────────────────────────────────
+
+import type { ComplianceReport } from '../../data/compliance-reports';
+
+export function mapDbToComplianceReport(row: DbRecord): ComplianceReport {
+  return {
+    requestId: (row.request_id ?? row.requestId ?? '') as string,
+    agentId: (row.agent_id ?? row.agentId ?? '') as string,
+    agentName: (row.agent_name ?? row.agentName ?? '') as string,
+    decision: (row.decision ?? 'needs-review') as ComplianceReport['decision'],
+    confidence: (row.confidence ?? 0) as number,
+    generatedAt: (row.generated_at ?? row.generatedAt ?? '') as string,
+    summary: (row.summary ?? '') as string,
+    checks: (row.checks ?? []) as ComplianceReport['checks'],
+    recommendation: (row.recommendation ?? '') as string,
+  };
+}
+
+export function mapComplianceReportToDb(r: Partial<ComplianceReport>): DbRecord {
+  const out: DbRecord = {};
+  if (r.requestId !== undefined) out.request_id = r.requestId;
+  if (r.agentId !== undefined) out.agent_id = r.agentId;
+  if (r.agentName !== undefined) out.agent_name = r.agentName;
+  if (r.decision !== undefined) out.decision = r.decision;
+  if (r.confidence !== undefined) out.confidence = r.confidence;
+  if (r.generatedAt !== undefined) out.generated_at = r.generatedAt;
+  if (r.summary !== undefined) out.summary = r.summary;
+  if (r.checks !== undefined) out.checks = r.checks;
+  if (r.recommendation !== undefined) out.recommendation = r.recommendation;
+  return out;
+}
+
+// ── System Integrations ─────────────────────────────────────────────
+
+import type { SystemIntegration } from '../../data/system-integrations';
+
+export function mapDbToSystemIntegration(row: DbRecord): SystemIntegration {
+  return {
+    id: row.id as string,
+    requestId: (row.request_id ?? row.requestId ?? '') as string,
+    system: (row.system ?? 'ariba') as SystemIntegration['system'],
+    systemLabel: (row.system_label ?? row.systemLabel ?? '') as string,
+    status: (row.status ?? 'pending-handover') as SystemIntegration['status'],
+    submittedAt: (row.submitted_at ?? row.submittedAt ?? '') as string,
+    respondedAt: (row.responded_at ?? row.respondedAt) as string | undefined,
+    referenceId: (row.reference_id ?? row.referenceId) as string | undefined,
+    stage: (row.stage ?? '') as string,
+    detail: (row.detail ?? '') as string,
+  };
+}
+
+export function mapSystemIntegrationToDb(i: Partial<SystemIntegration>): DbRecord {
+  const out: DbRecord = {};
+  if (i.id !== undefined) out.id = i.id;
+  if (i.requestId !== undefined) out.request_id = i.requestId;
+  if (i.system !== undefined) out.system = i.system;
+  if (i.systemLabel !== undefined) out.system_label = i.systemLabel;
+  if (i.status !== undefined) out.status = i.status;
+  if (i.submittedAt !== undefined) out.submitted_at = i.submittedAt;
+  if (i.respondedAt !== undefined) out.responded_at = i.respondedAt;
+  if (i.referenceId !== undefined) out.reference_id = i.referenceId;
+  if (i.stage !== undefined) out.stage = i.stage;
+  if (i.detail !== undefined) out.detail = i.detail;
+  return out;
+}
+
+// ── Form Submissions ────────────────────────────────────────────────
+
+import type { FormSubmission } from '../../data/form-submissions';
+
+export function mapDbToFormSubmission(row: DbRecord): FormSubmission {
+  return {
+    id: row.id as string,
+    formTemplateId: (row.form_template_id ?? row.formTemplateId ?? '') as string,
+    formName: (row.form_name ?? row.formName ?? '') as string,
+    requestId: (row.request_id ?? row.requestId ?? '') as string,
+    stage: (row.stage ?? '') as string,
+    submittedBy: (row.submitted_by ?? row.submittedBy ?? '') as string,
+    submittedAt: (row.submitted_at ?? row.submittedAt ?? '') as string,
+    values: (row.field_values ?? row.values ?? {}) as FormSubmission['values'],
+    status: (row.status ?? 'completed') as FormSubmission['status'],
+  };
+}
+
+export function mapFormSubmissionToDb(s: Partial<FormSubmission>): DbRecord {
+  const out: DbRecord = {};
+  if (s.id !== undefined) out.id = s.id;
+  if (s.formTemplateId !== undefined) out.form_template_id = s.formTemplateId;
+  if (s.formName !== undefined) out.form_name = s.formName;
+  if (s.requestId !== undefined) out.request_id = s.requestId;
+  if (s.stage !== undefined) out.stage = s.stage;
+  if (s.submittedBy !== undefined) out.submitted_by = s.submittedBy;
+  if (s.submittedAt !== undefined) out.submitted_at = s.submittedAt;
+  if (s.values !== undefined) out.field_values = s.values;
+  if (s.status !== undefined) out.status = s.status;
+  return out;
+}
+
 // ── Notifications ───────────────────────────────────────────────────
 
 export function mapDbToNotification(row: DbRecord): Notification {

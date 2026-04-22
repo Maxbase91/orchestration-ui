@@ -11,8 +11,8 @@ import {
   AlertTriangle,
   Sparkles,
 } from 'lucide-react';
-import { getComplianceReport } from '@/data/compliance-reports';
-import { getIntegrationsForRequest } from '@/data/system-integrations';
+import { useComplianceReport } from '@/lib/db/hooks/use-compliance-reports';
+import { useIntegrationsByRequest } from '@/lib/db/hooks/use-system-integrations';
 import { SystemIntegrationBadge } from '@/components/shared/system-integration-badge';
 
 const priorityConfig: Record<string, { icon: typeof ArrowUp; color: string }> = {
@@ -49,8 +49,8 @@ export function WorkflowCard({ request, onClick }: WorkflowCardProps) {
   const priority = priorityConfig[request.priority] ?? priorityConfig.medium;
   const PriorityIcon = priority.icon;
 
-  const complianceReport = getComplianceReport(request.id);
-  const integrations = getIntegrationsForRequest(request.id);
+  const { data: complianceReport } = useComplianceReport(request.id);
+  const { data: integrations = [] } = useIntegrationsByRequest(request.id);
   const activeIntegration = integrations.find((i) => i.status !== 'completed');
 
   const isApproachingSLA = request.daysInStage >= 4 && !request.isOverdue;

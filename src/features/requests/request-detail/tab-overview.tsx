@@ -8,7 +8,7 @@ import { formatCurrency, formatDate } from '@/lib/format';
 import { getAISummary } from '@/lib/mock-ai';
 import { AISuggestionCard } from '@/components/shared/ai-suggestion-card';
 import { ComplianceReportCard } from '@/components/shared/compliance-report-card';
-import { getComplianceReport } from '@/data/compliance-reports';
+import { useComplianceReport } from '@/lib/db/hooks/use-compliance-reports';
 import { useServiceDescription } from '@/lib/db/hooks/use-service-descriptions';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -65,7 +65,7 @@ export function TabOverview({ request }: TabOverviewProps) {
   const owner = lookupUser(request.ownerId);
   const supplier = lookupSupplier(request.supplierId);
   const summary = getAISummary('request', request.id);
-  const complianceReport = getComplianceReport(request.id);
+  const { data: complianceReport } = useComplianceReport(request.id);
   const { data: svcDesc } = useServiceDescription(request.id);
   const [sowExpanded, setSowExpanded] = useState(true);
 
