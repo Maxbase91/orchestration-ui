@@ -1,10 +1,9 @@
 // Shared types + mock seed for intake compliance records.
 // The `intakeComplianceRecords` array is seed-only (Wave 2 migrated reads
-// to `@/lib/db/hooks/use-intake-compliance`); the record type and module-load
-// backfill of `matchingRiskAssessmentIds` still run at import time so the
-// seed endpoint gets consistent data.
-
-import { riskAssessments } from './risk-assessments.js';
+// to `@/lib/db/hooks/use-intake-compliance`). The backfill of
+// `matchingRiskAssessmentIds` now happens at seed time in
+// `api/admin/seed.ts`, not at module load, so this file has no runtime
+// imports (keeps Vercel's NodeNext resolver happy).
 
 export interface IntakeComplianceRecord {
   requestId: string;
@@ -917,18 +916,6 @@ export const intakeComplianceRecords: IntakeComplianceRecord[] = [
     riskFlags: [],
   },
 ];
-
-// Back-fill matchingRiskAssessmentIds from RiskAssessment.linkedRequestIds so seed records
-// reflect the new entity without each being touched by hand.
-for (const record of intakeComplianceRecords) {
-  if (record.matchingRiskAssessmentIds && record.matchingRiskAssessmentIds.length > 0) continue;
-  const matches = riskAssessments
-    .filter((ra) => ra.reusable && ra.status === 'completed' && ra.linkedRequestIds.includes(record.requestId))
-    .map((ra) => ra.id);
-  if (matches.length > 0) {
-    record.matchingRiskAssessmentIds = matches;
-  }
-}
 
 export function getIntakeCompliance(requestId: string): IntakeComplianceRecord | undefined {
   return intakeComplianceRecords.find((r) => r.requestId === requestId);

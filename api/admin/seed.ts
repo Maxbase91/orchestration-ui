@@ -245,10 +245,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       'id',
     );
 
-    // 17. Intake compliance records.
+    // 17. Intake compliance records (back-fill matchingRiskAssessmentIds
+    // from riskAssessments.linkedRequestIds right before insert).
+    const intakeWithMatches = intakeComplianceRecords.map((r) => {
+      if (r.matchingRiskAssessmentIds && r.matchingRiskAssessmentIds.length > 0) return r;
+      const matches = riskAssessments
+        .filter((ra) => ra.reusable && ra.status === 'completed' && ra.linkedRequestIds.includes(r.requestId))
+        .map((ra) => ra.id);
+      return matches.length > 0 ? { ...r, matchingRiskAssessmentIds: matches } : r;
+    });
     counts.intake_compliance_records = await upsert(
       'intake_compliance_records',
-      intakeComplianceRecords.map((r) => mapIntakeComplianceToDb(r)),
+      intakeWithMatches.map((r) => mapIntakeComplianceToDb(r)),
       'request_id',
     );
 
