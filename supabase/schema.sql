@@ -341,6 +341,34 @@ CREATE TABLE IF NOT EXISTS risk_assessments (
   created_at TIMESTAMP DEFAULT now()
 );
 
+-- Form Templates (admin-configurable dynamic forms)
+CREATE TABLE IF NOT EXISTS form_templates (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT,
+  status TEXT DEFAULT 'draft',
+  category TEXT,
+  trigger_stages TEXT[] DEFAULT '{}',
+  trigger_conditions JSONB DEFAULT '[]',
+  fields JSONB NOT NULL DEFAULT '[]',
+  version TEXT DEFAULT '1.0',
+  last_modified TEXT,
+  created_by TEXT,
+  updated_at TIMESTAMP DEFAULT now()
+);
+
+-- Intake Compliance Records (validation-stage output: buying channel, SRA, policy checks, …)
+CREATE TABLE IF NOT EXISTS intake_compliance_records (
+  request_id TEXT PRIMARY KEY REFERENCES requests(id) ON DELETE CASCADE,
+  determined_at TIMESTAMP,
+  buying_channel JSONB NOT NULL,
+  sra_check JSONB NOT NULL,
+  policy_checks JSONB NOT NULL DEFAULT '[]',
+  duplicate_check JSONB NOT NULL,
+  risk_flags TEXT[] DEFAULT '{}',
+  matching_risk_assessment_ids TEXT[] DEFAULT '{}'
+);
+
 -- Audit Entries (persisted audit log; replaces in-memory array in admin store)
 CREATE TABLE IF NOT EXISTS audit_entries (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -418,6 +446,8 @@ ALTER TABLE form_submissions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE approval_entries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE risk_assessments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE form_templates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE intake_compliance_records ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_entries ENABLE ROW LEVEL SECURITY;
 
 -- Policies are recreated idempotently so this script can be re-run.
@@ -437,6 +467,8 @@ DROP POLICY IF EXISTS "Allow all" ON form_submissions;
 DROP POLICY IF EXISTS "Allow all" ON approval_entries;
 DROP POLICY IF EXISTS "Allow all" ON notifications;
 DROP POLICY IF EXISTS "Allow all" ON risk_assessments;
+DROP POLICY IF EXISTS "Allow all" ON form_templates;
+DROP POLICY IF EXISTS "Allow all" ON intake_compliance_records;
 DROP POLICY IF EXISTS "Allow all" ON audit_entries;
 
 CREATE POLICY "Allow all" ON suppliers FOR ALL USING (true) WITH CHECK (true);
@@ -455,6 +487,8 @@ CREATE POLICY "Allow all" ON form_submissions FOR ALL USING (true) WITH CHECK (t
 CREATE POLICY "Allow all" ON approval_entries FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON notifications FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON risk_assessments FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all" ON form_templates FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all" ON intake_compliance_records FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON audit_entries FOR ALL USING (true) WITH CHECK (true);
 
 -- Indexes for common queries

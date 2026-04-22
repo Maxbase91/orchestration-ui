@@ -25,7 +25,10 @@ import {
 import { systemColors, systemLabels } from '@/data/system-integrations';
 import type { ExternalSystem } from '@/data/system-integrations';
 import { useSubmissionLookup, useFormSubmissions } from '@/lib/db/hooks/use-form-submissions';
-import { getFormTemplate, getFormsForStage } from '@/data/form-templates';
+import {
+  useFormTemplates,
+  useFormTemplateLookup,
+} from '@/lib/db/hooks/use-form-templates';
 import type { FormTemplate } from '@/data/form-templates';
 import { FormSubmissionView } from '@/components/shared/form-submission-view';
 import { DynamicForm } from '@/components/shared/dynamic-form';
@@ -413,7 +416,9 @@ function FormsSection({
   const [expandedFormId, setExpandedFormId] = useState<string | null>(null);
   const [submittedForms, setSubmittedForms] = useState<Set<string>>(new Set());
   useFormSubmissions();
+  useFormTemplates();
   const { forStage } = useSubmissionLookup();
+  const { byId: lookupTemplate, forStage: templatesForStage } = useFormTemplateLookup();
 
   // Get actual form submissions for this stage
   const submissions = forStage(requestId, stage);
@@ -421,7 +426,7 @@ function FormsSection({
   // For current steps, check for triggered forms that haven't been submitted
   const triggeredForms: FormTemplate[] = [];
   if (status === 'current') {
-    const allFormsForStage = getFormsForStage(stage);
+    const allFormsForStage = templatesForStage(stage);
     for (const form of allFormsForStage) {
       // Check trigger conditions
       if (form.triggerConditions && form.triggerConditions.length > 0) {
@@ -465,7 +470,7 @@ function FormsSection({
 
       {/* Actual form submissions (preferred over legacy) */}
       {submissions.map((sub) => {
-        const template = getFormTemplate(sub.formTemplateId);
+        const template = lookupTemplate(sub.formTemplateId);
         return (
           <div key={sub.id} className="pl-5">
             <FormSubmissionView submission={sub} template={template} compact />

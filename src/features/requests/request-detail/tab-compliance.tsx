@@ -1,5 +1,5 @@
 import type { ProcurementRequest } from '@/data/types';
-import { getIntakeCompliance } from '@/data/request-compliance';
+import { useIntakeCompliance } from '@/lib/db/hooks/use-intake-compliance';
 import { useComplianceReport } from '@/lib/db/hooks/use-compliance-reports';
 import { useRiskAssessmentLookup, useRiskAssessments } from '@/lib/db/hooks/use-risk-assessments';
 import { ComplianceReportCard } from '@/components/shared/compliance-report-card';
@@ -33,7 +33,7 @@ const sraStatusConfig: Record<string, { label: string; icon: typeof CheckCircle;
 export function TabCompliance({ request }: TabComplianceProps) {
   useRiskAssessments();
   const lookupRiskAssessment = useRiskAssessmentLookup();
-  const intake = getIntakeCompliance(request.id);
+  const { data: intake } = useIntakeCompliance(request.id);
   const { data: complianceReport } = useComplianceReport(request.id);
 
   if (!intake) {

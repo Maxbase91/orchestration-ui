@@ -7,7 +7,7 @@ import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
 import type { Supplier } from '@/data/types';
 import { useContracts } from '@/lib/db/hooks/use-contracts';
 import { useMatchingRiskAssessments } from '@/lib/db/hooks/use-risk-assessments';
-import { getFormTemplate } from '@/data/form-templates';
+import { useFormTemplate } from '@/lib/db/hooks/use-form-templates';
 import { DynamicForm } from '@/components/shared/dynamic-form';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { BuyingChannel, RiskAssessment } from '@/data/types';
@@ -313,7 +313,7 @@ function RiskAssessmentTriageSection({
     [],
   );
 
-  const template = getFormTemplate('FORM-001');
+  const { data: template } = useFormTemplate('FORM-001');
   if (!template) return null;
 
   const prePopulateContext: Record<string, string> = {
@@ -544,7 +544,7 @@ function ITSecurityAssessmentSection() {
   const [collapsed, setCollapsed] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
-  const template = getFormTemplate('FORM-006');
+  const { data: template } = useFormTemplate('FORM-006');
   if (!template) return null;
 
   return (

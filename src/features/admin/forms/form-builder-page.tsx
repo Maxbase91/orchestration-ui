@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   Plus,
   GripVertical,
@@ -32,7 +32,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { formTemplates } from '@/data/form-templates';
+import { useFormTemplates } from '@/lib/db/hooks/use-form-templates';
 import type { FormTemplate, FormField, FormFieldType } from '@/data/form-templates';
 import { DynamicForm } from '@/components/shared/dynamic-form';
 
@@ -118,10 +118,19 @@ const categoryBadge: Record<string, string> = {
 // ── Page Component ──────────────────────────────────────────────────
 
 export function FormBuilderPage() {
-  const [forms, setForms] = useState<FormTemplate[]>(() => [...formTemplates]);
-  const [selectedFormId, setSelectedFormId] = useState<string | null>(forms[0]?.id ?? null);
+  const { data: serverForms = [] } = useFormTemplates();
+  const [forms, setForms] = useState<FormTemplate[]>([]);
+  const [selectedFormId, setSelectedFormId] = useState<string | null>(null);
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
   const [addFieldOpen, setAddFieldOpen] = useState(false);
+
+  // Initialise local edit state from the server list on first load.
+  useEffect(() => {
+    if (forms.length === 0 && serverForms.length > 0) {
+      setForms(serverForms);
+      setSelectedFormId((prev) => prev ?? serverForms[0]?.id ?? null);
+    }
+  }, [forms.length, serverForms]);
 
   const selectedForm = forms.find((f) => f.id === selectedFormId) ?? null;
   const selectedField = selectedForm?.fields.find((f) => f.id === selectedFieldId) ?? null;

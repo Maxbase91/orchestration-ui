@@ -17,6 +17,8 @@ import { notifications } from '../../src/data/notifications.js';
 import { complianceReports } from '../../src/data/compliance-reports.js';
 import { systemIntegrations } from '../../src/data/system-integrations.js';
 import { formSubmissions } from '../../src/data/form-submissions.js';
+import { formTemplates } from '../../src/data/form-templates.js';
+import { intakeComplianceRecords } from '../../src/data/request-compliance.js';
 
 import {
   mapRequestToDb,
@@ -31,6 +33,8 @@ import {
   mapComplianceReportToDb,
   mapSystemIntegrationToDb,
   mapFormSubmissionToDb,
+  mapFormTemplateToDb,
+  mapIntakeComplianceToDb,
 } from '../../src/lib/db/mappers.js';
 
 type DbRow = Record<string, unknown>;
@@ -213,6 +217,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         values: s.values,
       })),
       'id',
+    );
+
+    // 16. Form templates (admin-configurable dynamic forms).
+    counts.form_templates = await upsert(
+      'form_templates',
+      formTemplates.map((t) => mapFormTemplateToDb(t)),
+      'id',
+    );
+
+    // 17. Intake compliance records (keyed by request_id; matchingRiskAssessmentIds
+    // is populated by the module-load backfill in src/data/request-compliance.ts).
+    counts.intake_compliance_records = await upsert(
+      'intake_compliance_records',
+      intakeComplianceRecords.map((r) => mapIntakeComplianceToDb(r)),
+      'request_id',
     );
 
     return res.status(201).json({ message: 'Seed complete', counts });

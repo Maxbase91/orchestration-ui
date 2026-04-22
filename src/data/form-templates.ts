@@ -1,3 +1,7 @@
+// Shared types + mock seed for form templates.
+// The `formTemplates` array is seed-only (Wave 2 migrated reads to
+// `@/lib/db/hooks/use-form-templates`); types remain here for direct import.
+
 export type FormFieldType =
   | 'text'
   | 'textarea'

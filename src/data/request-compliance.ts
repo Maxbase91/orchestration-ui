@@ -1,3 +1,9 @@
+// Shared types + mock seed for intake compliance records.
+// The `intakeComplianceRecords` array is seed-only (Wave 2 migrated reads
+// to `@/lib/db/hooks/use-intake-compliance`); the record type and module-load
+// backfill of `matchingRiskAssessmentIds` still run at import time so the
+// seed endpoint gets consistent data.
+
 export interface IntakeComplianceRecord {
   requestId: string;
   determinedAt: string;

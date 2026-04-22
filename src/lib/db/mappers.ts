@@ -82,6 +82,73 @@ export function mapSystemIntegrationToDb(i: Partial<SystemIntegration>): DbRecor
   return out;
 }
 
+// ── Form Templates ──────────────────────────────────────────────────
+
+import type { FormTemplate } from '../../data/form-templates';
+
+export function mapDbToFormTemplate(row: DbRecord): FormTemplate {
+  return {
+    id: row.id as string,
+    name: row.name as string,
+    description: (row.description ?? '') as string,
+    status: (row.status ?? 'draft') as FormTemplate['status'],
+    category: (row.category ?? '') as string,
+    triggerStages: (row.trigger_stages ?? row.triggerStages ?? []) as string[],
+    triggerConditions: (row.trigger_conditions ?? row.triggerConditions ?? []) as FormTemplate['triggerConditions'],
+    fields: (row.fields ?? []) as FormTemplate['fields'],
+    version: (row.version ?? '1.0') as string,
+    lastModified: (row.last_modified ?? row.lastModified ?? '') as string,
+    createdBy: (row.created_by ?? row.createdBy ?? '') as string,
+  };
+}
+
+export function mapFormTemplateToDb(t: Partial<FormTemplate>): DbRecord {
+  const out: DbRecord = {};
+  if (t.id !== undefined) out.id = t.id;
+  if (t.name !== undefined) out.name = t.name;
+  if (t.description !== undefined) out.description = t.description;
+  if (t.status !== undefined) out.status = t.status;
+  if (t.category !== undefined) out.category = t.category;
+  if (t.triggerStages !== undefined) out.trigger_stages = t.triggerStages;
+  if (t.triggerConditions !== undefined) out.trigger_conditions = t.triggerConditions;
+  if (t.fields !== undefined) out.fields = t.fields;
+  if (t.version !== undefined) out.version = t.version;
+  if (t.lastModified !== undefined) out.last_modified = t.lastModified;
+  if (t.createdBy !== undefined) out.created_by = t.createdBy;
+  return out;
+}
+
+// ── Intake Compliance Records ───────────────────────────────────────
+
+import type { IntakeComplianceRecord } from '../../data/request-compliance';
+
+export function mapDbToIntakeCompliance(row: DbRecord): IntakeComplianceRecord {
+  return {
+    requestId: (row.request_id ?? row.requestId ?? '') as string,
+    determinedAt: (row.determined_at ?? row.determinedAt ?? '') as string,
+    buyingChannel: (row.buying_channel ?? row.buyingChannel) as IntakeComplianceRecord['buyingChannel'],
+    sraCheck: (row.sra_check ?? row.sraCheck) as IntakeComplianceRecord['sraCheck'],
+    policyChecks: (row.policy_checks ?? row.policyChecks ?? []) as IntakeComplianceRecord['policyChecks'],
+    duplicateCheck: (row.duplicate_check ?? row.duplicateCheck) as IntakeComplianceRecord['duplicateCheck'],
+    riskFlags: (row.risk_flags ?? row.riskFlags ?? []) as string[],
+    matchingRiskAssessmentIds:
+      (row.matching_risk_assessment_ids ?? row.matchingRiskAssessmentIds) as string[] | undefined,
+  };
+}
+
+export function mapIntakeComplianceToDb(r: IntakeComplianceRecord): DbRecord {
+  return {
+    request_id: r.requestId,
+    determined_at: r.determinedAt,
+    buying_channel: r.buyingChannel,
+    sra_check: r.sraCheck,
+    policy_checks: r.policyChecks,
+    duplicate_check: r.duplicateCheck,
+    risk_flags: r.riskFlags,
+    matching_risk_assessment_ids: r.matchingRiskAssessmentIds ?? [],
+  };
+}
+
 // ── Form Submissions ────────────────────────────────────────────────
 
 import type { FormSubmission } from '../../data/form-submissions';
