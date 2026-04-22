@@ -11,9 +11,38 @@ import type {
   RiskAssessment,
   StageHistoryEntry,
   User,
+  Notification,
 } from '../../data/types';
 
 type DbRecord = Record<string, unknown>;
+
+// ── Notifications ───────────────────────────────────────────────────
+
+export function mapDbToNotification(row: DbRecord): Notification {
+  return {
+    id: row.id as string,
+    type: (row.type ?? 'system-alert') as Notification['type'],
+    title: row.title as string,
+    description: (row.description ?? '') as string,
+    timestamp: (row.timestamp ?? '') as string,
+    isRead: (row.is_read ?? row.isRead ?? false) as boolean,
+    actionUrl: (row.action_url ?? row.actionUrl) as string | undefined,
+    relatedId: (row.related_id ?? row.relatedId) as string | undefined,
+  };
+}
+
+export function mapNotificationToDb(n: Partial<Notification>): DbRecord {
+  const out: DbRecord = {};
+  if (n.id !== undefined) out.id = n.id;
+  if (n.type !== undefined) out.type = n.type;
+  if (n.title !== undefined) out.title = n.title;
+  if (n.description !== undefined) out.description = n.description;
+  if (n.timestamp !== undefined) out.timestamp = n.timestamp;
+  if (n.isRead !== undefined) out.is_read = n.isRead;
+  if (n.actionUrl !== undefined) out.action_url = n.actionUrl;
+  if (n.relatedId !== undefined) out.related_id = n.relatedId;
+  return out;
+}
 
 // ── Users ───────────────────────────────────────────────────────────
 

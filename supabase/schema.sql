@@ -188,9 +188,9 @@ BEGIN
   END IF;
 END $$;
 
--- Notifications
+-- Notifications (TEXT PK so mock IDs like NOT-001 round-trip through the seed idempotently)
 CREATE TABLE IF NOT EXISTS notifications (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id TEXT PRIMARY KEY,
   type TEXT,
   title TEXT NOT NULL,
   description TEXT,
@@ -199,6 +199,18 @@ CREATE TABLE IF NOT EXISTS notifications (
   action_url TEXT,
   related_id TEXT
 );
+
+-- Migrate existing deployments from UUID PK to TEXT PK.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'notifications' AND column_name = 'id' AND data_type = 'uuid'
+  ) THEN
+    ALTER TABLE notifications ALTER COLUMN id DROP DEFAULT;
+    ALTER TABLE notifications ALTER COLUMN id TYPE TEXT USING id::text;
+  END IF;
+END $$;
 
 -- Suppliers
 CREATE TABLE IF NOT EXISTS suppliers (

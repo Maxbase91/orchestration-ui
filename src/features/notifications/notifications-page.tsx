@@ -4,7 +4,11 @@ import { PageHeader } from '@/components/shared/page-header';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { notifications as initialNotifications } from '@/data/notifications';
+import {
+  useNotifications,
+  useMarkNotificationRead,
+  useMarkAllNotificationsRead,
+} from '@/lib/db/hooks/use-notifications';
 import { NotificationFeed } from './components/notification-feed';
 import { NotificationPreferences } from './components/notification-preferences';
 import type { Notification } from '@/data/types';
@@ -19,29 +23,25 @@ const filterTabs: { value: string; label: string; type?: Notification['type'] }[
 ];
 
 export function NotificationsPage() {
-  const [items, setItems] = useState<Notification[]>(() =>
-    [...initialNotifications].sort(
-      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-    )
-  );
+  const { data: items = [] } = useNotifications();
+  const markReadMutation = useMarkNotificationRead();
+  const markAllMutation = useMarkAllNotificationsRead();
   const [activeTab, setActiveTab] = useState('all');
 
-  const unreadCount = useMemo(() => items.filter((n) => !n.isRead).length, [items]);
+  const unreadCount = useMemo(() => items.filter((n: Notification) => !n.isRead).length, [items]);
 
   function handleMarkRead(id: string) {
-    setItems((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
-    );
+    markReadMutation.mutate({ id, isRead: true });
   }
 
   function handleMarkAllRead() {
-    setItems((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    markAllMutation.mutate();
   }
 
   const filtered = useMemo(() => {
     if (activeTab === 'all') return items;
-    if (activeTab === 'unread') return items.filter((n) => !n.isRead);
-    return items.filter((n) => n.type === activeTab);
+    if (activeTab === 'unread') return items.filter((n: Notification) => !n.isRead);
+    return items.filter((n: Notification) => n.type === activeTab);
   }, [items, activeTab]);
 
   return (

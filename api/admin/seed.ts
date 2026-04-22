@@ -13,6 +13,7 @@ import { purchaseOrders } from '../../src/data/purchase-orders.js';
 import { invoices } from '../../src/data/invoices.js';
 import { approvalEntries } from '../../src/data/approval-entries.js';
 import { riskAssessments } from '../../src/data/risk-assessments.js';
+import { notifications } from '../../src/data/notifications.js';
 
 import {
   mapRequestToDb,
@@ -23,6 +24,7 @@ import {
   mapApprovalToDb,
   mapRiskAssessmentToDb,
   mapCommentToDb,
+  mapNotificationToDb,
 } from '../../src/lib/db/mappers.js';
 
 type DbRow = Record<string, unknown>;
@@ -172,6 +174,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     counts.risk_assessments = await upsert(
       'risk_assessments',
       riskAssessments.map((r) => mapRiskAssessmentToDb(r)),
+      'id',
+    );
+
+    // 12. Notifications (no FKs, simple append).
+    counts.notifications = await upsert(
+      'notifications',
+      notifications.map((n) => mapNotificationToDb(n)),
       'id',
     );
 

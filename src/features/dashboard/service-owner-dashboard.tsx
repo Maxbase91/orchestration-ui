@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { AlertCircle } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 import { useRequests } from '@/lib/db/hooks/use-requests';
-import { notifications } from '@/data/notifications';
+import { useNotifications } from '@/lib/db/hooks/use-notifications';
 import { formatCurrency, formatRelativeTime } from '@/lib/format';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { AISuggestionCard } from '@/components/shared/ai-suggestion-card';
@@ -18,6 +18,7 @@ export function ServiceOwnerDashboard() {
   const { currentUser } = useAuthStore();
   const navigate = useNavigate();
   const { data: requests = [] } = useRequests();
+  const { data: notifications = [] } = useNotifications();
 
   const myRequests = useMemo(() => {
     return requests
