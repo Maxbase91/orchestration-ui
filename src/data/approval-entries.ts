@@ -1,3 +1,8 @@
+// Seed data only — not read by the runtime app.
+//
+// Approval entries moved to Supabase in Wave 1. UI reads via
+// `@/lib/db/hooks/use-approvals`.
+
 import type { ApprovalEntry } from './types';
 
 export const approvalEntries: ApprovalEntry[] = [

@@ -4,7 +4,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { DataTable, type Column } from '@/components/shared/data-table';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { requests } from '@/data/requests';
-import { approvalEntries } from '@/data/approval-entries';
+import { useApprovals } from '@/lib/db/hooks/use-approvals';
 import { useUserLookup, useUsers } from '@/lib/db/hooks/use-users';
 import { formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -52,6 +52,7 @@ const PriorityIndicator = ({ priority }: { priority: string }) => {
 export function TeamTasksPage() {
   const navigate = useNavigate();
   const { data: users = [] } = useUsers();
+  const { data: approvalEntries = [] } = useApprovals();
   const lookupUser = useUserLookup();
   const [selectedUser, setSelectedUser] = useState<string>('all');
 
@@ -110,7 +111,7 @@ export function TeamTasksPage() {
     });
 
     return result;
-  }, [lookupUser]);
+  }, [lookupUser, approvalEntries]);
 
   const filteredTasks = useMemo(() => {
     if (selectedUser === 'all') return allTasks;

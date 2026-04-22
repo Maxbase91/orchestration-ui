@@ -11,7 +11,6 @@ import type {
   RiskAssessment,
 } from '@/data/types';
 import { requests as seedRequests } from '@/data/requests';
-import { approvalEntries as seedApprovals } from '@/data/approval-entries';
 import { workflowTemplates as seedWorkflows } from '@/data/workflows';
 import { useAuthStore } from '@/stores/auth-store';
 import { queryClient } from '@/lib/query-client';
@@ -40,6 +39,11 @@ import {
   updateInvoice as dbUpdateInvoice,
   deleteInvoice as dbDeleteInvoice,
 } from '@/lib/db/invoices';
+import {
+  createApproval as dbCreateApproval,
+  updateApproval as dbUpdateApproval,
+  deleteApproval as dbDeleteApproval,
+} from '@/lib/db/approvals';
 
 /**
  * Which entities are backed by Supabase (edits persist across sessions and
@@ -52,6 +56,7 @@ const LIVE_ENTITIES = new Set<string>([
   'riskAssessment',
   'purchaseOrder',
   'invoice',
+  'approval',
 ]);
 
 export function isLiveEntity(key: string): boolean {
@@ -145,7 +150,7 @@ export const useDatabaseAdminStore = create<DatabaseAdminState>((set, get) => ({
   purchaseOrder: [],
   invoice: [],
   request: cloneRecords(seedRequests),
-  approval: cloneRecords(seedApprovals),
+  approval: [],
   workflow: cloneRecords(seedWorkflows),
   audit: [],
   syncList: (key, list) =>
@@ -213,6 +218,18 @@ export const useDatabaseAdminStore = create<DatabaseAdminState>((set, get) => ({
       });
       return;
     }
+    if (key === 'approval') {
+      const saved = await dbUpdateApproval(id, patch as Partial<ApprovalEntry>);
+      await queryClient.invalidateQueries({ queryKey: ['approvals'] });
+      set((state) => {
+        const list = state.approval;
+        const idx = list.findIndex((a) => a.id === id);
+        const next = idx >= 0 ? [...list.slice(0, idx), saved, ...list.slice(idx + 1)] : [saved, ...list];
+        const audit = makeAuditEntry('record.update', 'approval', id, detail);
+        return { ...state, approval: next, audit: [audit, ...state.audit] };
+      });
+      return;
+    }
     set((state) => localUpdate(state, key, id, patch, detail));
   },
   create: async (key, record) => {
@@ -260,6 +277,15 @@ export const useDatabaseAdminStore = create<DatabaseAdminState>((set, get) => ({
       set((state) => {
         const audit = makeAuditEntry('record.create', 'invoice', saved.id, detail);
         return { ...state, invoice: [saved, ...state.invoice], audit: [audit, ...state.audit] };
+      });
+      return;
+    }
+    if (key === 'approval') {
+      const saved = await dbCreateApproval(record as ApprovalEntry);
+      await queryClient.invalidateQueries({ queryKey: ['approvals'] });
+      set((state) => {
+        const audit = makeAuditEntry('record.create', 'approval', saved.id, detail);
+        return { ...state, approval: [saved, ...state.approval], audit: [audit, ...state.audit] };
       });
       return;
     }
@@ -320,6 +346,15 @@ export const useDatabaseAdminStore = create<DatabaseAdminState>((set, get) => ({
       });
       return;
     }
+    if (key === 'approval') {
+      await dbDeleteApproval(id);
+      await queryClient.invalidateQueries({ queryKey: ['approvals'] });
+      set((state) => {
+        const audit = makeAuditEntry('record.delete', 'approval', id, detail);
+        return { ...state, approval: state.approval.filter((a) => a.id !== id), audit: [audit, ...state.audit] };
+      });
+      return;
+    }
     set((state) => {
       const list = state[key] as EntityRecordMap[typeof key][];
       const next = list.filter((r) => (r as { id: string }).id !== id);
@@ -333,7 +368,6 @@ export const useDatabaseAdminStore = create<DatabaseAdminState>((set, get) => ({
     set({
       ...get(),
       request: cloneRecords(seedRequests),
-      approval: cloneRecords(seedApprovals),
       workflow: cloneRecords(seedWorkflows),
       audit: [],
     });
@@ -342,6 +376,7 @@ export const useDatabaseAdminStore = create<DatabaseAdminState>((set, get) => ({
     queryClient.invalidateQueries({ queryKey: ['risk-assessments'] });
     queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
     queryClient.invalidateQueries({ queryKey: ['invoices'] });
+    queryClient.invalidateQueries({ queryKey: ['approvals'] });
   },
 }));
 

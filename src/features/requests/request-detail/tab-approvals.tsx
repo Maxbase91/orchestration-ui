@@ -1,5 +1,5 @@
 import type { ProcurementRequest } from '@/data/types';
-import { getApprovalsByRequestId } from '@/data/approval-entries';
+import { useApprovalLookup, useApprovals } from '@/lib/db/hooks/use-approvals';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,7 +12,9 @@ interface TabApprovalsProps {
 }
 
 export function TabApprovals({ request }: TabApprovalsProps) {
-  const approvals = getApprovalsByRequestId(request.id);
+  useApprovals();
+  const { byRequest } = useApprovalLookup();
+  const approvals = byRequest(request.id);
 
   function handleRemind(approverName: string) {
     toast.success(`Reminder sent to ${approverName}`);

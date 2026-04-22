@@ -5,7 +5,7 @@ import { DataTable, type Column } from '@/components/shared/data-table';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { useAuthStore } from '@/stores/auth-store';
 import { requests } from '@/data/requests';
-import { approvalEntries } from '@/data/approval-entries';
+import { useApprovals } from '@/lib/db/hooks/use-approvals';
 import { formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { AlertCircle, ArrowUp, ArrowRight, ArrowDown } from 'lucide-react';
@@ -49,6 +49,7 @@ const PriorityIndicator = ({ priority }: { priority: string }) => {
 export function MyTasksPage() {
   const navigate = useNavigate();
   const currentUser = useAuthStore((s) => s.currentUser);
+  const { data: approvalEntries = [] } = useApprovals();
 
   const tasks = useMemo<TaskRow[]>(() => {
     const result: TaskRow[] = [];
@@ -102,7 +103,7 @@ export function MyTasksPage() {
     });
 
     return result;
-  }, [currentUser.id]);
+  }, [currentUser.id, approvalEntries]);
 
   const columns: Column<TaskRow>[] = [
     {
