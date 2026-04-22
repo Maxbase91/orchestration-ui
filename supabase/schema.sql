@@ -64,7 +64,10 @@ DO $$ BEGIN
   ALTER TABLE stage_history
     ADD CONSTRAINT stage_history_natural_key
     UNIQUE (request_id, stage, entered_at);
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+  WHEN duplicate_table THEN NULL;
+END $$;
 
 -- Service Descriptions (SOW)
 CREATE TABLE IF NOT EXISTS service_descriptions (
