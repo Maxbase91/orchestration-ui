@@ -1,42 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabaseAdmin, requireAdminSecret } from '../_supabase-admin.js';
 
-// Import mock data by relative path (Vercel bundles the TS files).
-import { users } from '../../src/data/users.js';
-import { requests } from '../../src/data/requests.js';
-import { stageHistory } from '../../src/data/stage-history.js';
-import { comments } from '../../src/data/comments.js';
-import { serviceDescriptions } from '../../src/data/service-descriptions.js';
-import { suppliers } from '../../src/data/suppliers.js';
-import { contracts } from '../../src/data/contracts.js';
-import { purchaseOrders } from '../../src/data/purchase-orders.js';
-import { invoices } from '../../src/data/invoices.js';
-import { approvalEntries } from '../../src/data/approval-entries.js';
-import { riskAssessments } from '../../src/data/risk-assessments.js';
-import { notifications } from '../../src/data/notifications.js';
-import { complianceReports } from '../../src/data/compliance-reports.js';
-import { systemIntegrations } from '../../src/data/system-integrations.js';
-import { formSubmissions } from '../../src/data/form-submissions.js';
-import { formTemplates } from '../../src/data/form-templates.js';
-import { intakeComplianceRecords } from '../../src/data/request-compliance.js';
-
-import {
-  mapRequestToDb,
-  mapSupplierToDb,
-  mapContractToDb,
-  mapPurchaseOrderToDb,
-  mapInvoiceToDb,
-  mapApprovalToDb,
-  mapRiskAssessmentToDb,
-  mapCommentToDb,
-  mapNotificationToDb,
-  mapComplianceReportToDb,
-  mapSystemIntegrationToDb,
-  mapFormSubmissionToDb,
-  mapFormTemplateToDb,
-  mapIntakeComplianceToDb,
-} from '../../src/lib/db/mappers.js';
-
 type DbRow = Record<string, unknown>;
 
 function chunks<T>(arr: T[], size = 200): T[][] {
@@ -67,8 +31,67 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(401).json({ error: 'Unauthorized: missing or invalid x-admin-secret header' });
   }
 
+  const counts: Record<string, number> = {};
+
   try {
-    const counts: Record<string, number> = {};
+    // Dynamic imports so a failure in any single data file surfaces at
+    // runtime (with a stack), not at module-load time.
+    const [
+      { users },
+      { requests },
+      { stageHistory },
+      { comments },
+      { serviceDescriptions },
+      { suppliers },
+      { contracts },
+      { purchaseOrders },
+      { invoices },
+      { approvalEntries },
+      { riskAssessments },
+      { notifications },
+      { complianceReports },
+      { systemIntegrations },
+      { formSubmissions },
+      { formTemplates },
+      { intakeComplianceRecords },
+      mappers,
+    ] = await Promise.all([
+      import('../../src/data/users.js'),
+      import('../../src/data/requests.js'),
+      import('../../src/data/stage-history.js'),
+      import('../../src/data/comments.js'),
+      import('../../src/data/service-descriptions.js'),
+      import('../../src/data/suppliers.js'),
+      import('../../src/data/contracts.js'),
+      import('../../src/data/purchase-orders.js'),
+      import('../../src/data/invoices.js'),
+      import('../../src/data/approval-entries.js'),
+      import('../../src/data/risk-assessments.js'),
+      import('../../src/data/notifications.js'),
+      import('../../src/data/compliance-reports.js'),
+      import('../../src/data/system-integrations.js'),
+      import('../../src/data/form-submissions.js'),
+      import('../../src/data/form-templates.js'),
+      import('../../src/data/request-compliance.js'),
+      import('../../src/lib/db/mappers.js'),
+    ]);
+
+    const {
+      mapRequestToDb,
+      mapSupplierToDb,
+      mapContractToDb,
+      mapPurchaseOrderToDb,
+      mapInvoiceToDb,
+      mapApprovalToDb,
+      mapRiskAssessmentToDb,
+      mapCommentToDb,
+      mapNotificationToDb,
+      mapComplianceReportToDb,
+      mapSystemIntegrationToDb,
+      mapFormSubmissionToDb,
+      mapFormTemplateToDb,
+      mapIntakeComplianceToDb,
+    } = mappers;
 
     // 1. Users (no FK dependencies).
     counts.users = await upsert(
@@ -86,7 +109,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       'id',
     );
 
-    // 2. Suppliers (needed before contracts/POs/invoices/risk_assessments).
+    // 2. Suppliers.
     counts.suppliers = await upsert(
       'suppliers',
       suppliers.map((s) => mapSupplierToDb(s)),
@@ -107,21 +130,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       'id',
     );
 
-    // 5. Purchase orders (FK to suppliers, contracts, requests).
+    // 5. Purchase orders.
     counts.purchase_orders = await upsert(
       'purchase_orders',
       purchaseOrders.map((p) => mapPurchaseOrderToDb(p)),
       'id',
     );
 
-    // 6. Invoices (FK to suppliers, purchase_orders).
+    // 6. Invoices.
     counts.invoices = await upsert(
       'invoices',
       invoices.map((i) => mapInvoiceToDb(i)),
       'id',
     );
 
-    // 7. Stage history (FK to requests). Upsert by natural key (request_id, stage, entered_at).
+    // 7. Stage history (natural composite key).
     counts.stage_history = await upsert(
       'stage_history',
       stageHistory.map((s) => ({
@@ -136,7 +159,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       'request_id,stage,entered_at',
     );
 
-    // 8. Comments (TEXT PK — mock CMT-xxx IDs).
+    // 8. Comments.
     counts.comments = await upsert(
       'comments',
       comments.map((c) => ({
@@ -154,7 +177,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       'id',
     );
 
-    // 9. Service descriptions (FK+UNIQUE to requests).
+    // 9. Service descriptions.
     counts.service_descriptions = await upsert(
       'service_descriptions',
       serviceDescriptions.map((s) => ({
@@ -173,29 +196,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       'request_id',
     );
 
-    // 10. Approval entries (FK to requests, users).
+    // 10. Approval entries.
     counts.approval_entries = await upsert(
       'approval_entries',
       approvalEntries.map((a) => mapApprovalToDb(a)),
       'id',
     );
 
-    // 11. Risk assessments (FK to suppliers, contracts).
+    // 11. Risk assessments.
     counts.risk_assessments = await upsert(
       'risk_assessments',
       riskAssessments.map((r) => mapRiskAssessmentToDb(r)),
       'id',
     );
 
-    // 12. Notifications (no FKs, simple append).
+    // 12. Notifications.
     counts.notifications = await upsert(
       'notifications',
       notifications.map((n) => mapNotificationToDb(n)),
       'id',
     );
 
-    // 13. Compliance reports (one per request). Keyed by request_id (UUID PK
-    // is auto-generated, so upsert via request_id).
+    // 13. Compliance reports.
     counts.compliance_reports = await upsert(
       'compliance_reports',
       complianceReports.map((r) => mapComplianceReportToDb(r)),
@@ -212,22 +234,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // 15. Form submissions.
     counts.form_submissions = await upsert(
       'form_submissions',
-      formSubmissions.map((s) => mapFormSubmissionToDb({
-        ...s,
-        values: s.values,
-      })),
+      formSubmissions.map((s) => mapFormSubmissionToDb({ ...s, values: s.values })),
       'id',
     );
 
-    // 16. Form templates (admin-configurable dynamic forms).
+    // 16. Form templates.
     counts.form_templates = await upsert(
       'form_templates',
       formTemplates.map((t) => mapFormTemplateToDb(t)),
       'id',
     );
 
-    // 17. Intake compliance records (keyed by request_id; matchingRiskAssessmentIds
-    // is populated by the module-load backfill in src/data/request-compliance.ts).
+    // 17. Intake compliance records.
     counts.intake_compliance_records = await upsert(
       'intake_compliance_records',
       intakeComplianceRecords.map((r) => mapIntakeComplianceToDb(r)),
