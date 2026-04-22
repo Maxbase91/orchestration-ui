@@ -341,6 +341,29 @@ CREATE TABLE IF NOT EXISTS risk_assessments (
   created_at TIMESTAMP DEFAULT now()
 );
 
+-- Workflow Templates (admin-designed node/edge graphs)
+CREATE TABLE IF NOT EXISTS workflow_templates (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT,
+  type TEXT,
+  nodes JSONB NOT NULL DEFAULT '[]',
+  edges JSONB NOT NULL DEFAULT '[]'
+);
+
+-- Routing Rules (admin-configurable intake classifier)
+CREATE TABLE IF NOT EXISTS routing_rules (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  status TEXT DEFAULT 'draft',
+  conditions JSONB NOT NULL DEFAULT '[]',
+  action JSONB NOT NULL,
+  description TEXT,
+  match_count INTEGER DEFAULT 0,
+  last_modified TEXT,
+  category TEXT
+);
+
 -- AI Agents (admin-configurable)
 CREATE TABLE IF NOT EXISTS ai_agents (
   id TEXT PRIMARY KEY,
@@ -478,6 +501,8 @@ ALTER TABLE form_templates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE intake_compliance_records ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ai_agents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE kpi_data ENABLE ROW LEVEL SECURITY;
+ALTER TABLE workflow_templates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE routing_rules ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_entries ENABLE ROW LEVEL SECURITY;
 
 -- Policies are recreated idempotently so this script can be re-run.
@@ -501,6 +526,8 @@ DROP POLICY IF EXISTS "Allow all" ON form_templates;
 DROP POLICY IF EXISTS "Allow all" ON intake_compliance_records;
 DROP POLICY IF EXISTS "Allow all" ON ai_agents;
 DROP POLICY IF EXISTS "Allow all" ON kpi_data;
+DROP POLICY IF EXISTS "Allow all" ON workflow_templates;
+DROP POLICY IF EXISTS "Allow all" ON routing_rules;
 DROP POLICY IF EXISTS "Allow all" ON audit_entries;
 
 CREATE POLICY "Allow all" ON suppliers FOR ALL USING (true) WITH CHECK (true);
@@ -523,6 +550,8 @@ CREATE POLICY "Allow all" ON form_templates FOR ALL USING (true) WITH CHECK (tru
 CREATE POLICY "Allow all" ON intake_compliance_records FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON ai_agents FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON kpi_data FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all" ON workflow_templates FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all" ON routing_rules FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON audit_entries FOR ALL USING (true) WITH CHECK (true);
 
 -- Indexes for common queries

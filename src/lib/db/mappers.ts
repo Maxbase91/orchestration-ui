@@ -20,7 +20,7 @@ import type { SystemIntegration } from '../../data/system-integrations.js';
 import type { FormSubmission } from '../../data/form-submissions.js';
 import type { FormTemplate } from '../../data/form-templates.js';
 import type { IntakeComplianceRecord } from '../../data/request-compliance.js';
-import type { AIAgent, KPIDataPoint } from '../../data/types.js';
+import type { AIAgent, KPIDataPoint, WorkflowTemplate, RoutingRule } from '../../data/types.js';
 
 type DbRecord = Record<string, unknown>;
 
@@ -176,6 +176,60 @@ export function mapFormSubmissionToDb(s: Partial<FormSubmission>): DbRecord {
   if (s.submittedAt !== undefined) out.submitted_at = s.submittedAt;
   if (s.values !== undefined) out.field_values = s.values;
   if (s.status !== undefined) out.status = s.status;
+  return out;
+}
+
+// ── Workflow Templates ──────────────────────────────────────────────
+
+export function mapDbToWorkflowTemplate(row: DbRecord): WorkflowTemplate {
+  return {
+    id: row.id as string,
+    name: row.name as string,
+    description: (row.description ?? '') as string,
+    type: (row.type ?? '') as string,
+    nodes: (row.nodes ?? []) as WorkflowTemplate['nodes'],
+    edges: (row.edges ?? []) as WorkflowTemplate['edges'],
+  };
+}
+
+export function mapWorkflowTemplateToDb(w: Partial<WorkflowTemplate>): DbRecord {
+  const out: DbRecord = {};
+  if (w.id !== undefined) out.id = w.id;
+  if (w.name !== undefined) out.name = w.name;
+  if (w.description !== undefined) out.description = w.description;
+  if (w.type !== undefined) out.type = w.type;
+  if (w.nodes !== undefined) out.nodes = w.nodes;
+  if (w.edges !== undefined) out.edges = w.edges;
+  return out;
+}
+
+// ── Routing Rules ───────────────────────────────────────────────────
+
+export function mapDbToRoutingRule(row: DbRecord): RoutingRule {
+  return {
+    id: row.id as string,
+    name: row.name as string,
+    status: (row.status ?? 'draft') as RoutingRule['status'],
+    conditions: (row.conditions ?? []) as RoutingRule['conditions'],
+    action: (row.action ?? { buyingChannel: 'procurement-led', approvalChain: '' }) as RoutingRule['action'],
+    description: (row.description ?? '') as string,
+    matchCount: (row.match_count ?? row.matchCount ?? 0) as number,
+    lastModified: (row.last_modified ?? row.lastModified ?? '') as string,
+    category: (row.category ?? '') as string,
+  };
+}
+
+export function mapRoutingRuleToDb(r: Partial<RoutingRule>): DbRecord {
+  const out: DbRecord = {};
+  if (r.id !== undefined) out.id = r.id;
+  if (r.name !== undefined) out.name = r.name;
+  if (r.status !== undefined) out.status = r.status;
+  if (r.conditions !== undefined) out.conditions = r.conditions;
+  if (r.action !== undefined) out.action = r.action;
+  if (r.description !== undefined) out.description = r.description;
+  if (r.matchCount !== undefined) out.match_count = r.matchCount;
+  if (r.lastModified !== undefined) out.last_modified = r.lastModified;
+  if (r.category !== undefined) out.category = r.category;
   return out;
 }
 

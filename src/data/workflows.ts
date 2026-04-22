@@ -1,3 +1,7 @@
+// Seed data only — not read by the runtime app.
+// Workflow templates moved to Supabase in Wave 3
+// (UI uses `@/lib/db/hooks/use-workflow-templates`).
+
 import type { WorkflowTemplate } from './types';
 
 export const workflowTemplates: WorkflowTemplate[] = [

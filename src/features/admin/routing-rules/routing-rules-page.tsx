@@ -1,14 +1,21 @@
-import { useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { PageHeader } from '@/components/shared/page-header';
-import { routingRules } from '@/data/routing-rules';
+import { useRoutingRules } from '@/lib/db/hooks/use-routing-rules';
 import type { RoutingRule } from '@/data/types';
 import { RuleListPanel } from './components/rule-list-panel';
 import { RuleEditorPanel } from './components/rule-editor-panel';
 import { RuleTestPanel } from './components/rule-test-panel';
 
 export function RoutingRulesPage() {
-  const [rules, setRules] = useState<RoutingRule[]>(routingRules);
-  const [selectedRuleId, setSelectedRuleId] = useState<string | null>(rules[0]?.id ?? null);
+  const { data: serverRules = [] } = useRoutingRules();
+  const [rules, setRules] = useState<RoutingRule[]>([]);
+  const [selectedRuleId, setSelectedRuleId] = useState<string | null>(null);
+  useEffect(() => {
+    if (rules.length === 0 && serverRules.length > 0) {
+      setRules(serverRules);
+      setSelectedRuleId((prev) => prev ?? serverRules[0]?.id ?? null);
+    }
+  }, [rules.length, serverRules]);
 
   const selectedRule = rules.find((r) => r.id === selectedRuleId) ?? null;
 

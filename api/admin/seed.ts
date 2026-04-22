@@ -56,6 +56,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       { intakeComplianceRecords },
       { aiAgents },
       { kpiData },
+      { workflowTemplates },
+      { routingRules },
       mappers,
     ] = await Promise.all([
       import('../../src/data/users.js'),
@@ -77,6 +79,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       import('../../src/data/request-compliance.js'),
       import('../../src/data/ai-agents.js'),
       import('../../src/data/kpi-data.js'),
+      import('../../src/data/workflows.js'),
+      import('../../src/data/routing-rules.js'),
       import('../../src/lib/db/mappers.js'),
     ]);
 
@@ -97,6 +101,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       mapIntakeComplianceToDb,
       mapAiAgentToDb,
       mapKpiToDb,
+      mapWorkflowTemplateToDb,
+      mapRoutingRuleToDb,
     } = mappers;
 
     // 1. Users (no FK dependencies).
@@ -278,6 +284,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       'kpi_data',
       kpiData.map((k) => mapKpiToDb(k)),
       'month',
+    );
+
+    // 20. Workflow templates (node/edge graphs).
+    counts.workflow_templates = await upsert(
+      'workflow_templates',
+      workflowTemplates.map((w) => mapWorkflowTemplateToDb(w)),
+      'id',
+    );
+
+    // 21. Routing rules.
+    counts.routing_rules = await upsert(
+      'routing_rules',
+      routingRules.map((r) => mapRoutingRuleToDb(r)),
+      'id',
     );
 
     return res.status(201).json({ message: 'Seed complete', counts });

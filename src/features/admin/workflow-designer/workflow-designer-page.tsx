@@ -3,7 +3,7 @@ import { Save, Play, Maximize2, Minimize2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { workflowTemplates } from '@/data/workflows';
+import { useWorkflowTemplates } from '@/lib/db/hooks/use-workflow-templates';
 import type { WorkflowTemplate } from '@/data/types';
 import type { Node, Edge } from '@xyflow/react';
 
@@ -43,7 +43,8 @@ function mapTemplateToFlow(template: WorkflowTemplate): { nodes: Node[]; edges: 
 }
 
 export function WorkflowDesignerPage() {
-  const [selectedTemplateId, setSelectedTemplateId] = useState(workflowTemplates[0].id);
+  const { data: workflowTemplates = [] } = useWorkflowTemplates();
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showSimulation, setShowSimulation] = useState(false);
@@ -54,11 +55,20 @@ export function WorkflowDesignerPage() {
   const edgesRef = useRef<Edge[]>([]);
   const canvasWrapperRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    if (!selectedTemplateId && workflowTemplates.length > 0) {
+      setSelectedTemplateId(workflowTemplates[0].id);
+    }
+  }, [selectedTemplateId, workflowTemplates]);
+
   const template = workflowTemplates.find((t) => t.id === selectedTemplateId) ?? workflowTemplates[0];
-  const { nodes: initialNodes, edges: initialEdges } = mapTemplateToFlow(template);
+  const { nodes: initialNodes, edges: initialEdges } = template
+    ? mapTemplateToFlow(template)
+    : { nodes: [] as Node[], edges: [] as Edge[] };
 
   // Initialize refs on template change
   useEffect(() => {
+    if (!template) return;
     const flow = mapTemplateToFlow(template);
     nodesRef.current = flow.nodes;
     edgesRef.current = flow.edges;

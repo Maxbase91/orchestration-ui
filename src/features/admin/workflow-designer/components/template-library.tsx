@@ -1,4 +1,4 @@
-import { workflowTemplates } from '@/data/workflows';
+import { useWorkflowTemplates } from '@/lib/db/hooks/use-workflow-templates';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { BookOpen } from 'lucide-react';
@@ -8,6 +8,7 @@ interface TemplateLibraryProps {
 }
 
 export function TemplateLibrary({ onSelect }: TemplateLibraryProps) {
+  const { data: workflowTemplates = [] } = useWorkflowTemplates();
   return (
     <Dialog>
       <DialogTrigger asChild>

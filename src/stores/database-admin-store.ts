@@ -10,7 +10,6 @@ import type {
   AuditEntry,
   RiskAssessment,
 } from '@/data/types';
-import { workflowTemplates as seedWorkflows } from '@/data/workflows';
 import { useAuthStore } from '@/stores/auth-store';
 import { queryClient } from '@/lib/query-client';
 import {
@@ -62,6 +61,7 @@ const LIVE_ENTITIES = new Set<string>([
   'invoice',
   'approval',
   'request',
+  'workflow',
 ]);
 
 export function isLiveEntity(key: string): boolean {
@@ -105,10 +105,6 @@ interface DatabaseAdminState {
   create: <K extends EntityKey>(key: K, record: EntityRecordMap[K]) => Promise<void>;
   remove: <K extends EntityKey>(key: K, id: string) => Promise<void>;
   reset: () => void;
-}
-
-function cloneRecords<T>(arr: T[]): T[] {
-  return arr.map((item) => (typeof item === 'object' ? structuredClone(item) : item));
 }
 
 function makeAuditEntry(
@@ -156,7 +152,7 @@ export const useDatabaseAdminStore = create<DatabaseAdminState>((set, get) => ({
   invoice: [],
   request: [],
   approval: [],
-  workflow: cloneRecords(seedWorkflows),
+  workflow: [],
   audit: [],
   syncList: (key, list) =>
     set((state) => ({ ...state, [key]: list } as DatabaseAdminState)),
@@ -402,7 +398,7 @@ export const useDatabaseAdminStore = create<DatabaseAdminState>((set, get) => ({
     // re-synced by the sync hook on next fetch.
     set({
       ...get(),
-      workflow: cloneRecords(seedWorkflows),
+      workflow: [],
       audit: [],
     });
     queryClient.invalidateQueries({ queryKey: ['suppliers'] });
