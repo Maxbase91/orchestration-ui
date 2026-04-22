@@ -237,7 +237,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(201).json({ message: 'Seed complete', counts });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
-    console.error('Seed error:', message);
-    return res.status(500).json({ error: message });
+    const stack = err instanceof Error ? err.stack : undefined;
+    console.error('Seed failed:', message, stack);
+    return res.status(500).json({ error: message, stack, counts });
   }
 }

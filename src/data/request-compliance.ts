@@ -4,6 +4,8 @@
 // backfill of `matchingRiskAssessmentIds` still run at import time so the
 // seed endpoint gets consistent data.
 
+import { riskAssessments } from './risk-assessments';
+
 export interface IntakeComplianceRecord {
   requestId: string;
   determinedAt: string;
@@ -915,8 +917,6 @@ export const intakeComplianceRecords: IntakeComplianceRecord[] = [
     riskFlags: [],
   },
 ];
-
-import { riskAssessments } from './risk-assessments';
 
 // Back-fill matchingRiskAssessmentIds from RiskAssessment.linkedRequestIds so seed records
 // reflect the new entity without each being touched by hand.
