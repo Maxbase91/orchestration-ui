@@ -18,6 +18,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
+import type { ProcurementRequest } from '@/data/types';
+import { createNotification } from '@/lib/db/notifications';
+import { useUpdateRequest } from '@/lib/db/hooks/use-requests';
+import { queryClient } from '@/lib/query-client';
 
 const ESCALATION_LEVELS = [
   { value: 'team-lead', label: 'Team Lead' },
@@ -34,20 +38,46 @@ const URGENCY_LEVELS = [
 interface EscalateDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  request: ProcurementRequest;
 }
 
-export function EscalateDialog({ open, onOpenChange }: EscalateDialogProps) {
+export function EscalateDialog({ open, onOpenChange, request }: EscalateDialogProps) {
   const [level, setLevel] = useState('');
   const [urgency, setUrgency] = useState('');
   const [reason, setReason] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const updateRequest = useUpdateRequest();
 
-  function handleSubmit() {
+  async function handleSubmit() {
     if (!level || !reason.trim()) return;
-    toast.success(`Request escalated to ${level.replace('-', ' ')}`);
-    setLevel('');
-    setUrgency('');
-    setReason('');
-    onOpenChange(false);
+    const levelLabel = ESCALATION_LEVELS.find((l) => l.value === level)?.label ?? level;
+    setSubmitting(true);
+    try {
+      await createNotification({
+        id: `NOT-ESC-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        type: 'escalation',
+        title: `${request.id} escalated to ${levelLabel}`,
+        description: `${urgency ? `[${urgency.toUpperCase()}] ` : ''}${reason}`,
+        timestamp: new Date().toISOString(),
+        isRead: false,
+        relatedId: request.id,
+        actionUrl: `/requests/${request.id}`,
+      });
+      if (urgency === 'critical' && request.priority !== 'urgent') {
+        await updateRequest.mutateAsync({ id: request.id, patch: { priority: 'urgent', isUrgent: true } });
+      }
+      await queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      await queryClient.invalidateQueries({ queryKey: ['requests'] });
+      toast.success(`Request escalated to ${levelLabel}`);
+      setLevel('');
+      setUrgency('');
+      setReason('');
+      onOpenChange(false);
+    } catch (err) {
+      toast.error(`Escalate failed: ${err instanceof Error ? err.message : 'unknown'}`);
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -104,8 +134,8 @@ export function EscalateDialog({ open, onOpenChange }: EscalateDialogProps) {
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={!level || !reason.trim()}>
-            Escalate
+          <Button onClick={handleSubmit} disabled={!level || !reason.trim() || submitting}>
+            {submitting ? 'Escalating...' : 'Escalate'}
           </Button>
         </DialogFooter>
       </DialogContent>

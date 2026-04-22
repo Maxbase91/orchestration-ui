@@ -19,24 +19,44 @@ import {
 } from '@/components/ui/select';
 import { useUsers } from '@/lib/db/hooks/use-users';
 import { toast } from 'sonner';
+import type { ProcurementRequest } from '@/data/types';
+import { apiWorkflowAction } from '@/lib/api';
+import { queryClient } from '@/lib/query-client';
 
 interface ReassignDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  request: ProcurementRequest;
 }
 
-export function ReassignDialog({ open, onOpenChange }: ReassignDialogProps) {
+export function ReassignDialog({ open, onOpenChange, request }: ReassignDialogProps) {
   const { data: users = [] } = useUsers();
   const [userId, setUserId] = useState('');
   const [reason, setReason] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  function handleSubmit() {
+  async function handleSubmit() {
     if (!userId || !reason.trim()) return;
     const user = users.find((u) => u.id === userId);
-    toast.success(`Request reassigned to ${user?.name ?? 'user'}`);
-    setUserId('');
-    setReason('');
-    onOpenChange(false);
+    setSubmitting(true);
+    try {
+      await apiWorkflowAction({
+        requestId: request.id,
+        action: 'reassigned',
+        newStatus: request.status,
+        ownerId: userId,
+        notes: reason,
+      });
+      await queryClient.invalidateQueries({ queryKey: ['requests'] });
+      toast.success(`Request reassigned to ${user?.name ?? 'user'}`);
+      setUserId('');
+      setReason('');
+      onOpenChange(false);
+    } catch (err) {
+      toast.error(`Reassign failed: ${err instanceof Error ? err.message : 'unknown'}`);
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -78,8 +98,8 @@ export function ReassignDialog({ open, onOpenChange }: ReassignDialogProps) {
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={!userId || !reason.trim()}>
-            Reassign
+          <Button onClick={handleSubmit} disabled={!userId || !reason.trim() || submitting}>
+            {submitting ? 'Reassigning...' : 'Reassign'}
           </Button>
         </DialogFooter>
       </DialogContent>

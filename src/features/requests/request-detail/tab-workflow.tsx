@@ -274,7 +274,7 @@ export function TabWorkflow({ request }: TabWorkflowProps) {
       )}
 
       <ReferBackDialog open={referBackOpen} onOpenChange={setReferBackOpen} request={request} />
-      <ReassignDialog open={reassignOpen} onOpenChange={setReassignOpen} />
+      <ReassignDialog open={reassignOpen} onOpenChange={setReassignOpen} request={request} />
     </div>
   );
 }

@@ -15,7 +15,7 @@ import {
 import { PageHeader } from '@/components/shared/page-header';
 import { ApprovalCard } from './components/approval-card';
 import { BulkApproveDialog } from './components/bulk-approve-dialog';
-import { useApprovals } from '@/lib/db/hooks/use-approvals';
+import { useApprovals, useUpdateApproval } from '@/lib/db/hooks/use-approvals';
 import { useRequests } from '@/lib/db/hooks/use-requests';
 import type { ApprovalStatus, ProcurementRequest, ApprovalEntry } from '@/data/types';
 
@@ -43,6 +43,7 @@ interface ApprovalItem {
 export function ApprovalsPage() {
   const { data: approvalEntries = [] } = useApprovals();
   const { data: requests = [] } = useRequests();
+  const updateApproval = useUpdateApproval();
   const [statusFilter, setStatusFilter] = useState<'all' | ApprovalStatus>('all');
   const [urgencyFilter, setUrgencyFilter] = useState<UrgencyFilter>('all');
   const [valueFilter, setValueFilter] = useState<ValueFilter>('all');
@@ -112,13 +113,28 @@ export function ApprovalsPage() {
     (item) => selectedIds.has(item.approval.id) && item.approval.status === 'pending'
   );
 
-  const handleBulkApprove = () => {
+  const handleBulkApprove = async () => {
+    const timestamp = new Date().toISOString();
+    const results = await Promise.allSettled(
+      selectedPendingItems.map((item) =>
+        updateApproval.mutateAsync({
+          id: item.approval.id,
+          patch: { status: 'approved', respondedAt: timestamp },
+        }),
+      ),
+    );
+    const ok = results.filter((r) => r.status === 'fulfilled').length;
+    const failed = results.length - ok;
     selectedPendingItems.forEach((item) => {
       setDismissedIds((prev) => new Set(prev).add(item.approval.id));
     });
     setSelectedIds(new Set());
     setBulkDialogOpen(false);
-    toast.success(`${selectedPendingItems.length} requests approved`);
+    if (failed === 0) {
+      toast.success(`${ok} requests approved`);
+    } else {
+      toast.warning(`${ok} approved, ${failed} failed`);
+    }
   };
 
   // Get unique categories from items for filter

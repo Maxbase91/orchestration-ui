@@ -17,8 +17,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import type { ProcurementRequest } from '@/data/types';
+import type { ProcurementRequest, RequestStatus } from '@/data/types';
 import { toast } from 'sonner';
+import { apiWorkflowAction } from '@/lib/api';
+import { queryClient } from '@/lib/query-client';
 
 const PREVIOUS_STEPS = [
   { value: 'intake', label: 'Intake' },
@@ -46,14 +48,31 @@ export function ReferBackDialog({ open, onOpenChange, request }: ReferBackDialog
   const [step, setStep] = useState('');
   const [reason, setReason] = useState('');
   const [explanation, setExplanation] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  function handleSubmit() {
+  async function handleSubmit() {
     if (!step || !reason) return;
-    toast.success(`Request ${request.id} referred back to ${step}`);
-    setStep('');
-    setReason('');
-    setExplanation('');
-    onOpenChange(false);
+    setSubmitting(true);
+    const notes = explanation ? `${reason}: ${explanation}` : reason;
+    try {
+      await apiWorkflowAction({
+        requestId: request.id,
+        action: 'referred-back',
+        newStatus: step as RequestStatus,
+        notes,
+      });
+      await queryClient.invalidateQueries({ queryKey: ['requests'] });
+      await queryClient.invalidateQueries({ queryKey: ['stage-history'] });
+      toast.success(`Request ${request.id} referred back to ${step}`);
+      setStep('');
+      setReason('');
+      setExplanation('');
+      onOpenChange(false);
+    } catch (err) {
+      toast.error(`Refer back failed: ${err instanceof Error ? err.message : 'unknown'}`);
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -110,8 +129,8 @@ export function ReferBackDialog({ open, onOpenChange, request }: ReferBackDialog
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={!step || !reason} className="bg-amber-600 hover:bg-amber-700 text-white">
-            Refer Back
+          <Button onClick={handleSubmit} disabled={!step || !reason || submitting} className="bg-amber-600 hover:bg-amber-700 text-white">
+            {submitting ? 'Referring back...' : 'Refer Back'}
           </Button>
         </DialogFooter>
       </DialogContent>

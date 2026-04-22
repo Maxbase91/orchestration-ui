@@ -3,7 +3,7 @@ export type RequestCategory = 'goods' | 'services' | 'software' | 'consulting' |
 export type Priority = 'low' | 'medium' | 'high' | 'urgent';
 export type BuyingChannel = 'procurement-led' | 'business-led' | 'direct-po' | 'framework-call-off' | 'catalogue';
 export type RiskRating = 'low' | 'medium' | 'high' | 'critical';
-export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'delegated';
+export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'delegated' | 'info-requested';
 
 export interface User {
   id: string;

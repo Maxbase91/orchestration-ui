@@ -237,68 +237,130 @@ async function scenarioFullLifecycle() {
   assert(completedPending.length === 0, 'full-lifecycle: all non-terminal rows have completed_at', `pending=${completedPending.length}`);
 }
 
-async function scenarioReferBackGap() {
-  // The ReferBackDialog UI collects reason/explanation then calls toast.success
-  // — there is no /api/refer-back endpoint and no mutation wired to it.
-  // Confirm the gap by asserting no such endpoint exists, and that clicking
-  // the button would not mutate the DB.
-  const probe = await fetch(`${API_BASE}/api/refer-back`, { method: 'POST' }).catch(() => null);
-  gap(
-    'refer-back',
-    `ReferBackDialog (src/features/requests/request-detail/components/refer-back-dialog.tsx) ` +
-    `invokes toast only; no endpoint. Probe of /api/refer-back → ${probe?.status ?? 'network-error'}. ` +
-    `refer_back_count on requests never increments. Wire the dialog to a new endpoint + mutation.`,
-  );
+async function scenarioReferBackFlow() {
+  // Mirrors what ReferBackDialog now sends.
+  const { id } = await createTestRequest({ status: 'approval' });
+  const before = await getRequest(id);
+  const beforeCount = before.refer_back_count ?? 0;
+
+  const resp = await callWorkflowAction({
+    requestId: id,
+    action: 'referred-back',
+    newStatus: 'intake',
+    notes: 'incomplete: supplier identity not confirmed',
+  });
+  assert(resp.status === 200, 'refer-back: API 200 OK', `status=${resp.status}`);
+
+  const row = await getRequest(id);
+  assert(row.status === 'intake', 'refer-back: requests.status set to target stage', `status=${row.status}`);
+  assert(row.refer_back_count === beforeCount + 1, 'refer-back: refer_back_count incremented', `before=${beforeCount} after=${row.refer_back_count}`);
+
+  const history = await getStageHistory(id);
+  const approvalRow = history.find((h) => h.stage === 'approval');
+  const intakeRow = history.find((h) => h.stage === 'intake' && h.action === 'referred-back');
+  assert(!!approvalRow?.completed_at, 'refer-back: old stage completed_at set');
+  assert(!!intakeRow, 'refer-back: new stage_history row with action=referred-back');
+  assert(intakeRow?.notes?.startsWith('incomplete:'), 'refer-back: notes captured', `notes=${intakeRow?.notes}`);
 }
 
-async function scenarioEscalateGap() {
-  const probe = await fetch(`${API_BASE}/api/escalate`, { method: 'POST' }).catch(() => null);
-  gap(
-    'escalate',
-    `EscalateDialog (escalate-dialog.tsx) is client-state-only. Probe of /api/escalate → ${probe?.status ?? 'network-error'}. ` +
-    `No approval-chain rewrite, no notification row, no audit entry. Wire to endpoint that mutates approval_entries + notifications.`,
-  );
-}
-
-async function scenarioReassignGap() {
-  // Reassign changes the owner. The backend workflow-action DOES accept an
-  // ownerId, but the ReassignDialog button does not call it today.
+async function scenarioReassignFlow() {
   const { id } = await createTestRequest({ status: 'approval' });
   const before = (await getRequest(id)).owner_id;
 
-  // Simulate what a fixed UI would do:
+  // Pick a different user than the auto-seeded owner.
+  const { data: otherUser } = await sb
+    .from('users').select('id').neq('id', before).limit(1).single();
+
   const resp = await callWorkflowAction({
     requestId: id,
     action: 'reassigned',
-    newStatus: 'approval',       // same stage
-    ownerId: 'u1',
-    notes: 'E2E reassign simulation',
+    newStatus: 'approval',   // stays on same stage
+    ownerId: otherUser.id,
+    notes: 'out of office — passing baton',
   });
 
-  // The endpoint only writes stage_history if newStatus changes. Because
-  // reassign keeps the stage, only the owner_id patch should persist.
-  assert(resp.status === 200, 'reassign: API 200 OK (when called directly)');
+  assert(resp.status === 200, 'reassign: API 200 OK');
   const after = await getRequest(id);
-  assert(after.owner_id === 'u1', 'reassign: owner_id changed when API is called', `before=${before} after=${after.owner_id}`);
-
-  gap(
-    'reassign-ui-wiring',
-    `ReassignDialog (reassign-dialog.tsx) does not call apiWorkflowAction. ` +
-    `Backend accepts ownerId, so wiring is a 5-line fix: on submit, call ` +
-    `apiWorkflowAction({ requestId, action: 'reassigned', newStatus: status, ownerId }). ` +
-    `Verified the backend path works by calling it directly in this test.`,
-  );
+  assert(after.owner_id === otherUser.id, 'reassign: owner_id changed', `before=${before} after=${after.owner_id}`);
+  assert(after.status === 'approval', 'reassign: status unchanged', `status=${after.status}`);
 }
 
-async function scenarioApprovalEntryGap() {
-  gap(
-    'approval-entry-actions',
-    `ApprovalCard (src/features/approvals/approval-card.tsx) buttons (Approve, Reject, ` +
-    `Delegate, Request Info) all fire toast only — approval_entries rows are never ` +
-    `updated. This means the Approvals tab count does not decrement and audit trail is lost. ` +
-    `Add a useUpdateApproval mutation (src/lib/db/hooks/use-approvals.ts already exports one) ` +
-    `and wire the four button handlers to call it with status=approved/rejected/info-requested/delegated.`,
-  );
+async function scenarioEscalateFlow() {
+  // Mirrors what EscalateDialog now sends: write a notification via supabase
+  // client, and bump the request priority if urgency=critical.
+  const { id } = await createTestRequest({ status: 'approval' });
+
+  const notificationId = `NOT-ESC-TEST-${Date.now()}-${randSuffix()}`;
+  const { error: notifErr } = await sb.from('notifications').insert({
+    id: notificationId,
+    type: 'escalation',
+    title: `${id} escalated to VP`,
+    description: '[CRITICAL] supplier non-responsive for 10 days',
+    timestamp: new Date().toISOString(),
+    is_read: false,
+    related_id: id,
+    action_url: `/requests/${id}`,
+  });
+  if (notifErr) {
+    fail('escalate: notification insert', notifErr.message);
+    return;
+  }
+
+  const { error: updErr } = await sb
+    .from('requests').update({ priority: 'urgent', is_urgent: true }).eq('id', id);
+  if (updErr) {
+    fail('escalate: priority bump', updErr.message);
+    return;
+  }
+
+  const { data: notif } = await sb.from('notifications').select('*').eq('id', notificationId).single();
+  assert(!!notif, 'escalate: notification row inserted', `notif=${JSON.stringify(notif)}`);
+  assert(notif.type === 'escalation', 'escalate: notification type=escalation');
+  assert(notif.related_id === id, 'escalate: notification linked to request');
+
+  const row = await getRequest(id);
+  assert(row.priority === 'urgent', 'escalate: request.priority bumped to urgent (critical urgency)');
+  assert(row.is_urgent === true, 'escalate: request.is_urgent=true');
+
+  // cleanup the notification (requests cleanup is automatic)
+  await sb.from('notifications').delete().eq('id', notificationId);
+}
+
+async function scenarioApprovalEntryFlow() {
+  // Create a test approval entry attached to a test request.
+  const { id: requestId } = await createTestRequest({ status: 'approval' });
+  const approvalId = `APR-E2E-${Date.now()}-${randSuffix()}`;
+
+  const { error: insErr } = await sb.from('approval_entries').insert({
+    id: approvalId,
+    request_id: requestId,
+    approver_id: 'u1',
+    approver_name: 'E2E Approver',
+    approver_role: 'Finance Approver',
+    status: 'pending',
+    requested_at: new Date().toISOString(),
+  });
+  if (insErr) { fail('approval-entry: seed', insErr.message); return; }
+
+  // Simulate the four card actions hitting updateApproval.
+  const actions = [
+    { label: 'approve',      patch: { status: 'approved',      responded_at: new Date().toISOString() } },
+    { label: 'reject',       patch: { status: 'rejected',      responded_at: new Date().toISOString(), comments: 'out of scope' } },
+    { label: 'request-info', patch: { status: 'info-requested', comments: 'please supply SOW' } },
+    { label: 'delegate',     patch: { status: 'delegated',     delegated_to: 'u3' } },
+  ];
+
+  for (const { label, patch } of actions) {
+    const { error } = await sb.from('approval_entries').update(patch).eq('id', approvalId);
+    if (error) { fail(`approval-entry: ${label} update`, error.message); continue; }
+    const { data: row } = await sb.from('approval_entries').select('*').eq('id', approvalId).single();
+    assert(row.status === patch.status, `approval-entry: ${label} status=${patch.status}`);
+    if (patch.responded_at) assert(!!row.responded_at, `approval-entry: ${label} responded_at set`);
+    if (patch.comments) assert(row.comments === patch.comments, `approval-entry: ${label} comments captured`);
+    if (patch.delegated_to) assert(row.delegated_to === patch.delegated_to, `approval-entry: ${label} delegated_to captured`);
+  }
+
+  await sb.from('approval_entries').delete().eq('id', approvalId);
 }
 
 async function scenarioIdempotencyCheck() {
@@ -366,10 +428,10 @@ async function main() {
   await runScenario('cancel-flow',        scenarioCancelFlow);
   await runScenario('full-lifecycle',     scenarioFullLifecycle);
   await runScenario('idempotency',        scenarioIdempotencyCheck);
-  await runScenario('refer-back',         scenarioReferBackGap);
-  await runScenario('escalate',           scenarioEscalateGap);
-  await runScenario('reassign',           scenarioReassignGap);
-  await runScenario('approval-entries',   scenarioApprovalEntryGap);
+  await runScenario('refer-back',         scenarioReferBackFlow);
+  await runScenario('escalate',           scenarioEscalateFlow);
+  await runScenario('reassign',           scenarioReassignFlow);
+  await runScenario('approval-entries',   scenarioApprovalEntryFlow);
 
   console.log('Cleaning up test data...');
   const removed = await cleanupTestData();

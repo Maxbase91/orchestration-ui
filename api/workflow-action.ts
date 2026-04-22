@@ -13,9 +13,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // Get current request to find old status
-  const { data: existing, error: fetchError } = await supabaseQuery<{ status: string; owner_id: string }>(
+  const { data: existing, error: fetchError } = await supabaseQuery<{ status: string; owner_id: string; refer_back_count: number }>(
     'requests',
-    { filters: `id=eq.${requestId}`, single: true, select: 'status,owner_id' },
+    { filters: `id=eq.${requestId}`, single: true, select: 'status,owner_id,refer_back_count' },
   );
 
   if (fetchError) return res.status(500).json({ error: fetchError });
@@ -30,6 +30,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     days_in_stage: 0,
   };
   if (ownerId) updates.owner_id = ownerId;
+  if (action === 'referred-back') {
+    updates.refer_back_count = (existing.refer_back_count ?? 0) + 1;
+  }
 
   const { data: updated, error: updateError } = await supabaseQuery(
     'requests',

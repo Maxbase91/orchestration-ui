@@ -112,8 +112,8 @@ export function ActionButtons({ request }: ActionButtonsProps) {
       </div>
 
       <ReferBackDialog open={referBackOpen} onOpenChange={setReferBackOpen} request={request} />
-      <ReassignDialog open={reassignOpen} onOpenChange={setReassignOpen} />
-      <EscalateDialog open={escalateOpen} onOpenChange={setEscalateOpen} />
+      <ReassignDialog open={reassignOpen} onOpenChange={setReassignOpen} request={request} />
+      <EscalateDialog open={escalateOpen} onOpenChange={setEscalateOpen} request={request} />
 
       <Dialog open={confirmAction !== null} onOpenChange={() => setConfirmAction(null)}>
         <DialogContent>
