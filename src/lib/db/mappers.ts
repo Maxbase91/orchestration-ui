@@ -1,4 +1,4 @@
-// Relative import (not @/data/types) so this module is also usable from
+// Relative imports (not @/data/*) so this module is also usable from
 // server-side Vercel functions where the `@/` alias is not configured.
 import type {
   ProcurementRequest,
@@ -13,12 +13,15 @@ import type {
   User,
   Notification,
 } from '../../data/types';
+import type { ComplianceReport } from '../../data/compliance-reports';
+import type { SystemIntegration } from '../../data/system-integrations';
+import type { FormSubmission } from '../../data/form-submissions';
+import type { FormTemplate } from '../../data/form-templates';
+import type { IntakeComplianceRecord } from '../../data/request-compliance';
 
 type DbRecord = Record<string, unknown>;
 
 // ── Compliance Reports ──────────────────────────────────────────────
-
-import type { ComplianceReport } from '../../data/compliance-reports';
 
 export function mapDbToComplianceReport(row: DbRecord): ComplianceReport {
   return {
@@ -49,8 +52,6 @@ export function mapComplianceReportToDb(r: Partial<ComplianceReport>): DbRecord 
 }
 
 // ── System Integrations ─────────────────────────────────────────────
-
-import type { SystemIntegration } from '../../data/system-integrations';
 
 export function mapDbToSystemIntegration(row: DbRecord): SystemIntegration {
   return {
@@ -83,8 +84,6 @@ export function mapSystemIntegrationToDb(i: Partial<SystemIntegration>): DbRecor
 }
 
 // ── Form Templates ──────────────────────────────────────────────────
-
-import type { FormTemplate } from '../../data/form-templates';
 
 export function mapDbToFormTemplate(row: DbRecord): FormTemplate {
   return {
@@ -120,8 +119,6 @@ export function mapFormTemplateToDb(t: Partial<FormTemplate>): DbRecord {
 
 // ── Intake Compliance Records ───────────────────────────────────────
 
-import type { IntakeComplianceRecord } from '../../data/request-compliance';
-
 export function mapDbToIntakeCompliance(row: DbRecord): IntakeComplianceRecord {
   return {
     requestId: (row.request_id ?? row.requestId ?? '') as string,
@@ -150,8 +147,6 @@ export function mapIntakeComplianceToDb(r: IntakeComplianceRecord): DbRecord {
 }
 
 // ── Form Submissions ────────────────────────────────────────────────
-
-import type { FormSubmission } from '../../data/form-submissions';
 
 export function mapDbToFormSubmission(row: DbRecord): FormSubmission {
   return {
