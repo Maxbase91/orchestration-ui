@@ -111,15 +111,35 @@ async function cleanupTestData() {
   return ids.length;
 }
 
-async function callWorkflowAction(body) {
+// Vercel's anti-bot challenge trips on rapid POSTs from the same IP.
+// A 400ms gap between calls keeps us below that threshold; on 403 we back
+// off and retry once. Real users fire these one-by-one so this pacing
+// does not mask production behaviour.
+let lastCallAt = 0;
+const MIN_GAP_MS = 400;
+async function callWorkflowAction(body, attempt = 0) {
+  const since = Date.now() - lastCallAt;
+  if (since < MIN_GAP_MS) await new Promise((r) => setTimeout(r, MIN_GAP_MS - since));
+
   const res = await fetch(`${API_BASE}/api/workflow-action`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      // identifies the test runner in Vercel logs so security team can allow-list if needed
+      'User-Agent': 'orchestration-ui-e2e/1.0',
+    },
     body: JSON.stringify(body),
   });
+  lastCallAt = Date.now();
   const text = await res.text();
+
+  if (res.status === 403 && attempt < 2 && text.includes('Vercel Security Checkpoint')) {
+    await new Promise((r) => setTimeout(r, 2000 * (attempt + 1)));
+    return callWorkflowAction(body, attempt + 1);
+  }
+
   let json;
-  try { json = JSON.parse(text); } catch { json = { raw: text }; }
+  try { json = JSON.parse(text); } catch { json = { raw: text.slice(0, 200) }; }
   return { status: res.status, body: json };
 }
 
