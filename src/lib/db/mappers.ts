@@ -1,5 +1,7 @@
 // Relative imports (not @/data/*) so this module is also usable from
 // server-side Vercel functions where the `@/` alias is not configured.
+// Include `.js` suffix so the @vercel/node builder resolves them in
+// NodeNext ESM mode.
 import type {
   ProcurementRequest,
   Comment,
@@ -12,12 +14,12 @@ import type {
   StageHistoryEntry,
   User,
   Notification,
-} from '../../data/types';
-import type { ComplianceReport } from '../../data/compliance-reports';
-import type { SystemIntegration } from '../../data/system-integrations';
-import type { FormSubmission } from '../../data/form-submissions';
-import type { FormTemplate } from '../../data/form-templates';
-import type { IntakeComplianceRecord } from '../../data/request-compliance';
+} from '../../data/types.js';
+import type { ComplianceReport } from '../../data/compliance-reports.js';
+import type { SystemIntegration } from '../../data/system-integrations.js';
+import type { FormSubmission } from '../../data/form-submissions.js';
+import type { FormTemplate } from '../../data/form-templates.js';
+import type { IntakeComplianceRecord } from '../../data/request-compliance.js';
 
 type DbRecord = Record<string, unknown>;
 
