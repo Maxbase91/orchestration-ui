@@ -15,7 +15,6 @@ import { invoices as seedInvoices } from '@/data/invoices';
 import { requests as seedRequests } from '@/data/requests';
 import { approvalEntries as seedApprovals } from '@/data/approval-entries';
 import { workflowTemplates as seedWorkflows } from '@/data/workflows';
-import { riskAssessments as seedRiskAssessments } from '@/data/risk-assessments';
 import { useAuthStore } from '@/stores/auth-store';
 import { queryClient } from '@/lib/query-client';
 import {
@@ -28,13 +27,18 @@ import {
   updateContract as dbUpdateContract,
   deleteContract as dbDeleteContract,
 } from '@/lib/db/contracts';
+import {
+  createRiskAssessment as dbCreateRiskAssessment,
+  updateRiskAssessment as dbUpdateRiskAssessment,
+  deleteRiskAssessment as dbDeleteRiskAssessment,
+} from '@/lib/db/risk-assessments';
 
 /**
  * Which entities are backed by Supabase (edits persist across sessions and
  * propagate to every feature page) vs. still session-only local clones of
  * mock data. As each entity is migrated in Wave 1/2/3 it moves into LIVE_ENTITIES.
  */
-const LIVE_ENTITIES = new Set<string>(['supplier', 'contract']);
+const LIVE_ENTITIES = new Set<string>(['supplier', 'contract', 'riskAssessment']);
 
 export function isLiveEntity(key: string): boolean {
   return LIVE_ENTITIES.has(key);
@@ -123,7 +127,7 @@ export const useDatabaseAdminStore = create<DatabaseAdminState>((set, get) => ({
   // Live entities initialise empty; the sync hook populates them from Supabase.
   supplier: [],
   contract: [],
-  riskAssessment: cloneRecords(seedRiskAssessments),
+  riskAssessment: [],
   purchaseOrder: cloneRecords(seedPOs),
   invoice: cloneRecords(seedInvoices),
   request: cloneRecords(seedRequests),
@@ -159,6 +163,18 @@ export const useDatabaseAdminStore = create<DatabaseAdminState>((set, get) => ({
       });
       return;
     }
+    if (key === 'riskAssessment') {
+      const saved = await dbUpdateRiskAssessment(id, patch as Partial<RiskAssessment>);
+      await queryClient.invalidateQueries({ queryKey: ['risk-assessments'] });
+      set((state) => {
+        const list = state.riskAssessment;
+        const idx = list.findIndex((r) => r.id === id);
+        const next = idx >= 0 ? [...list.slice(0, idx), saved, ...list.slice(idx + 1)] : [saved, ...list];
+        const audit = makeAuditEntry('record.update', 'riskAssessment', id, detail);
+        return { ...state, riskAssessment: next, audit: [audit, ...state.audit] };
+      });
+      return;
+    }
     set((state) => localUpdate(state, key, id, patch, detail));
   },
   create: async (key, record) => {
@@ -179,6 +195,15 @@ export const useDatabaseAdminStore = create<DatabaseAdminState>((set, get) => ({
       set((state) => {
         const audit = makeAuditEntry('record.create', 'contract', saved.id, detail);
         return { ...state, contract: [saved, ...state.contract], audit: [audit, ...state.audit] };
+      });
+      return;
+    }
+    if (key === 'riskAssessment') {
+      const saved = await dbCreateRiskAssessment(record as RiskAssessment);
+      await queryClient.invalidateQueries({ queryKey: ['risk-assessments'] });
+      set((state) => {
+        const audit = makeAuditEntry('record.create', 'riskAssessment', saved.id, detail);
+        return { ...state, riskAssessment: [saved, ...state.riskAssessment], audit: [audit, ...state.audit] };
       });
       return;
     }
@@ -212,6 +237,15 @@ export const useDatabaseAdminStore = create<DatabaseAdminState>((set, get) => ({
       });
       return;
     }
+    if (key === 'riskAssessment') {
+      await dbDeleteRiskAssessment(id);
+      await queryClient.invalidateQueries({ queryKey: ['risk-assessments'] });
+      set((state) => {
+        const audit = makeAuditEntry('record.delete', 'riskAssessment', id, detail);
+        return { ...state, riskAssessment: state.riskAssessment.filter((r) => r.id !== id), audit: [audit, ...state.audit] };
+      });
+      return;
+    }
     set((state) => {
       const list = state[key] as EntityRecordMap[typeof key][];
       const next = list.filter((r) => (r as { id: string }).id !== id);
@@ -221,10 +255,10 @@ export const useDatabaseAdminStore = create<DatabaseAdminState>((set, get) => ({
   },
   reset: () => {
     // Only resets session-only entities; Supabase-backed entities (suppliers,
-    // contracts, …) are re-synced by the sync hook on next fetch.
+    // contracts, risk-assessments, …) are re-synced by the sync hook on next
+    // fetch.
     set({
       ...get(),
-      riskAssessment: cloneRecords(seedRiskAssessments),
       purchaseOrder: cloneRecords(seedPOs),
       invoice: cloneRecords(seedInvoices),
       request: cloneRecords(seedRequests),
@@ -234,6 +268,7 @@ export const useDatabaseAdminStore = create<DatabaseAdminState>((set, get) => ({
     });
     queryClient.invalidateQueries({ queryKey: ['suppliers'] });
     queryClient.invalidateQueries({ queryKey: ['contracts'] });
+    queryClient.invalidateQueries({ queryKey: ['risk-assessments'] });
   },
 }));
 

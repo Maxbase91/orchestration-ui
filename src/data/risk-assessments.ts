@@ -1,3 +1,11 @@
+// Seed data only — not read by the runtime app.
+//
+// Risk assessments moved to Supabase in Wave 1. UI reads via
+// `@/lib/db/hooks/use-risk-assessments`. Kept here as the seed source for
+// `api/admin/seed.ts` and for the module-load backfill of
+// `IntakeComplianceRecord.matchingRiskAssessmentIds` in request-compliance.ts
+// (intake-compliance migrates in Wave 2).
+
 import type { RiskAssessment } from './types';
 
 export const riskAssessments: RiskAssessment[] = [

@@ -1,7 +1,7 @@
 import type { ProcurementRequest } from '@/data/types';
 import { getIntakeCompliance } from '@/data/request-compliance';
 import { getComplianceReport } from '@/data/compliance-reports';
-import { riskAssessments } from '@/data/risk-assessments';
+import { useRiskAssessmentLookup, useRiskAssessments } from '@/lib/db/hooks/use-risk-assessments';
 import { ComplianceReportCard } from '@/components/shared/compliance-report-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -31,6 +31,8 @@ const sraStatusConfig: Record<string, { label: string; icon: typeof CheckCircle;
 };
 
 export function TabCompliance({ request }: TabComplianceProps) {
+  useRiskAssessments();
+  const lookupRiskAssessment = useRiskAssessmentLookup();
   const intake = getIntakeCompliance(request.id);
   const complianceReport = getComplianceReport(request.id);
 
@@ -176,7 +178,7 @@ export function TabCompliance({ request }: TabComplianceProps) {
           <CardContent>
             <div className="space-y-2">
               {intake.matchingRiskAssessmentIds.map((raId) => {
-                const ra = riskAssessments.find((r) => r.id === raId);
+                const ra = lookupRiskAssessment(raId);
                 if (!ra) return null;
                 return (
                   <div

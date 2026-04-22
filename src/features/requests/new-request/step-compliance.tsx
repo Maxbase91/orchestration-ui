@@ -6,7 +6,7 @@ import { formatCurrency } from '@/lib/format';
 import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
 import type { Supplier } from '@/data/types';
 import { useContracts } from '@/lib/db/hooks/use-contracts';
-import { findMatchingRiskAssessments } from '@/data/risk-assessments';
+import { useMatchingRiskAssessments } from '@/lib/db/hooks/use-risk-assessments';
 import { getFormTemplate } from '@/data/form-templates';
 import { DynamicForm } from '@/components/shared/dynamic-form';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -110,15 +110,17 @@ export function StepCompliance({
   const [loading, setLoading] = useState(true);
   const [result, setResult] = useState<ComplianceData | null>(null);
   const { data: suppliers = [] } = useSuppliers();
+  const { data: matches = [], isFetched: matchesFetched } = useMatchingRiskAssessments({ supplierId });
 
   useEffect(() => {
     setLoading(true);
+    // Wait for Supabase lookups before composing the result.
+    if (!matchesFetched && supplierId) return;
     const timer = setTimeout(() => {
       const { label } = determineBuyingChannel(category, estimatedValue);
       const supplier = suppliers.find((s) => s.id === supplierId);
       const policyChecks = generatePolicyChecks(estimatedValue, category, supplierId, isUrgent, suppliers);
 
-      const matches = findMatchingRiskAssessments({ supplierId });
       const matchingRiskAssessments: MatchingRiskAssessmentSummary[] = matches.map((m) => ({
         id: m.id,
         title: m.title,
@@ -151,7 +153,7 @@ export function StepCompliance({
     }, 1200);
 
     return () => clearTimeout(timer);
-  }, [category, estimatedValue, supplierId, isUrgent, suppliers]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [category, estimatedValue, supplierId, isUrgent, suppliers, matches, matchesFetched]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) {
     return (
