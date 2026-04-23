@@ -14,9 +14,12 @@ import { StepCategory } from './step-category';
 import { StepDetails } from './step-details';
 import { StepChatIntake } from './step-chat-intake';
 import { StepCatalogue } from './step-catalogue';
+import { StepPreCheck } from './step-pre-check';
 import { StepCompliance } from './step-compliance';
 import { StepRoutingPreview } from './step-routing-preview';
 import { StepConfirmation } from './step-confirmation';
+import type { Contract } from '@/data/types';
+import type { CatalogueItem } from '@/data/catalogue-items';
 
 export interface ServiceDescription {
   objective: string;
@@ -35,7 +38,7 @@ interface RequestFormData {
   // Step 1
   category: string;
   categoryDescription: string;
-  // Step 2
+  // Step 3 (shifted)
   title: string;
   supplier: string;
   supplierId: string;
@@ -48,14 +51,17 @@ interface RequestFormData {
   commodityCode: string;
   commodityCodeLabel: string;
   serviceDescription: ServiceDescription | null;
-  // Catalogue items
+  // Catalogue / contract resolution (Step 2 pre-check)
   catalogueItems: { itemId: string; name: string; quantity: number; unitPrice: number; supplierId: string }[];
-  // Step 3
+  preCheckOutcome: 'catalogue' | 'contract' | 'full-request' | '';
+  contractId: string;
+  contractTitle: string;
+  // Step 4 (shifted)
   buyingChannelResult: string;
   sraStatus: string;
   policyChecks: { label: string; passed: boolean; detail: string }[];
   duplicateCheck: string | null;
-  // Step 4
+  // Step 5 (shifted)
   additionalReviewers: string[];
   notes: string;
 }
@@ -76,6 +82,9 @@ const INITIAL_DATA: RequestFormData = {
   commodityCodeLabel: '',
   serviceDescription: null,
   catalogueItems: [],
+  preCheckOutcome: '',
+  contractId: '',
+  contractTitle: '',
   buyingChannelResult: '',
   sraStatus: '',
   policyChecks: [],
@@ -86,10 +95,11 @@ const INITIAL_DATA: RequestFormData = {
 
 const STEPS = [
   { number: 1, title: 'Category', description: 'What do you need?' },
-  { number: 2, title: 'Details', description: 'Request details' },
-  { number: 3, title: 'Compliance', description: 'Compliance & risk check' },
-  { number: 4, title: 'Routing', description: 'Routing & approvals' },
-  { number: 5, title: 'Confirmation', description: 'Submitted' },
+  { number: 2, title: 'Pre-check', description: 'Catalogue & contract match' },
+  { number: 3, title: 'Details', description: 'Service description' },
+  { number: 4, title: 'Compliance', description: 'Supplier, risk, sourcing' },
+  { number: 5, title: 'Routing', description: 'Routing & approvals' },
+  { number: 6, title: 'Confirmation', description: 'Submitted' },
 ];
 
 function generateRequestId(): string {
@@ -175,6 +185,9 @@ export function NewRequestPage() {
         estimatedValue: value,
         businessJustification: description,
       }));
+      // SmartCommandBar deep-links still pass step=2 to mean "skip the
+      // category picker"; since we inserted the pre-check as step 2,
+      // the deep-link lands on the pre-check with pre-populated context.
       setCurrentStep(2);
 
       // Clear search params so refresh doesn't re-trigger
@@ -191,13 +204,20 @@ export function NewRequestPage() {
       case 1:
         return !!formData.category;
       case 2:
-        if (formData.category === 'catalogue') {
+        // Pre-check step — user must either pick catalogue/contract or
+        // explicitly choose to proceed to a full request.
+        return !!formData.preCheckOutcome;
+      case 3:
+        if (formData.preCheckOutcome === 'catalogue' || formData.category === 'catalogue') {
           return formData.catalogueItems.length > 0;
         }
+        if (formData.preCheckOutcome === 'contract') {
+          return !!formData.contractId;
+        }
         return !!formData.title && formData.estimatedValue > 0;
-      case 3:
-        return !!formData.buyingChannelResult;
       case 4:
+        return !!formData.buyingChannelResult;
+      case 5:
         return true;
       default:
         return false;
@@ -205,7 +225,7 @@ export function NewRequestPage() {
   };
 
   const handleNext = async () => {
-    if (currentStep === 4) {
+    if (currentStep === 5) {
       // Submit
       const id = generateRequestId();
       setIsSubmitting(true);
@@ -219,6 +239,7 @@ export function NewRequestPage() {
           value: formData.estimatedValue,
           currency: formData.currency,
           supplierId: formData.supplierId,
+          contractId: formData.contractId || undefined,
           buyingChannel: (formData.buyingChannelResult || 'procurement-led') as BuyingChannel,
           commodityCode: formData.commodityCode,
           commodityCodeLabel: formData.commodityCodeLabel,
@@ -255,9 +276,9 @@ export function NewRequestPage() {
         setIsSubmitting(false);
       }
       setRequestId(id);
-      setCurrentStep(5);
+      setCurrentStep(6);
     } else {
-      setCurrentStep((s) => Math.min(s + 1, 5));
+      setCurrentStep((s) => Math.min(s + 1, 6));
     }
   };
 
@@ -272,7 +293,7 @@ export function NewRequestPage() {
   };
 
   return (
-    <div className={cn("mx-auto space-y-6", currentStep === 2 && !['catalogue', 'contract-renewal', 'supplier-onboarding'].includes(formData.category) ? 'max-w-5xl' : 'max-w-3xl')}>
+    <div className={cn("mx-auto space-y-6", currentStep === 3 && formData.preCheckOutcome === 'full-request' && !['catalogue', 'contract-renewal', 'supplier-onboarding'].includes(formData.category) ? 'max-w-5xl' : 'max-w-3xl')}>
       {/* Header */}
       <div>
         <h1 className="text-xl font-semibold text-gray-900">New Request</h1>
@@ -282,7 +303,7 @@ export function NewRequestPage() {
       </div>
 
       {/* Progress Bar */}
-      {currentStep < 5 && (
+      {currentStep < 6 && (
         <div className="flex items-center gap-1">
           {STEPS.map((step) => (
             <div key={step.number} className="flex flex-1 flex-col items-center gap-1.5">
@@ -332,7 +353,7 @@ export function NewRequestPage() {
       )}
 
       {/* Step Title */}
-      {currentStep < 5 && (
+      {currentStep < 6 && (
         <div className="border-b border-gray-200 pb-3">
           <h2 className="text-lg font-semibold text-gray-900">
             Step {currentStep}: {STEPS[currentStep - 1].description}
@@ -351,12 +372,79 @@ export function NewRequestPage() {
             onAutoAdvance={() => setCurrentStep(2)}
           />
         )}
-        {currentStep === 2 && formData.category === 'catalogue' && (
+        {currentStep === 2 && (
+          <StepPreCheck
+            title={formData.title || formData.categoryDescription}
+            category={formData.category}
+            estimatedValue={formData.estimatedValue}
+            supplierId={formData.supplierId}
+            onChooseCatalogue={(items: CatalogueItem[]) => {
+              const cartItems = items.slice(0, 3).map((i) => ({
+                itemId: i.id,
+                name: i.name,
+                quantity: 1,
+                unitPrice: i.unitPrice,
+                supplierId: i.supplierId,
+              }));
+              const total = cartItems.reduce((sum, i) => sum + i.quantity * i.unitPrice, 0);
+              const primary = items[0];
+              updateFormData({
+                preCheckOutcome: 'catalogue',
+                catalogueItems: cartItems,
+                title: primary?.name ?? formData.title,
+                supplier: primary?.supplierName ?? formData.supplier,
+                supplierId: primary?.supplierId ?? formData.supplierId,
+                estimatedValue: total || formData.estimatedValue,
+                buyingChannelResult: 'catalogue',
+              });
+              setCurrentStep(3);
+            }}
+            onChooseContract={(contract: Contract) => {
+              updateFormData({
+                preCheckOutcome: 'contract',
+                contractId: contract.id,
+                contractTitle: contract.title,
+                supplier: contract.supplierName,
+                supplierId: contract.supplierId,
+                category: formData.category || contract.category.toLowerCase(),
+                buyingChannelResult: 'framework-call-off',
+              });
+              setCurrentStep(3);
+            }}
+            onProceedToFullRequest={() => {
+              updateFormData({ preCheckOutcome: 'full-request' });
+              setCurrentStep(3);
+            }}
+          />
+        )}
+        {currentStep === 3 && formData.preCheckOutcome === 'catalogue' && (
           <StepCatalogue
             onUpdate={(d) => updateFormData(d)}
           />
         )}
-        {currentStep === 2 && ['contract-renewal', 'supplier-onboarding'].includes(formData.category) && (
+        {currentStep === 3 && formData.preCheckOutcome === 'contract' && (
+          <StepDetails
+            category={formData.category || 'contract-renewal'}
+            data={{
+              title: formData.title || formData.contractTitle,
+              supplier: formData.supplier,
+              supplierId: formData.supplierId,
+              estimatedValue: formData.estimatedValue,
+              currency: formData.currency,
+              businessJustification: formData.businessJustification,
+              deliveryDate: formData.deliveryDate,
+              isUrgent: formData.isUrgent,
+              costCentre: formData.costCentre,
+              commodityCode: formData.commodityCode,
+              commodityCodeLabel: formData.commodityCodeLabel,
+            }}
+            onUpdate={(d) => updateFormData(d)}
+          />
+        )}
+        {currentStep === 3 && formData.preCheckOutcome === 'full-request' && formData.category === 'catalogue' && (
+          <StepCatalogue onUpdate={(d) => updateFormData(d)} />
+        )}
+        {currentStep === 3 && formData.preCheckOutcome === 'full-request' && ['contract-renewal', 'supplier-onboarding'].includes(formData.category) && (
           <StepDetails
             category={formData.category}
             data={{
@@ -375,7 +463,7 @@ export function NewRequestPage() {
             onUpdate={(d) => updateFormData(d)}
           />
         )}
-        {currentStep === 2 && !['catalogue', 'contract-renewal', 'supplier-onboarding'].includes(formData.category) && (
+        {currentStep === 3 && formData.preCheckOutcome === 'full-request' && !['catalogue', 'contract-renewal', 'supplier-onboarding'].includes(formData.category) && (
           <StepChatIntake
             category={formData.category}
             categoryDescription={formData.categoryDescription}
@@ -395,7 +483,7 @@ export function NewRequestPage() {
             onUpdate={(d) => updateFormData(d)}
           />
         )}
-        {currentStep === 3 && (
+        {currentStep === 4 && (
           <StepCompliance
             category={formData.category}
             estimatedValue={formData.estimatedValue}
@@ -405,7 +493,7 @@ export function NewRequestPage() {
             onUpdate={(d) => updateFormData(d)}
           />
         )}
-        {currentStep === 4 && (
+        {currentStep === 5 && (
           <StepRoutingPreview
             category={formData.category}
             estimatedValue={formData.estimatedValue}
@@ -414,7 +502,7 @@ export function NewRequestPage() {
             onUpdate={(d) => updateFormData(d)}
           />
         )}
-        {currentStep === 5 && (
+        {currentStep === 6 && (
           <StepConfirmation
             requestId={requestId}
             data={{
@@ -437,7 +525,7 @@ export function NewRequestPage() {
       </div>
 
       {/* Navigation */}
-      {currentStep < 5 && (
+      {currentStep < 6 && (
         <div className="flex items-center justify-between">
           <Button
             variant="ghost"
@@ -448,7 +536,7 @@ export function NewRequestPage() {
             Back
           </Button>
           <div className="flex items-center gap-2">
-            {currentStep === 4 && (
+            {currentStep === 5 && (
               <Button variant="ghost" onClick={() => {}}>
                 <Save className="size-4" />
                 Save as Draft
@@ -458,7 +546,7 @@ export function NewRequestPage() {
               onClick={handleNext}
               disabled={!canProceed() || isSubmitting}
             >
-              {currentStep === 4 ? (
+              {currentStep === 5 ? (
                 isSubmitting ? (
                   <>
                     <Loader2 className="size-4 animate-spin" />

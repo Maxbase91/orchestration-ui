@@ -1,0 +1,194 @@
+#!/usr/bin/env node
+// Verifies the restructured intake sequence:
+//   1. catalogue match check
+//   2. contract match check
+//   3. only if neither, proceed to chat with mandatory SOW
+//
+// The test runs the pre-check algorithm against live Supabase data with
+// realistic titles and asserts on the resulting matches. It also asserts
+// the chat-intake API prompt no longer contains the 'would you like to
+// keep it quick' branch.
+//
+// Run: node tests/integration/intake-sequence.mjs
+
+import { readFileSync } from 'node:fs';
+import { createClient } from '@supabase/supabase-js';
+
+function loadEnv() {
+  const raw = readFileSync(new URL('../../.env.local', import.meta.url), 'utf8');
+  for (const line of raw.split('\n')) {
+    const m = line.match(/^([A-Z_][A-Z0-9_]*)=(.*)$/);
+    if (m && !process.env[m[1]]) process.env[m[1]] = m[2];
+  }
+}
+loadEnv();
+
+const sb = createClient(
+  process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY,
+  { auth: { persistSession: false } },
+);
+
+const results = [];
+const pass = (n, d = '') => results.push({ n, o: 'PASS', d });
+const fail = (n, d) => results.push({ n, o: 'FAIL', d });
+const assert = (cond, n, d) => (cond ? pass(n, d) : fail(n, d));
+
+// Mirror of tokeniser + matchers from step-pre-check.tsx. Keep in sync.
+const STOP_WORDS = new Set([
+  'i', 'a', 'an', 'the', 'of', 'for', 'to', 'we', 'us', 'our', 'my',
+  'need', 'want', 'would', 'like', 'please', 'can', 'new', 'some',
+]);
+function tokenize(text) {
+  return text.toLowerCase().split(/\s+/)
+    .map((w) => w.replace(/[^a-z0-9-]/g, ''))
+    .filter((w) => w.length > 2 && !STOP_WORDS.has(w));
+}
+function tokenMatches(haystack, token) {
+  if (haystack.includes(token)) return true;
+  if (token.endsWith('s') && token.length > 3 && haystack.includes(token.slice(0, -1))) return true;
+  return false;
+}
+function matchCatalogueItem(item, tokens) {
+  if (tokens.length === 0) return 0;
+  const name = item.name.toLowerCase();
+  const haystack = `${item.description} ${item.catalogue_name}`.toLowerCase();
+  let score = 0;
+  for (const t of tokens) {
+    if (tokenMatches(name, t)) score += 1.0;
+    else if (tokenMatches(haystack, t)) score += 0.4;
+  }
+  return score / Math.max(tokens.length, 2);
+}
+function matchContract(contract, ctx) {
+  if (contract.status !== 'active' && contract.status !== 'expiring') return null;
+  let score = 0;
+  const reasons = [];
+  let hasPrimarySignal = false;
+  if (ctx.supplierId && contract.supplier_id === ctx.supplierId) {
+    score += 0.5; hasPrimarySignal = true; reasons.push('supplier match');
+  }
+  const catLower = (contract.category ?? '').toLowerCase();
+  if (catLower.includes(ctx.category) && ctx.category) {
+    score += 0.3; hasPrimarySignal = true; reasons.push('category match');
+  } else {
+    let kwHits = 0;
+    for (const t of ctx.tokens) {
+      if (catLower.includes(t) || (contract.title ?? '').toLowerCase().includes(t)) {
+        kwHits += 1;
+      }
+    }
+    score += kwHits * 0.1;
+    if (kwHits >= 2) hasPrimarySignal = true;
+  }
+  if (!hasPrimarySignal) return null;
+  const remainingPct = Math.max(0, 100 - (contract.utilisation_percentage ?? 0));
+  if (remainingPct < 5) return null;
+  if (ctx.estimatedValue > 0 && contract.value > 0) {
+    const remaining = contract.value * (remainingPct / 100);
+    if (remaining >= ctx.estimatedValue) {
+      score += 0.2; reasons.push('capacity ok');
+    }
+  }
+  return score >= 0.3 ? { score, reasons } : null;
+}
+
+async function loadTables() {
+  const [cat, con] = await Promise.all([
+    sb.from('catalogue_items').select('*'),
+    sb.from('contracts').select('*'),
+  ]);
+  if (cat.error) throw cat.error;
+  if (con.error) throw con.error;
+  return { catalogueItems: cat.data ?? [], contracts: con.data ?? [] };
+}
+
+async function scenarioCatalogueMatch(catalogueItems) {
+  // A clearly catalogue-shaped query: ThinkPad laptops (IT-001 in seed).
+  const tokens = tokenize('I need ThinkPad laptops for the engineering team');
+  const matches = catalogueItems
+    .map((item) => ({ item, score: matchCatalogueItem(item, tokens) }))
+    .filter((r) => r.score > 0.3)
+    .sort((a, b) => b.score - a.score);
+  assert(matches.length > 0, 'catalogue: laptop query finds matches', `matches=${matches.slice(0, 3).map((m) => `${m.item.id} (${m.score.toFixed(2)})`).join(', ')}`);
+  assert(matches[0]?.item.id?.startsWith('IT-'), 'catalogue: top match is IT category', `top=${matches[0]?.item.id}`);
+
+  // A simpler single-word search should still work
+  const pens = catalogueItems
+    .map((item) => ({ item, score: matchCatalogueItem(item, tokenize('pens')) }))
+    .filter((r) => r.score > 0.3)
+    .sort((a, b) => b.score - a.score);
+  assert(pens.length > 0 && pens[0].item.id.startsWith('OS-'), 'catalogue: single-word query "pens" matches office supplies', `top=${pens[0]?.item.id}`);
+}
+
+async function scenarioContractMatch(contracts) {
+  // Target a contract that exists in seed: CON-xxx for Accenture consulting
+  const ctx = {
+    tokens: tokenize('strategy consulting engagement with Accenture'),
+    category: 'consulting',
+    estimatedValue: 50_000,
+    supplierId: 'SUP-001', // Accenture in seed
+  };
+  const out = [];
+  for (const c of contracts) {
+    const m = matchContract(c, ctx);
+    if (m) out.push({ id: c.id, score: m.score, reasons: m.reasons });
+  }
+  out.sort((a, b) => b.score - a.score);
+  assert(out.length > 0, 'contract: Accenture consulting query finds active contracts', `top=${out.slice(0, 3).map((o) => `${o.id}(${o.score.toFixed(2)})`).join(', ')}`);
+  assert(out[0]?.score >= 0.5, 'contract: top candidate has supplier-match bonus', `score=${out[0]?.score}`);
+}
+
+async function scenarioNoMatch(catalogueItems, contracts) {
+  // Query unlikely to match anything catalogue/contract
+  const title = 'custom Antarctic research expedition logistics';
+  const tokens = tokenize(title);
+
+  const catMatches = catalogueItems.filter((item) => matchCatalogueItem(item, tokens) > 0.3);
+  assert(catMatches.length === 0, 'no-match: catalogue yields nothing for exotic query', `cat=${catMatches.length}`);
+
+  // Use a category that doesn't exist in any contract — this proves the
+  // matcher doesn't fire on pure category-name collisions.
+  const ctx = { tokens, category: 'antarctic-logistics', estimatedValue: 100_000, supplierId: '' };
+  const conMatches = contracts.filter((c) => matchContract(c, ctx));
+  assert(conMatches.length === 0, 'no-match: contracts yield nothing for exotic query', `con=${conMatches.length}`);
+}
+
+async function scenarioChatIntakePromptMandatorySow() {
+  // The chat-intake system prompt lives in the serverless function. We don't
+  // call the endpoint (that would burn a real LLM credit); we read the
+  // committed file and assert the SOW branch was removed.
+  const src = readFileSync(new URL('../../api/chat-intake.ts', import.meta.url), 'utf8');
+  assert(
+    !src.includes('Would you like me to help build a detailed service description'),
+    'chat: optional-SOW prompt removed',
+  );
+  assert(
+    src.includes('SOW is MANDATORY'),
+    'chat: mandatory-SOW enforcement present',
+  );
+  assert(
+    src.includes('Never ask "do you want a detailed SOW?"') || src.includes('Never offer to "keep it quick"'),
+    'chat: explicit rule against offering to skip SOW',
+  );
+}
+
+async function main() {
+  const { catalogueItems, contracts } = await loadTables();
+  console.log(`Loaded ${catalogueItems.length} catalogue items, ${contracts.length} contracts`);
+  await scenarioCatalogueMatch(catalogueItems);
+  await scenarioContractMatch(contracts);
+  await scenarioNoMatch(catalogueItems, contracts);
+  await scenarioChatIntakePromptMandatorySow();
+
+  const failed = results.filter((r) => r.o === 'FAIL').length;
+  for (const r of results) {
+    const tag = r.o === 'PASS' ? '\x1b[32mPASS\x1b[0m' : '\x1b[31mFAIL\x1b[0m';
+    console.log(`  ${tag}  ${r.n}`);
+    if (r.d) console.log(`        ${r.d}`);
+  }
+  console.log(`\n  ${results.length - failed} passed, ${failed} failed.`);
+  process.exit(failed === 0 ? 0 : 1);
+}
+
+main().catch((e) => { console.error(e); process.exit(2); });
