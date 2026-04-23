@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Sparkles, CheckCircle, XCircle, AlertTriangle, Info, ChevronDown, ChevronUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ComplianceReport, ComplianceCheck } from '@/data/compliance-reports';
+import { useAiAgent } from '@/lib/db/hooks/use-ai-agents';
 
 interface ComplianceReportCardProps {
   report: ComplianceReport;
@@ -32,6 +33,25 @@ const CATEGORIES: ComplianceCheck['category'][] = ['Budget', 'Contract', 'Suppli
 
 export function ComplianceReportCard({ report, defaultExpanded = false }: ComplianceReportCardProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
+  const { data: agent } = useAiAgent('AI-006');
+
+  if (agent && agent.status !== 'active') {
+    return (
+      <div className="rounded-md border-l-2 border-gray-300 bg-gray-50 p-4">
+        <div className="flex items-center gap-2">
+          <Sparkles className="size-4 shrink-0 text-gray-400" />
+          <span className="text-sm font-semibold text-gray-700">PR Compliance Review</span>
+          <span className="rounded-full border border-gray-200 bg-white px-2 py-0.5 text-xs text-gray-500">
+            {agent.name} is {agent.status}
+          </span>
+        </div>
+        <p className="mt-2 pl-6 text-sm text-gray-500">
+          {agent.name} is currently {agent.status}. Enable it in Admin → AI Agents to regenerate
+          the PR compliance report for this request.
+        </p>
+      </div>
+    );
+  }
 
   const decision = decisionStyles[report.decision];
   const passedCount = report.checks.filter((c) => c.status === 'pass').length;
@@ -61,7 +81,10 @@ export function ComplianceReportCard({ report, defaultExpanded = false }: Compli
 
       {/* Agent info */}
       <p className="mt-1 pl-6 text-[11px] text-muted-foreground">
-        Reviewed by {report.agentId} {report.agentName} &middot; {new Date(report.generatedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+        Reviewed by {report.agentId} {report.agentName}
+        {agent?.accuracy ? ` · accuracy ${agent.accuracy}%` : ''}
+        {' · '}
+        {new Date(report.generatedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
       </p>
 
       {/* Summary */}
