@@ -230,91 +230,93 @@ export function StepCompliance({
   workflowTemplateId,
   onUpdate,
 }: StepComplianceProps) {
-  const [loading, setLoading] = useState(true);
-  const [result, setResult] = useState<ComplianceData | null>(null);
   const { data: suppliers = [] } = useSuppliers();
   const { data: matches = [], isFetched: matchesFetched } = useMatchingRiskAssessments({ supplierId });
   const { data: routingRules = [] } = useRoutingRules();
   const { data: validatorAgent } = useAiAgent('AI-002');
   const { data: workflowTemplates = [] } = useWorkflowTemplates();
 
+  // A fetch is pending if we have a supplierId and the matching-SRA
+  // lookup hasn't resolved yet. Once resolved (success or error),
+  // matchesFetched flips true. Without a supplierId the query is
+  // disabled, so we treat it as resolved immediately.
+  const loading = Boolean(supplierId) && !matchesFetched;
+
+  // Compose the compliance result purely from inputs. useMemo keeps
+  // the reference stable across re-renders so parent onUpdate doesn't
+  // create a feedback loop.
+  const result = useMemo<ComplianceData | null>(() => {
+    if (loading) return null;
+    const routing = resolveRouting(routingRules, {
+      category,
+      value: estimatedValue,
+      supplierId,
+      priority: isUrgent ? 'urgent' : undefined,
+      isUrgent,
+    });
+    const label = buyingChannelLabel(routing.channel);
+    const supplierRec = suppliers.find((s) => s.id === supplierId);
+
+    const validatorActive = validatorAgent?.status === 'active';
+    const policyChecks = validatorActive
+      ? generatePolicyChecks(estimatedValue, category, supplierId, isUrgent, suppliers)
+      : [
+          {
+            label: 'Request Validator agent',
+            passed: false,
+            detail: validatorAgent
+              ? `${validatorAgent.name} is currently ${validatorAgent.status}. Enable it in Admin → AI Agents to run policy checks.`
+              : 'AI-002 Request Validator not configured. Enable it in Admin → AI Agents.',
+          },
+        ];
+
+    const matchingRiskAssessments: MatchingRiskAssessmentSummary[] = matches.map((m) => ({
+      id: m.id,
+      title: m.title,
+      riskLevel: m.riskLevel,
+      category: m.category,
+      validUntil: m.validUntil,
+    }));
+
+    if (validatorActive && matchingRiskAssessments.length > 0) {
+      policyChecks.push({
+        label: 'Risk assessment reuse',
+        passed: true,
+        detail: `${matchingRiskAssessments.length} existing risk assessment${matchingRiskAssessments.length > 1 ? 's' : ''} can be reused — no new SRA required at intake.`,
+      });
+    }
+
+    return {
+      buyingChannelResult: label,
+      matchedRuleName: routing.matchedRule?.name,
+      sraStatus: supplierRec
+        ? `${supplierRec.name}: ${supplierRec.sraStatus}${supplierRec.sraExpiryDate ? ` (expires ${supplierRec.sraExpiryDate})` : ''}`
+        : 'Will be initiated upon submission',
+      policyChecks,
+      duplicateCheck: null,
+      matchingRiskAssessments,
+      validatorAgentStatus: (validatorAgent?.status ?? 'missing') as ComplianceData['validatorAgentStatus'],
+      validatorAgentName: validatorAgent?.name,
+    };
+  }, [loading, category, estimatedValue, supplierId, isUrgent, suppliers, matches, routingRules, validatorAgent]);
+
+  // Push the composed result up to the parent whenever the data changes.
+  // We intentionally exclude `onUpdate` from the deps: it's a new arrow
+  // on every parent render, and including it would cause a setState
+  // loop (parent re-renders → new onUpdate → effect fires → parent
+  // re-renders …).
+  useEffect(() => {
+    if (result) onUpdate(result);
+  }, [result]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Default workflow template derived from category whenever the user
-  // hasn't picked one yet. The mapping prefers a template whose `type`
-  // matches the request category, else falls back to the first template.
+  // hasn't picked one yet. Same onUpdate-exclusion reasoning applies.
   useEffect(() => {
     if (workflowTemplateId || workflowTemplates.length === 0) return;
     const byType = workflowTemplates.find((t) => t.type === category);
     const defaultId = byType?.id ?? workflowTemplates[0].id;
     onUpdate({ workflowTemplateId: defaultId } as Partial<ComplianceData>);
-  }, [workflowTemplateId, workflowTemplates, category, onUpdate]);
-
-  useEffect(() => {
-    setLoading(true);
-    // Wait for Supabase lookups before composing the result.
-    if (!matchesFetched && supplierId) return;
-    const timer = setTimeout(() => {
-      const routing = resolveRouting(routingRules, {
-        category,
-        value: estimatedValue,
-        supplierId,
-        priority: isUrgent ? 'urgent' : undefined,
-        isUrgent,
-      });
-      const label = buyingChannelLabel(routing.channel);
-      const supplier = suppliers.find((s) => s.id === supplierId);
-
-      // AI-002 Request Validator owns the policy-check logic. When the agent
-      // is inactive, only the single "validator offline" check is produced so
-      // the admin sees an obvious signal their toggle took effect.
-      const validatorActive = validatorAgent?.status === 'active';
-      const policyChecks = validatorActive
-        ? generatePolicyChecks(estimatedValue, category, supplierId, isUrgent, suppliers)
-        : [
-            {
-              label: 'Request Validator agent',
-              passed: false,
-              detail: validatorAgent
-                ? `${validatorAgent.name} is currently ${validatorAgent.status}. Enable it in Admin → AI Agents to run policy checks.`
-                : 'AI-002 Request Validator not configured. Enable it in Admin → AI Agents.',
-            },
-          ];
-
-      const matchingRiskAssessments: MatchingRiskAssessmentSummary[] = matches.map((m) => ({
-        id: m.id,
-        title: m.title,
-        riskLevel: m.riskLevel,
-        category: m.category,
-        validUntil: m.validUntil,
-      }));
-
-      if (validatorActive && matchingRiskAssessments.length > 0) {
-        policyChecks.push({
-          label: 'Risk assessment reuse',
-          passed: true,
-          detail: `${matchingRiskAssessments.length} existing risk assessment${matchingRiskAssessments.length > 1 ? 's' : ''} can be reused — no new SRA required at intake.`,
-        });
-      }
-
-      const data: ComplianceData = {
-        buyingChannelResult: label,
-        matchedRuleName: routing.matchedRule?.name,
-        sraStatus: supplier
-          ? `${supplier.name}: ${supplier.sraStatus}${supplier.sraExpiryDate ? ` (expires ${supplier.sraExpiryDate})` : ''}`
-          : 'Will be initiated upon submission',
-        policyChecks,
-        duplicateCheck: null,
-        matchingRiskAssessments,
-        validatorAgentStatus: (validatorAgent?.status ?? 'missing') as ComplianceData['validatorAgentStatus'],
-        validatorAgentName: validatorAgent?.name,
-      };
-
-      setResult(data);
-      onUpdate(data);
-      setLoading(false);
-    }, 1200);
-
-    return () => clearTimeout(timer);
-  }, [category, estimatedValue, supplierId, isUrgent, suppliers, matches, matchesFetched, routingRules, validatorAgent]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [workflowTemplateId, workflowTemplates, category]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) {
     return (
