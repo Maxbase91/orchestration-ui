@@ -173,6 +173,66 @@ async function scenarioChatIntakePromptMandatorySow() {
   );
 }
 
+// Mirror of isTriageRequired in step-compliance.tsx. Keep in sync.
+function isTriageRequired(p) {
+  if (!p.supplierRegistered) return { required: true, reason: 'new or unselected supplier' };
+  if (p.supplierSraStatus === 'not-assessed' || p.supplierSraStatus === 'expired' || !p.supplierSraStatus) {
+    return { required: true, reason: `supplier SRA status is ${p.supplierSraStatus ?? 'unknown'}` };
+  }
+  if (p.supplierRiskRating === 'high' || p.supplierRiskRating === 'critical') {
+    return { required: true, reason: `supplier risk rating is ${p.supplierRiskRating}` };
+  }
+  if (p.matchingReusableSraCount > 0) {
+    if (p.inferredDataSensitivity === 'high' || p.inferredDataSensitivity === 'critical') {
+      return { required: true, reason: `data sensitivity is ${p.inferredDataSensitivity}` };
+    }
+    return { required: false, reason: 'reusable SRA covers this supplier' };
+  }
+  if (p.inferredDataSensitivity === 'high' || p.inferredDataSensitivity === 'critical') {
+    return { required: true, reason: `data sensitivity is ${p.inferredDataSensitivity}` };
+  }
+  return { required: true, reason: 'no reusable SRA on file' };
+}
+
+async function scenarioRiskTriageGate() {
+  const cases = [
+    {
+      label: 'valid SRA + low sensitivity + reusable match → skip',
+      params: { supplierRegistered: true, supplierSraStatus: 'valid', supplierRiskRating: 'low', matchingReusableSraCount: 1, inferredDataSensitivity: 'low' },
+      expect: false,
+    },
+    {
+      label: 'valid SRA + critical sensitivity → required',
+      params: { supplierRegistered: true, supplierSraStatus: 'valid', supplierRiskRating: 'low', matchingReusableSraCount: 1, inferredDataSensitivity: 'critical' },
+      expect: true,
+    },
+    {
+      label: 'no registered supplier → required',
+      params: { supplierRegistered: false, matchingReusableSraCount: 0, inferredDataSensitivity: 'medium' },
+      expect: true,
+    },
+    {
+      label: 'expired SRA → required',
+      params: { supplierRegistered: true, supplierSraStatus: 'expired', supplierRiskRating: 'low', matchingReusableSraCount: 1, inferredDataSensitivity: 'low' },
+      expect: true,
+    },
+    {
+      label: 'high-risk supplier → required regardless of reusable SRA',
+      params: { supplierRegistered: true, supplierSraStatus: 'valid', supplierRiskRating: 'high', matchingReusableSraCount: 2, inferredDataSensitivity: 'low' },
+      expect: true,
+    },
+    {
+      label: 'no reusable SRA + low sensitivity → required (safer default)',
+      params: { supplierRegistered: true, supplierSraStatus: 'valid', supplierRiskRating: 'low', matchingReusableSraCount: 0, inferredDataSensitivity: 'low' },
+      expect: true,
+    },
+  ];
+  for (const { label, params, expect } of cases) {
+    const got = isTriageRequired(params);
+    assert(got.required === expect, `triage-gate: ${label}`, `required=${got.required} reason=${got.reason}`);
+  }
+}
+
 // Mirror of inferDataSensitivity in step-compliance.tsx. Keep in sync.
 function inferDataSensitivity(sow) {
   const blob = [sow?.objective, sow?.scope, sow?.deliverables, sow?.resources, sow?.narrative]
@@ -212,6 +272,7 @@ async function main() {
   await scenarioNoMatch(catalogueItems, contracts);
   await scenarioChatIntakePromptMandatorySow();
   await scenarioRiskTriagePrefill();
+  await scenarioRiskTriageGate();
 
   const failed = results.filter((r) => r.o === 'FAIL').length;
   for (const r of results) {
