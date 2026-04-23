@@ -8,6 +8,7 @@ import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
 import { useContracts } from '@/lib/db/hooks/use-contracts';
 import { useRequests } from '@/lib/db/hooks/use-requests';
 import { formatCurrency } from '@/lib/format';
+import { SpendAnomaliesCard } from './components/spend-anomalies-card';
 
 const CATEGORY_LABEL: Record<string, string> = {
   goods: 'Goods',
@@ -130,6 +131,9 @@ export function SpendDashboardPage() {
         title="Spend Overview"
         subtitle="Year-to-date spend analytics and breakdown"
       />
+
+      {/* AI-driven Anomaly Detection */}
+      <SpendAnomaliesCard />
 
       {/* KPI Row */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

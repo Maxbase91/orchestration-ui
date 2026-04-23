@@ -128,10 +128,27 @@ async function scenarioAi002Validator() {
   }
 }
 
+async function scenarioAiRowToggle(id, label) {
+  const { data: before } = await sb.from('ai_agents').select('*').eq('id', id).single();
+  if (!before) { fail(`${label}: agent row present`, `${id} not found`); return; }
+  try {
+    await setAgentStatus(id, 'draft');
+    const { data: d } = await sb.from('ai_agents').select('status').eq('id', id).single();
+    assert(d?.status === 'draft', `${label}: flip to draft visible`, `status=${d?.status}`);
+    await setAgentStatus(id, 'active');
+    const { data: a } = await sb.from('ai_agents').select('status').eq('id', id).single();
+    assert(a?.status === 'active', `${label}: flip back to active visible`, `status=${a?.status}`);
+  } finally {
+    await setAgentStatus(id, before.status);
+  }
+}
+
 async function main() {
   console.log(`Testing against ${API_BASE}`);
   await scenarioAi001Classifier();
   await scenarioAi002Validator();
+  await scenarioAiRowToggle('AI-003', 'ai-003 (Document Extractor)');
+  await scenarioAiRowToggle('AI-004', 'ai-004 (Spend Anomaly Detector)');
 
   const failed = results.filter((r) => r.o === 'FAIL').length;
   for (const r of results) {
