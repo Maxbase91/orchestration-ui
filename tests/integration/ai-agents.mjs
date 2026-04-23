@@ -106,9 +106,32 @@ async function scenarioAi001Classifier() {
   }
 }
 
+async function scenarioAi002Validator() {
+  // AI-002 toggles policy checks in the intake wizard. The logic lives
+  // client-side (step-compliance.tsx) so this test verifies:
+  //   1. the agent row exists
+  //   2. flipping status is reflected when we re-read the row via the
+  //      public anon key (confirms RLS allows the UI hook to see it)
+  const { data: before } = await sb.from('ai_agents').select('*').eq('id', 'AI-002').single();
+  if (!before) { fail('ai-002: agent row present', 'AI-002 not found in DB'); return; }
+
+  try {
+    await setAgentStatus('AI-002', 'draft');
+    const { data: reread } = await sb.from('ai_agents').select('status,name').eq('id', 'AI-002').single();
+    assert(reread?.status === 'draft', 'ai-002: status flip visible via DB read', `status=${reread?.status}`);
+
+    await setAgentStatus('AI-002', 'active');
+    const { data: back } = await sb.from('ai_agents').select('status').eq('id', 'AI-002').single();
+    assert(back?.status === 'active', 'ai-002: can flip back to active', `status=${back?.status}`);
+  } finally {
+    await setAgentStatus('AI-002', before.status);
+  }
+}
+
 async function main() {
   console.log(`Testing against ${API_BASE}`);
   await scenarioAi001Classifier();
+  await scenarioAi002Validator();
 
   const failed = results.filter((r) => r.o === 'FAIL').length;
   for (const r of results) {

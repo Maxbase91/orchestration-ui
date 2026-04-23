@@ -9,6 +9,7 @@ import { useContracts } from '@/lib/db/hooks/use-contracts';
 import { useMatchingRiskAssessments } from '@/lib/db/hooks/use-risk-assessments';
 import { useFormTemplate } from '@/lib/db/hooks/use-form-templates';
 import { useRoutingRules } from '@/lib/db/hooks/use-routing-rules';
+import { useAiAgent } from '@/lib/db/hooks/use-ai-agents';
 import { resolveRouting, buyingChannelLabel } from '@/lib/routing/evaluate-routing-rules';
 import { DynamicForm } from '@/components/shared/dynamic-form';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -29,6 +30,8 @@ interface ComplianceData {
   policyChecks: { label: string; passed: boolean; detail: string }[];
   duplicateCheck: string | null;
   matchingRiskAssessments: MatchingRiskAssessmentSummary[];
+  validatorAgentStatus?: 'active' | 'draft' | 'disabled' | 'missing';
+  validatorAgentName?: string;
 }
 
 interface StepComplianceProps {
@@ -108,6 +111,7 @@ export function StepCompliance({
   const { data: suppliers = [] } = useSuppliers();
   const { data: matches = [], isFetched: matchesFetched } = useMatchingRiskAssessments({ supplierId });
   const { data: routingRules = [] } = useRoutingRules();
+  const { data: validatorAgent } = useAiAgent('AI-002');
 
   useEffect(() => {
     setLoading(true);
@@ -123,7 +127,22 @@ export function StepCompliance({
       });
       const label = buyingChannelLabel(routing.channel);
       const supplier = suppliers.find((s) => s.id === supplierId);
-      const policyChecks = generatePolicyChecks(estimatedValue, category, supplierId, isUrgent, suppliers);
+
+      // AI-002 Request Validator owns the policy-check logic. When the agent
+      // is inactive, only the single "validator offline" check is produced so
+      // the admin sees an obvious signal their toggle took effect.
+      const validatorActive = validatorAgent?.status === 'active';
+      const policyChecks = validatorActive
+        ? generatePolicyChecks(estimatedValue, category, supplierId, isUrgent, suppliers)
+        : [
+            {
+              label: 'Request Validator agent',
+              passed: false,
+              detail: validatorAgent
+                ? `${validatorAgent.name} is currently ${validatorAgent.status}. Enable it in Admin → AI Agents to run policy checks.`
+                : 'AI-002 Request Validator not configured. Enable it in Admin → AI Agents.',
+            },
+          ];
 
       const matchingRiskAssessments: MatchingRiskAssessmentSummary[] = matches.map((m) => ({
         id: m.id,
@@ -133,7 +152,7 @@ export function StepCompliance({
         validUntil: m.validUntil,
       }));
 
-      if (matchingRiskAssessments.length > 0) {
+      if (validatorActive && matchingRiskAssessments.length > 0) {
         policyChecks.push({
           label: 'Risk assessment reuse',
           passed: true,
@@ -150,6 +169,8 @@ export function StepCompliance({
         policyChecks,
         duplicateCheck: null,
         matchingRiskAssessments,
+        validatorAgentStatus: (validatorAgent?.status ?? 'missing') as ComplianceData['validatorAgentStatus'],
+        validatorAgentName: validatorAgent?.name,
       };
 
       setResult(data);
@@ -158,7 +179,7 @@ export function StepCompliance({
     }, 1200);
 
     return () => clearTimeout(timer);
-  }, [category, estimatedValue, supplierId, isUrgent, suppliers, matches, matchesFetched, routingRules]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [category, estimatedValue, supplierId, isUrgent, suppliers, matches, matchesFetched, routingRules, validatorAgent]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) {
     return (
@@ -238,7 +259,16 @@ export function StepCompliance({
 
       {/* Policy Checks */}
       <div>
-        <p className="mb-3 text-sm font-medium text-gray-700">Policy Checks</p>
+        <div className="mb-3 flex items-baseline justify-between">
+          <p className="text-sm font-medium text-gray-700">Policy Checks</p>
+          {result.validatorAgentName && (
+            <p className="text-[11px] text-gray-400">
+              {result.validatorAgentStatus === 'active'
+                ? `via ${result.validatorAgentName} (AI-002)`
+                : `${result.validatorAgentName} is ${result.validatorAgentStatus}`}
+            </p>
+          )}
+        </div>
         <div className="space-y-2">
           {result.policyChecks.map((check) => (
             <ComplianceCheckResult
