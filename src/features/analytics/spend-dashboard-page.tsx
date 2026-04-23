@@ -3,12 +3,12 @@ import { PageHeader } from '@/components/shared/page-header';
 import { KPICard } from '@/components/shared/kpi-card';
 import { BarChartWidget } from '@/components/charts/bar-chart-widget';
 import { PieChartWidget } from '@/components/charts/pie-chart-widget';
-import { useKpiData } from '@/lib/db/hooks/use-kpi-data';
 import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
 import { useContracts } from '@/lib/db/hooks/use-contracts';
 import { useRequests } from '@/lib/db/hooks/use-requests';
 import { formatCurrency } from '@/lib/format';
 import { SpendAnomaliesCard } from './components/spend-anomalies-card';
+import { useLiveSpendKpis } from './use-live-analytics';
 
 const CATEGORY_LABEL: Record<string, string> = {
   goods: 'Goods',
@@ -33,23 +33,12 @@ const CATEGORY_COLOR: Record<string, string> = {
 export function SpendDashboardPage() {
   const { data: suppliers = [] } = useSuppliers();
   const { data: contracts = [] } = useContracts();
-  const { data: kpiData = [] } = useKpiData();
   const { data: requests = [] } = useRequests();
+  const spend = useLiveSpendKpis();
 
-  const totalSpendYTD = useMemo(
-    () => kpiData.reduce((sum, d) => sum + d.totalSpend, 0),
-    [kpiData],
-  );
-
-  const totalManagedSpend = useMemo(
-    () => kpiData.reduce((sum, d) => sum + d.managedSpend, 0),
-    [kpiData],
-  );
-
-  const managedPct = useMemo(
-    () => Math.round((totalManagedSpend / totalSpendYTD) * 100),
-    [totalManagedSpend, totalSpendYTD],
-  );
+  const totalSpendYTD = spend.totalSpendYTD;
+  const totalManagedSpend = spend.managedSpendYTD;
+  const managedPct = spend.managedPct;
 
   const topSupplier = useMemo(() => {
     const active = suppliers.filter((s) => s.totalSpend12m > 0);
@@ -66,11 +55,8 @@ export function SpendDashboardPage() {
 
   const monthlySpendData = useMemo(
     () =>
-      kpiData.map((d) => ({
-        name: d.month.slice(5),
-        value: d.totalSpend,
-      })),
-    [kpiData],
+      spend.totalSpendMonthlySeries.map((d) => ({ name: d.month, value: d.value })),
+    [spend.totalSpendMonthlySeries],
   );
 
   const categorySpendData = useMemo(() => {
@@ -141,17 +127,13 @@ export function SpendDashboardPage() {
           label="Total Spend YTD"
           value={totalSpendYTD}
           format="currency"
-          trend={{ direction: 'up', percentage: 14 }}
-          sparklineData={kpiData.map((d) => d.totalSpend)}
+          sparklineData={spend.totalSpendMonthlySeries.map((d) => d.value)}
         />
         <KPICard
           label="Managed Spend %"
           value={managedPct}
           format="percentage"
-          trend={{ direction: 'up', percentage: 5 }}
-          sparklineData={kpiData.map((d) =>
-            Math.round((d.managedSpend / d.totalSpend) * 100),
-          )}
+          sparklineData={spend.managedSeries}
         />
         <KPICard
           label="Top Supplier Spend"

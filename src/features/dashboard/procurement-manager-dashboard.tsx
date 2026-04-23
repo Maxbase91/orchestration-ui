@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useRequests } from '@/lib/db/hooks/use-requests';
-import { useKpiData, useLatestKpi } from '@/lib/db/hooks/use-kpi-data';
+import { useLiveKpis } from './use-live-kpis';
 import { formatCurrency } from '@/lib/format';
 import { KPICard } from '@/components/shared/kpi-card';
 import { AISuggestionCard } from '@/components/shared/ai-suggestion-card';
@@ -14,11 +14,10 @@ const activeStatuses = new Set([
 ]);
 
 export function ProcurementManagerDashboard() {
-  const { data: kpiData = [] } = useKpiData();
-  const latestKPI = useLatestKpi();
   const { data: requests = [] } = useRequests();
+  const live = useLiveKpis();
 
-  const { openDemandCount, openDemandValue, activeSourcingCount, avgCycleTime, complianceRate } = useMemo(() => {
+  const { openDemandCount, openDemandValue, activeSourcingCount } = useMemo(() => {
     const active = requests.filter((r) => activeStatuses.has(r.status));
     const sourcing = requests.filter((r) => r.status === 'sourcing');
     const totalValue = active.reduce((sum, r) => sum + r.value, 0);
@@ -27,17 +26,18 @@ export function ProcurementManagerDashboard() {
       openDemandCount: active.length,
       openDemandValue: totalValue,
       activeSourcingCount: sourcing.length,
-      avgCycleTime: latestKPI?.avgCycleTime ?? 0,
-      complianceRate: latestKPI?.complianceRate ?? 0,
     };
-  }, [latestKPI, requests]);
+  }, [requests]);
 
-  const sparklines = useMemo(() => ({
-    openDemand: kpiData.map((k) => k.openDemand),
-    sourcing: kpiData.map((k) => k.activeSourcing),
-    cycleTime: kpiData.map((k) => k.avgCycleTime),
-    compliance: kpiData.map((k) => k.complianceRate),
-  }), [kpiData]);
+  const avgCycleTime = live.avgCycleTime;
+  const complianceRate = live.complianceRate;
+
+  const sparklines = {
+    openDemand: live.openDemandSeries,
+    sourcing: live.sourcingSeries,
+    cycleTime: live.cycleTimeSeries,
+    compliance: live.complianceSeries,
+  };
 
   return (
     <div className="space-y-6">
@@ -52,26 +52,26 @@ export function ProcurementManagerDashboard() {
         <KPICard
           label="Open Demand"
           value={`${openDemandCount} (${formatCurrency(openDemandValue)})`}
-          trend={{ direction: 'up', percentage: 12 }}
+          trend={live.openDemandTrend}
           sparklineData={sparklines.openDemand}
         />
         <KPICard
           label="Active Sourcing Events"
           value={activeSourcingCount}
-          trend={{ direction: 'up', percentage: 8 }}
+          trend={live.sourcingTrend}
           sparklineData={sparklines.sourcing}
         />
         <KPICard
           label="Avg Cycle Time"
           value={`${avgCycleTime}d`}
-          trend={{ direction: 'down', percentage: 7 }}
+          trend={live.cycleTimeTrend}
           sparklineData={sparklines.cycleTime}
         />
         <KPICard
           label="Compliance Rate"
           value={complianceRate}
           format="percentage"
-          trend={{ direction: 'up', percentage: 3 }}
+          trend={live.complianceTrend}
           sparklineData={sparklines.compliance}
         />
       </div>

@@ -101,6 +101,36 @@ async function main() {
   assert(perfBuckets.size >= 1, 'chart: perf-by-category has >=1 category', `categories=${perfBuckets.size}`);
   pass('chart: perf-by-category', perfList.map(([c, v]) => `${c}=${v}`).join(', '));
 
+  // ── Spend YTD (live) equals sum of completed-request values for current year
+  const year = String(new Date().getFullYear());
+  const ytdCompleted = all.filter((r) => r.status === 'completed' && (r.updated_at ?? r.created_at ?? '').startsWith(year));
+  const spendYTD = ytdCompleted.reduce((s, r) => s + (r.value ?? 0), 0);
+  pass('chart: live spend YTD derivable', `spendYTD=${spendYTD.toLocaleString()} from ${ytdCompleted.length} completed requests`);
+  assert(spendYTD >= 0, 'chart: spend YTD non-negative');
+
+  const MANAGED = new Set(['procurement-led', 'framework-call-off']);
+  const managed = ytdCompleted.filter((r) => MANAGED.has(r.buying_channel));
+  const managedSpend = managed.reduce((s, r) => s + (r.value ?? 0), 0);
+  const managedPct = spendYTD > 0 ? Math.round((managedSpend / spendYTD) * 100) : 0;
+  assert(managedPct >= 0 && managedPct <= 100, 'chart: managed% in [0,100]', `managedPct=${managedPct}%`);
+
+  // ── Invoice-based monthly series makes sense
+  const { data: invoices = [] } = await sb.from('invoices').select('invoice_date,amount');
+  const byMonth = new Map();
+  for (const inv of invoices) {
+    const m = (inv.invoice_date ?? '').slice(0, 7);
+    if (!m) continue;
+    byMonth.set(m, (byMonth.get(m) ?? 0) + (inv.amount ?? 0));
+  }
+  const months = Array.from(byMonth.keys()).sort();
+  assert(months.length > 0, 'chart: invoice months populated', `months=${months.join(', ')}`);
+
+  // ── Compliance: first-time-right rate from refer_back_count
+  const allCompleted = all.filter((r) => r.status === 'completed');
+  const ftrCount = allCompleted.filter((r) => (r.refer_back_count ?? 0) === 0).length;
+  const ftrRate = allCompleted.length > 0 ? Math.round((ftrCount / allCompleted.length) * 100) : 0;
+  assert(ftrRate >= 0 && ftrRate <= 100, 'chart: first-time-right rate in [0,100]', `rate=${ftrRate}%`);
+
   // ── Confirm numbers do NOT match the kpi_data snapshot blindly
   // (this is the whole point — dashboards should not be parroting kpi_data).
   const { data: kpi } = await sb.from('kpi_data').select('*').order('month', { ascending: false }).limit(1);

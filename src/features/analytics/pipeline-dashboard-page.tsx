@@ -2,8 +2,8 @@ import { useMemo } from 'react';
 import { PageHeader } from '@/components/shared/page-header';
 import { BarChartWidget } from '@/components/charts/bar-chart-widget';
 import { LineChartWidget } from '@/components/charts/line-chart-widget';
-import { useKpiData } from '@/lib/db/hooks/use-kpi-data';
 import { useRequests } from '@/lib/db/hooks/use-requests';
+import { useLivePipelineKpis } from './use-live-analytics';
 
 const FUNNEL_STAGES = [
   { key: 'intake', label: 'Intake', statuses: ['intake', 'draft'] },
@@ -17,7 +17,7 @@ const STAGE_COLORS = ['#1B2A4A', '#2D5F8A', '#D4782F', '#2E7D4F', '#718096'];
 
 export function PipelineDashboardPage() {
   const { data: requests = [] } = useRequests();
-  const { data: kpiData = [] } = useKpiData();
+  const pipeline = useLivePipelineKpis();
   const funnelData = useMemo(() => {
     const activeRequests = requests.filter((r) => r.status !== 'completed' && r.status !== 'cancelled');
     return FUNNEL_STAGES.map((stage) => ({
@@ -50,14 +50,19 @@ export function PipelineDashboardPage() {
     [],
   );
 
-  const throughputData = useMemo(
-    () =>
-      kpiData.map((d) => ({
-        name: d.month.slice(5),
-        value: d.requestsCompleted,
-      })),
-    [kpiData],
-  );
+  const throughputData = useMemo(() => {
+    const now = new Date();
+    const n = pipeline.throughputSeries.length;
+    // pipeline.throughputSeries[0] = oldest month; [n-1] = current month.
+    return pipeline.throughputSeries.map((value, i) => {
+      const monthsAgo = n - 1 - i;
+      const d = new Date(now.getFullYear(), now.getMonth() - monthsAgo, 1);
+      return {
+        name: String(d.getMonth() + 1).padStart(2, '0'),
+        value,
+      };
+    });
+  }, [pipeline.throughputSeries]);
 
   // Ageing brackets per request
   const ageingData = useMemo(() => {
@@ -77,7 +82,7 @@ export function PipelineDashboardPage() {
       if (bracket) bracket.count++;
     }
     return brackets.map((b) => ({ name: b.name, value: b.count }));
-  }, []);
+  }, [requests]);
 
   return (
     <div className="space-y-6">

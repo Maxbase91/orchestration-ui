@@ -3,18 +3,16 @@ import { PageHeader } from '@/components/shared/page-header';
 import { KPICard } from '@/components/shared/kpi-card';
 import { BarChartWidget } from '@/components/charts/bar-chart-widget';
 import { LineChartWidget } from '@/components/charts/line-chart-widget';
-import { useKpiData, useLatestKpi } from '@/lib/db/hooks/use-kpi-data';
 import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
+import { useRequests } from '@/lib/db/hooks/use-requests';
+import { useLiveComplianceKpis } from './use-live-analytics';
+import { useLiveKpis } from '@/features/dashboard/use-live-kpis';
 
 export function ComplianceKPIPage() {
-  const { data: kpiData = [] } = useKpiData();
-  const latest = useLatestKpi();
   const { data: suppliers = [] } = useSuppliers();
-
-  const totalPolicyBreaches = useMemo(
-    () => kpiData.reduce((sum, d) => sum + d.policyBreaches, 0),
-    [kpiData],
-  );
+  const { data: requests = [] } = useRequests();
+  const compliance = useLiveComplianceKpis();
+  const { avgCycleTime, cycleTimeSeries } = useLiveKpis();
 
   const sraValidCount = useMemo(
     () => suppliers.filter((s) => s.sraStatus === 'valid').length,
@@ -26,39 +24,64 @@ export function ComplianceKPIPage() {
     [sraValidCount, suppliers.length],
   );
 
-  const breachChartData = useMemo(
-    () =>
-      kpiData.map((d) => ({
-        name: d.month.slice(5),
-        value: d.policyBreaches,
-      })),
-    [kpiData],
-  );
+  // Screening duplication = suppliers with same DUNS or same name (case-insensitive)
+  const screeningDuplication = useMemo(() => {
+    const byKey = new Map<string, number>();
+    for (const s of suppliers) {
+      const key = (s.duns || s.name).toLowerCase().trim();
+      if (!key) continue;
+      byKey.set(key, (byKey.get(key) ?? 0) + 1);
+    }
+    let dupes = 0;
+    for (const count of byKey.values()) if (count > 1) dupes += count;
+    return dupes;
+  }, [suppliers]);
 
-  const firstTimeRightData = useMemo(
-    () =>
-      kpiData.map((d) => ({
-        name: d.month.slice(5),
-        value: d.firstTimeRight,
-      })),
-    [kpiData],
-  );
+  const breachChartData = useMemo(() => {
+    const now = new Date();
+    const n = compliance.policyBreachesSeries.length;
+    return compliance.policyBreachesSeries.map((value, i) => {
+      const monthsAgo = n - 1 - i;
+      const d = new Date(now.getFullYear(), now.getMonth() - monthsAgo, 1);
+      return { name: String(d.getMonth() + 1).padStart(2, '0'), value };
+    });
+  }, [compliance.policyBreachesSeries]);
 
-  const cycleTimeByCategoryData = useMemo(
-    () => [
-      { name: 'Goods', value: 8 },
-      { name: 'Services', value: 12 },
-      { name: 'Software', value: 15 },
-      { name: 'Consulting', value: 18 },
-    ],
-    [],
-  );
+  const firstTimeRightData = useMemo(() => {
+    const now = new Date();
+    const n = compliance.firstTimeRightSeries.length;
+    return compliance.firstTimeRightSeries.map((value, i) => {
+      const monthsAgo = n - 1 - i;
+      const d = new Date(now.getFullYear(), now.getMonth() - monthsAgo, 1);
+      return { name: String(d.getMonth() + 1).padStart(2, '0'), value };
+    });
+  }, [compliance.firstTimeRightSeries]);
 
-  // Mock buying channel classification accuracy trend
-  const classificationData = useMemo(
-    () => [82, 83, 84, 85, 85, 86, 86, 87, 87, 88, 87, 87],
-    [],
-  );
+  // Cycle time by category: average days for completed requests in that category
+  const cycleTimeByCategoryData = useMemo(() => {
+    const buckets = new Map<string, { totalDays: number; count: number }>();
+    for (const r of requests) {
+      if (r.status !== 'completed') continue;
+      const start = new Date(r.createdAt).getTime();
+      const end = new Date(r.updatedAt ?? r.createdAt).getTime();
+      const days = Math.max(0, (end - start) / 86_400_000);
+      const bucket = buckets.get(r.category) ?? { totalDays: 0, count: 0 };
+      bucket.totalDays += days;
+      bucket.count += 1;
+      buckets.set(r.category, bucket);
+    }
+    const label: Record<string, string> = {
+      goods: 'Goods', services: 'Services', software: 'Software', consulting: 'Consulting',
+      'contingent-labour': 'Contingent Labour', 'contract-renewal': 'Contract Renewal',
+      'supplier-onboarding': 'Supplier Onboarding',
+    };
+    return Array.from(buckets.entries())
+      .map(([cat, { totalDays, count }]) => ({
+        name: label[cat] ?? cat,
+        value: Math.round(totalDays / count),
+      }))
+      .sort((a, b) => b.value - a.value);
+  }, [requests]);
 
   return (
     <div className="space-y-6">
@@ -70,43 +93,33 @@ export function ComplianceKPIPage() {
       {/* KPI Grid - 3x2 */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
         <KPICard
-          label="Policy Breaches"
-          value={`${totalPolicyBreaches} potential / 11 confirmed (YTD)`}
-          trend={{ direction: 'down', percentage: 38 }}
-          sparklineData={kpiData.map((d) => d.policyBreaches)}
+          label="Policy Breaches (current month)"
+          value={compliance.policyBreaches}
+          sparklineData={compliance.policyBreachesSeries}
         />
         <KPICard
           label="First Time Right Rate"
-          value={latest?.firstTimeRight ?? 0}
+          value={compliance.firstTimeRight}
           format="percentage"
-          trend={{ direction: 'up', percentage: 25 }}
-          sparklineData={kpiData.map((d) => d.firstTimeRight)}
+          sparklineData={compliance.firstTimeRightSeries}
         />
         <KPICard
-          label="Classification Accuracy"
-          value={87}
-          format="percentage"
-          trend={{ direction: 'up', percentage: 6 }}
-          sparklineData={classificationData}
+          label="Refer-back Rate"
+          value={`${compliance.referBackRate} / completed request`}
         />
         <KPICard
           label="SRA Coverage"
           value={sraCoverage}
           format="percentage"
-          trend={{ direction: 'up', percentage: 3 }}
-          sparklineData={[62, 65, 68, 70, 72, 73, 74, 75, 76, 77, 78, sraCoverage]}
         />
         <KPICard
-          label="Screening Duplication"
-          value="12 suppliers"
-          trend={{ direction: 'down', percentage: 8 }}
-          sparklineData={[20, 19, 18, 17, 16, 15, 14, 14, 13, 13, 12, 12]}
+          label="Duplicate Supplier Records"
+          value={`${screeningDuplication} supplier${screeningDuplication === 1 ? '' : 's'}`}
         />
         <KPICard
           label="Avg Request Cycle Time"
-          value={`${latest?.avgCycleTime ?? 0} days`}
-          trend={{ direction: 'down', percentage: 31 }}
-          sparklineData={kpiData.map((d) => d.avgCycleTime)}
+          value={`${avgCycleTime} days`}
+          sparklineData={cycleTimeSeries}
         />
       </div>
 
