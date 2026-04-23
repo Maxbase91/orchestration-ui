@@ -619,3 +619,52 @@ CREATE INDEX IF NOT EXISTS idx_audit_entries_timestamp ON audit_entries(timestam
 CREATE INDEX IF NOT EXISTS idx_workflow_step_details_request ON workflow_step_details(request_id);
 CREATE INDEX IF NOT EXISTS idx_catalogue_items_catalogue ON catalogue_items(catalogue_id);
 CREATE INDEX IF NOT EXISTS idx_audit_entries_object ON audit_entries(object_type, object_id);
+
+-- Helper indexes for the derived-fields views below (Phase 3).
+CREATE INDEX IF NOT EXISTS idx_contracts_supplier_status ON contracts(supplier_id, status);
+CREATE INDEX IF NOT EXISTS idx_invoices_supplier_date ON invoices(supplier_id, invoice_date);
+CREATE INDEX IF NOT EXISTS idx_requests_contract ON requests(contract_id) WHERE contract_id IS NOT NULL;
+
+-- ── Derived-fields views (Phase 3) ────────────────────────────────
+-- supplier.active_contracts, supplier.total_spend_12m and
+-- contract.linked_request_ids are no longer carried as seeded columns;
+-- these views recompute them on every read so UI surfaces always
+-- reflect live data. Views use security_invoker so base-table RLS
+-- policies cascade correctly (requires PG 15+, which Supabase projects
+-- launched 2023-07 onward satisfy).
+
+DROP VIEW IF EXISTS suppliers_with_derived CASCADE;
+CREATE VIEW suppliers_with_derived
+  WITH (security_invoker = true) AS
+SELECT
+  s.*,
+  COALESCE(c.active_contracts, 0)::int       AS active_contracts_live,
+  COALESCE(i.total_spend_12m, 0)::numeric    AS total_spend_12m_live
+FROM suppliers s
+LEFT JOIN (
+  SELECT supplier_id, COUNT(*)::int AS active_contracts
+  FROM contracts
+  WHERE status IN ('active', 'expiring') AND supplier_id IS NOT NULL
+  GROUP BY supplier_id
+) c ON c.supplier_id = s.id
+LEFT JOIN (
+  SELECT supplier_id, SUM(amount)::numeric AS total_spend_12m
+  FROM invoices
+  WHERE invoice_date >= (now() - interval '365 days')
+    AND supplier_id IS NOT NULL
+  GROUP BY supplier_id
+) i ON i.supplier_id = s.id;
+
+DROP VIEW IF EXISTS contracts_with_derived CASCADE;
+CREATE VIEW contracts_with_derived
+  WITH (security_invoker = true) AS
+SELECT
+  co.*,
+  COALESCE(r.ids, ARRAY[]::text[]) AS linked_request_ids_live
+FROM contracts co
+LEFT JOIN (
+  SELECT contract_id, array_agg(id ORDER BY created_at DESC) AS ids
+  FROM requests
+  WHERE contract_id IS NOT NULL
+  GROUP BY contract_id
+) r ON r.contract_id = co.id;

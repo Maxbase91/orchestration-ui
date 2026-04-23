@@ -2,16 +2,19 @@ import { supabase } from '@/lib/supabase-client';
 import type { Supplier } from '@/data/types';
 import { mapDbToSupplier, mapSupplierToDb } from './mappers';
 
+// Read side uses the derived view so active_contracts / total_spend_12m
+// are recomputed on every fetch. Writes still target the base table.
+const READ_SOURCE = 'suppliers_with_derived';
 const TABLE = 'suppliers';
 
 export async function listSuppliers(): Promise<Supplier[]> {
-  const { data, error } = await supabase.from(TABLE).select('*').order('name');
+  const { data, error } = await supabase.from(READ_SOURCE).select('*').order('name');
   if (error) throw error;
   return (data ?? []).map(mapDbToSupplier);
 }
 
 export async function getSupplier(id: string): Promise<Supplier | null> {
-  const { data, error } = await supabase.from(TABLE).select('*').eq('id', id).maybeSingle();
+  const { data, error } = await supabase.from(READ_SOURCE).select('*').eq('id', id).maybeSingle();
   if (error) throw error;
   return data ? mapDbToSupplier(data) : null;
 }

@@ -13,7 +13,8 @@
     "test:routing": "node tests/integration/routing-rules.mjs",
     "test:ai-agents": "node tests/integration/ai-agents.mjs",
     "test:intake": "node tests/integration/intake-sequence.mjs",
-    "test:audit": "node tests/integration/audit-trail.mjs"
+    "test:audit": "node tests/integration/audit-trail.mjs",
+    "test:derived": "node tests/integration/derived-fields.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

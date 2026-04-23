@@ -584,8 +584,11 @@ export function mapDbToSupplier(row: DbRecord): Supplier {
     country: (row.country ?? '') as string,
     countryCode: (row.country_code ?? row.countryCode ?? '') as string,
     riskRating: (row.risk_rating ?? row.riskRating ?? 'low') as Supplier['riskRating'],
-    activeContracts: (row.active_contracts ?? row.activeContracts ?? 0) as number,
-    totalSpend12m: (row.total_spend_12m ?? row.totalSpend12m ?? 0) as number,
+    // Prefer live-computed columns from suppliers_with_derived view;
+    // fall back to seeded columns on the base table so this mapper
+    // still works for inserts/updates that echo back the base row.
+    activeContracts: (row.active_contracts_live ?? row.active_contracts ?? row.activeContracts ?? 0) as number,
+    totalSpend12m: (row.total_spend_12m_live ?? row.total_spend_12m ?? row.totalSpend12m ?? 0) as number,
     onboardingStatus: (row.onboarding_status ?? row.onboardingStatus ?? 'not-started') as Supplier['onboardingStatus'],
     sraStatus: (row.sra_status ?? row.sraStatus ?? 'not-assessed') as Supplier['sraStatus'],
     sraExpiryDate: (row.sra_expiry_date ?? row.sraExpiryDate) as string | undefined,
@@ -645,7 +648,9 @@ export function mapDbToContract(row: DbRecord): Contract {
     category: (row.category ?? '') as string,
     renewalDate: (row.renewal_date ?? row.renewalDate) as string | undefined,
     utilisationPercentage: (row.utilisation_percentage ?? row.utilisationPercentage ?? 0) as number,
-    linkedRequestIds: (row.linked_request_ids ?? row.linkedRequestIds ?? []) as string[],
+    // Prefer the live array from contracts_with_derived view; fall back
+    // to the seeded column on the base table.
+    linkedRequestIds: (row.linked_request_ids_live ?? row.linked_request_ids ?? row.linkedRequestIds ?? []) as string[],
   };
 }
 
