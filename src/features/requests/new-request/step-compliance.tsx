@@ -8,9 +8,11 @@ import type { Supplier } from '@/data/types';
 import { useContracts } from '@/lib/db/hooks/use-contracts';
 import { useMatchingRiskAssessments } from '@/lib/db/hooks/use-risk-assessments';
 import { useFormTemplate } from '@/lib/db/hooks/use-form-templates';
+import { useRoutingRules } from '@/lib/db/hooks/use-routing-rules';
+import { resolveRouting, buyingChannelLabel } from '@/lib/routing/evaluate-routing-rules';
 import { DynamicForm } from '@/components/shared/dynamic-form';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import type { BuyingChannel, RiskAssessment } from '@/data/types';
+import type { RiskAssessment } from '@/data/types';
 
 interface MatchingRiskAssessmentSummary {
   id: string;
@@ -22,6 +24,7 @@ interface MatchingRiskAssessmentSummary {
 
 interface ComplianceData {
   buyingChannelResult: string;
+  matchedRuleName?: string;
   sraStatus: string;
   policyChecks: { label: string; passed: boolean; detail: string }[];
   duplicateCheck: string | null;
@@ -37,13 +40,6 @@ interface StepComplianceProps {
   onUpdate: (data: ComplianceData) => void;
 }
 
-function determineBuyingChannel(category: string, value: number): { channel: BuyingChannel; label: string } {
-  if (value < 25000) return { channel: 'catalogue', label: 'Catalogue / Direct PO' };
-  if (category === 'consulting' || value > 100000) return { channel: 'procurement-led', label: 'Procurement-Led Sourcing' };
-  if (category === 'contingent-labour') return { channel: 'framework-call-off', label: 'Framework Call-Off' };
-  if (value <= 50000) return { channel: 'business-led', label: 'Business-Led' };
-  return { channel: 'procurement-led', label: 'Procurement-Led Sourcing' };
-}
 
 function generatePolicyChecks(
   value: number,
@@ -111,13 +107,21 @@ export function StepCompliance({
   const [result, setResult] = useState<ComplianceData | null>(null);
   const { data: suppliers = [] } = useSuppliers();
   const { data: matches = [], isFetched: matchesFetched } = useMatchingRiskAssessments({ supplierId });
+  const { data: routingRules = [] } = useRoutingRules();
 
   useEffect(() => {
     setLoading(true);
     // Wait for Supabase lookups before composing the result.
     if (!matchesFetched && supplierId) return;
     const timer = setTimeout(() => {
-      const { label } = determineBuyingChannel(category, estimatedValue);
+      const routing = resolveRouting(routingRules, {
+        category,
+        value: estimatedValue,
+        supplierId,
+        priority: isUrgent ? 'urgent' : undefined,
+        isUrgent,
+      });
+      const label = buyingChannelLabel(routing.channel);
       const supplier = suppliers.find((s) => s.id === supplierId);
       const policyChecks = generatePolicyChecks(estimatedValue, category, supplierId, isUrgent, suppliers);
 
@@ -139,6 +143,7 @@ export function StepCompliance({
 
       const data: ComplianceData = {
         buyingChannelResult: label,
+        matchedRuleName: routing.matchedRule?.name,
         sraStatus: supplier
           ? `${supplier.name}: ${supplier.sraStatus}${supplier.sraExpiryDate ? ` (expires ${supplier.sraExpiryDate})` : ''}`
           : 'Will be initiated upon submission',
@@ -153,7 +158,7 @@ export function StepCompliance({
     }, 1200);
 
     return () => clearTimeout(timer);
-  }, [category, estimatedValue, supplierId, isUrgent, suppliers, matches, matchesFetched]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [category, estimatedValue, supplierId, isUrgent, suppliers, matches, matchesFetched, routingRules]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) {
     return (
@@ -182,6 +187,11 @@ export function StepCompliance({
             <p className="mt-1 text-sm text-gray-700">
               Based on value ({formatCurrency(estimatedValue)}), category ({category}), this is classified as:{' '}
               <span className="font-semibold text-blue-700">{result.buyingChannelResult}</span>
+            </p>
+            <p className="mt-0.5 text-xs text-gray-500">
+              {result.matchedRuleName
+                ? `Matched routing rule: ${result.matchedRuleName}`
+                : 'No admin routing rule matched — using default fallback.'}
             </p>
           </div>
         </div>
