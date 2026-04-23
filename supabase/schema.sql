@@ -650,8 +650,11 @@ LEFT JOIN (
 LEFT JOIN (
   SELECT supplier_id, SUM(amount)::numeric AS total_spend_12m
   FROM invoices
-  WHERE invoice_date >= (now() - interval '365 days')
-    AND supplier_id IS NOT NULL
+  -- invoice_date is stored as ISO-date TEXT; cast before comparing
+  -- against an interval expression. Rows with unparseable dates are
+  -- excluded by the NULLIF guard.
+  WHERE supplier_id IS NOT NULL
+    AND NULLIF(invoice_date, '')::date >= (now() - interval '365 days')::date
   GROUP BY supplier_id
 ) i ON i.supplier_id = s.id;
 
