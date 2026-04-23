@@ -177,12 +177,25 @@ async function scenarioChatIntakePromptMandatorySow() {
     src.includes('step directly to the NEXT question'),
     'chat: explicit rule forbids refine/expand meta-questions',
   );
+  assert(
+    src.includes('INTERNAL FINALISATION') &&
+    src.includes('NEVER return the literal strings "Set complete=true"'),
+    'chat: explicit rule forbids leaking internal step directives as nextQuestion',
+  );
 
   // Client-side welcome message must also not offer to refine — it should
   // dive into the next question in the sequence instead.
   const clientSrc = readFileSync(
     new URL('../../src/features/requests/new-request/step-chat-intake.tsx', import.meta.url),
     'utf8',
+  );
+
+  // Client-side guard strips leaked instructions.
+  assert(
+    clientSrc.includes('INSTRUCTION_LEAKS') &&
+    clientSrc.includes('set\\s+complete') &&
+    clientSrc.includes('Thanks — all details captured'),
+    'chat: client sanitises leaked instruction text from nextQuestion',
   );
   assert(
     !clientSrc.includes('Would you like to refine this'),

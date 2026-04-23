@@ -30,9 +30,16 @@ STEP 6: "What are the key deliverables?"
 STEP 7: "What resources, skills or team size does this need?"
 → Extract: serviceDescription.resources
 
-STEP 8: Set complete=true. Generate narrative from all collected SOW fields.
+INTERNAL FINALISATION (do NOT output this as a message to the user):
+once STEP 7 is answered, set complete=true, generate the narrative from
+all collected SOW fields, and return a short natural-language closing
+like "Thanks — all details captured, you can proceed to the next step."
+NEVER return the literal strings "Set complete=true", "Generate narrative",
+"STEP 8" or similar internal instructions as nextQuestion.
 
-MAXIMUM 8 questions. SOW is MANDATORY — do NOT short-circuit to complete before objective + scope + deliverables have been collected.
+MAXIMUM 7 questions to the user. SOW is MANDATORY — do NOT set
+complete=true before objective + scope + deliverables + resources are
+all populated.
 
 ## RULES
 - Follow the sequence above — do NOT reorder or add extra questions

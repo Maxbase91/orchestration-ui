@@ -291,9 +291,22 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
         });
       }
 
-      // Add assistant response
-      if (result.nextQuestion) {
-        setMessages((prev) => [...prev, { role: 'assistant', content: result.nextQuestion }]);
+      // Add assistant response. Guard against the LLM leaking internal
+      // instruction text (e.g. "Set complete=true. Generate narrative...")
+      // into the user-facing chat. Any message that pattern-matches the
+      // prompt's internal step directives is replaced with a clean closing.
+      const INSTRUCTION_LEAKS = [
+        /^\s*step\s*\d+\b/i,
+        /\bset\s+complete\s*=\s*true\b/i,
+        /\bgenerate\s+(the\s+)?narrative\b/i,
+        /\binternal\s+finalisation\b/i,
+      ];
+      let safeNext = typeof result.nextQuestion === 'string' ? result.nextQuestion : '';
+      if (safeNext && INSTRUCTION_LEAKS.some((re) => re.test(safeNext))) {
+        safeNext = 'Thanks — all details captured. You can proceed to the next step.';
+      }
+      if (safeNext) {
+        setMessages((prev) => [...prev, { role: 'assistant', content: safeNext }]);
       }
 
       // Mandatory SOW: we only accept "complete" if title, value AND the four
