@@ -44,6 +44,7 @@ interface ProposalState {
   message: string;
   catalogueItems: CatalogueItem[];
   links: AILink[];
+  agent?: { id?: string; name?: string; status?: string; accuracy?: number };
 }
 
 // --- Catalogue categories ---
@@ -69,6 +70,7 @@ interface AIResult {
   extractedSupplier?: string;
   extractedValue?: number;
   generatedDescription?: string;
+  _agent?: { id?: string; name?: string; status?: string; accuracy?: number };
 }
 
 async function queryGroq(input: string): Promise<AIResult | null> {
@@ -216,6 +218,8 @@ export function SmartCommandBar() {
       intent = 'new-request';
     }
 
+    const agent = aiResult._agent;
+
     // CATALOGUE
     if (intent === 'catalogue') {
       const localMatches = searchCatalogueItems(query, catalogueItems);
@@ -225,6 +229,7 @@ export function SmartCommandBar() {
         type: 'catalogue',
         message: aiResult.message || 'Found matching catalogue items. Order directly — no approval needed.',
         catalogueItems: [], links: [],
+        agent,
       });
       return;
     }
@@ -251,13 +256,14 @@ export function SmartCommandBar() {
           { label: `Start ${catLabel} Request`, path: `/requests/new?${params.toString()}` },
           { label: 'Browse Catalogue Instead', path: '__show_catalogue__' },
         ],
+        agent,
       });
       return;
     }
 
     // NAVIGATION
     if (intent === 'navigation' && aiResult.links?.length) {
-      setProposal({ type: 'options', message: aiResult.message || 'Here is what I found:', catalogueItems: [], links: aiResult.links.slice(0, 4) });
+      setProposal({ type: 'options', message: aiResult.message || 'Here is what I found:', catalogueItems: [], links: aiResult.links.slice(0, 4), agent });
       return;
     }
 
@@ -267,6 +273,7 @@ export function SmartCommandBar() {
       message: aiResult.message || 'How can I help?',
       catalogueItems: [],
       links: [...(aiResult.links?.slice(0, 3) ?? []), { label: 'Create New Request', path: '/requests/new' }, { label: 'Open AI Assistant', path: '__ai_chat__' }],
+      agent,
     });
   }, [catalogueItems]);
 
@@ -375,7 +382,14 @@ export function SmartCommandBar() {
                 <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-blue-100 mt-0.5">
                   <Sparkles className="size-3 text-[#2D5F8A]" />
                 </div>
-                <p className="text-sm text-gray-700">{proposal.message}</p>
+                <div className="flex-1">
+                  <p className="text-sm text-gray-700">{proposal.message}</p>
+                  {proposal.agent?.name && proposal.agent.status === 'active' && (
+                    <p className="mt-1 text-[11px] text-gray-400">
+                      via {proposal.agent.name} ({proposal.agent.id}) · accuracy {proposal.agent.accuracy ?? 0}%
+                    </p>
+                  )}
+                </div>
               </div>
 
               {proposal.links.length > 0 && (

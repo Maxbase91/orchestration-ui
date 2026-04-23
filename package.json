@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "test:e2e": "node tests/integration/workflow-e2e.mjs",
     "test:kpis": "node tests/integration/dashboard-kpis.mjs",
-    "test:routing": "node tests/integration/routing-rules.mjs"
+    "test:routing": "node tests/integration/routing-rules.mjs",
+    "test:ai-agents": "node tests/integration/ai-agents.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
