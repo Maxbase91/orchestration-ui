@@ -171,6 +171,12 @@ async function scenarioChatIntakePromptMandatorySow() {
     src.includes('Never ask "do you want a detailed SOW?"') || src.includes('Never offer to "keep it quick"'),
     'chat: explicit rule against offering to skip SOW',
   );
+  assert(
+    src.includes('NEVER ask meta-questions') &&
+    src.includes('Would you like to refine this?') &&
+    src.includes('step directly to the NEXT question'),
+    'chat: explicit rule forbids refine/expand meta-questions',
+  );
 
   // Client-side welcome message must also not offer to refine — it should
   // dive into the next question in the sequence instead.
