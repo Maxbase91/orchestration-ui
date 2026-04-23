@@ -13,6 +13,7 @@ import { useAiAgent } from '@/lib/db/hooks/use-ai-agents';
 import { resolveRouting, buyingChannelLabel } from '@/lib/routing/evaluate-routing-rules';
 import { DynamicForm } from '@/components/shared/dynamic-form';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { SupplierRecommenderCard } from './components/supplier-recommender-card';
 import type { RiskAssessment } from '@/data/types';
 
 interface MatchingRiskAssessmentSummary {
@@ -318,6 +319,13 @@ export function StepCompliance({
         supplierId={supplierId}
         category={category}
         estimatedValue={estimatedValue}
+      />
+
+      {/* AI-005 Supplier Recommender */}
+      <SupplierRecommenderCard
+        category={category}
+        estimatedValue={estimatedValue}
+        selectedSupplierId={supplierId}
       />
     </div>
   );

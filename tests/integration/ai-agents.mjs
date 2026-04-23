@@ -149,6 +149,7 @@ async function main() {
   await scenarioAi002Validator();
   await scenarioAiRowToggle('AI-003', 'ai-003 (Document Extractor)');
   await scenarioAiRowToggle('AI-004', 'ai-004 (Spend Anomaly Detector)');
+  await scenarioAiRowToggle('AI-005', 'ai-005 (Supplier Recommender)');
 
   const failed = results.filter((r) => r.o === 'FAIL').length;
   for (const r of results) {
