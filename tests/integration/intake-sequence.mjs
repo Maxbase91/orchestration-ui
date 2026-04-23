@@ -161,7 +161,7 @@ async function scenarioChatIntakePromptMandatorySow() {
   const src = readFileSync(new URL('../../api/chat-intake.ts', import.meta.url), 'utf8');
   assert(
     !src.includes('Would you like me to help build a detailed service description'),
-    'chat: optional-SOW prompt removed',
+    'chat: optional-SOW prompt removed from server',
   );
   assert(
     src.includes('SOW is MANDATORY'),
@@ -170,6 +170,21 @@ async function scenarioChatIntakePromptMandatorySow() {
   assert(
     src.includes('Never ask "do you want a detailed SOW?"') || src.includes('Never offer to "keep it quick"'),
     'chat: explicit rule against offering to skip SOW',
+  );
+
+  // Client-side welcome message must also not offer to refine — it should
+  // dive into the next question in the sequence instead.
+  const clientSrc = readFileSync(
+    new URL('../../src/features/requests/new-request/step-chat-intake.tsx', import.meta.url),
+    'utf8',
+  );
+  assert(
+    !clientSrc.includes('Would you like to refine this'),
+    'chat: welcome does not ask "refine or ask questions"',
+  );
+  assert(
+    clientSrc.includes('firstMissingQuestion'),
+    'chat: welcome routes to the next unanswered question in the mandated sequence',
   );
 }
 

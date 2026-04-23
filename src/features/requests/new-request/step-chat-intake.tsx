@@ -135,17 +135,37 @@ function localFallbackResponse(
   };
 }
 
+/**
+ * Pick the next unanswered question from the mandatory intake sequence.
+ * Mirrors the order enforced by api/chat-intake.ts SYSTEM_PROMPT so the
+ * user experiences the same flow whether the LLM is available or not.
+ */
+function firstMissingQuestion(category: string, data: StepChatIntakeProps['data']): string {
+  if (!data.title) {
+    return WELCOME_MESSAGES[category] ?? WELCOME_MESSAGES.goods;
+  }
+  if (data.estimatedValue <= 0) {
+    return "What's the estimated budget for this? (e.g. €50,000 or 150k)";
+  }
+  if (!data.deliveryDate) {
+    return 'When do you need this delivered by?';
+  }
+  return "What's the primary objective of this engagement?";
+}
+
 function buildWelcomeMessage(category: string, data: StepChatIntakeProps['data']): string {
   const parts: string[] = [];
 
-  // Acknowledge what's already known
+  // Acknowledge what's already known.
   if (data.title || data.supplier || data.estimatedValue > 0) {
-    parts.push("Great, I've got some details from your initial request:");
+    parts.push("Great, I've got some details already:");
     if (data.title) parts.push(`• **${data.title}**`);
     if (data.supplier) parts.push(`• Supplier: ${data.supplier}`);
     if (data.estimatedValue > 0) parts.push(`• Value: €${data.estimatedValue.toLocaleString()}`);
-    if (data.businessJustification) parts.push(`\nHere's the description I've drafted:\n"${data.businessJustification}"\n\nWould you like to refine this, or shall I ask you a few questions to make it stronger?`);
-    else parts.push('\nLet me ask a few quick questions to complete your request.');
+    // Go straight to the next unanswered question in the mandated
+    // sequence instead of asking "do you want to refine this?".
+    parts.push('');
+    parts.push(firstMissingQuestion(category, data));
   } else {
     parts.push(WELCOME_MESSAGES[category] ?? WELCOME_MESSAGES.goods);
   }
