@@ -66,6 +66,41 @@ async function main() {
     assert(avg >= 0, 'kpi: avg cycle time non-negative', `avg=${avg} days across ${completed.length} completed`);
   }
 
+  // ── Spend by category: should sum to 100% and have >= 1 category
+  const totals = new Map();
+  for (const r of all) {
+    if (!r.value || r.value <= 0) continue;
+    totals.set(r.category, (totals.get(r.category) ?? 0) + r.value);
+  }
+  const catSum = Array.from(totals.values()).reduce((a, b) => a + b, 0);
+  const catPcts = Array.from(totals.entries()).map(([c, v]) => [c, Math.round((v / catSum) * 100)]);
+  assert(totals.size >= 1, 'chart: spend-by-category has >=1 category', `categories=${totals.size}`);
+  assert(catSum > 0, 'chart: spend-by-category total > 0', `total=${catSum.toLocaleString()}`);
+  pass('chart: category split', catPcts.map(([c, p]) => `${c}=${p}%`).join(', '));
+
+  // ── On-contract vs off-contract split
+  const onContract = all.reduce((s, r) => s + (r.contract_id ? (r.value ?? 0) : 0), 0);
+  const offContract = all.reduce((s, r) => s + (!r.contract_id ? (r.value ?? 0) : 0), 0);
+  const onPct = Math.round((onContract / (onContract + offContract || 1)) * 100);
+  assert(onPct + (100 - onPct) === 100, 'chart: on-contract/off sums to 100', `on=${onPct}% off=${100 - onPct}%`);
+
+  // ── Supplier perf by category
+  const { data: suppliers } = await sb.from('suppliers').select('*');
+  const perfBuckets = new Map();
+  for (const s of suppliers ?? []) {
+    if (!s.performance_score || s.performance_score <= 0) continue;
+    for (const cat of s.categories ?? []) {
+      const b = perfBuckets.get(cat) ?? { total: 0, count: 0 };
+      b.total += s.performance_score;
+      b.count += 1;
+      perfBuckets.set(cat, b);
+    }
+  }
+  const perfList = Array.from(perfBuckets.entries())
+    .map(([c, { total, count }]) => [c, Math.round(total / count)]);
+  assert(perfBuckets.size >= 1, 'chart: perf-by-category has >=1 category', `categories=${perfBuckets.size}`);
+  pass('chart: perf-by-category', perfList.map(([c, v]) => `${c}=${v}`).join(', '));
+
   // ── Confirm numbers do NOT match the kpi_data snapshot blindly
   // (this is the whole point — dashboards should not be parroting kpi_data).
   const { data: kpi } = await sb.from('kpi_data').select('*').order('month', { ascending: false }).limit(1);

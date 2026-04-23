@@ -6,12 +6,34 @@ import { PieChartWidget } from '@/components/charts/pie-chart-widget';
 import { useKpiData } from '@/lib/db/hooks/use-kpi-data';
 import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
 import { useContracts } from '@/lib/db/hooks/use-contracts';
+import { useRequests } from '@/lib/db/hooks/use-requests';
 import { formatCurrency } from '@/lib/format';
+
+const CATEGORY_LABEL: Record<string, string> = {
+  goods: 'Goods',
+  services: 'Services',
+  software: 'Software',
+  consulting: 'Consulting',
+  'contingent-labour': 'Contingent Labour',
+  'contract-renewal': 'Contract Renewal',
+  'supplier-onboarding': 'Supplier Onboarding',
+};
+
+const CATEGORY_COLOR: Record<string, string> = {
+  goods: '#2E7D4F',
+  services: '#2D5F8A',
+  software: '#1B2A4A',
+  consulting: '#D4782F',
+  'contingent-labour': '#B5392E',
+  'contract-renewal': '#718096',
+  'supplier-onboarding': '#8E44AD',
+};
 
 export function SpendDashboardPage() {
   const { data: suppliers = [] } = useSuppliers();
   const { data: contracts = [] } = useContracts();
   const { data: kpiData = [] } = useKpiData();
+  const { data: requests = [] } = useRequests();
 
   const totalSpendYTD = useMemo(
     () => kpiData.reduce((sum, d) => sum + d.totalSpend, 0),
@@ -50,16 +72,22 @@ export function SpendDashboardPage() {
     [kpiData],
   );
 
-  const categorySpendData = useMemo(
-    () => [
-      { name: 'IT Consulting', value: 35, color: '#1B2A4A' },
-      { name: 'Software', value: 25, color: '#2D5F8A' },
-      { name: 'Professional Services', value: 20, color: '#D4782F' },
-      { name: 'Facilities', value: 12, color: '#2E7D4F' },
-      { name: 'Other', value: 8, color: '#718096' },
-    ],
-    [],
-  );
+  const categorySpendData = useMemo(() => {
+    const totals = new Map<string, number>();
+    for (const r of requests) {
+      const value = r.value ?? 0;
+      if (value <= 0) continue;
+      totals.set(r.category, (totals.get(r.category) ?? 0) + value);
+    }
+    const sum = Array.from(totals.values()).reduce((a, b) => a + b, 0) || 1;
+    return Array.from(totals.entries())
+      .map(([cat, total]) => ({
+        name: CATEGORY_LABEL[cat] ?? cat,
+        value: Math.round((total / sum) * 100),
+        color: CATEGORY_COLOR[cat] ?? '#718096',
+      }))
+      .sort((a, b) => b.value - a.value);
+  }, [requests]);
 
   const topSuppliersBySpend = useMemo(() => {
     const active = suppliers.filter((s) => s.totalSpend12m > 0);
@@ -79,13 +107,22 @@ export function SpendDashboardPage() {
     [totalManagedSpend, totalSpendYTD],
   );
 
-  const contractVsOff = useMemo(
-    () => [
-      { name: 'On Contract', value: 72, color: '#1B2A4A' },
-      { name: 'Off Contract', value: 28, color: '#D4782F' },
-    ],
-    [],
-  );
+  const contractVsOff = useMemo(() => {
+    // Count spend value split by whether the request is linked to a contract.
+    const onContract = requests.reduce(
+      (sum, r) => sum + (r.contractId ? (r.value ?? 0) : 0),
+      0,
+    );
+    const offContract = requests.reduce(
+      (sum, r) => sum + (!r.contractId ? (r.value ?? 0) : 0),
+      0,
+    );
+    const total = onContract + offContract || 1;
+    return [
+      { name: 'On Contract', value: Math.round((onContract / total) * 100), color: '#1B2A4A' },
+      { name: 'Off Contract', value: Math.round((offContract / total) * 100), color: '#D4782F' },
+    ];
+  }, [requests]);
 
   return (
     <div className="space-y-6">

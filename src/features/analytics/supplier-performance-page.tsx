@@ -22,15 +22,24 @@ export function SupplierPerformancePage() {
     [scoredSuppliers],
   );
 
-  const perfByCategoryData = useMemo(
-    () => [
-      { name: 'IT', value: 78 },
-      { name: 'Consulting', value: 72 },
-      { name: 'Facilities', value: 85 },
-      { name: 'Marketing', value: 69 },
-    ],
-    [],
-  );
+  const perfByCategoryData = useMemo(() => {
+    // Average performance score per supplier category. A supplier can tag
+    // multiple categories; count them independently so each row reflects
+    // the mean of suppliers active in that category.
+    const buckets = new Map<string, { total: number; count: number }>();
+    for (const s of suppliers) {
+      if (!s.performanceScore || s.performanceScore <= 0) continue;
+      for (const cat of s.categories ?? []) {
+        const b = buckets.get(cat) ?? { total: 0, count: 0 };
+        b.total += s.performanceScore;
+        b.count += 1;
+        buckets.set(cat, b);
+      }
+    }
+    return Array.from(buckets.entries())
+      .map(([name, { total, count }]) => ({ name, value: Math.round(total / count) }))
+      .sort((a, b) => b.value - a.value);
+  }, [suppliers]);
 
   const riskSpendMatrix = useMemo(
     () =>
