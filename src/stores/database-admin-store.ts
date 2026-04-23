@@ -47,6 +47,7 @@ import {
   updateRequest as dbUpdateRequest,
   deleteRequest as dbDeleteRequest,
 } from '@/lib/db/requests';
+import { createAuditEntry as dbCreateAuditEntry } from '@/lib/db/audit-entries';
 
 /**
  * Which entities are backed by Supabase (edits persist across sessions and
@@ -114,7 +115,7 @@ function makeAuditEntry(
   detail: string,
 ): AuditEntry {
   const user = useAuthStore.getState().currentUser;
-  return {
+  const entry: AuditEntry = {
     id: `AUD-DB-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     timestamp: new Date().toISOString(),
     userId: user.id,
@@ -125,6 +126,25 @@ function makeAuditEntry(
     detail,
     type: 'human',
   };
+
+  // Fire-and-forget persistence: the Zustand array below still holds the
+  // entry for immediate UI feedback. Supabase will replace the random
+  // client id with its own UUID when the row is inserted; subsequent
+  // reads via useAuditEntries() hit the persisted copy.
+  void (async () => {
+    try {
+      // Drop the locally-generated id — let Supabase assign a UUID.
+      const { id: _omitId, ...persistable } = entry;
+      void _omitId;
+      await dbCreateAuditEntry(persistable);
+      queryClient.invalidateQueries({ queryKey: ['audit-entries'] });
+    } catch (err) {
+      // Keep the optimistic local copy visible even if the write fails.
+      console.warn('audit-entries: persist failed:', err);
+    }
+  })();
+
+  return entry;
 }
 
 function localUpdate<K extends EntityKey>(

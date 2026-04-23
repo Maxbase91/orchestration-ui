@@ -14,6 +14,7 @@ import type {
   StageHistoryEntry,
   User,
   Notification,
+  AuditEntry,
 } from '../../data/types.js';
 import type { ComplianceReport } from '../../data/compliance-reports.js';
 import type { SystemIntegration } from '../../data/system-integrations.js';
@@ -361,6 +362,38 @@ export function mapWorkflowStepDetailToDb(d: WorkflowStepDetail): DbRecord {
     duration: d.duration,
     sla_status: d.slaStatus,
   };
+}
+
+// ── Audit Entries ───────────────────────────────────────────────────
+
+export function mapDbToAuditEntry(row: DbRecord): AuditEntry {
+  return {
+    id: row.id as string,
+    requestId: (row.request_id ?? row.requestId) as string | undefined,
+    timestamp: (row.timestamp ?? '') as string,
+    userId: (row.user_id ?? row.userId ?? '') as string,
+    userName: (row.user_name ?? row.userName ?? '') as string,
+    action: (row.action ?? '') as string,
+    objectType: (row.object_type ?? row.objectType ?? '') as string,
+    objectId: (row.object_id ?? row.objectId ?? '') as string,
+    detail: (row.detail ?? '') as string,
+    type: (row.type ?? 'human') as AuditEntry['type'],
+  };
+}
+
+export function mapAuditEntryToDb(a: Omit<AuditEntry, 'id'> & { id?: string }): DbRecord {
+  const out: DbRecord = {};
+  if (a.id !== undefined) out.id = a.id;
+  if (a.requestId !== undefined) out.request_id = a.requestId;
+  if (a.timestamp !== undefined) out.timestamp = a.timestamp;
+  if (a.userId !== undefined) out.user_id = a.userId;
+  if (a.userName !== undefined) out.user_name = a.userName;
+  if (a.action !== undefined) out.action = a.action;
+  if (a.objectType !== undefined) out.object_type = a.objectType;
+  if (a.objectId !== undefined) out.object_id = a.objectId;
+  if (a.detail !== undefined) out.detail = a.detail;
+  if (a.type !== undefined) out.type = a.type;
+  return out;
 }
 
 // ── Notifications ───────────────────────────────────────────────────

@@ -15,6 +15,7 @@ import {
 import { DataTable, type Column } from '@/components/shared/data-table';
 import { formatDate } from '@/lib/format';
 import { useDatabaseAdminStore } from '@/stores/database-admin-store';
+import { useAuditEntries } from '@/lib/db/hooks/use-audit-entries';
 
 interface AuditRow {
   id: string;
@@ -28,7 +29,10 @@ interface AuditRow {
   [key: string]: unknown;
 }
 
-const auditEntries: AuditRow[] = [
+// Static seed examples — shown alongside Supabase-persisted rows for
+// entries that predate the audit_entries table. Drop once sufficient
+// history has accumulated in Supabase.
+const seedAuditEntries: AuditRow[] = [
   { id: 'AUD-001', timestamp: '2025-01-08T09:15:00Z', user: 'Marcus Johnson', action: 'Submitted', objectType: 'Request', objectId: 'REQ-2024-0014', detail: 'Submitted new request: Org design transformation', ipAddress: '10.0.1.45' },
   { id: 'AUD-002', timestamp: '2025-01-08T09:10:00Z', user: 'Anna Müller', action: 'Approved', objectType: 'Request', objectId: 'REQ-2024-0013', detail: 'Approved Microsoft 365 E5 upgrade', ipAddress: '10.0.1.22' },
   { id: 'AUD-003', timestamp: '2025-01-08T08:45:00Z', user: 'System', action: 'SLA Breach', objectType: 'Request', objectId: 'REQ-2024-0006', detail: 'SLA breached: 42 days in sourcing stage', ipAddress: '-' },
@@ -71,9 +75,9 @@ const auditEntries: AuditRow[] = [
   { id: 'AUD-040', timestamp: '2024-12-15T14:30:00Z', user: 'David Kowalski', action: 'SRA Initiated', objectType: 'Supplier', objectId: 'SUP-008', detail: 'Initiated SRA renewal for Siemens AG', ipAddress: '10.0.1.60' },
 ];
 
-const baseUniqueUsers = [...new Set(auditEntries.map((e) => e.user))].sort();
-const baseUniqueActions = [...new Set(auditEntries.map((e) => e.action))].sort();
-const baseUniqueObjectTypes = [...new Set(auditEntries.map((e) => e.objectType))].sort();
+const baseUniqueUsers = [...new Set(seedAuditEntries.map((e) => e.user))].sort();
+const baseUniqueActions = [...new Set(seedAuditEntries.map((e) => e.action))].sort();
+const baseUniqueObjectTypes = [...new Set(seedAuditEntries.map((e) => e.objectType))].sort();
 
 const PAGE_SIZE = 15;
 
@@ -130,10 +134,15 @@ export function AuditLogPage() {
   const [objectTypeFilter, setObjectTypeFilter] = useState('all');
   const [page, setPage] = useState(0);
 
+  // Persisted audit entries come from Supabase; the Zustand session array
+  // is kept as an optimistic layer for entries whose round-trip has not
+  // yet completed.
+  const { data: persistedEntries = [] } = useAuditEntries();
   const sessionAudit = useDatabaseAdminStore((s) => s.audit);
-  const sessionRows: AuditRow[] = useMemo(
+
+  const persistedRows: AuditRow[] = useMemo(
     () =>
-      sessionAudit.map((e) => ({
+      persistedEntries.map((e) => ({
         id: e.id,
         timestamp: e.timestamp,
         user: e.userName,
@@ -143,21 +152,46 @@ export function AuditLogPage() {
         detail: e.detail,
         ipAddress: '-',
       })),
-    [sessionAudit],
+    [persistedEntries],
   );
 
-  const allEntries = useMemo(() => [...sessionRows, ...auditEntries], [sessionRows]);
+  // Deduplicate optimistic session rows: the Zustand entry has a
+  // client-generated id, the persisted row has the Supabase UUID, but
+  // both share (timestamp, userId, action, objectId). Drop the session
+  // row once the persisted copy is visible.
+  const sessionRows: AuditRow[] = useMemo(() => {
+    const seen = new Set(
+      persistedRows.map((r) => `${r.timestamp}|${r.user}|${r.action}|${r.objectId}`),
+    );
+    return sessionAudit
+      .filter((e) => !seen.has(`${e.timestamp}|${e.userName}|${e.action}|${e.objectId}`))
+      .map((e) => ({
+        id: e.id,
+        timestamp: e.timestamp,
+        user: e.userName,
+        action: e.action,
+        objectType: e.objectType,
+        objectId: e.objectId,
+        detail: e.detail,
+        ipAddress: '-',
+      }));
+  }, [sessionAudit, persistedRows]);
+
+  const allEntries = useMemo(
+    () => [...sessionRows, ...persistedRows, ...seedAuditEntries],
+    [sessionRows, persistedRows],
+  );
   const uniqueUsers = useMemo(
-    () => [...new Set([...sessionRows.map((e) => e.user), ...baseUniqueUsers])].sort(),
-    [sessionRows],
+    () => [...new Set([...sessionRows.map((e) => e.user), ...persistedRows.map((e) => e.user), ...baseUniqueUsers])].sort(),
+    [sessionRows, persistedRows],
   );
   const uniqueActions = useMemo(
-    () => [...new Set([...sessionRows.map((e) => e.action), ...baseUniqueActions])].sort(),
-    [sessionRows],
+    () => [...new Set([...sessionRows.map((e) => e.action), ...persistedRows.map((e) => e.action), ...baseUniqueActions])].sort(),
+    [sessionRows, persistedRows],
   );
   const uniqueObjectTypes = useMemo(
-    () => [...new Set([...sessionRows.map((e) => e.objectType), ...baseUniqueObjectTypes])].sort(),
-    [sessionRows],
+    () => [...new Set([...sessionRows.map((e) => e.objectType), ...persistedRows.map((e) => e.objectType), ...baseUniqueObjectTypes])].sort(),
+    [sessionRows, persistedRows],
   );
 
   const filtered = useMemo(() => {
