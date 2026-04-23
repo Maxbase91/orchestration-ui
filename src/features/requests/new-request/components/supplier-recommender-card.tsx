@@ -1,8 +1,9 @@
 import { useMemo } from 'react';
-import { Sparkles, Star, AlertTriangle } from 'lucide-react';
+import { Sparkles, Star, AlertTriangle, CheckCircle, UserPlus } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAiAgent } from '@/lib/db/hooks/use-ai-agents';
 import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
+import { useContracts } from '@/lib/db/hooks/use-contracts';
 import { formatCurrency } from '@/lib/format';
 import type { Supplier } from '@/data/types';
 
@@ -11,6 +12,8 @@ interface Props {
   estimatedValue: number;
   selectedSupplierId?: string;
 }
+
+type SupplierOutcome = 'preferred' | 'recommend-existing' | 'onboard-new';
 
 // Map a request category to the supplier-side category tags we expect to
 // find in suppliers.categories[]. The admin can extend this by adding
@@ -43,7 +46,13 @@ const RISK_WEIGHT: Record<string, number> = {
 export function SupplierRecommenderCard({ category, estimatedValue, selectedSupplierId }: Props) {
   const { data: agent } = useAiAgent('AI-005');
   const { data: suppliers = [] } = useSuppliers();
+  const { data: contracts = [] } = useContracts();
   const active = agent?.status === 'active';
+
+  const selectedSupplier = useMemo(
+    () => suppliers.find((s) => s.id === selectedSupplierId),
+    [suppliers, selectedSupplierId],
+  );
 
   const recommendations = useMemo(() => {
     if (!active || !category) return [];
@@ -62,6 +71,48 @@ export function SupplierRecommenderCard({ category, estimatedValue, selectedSupp
     return scored;
   }, [active, suppliers, category, selectedSupplierId]);
 
+  // Classify the overall supplier outcome so the wizard can tell the user
+  // exactly which path the request will take downstream.
+  const outcome: SupplierOutcome = useMemo(() => {
+    if (selectedSupplier) {
+      const hasActiveContract = contracts.some(
+        (c) => c.supplierId === selectedSupplier.id && (c.status === 'active' || c.status === 'expiring'),
+      );
+      if (
+        hasActiveContract &&
+        selectedSupplier.riskRating !== 'critical' &&
+        (selectedSupplier.performanceScore ?? 0) >= 75
+      ) {
+        return 'preferred';
+      }
+    }
+    if (recommendations.length > 0) return 'recommend-existing';
+    return 'onboard-new';
+  }, [selectedSupplier, contracts, recommendations]);
+
+  const outcomeCopy: Record<SupplierOutcome, { label: string; detail: string; icon: typeof CheckCircle; color: string }> = {
+    preferred: {
+      label: 'Preferred supplier identified',
+      detail: selectedSupplier
+        ? `${selectedSupplier.name} has an active contract, ${selectedSupplier.performanceScore}% performance score, and ${selectedSupplier.riskRating} risk — sourcing can proceed as a call-off.`
+        : '',
+      icon: CheckCircle,
+      color: 'text-green-700 bg-green-50 border-green-200',
+    },
+    'recommend-existing': {
+      label: 'Recommended existing suppliers',
+      detail: `${recommendations.length} existing supplier${recommendations.length === 1 ? '' : 's'} match the category profile — pick one below or proceed to competitive sourcing.`,
+      icon: Star,
+      color: 'text-blue-700 bg-blue-50 border-blue-200',
+    },
+    'onboard-new': {
+      label: 'New supplier onboarding required',
+      detail: 'No existing supplier matches the required category with acceptable performance/risk. Downstream workflow should trigger the supplier-onboarding process.',
+      icon: UserPlus,
+      color: 'text-amber-700 bg-amber-50 border-amber-200',
+    },
+  };
+
   if (!agent) return null;
 
   return (
@@ -78,6 +129,19 @@ export function SupplierRecommenderCard({ category, estimatedValue, selectedSupp
         </span>
       </CardHeader>
       <CardContent>
+        {active && (() => {
+          const cfg = outcomeCopy[outcome];
+          const Icon = cfg.icon;
+          return (
+            <div className={`mb-3 flex items-start gap-2 rounded-md border p-3 ${cfg.color}`}>
+              <Icon className="mt-0.5 size-4 shrink-0" />
+              <div>
+                <p className="text-sm font-medium">{cfg.label}</p>
+                <p className="mt-0.5 text-xs opacity-80">{cfg.detail}</p>
+              </div>
+            </div>
+          );
+        })()}
         {!active ? (
           <p className="text-sm text-gray-500">
             Supplier recommender is {agent.status}. Enable it in Admin → AI Agents to see ranked
@@ -85,7 +149,9 @@ export function SupplierRecommenderCard({ category, estimatedValue, selectedSupp
           </p>
         ) : recommendations.length === 0 ? (
           <p className="text-sm text-gray-500">
-            No matching suppliers with performance history in this category.
+            {outcome === 'preferred'
+              ? 'Selected supplier is preferred — no alternate suggestions needed.'
+              : 'No matching existing suppliers with performance history in this category.'}
           </p>
         ) : (
           <ul className="space-y-2">
