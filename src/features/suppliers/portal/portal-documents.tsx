@@ -1,7 +1,8 @@
-import { FileText, Upload, AlertTriangle, Download } from 'lucide-react';
+import { FileText, Upload, AlertTriangle, Download, Sparkles } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/shared/status-badge';
+import { useAiAgent } from '@/lib/db/hooks/use-ai-agents';
 
 interface PortalDocument {
   id: string;
@@ -73,14 +74,16 @@ const documents: PortalDocument[] = [
 
 export function PortalDocuments() {
   const expiringDocs = documents.filter((d) => d.status === 'expiring' || d.status === 'expired');
+  const { data: extractorAgent } = useAiAgent('AI-003');
+  const extractorActive = extractorAgent?.status === 'active';
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold text-gray-900">Documents & Compliance</h1>
         <Button>
-          <Upload className="size-4" />
-          Upload Document
+          {extractorActive ? <Sparkles className="size-4" /> : <Upload className="size-4" />}
+          {extractorActive ? 'Upload & Auto-Extract' : 'Upload Document'}
         </Button>
       </div>
 
@@ -143,6 +146,13 @@ export function PortalDocuments() {
             <p className="mt-1 text-xs text-muted-foreground">
               PDF, DOC, DOCX, JPG, PNG up to 10MB
             </p>
+            {extractorAgent && (
+              <p className="mt-2 text-[11px] text-gray-400">
+                {extractorActive
+                  ? `Auto-extraction on via ${extractorAgent.name} (AI-003) · accuracy ${extractorAgent.accuracy}%`
+                  : `Auto-extraction off — ${extractorAgent.name} is ${extractorAgent.status}`}
+              </p>
+            )}
           </div>
         </CardContent>
       </Card>
