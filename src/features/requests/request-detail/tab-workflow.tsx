@@ -4,6 +4,7 @@ import { useStageHistoryByRequest } from '@/lib/db/hooks/use-stage-history';
 import { useUserLookup, useUsers } from '@/lib/db/hooks/use-users';
 import { useIntegrationsByRequest } from '@/lib/db/hooks/use-system-integrations';
 import { useWorkflowStepDetailsForRequest } from '@/lib/db/hooks/use-workflow-step-details';
+import { useWorkflowTemplate } from '@/lib/db/hooks/use-workflow-templates';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { RotateCcw, UserPlus } from 'lucide-react';
@@ -44,6 +45,7 @@ export function TabWorkflow({ request }: TabWorkflowProps) {
   const lookupUser = useUserLookup();
   const { data: history = [] } = useStageHistoryByRequest(request.id);
   const { data: stepDetails = [] } = useWorkflowStepDetailsForRequest(request.id);
+  const { data: workflowTemplate } = useWorkflowTemplate(request.workflowTemplateId);
   const { data: integrations = [] } = useIntegrationsByRequest(request.id);
   const owner = lookupUser(request.ownerId);
 
@@ -212,6 +214,32 @@ export function TabWorkflow({ request }: TabWorkflowProps) {
           <ProcessStepper steps={steps} onStepClick={handleStepClick} />
         </CardContent>
       </Card>
+
+      {/* Attached workflow template — reference-only until per-category
+          template-driven runtime ships. */}
+      {workflowTemplate && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Attached Template — {workflowTemplate.name}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-xs text-gray-500">
+              {workflowTemplate.description || 'Admin-configured workflow template attached to this request.'}
+              {' '}Type: <code>{workflowTemplate.type || 'default'}</code>.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {workflowTemplate.nodes.map((n) => (
+                <span
+                  key={n.id}
+                  className="inline-flex items-center rounded-md border border-gray-200 bg-gray-50 px-2 py-0.5 text-[11px] text-gray-700"
+                >
+                  {n.label}
+                </span>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Step Detail Panels + Sidebar */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

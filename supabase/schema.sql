@@ -42,9 +42,25 @@ CREATE TABLE IF NOT EXISTS requests (
   days_in_stage INTEGER DEFAULT 0,
   is_overdue BOOLEAN DEFAULT false,
   refer_back_count INTEGER DEFAULT 0,
+  workflow_template_id TEXT,
   created_at TIMESTAMP DEFAULT now(),
   updated_at TIMESTAMP DEFAULT now()
 );
+
+-- Add workflow_template_id on existing deployments.
+DO $$ BEGIN
+  ALTER TABLE requests ADD COLUMN workflow_template_id TEXT;
+EXCEPTION
+  WHEN duplicate_column THEN NULL;
+END $$;
+DO $$ BEGIN
+  ALTER TABLE requests
+    ADD CONSTRAINT requests_workflow_template_id_fkey
+    FOREIGN KEY (workflow_template_id) REFERENCES workflow_templates(id) ON DELETE SET NULL;
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+  WHEN undefined_table THEN NULL;  -- workflow_templates created later in file
+END $$;
 
 -- Stage History
 CREATE TABLE IF NOT EXISTS stage_history (

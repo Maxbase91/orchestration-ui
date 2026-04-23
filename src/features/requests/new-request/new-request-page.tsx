@@ -56,6 +56,7 @@ interface RequestFormData {
   preCheckOutcome: 'catalogue' | 'contract' | 'full-request' | '';
   contractId: string;
   contractTitle: string;
+  workflowTemplateId: string;
   // Step 4 (shifted)
   buyingChannelResult: string;
   sraStatus: string;
@@ -85,6 +86,7 @@ const INITIAL_DATA: RequestFormData = {
   preCheckOutcome: '',
   contractId: '',
   contractTitle: '',
+  workflowTemplateId: '',
   buyingChannelResult: '',
   sraStatus: '',
   policyChecks: [],
@@ -240,6 +242,7 @@ export function NewRequestPage() {
           currency: formData.currency,
           supplierId: formData.supplierId,
           contractId: formData.contractId || undefined,
+          workflowTemplateId: formData.workflowTemplateId || undefined,
           buyingChannel: (formData.buyingChannelResult || 'procurement-led') as BuyingChannel,
           commodityCode: formData.commodityCode,
           commodityCodeLabel: formData.commodityCodeLabel,
@@ -491,6 +494,7 @@ export function NewRequestPage() {
             supplier={formData.supplier}
             isUrgent={formData.isUrgent}
             serviceDescription={formData.serviceDescription}
+            workflowTemplateId={formData.workflowTemplateId}
             onUpdate={(d) => updateFormData(d)}
           />
         )}

@@ -45,6 +45,7 @@ export interface ProcurementRequest {
   daysInStage: number;
   isOverdue: boolean;
   referBackCount: number;
+  workflowTemplateId?: string;
 }
 
 export interface StageHistoryEntry {

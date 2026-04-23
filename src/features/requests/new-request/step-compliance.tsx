@@ -10,7 +10,16 @@ import { useMatchingRiskAssessments } from '@/lib/db/hooks/use-risk-assessments'
 import { useFormTemplate } from '@/lib/db/hooks/use-form-templates';
 import { useRoutingRules } from '@/lib/db/hooks/use-routing-rules';
 import { useAiAgent } from '@/lib/db/hooks/use-ai-agents';
+import { useWorkflowTemplates } from '@/lib/db/hooks/use-workflow-templates';
 import { resolveRouting, buyingChannelLabel } from '@/lib/routing/evaluate-routing-rules';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 import { DynamicForm } from '@/components/shared/dynamic-form';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { SupplierRecommenderCard } from './components/supplier-recommender-card';
@@ -33,6 +42,7 @@ interface ComplianceData {
   matchingRiskAssessments: MatchingRiskAssessmentSummary[];
   validatorAgentStatus?: 'active' | 'draft' | 'disabled' | 'missing';
   validatorAgentName?: string;
+  workflowTemplateId?: string;
 }
 
 interface StepComplianceProps {
@@ -48,7 +58,8 @@ interface StepComplianceProps {
     resources?: string;
     narrative?: string;
   } | null;
-  onUpdate: (data: ComplianceData) => void;
+  workflowTemplateId?: string;
+  onUpdate: (data: Partial<ComplianceData>) => void;
 }
 
 /**
@@ -216,6 +227,7 @@ export function StepCompliance({
   supplier,
   isUrgent,
   serviceDescription,
+  workflowTemplateId,
   onUpdate,
 }: StepComplianceProps) {
   const [loading, setLoading] = useState(true);
@@ -224,6 +236,17 @@ export function StepCompliance({
   const { data: matches = [], isFetched: matchesFetched } = useMatchingRiskAssessments({ supplierId });
   const { data: routingRules = [] } = useRoutingRules();
   const { data: validatorAgent } = useAiAgent('AI-002');
+  const { data: workflowTemplates = [] } = useWorkflowTemplates();
+
+  // Default workflow template derived from category whenever the user
+  // hasn't picked one yet. The mapping prefers a template whose `type`
+  // matches the request category, else falls back to the first template.
+  useEffect(() => {
+    if (workflowTemplateId || workflowTemplates.length === 0) return;
+    const byType = workflowTemplates.find((t) => t.type === category);
+    const defaultId = byType?.id ?? workflowTemplates[0].id;
+    onUpdate({ workflowTemplateId: defaultId } as Partial<ComplianceData>);
+  }, [workflowTemplateId, workflowTemplates, category, onUpdate]);
 
   useEffect(() => {
     setLoading(true);
@@ -486,6 +509,41 @@ export function StepCompliance({
         estimatedValue={estimatedValue}
         selectedSupplierId={supplierId}
       />
+
+      {/* Workflow template picker — chosen template is stored on the
+          request and rendered on the request-detail workflow tab. */}
+      {workflowTemplates.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm">Workflow</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <Label className="text-xs text-gray-500">
+              Which template should this request follow?
+            </Label>
+            <Select
+              value={workflowTemplateId ?? ''}
+              onValueChange={(v) => onUpdate({ workflowTemplateId: v } as Partial<ComplianceData>)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select a template..." />
+              </SelectTrigger>
+              <SelectContent>
+                {workflowTemplates.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>
+                    {t.name}
+                    {t.type ? ` (${t.type})` : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-[11px] text-gray-400">
+              The request lifecycle still follows the 9-stage enum; the chosen template is
+              attached for reference and visible on the request detail.
+            </p>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

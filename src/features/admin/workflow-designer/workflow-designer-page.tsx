@@ -117,18 +117,18 @@ export function WorkflowDesignerPage() {
 
   return (
     <div className={containerClass}>
-      {/* Current-state banner — workflow templates are edited here and
-          persisted, but the runtime request lifecycle is still the
-          hard-coded 9-stage flow (intake → completed). Make that explicit
-          so admins are not misled into thinking their edits reshape
-          request routing. */}
+      {/* Status banner — templates are persisted AND attached to
+          requests on submit (visible on request detail), but the
+          runtime lifecycle still follows the 9-stage enum. Full
+          template-driven runtime is a future phase. */}
       {!isFullscreen && (
-        <div className="border-b border-amber-200 bg-amber-50 px-4 py-2">
-          <p className="text-xs text-amber-800">
-            <strong>Reference designer.</strong> Templates saved here are persisted to{' '}
-            <code>workflow_templates</code> and rendered on this canvas, but real requests
-            still follow the hard-coded 9-stage lifecycle. Wiring per-category templates
-            into request routing is a scheduled follow-up.
+        <div className="border-b border-blue-200 bg-blue-50 px-4 py-2">
+          <p className="text-xs text-blue-800">
+            <strong>Templates attached.</strong> Saves persist to{' '}
+            <code>workflow_templates</code> and the chosen template is attached to every
+            new request (visible on the request-detail Workflow tab). The runtime lifecycle
+            still follows the 9-stage enum — replacing it with a template-derived
+            sequence is a future phase.
           </p>
         </div>
       )}

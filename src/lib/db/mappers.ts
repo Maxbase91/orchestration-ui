@@ -477,6 +477,7 @@ const REQUEST_FIELD_MAP: Record<string, string> = {
   daysInStage: 'days_in_stage',
   isOverdue: 'is_overdue',
   referBackCount: 'refer_back_count',
+  workflowTemplateId: 'workflow_template_id',
 };
 
 const REVERSE_REQUEST_MAP: Record<string, string> = Object.fromEntries(

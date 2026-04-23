@@ -167,6 +167,43 @@ async function scenarioCreateRequest() {
   assert(history[0].stage === 'draft', 'create-request: stage_history stage=draft', `stage=${history[0].stage}`);
 }
 
+async function scenarioWorkflowTemplateAttached() {
+  // Pick an existing workflow template to attach
+  const { data: templates } = await sb.from('workflow_templates').select('id').limit(1);
+  const templateId = templates?.[0]?.id;
+  if (!templateId) { fail('workflow-template: template available to attach', 'no templates in DB'); return; }
+
+  const id = `${TEST_PREFIX}${Date.now()}-${randSuffix()}`;
+  const now = new Date().toISOString();
+  const { data: anyUser } = await sb.from('users').select('id').limit(1).single();
+  const { error: insErr } = await sb.from('requests').insert({
+    id,
+    title: 'E2E workflow-template attach test',
+    category: 'software',
+    status: 'intake',
+    priority: 'medium',
+    value: 5000,
+    currency: 'EUR',
+    requestor_id: anyUser.id,
+    owner_id: anyUser.id,
+    is_urgent: false,
+    days_in_stage: 0,
+    is_overdue: false,
+    refer_back_count: 0,
+    workflow_template_id: templateId,
+    created_at: now,
+    updated_at: now,
+  });
+  if (insErr) { fail('workflow-template: insert request with workflow_template_id', insErr.message); return; }
+
+  const { data: row } = await sb.from('requests').select('*').eq('id', id).single();
+  assert(
+    row.workflow_template_id === templateId,
+    'workflow-template: id round-trips via list query',
+    `got=${row.workflow_template_id} expected=${templateId}`,
+  );
+}
+
 async function scenarioApproveFlow() {
   // Seed request directly in the approval stage (UI arrives here via
   // intake→validation→approval transitions; those use the same API, so
@@ -443,6 +480,7 @@ async function main() {
 
   console.log('Running scenarios...');
   await runScenario('create-request',     scenarioCreateRequest);
+  await runScenario('workflow-template-attach', scenarioWorkflowTemplateAttached);
   await runScenario('approve-flow',       scenarioApproveFlow);
   await runScenario('reject-flow',        scenarioRejectFlow);
   await runScenario('cancel-flow',        scenarioCancelFlow);
