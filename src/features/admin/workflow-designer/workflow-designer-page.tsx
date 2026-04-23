@@ -117,6 +117,22 @@ export function WorkflowDesignerPage() {
 
   return (
     <div className={containerClass}>
+      {/* Current-state banner — workflow templates are edited here and
+          persisted, but the runtime request lifecycle is still the
+          hard-coded 9-stage flow (intake → completed). Make that explicit
+          so admins are not misled into thinking their edits reshape
+          request routing. */}
+      {!isFullscreen && (
+        <div className="border-b border-amber-200 bg-amber-50 px-4 py-2">
+          <p className="text-xs text-amber-800">
+            <strong>Reference designer.</strong> Templates saved here are persisted to{' '}
+            <code>workflow_templates</code> and rendered on this canvas, but real requests
+            still follow the hard-coded 9-stage lifecycle. Wiring per-category templates
+            into request routing is a scheduled follow-up.
+          </p>
+        </div>
+      )}
+
       {/* Top bar */}
       <div className="flex items-center justify-between border-b border-gray-200 bg-white px-4 py-2.5">
         <div className="flex items-center gap-3">
