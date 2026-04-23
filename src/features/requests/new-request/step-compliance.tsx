@@ -41,7 +41,47 @@ interface StepComplianceProps {
   supplierId: string;
   supplier?: string;
   isUrgent: boolean;
+  serviceDescription?: {
+    objective?: string;
+    scope?: string;
+    deliverables?: string;
+    resources?: string;
+    narrative?: string;
+  } | null;
   onUpdate: (data: ComplianceData) => void;
+}
+
+/**
+ * Derive a data-sensitivity classification from the collected SOW so the
+ * risk-triage form can arrive pre-filled. Keyword heuristic — intentionally
+ * conservative: unknown sensitive-term = "high" rather than "low".
+ */
+function inferDataSensitivity(sow: StepComplianceProps['serviceDescription']): 'none' | 'low' | 'medium' | 'high' | 'critical' {
+  const blob = [sow?.objective, sow?.scope, sow?.deliverables, sow?.resources, sow?.narrative]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+  if (!blob) return 'medium';
+  const critical = ['payment data', 'card data', 'pci', 'health data', 'medical records', 'classified', 'state secret'];
+  const high = ['personal data', 'pii', 'gdpr', 'customer data', 'confidential', 'financial records', 'payroll', 'employee data', 'ip address'];
+  const medium = ['internal', 'proprietary', 'commercial', 'contract terms', 'supplier data'];
+  const low = ['public', 'marketing', 'brochure', 'website content'];
+  if (critical.some((k) => blob.includes(k))) return 'critical';
+  if (high.some((k) => blob.includes(k))) return 'high';
+  if (medium.some((k) => blob.includes(k))) return 'medium';
+  if (low.some((k) => blob.includes(k))) return 'low';
+  return 'medium';
+}
+
+function mapSraStatus(status: string | undefined): string {
+  switch (status) {
+    case 'valid': return 'yes-valid';
+    case 'expiring': return 'yes-expiring';
+    case 'expired':
+    case 'not-assessed':
+      return 'no';
+    default: return 'unknown';
+  }
 }
 
 
@@ -105,6 +145,7 @@ export function StepCompliance({
   supplierId,
   supplier,
   isUrgent,
+  serviceDescription,
   onUpdate,
 }: StepComplianceProps) {
   const [loading, setLoading] = useState(true);
@@ -301,11 +342,17 @@ export function StepCompliance({
         </div>
       )}
 
-      {/* Risk Assessment Triage Form */}
+      {/* Risk Assessment Triage Form — pre-filled from the collected SOW so
+          the triage questionnaire arrives with sensible defaults instead of
+          asking the user to re-enter what they just typed. */}
       <RiskAssessmentTriageSection
         category={category}
         supplierName={suppliers.find((s) => s.id === supplierId)?.name ?? ''}
         estimatedValue={estimatedValue}
+        supplierRegistered={!!supplierId}
+        supplierSraStatus={suppliers.find((s) => s.id === supplierId)?.sraStatus}
+        inferredDataSensitivity={inferDataSensitivity(serviceDescription ?? null)}
+        sowNarrative={serviceDescription?.narrative ?? ''}
       />
 
       {/* IT Security Assessment (software only) */}
@@ -337,10 +384,18 @@ function RiskAssessmentTriageSection({
   category,
   supplierName,
   estimatedValue,
+  supplierRegistered,
+  supplierSraStatus,
+  inferredDataSensitivity,
+  sowNarrative,
 }: {
   category: string;
   supplierName: string;
   estimatedValue: number;
+  supplierRegistered: boolean;
+  supplierSraStatus?: string;
+  inferredDataSensitivity: 'none' | 'low' | 'medium' | 'high' | 'critical';
+  sowNarrative: string;
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -368,6 +423,14 @@ function RiskAssessmentTriageSection({
     supplierName,
     value: String(estimatedValue),
     category,
+    // Answers derived upstream from the SOW. DynamicForm resolves each
+    // field via prePopulateFrom first, then falls back to the field.id —
+    // so we provide both namings for any field that lacks an explicit key.
+    sraStatus: mapSraStatus(supplierSraStatus),
+    'f001-sra-status': mapSraStatus(supplierSraStatus),
+    'f001-registered': supplierRegistered ? 'yes' : 'no',
+    'f001-data-sensitivity': inferredDataSensitivity,
+    'f001-annual-spend': String(estimatedValue),
   };
 
   return (
@@ -387,16 +450,29 @@ function RiskAssessmentTriageSection({
         </button>
         <p className="text-xs text-muted-foreground">
           Complete this short questionnaire to determine risk assessment requirements.
+          Fields are pre-filled from the service description — adjust before submitting.
         </p>
       </CardHeader>
       {!collapsed && (
         <CardContent className="space-y-4">
           {!submitted ? (
-            <DynamicForm
-              template={template}
-              prePopulateContext={prePopulateContext}
-              onSubmit={handleTriageSubmit}
-            />
+            <>
+              {sowNarrative && (
+                <div className="rounded-md border border-blue-100 bg-blue-50/40 p-3 text-xs text-gray-600">
+                  <p className="font-medium text-gray-700">Pre-filled from your service description</p>
+                  <p className="mt-1">
+                    Data sensitivity inferred as <strong>{inferredDataSensitivity}</strong>;
+                    supplier SRA status mapped to <strong>{mapSraStatus(supplierSraStatus)}</strong>.
+                    Adjust any field below if needed.
+                  </p>
+                </div>
+              )}
+              <DynamicForm
+                template={template}
+                prePopulateContext={prePopulateContext}
+                onSubmit={handleTriageSubmit}
+              />
+            </>
           ) : triageResult === 'full-sra' ? (
             <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4">
               <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />

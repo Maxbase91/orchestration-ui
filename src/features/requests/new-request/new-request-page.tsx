@@ -490,6 +490,7 @@ export function NewRequestPage() {
             supplierId={formData.supplierId}
             supplier={formData.supplier}
             isUrgent={formData.isUrgent}
+            serviceDescription={formData.serviceDescription}
             onUpdate={(d) => updateFormData(d)}
           />
         )}

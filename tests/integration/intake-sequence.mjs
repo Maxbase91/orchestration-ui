@@ -173,6 +173,37 @@ async function scenarioChatIntakePromptMandatorySow() {
   );
 }
 
+// Mirror of inferDataSensitivity in step-compliance.tsx. Keep in sync.
+function inferDataSensitivity(sow) {
+  const blob = [sow?.objective, sow?.scope, sow?.deliverables, sow?.resources, sow?.narrative]
+    .filter(Boolean).join(' ').toLowerCase();
+  if (!blob) return 'medium';
+  const critical = ['payment data', 'card data', 'pci', 'health data', 'medical records', 'classified', 'state secret'];
+  const high = ['personal data', 'pii', 'gdpr', 'customer data', 'confidential', 'financial records', 'payroll', 'employee data', 'ip address'];
+  const medium = ['internal', 'proprietary', 'commercial', 'contract terms', 'supplier data'];
+  const low = ['public', 'marketing', 'brochure', 'website content'];
+  if (critical.some((k) => blob.includes(k))) return 'critical';
+  if (high.some((k) => blob.includes(k))) return 'high';
+  if (medium.some((k) => blob.includes(k))) return 'medium';
+  if (low.some((k) => blob.includes(k))) return 'low';
+  return 'medium';
+}
+
+async function scenarioRiskTriagePrefill() {
+  // Four canonical SOW shapes, each mapping to a different sensitivity.
+  const cases = [
+    { sow: { scope: 'Process customer credit card data end-to-end' }, expected: 'critical' },
+    { sow: { scope: 'Handle GDPR-regulated personal data for EU users', deliverables: 'privacy-compliant pipeline' }, expected: 'high' },
+    { sow: { scope: 'Integrate with our internal procurement tooling', deliverables: 'proprietary dashboards' }, expected: 'medium' },
+    { sow: { scope: 'Produce a public marketing brochure', deliverables: 'website content refresh' }, expected: 'low' },
+    { sow: { scope: 'Run a networking mixer for partners' }, expected: 'medium' }, // generic → default
+  ];
+  for (const { sow, expected } of cases) {
+    const got = inferDataSensitivity(sow);
+    assert(got === expected, `risk-prefill: "${sow.scope.slice(0, 40)}..." → ${expected}`, `got=${got}`);
+  }
+}
+
 async function main() {
   const { catalogueItems, contracts } = await loadTables();
   console.log(`Loaded ${catalogueItems.length} catalogue items, ${contracts.length} contracts`);
@@ -180,6 +211,7 @@ async function main() {
   await scenarioContractMatch(contracts);
   await scenarioNoMatch(catalogueItems, contracts);
   await scenarioChatIntakePromptMandatorySow();
+  await scenarioRiskTriagePrefill();
 
   const failed = results.filter((r) => r.o === 'FAIL').length;
   for (const r of results) {

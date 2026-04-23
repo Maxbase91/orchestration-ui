@@ -35,6 +35,11 @@ function resolveDefault(
   if (field.prePopulateFrom && prePopulateContext?.[field.prePopulateFrom]) {
     return prePopulateContext[field.prePopulateFrom];
   }
+  // Fallback: allow callers to prefill a field by its exact id, without
+  // needing to declare a prePopulateFrom mapping in the form template.
+  if (prePopulateContext && field.id in prePopulateContext) {
+    return prePopulateContext[field.id];
+  }
   if (field.fieldType === 'checkbox') {
     return false;
   }
