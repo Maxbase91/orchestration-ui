@@ -65,16 +65,20 @@ const SOW_SECTIONS: { key: string; label: string }[] = [
 ];
 
 
-// --- Deterministic fallback: only collect essentials, skip SOW ---
+// --- Deterministic fallback: SOW is mandatory, so collect all 4 core SOW fields
+//     before marking complete. Used only when the LLM endpoint is unavailable.
 function localFallbackResponse(
   userText: string,
   data: StepChatIntakeProps['data'],
+  svcDesc: Partial<ServiceDescription>,
 ): {
   extracted: Record<string, unknown>;
+  sow: Partial<ServiceDescription>;
   nextQuestion: string;
   complete: boolean;
 } {
   const extracted: Record<string, unknown> = {};
+  const sowUpdate: Partial<ServiceDescription> = {};
 
   // Try to extract a value
   const valueMatch = userText.match(/[\d,]+[kK]|\d[\d,.]+/);
@@ -85,24 +89,48 @@ function localFallbackResponse(
     if (num > 0) extracted.estimatedValue = num;
   }
 
-  // Use text as title if we don't have one
+  // Use first user message as title if we don't have one
   if (!data.title) {
-    extracted.title = userText;
-    extracted.businessJustification = userText;
+    extracted.title = userText.slice(0, 120);
   }
 
-  // Simple 3-step flow: title → value → done
+  // Mandatory SOW flow: title → value → objective → scope → deliverables → resources → complete
   if (!data.title) {
-    return { extracted, nextQuestion: "Thanks. What's the estimated budget? (e.g., €50,000 or 150k)", complete: false };
+    return { extracted, sow: sowUpdate, nextQuestion: "Thanks. What's the estimated budget? (e.g., €50,000 or 150k)", complete: false };
   }
   if (!data.estimatedValue && !extracted.estimatedValue) {
-    return { extracted, nextQuestion: "What's the estimated value for this request?", complete: false };
+    return { extracted, sow: sowUpdate, nextQuestion: "What's the estimated value for this request?", complete: false };
+  }
+  if (!svcDesc.objective) {
+    sowUpdate.objective = userText;
+    return { extracted, sow: sowUpdate, nextQuestion: "What should be in scope — and anything explicitly out of scope?", complete: false };
+  }
+  if (!svcDesc.scope) {
+    sowUpdate.scope = userText;
+    return { extracted, sow: sowUpdate, nextQuestion: "What are the key deliverables?", complete: false };
+  }
+  if (!svcDesc.deliverables) {
+    sowUpdate.deliverables = userText;
+    return { extracted, sow: sowUpdate, nextQuestion: "What resources, skills or team size does this need?", complete: false };
+  }
+  if (!svcDesc.resources) {
+    sowUpdate.resources = userText;
   }
 
-  // We have enough — mark complete
+  // We have all four core SOW fields — complete
+  const narrative = [
+    svcDesc.objective ?? sowUpdate.objective,
+    svcDesc.scope ?? sowUpdate.scope,
+    svcDesc.deliverables ?? sowUpdate.deliverables,
+    svcDesc.resources ?? sowUpdate.resources,
+  ].filter(Boolean).join('\n\n');
+  sowUpdate.narrative = narrative;
+  extracted.businessJustification = narrative;
+
   return {
     extracted,
-    nextQuestion: "Got the essentials. Click Next to proceed to validation.",
+    sow: sowUpdate,
+    nextQuestion: 'SOW captured. Click Next to proceed to supplier identification and compliance.',
     complete: true,
   };
 }
@@ -248,14 +276,23 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
         setMessages((prev) => [...prev, { role: 'assistant', content: result.nextQuestion }]);
       }
 
-      // Only mark complete if minimum fields are actually filled
-      const hasTitle = !!(data.title || (result.extracted as Record<string, unknown>)?.title);
-      const hasValue = (data.estimatedValue > 0) || ((result.extracted as Record<string, unknown>)?.estimatedValue as number > 0);
-      const actuallyComplete = result.complete && hasTitle && hasValue;
+      // Mandatory SOW: we only accept "complete" if title, value AND the four
+      // core SOW fields are populated. Otherwise we keep prompting.
+      const resultExtracted = (result.extracted as Record<string, unknown>) ?? {};
+      const resultSow = (result.serviceDescription as Partial<ServiceDescription> | undefined) ?? {};
+      const mergedSow: Partial<ServiceDescription> = { ...svcDesc, ...resultSow };
+      const hasTitle = !!(data.title || resultExtracted.title);
+      const hasValue = (data.estimatedValue > 0) || ((resultExtracted.estimatedValue as number) > 0);
+      const hasObjective = !!mergedSow.objective?.trim();
+      const hasScope = !!mergedSow.scope?.trim();
+      const hasDeliverables = !!mergedSow.deliverables?.trim();
+      const hasResources = !!mergedSow.resources?.trim();
+      const sowComplete = hasObjective && hasScope && hasDeliverables && hasResources;
+      const actuallyComplete = result.complete && hasTitle && hasValue && sowComplete;
 
       if (actuallyComplete) {
         setIsComplete(true);
-        setSummary(result.summary ?? '');
+        setSummary(result.summary ?? 'Service description captured. Ready for supplier identification and compliance.');
         if (!result.nextQuestion) {
           setMessages((prev) => [
             ...prev,
@@ -263,30 +300,38 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
           ]);
         }
       } else if (result.complete && !actuallyComplete) {
-        // LLM said complete but we're missing fields — ask for what's missing
-        const missing = !hasTitle ? "What's the title or description of this request?" : "What's the estimated value?";
+        // LLM tried to short-circuit — prompt for the next missing field in
+        // the mandated sequence so we never skip SOW.
+        let missing = "What's the title or description of this request?";
+        if (hasTitle && !hasValue) missing = "What's the estimated value?";
+        else if (hasTitle && hasValue && !hasObjective) missing = "What's the primary objective of this engagement?";
+        else if (!hasScope) missing = 'What should be in scope — and anything explicitly out of scope?';
+        else if (!hasDeliverables) missing = 'What are the key deliverables?';
+        else if (!hasResources) missing = 'What resources, skills or team size does this need?';
         setMessages((prev) => [...prev, { role: 'assistant', content: missing }]);
       }
     } catch {
-      // LLM unavailable — collect essentials only, skip SOW
-      const fallback = localFallbackResponse(text, data);
+      // LLM unavailable — walk a deterministic question sequence that still
+      // enforces a mandatory SOW (objective → scope → deliverables → resources).
+      const fallback = localFallbackResponse(text, data, svcDesc);
 
       if (Object.keys(fallback.extracted).length > 0) {
         onUpdate(fallback.extracted);
       }
+      if (Object.keys(fallback.sow).length > 0) {
+        setSvcDesc((prev) => ({ ...prev, ...fallback.sow }));
+      }
 
       setMessages((prev) => [...prev, { role: 'assistant', content: fallback.nextQuestion }]);
 
-      const fbHasTitle = !!(data.title || fallback.extracted.title);
-      const fbHasValue = (data.estimatedValue > 0) || (fallback.extracted.estimatedValue as number > 0);
-      if (fallback.complete && fbHasTitle && fbHasValue) {
+      if (fallback.complete) {
         setIsComplete(true);
-        setSummary('Essentials captured. Service description can be added later.');
+        setSummary('Service description captured. Ready for supplier identification and compliance.');
       }
     } finally {
       setIsTyping(false);
     }
-  }, [inputValue, isTyping, messages, category, data, onUpdate]);
+  }, [inputValue, isTyping, messages, category, data, svcDesc, onUpdate]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
