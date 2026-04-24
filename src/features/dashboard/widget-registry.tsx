@@ -32,6 +32,7 @@ export const widgetRegistry: WidgetConfig[] = [
   { id: 'supplier-risk', title: 'Supplier Risk Alerts', description: 'Suppliers with elevated risk ratings', icon: 'ShieldAlert', size: 'small', availableTo: ['vendor-manager', 'procurement-manager', 'admin'] },
   { id: 'quick-stats', title: 'Monthly Summary', description: 'Requests submitted, approved and completed this month', icon: 'BarChart', size: 'small', availableTo: allRoles },
   { id: 'ai-assistant', title: 'AI Assistant', description: 'Quick access to the procurement AI assistant', icon: 'MessageSquare', size: 'small', availableTo: allRoles },
+  { id: 'mentions', title: 'Mentions', description: 'Comments where someone @-mentioned you, with unread markers', icon: 'AtSign', size: 'medium', availableTo: allInternal },
 ];
 
 export interface QuickActionConfig {
@@ -66,11 +67,11 @@ export const allQuickActions: QuickActionConfig[] = [
 
 export function getDefaultLayout(role: Role): string[] {
   switch (role) {
-    case 'service-owner': return ['quick-stats', 'my-requests', 'recent-activity', 'ai-assistant', 'ai-insights', 'expiring-contracts'];
-    case 'procurement-manager': return ['kpi-open-demand', 'kpi-sourcing', 'kpi-cycle-time', 'kpi-compliance', 'demand-pipeline', 'team-workload', 'attention-required', 'ai-insights'];
-    case 'vendor-manager': return ['validation-queue', 'quick-stats', 'supplier-risk', 'recent-activity', 'ai-insights'];
-    case 'operations-lead': return ['workflow-health', 'sla-tracker', 'attention-required', 'ai-insights', 'recent-activity'];
-    case 'admin': return ['system-health', 'quick-stats', 'workflow-health', 'supplier-risk', 'ai-insights'];
+    case 'service-owner': return ['quick-stats', 'my-requests', 'mentions', 'recent-activity', 'ai-assistant', 'ai-insights', 'expiring-contracts'];
+    case 'procurement-manager': return ['kpi-open-demand', 'kpi-sourcing', 'kpi-cycle-time', 'kpi-compliance', 'demand-pipeline', 'team-workload', 'attention-required', 'mentions', 'ai-insights'];
+    case 'vendor-manager': return ['validation-queue', 'quick-stats', 'mentions', 'supplier-risk', 'recent-activity', 'ai-insights'];
+    case 'operations-lead': return ['workflow-health', 'sla-tracker', 'attention-required', 'mentions', 'ai-insights', 'recent-activity'];
+    case 'admin': return ['system-health', 'quick-stats', 'workflow-health', 'supplier-risk', 'mentions', 'ai-insights'];
     case 'supplier': return ['quick-stats', 'ai-assistant'];
     default: return ['quick-stats', 'my-requests', 'ai-assistant'];
   }

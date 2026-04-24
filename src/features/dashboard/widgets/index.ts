@@ -17,6 +17,7 @@ import { WidgetExpiringContracts } from './widget-expiring-contracts';
 import { WidgetSupplierRisk } from './widget-supplier-risk';
 import { WidgetQuickStats } from './widget-quick-stats';
 import { WidgetAIAssistant } from './widget-ai-assistant';
+import { WidgetMentions } from './widget-mentions';
 
 export {
   WidgetMyRequests,
@@ -37,6 +38,7 @@ export {
   WidgetSupplierRisk,
   WidgetQuickStats,
   WidgetAIAssistant,
+  WidgetMentions,
 };
 
 export const widgetComponents: Record<string, React.ComponentType> = {
@@ -58,4 +60,5 @@ export const widgetComponents: Record<string, React.ComponentType> = {
   'supplier-risk': WidgetSupplierRisk,
   'quick-stats': WidgetQuickStats,
   'ai-assistant': WidgetAIAssistant,
+  'mentions': WidgetMentions,
 };
