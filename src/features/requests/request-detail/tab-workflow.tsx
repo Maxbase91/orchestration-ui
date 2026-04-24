@@ -13,6 +13,7 @@ import { ReassignDialog } from './components/reassign-dialog';
 import { ProcessStepper } from '@/components/shared/process-stepper';
 import type { Step } from '@/components/shared/process-stepper';
 import { StepDetailCard } from './components/step-detail-card';
+import { ComplianceStageSection } from './components/compliance-stage-section';
 import { SystemIntegrationTimeline } from '@/components/shared/system-integration-timeline';
 import { formatDate } from '@/lib/format';
 import { systemLabels, systemColors } from '@/data/system-integrations';
@@ -258,22 +259,30 @@ export function TabWorkflow({ request, focusStageId }: TabWorkflowProps) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-3">
           {visibleStages.map((stage) => (
-            <StepDetailCard
+            <div
               key={stage.id}
               ref={(el) => {
                 cardRefs.current[stage.id] = el;
               }}
-              stage={stage.id}
-              stageLabel={stage.label}
-              status={stage.status}
-              detail={stage.detail}
-              stageHistory={stage.entry}
-              isExpanded={expandedStages.has(stage.id)}
-              onToggle={() => toggleStage(stage.id)}
-              isHighlighted={highlightedStage === stage.id}
-              requestId={request.id}
-              requestCategory={request.category}
-            />
+            >
+              <StepDetailCard
+                stage={stage.id}
+                stageLabel={stage.label}
+                status={stage.status}
+                detail={stage.detail}
+                stageHistory={stage.entry}
+                isExpanded={expandedStages.has(stage.id)}
+                onToggle={() => toggleStage(stage.id)}
+                isHighlighted={highlightedStage === stage.id}
+                requestId={request.id}
+                requestCategory={request.category}
+              />
+              {/* Compliance context attached to the stage that owns it.
+                  Renders nothing outside intake / validation / approval. */}
+              {expandedStages.has(stage.id) && (
+                <ComplianceStageSection stage={stage.id} request={request} />
+              )}
+            </div>
           ))}
         </div>
 

@@ -7,8 +7,6 @@ import { useSupplierLookup, useSuppliers } from '@/lib/db/hooks/use-suppliers';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { getAISummary } from '@/lib/mock-ai';
 import { AISuggestionCard } from '@/components/shared/ai-suggestion-card';
-import { ComplianceReportCard } from '@/components/shared/compliance-report-card';
-import { useComplianceReport } from '@/lib/db/hooks/use-compliance-reports';
 import { useServiceDescription } from '@/lib/db/hooks/use-service-descriptions';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -65,7 +63,6 @@ export function TabOverview({ request }: TabOverviewProps) {
   const owner = lookupUser(request.ownerId);
   const supplier = lookupSupplier(request.supplierId);
   const summary = getAISummary('request', request.id);
-  const { data: complianceReport } = useComplianceReport(request.id);
   const { data: svcDesc } = useServiceDescription(request.id);
   const [sowExpanded, setSowExpanded] = useState(true);
 
@@ -104,11 +101,8 @@ export function TabOverview({ request }: TabOverviewProps) {
           <AISuggestionCard title="Request Summary" confidence={0.92}>
             <p>{summary}</p>
           </AISuggestionCard>
-          {complianceReport && (
-            <div className="mt-4">
-              <ComplianceReportCard report={complianceReport} />
-            </div>
-          )}
+          {/* Compliance report moved to the Workflow tab's approval
+              stage card to avoid duplicating content across tabs. */}
         </div>
       </div>
 
