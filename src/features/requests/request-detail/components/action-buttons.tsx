@@ -16,6 +16,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
+import { useApprovalLookup, useApprovals, useUpdateApproval } from '@/lib/db/hooks/use-approvals';
+import { useAuthStore } from '@/stores/auth-store';
 
 interface ActionButtonsProps {
   request: ProcurementRequest;
@@ -27,8 +29,18 @@ export function ActionButtons({ request }: ActionButtonsProps) {
   const [escalateOpen, setEscalateOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<'approve' | 'reject' | 'cancel' | null>(null);
 
+  const currentUser = useAuthStore((s) => s.currentUser);
+  useApprovals();
+  const { byRequest } = useApprovalLookup();
+  const updateApproval = useUpdateApproval();
+
   const isTerminal = request.status === 'completed' || request.status === 'cancelled';
   const isApprovalStage = request.status === 'approval';
+  // Current user's own pending approval entry on this request, if any.
+  const myPendingApproval = byRequest(request.id).find(
+    (a) => a.approverId === currentUser.id && a.status === 'pending',
+  );
+  const canApprove = isApprovalStage || Boolean(myPendingApproval);
 
   async function handleConfirm() {
     if (!confirmAction) return;
@@ -42,16 +54,36 @@ export function ActionButtons({ request }: ActionButtonsProps) {
     const config = actionMap[confirmAction];
 
     try {
-      await apiWorkflowAction({
-        requestId: request.id,
-        action: config.action,
-        newStatus: config.newStatus,
-      });
+      // If the user has a pending approval entry, stamp it first so
+      // respondedAt is captured — this keeps the per-approver ledger
+      // aligned with the workflow-level action.
+      if (myPendingApproval && (confirmAction === 'approve' || confirmAction === 'reject')) {
+        await updateApproval.mutateAsync({
+          id: myPendingApproval.id,
+          patch: {
+            status: confirmAction === 'approve' ? 'approved' : 'rejected',
+            respondedAt: new Date().toISOString(),
+          },
+        });
+      }
+
+      // Only progress the request via workflow-action if it's in the
+      // approval stage. If the user is approving a late-stage leftover
+      // approval entry (e.g. status=sourcing), just stamping their
+      // entry is the right outcome.
+      if (isApprovalStage) {
+        await apiWorkflowAction({
+          requestId: request.id,
+          action: config.action,
+          newStatus: config.newStatus,
+        });
+      }
 
       // Refetch so the request header, lifecycle stepper, workflow tab and
       // audit tab all reflect the new status without requiring a page reload.
       queryClient.invalidateQueries({ queryKey: ['requests'] });
       queryClient.invalidateQueries({ queryKey: ['stage-history'] });
+      queryClient.invalidateQueries({ queryKey: ['approvals'] });
 
       if (confirmAction === 'approve') {
         toast.success(config.successMsg);
@@ -73,7 +105,7 @@ export function ActionButtons({ request }: ActionButtonsProps) {
   return (
     <>
       <div className="flex items-center gap-2 flex-wrap">
-        {isApprovalStage && (
+        {canApprove && (
           <>
             <Button
               size="sm"
