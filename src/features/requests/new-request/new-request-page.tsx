@@ -289,6 +289,50 @@ export function NewRequestPage() {
     setCurrentStep((s) => Math.max(s - 1, 1));
   };
 
+  const handleSaveDraft = async () => {
+    if (!formData.title) {
+      toast.error('Cannot save draft without a title.');
+      return;
+    }
+    const id = generateRequestId();
+    setIsSubmitting(true);
+    try {
+      await createRequest({
+        id,
+        title: formData.title,
+        description: formData.businessJustification,
+        category: (formData.category || 'goods') as RequestCategory,
+        status: 'draft',
+        priority: formData.isUrgent ? 'urgent' : 'medium',
+        value: formData.estimatedValue,
+        currency: formData.currency,
+        requestorId: currentUser.id,
+        ownerId: currentUser.id,
+        supplierId: formData.supplierId,
+        contractId: formData.contractId || undefined,
+        workflowTemplateId: formData.workflowTemplateId || undefined,
+        buyingChannel: (formData.buyingChannelResult || 'procurement-led') as BuyingChannel,
+        commodityCode: formData.commodityCode,
+        commodityCodeLabel: formData.commodityCodeLabel,
+        costCentre: formData.costCentre,
+        budgetOwner: '',
+        businessJustification: formData.businessJustification,
+        deliveryDate: formData.deliveryDate,
+        isUrgent: formData.isUrgent,
+        daysInStage: 0,
+        isOverdue: false,
+        referBackCount: 0,
+      });
+      queryClient.invalidateQueries({ queryKey: ['requests'] });
+      toast.success(`Draft saved as ${id}`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'unknown';
+      toast.error(`Save draft failed: ${msg}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleReset = () => {
     setFormData(INITIAL_DATA);
     setCurrentStep(1);
@@ -542,7 +586,7 @@ export function NewRequestPage() {
           </Button>
           <div className="flex items-center gap-2">
             {currentStep === 5 && (
-              <Button variant="ghost" onClick={() => {}}>
+              <Button variant="ghost" onClick={handleSaveDraft} disabled={isSubmitting}>
                 <Save className="size-4" />
                 Save as Draft
               </Button>

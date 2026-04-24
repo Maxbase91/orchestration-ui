@@ -1,5 +1,5 @@
 import { useSearchParams } from 'react-router-dom';
-import { AlertCircle, Database, RotateCcw } from 'lucide-react';
+import { Database, RotateCcw } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/shared/page-header';
@@ -73,13 +73,12 @@ export function DatabaseAdminPage() {
         }
       />
 
-      <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-        <AlertCircle className="mt-0.5 size-4 shrink-0" />
+      <div className="flex items-start gap-2 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+        <Database className="mt-0.5 size-4 shrink-0" />
         <div>
-          <p className="font-medium">Partial Supabase migration in progress</p>
+          <p className="font-medium">All tabs are live</p>
           <p className="text-xs">
-            Live tabs write to Supabase and reflect in every feature page.
-            Pending tabs are still session-only until they migrate (see plan). All edits are captured in the Audit Log.
+            Edits persist to Supabase and reflect on every feature page. All changes are captured in the Audit Log.
           </p>
         </div>
       </div>

@@ -22,7 +22,6 @@ import {
 } from '@/components/ui/table';
 import { Download } from 'lucide-react';
 import { getStatusLabel } from '@/lib/status';
-import { toast } from 'sonner';
 import { format, parseISO } from 'date-fns';
 
 interface TabAuditProps {
@@ -74,7 +73,8 @@ export function TabAudit({ request }: TabAuditProps) {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => toast.info('Export functionality coming soon')}
+              disabled
+              title="Audit export ships with the reporting phase."
             >
               <Download className="size-3.5" />
               Export

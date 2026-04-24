@@ -81,7 +81,7 @@ export function PortalDocuments() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold text-gray-900">Documents & Compliance</h1>
-        <Button>
+        <Button disabled title="Document upload ships with the document-storage phase (AI-003 backend).">
           {extractorActive ? <Sparkles className="size-4" /> : <Upload className="size-4" />}
           {extractorActive ? 'Upload & Auto-Extract' : 'Upload Document'}
         </Button>
@@ -127,7 +127,7 @@ export function PortalDocuments() {
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
                   <StatusBadge status={doc.status} size="sm" />
-                  <Button variant="ghost" size="sm" className="h-7">
+                  <Button variant="ghost" size="sm" className="h-7" disabled title="Document download ships with the document-storage phase.">
                     <Download className="size-3.5" />
                   </Button>
                 </div>

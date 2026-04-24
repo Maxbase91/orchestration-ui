@@ -6,7 +6,6 @@ import {
   Download,
   Pencil,
 } from 'lucide-react';
-import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { StatusBadge } from '@/components/shared/status-badge';
@@ -182,7 +181,8 @@ export function PolicyManagementPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => toast.info('Edit mode not yet available')}
+                      disabled
+                      title="Policy editing ships with the policy-management backend (future phase)."
                     >
                       <Pencil className="mr-1.5 size-3.5" />
                       Edit
@@ -190,7 +190,8 @@ export function PolicyManagementPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => toast.success('Policy archived')}
+                      disabled
+                      title="Policy archive ships with the policy-management backend (future phase)."
                     >
                       <Archive className="mr-1.5 size-3.5" />
                       Archive
@@ -198,7 +199,8 @@ export function PolicyManagementPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => toast.success('Download started')}
+                      disabled
+                      title="Policy download ships with the document-storage phase."
                     >
                       <Download className="mr-1.5 size-3.5" />
                       Download

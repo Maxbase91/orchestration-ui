@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { KeyRound, UserX } from 'lucide-react';
-import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -81,20 +80,18 @@ const accountColumns: Column<PortalAccount>[] = [
         <Button
           variant="ghost"
           size="sm"
-          onClick={(e) => {
-            e.stopPropagation();
-            toast.success('Password reset email sent');
-          }}
+          disabled
+          title="Password reset ships with Supabase Auth (deferred phase)."
+          onClick={(e) => e.stopPropagation()}
         >
           <KeyRound className="size-3.5" />
         </Button>
         <Button
           variant="ghost"
           size="sm"
-          onClick={(e) => {
-            e.stopPropagation();
-            toast.success('Account deactivated');
-          }}
+          disabled
+          title="Account deactivation ships with Supabase Auth (deferred phase)."
+          onClick={(e) => e.stopPropagation()}
         >
           <UserX className="size-3.5 text-red-500" />
         </Button>
@@ -212,7 +209,7 @@ export function PortalAdminPage() {
                 rows={3}
               />
             </div>
-            <Button onClick={() => toast.success('Settings saved')}>
+            <Button disabled title="Portal settings persistence ships with the supplier-portal backend (future phase).">
               Save Settings
             </Button>
           </Card>

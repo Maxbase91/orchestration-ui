@@ -104,7 +104,7 @@ export function ExportsPage() {
       key: 'download',
       label: '',
       render: () => (
-        <Button variant="ghost" size="sm" onClick={() => toast.info('Download started')}>
+        <Button variant="ghost" size="sm" disabled title="Export download ships with the reporting phase.">
           <Download className="size-3.5" />
         </Button>
       ),
