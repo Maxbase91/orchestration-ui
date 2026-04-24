@@ -37,9 +37,8 @@ export const stageHistory: StageHistoryEntry[] = [
   { requestId: 'REQ-2024-0003', stage: 'intake', enteredAt: '2024-07-20T09:00:00Z', completedAt: '2024-07-22T10:00:00Z', ownerId: 'u1', action: 'accepted' },
   { requestId: 'REQ-2024-0003', stage: 'validation', enteredAt: '2024-07-22T10:00:00Z', completedAt: '2024-07-30T14:00:00Z', ownerId: 'u1', action: 'validated' },
   { requestId: 'REQ-2024-0003', stage: 'approval', enteredAt: '2024-07-30T14:00:00Z', completedAt: '2024-08-05T11:00:00Z', ownerId: 'u7', action: 'approved' },
-  { requestId: 'REQ-2024-0003', stage: 'sourcing', enteredAt: '2024-08-05T11:00:00Z', completedAt: '2024-08-20T16:00:00Z', ownerId: 'u1', action: 'framework-call-off' },
-  { requestId: 'REQ-2024-0003', stage: 'contracting', enteredAt: '2024-08-20T16:00:00Z', completedAt: '2024-09-10T09:00:00Z', ownerId: 'u1', action: 'contracted' },
-  { requestId: 'REQ-2024-0003', stage: 'po', enteredAt: '2024-09-10T09:00:00Z', completedAt: '2024-09-20T08:00:00Z', ownerId: 'u1', action: 'po-created' },
+  // framework-call-off on CON-015 — sourcing + contracting skipped
+  { requestId: 'REQ-2024-0003', stage: 'po', enteredAt: '2024-08-05T11:00:00Z', completedAt: '2024-09-20T08:00:00Z', ownerId: 'u1', action: 'po-created' },
   { requestId: 'REQ-2024-0003', stage: 'receipt', enteredAt: '2024-09-20T08:00:00Z', completedAt: '2024-11-18T10:00:00Z', ownerId: 'u6', action: 'received' },
   { requestId: 'REQ-2024-0003', stage: 'invoice', enteredAt: '2024-11-18T10:00:00Z', completedAt: '2024-12-05T14:00:00Z', ownerId: 'u1', action: 'invoiced' },
   { requestId: 'REQ-2024-0003', stage: 'payment', enteredAt: '2024-12-05T14:00:00Z', ownerId: 'u7' },
@@ -144,9 +143,8 @@ export const stageHistory: StageHistoryEntry[] = [
   { requestId: 'REQ-2024-0016', stage: 'intake', enteredAt: '2024-10-01T09:15:00Z', completedAt: '2024-10-03T10:00:00Z', ownerId: 'u3', action: 'accepted' },
   { requestId: 'REQ-2024-0016', stage: 'validation', enteredAt: '2024-10-03T10:00:00Z', completedAt: '2024-10-15T14:00:00Z', ownerId: 'u3', action: 'validated' },
   { requestId: 'REQ-2024-0016', stage: 'approval', enteredAt: '2024-10-15T14:00:00Z', completedAt: '2024-10-25T11:00:00Z', ownerId: 'u7', action: 'approved' },
-  { requestId: 'REQ-2024-0016', stage: 'sourcing', enteredAt: '2024-10-25T11:00:00Z', completedAt: '2024-11-10T16:00:00Z', ownerId: 'u3', action: 'catalogue-order' },
-  { requestId: 'REQ-2024-0016', stage: 'contracting', enteredAt: '2024-11-10T16:00:00Z', completedAt: '2024-12-01T09:00:00Z', ownerId: 'u3', action: 'contracted' },
-  { requestId: 'REQ-2024-0016', stage: 'po', enteredAt: '2024-12-01T09:00:00Z', ownerId: 'u3', notes: 'PO-006 submitted to Lenovo' },
+  // framework-call-off on CON-016 — sourcing + contracting skipped
+  { requestId: 'REQ-2024-0016', stage: 'po', enteredAt: '2024-10-25T11:00:00Z', ownerId: 'u3', notes: 'PO-006 submitted to Lenovo under framework CON-016' },
 
   // REQ-2024-0017 (KPMG tax - invoice)
   { requestId: 'REQ-2024-0017', stage: 'draft', enteredAt: '2024-07-15T10:00:00Z', completedAt: '2024-07-15T10:15:00Z', ownerId: 'u6', action: 'submitted' },

@@ -6,6 +6,7 @@ import { formatDate } from '@/lib/format';
 import { useIntegrationsByRequest } from '@/lib/db/hooks/use-system-integrations';
 import { systemLabels, systemColors } from '@/data/system-integrations';
 import { useApprovalLookup } from '@/lib/db/hooks/use-approvals';
+import { isStageSkippedForChannel } from '@/lib/workflow/buying-channel-stages';
 
 const LIFECYCLE_STAGES: { id: RequestStatus; label: string }[] = [
   { id: 'intake', label: 'Intake' },
@@ -60,7 +61,14 @@ export function LifecycleStepper({ request, onStepClick }: LifecycleStepperProps
     const isCurrent = request.status === stage.id;
 
     let status: Step['status'];
+    const channelSkipsThisStage = isStageSkippedForChannel(request.buyingChannel, stage.id);
     if (isCancelled) {
+      status = isStageCompleted ? 'completed' : 'skipped';
+    } else if (channelSkipsThisStage) {
+      // Channel rule wins: catalogue skips validation/approval/sourcing/
+      // contracting, framework-call-off skips sourcing+contracting, etc.
+      // If the stage actually ran (legacy seed data), keep it as
+      // completed so history stays accurate; otherwise show skipped.
       status = isStageCompleted ? 'completed' : 'skipped';
     } else if (isCompleted) {
       status = 'completed';

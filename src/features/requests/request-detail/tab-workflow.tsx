@@ -6,6 +6,7 @@ import { useIntegrationsByRequest } from '@/lib/db/hooks/use-system-integrations
 import { useWorkflowStepDetailsForRequest } from '@/lib/db/hooks/use-workflow-step-details';
 import { useWorkflowTemplate } from '@/lib/db/hooks/use-workflow-templates';
 import { useApprovalLookup } from '@/lib/db/hooks/use-approvals';
+import { isStageSkippedForChannel } from '@/lib/workflow/buying-channel-stages';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { RotateCcw, UserPlus } from 'lucide-react';
@@ -101,7 +102,10 @@ export function TabWorkflow({ request, focusStageId }: TabWorkflowProps) {
       const isCurrent = request.status === stage.id;
 
       let status: Step['status'];
+      const channelSkipsThisStage = isStageSkippedForChannel(request.buyingChannel, stage.id);
       if (isCancelled) {
+        status = isStageCompleted ? 'completed' : 'skipped';
+      } else if (channelSkipsThisStage) {
         status = isStageCompleted ? 'completed' : 'skipped';
       } else if (isCompleted) {
         status = 'completed';
@@ -201,7 +205,10 @@ export function TabWorkflow({ request, focusStageId }: TabWorkflowProps) {
     const isCurrent = request.status === stage.id;
 
     let cardStatus: 'completed' | 'current' | 'future' | 'skipped' | 'blocked';
+    const channelSkipsThisStage = isStageSkippedForChannel(request.buyingChannel, stage.id);
     if (isCancelled) {
+      cardStatus = isStageCompleted ? 'completed' : 'skipped';
+    } else if (channelSkipsThisStage) {
       cardStatus = isStageCompleted ? 'completed' : 'skipped';
     } else if (isCompleted) {
       cardStatus = 'completed';

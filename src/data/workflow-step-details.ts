@@ -50,9 +50,6 @@ export interface WorkflowStepDetail {
 }
 
 export const workflowStepDetails: WorkflowStepDetail[] = [
-  // =====================================================
-  // REQ-2024-0001 — Cloud hosting migration - AWS (completed)
-  // =====================================================
   {
     requestId: 'REQ-2024-0001',
     stage: 'intake',
@@ -182,10 +179,6 @@ export const workflowStepDetails: WorkflowStepDetail[] = [
     duration: { enteredAt: '2024-10-02T10:00:00Z', completedAt: '2024-10-02T14:00:00Z', daysInStep: 0 },
     slaStatus: 'on-track',
   },
-
-  // =====================================================
-  // REQ-2024-0002 — SAP S/4HANA license renewal (completed)
-  // =====================================================
   {
     requestId: 'REQ-2024-0002',
     stage: 'intake',
@@ -301,10 +294,6 @@ export const workflowStepDetails: WorkflowStepDetail[] = [
     duration: { enteredAt: '2024-09-28T14:00:00Z', completedAt: '2024-12-20T15:00:00Z', daysInStep: 83 },
     slaStatus: 'on-track',
   },
-
-  // =====================================================
-  // REQ-2024-0003 — Office furniture - Berlin HQ (payment)
-  // =====================================================
   {
     requestId: 'REQ-2024-0003',
     stage: 'intake',
@@ -349,26 +338,6 @@ export const workflowStepDetails: WorkflowStepDetail[] = [
   },
   {
     requestId: 'REQ-2024-0003',
-    stage: 'sourcing',
-    handler: { userId: 'u1', name: 'Anna Müller', role: 'Procurement Lead', department: 'Global Procurement' },
-    action: 'Framework call-off order placed',
-    duration: { enteredAt: '2024-08-05T11:00:00Z', completedAt: '2024-08-20T16:00:00Z', daysInStep: 15 },
-    slaStatus: 'on-track',
-  },
-  {
-    requestId: 'REQ-2024-0003',
-    stage: 'contracting',
-    handler: { userId: 'u1', name: 'Anna Müller', role: 'Procurement Lead', department: 'Global Procurement' },
-    action: 'Call-off contract executed under framework',
-    documentsAdded: [
-      { name: 'Framework Call-Off Order Form', type: 'Order', addedBy: 'Anna Müller', addedAt: '2024-09-05T10:00:00Z' },
-      { name: 'Delivery Schedule', type: 'Schedule', addedBy: 'Anna Müller', addedAt: '2024-09-08T14:00:00Z' },
-    ],
-    duration: { enteredAt: '2024-08-20T16:00:00Z', completedAt: '2024-09-10T09:00:00Z', daysInStep: 21 },
-    slaStatus: 'on-track',
-  },
-  {
-    requestId: 'REQ-2024-0003',
     stage: 'po',
     handler: { userId: 'u1', name: 'Anna Müller', role: 'Procurement Lead', department: 'Global Procurement' },
     action: 'Purchase order PO-003 created',
@@ -402,10 +371,6 @@ export const workflowStepDetails: WorkflowStepDetail[] = [
     duration: { enteredAt: '2024-12-05T14:00:00Z', daysInStep: 5 },
     slaStatus: 'on-track',
   },
-
-  // =====================================================
-  // REQ-2024-0004 — Marketing agency retainer (completed)
-  // =====================================================
   {
     requestId: 'REQ-2024-0004',
     stage: 'intake',
@@ -495,10 +460,6 @@ export const workflowStepDetails: WorkflowStepDetail[] = [
     duration: { enteredAt: '2024-12-25T14:00:00Z', completedAt: '2024-12-28T09:00:00Z', daysInStep: 3 },
     slaStatus: 'on-track',
   },
-
-  // =====================================================
-  // REQ-2024-0005 — Data centre security audit (completed)
-  // =====================================================
   {
     requestId: 'REQ-2024-0005',
     stage: 'intake',
@@ -589,10 +550,6 @@ export const workflowStepDetails: WorkflowStepDetail[] = [
     duration: { enteredAt: '2024-12-05T14:00:00Z', completedAt: '2024-12-05T15:00:00Z', daysInStep: 0 },
     slaStatus: 'on-track',
   },
-
-  // =====================================================
-  // REQ-2024-0006 — ERP integration middleware (sourcing, overdue)
-  // =====================================================
   {
     requestId: 'REQ-2024-0006',
     stage: 'intake',
@@ -652,10 +609,6 @@ export const workflowStepDetails: WorkflowStepDetail[] = [
     duration: { enteredAt: '2024-10-01T11:00:00Z', daysInStep: 42 },
     slaStatus: 'breached',
   },
-
-  // =====================================================
-  // REQ-2024-0007 — Contingent workforce - Java developers (approval, overdue)
-  // =====================================================
   {
     requestId: 'REQ-2024-0007',
     stage: 'intake',
@@ -697,10 +650,6 @@ export const workflowStepDetails: WorkflowStepDetail[] = [
     duration: { enteredAt: '2024-11-05T14:00:00Z', daysInStep: 28 },
     slaStatus: 'breached',
   },
-
-  // =====================================================
-  // REQ-2024-0008 — Managed print services renewal (validation, overdue)
-  // =====================================================
   {
     requestId: 'REQ-2024-0008',
     stage: 'intake',
@@ -736,10 +685,6 @@ export const workflowStepDetails: WorkflowStepDetail[] = [
     duration: { enteredAt: '2024-11-05T10:00:00Z', daysInStep: 35 },
     slaStatus: 'breached',
   },
-
-  // =====================================================
-  // REQ-2024-0009 — Databricks AI/ML (referred-back)
-  // =====================================================
   {
     requestId: 'REQ-2024-0009',
     stage: 'intake',
@@ -778,10 +723,6 @@ export const workflowStepDetails: WorkflowStepDetail[] = [
     duration: { enteredAt: '2024-10-30T14:00:00Z', daysInStep: 8 },
     slaStatus: 'at-risk',
   },
-
-  // =====================================================
-  // REQ-2024-0010 — Corporate travel management (referred-back)
-  // =====================================================
   {
     requestId: 'REQ-2024-0010',
     stage: 'intake',
