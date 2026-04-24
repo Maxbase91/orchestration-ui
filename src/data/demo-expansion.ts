@@ -302,11 +302,11 @@ const INVOICE_SPEC: Array<Pick<Invoice, 'id' | 'supplierId' | 'supplierName' | '
   { id: 'INV-114', supplierId: 'SUP-013', supplierName: 'Randstad', amount: 240000, currency: 'EUR', status: 'paid', invoiceDate: '2025-07-28', dueDate: '2025-08-27', poId: 'PO-106', matchStatus: 'matched' },
   // 2025-08
   { id: 'INV-115', supplierId: 'SUP-012', supplierName: 'Sodexo',   amount: 21000,  currency: 'EUR', status: 'paid', invoiceDate: '2025-08-05', dueDate: '2025-09-04', poId: 'PO-109', matchStatus: 'matched' },
-  { id: 'INV-116', supplierId: 'SUP-CAT-009', supplierName: 'Steelcase', amount: 41000, currency: 'EUR', status: 'paid', invoiceDate: '2025-08-20', dueDate: '2025-09-19', poId: 'PO-108', matchStatus: 'matched' },
+  { id: 'INV-116', supplierId: 'SUP-010', supplierName: 'Cushman & Wakefield', amount: 41000, currency: 'EUR', status: 'paid', invoiceDate: '2025-08-20', dueDate: '2025-09-19', poId: 'PO-108', matchStatus: 'matched' },
   { id: 'INV-117', supplierId: 'SUP-013', supplierName: 'Randstad', amount: 250000, currency: 'EUR', status: 'paid', invoiceDate: '2025-08-27', dueDate: '2025-09-26', poId: 'PO-106', matchStatus: 'matched' },
   // 2025-09
   { id: 'INV-118', supplierId: 'SUP-002', supplierName: 'SAP SE',   amount: 490000, currency: 'EUR', status: 'paid', invoiceDate: '2025-09-05', dueDate: '2025-10-05', poId: 'PO-104', matchStatus: 'matched' },
-  { id: 'INV-119', supplierId: 'SUP-CAT-009', supplierName: 'Steelcase', amount: 41000, currency: 'EUR', status: 'paid', invoiceDate: '2025-09-12', dueDate: '2025-10-12', poId: 'PO-108', matchStatus: 'matched' },
+  { id: 'INV-119', supplierId: 'SUP-010', supplierName: 'Cushman & Wakefield', amount: 41000, currency: 'EUR', status: 'paid', invoiceDate: '2025-09-12', dueDate: '2025-10-12', poId: 'PO-108', matchStatus: 'matched' },
   { id: 'INV-120', supplierId: 'SUP-012', supplierName: 'Sodexo',   amount: 22000,  currency: 'EUR', status: 'paid', invoiceDate: '2025-09-26', dueDate: '2025-10-26', poId: 'PO-109', matchStatus: 'matched' },
   // 2025-10
   { id: 'INV-121', supplierId: 'SUP-006', supplierName: 'Amazon Web Services (AWS)', amount: 160000, currency: 'EUR', status: 'paid', invoiceDate: '2025-10-10', dueDate: '2025-11-09', poId: 'PO-110', matchStatus: 'matched' },
@@ -373,12 +373,12 @@ export const extraPurchaseOrders: PurchaseOrder[] = [
     lineItems: [
       { description: 'Senior Java developers — 8 × 6 months', quantity: 8, unitPrice: 120000, received: 8 },
     ] },
-  { id: 'PO-108', supplierId: 'SUP-CAT-009', supplierName: 'Steelcase',
+  { id: 'PO-108', supplierId: 'SUP-010', supplierName: 'Cushman & Wakefield',
     value: 82000, status: 'closed', createdAt: '2025-08-10', deliveryDate: '2025-09-15',
     contractId: 'CON-015', requestId: 'REQ-2025-0108',
     lineItems: [
-      { description: 'Standing desks', quantity: 40, unitPrice: 1200, received: 40 },
-      { description: 'Ergonomic chairs', quantity: 40, unitPrice: 850, received: 40 },
+      { description: 'Standing desks (supply + install)', quantity: 40, unitPrice: 1200, received: 40 },
+      { description: 'Ergonomic chairs (supply + install)', quantity: 40, unitPrice: 850, received: 40 },
     ] },
   { id: 'PO-109', supplierId: 'SUP-012', supplierName: 'Sodexo',
     value: 120000, status: 'closed', createdAt: '2025-07-20', deliveryDate: '2025-12-31',
