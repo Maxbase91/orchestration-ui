@@ -60,6 +60,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       { routingRules },
       { catalogueItems },
       { workflowStepDetails },
+      { extraRequests, extraStageHistory, extraInvoices, extraComments, extraApprovals },
       mappers,
     ] = await Promise.all([
       import('../../src/data/users.js'),
@@ -85,8 +86,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       import('../../src/data/routing-rules.js'),
       import('../../src/data/catalogue-items.js'),
       import('../../src/data/workflow-step-details.js'),
+      import('../../src/data/demo-expansion.js'),
       import('../../src/lib/db/mappers.js'),
     ]);
+
+    // Merge the extras in. Supabase upserts by id, so re-runs are
+    // idempotent.
+    const requestsAll    = [...requests,       ...extraRequests];
+    const stageHistoryAll= [...stageHistory,   ...extraStageHistory];
+    const invoicesAll    = [...invoices,       ...extraInvoices];
+    const commentsAll    = [...comments,       ...extraComments];
+    const approvalsAll   = [...approvalEntries,...extraApprovals];
 
     const {
       mapRequestToDb,
@@ -137,7 +147,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // 3. Requests (FK to users).
     counts.requests = await upsert(
       'requests',
-      requests.map((r) => mapRequestToDb(r)),
+      requestsAll.map((r) => mapRequestToDb(r)),
       'id',
     );
 
@@ -158,14 +168,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // 6. Invoices.
     counts.invoices = await upsert(
       'invoices',
-      invoices.map((i) => mapInvoiceToDb(i)),
+      invoicesAll.map((i) => mapInvoiceToDb(i)),
       'id',
     );
 
     // 7. Stage history (natural composite key).
     counts.stage_history = await upsert(
       'stage_history',
-      stageHistory.map((s) => ({
+      stageHistoryAll.map((s) => ({
         request_id: s.requestId,
         stage: s.stage,
         entered_at: s.enteredAt,
@@ -180,7 +190,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // 8. Comments.
     counts.comments = await upsert(
       'comments',
-      comments.map((c) => ({
+      commentsAll.map((c) => ({
         id: c.id,
         ...mapCommentToDb({
           requestId: c.requestId,
@@ -217,7 +227,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // 10. Approval entries.
     counts.approval_entries = await upsert(
       'approval_entries',
-      approvalEntries.map((a) => mapApprovalToDb(a)),
+      approvalsAll.map((a) => mapApprovalToDb(a)),
       'id',
     );
 
