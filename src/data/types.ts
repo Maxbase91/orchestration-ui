@@ -68,6 +68,10 @@ export interface Comment {
   timestamp: string;
   isInternal: boolean;
   attachments?: string[];
+  /** Optional lifecycle stage the comment is attached to. */
+  stage?: string;
+  /** User IDs mentioned via @handle. Populated at create time. */
+  mentions?: string[];
 }
 
 export interface ApprovalEntry {

@@ -127,6 +127,29 @@ CREATE TABLE IF NOT EXISTS comments (
 
 ALTER TABLE comments ADD COLUMN IF NOT EXISTS author_initials TEXT;
 
+-- Optional stage attribution + @-mention recipients. Stage is TEXT so
+-- it matches the RequestStatus enum values exactly. Mentions stores
+-- user IDs (not names) so renames don't break notifications.
+ALTER TABLE comments ADD COLUMN IF NOT EXISTS stage TEXT;
+ALTER TABLE comments ADD COLUMN IF NOT EXISTS mentions TEXT[] DEFAULT '{}';
+
+-- Per-user read-marker side table, used by the dashboard Mentions
+-- widget to distinguish unread mentions without mutating the comments
+-- row itself. Composite PK means one row per (comment, user) pair.
+CREATE TABLE IF NOT EXISTS comment_reads (
+  comment_id TEXT REFERENCES comments(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL,
+  read_at TIMESTAMP DEFAULT now(),
+  PRIMARY KEY (comment_id, user_id)
+);
+
+ALTER TABLE comment_reads ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow all" ON comment_reads;
+CREATE POLICY "Allow all" ON comment_reads FOR ALL USING (true) WITH CHECK (true);
+
+CREATE INDEX IF NOT EXISTS idx_comments_stage ON comments(stage);
+CREATE INDEX IF NOT EXISTS idx_comment_reads_user ON comment_reads(user_id);
+
 -- Migrate existing deployments from UUID PK to TEXT PK. Safe because all mock IDs are TEXT-shaped.
 DO $$
 BEGIN

@@ -514,6 +514,8 @@ export function mapDbToComment(row: DbRecord): Comment {
     content: row.content as string,
     timestamp: (row.created_at ?? row.timestamp) as string,
     isInternal: (row.is_internal ?? row.isInternal ?? false) as boolean,
+    stage: (row.stage ?? undefined) as string | undefined,
+    mentions: (row.mentions ?? []) as string[],
   };
 }
 
@@ -527,6 +529,8 @@ export function mapCommentToDb(
     author_initials: c.authorInitials ?? null,
     content: c.content,
     is_internal: c.isInternal,
+    stage: c.stage ?? null,
+    mentions: c.mentions ?? [],
   };
 }
 

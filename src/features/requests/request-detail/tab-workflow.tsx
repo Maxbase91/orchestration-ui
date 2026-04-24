@@ -15,6 +15,8 @@ import { ProcessStepper } from '@/components/shared/process-stepper';
 import type { Step } from '@/components/shared/process-stepper';
 import { StepDetailCard } from './components/step-detail-card';
 import { ComplianceStageSection } from './components/compliance-stage-section';
+import { StageCommentComposer } from './components/stage-comment-composer';
+import { useCommentsByRequest } from '@/lib/db/hooks/use-comments';
 import { SystemIntegrationTimeline } from '@/components/shared/system-integration-timeline';
 import { formatDate } from '@/lib/format';
 import { systemLabels, systemColors } from '@/data/system-integrations';
@@ -52,6 +54,7 @@ export function TabWorkflow({ request, focusStageId }: TabWorkflowProps) {
   const { data: workflowTemplate } = useWorkflowTemplate(request.workflowTemplateId);
   const { byRequest: approvalsByRequest } = useApprovalLookup();
   const approvals = approvalsByRequest(request.id);
+  const { data: allComments = [] } = useCommentsByRequest(request.id);
   const { data: integrations = [] } = useIntegrationsByRequest(request.id);
   const owner = lookupUser(request.ownerId);
 
@@ -323,6 +326,40 @@ export function TabWorkflow({ request, focusStageId }: TabWorkflowProps) {
                   Renders nothing outside intake / validation / approval. */}
               {expandedStages.has(stage.id) && (
                 <ComplianceStageSection stage={stage.id} request={request} />
+              )}
+              {/* Stage-scoped comments + composer (current stage only). */}
+              {expandedStages.has(stage.id) && (
+                <div className="mt-3 space-y-2">
+                  {allComments
+                    .filter((c) => c.stage === stage.id)
+                    .map((c) => (
+                      <div
+                        key={c.id}
+                        className="flex items-start gap-2 rounded-md border border-gray-200 bg-white p-3"
+                      >
+                        <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-gray-100 text-[10px] font-medium text-gray-700">
+                          {c.authorInitials || c.authorName.slice(0, 2).toUpperCase()}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs text-gray-500">
+                            <span className="font-medium text-gray-800">{c.authorName}</span>
+                            {' · '}
+                            {formatDate(c.timestamp)}
+                            {c.isInternal && ' · internal'}
+                          </p>
+                          <p className="mt-1 whitespace-pre-wrap text-sm text-gray-800">{c.content}</p>
+                        </div>
+                      </div>
+                    ))}
+                  {/* Composer only on the CURRENT stage (per UX decision). */}
+                  {request.status === stage.id && !isCompleted && !isCancelled && (
+                    <StageCommentComposer
+                      requestId={request.id}
+                      stage={stage.id}
+                      stageLabel={stage.label}
+                    />
+                  )}
+                </div>
               )}
             </div>
           ))}
