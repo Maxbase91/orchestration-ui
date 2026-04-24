@@ -60,7 +60,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       { routingRules },
       { catalogueItems },
       { workflowStepDetails },
-      { extraRequests, extraStageHistory, extraInvoices, extraComments, extraApprovals },
+      { extraRequests, extraStageHistory, extraInvoices, extraComments, extraApprovals, extraPurchaseOrders },
       mappers,
     ] = await Promise.all([
       import('../../src/data/users.js'),
@@ -92,11 +92,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Merge the extras in. Supabase upserts by id, so re-runs are
     // idempotent.
-    const requestsAll    = [...requests,       ...extraRequests];
-    const stageHistoryAll= [...stageHistory,   ...extraStageHistory];
-    const invoicesAll    = [...invoices,       ...extraInvoices];
-    const commentsAll    = [...comments,       ...extraComments];
-    const approvalsAll   = [...approvalEntries,...extraApprovals];
+    const requestsAll       = [...requests,       ...extraRequests];
+    const stageHistoryAll   = [...stageHistory,   ...extraStageHistory];
+    const invoicesAll       = [...invoices,       ...extraInvoices];
+    const commentsAll       = [...comments,       ...extraComments];
+    const approvalsAll      = [...approvalEntries,...extraApprovals];
+    const purchaseOrdersAll = [...purchaseOrders, ...extraPurchaseOrders];
 
     const {
       mapRequestToDb,
@@ -161,7 +162,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // 5. Purchase orders.
     counts.purchase_orders = await upsert(
       'purchase_orders',
-      purchaseOrders.map((p) => mapPurchaseOrderToDb(p)),
+      purchaseOrdersAll.map((p) => mapPurchaseOrderToDb(p)),
       'id',
     );
 

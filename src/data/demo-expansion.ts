@@ -15,7 +15,7 @@
 //   - 3 info-requested approval entries so the Activity tab and the
 //     stepper ❓ badge both fire.
 
-import type { ProcurementRequest, StageHistoryEntry, Invoice, Comment, ApprovalEntry } from './types';
+import type { ProcurementRequest, StageHistoryEntry, Invoice, Comment, ApprovalEntry, PurchaseOrder } from './types';
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
@@ -336,6 +336,64 @@ const INVOICE_SPEC: Array<Pick<Invoice, 'id' | 'supplierId' | 'supplierName' | '
 ];
 
 export const extraInvoices: Invoice[] = INVOICE_SPEC as Invoice[];
+
+// ── Purchase orders (covers every po_id referenced by extraInvoices) ─
+
+export const extraPurchaseOrders: PurchaseOrder[] = [
+  { id: 'PO-101', supplierId: 'SUP-003', supplierName: 'Deloitte',
+    value: 185000, status: 'closed', createdAt: '2025-02-20', deliveryDate: '2025-05-15',
+    requestId: 'REQ-2025-0101',
+    lineItems: [
+      { description: 'Penetration testing engagement', quantity: 1, unitPrice: 95000, received: 95000 },
+      { description: 'Gap analysis + remediation advisory', quantity: 1, unitPrice: 90000, received: 90000 },
+    ] },
+  { id: 'PO-102', supplierId: 'SUP-007', supplierName: 'Microsoft',
+    value: 420000, status: 'closed', createdAt: '2025-03-01', deliveryDate: '2025-04-01',
+    contractId: 'CON-008', requestId: 'REQ-2025-0102',
+    lineItems: [
+      { description: 'Salesforce Enterprise seats — 500 × annual', quantity: 500, unitPrice: 840, received: 500 },
+    ] },
+  { id: 'PO-103', supplierId: 'SUP-011', supplierName: 'WPP plc',
+    value: 260000, status: 'closed', createdAt: '2025-04-05', deliveryDate: '2025-06-30',
+    requestId: 'REQ-2025-0103',
+    lineItems: [
+      { description: 'Creative direction + asset production', quantity: 1, unitPrice: 140000, received: 140000 },
+      { description: 'Media planning & buying', quantity: 1, unitPrice: 120000, received: 120000 },
+    ] },
+  { id: 'PO-104', supplierId: 'SUP-002', supplierName: 'SAP SE',
+    value: 1450000, status: 'closed', createdAt: '2025-05-10', deliveryDate: '2025-09-30',
+    contractId: 'CON-002', requestId: 'REQ-2025-0104',
+    lineItems: [
+      { description: 'S/4HANA Cloud licences — annual', quantity: 1, unitPrice: 950000, received: 950000 },
+      { description: 'Migration services', quantity: 1, unitPrice: 500000, received: 500000 },
+    ] },
+  { id: 'PO-106', supplierId: 'SUP-013', supplierName: 'Randstad',
+    value: 960000, status: 'closed', createdAt: '2025-06-01', deliveryDate: '2025-12-31',
+    contractId: 'CON-006', requestId: 'REQ-2025-0106',
+    lineItems: [
+      { description: 'Senior Java developers — 8 × 6 months', quantity: 8, unitPrice: 120000, received: 8 },
+    ] },
+  { id: 'PO-108', supplierId: 'SUP-CAT-009', supplierName: 'Steelcase',
+    value: 82000, status: 'closed', createdAt: '2025-08-10', deliveryDate: '2025-09-15',
+    contractId: 'CON-015', requestId: 'REQ-2025-0108',
+    lineItems: [
+      { description: 'Standing desks', quantity: 40, unitPrice: 1200, received: 40 },
+      { description: 'Ergonomic chairs', quantity: 40, unitPrice: 850, received: 40 },
+    ] },
+  { id: 'PO-109', supplierId: 'SUP-012', supplierName: 'Sodexo',
+    value: 120000, status: 'closed', createdAt: '2025-07-20', deliveryDate: '2025-12-31',
+    contractId: 'CON-012', requestId: 'REQ-2025-0109',
+    lineItems: [
+      { description: 'Catering services — Q3-Q4, 3 sites', quantity: 6, unitPrice: 20000, received: 6 },
+    ] },
+  { id: 'PO-110', supplierId: 'SUP-006', supplierName: 'Amazon Web Services (AWS)',
+    value: 485000, status: 'closed', createdAt: '2025-09-30', deliveryDate: '2026-01-31',
+    contractId: 'CON-009', requestId: 'REQ-2025-0110',
+    lineItems: [
+      { description: 'AWS compute credits — Q4 burst', quantity: 1, unitPrice: 320000, received: 320000 },
+      { description: 'AWS compute credits — Jan extension', quantity: 1, unitPrice: 165000, received: 165000 },
+    ] },
+];
 
 // ── Comments (some @mentions for the Mentions widget) ──────────────
 
