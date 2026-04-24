@@ -15,7 +15,8 @@
     "test:intake": "node tests/integration/intake-sequence.mjs",
     "test:audit": "node tests/integration/audit-trail.mjs",
     "test:derived": "node tests/integration/derived-fields.mjs",
-    "test:admin-editors": "node tests/integration/admin-editors.mjs"
+    "test:admin-editors": "node tests/integration/admin-editors.mjs",
+    "test:catalogue-order": "node tests/integration/catalogue-order.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

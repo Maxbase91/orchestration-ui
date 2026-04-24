@@ -24,6 +24,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { CatalogueItem } from '@/data/catalogue-items';
 import { useCatalogueItems } from '@/lib/db/hooks/use-catalogue-items';
+import { createRequest } from '@/lib/db/requests';
+import { useAuthStore } from '@/stores/auth-store';
+import { queryClient } from '@/lib/query-client';
+import type { RequestCategory, BuyingChannel } from '@/data/types';
 import { openAIChat } from '@/features/ai-assistant/ai-chat-overlay';
 import { formatCurrency } from '@/lib/format';
 
@@ -311,11 +315,52 @@ export function SmartCommandBar() {
   const removeFromCart = (id: string) => setCart((p) => p.filter((c) => c.item.id !== id));
   const cartTotal = cart.reduce((s, c) => s + c.quantity * c.item.unitPrice, 0);
 
-  const handleOrderNow = () => {
-    const id = `REQ-2025-${Math.floor(1000 + Math.random() * 9000)}`;
-    toast.success(`Order submitted! ${id} \u2014 ${cart.map((c) => c.item.name).join(', ')}. Delivery: 2-3 business days.`);
-    setOrderSuccess(id);
-    setTimeout(() => { setCart([]); setInput(''); setShowCatalogue(false); setCatalogueResults([]); setOrderSuccess(null); setQuantities({}); setProposal(null); }, 3000);
+  const handleOrderNow = async () => {
+    if (cart.length === 0) return;
+    const id = `REQ-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const user = useAuthStore.getState().currentUser;
+    const primary = cart[0].item;
+    const totalValue = cart.reduce((s, c) => s + c.quantity * c.item.unitPrice, 0);
+    const title = cart.length === 1
+      ? `Catalogue order: ${primary.name}`
+      : `Catalogue order: ${cart.length} items`;
+    const description = cart
+      .map((c) => `- ${c.item.name} x ${c.quantity} @ €${c.item.unitPrice}`)
+      .join('\n');
+
+    try {
+      await createRequest({
+        id,
+        title,
+        description,
+        category: 'goods' as RequestCategory,
+        status: 'completed',
+        priority: 'medium',
+        value: totalValue,
+        currency: 'EUR',
+        requestorId: user.id,
+        ownerId: user.id,
+        supplierId: primary.supplierId,
+        buyingChannel: 'catalogue' as BuyingChannel,
+        commodityCode: '',
+        commodityCodeLabel: '',
+        costCentre: '',
+        budgetOwner: '',
+        businessJustification: description,
+        deliveryDate: '',
+        isUrgent: false,
+        daysInStage: 0,
+        isOverdue: false,
+        referBackCount: 0,
+      });
+      await queryClient.invalidateQueries({ queryKey: ['requests'] });
+      toast.success(`Order submitted: ${id} \u2014 ${cart.map((c) => c.item.name).join(', ')}. Delivery: 2-3 business days.`);
+      setOrderSuccess(id);
+      setTimeout(() => { setCart([]); setInput(''); setShowCatalogue(false); setCatalogueResults([]); setOrderSuccess(null); setQuantities({}); setProposal(null); }, 3000);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'unknown';
+      toast.error(`Order failed: ${msg}`);
+    }
   };
 
   const handleBrowseCategory = (catId: string) => {
