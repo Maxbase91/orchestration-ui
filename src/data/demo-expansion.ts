@@ -285,18 +285,18 @@ const INVOICE_SPEC: Array<Pick<Invoice, 'id' | 'supplierId' | 'supplierName' | '
   { id: 'INV-102', supplierId: 'SUP-012', supplierName: 'Sodexo',   amount: 14000,  currency: 'EUR', status: 'paid', invoiceDate: '2025-02-20', dueDate: '2025-03-22',                  matchStatus: 'matched' },
   // 2025-03
   { id: 'INV-103', supplierId: 'SUP-007', supplierName: 'Microsoft', amount: 210000, currency: 'EUR', status: 'paid', invoiceDate: '2025-03-03', dueDate: '2025-04-02', poId: 'PO-102', matchStatus: 'matched' },
-  { id: 'INV-104', supplierId: 'SUP-CAT-007', supplierName: 'Staples', amount: 2100, currency: 'EUR', status: 'paid', invoiceDate: '2025-03-25', dueDate: '2025-04-24',                  matchStatus: 'matched' },
+  { id: 'INV-104', supplierId: 'SUP-016', supplierName: 'Konica Minolta', amount: 2100, currency: 'EUR', status: 'paid', invoiceDate: '2025-03-25', dueDate: '2025-04-24',                  matchStatus: 'matched' },
   // 2025-04
   { id: 'INV-105', supplierId: 'SUP-011', supplierName: 'WPP plc', amount: 65000,  currency: 'EUR', status: 'paid', invoiceDate: '2025-04-08', dueDate: '2025-05-08', poId: 'PO-103', matchStatus: 'matched' },
   { id: 'INV-106', supplierId: 'SUP-003', supplierName: 'Deloitte', amount: 90000, currency: 'EUR', status: 'paid', invoiceDate: '2025-04-22', dueDate: '2025-05-22', poId: 'PO-101', matchStatus: 'matched' },
-  { id: 'INV-107', supplierId: 'SUP-CAT-007', supplierName: 'Staples', amount: 2100, currency: 'EUR', status: 'paid', invoiceDate: '2025-04-14', dueDate: '2025-05-14',                  matchStatus: 'matched' },
+  { id: 'INV-107', supplierId: 'SUP-016', supplierName: 'Konica Minolta', amount: 2100, currency: 'EUR', status: 'paid', invoiceDate: '2025-04-14', dueDate: '2025-05-14',                  matchStatus: 'matched' },
   // 2025-05
   { id: 'INV-108', supplierId: 'SUP-002', supplierName: 'SAP SE',   amount: 480000, currency: 'EUR', status: 'paid', invoiceDate: '2025-05-15', dueDate: '2025-06-14', poId: 'PO-104', matchStatus: 'matched' },
   { id: 'INV-109', supplierId: 'SUP-011', supplierName: 'WPP plc',  amount: 75000,  currency: 'EUR', status: 'paid', invoiceDate: '2025-05-28', dueDate: '2025-06-27', poId: 'PO-103', matchStatus: 'matched' },
   // 2025-06
   { id: 'INV-110', supplierId: 'SUP-013', supplierName: 'Randstad', amount: 220000, currency: 'EUR', status: 'paid', invoiceDate: '2025-06-10', dueDate: '2025-07-10', poId: 'PO-106', matchStatus: 'matched' },
   { id: 'INV-111', supplierId: 'SUP-011', supplierName: 'WPP plc',  amount: 60000,  currency: 'EUR', status: 'paid', invoiceDate: '2025-06-22', dueDate: '2025-07-22', poId: 'PO-103', matchStatus: 'matched' },
-  { id: 'INV-112', supplierId: 'SUP-CAT-001', supplierName: 'Lenovo', amount: 18500, currency: 'EUR', status: 'paid', invoiceDate: '2025-06-30', dueDate: '2025-07-30',                  matchStatus: 'matched' },
+  { id: 'INV-112', supplierId: 'SUP-020', supplierName: 'Lenovo', amount: 18500, currency: 'EUR', status: 'paid', invoiceDate: '2025-06-30', dueDate: '2025-07-30',                  matchStatus: 'matched' },
   // 2025-07
   { id: 'INV-113', supplierId: 'SUP-002', supplierName: 'SAP SE',   amount: 480000, currency: 'EUR', status: 'paid', invoiceDate: '2025-07-14', dueDate: '2025-08-13', poId: 'PO-104', matchStatus: 'matched' },
   { id: 'INV-114', supplierId: 'SUP-013', supplierName: 'Randstad', amount: 240000, currency: 'EUR', status: 'paid', invoiceDate: '2025-07-28', dueDate: '2025-08-27', poId: 'PO-106', matchStatus: 'matched' },
@@ -313,7 +313,7 @@ const INVOICE_SPEC: Array<Pick<Invoice, 'id' | 'supplierId' | 'supplierName' | '
   { id: 'INV-122', supplierId: 'SUP-012', supplierName: 'Sodexo',   amount: 21500,  currency: 'EUR', status: 'paid', invoiceDate: '2025-10-22', dueDate: '2025-11-21', poId: 'PO-109', matchStatus: 'matched' },
   // 2025-11
   { id: 'INV-123', supplierId: 'SUP-006', supplierName: 'Amazon Web Services (AWS)', amount: 160000, currency: 'EUR', status: 'paid', invoiceDate: '2025-11-12', dueDate: '2025-12-12', poId: 'PO-110', matchStatus: 'matched' },
-  { id: 'INV-124', supplierId: 'SUP-CAT-007', supplierName: 'Staples', amount: 1900, currency: 'EUR', status: 'paid', invoiceDate: '2025-11-18', dueDate: '2025-12-18',                  matchStatus: 'matched' },
+  { id: 'INV-124', supplierId: 'SUP-016', supplierName: 'Konica Minolta', amount: 1900, currency: 'EUR', status: 'paid', invoiceDate: '2025-11-18', dueDate: '2025-12-18',                  matchStatus: 'matched' },
   { id: 'INV-125', supplierId: 'SUP-013', supplierName: 'Randstad', amount: 240000, currency: 'EUR', status: 'paid', invoiceDate: '2025-11-27', dueDate: '2025-12-27', poId: 'PO-106', matchStatus: 'matched' },
   // 2025-12
   { id: 'INV-126', supplierId: 'SUP-006', supplierName: 'Amazon Web Services (AWS)', amount: 165000, currency: 'EUR', status: 'paid', invoiceDate: '2025-12-08', dueDate: '2026-01-07', poId: 'PO-110', matchStatus: 'matched' },
@@ -321,7 +321,7 @@ const INVOICE_SPEC: Array<Pick<Invoice, 'id' | 'supplierId' | 'supplierName' | '
   // 2026-01
   { id: 'INV-128', supplierId: 'SUP-002', supplierName: 'SAP SE',   amount: 420000, currency: 'EUR', status: 'paid',      invoiceDate: '2026-01-14', dueDate: '2026-02-13', poId: 'PO-104', matchStatus: 'matched' },
   { id: 'INV-129', supplierId: 'SUP-003', supplierName: 'Deloitte', amount: 120000, currency: 'EUR', status: 'paid',      invoiceDate: '2026-01-28', dueDate: '2026-02-27',                 matchStatus: 'matched' },
-  { id: 'INV-130', supplierId: 'SUP-CAT-007', supplierName: 'Staples', amount: 2200, currency: 'EUR', status: 'paid',      invoiceDate: '2026-01-18', dueDate: '2026-02-17',                 matchStatus: 'matched' },
+  { id: 'INV-130', supplierId: 'SUP-016', supplierName: 'Konica Minolta', amount: 2200, currency: 'EUR', status: 'paid',      invoiceDate: '2026-01-18', dueDate: '2026-02-17',                 matchStatus: 'matched' },
   // 2026-02
   { id: 'INV-131', supplierId: 'SUP-011', supplierName: 'WPP plc',  amount: 75000,  currency: 'EUR', status: 'paid',      invoiceDate: '2026-02-05', dueDate: '2026-03-07',                 matchStatus: 'matched' },
   { id: 'INV-132', supplierId: 'SUP-007', supplierName: 'Microsoft', amount: 210000, currency: 'EUR', status: 'paid',      invoiceDate: '2026-02-18', dueDate: '2026-03-20', poId: 'PO-102', matchStatus: 'matched' },
@@ -331,7 +331,7 @@ const INVOICE_SPEC: Array<Pick<Invoice, 'id' | 'supplierId' | 'supplierName' | '
   { id: 'INV-135', supplierId: 'SUP-013', supplierName: 'Randstad', amount: 210000, currency: 'EUR', status: 'submitted',  invoiceDate: '2026-03-22', dueDate: '2026-04-21',                 matchStatus: 'unmatched' },
   { id: 'INV-136', supplierId: 'SUP-011', supplierName: 'WPP plc',  amount: 70000,  currency: 'EUR', status: 'paid',      invoiceDate: '2026-03-29', dueDate: '2026-04-28',                 matchStatus: 'matched' },
   // 2026-04
-  { id: 'INV-137', supplierId: 'SUP-CAT-001', supplierName: 'Lenovo', amount: 18500, currency: 'EUR', status: 'submitted', invoiceDate: '2026-04-03', dueDate: '2026-05-03',                  matchStatus: 'unmatched' },
+  { id: 'INV-137', supplierId: 'SUP-020', supplierName: 'Lenovo', amount: 18500, currency: 'EUR', status: 'submitted', invoiceDate: '2026-04-03', dueDate: '2026-05-03',                  matchStatus: 'unmatched' },
   { id: 'INV-138', supplierId: 'SUP-012', supplierName: 'Sodexo',   amount: 20000,  currency: 'EUR', status: 'submitted', invoiceDate: '2026-04-10', dueDate: '2026-05-10',                  matchStatus: 'unmatched' },
 ];
 
