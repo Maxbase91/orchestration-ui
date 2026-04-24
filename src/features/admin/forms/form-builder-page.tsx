@@ -32,9 +32,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { useFormTemplates } from '@/lib/db/hooks/use-form-templates';
+import { useFormTemplates, useSaveFormTemplate } from '@/lib/db/hooks/use-form-templates';
 import type { FormTemplate, FormField, FormFieldType } from '@/data/form-templates';
 import { DynamicForm } from '@/components/shared/dynamic-form';
+import { toast } from 'sonner';
 
 // ── Constants ───────────────────────────────────────────────────────
 
@@ -123,6 +124,7 @@ export function FormBuilderPage() {
   const [selectedFormId, setSelectedFormId] = useState<string | null>(null);
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
   const [addFieldOpen, setAddFieldOpen] = useState(false);
+  const saveFormTemplate = useSaveFormTemplate();
 
   // Initialise local edit state from the server list on first load.
   useEffect(() => {
@@ -229,6 +231,17 @@ export function FormBuilderPage() {
     },
     [selectedForm, updateForm],
   );
+
+  const handleSaveForm = useCallback(async () => {
+    if (!selectedForm) return;
+    try {
+      await saveFormTemplate.mutateAsync(selectedForm);
+      toast.success(`Form "${selectedForm.name}" saved.`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'unknown';
+      toast.error(`Save failed: ${msg}`);
+    }
+  }, [selectedForm, saveFormTemplate]);
 
   const addNewForm = useCallback(() => {
     const newForm: FormTemplate = {
@@ -580,7 +593,9 @@ export function FormBuilderPage() {
               </div>
 
               <div className="pt-2">
-                <Button>Save Form</Button>
+                <Button onClick={handleSaveForm} disabled={saveFormTemplate.isPending}>
+                  {saveFormTemplate.isPending ? 'Saving…' : 'Save Form'}
+                </Button>
               </div>
             </div>
           ) : (

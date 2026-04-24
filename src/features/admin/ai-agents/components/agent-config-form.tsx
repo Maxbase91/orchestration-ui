@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/select';
 import type { AIAgent } from '@/data/types';
 import { toast } from 'sonner';
+import { useSaveAiAgent } from '@/lib/db/hooks/use-ai-agents';
 
 const INPUT_DATA_OPTIONS = [
   { id: 'request-fields', label: 'Request Fields (title, description, value)' },
@@ -67,8 +68,24 @@ export function AgentConfigForm({ agent, onClose }: AgentConfigFormProps) {
     );
   }
 
-  function handleSave() {
-    toast.success(`Agent "${name}" configuration saved.`);
+  const saveAiAgent = useSaveAiAgent();
+
+  async function handleSave() {
+    const updated: AIAgent = {
+      ...agent,
+      name,
+      description,
+      type,
+      status,
+      lastUpdated: new Date().toISOString(),
+    };
+    try {
+      await saveAiAgent.mutateAsync(updated);
+      toast.success(`Agent "${name}" configuration saved.`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'unknown';
+      toast.error(`Save failed: ${msg}`);
+    }
   }
 
   return (
@@ -309,9 +326,9 @@ export function AgentConfigForm({ agent, onClose }: AgentConfigFormProps) {
       </div>
 
       <div className="flex gap-2">
-        <Button onClick={handleSave} className="flex-1">
+        <Button onClick={handleSave} disabled={saveAiAgent.isPending} className="flex-1">
           <Save className="size-4" />
-          Save
+          {saveAiAgent.isPending ? 'Saving…' : 'Save'}
         </Button>
         <Button variant="outline" onClick={onClose} className="flex-1">
           Cancel

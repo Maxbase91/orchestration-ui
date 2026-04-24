@@ -3,9 +3,39 @@ import { Save, Play, Maximize2, Minimize2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useWorkflowTemplates } from '@/lib/db/hooks/use-workflow-templates';
+import { useWorkflowTemplates, useSaveWorkflowTemplate } from '@/lib/db/hooks/use-workflow-templates';
 import type { WorkflowTemplate } from '@/data/types';
 import type { Node, Edge } from '@xyflow/react';
+
+// Invert mapTemplateToFlow: take the current canvas Nodes/Edges back
+// into the WorkflowTemplate.nodes/edges shape that the DB stores.
+function mapFlowToTemplateGraph(
+  nodes: Node[],
+  edges: Edge[],
+): { nodes: WorkflowTemplate['nodes']; edges: WorkflowTemplate['edges'] } {
+  // Reverse the typeMapping. 'userTask' flattens back to 'stage'
+  // since that's the most common node kind in the template schema.
+  const reverseType: Record<string, string> = {
+    start: 'start',
+    end: 'end',
+    userTask: 'stage',
+    decision: 'decision',
+  };
+  return {
+    nodes: nodes.map((n) => ({
+      id: n.id,
+      type: reverseType[n.type ?? 'userTask'] ?? 'stage',
+      label: (n.data as { label?: string } | undefined)?.label ?? n.id,
+      x: n.position.x,
+      y: n.position.y,
+    })),
+    edges: edges.map((e) => ({
+      source: e.source,
+      target: e.target,
+      label: typeof e.label === 'string' ? e.label : undefined,
+    })),
+  };
+}
 
 import { NodePalette } from './components/node-palette';
 import { DesignerCanvas } from './components/designer-canvas';
@@ -103,9 +133,22 @@ export function WorkflowDesignerPage() {
     setSelectedNode(null);
   }, []);
 
-  const handleSave = useCallback(() => {
-    toast.success('Workflow saved successfully');
-  }, []);
+  const saveTemplate = useSaveWorkflowTemplate();
+
+  const handleSave = useCallback(async () => {
+    if (!template) {
+      toast.error('No template selected.');
+      return;
+    }
+    const graph = mapFlowToTemplateGraph(nodesRef.current, edgesRef.current);
+    try {
+      await saveTemplate.mutateAsync({ ...template, ...graph });
+      toast.success(`Workflow "${template.name}" saved.`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'unknown';
+      toast.error(`Save failed: ${msg}`);
+    }
+  }, [template, saveTemplate]);
 
   const toggleFullscreen = useCallback(() => {
     setIsFullscreen((prev) => !prev);
@@ -154,9 +197,9 @@ export function WorkflowDesignerPage() {
             <Play className="h-3.5 w-3.5 mr-1.5" />
             {showSimulation ? 'Hide Simulation' : 'Simulate'}
           </Button>
-          <Button size="sm" onClick={handleSave}>
+          <Button size="sm" onClick={handleSave} disabled={saveTemplate.isPending}>
             <Save className="h-3.5 w-3.5 mr-1.5" />
-            Save
+            {saveTemplate.isPending ? 'Saving…' : 'Save'}
           </Button>
           <Button size="sm" variant="ghost" onClick={toggleFullscreen}>
             {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}

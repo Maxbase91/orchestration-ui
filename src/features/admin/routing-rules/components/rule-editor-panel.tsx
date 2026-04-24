@@ -14,6 +14,7 @@ import {
 import { ConditionCard } from './condition-card';
 import type { RoutingRule, BuyingChannel } from '@/data/types';
 import { toast } from 'sonner';
+import { useSaveRoutingRule } from '@/lib/db/hooks/use-routing-rules';
 
 const BUYING_CHANNEL_OPTIONS: { value: BuyingChannel; label: string }[] = [
   { value: 'procurement-led', label: 'Procurement-Led Sourcing' },
@@ -127,8 +128,25 @@ export function RuleEditorPanel({ rule }: RuleEditorPanelProps) {
     setConditions((prev) => prev.filter((_, i) => i !== index));
   }
 
-  function handleSave() {
-    toast.success(`Rule "${name}" saved successfully.`);
+  const saveRoutingRule = useSaveRoutingRule();
+
+  async function handleSave() {
+    if (!rule) return;
+    const updated: RoutingRule = {
+      ...rule,
+      name,
+      status,
+      conditions,
+      action: { buyingChannel, approvalChain },
+      lastModified: new Date().toISOString(),
+    };
+    try {
+      await saveRoutingRule.mutateAsync(updated);
+      toast.success(`Rule "${name}" saved.`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'unknown';
+      toast.error(`Save failed: ${msg}`);
+    }
   }
 
   if (!rule) {
@@ -256,9 +274,9 @@ export function RuleEditorPanel({ rule }: RuleEditorPanelProps) {
       </div>
 
       <div className="border-t border-gray-200 p-4">
-        <Button onClick={handleSave} className="w-full">
+        <Button onClick={handleSave} disabled={saveRoutingRule.isPending} className="w-full">
           <Save className="size-4" />
-          Save Rule
+          {saveRoutingRule.isPending ? 'Saving…' : 'Save Rule'}
         </Button>
       </div>
     </div>
