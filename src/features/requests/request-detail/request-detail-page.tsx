@@ -4,13 +4,10 @@ import { useRequest } from '@/lib/db/hooks/use-requests';
 import { RequestHeader } from './components/request-header';
 import { LifecycleStepper } from './components/lifecycle-stepper';
 import { TabOverview } from './tab-overview';
-import { TabCompliance } from './tab-compliance';
 import { TabWorkflow } from './tab-workflow';
-import { TabComments } from './tab-comments';
 import { TabApprovals } from './tab-approvals';
-import { TabDocuments } from './tab-documents';
 import { TabRelated } from './tab-related';
-import { TabAudit } from './tab-audit';
+import { TabActivity } from './tab-activity';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
 import { FileQuestion } from 'lucide-react';
@@ -22,7 +19,6 @@ export function RequestDetailPage() {
   const [focusStageId, setFocusStageId] = useState<string | null>(null);
 
   // Top stepper → switch to Workflow tab and surface the chosen stage.
-  // The Workflow tab picks `focusStageId` up from a prop (see tab-workflow.tsx).
   const handleStepClick = useCallback((stepId: string) => {
     setActiveTab('workflow');
     setFocusStageId(stepId);
@@ -50,40 +46,31 @@ export function RequestDetailPage() {
         </CardContent>
       </Card>
 
+      {/* 5-tab layout. Compliance content now lives on the Workflow
+          stage cards; Documents live per-stage + as a latest-doc chip
+          in the header; Comments + Audit are merged into Activity. */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList variant="line" className="w-full justify-start border-b">
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="compliance">Compliance</TabsTrigger>
           <TabsTrigger value="workflow">Workflow</TabsTrigger>
-          <TabsTrigger value="comments">Comments</TabsTrigger>
           <TabsTrigger value="approvals">Approvals</TabsTrigger>
-          <TabsTrigger value="documents">Documents</TabsTrigger>
-          <TabsTrigger value="related">Related</TabsTrigger>
-          <TabsTrigger value="audit">Audit</TabsTrigger>
+          <TabsTrigger value="activity">Activity</TabsTrigger>
+          <TabsTrigger value="links">Links</TabsTrigger>
         </TabsList>
         <TabsContent value="overview" className="pt-4">
           <TabOverview request={request} />
         </TabsContent>
-        <TabsContent value="compliance" className="pt-4">
-          <TabCompliance request={request} />
-        </TabsContent>
         <TabsContent value="workflow" className="pt-4">
           <TabWorkflow request={request} focusStageId={focusStageId} />
-        </TabsContent>
-        <TabsContent value="comments" className="pt-4">
-          <TabComments request={request} />
         </TabsContent>
         <TabsContent value="approvals" className="pt-4">
           <TabApprovals request={request} />
         </TabsContent>
-        <TabsContent value="documents" className="pt-4">
-          <TabDocuments request={request} />
+        <TabsContent value="activity" className="pt-4">
+          <TabActivity request={request} />
         </TabsContent>
-        <TabsContent value="related" className="pt-4">
+        <TabsContent value="links" className="pt-4">
           <TabRelated request={request} />
-        </TabsContent>
-        <TabsContent value="audit" className="pt-4">
-          <TabAudit request={request} />
         </TabsContent>
       </Tabs>
     </div>
