@@ -1,10 +1,11 @@
-import { ProcessStepper, type Step } from '@/components/shared/process-stepper';
+import { ProcessStepper, type Step, type StepEvent } from '@/components/shared/process-stepper';
 import type { ProcurementRequest, RequestStatus, StageHistoryEntry } from '@/data/types';
 import { useStageHistoryByRequest } from '@/lib/db/hooks/use-stage-history';
 import { useUserLookup, useUsers } from '@/lib/db/hooks/use-users';
 import { formatDate } from '@/lib/format';
 import { useIntegrationsByRequest } from '@/lib/db/hooks/use-system-integrations';
 import { systemLabels, systemColors } from '@/data/system-integrations';
+import { useApprovalLookup } from '@/lib/db/hooks/use-approvals';
 
 const LIFECYCLE_STAGES: { id: RequestStatus; label: string }[] = [
   { id: 'intake', label: 'Intake' },
@@ -27,13 +28,16 @@ function getDaysInStep(entry: StageHistoryEntry): number | undefined {
 
 interface LifecycleStepperProps {
   request: ProcurementRequest;
+  onStepClick?: (stepId: string) => void;
 }
 
-export function LifecycleStepper({ request }: LifecycleStepperProps) {
+export function LifecycleStepper({ request, onStepClick }: LifecycleStepperProps) {
   useUsers();
   const lookupUser = useUserLookup();
   const { data: history = [] } = useStageHistoryByRequest(request.id);
   const { data: integrations = [] } = useIntegrationsByRequest(request.id);
+  const { byRequest: approvalsByRequest } = useApprovalLookup();
+  const approvals = approvalsByRequest(request.id);
 
   const completedStages = new Set<string>();
   const stageEntries = new Map<string, StageHistoryEntry>();
@@ -73,6 +77,28 @@ export function LifecycleStepper({ request }: LifecycleStepperProps) {
     const owner = entry ? lookupUser(entry.ownerId) : undefined;
     const daysInStep = entry ? getDaysInStep(entry) : undefined;
 
+    // Derive stage-level event markers from live data:
+    //   - referred-back:   stage_history row with action='referred-back'
+    //                      whose stage matches this step
+    //   - escalated:       stage_history row with action='escalated'
+    //   - info-requested:  an approval_entries row tied to this request
+    //                      with status='info-requested' (sits on approval)
+    //   - overdue:         request.isOverdue AND this is the current stage
+    const events: StepEvent[] = [];
+    const hasReferBack = history.some(
+      (h) => h.stage === stage.id && h.action === 'referred-back',
+    );
+    const hasEscalated = history.some(
+      (h) => h.stage === stage.id && h.action === 'escalated',
+    );
+    const hasInfoRequested =
+      stage.id === 'approval' &&
+      approvals.some((a) => a.status === 'info-requested');
+    if (hasReferBack) events.push('referred-back');
+    if (hasEscalated) events.push('escalated');
+    if (hasInfoRequested) events.push('info-requested');
+    if (isCurrent && request.isOverdue) events.push('overdue');
+
     return {
       id: stage.id,
       label: stage.label,
@@ -80,6 +106,7 @@ export function LifecycleStepper({ request }: LifecycleStepperProps) {
       date: entry ? formatDate(entry.enteredAt) : undefined,
       owner: owner?.name,
       daysInStep,
+      events: events.length > 0 ? events : undefined,
     };
   });
 
@@ -96,5 +123,5 @@ export function LifecycleStepper({ request }: LifecycleStepperProps) {
     }
   }
 
-  return <ProcessStepper steps={steps} />;
+  return <ProcessStepper steps={steps} onStepClick={onStepClick} />;
 }

@@ -1,7 +1,8 @@
-import { Check, AlertTriangle } from 'lucide-react';
+import { Check, AlertTriangle, RotateCcw, ArrowUpRight, HelpCircle, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type StepStatus = 'completed' | 'current' | 'future' | 'skipped' | 'blocked';
+type StepEvent = 'referred-back' | 'escalated' | 'info-requested' | 'overdue';
 
 interface Step {
   id: string;
@@ -16,7 +17,16 @@ interface Step {
     status: string;
     colorClass: string;
   };
+  /** Visible markers rendered as badges on the step. Order preserved. */
+  events?: StepEvent[];
 }
+
+const EVENT_STYLES: Record<StepEvent, { icon: typeof Check; color: string; title: string }> = {
+  'referred-back':   { icon: RotateCcw,    color: 'text-amber-600',  title: 'Referred back' },
+  'escalated':       { icon: ArrowUpRight, color: 'text-red-600',    title: 'Escalated' },
+  'info-requested':  { icon: HelpCircle,   color: 'text-yellow-600', title: 'Info requested' },
+  'overdue':         { icon: Clock,        color: 'text-red-600',    title: 'Overdue' },
+};
 
 interface ProcessStepperProps {
   steps: Step[];
@@ -108,6 +118,23 @@ export function ProcessStepper({ steps, onStepClick }: ProcessStepperProps) {
                   <span className="opacity-70">— {integrationStatusLabels[step.systemIntegration.status] ?? step.systemIntegration.status}</span>
                 </div>
               )}
+              {step.events && step.events.length > 0 && (
+                <div className="mt-1 flex items-center gap-1">
+                  {step.events.map((ev) => {
+                    const cfg = EVENT_STYLES[ev];
+                    const Icon = cfg.icon;
+                    return (
+                      <span
+                        key={ev}
+                        className={cn('inline-flex items-center', cfg.color)}
+                        title={cfg.title}
+                      >
+                        <Icon className="size-3" />
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
             </div>
             {!isLast && (
               <div className={cn('mt-3.5 h-0.5 flex-1 mx-1', style.line)} />
@@ -119,4 +146,4 @@ export function ProcessStepper({ steps, onStepClick }: ProcessStepperProps) {
   );
 }
 
-export type { Step, StepStatus };
+export type { Step, StepStatus, StepEvent };

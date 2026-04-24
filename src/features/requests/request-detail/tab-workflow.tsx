@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useMemo } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import type { ProcurementRequest, RequestStatus, StageHistoryEntry } from '@/data/types';
 import { useStageHistoryByRequest } from '@/lib/db/hooks/use-stage-history';
 import { useUserLookup, useUsers } from '@/lib/db/hooks/use-users';
@@ -19,6 +19,8 @@ import { systemLabels, systemColors } from '@/data/system-integrations';
 
 interface TabWorkflowProps {
   request: ProcurementRequest;
+  /** When set (from the top stepper), scroll to and highlight this stage. */
+  focusStageId?: string | null;
 }
 
 const LIFECYCLE_STAGES: { id: RequestStatus; label: string }[] = [
@@ -40,7 +42,7 @@ function getDaysInStep(entry: StageHistoryEntry): number | undefined {
   return Math.round((end - start) / (1000 * 60 * 60 * 24));
 }
 
-export function TabWorkflow({ request }: TabWorkflowProps) {
+export function TabWorkflow({ request, focusStageId }: TabWorkflowProps) {
   useUsers();
   const lookupUser = useUserLookup();
   const { data: history = [] } = useStageHistoryByRequest(request.id);
@@ -156,6 +158,17 @@ export function TabWorkflow({ request }: TabWorkflowProps) {
     },
     [],
   );
+
+  // When the parent (top-level page) asks us to focus a stage (from the
+  // always-visible stepper), reuse the same click handler. The effect
+  // runs whenever the parent sets a new focusStageId, even if the user
+  // has stayed on the same tab.
+  useEffect(() => {
+    if (!focusStageId) return;
+    // Wait a frame so the card refs exist after the Workflow tab mounts.
+    const t = requestAnimationFrame(() => handleStepClick(focusStageId));
+    return () => cancelAnimationFrame(t);
+  }, [focusStageId, handleStepClick]);
 
   const toggleStage = useCallback((stageId: string) => {
     setExpandedStages((prev) => {

@@ -1,3 +1,4 @@
+import { useCallback, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useRequest } from '@/lib/db/hooks/use-requests';
 import { RequestHeader } from './components/request-header';
@@ -17,6 +18,15 @@ import { FileQuestion } from 'lucide-react';
 export function RequestDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { data: request } = useRequest(id);
+  const [activeTab, setActiveTab] = useState('overview');
+  const [focusStageId, setFocusStageId] = useState<string | null>(null);
+
+  // Top stepper → switch to Workflow tab and surface the chosen stage.
+  // The Workflow tab picks `focusStageId` up from a prop (see tab-workflow.tsx).
+  const handleStepClick = useCallback((stepId: string) => {
+    setActiveTab('workflow');
+    setFocusStageId(stepId);
+  }, []);
 
   if (!request) {
     return (
@@ -36,11 +46,11 @@ export function RequestDetailPage() {
 
       <Card>
         <CardContent className="py-4">
-          <LifecycleStepper request={request} />
+          <LifecycleStepper request={request} onStepClick={handleStepClick} />
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="overview">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList variant="line" className="w-full justify-start border-b">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="compliance">Compliance</TabsTrigger>
@@ -58,7 +68,7 @@ export function RequestDetailPage() {
           <TabCompliance request={request} />
         </TabsContent>
         <TabsContent value="workflow" className="pt-4">
-          <TabWorkflow request={request} />
+          <TabWorkflow request={request} focusStageId={focusStageId} />
         </TabsContent>
         <TabsContent value="comments" className="pt-4">
           <TabComments request={request} />
