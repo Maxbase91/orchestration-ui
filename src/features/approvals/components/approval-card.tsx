@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Check,
   X,
@@ -6,6 +7,7 @@ import {
   UserPlus,
   Clock,
   AlertTriangle,
+  ExternalLink,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -158,8 +160,19 @@ export function ApprovalCard({
           <div className="flex items-start justify-between gap-2">
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="text-sm font-semibold text-gray-900">{request.title}</h3>
-                <span className="text-xs text-gray-500">{request.id}</span>
+                <Link
+                  to={`/requests/${request.id}`}
+                  className="group inline-flex items-center gap-1.5 text-sm font-semibold text-gray-900 hover:text-blue-700"
+                >
+                  {request.title}
+                  <ExternalLink className="size-3 text-gray-400 group-hover:text-blue-600" />
+                </Link>
+                <Link
+                  to={`/requests/${request.id}`}
+                  className="text-xs text-gray-500 hover:text-blue-700 hover:underline"
+                >
+                  {request.id}
+                </Link>
               </div>
               <p className="text-xs text-gray-500 mt-0.5">
                 Requested by {requestor?.name ?? 'Unknown'} &middot;{' '}
