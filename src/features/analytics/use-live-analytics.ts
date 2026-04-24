@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
-import type { ProcurementRequest, Invoice } from '@/data/types';
+import type { ProcurementRequest, Invoice, StageHistoryEntry } from '@/data/types';
 import { useRequests } from '@/lib/db/hooks/use-requests';
 import { useInvoices } from '@/lib/db/hooks/use-invoices';
+import { useStageHistory } from '@/lib/db/hooks/use-stage-history';
 
 const MONTHS_BACK = 6;
 
@@ -95,11 +96,52 @@ export interface LivePipelineKpis {
   completedYTD: number;
   throughputSeries: number[]; // completed count per month
   submittedSeries: number[];  // submitted count per month
+  cycleTimeByStage: { name: string; value: number }[]; // avg days per stage from stage_history
+}
+
+// Stages rendered on the Pipeline dashboard. Matches the lifecycle
+// enum used across the app.
+const PIPELINE_STAGES: { key: string; label: string }[] = [
+  { key: 'intake', label: 'Intake' },
+  { key: 'validation', label: 'Validation' },
+  { key: 'approval', label: 'Approval' },
+  { key: 'sourcing', label: 'Sourcing' },
+  { key: 'contracting', label: 'Contracting' },
+  { key: 'po', label: 'PO' },
+  { key: 'receipt', label: 'Receipt' },
+  { key: 'invoice', label: 'Invoice' },
+  { key: 'payment', label: 'Payment' },
+];
+
+function computeCycleTimeByStage(history: StageHistoryEntry[]): { name: string; value: number }[] {
+  const buckets = new Map<string, { total: number; count: number }>();
+  for (const h of history) {
+    if (!h.completedAt || !h.enteredAt) continue;
+    const start = new Date(h.enteredAt).getTime();
+    const end = new Date(h.completedAt).getTime();
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) continue;
+    const days = (end - start) / 86_400_000;
+    const b = buckets.get(h.stage) ?? { total: 0, count: 0 };
+    b.total += days;
+    b.count += 1;
+    buckets.set(h.stage, b);
+  }
+  // Emit in pipeline order; stages with no completed entries return 0
+  return PIPELINE_STAGES.map(({ key, label }) => {
+    const b = buckets.get(key);
+    return {
+      name: label,
+      value: b && b.count > 0 ? Math.round(b.total / b.count) : 0,
+    };
+  });
 }
 
 const OPEN_STATUSES = new Set(['intake', 'validation', 'approval', 'sourcing', 'referred-back']);
 
-function computePipeline(requests: ProcurementRequest[]): LivePipelineKpis {
+function computePipeline(
+  requests: ProcurementRequest[],
+  stageHistory: StageHistoryEntry[],
+): LivePipelineKpis {
   const year = currentYear();
   const months = lastNMonths(MONTHS_BACK);
 
@@ -118,12 +160,15 @@ function computePipeline(requests: ProcurementRequest[]): LivePipelineKpis {
     requests.filter((r) => monthKey(r.createdAt) === m).length,
   );
 
-  return { openDemand, activeSourcing, completedYTD, throughputSeries, submittedSeries };
+  const cycleTimeByStage = computeCycleTimeByStage(stageHistory);
+
+  return { openDemand, activeSourcing, completedYTD, throughputSeries, submittedSeries, cycleTimeByStage };
 }
 
 export function useLivePipelineKpis(): LivePipelineKpis {
   const { data: requests = [] } = useRequests();
-  return useMemo(() => computePipeline(requests), [requests]);
+  const { data: stageHistory = [] } = useStageHistory();
+  return useMemo(() => computePipeline(requests, stageHistory), [requests, stageHistory]);
 }
 
 // ── Compliance ─────────────────────────────────────────────────────

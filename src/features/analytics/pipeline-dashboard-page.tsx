@@ -38,17 +38,8 @@ export function PipelineDashboardPage() {
     [funnelData],
   );
 
-  const cycleTimeByStage = useMemo(
-    () => [
-      { name: 'Intake', value: 3 },
-      { name: 'Validation', value: 4 },
-      { name: 'Approval', value: 5 },
-      { name: 'Sourcing', value: 8 },
-      { name: 'Contracting', value: 6 },
-      { name: 'PO', value: 3 },
-    ],
-    [],
-  );
+  // Avg days per stage from stage_history (entered_at → completed_at).
+  const cycleTimeByStage = pipeline.cycleTimeByStage;
 
   const throughputData = useMemo(() => {
     const now = new Date();

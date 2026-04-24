@@ -125,6 +125,36 @@ async function main() {
   const months = Array.from(byMonth.keys()).sort();
   assert(months.length > 0, 'chart: invoice months populated', `months=${months.join(', ')}`);
 
+  // ── Pipeline cycle-time-by-stage: derived from stage_history, not
+  //     hard-coded numbers.
+  const { data: stageRows = [] } = await sb.from('stage_history').select('stage,entered_at,completed_at');
+  const buckets = new Map();
+  for (const h of stageRows) {
+    if (!h.entered_at || !h.completed_at) continue;
+    const start = new Date(h.entered_at).getTime();
+    const end = new Date(h.completed_at).getTime();
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) continue;
+    const days = (end - start) / 86_400_000;
+    const b = buckets.get(h.stage) ?? { total: 0, count: 0 };
+    b.total += days;
+    b.count += 1;
+    buckets.set(h.stage, b);
+  }
+  const PIPELINE_STAGES = ['intake','validation','approval','sourcing','contracting','po','receipt','invoice','payment'];
+  const perStage = PIPELINE_STAGES.map((s) => {
+    const b = buckets.get(s);
+    return [s, b && b.count > 0 ? Math.round(b.total / b.count) : 0];
+  });
+  assert(
+    perStage.every(([, v]) => Number.isFinite(v) && v >= 0 && v <= 365),
+    'chart: cycle-time-by-stage values plausible',
+    perStage.map(([s, v]) => `${s}=${v}`).join(', '),
+  );
+  assert(
+    perStage.some(([, v]) => v > 0),
+    'chart: at least one stage has completed entries',
+  );
+
   // ── Compliance: first-time-right rate from refer_back_count
   const allCompleted = all.filter((r) => r.status === 'completed');
   const ftrCount = allCompleted.filter((r) => (r.refer_back_count ?? 0) === 0).length;
