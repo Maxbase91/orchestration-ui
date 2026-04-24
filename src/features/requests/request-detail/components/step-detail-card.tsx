@@ -21,6 +21,9 @@ import {
   Timer,
   Shield,
   PenLine,
+  RotateCcw,
+  ArrowUpRight,
+  HelpCircle,
 } from 'lucide-react';
 import { systemColors, systemLabels } from '@/data/system-integrations';
 import type { ExternalSystem } from '@/data/system-integrations';
@@ -44,6 +47,12 @@ interface StepDetailCardProps {
   isHighlighted?: boolean;
   requestId?: string;
   requestCategory?: string;
+  /** Stage-level events surfaced as coloured markers above the detail. */
+  events?: {
+    referBack?: { notes?: string; at: string; by?: string };
+    escalated?: { notes?: string; at: string; by?: string };
+    infoRequested?: { comments?: string; at: string; by?: string };
+  };
 }
 
 const statusConfig: Record<string, { borderClass: string; badgeClass: string; label: string }> = {
@@ -79,7 +88,7 @@ function getDurationLabel(enteredAt: string, completedAt?: string): string {
 
 export const StepDetailCard = forwardRef<HTMLDivElement, StepDetailCardProps>(
   function StepDetailCard(
-    { stage, stageLabel, status, detail, stageHistory, isExpanded, onToggle, isHighlighted, requestId, requestCategory },
+    { stage, stageLabel, status, detail, stageHistory, isExpanded, onToggle, isHighlighted, requestId, requestCategory, events },
     ref,
   ) {
     useUsers();
@@ -199,6 +208,55 @@ export const StepDetailCard = forwardRef<HTMLDivElement, StepDetailCardProps>(
           {isExpanded && (
             <CardContent className="pt-0 pb-4 px-4 space-y-4">
               <Separator />
+
+              {/* Stage event markers: refer-back, escalated, info-requested.
+                  Rendered first so they catch the user's eye when the card
+                  opens. */}
+              {events?.referBack && (
+                <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3">
+                  <RotateCcw className="mt-0.5 size-4 shrink-0 text-amber-600" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-amber-800">Referred back</p>
+                    <p className="text-xs text-amber-700/80">
+                      {events.referBack.notes ?? 'No reason provided'}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-amber-600/80">
+                      {events.referBack.by ? `by ${events.referBack.by} · ` : ''}
+                      {formatDate(events.referBack.at)}
+                    </p>
+                  </div>
+                </div>
+              )}
+              {events?.escalated && (
+                <div className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 p-3">
+                  <ArrowUpRight className="mt-0.5 size-4 shrink-0 text-red-600" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-red-800">Escalated</p>
+                    <p className="text-xs text-red-700/80">
+                      {events.escalated.notes ?? 'No reason provided'}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-red-600/80">
+                      {events.escalated.by ? `by ${events.escalated.by} · ` : ''}
+                      {formatDate(events.escalated.at)}
+                    </p>
+                  </div>
+                </div>
+              )}
+              {events?.infoRequested && (
+                <div className="flex items-start gap-2 rounded-md border border-yellow-200 bg-yellow-50 p-3">
+                  <HelpCircle className="mt-0.5 size-4 shrink-0 text-yellow-600" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-yellow-800">Additional information requested</p>
+                    <p className="text-xs text-yellow-700/80">
+                      {events.infoRequested.comments ?? 'No details provided'}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-yellow-600/80">
+                      {events.infoRequested.by ? `by ${events.infoRequested.by} · ` : ''}
+                      {formatDate(events.infoRequested.at)}
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {/* Handler section */}
               {handler && (

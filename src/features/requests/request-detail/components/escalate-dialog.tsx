@@ -22,6 +22,8 @@ import type { ProcurementRequest } from '@/data/types';
 import { createNotification } from '@/lib/db/notifications';
 import { useUpdateRequest } from '@/lib/db/hooks/use-requests';
 import { queryClient } from '@/lib/query-client';
+import { appendStageHistoryEvent } from '@/lib/db/stage-history';
+import { useAuthStore } from '@/stores/auth-store';
 
 const ESCALATION_LEVELS = [
   { value: 'team-lead', label: 'Team Lead' },
@@ -63,11 +65,21 @@ export function EscalateDialog({ open, onOpenChange, request }: EscalateDialogPr
         relatedId: request.id,
         actionUrl: `/requests/${request.id}`,
       });
+      // Record the escalation on the stage's timeline so it surfaces as
+      // a marker on the Workflow tab and in the Activity stream.
+      await appendStageHistoryEvent({
+        requestId: request.id,
+        stage: request.status,
+        action: 'escalated',
+        notes: `[${levelLabel}${urgency ? ' · ' + urgency : ''}] ${reason}`,
+        ownerId: useAuthStore.getState().currentUser.id,
+      });
       if (urgency === 'critical' && request.priority !== 'urgent') {
         await updateRequest.mutateAsync({ id: request.id, patch: { priority: 'urgent', isUrgent: true } });
       }
       await queryClient.invalidateQueries({ queryKey: ['notifications'] });
       await queryClient.invalidateQueries({ queryKey: ['requests'] });
+      await queryClient.invalidateQueries({ queryKey: ['stage-history'] });
       toast.success(`Request escalated to ${levelLabel}`);
       setLevel('');
       setUrgency('');

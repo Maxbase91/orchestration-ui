@@ -5,6 +5,7 @@ import { useUserLookup, useUsers } from '@/lib/db/hooks/use-users';
 import { useIntegrationsByRequest } from '@/lib/db/hooks/use-system-integrations';
 import { useWorkflowStepDetailsForRequest } from '@/lib/db/hooks/use-workflow-step-details';
 import { useWorkflowTemplate } from '@/lib/db/hooks/use-workflow-templates';
+import { useApprovalLookup } from '@/lib/db/hooks/use-approvals';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { RotateCcw, UserPlus } from 'lucide-react';
@@ -49,6 +50,8 @@ export function TabWorkflow({ request, focusStageId }: TabWorkflowProps) {
   const { data: history = [] } = useStageHistoryByRequest(request.id);
   const { data: stepDetails = [] } = useWorkflowStepDetailsForRequest(request.id);
   const { data: workflowTemplate } = useWorkflowTemplate(request.workflowTemplateId);
+  const { byRequest: approvalsByRequest } = useApprovalLookup();
+  const approvals = approvalsByRequest(request.id);
   const { data: integrations = [] } = useIntegrationsByRequest(request.id);
   const owner = lookupUser(request.ownerId);
 
@@ -209,11 +212,49 @@ export function TabWorkflow({ request, focusStageId }: TabWorkflowProps) {
       cardStatus = 'future';
     }
 
+    // Stage-level events projected from live data sources:
+    //   refer-back / escalated → stage_history rows with matching action
+    //   info-requested         → approval_entries (only on 'approval' stage)
+    const referBackEntry = history.find(
+      (h) => h.stage === stage.id && h.action === 'referred-back',
+    );
+    const escalatedEntry = history.find(
+      (h) => h.stage === stage.id && h.action === 'escalated',
+    );
+    const infoRequested =
+      stage.id === 'approval'
+        ? approvals.find((a) => a.status === 'info-requested')
+        : undefined;
+    const stageEvents = {
+      referBack: referBackEntry
+        ? {
+            notes: referBackEntry.notes,
+            at: referBackEntry.enteredAt,
+            by: lookupUser(referBackEntry.ownerId)?.name,
+          }
+        : undefined,
+      escalated: escalatedEntry
+        ? {
+            notes: escalatedEntry.notes,
+            at: escalatedEntry.enteredAt,
+            by: lookupUser(escalatedEntry.ownerId)?.name,
+          }
+        : undefined,
+      infoRequested: infoRequested
+        ? {
+            comments: infoRequested.comments,
+            at: infoRequested.respondedAt ?? infoRequested.requestedAt,
+            by: infoRequested.approverName,
+          }
+        : undefined,
+    };
+
     return {
       ...stage,
       status: cardStatus,
       entry,
       detail: getDetailForStage(stage.id),
+      events: stageEvents,
     };
   });
 
@@ -276,6 +317,7 @@ export function TabWorkflow({ request, focusStageId }: TabWorkflowProps) {
                 isHighlighted={highlightedStage === stage.id}
                 requestId={request.id}
                 requestCategory={request.category}
+                events={stage.events}
               />
               {/* Compliance context attached to the stage that owns it.
                   Renders nothing outside intake / validation / approval. */}
