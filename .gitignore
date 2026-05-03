@@ -23,3 +23,20 @@ dist-ssr
 *.sln
 *.sw?
 .vercel
+*.tmp
+
+# Environment
+.env
+.env.*
+!.env.example
+!.env.local.example
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Local-only non-code files
+_local/
