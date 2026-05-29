@@ -22,9 +22,16 @@ function detectType(identifier: string): ObjectType | null {
 export function lookupObject(type: ObjectType | null, identifier: string): AssistantTurn[] {
   const resolvedType = type ?? detectType(identifier);
 
-  if (resolvedType === 'supplier' || (!resolvedType && !identifier.toUpperCase().startsWith('REQ-'))) {
-    return lookupSupplier(identifier);
+  if (!resolvedType || !identifier) {
+    return [
+      {
+        type: 'chat-answer',
+        content: "I need a specific ID or name to look that up. Try:\n• A request ID — REQ-2024-0001\n• A supplier name — Accenture, SAP, Deloitte\n• A contract ID — CON-003\n• A PO or invoice ID — PO-001, INV-001",
+      },
+    ];
   }
+
+  if (resolvedType === 'supplier') return lookupSupplier(identifier);
   if (resolvedType === 'request') return lookupRequest(identifier);
   if (resolvedType === 'contract') return lookupContract(identifier);
   if (resolvedType === 'po') return lookupPO(identifier);

@@ -15,25 +15,30 @@ export function classifyIntent(input: string): IntentType {
   };
 
   // Knowledge — policy / process questions
-  if (/\b(policy|policies|threshold|limit|rule|guideline|procedure|when (can|should|do)|how (much|many|do)|what (is|are) the|explain|allowed|permitted|require|mandatory|kop|faq|standard)\b/.test(t)) scores.knowledge += 2;
-  if (/\b(consulting|approval|payment terms|sra|esg|framework|catalogue|onboard|renew|delegate|ooo|out.of.office|ir35|dpa|gdpr)\b/.test(t) && /\b(what|how|when|why|explain|policy|rule)\b/.test(t)) scores.knowledge += 1;
+  if (/\b(policy|policies|threshold|limit|rule|guideline|procedure|explain|allowed|permitted|require|mandatory|kop|faq|standard)\b/.test(t)) scores.knowledge += 2;
+  if (/\b(when (can|should|do i)|how (much|many|do i|does|should)|what (is|are) the (policy|rule|limit|threshold|process|procedure|requirement|guideline|standard|penalty|deadline|definition))\b/.test(t)) scores.knowledge += 2;
+  if (/\b(consulting|approval|payment terms|sra|esg|framework|catalogue|onboard|renew|delegate|ooo|out.of.office|ir35|dpa|gdpr)\b/.test(t) && /\b(what|how|when|why|explain|policy|rule|process)\b/.test(t)) scores.knowledge += 1;
 
   // Lookup — status / find a specific object
   if (/\b(req-|sup-|con-|po-|inv-|ra-|tkt-)\w+/.test(t)) scores.lookup += 3;
-  if (/\b(status|risk rating|risk status|performance|score|spend|utilisation|match|payment status|sra status)\b/.test(t)) scores.lookup += 1;
-  if (/\b(show|find|look up|check|search|what('s| is) (the )?(status|risk|progress)|where is|tell me about)\b/.test(t)) scores.lookup += 1;
-  if (/\b(acme|accenture|sap|deloitte|infosys|capgemini|randstad|hays)\b/.test(t) && !/\b(policy|panel|threshold)\b/.test(t)) scores.lookup += 1;
+  if (/\b(risk rating|risk status|performance score|utilisation|match status|payment status|sra status)\b/.test(t)) scores.lookup += 1;
+  if (/\b(show me|find|look up|search for|tell me about|what('s| is) (the )?(risk|score|rating)|details (of|for)|profile of)\b/.test(t)) scores.lookup += 1;
+  if (/\b(acme|accenture|sap|deloitte|infosys|capgemini|atos|randstad|hays)\b/.test(t) && !/\b(policy|panel|threshold)\b/.test(t)) scores.lookup += 1;
 
   // Action — imperative commands that change state
-  if (/\b(set (my|a|the)|add (me as |a )?watcher|delegate (my |approvals? )?(to)?|out.of.office|reassign|escalat(e|ion)|request (a |the )?(renewal|reassessment|change|po change)|substitut)\b/.test(t)) scores.action += 2;
+  // Strong explicit action verbs score +4 so they beat any ID-based lookup score (+3).
+  if (/\b(add (me|myself) (as )?(a )?watcher|set (my |the )?(approval )?delegate|set (me as |my )?ooo|request (a )?risk reassessment|request (contract )?renewal|request (a )?po change|raise (a )?payment.*(escalation|escalate)|reassign|approver substitut)\b/.test(t)) scores.action += 4;
+  if (/\b(set (my|a|the)|delegate (my |approvals? )?(to)?|out.of.office|escalat(e|ion)|substitut)\b/.test(t)) scores.action += 2;
   if (/\b(approve on my behalf|cover for me|change (the )?(approver|owner)|update (the )?(po|contract)|raise (a |an )?(escalation|payment))\b/.test(t)) scores.action += 2;
 
-  // Intake — buying / raising a demand
-  if (/\b(i (want|need|would like) to (buy|purchase|procure|order|get)|buy|purchase|procure|raise a demand|new (request|demand)|i need (a|some|to)|want to (buy|order)|can you (buy|order|raise|get))\b/.test(t)) scores.intake += 2;
+  // Intake — buying / raising a demand (exclude "I need to speak/talk" to avoid handover collision)
+  if (/\b(i (want|need|would like) to (buy|purchase|procure|order|get)|buy|purchase|procure|raise a demand|new (request|demand)|want to (buy|order)|can you (buy|order|raise|get))\b/.test(t) && !/\b(speak|talk|contact|person|human|someone)\b/.test(t)) scores.intake += 2;
+  if (/\bi need (a|some) /.test(t) && !/\b(speak|talk|contact|person|human|someone)\b/.test(t)) scores.intake += 2;
   if (/\b(create (a )?request|submit (a )?request)\b/.test(t)) scores.intake += 2;
 
-  // Handover — ask for a human
-  if (/\b(speak (to|with)|talk (to|with)|contact|person|human|agent|someone|help me with|not working|issue|problem|complain|escalate to|can't find|don't understand)\b/.test(t)) scores.handover += 1;
+  // Handover — ask for a human (explicit "speak to"/"talk to" scored higher)
+  if (/\b(speak (to|with)|talk (to|with))\b/.test(t)) scores.handover += 3;
+  if (/\b(contact|person|human|agent|someone|not working|issue|problem|complain|escalate to|can't find|don't understand)\b/.test(t)) scores.handover += 1;
 
   const best = (Object.keys(scores) as IntentType[]).reduce((a, b) => (scores[a] >= scores[b] ? a : b));
   return scores[best] > 0 ? best : 'unknown';
