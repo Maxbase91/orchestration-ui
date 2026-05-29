@@ -1,52 +1,68 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Sparkles, User, Send } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { PageHeader } from '@/components/shared/page-header';
-import { getAIResponse } from '@/lib/mock-ai';
+import { useAuthStore } from '@/stores/auth-store';
+import { mockProvider } from '@/lib/assistant/mockProvider';
+import type { AssistantTurn, ConfirmTurn } from '@/data/types';
+import { TurnChatAnswer } from '@/features/ai-assistant/components/turn-chat-answer';
+import { TurnDeepLink } from '@/features/ai-assistant/components/turn-deep-link';
+import { TurnConfirm } from '@/features/ai-assistant/components/turn-confirm';
+import { TurnSuggestionChips } from '@/features/ai-assistant/components/turn-suggestion-chips';
 
 interface ChatMsg {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   timestamp: string;
-  suggestions?: string[];
+  turns?: AssistantTurn[];
 }
 
 const WELCOME: ChatMsg = {
   id: 'welcome',
   role: 'assistant',
-  content: `Hello! I'm your procurement assistant. I can help you with:
-- Finding requests and their status
-- Understanding procurement policies
-- Navigating the platform
-- Answering questions about suppliers and contracts
-
-What can I help you with?`,
+  content: '',
   timestamp: new Date().toISOString(),
-  suggestions: [
-    'Where is my request?',
-    'How do I buy software?',
-    'Show pending approvals',
-    'Check supplier risk',
+  turns: [
+    {
+      type: 'chat-answer',
+      content: `Hello! I'm your procurement assistant. I can help you with:
+- Procurement policies, thresholds, and KOPs
+- Status lookups for requests, suppliers, contracts, POs, and invoices
+- Taking actions (delegate approvals, add watchers, escalate payments)
+- Raising new procurement demands
+- Connecting you with the right team when needed
+
+What can I help you with today?`,
+    },
+    {
+      type: 'suggestion-chips',
+      chips: [
+        { label: 'Consulting threshold', prompt: 'What is the consulting threshold policy?' },
+        { label: 'Acme risk status', prompt: 'Show me Accenture risk status' },
+        { label: 'Set my delegate', prompt: 'Set my approval delegate' },
+        { label: 'Compare bids', prompt: 'I want to compare bids for a sourcing event' },
+      ],
+    },
   ],
 };
 
-const FALLBACK =
-  "I'm not sure I understand that question. Could you try rephrasing? I can help with request status, procurement policies, supplier information, spend analytics, and approval workflows.";
-
 const quickActions = [
-  'Where is my request?',
-  'How do I buy software?',
-  'Show pending approvals',
-  'Check supplier risk',
+  'What is the consulting threshold?',
+  'Show me Accenture risk status',
+  'I want to buy something',
+  'Compare bids',
   'Contract renewals',
   'Spend analytics',
 ];
 
 export function AIAssistantPage() {
+  const navigate = useNavigate();
+  const { currentRole, currentUser } = useAuthStore();
   const [messages, setMessages] = useState<ChatMsg[]>([WELCOME]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -54,9 +70,7 @@ export function AIAssistantPage() {
 
   const scrollToBottom = useCallback(() => {
     if (scrollRef.current) {
-      const viewport = scrollRef.current.querySelector(
-        '[data-slot="scroll-area-viewport"]'
-      );
+      const viewport = scrollRef.current.querySelector('[data-slot="scroll-area-viewport"]');
       if (viewport) {
         viewport.scrollTop = viewport.scrollHeight;
       }
@@ -67,9 +81,9 @@ export function AIAssistantPage() {
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
-  function handleSend(text: string) {
+  async function handleSend(text: string) {
     const trimmed = text.trim();
-    if (!trimmed) return;
+    if (!trimmed || isTyping) return;
 
     const userMsg: ChatMsg = {
       id: `msg-${Date.now()}`,
@@ -81,18 +95,63 @@ export function AIAssistantPage() {
     setInput('');
     setIsTyping(true);
 
-    setTimeout(() => {
-      const result = getAIResponse(trimmed, 'chat');
-      const assistantMsg: ChatMsg = {
-        id: `msg-${Date.now()}-ai`,
-        role: 'assistant',
-        content: result?.response ?? FALLBACK,
-        timestamp: new Date().toISOString(),
-        suggestions: result?.suggestions,
-      };
-      setMessages((prev) => [...prev, assistantMsg]);
+    try {
+      const history = messages.map((m) => ({ role: m.role, content: m.content }));
+      history.push({ role: 'user', content: trimmed });
+
+      const turns = await mockProvider.respond(history, {
+        role: currentRole,
+        currentUser: { id: currentUser.id, name: currentUser.name },
+      });
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `msg-${Date.now()}-ai`,
+          role: 'assistant',
+          content: '',
+          timestamp: new Date().toISOString(),
+          turns,
+        },
+      ]);
+    } finally {
       setIsTyping(false);
-    }, 800);
+    }
+  }
+
+  async function handleConfirmAction(turn: ConfirmTurn) {
+    setIsTyping(true);
+    try {
+      const resultTurns = await mockProvider.executeAction(turn, {
+        role: currentRole,
+        currentUser: { id: currentUser.id, name: currentUser.name },
+      });
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `msg-${Date.now()}-result`,
+          role: 'assistant',
+          content: '',
+          timestamp: new Date().toISOString(),
+          turns: resultTurns,
+        },
+      ]);
+    } finally {
+      setIsTyping(false);
+    }
+  }
+
+  function handleCancelConfirm() {
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: `msg-${Date.now()}-cancel`,
+        role: 'assistant',
+        content: '',
+        timestamp: new Date().toISOString(),
+        turns: [{ type: 'chat-answer', content: 'No problem — action cancelled.' }],
+      },
+    ]);
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
@@ -102,6 +161,47 @@ export function AIAssistantPage() {
     }
   }
 
+  function renderTurns(turns: AssistantTurn[], msgId: string) {
+    return (
+      <div className="space-y-2">
+        {turns.map((turn, i) => {
+          switch (turn.type) {
+            case 'chat-answer':
+              return <TurnChatAnswer key={`${msgId}-${i}`} turn={turn} />;
+            case 'deep-link':
+              return (
+                <TurnDeepLink
+                  key={`${msgId}-${i}`}
+                  turn={turn}
+                  onNavigate={(path) => navigate(path)}
+                />
+              );
+            case 'confirm':
+              return (
+                <TurnConfirm
+                  key={`${msgId}-${i}`}
+                  turn={turn}
+                  onConfirm={handleConfirmAction}
+                  onCancel={handleCancelConfirm}
+                  disabled={isTyping}
+                />
+              );
+            case 'suggestion-chips':
+              return (
+                <TurnSuggestionChips
+                  key={`${msgId}-${i}`}
+                  turn={turn}
+                  onChipClick={handleSend}
+                />
+              );
+            default:
+              return null;
+          }
+        })}
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-[calc(100vh-10rem)]">
       <PageHeader
@@ -109,7 +209,6 @@ export function AIAssistantPage() {
         subtitle="Ask questions about procurement, requests, suppliers, and more"
       />
 
-      {/* Messages area */}
       <ScrollArea className="mt-4 flex-1 rounded-lg border" ref={scrollRef}>
         <div className="space-y-4 p-6">
           {messages.map((msg) => {
@@ -117,10 +216,7 @@ export function AIAssistantPage() {
             return (
               <div
                 key={msg.id}
-                className={cn(
-                  'flex gap-3',
-                  isUser ? 'flex-row-reverse' : 'flex-row'
-                )}
+                className={cn('flex gap-3', isUser ? 'flex-row-reverse' : 'flex-row')}
               >
                 <div
                   className={cn(
@@ -135,27 +231,15 @@ export function AIAssistantPage() {
                   )}
                 </div>
                 <div className="max-w-[75%] space-y-2">
-                  <div
-                    className={cn(
-                      'rounded-lg px-4 py-3 text-sm',
-                      isUser
-                        ? 'bg-gray-800 text-white'
-                        : 'bg-blue-50 text-gray-900'
-                    )}
-                  >
-                    <p className="whitespace-pre-wrap">{msg.content}</p>
-                  </div>
-                  {msg.suggestions && msg.suggestions.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5">
-                      {msg.suggestions.map((s) => (
-                        <button
-                          key={s}
-                          className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs text-blue-700 hover:bg-blue-100"
-                          onClick={() => handleSend(s)}
-                        >
-                          {s}
-                        </button>
-                      ))}
+                  {isUser ? (
+                    <div className="rounded-lg bg-gray-800 px-4 py-3 text-sm text-white">
+                      <p className="whitespace-pre-wrap">{msg.content}</p>
+                    </div>
+                  ) : msg.turns && msg.turns.length > 0 ? (
+                    renderTurns(msg.turns, msg.id)
+                  ) : (
+                    <div className="rounded-lg bg-blue-50 px-4 py-3 text-sm text-gray-900">
+                      <p className="whitespace-pre-wrap">{msg.content}</p>
                     </div>
                   )}
                   <p
@@ -177,18 +261,9 @@ export function AIAssistantPage() {
               </div>
               <div className="rounded-lg bg-blue-50 px-4 py-3">
                 <div className="flex gap-1">
-                  <span
-                    className="size-1.5 animate-bounce rounded-full bg-gray-400"
-                    style={{ animationDelay: '0ms' }}
-                  />
-                  <span
-                    className="size-1.5 animate-bounce rounded-full bg-gray-400"
-                    style={{ animationDelay: '150ms' }}
-                  />
-                  <span
-                    className="size-1.5 animate-bounce rounded-full bg-gray-400"
-                    style={{ animationDelay: '300ms' }}
-                  />
+                  <span className="size-1.5 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: '0ms' }} />
+                  <span className="size-1.5 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: '150ms' }} />
+                  <span className="size-1.5 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: '300ms' }} />
                 </div>
               </div>
             </div>
@@ -196,7 +271,6 @@ export function AIAssistantPage() {
         </div>
       </ScrollArea>
 
-      {/* Input area */}
       <div className="mt-3 space-y-2">
         <div className="flex flex-wrap gap-1.5">
           {quickActions.map((text) => (

@@ -270,3 +270,55 @@ export interface AIResponse {
   autoFill?: Record<string, string>;
   links?: AIResponseLink[];
 }
+
+// ── Assistant chatbot types ──────────────────────────────────────────────────
+
+export interface KnowledgeEntry {
+  id: string;
+  title: string;
+  body: string;
+  source: string;
+  tags: string[];
+}
+
+export interface Ticket {
+  id: string;
+  summary: string;
+  context: string;
+  status: 'open' | 'in-progress' | 'resolved';
+  createdAt: string;
+  createdBy: string;
+}
+
+export interface AssistantMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export interface ChatAnswerTurn {
+  type: 'chat-answer';
+  content: string;
+  source?: string;
+}
+
+export interface DeepLinkTurn {
+  type: 'deep-link';
+  label: string;
+  description?: string;
+  path: string;
+}
+
+export interface ConfirmTurn {
+  type: 'confirm';
+  readBack: string;
+  actionType: string;
+  actionParams: Record<string, unknown>;
+  actionId: string;
+}
+
+export interface SuggestionChipsTurn {
+  type: 'suggestion-chips';
+  chips: Array<{ label: string; prompt: string }>;
+}
+
+export type AssistantTurn = ChatAnswerTurn | DeepLinkTurn | ConfirmTurn | SuggestionChipsTurn;

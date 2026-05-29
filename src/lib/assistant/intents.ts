@@ -1,0 +1,54 @@
+import type { Role } from '@/config/roles';
+
+export type IntentType = 'knowledge' | 'lookup' | 'action' | 'handover' | 'intake' | 'unknown';
+
+export function classifyIntent(input: string): IntentType {
+  const t = input.toLowerCase();
+
+  const scores: Record<IntentType, number> = {
+    knowledge: 0,
+    lookup: 0,
+    action: 0,
+    handover: 0,
+    intake: 0,
+    unknown: 0,
+  };
+
+  // Knowledge — policy / process questions
+  if (/\b(policy|policies|threshold|limit|rule|guideline|procedure|when (can|should|do)|how (much|many|do)|what (is|are) the|explain|allowed|permitted|require|mandatory|kop|faq|standard)\b/.test(t)) scores.knowledge += 2;
+  if (/\b(consulting|approval|payment terms|sra|esg|framework|catalogue|onboard|renew|delegate|ooo|out.of.office|ir35|dpa|gdpr)\b/.test(t) && /\b(what|how|when|why|explain|policy|rule)\b/.test(t)) scores.knowledge += 1;
+
+  // Lookup — status / find a specific object
+  if (/\b(req-|sup-|con-|po-|inv-|ra-|tkt-)\w+/.test(t)) scores.lookup += 3;
+  if (/\b(status|risk rating|risk status|performance|score|spend|utilisation|match|payment status|sra status)\b/.test(t)) scores.lookup += 1;
+  if (/\b(show|find|look up|check|search|what('s| is) (the )?(status|risk|progress)|where is|tell me about)\b/.test(t)) scores.lookup += 1;
+  if (/\b(acme|accenture|sap|deloitte|infosys|capgemini|randstad|hays)\b/.test(t) && !/\b(policy|panel|threshold)\b/.test(t)) scores.lookup += 1;
+
+  // Action — imperative commands that change state
+  if (/\b(set (my|a|the)|add (me as |a )?watcher|delegate (my |approvals? )?(to)?|out.of.office|reassign|escalat(e|ion)|request (a |the )?(renewal|reassessment|change|po change)|substitut)\b/.test(t)) scores.action += 2;
+  if (/\b(approve on my behalf|cover for me|change (the )?(approver|owner)|update (the )?(po|contract)|raise (a |an )?(escalation|payment))\b/.test(t)) scores.action += 2;
+
+  // Intake — buying / raising a demand
+  if (/\b(i (want|need|would like) to (buy|purchase|procure|order|get)|buy|purchase|procure|raise a demand|new (request|demand)|i need (a|some|to)|want to (buy|order)|can you (buy|order|raise|get))\b/.test(t)) scores.intake += 2;
+  if (/\b(create (a )?request|submit (a )?request)\b/.test(t)) scores.intake += 2;
+
+  // Handover — ask for a human
+  if (/\b(speak (to|with)|talk (to|with)|contact|person|human|agent|someone|help me with|not working|issue|problem|complain|escalate to|can't find|don't understand)\b/.test(t)) scores.handover += 1;
+
+  const best = (Object.keys(scores) as IntentType[]).reduce((a, b) => (scores[a] >= scores[b] ? a : b));
+  return scores[best] > 0 ? best : 'unknown';
+}
+
+// Actions available per role. Used to filter suggestion chips.
+const roleActions: Record<Role, string[]> = {
+  'service-owner': ['raise a demand', 'track my request', 'add me as watcher', 'set my delegate'],
+  'procurement-manager': ['raise a demand', 'reassign request', 'request contract renewal', 'request risk reassessment', 'set my delegate', 'set out-of-office'],
+  'vendor-manager': ['request risk reassessment', 'request contract renewal', 'set my delegate'],
+  'operations-lead': ['reassign request', 'request PO change', 'raise payment escalation', 'approver substitution', 'set my delegate'],
+  'supplier': [],
+  'admin': ['reassign request', 'request PO change', 'approver substitution', 'set my delegate', 'set out-of-office'],
+};
+
+export function allowedActions(role: Role): string[] {
+  return roleActions[role] ?? [];
+}
