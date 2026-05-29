@@ -3,9 +3,88 @@
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
-interface LLMMessage {
-  role: 'system' | 'user' | 'assistant';
+export interface LLMMessage {
+  role: 'system' | 'user' | 'assistant' | 'tool';
   content: string;
+  tool_call_id?: string;
+  name?: string;
+}
+
+export interface GroqTool {
+  type: 'function';
+  function: {
+    name: string;
+    description: string;
+    parameters: {
+      type: 'object';
+      properties: Record<string, { type: string; description: string; enum?: string[] }>;
+      required?: string[];
+    };
+  };
+}
+
+export interface GroqToolCall {
+  id: string;
+  type: 'function';
+  function: { name: string; arguments: string };
+}
+
+export interface ToolCallResult {
+  content: string | null;
+  toolCalls: GroqToolCall[];
+  finishReason: 'stop' | 'tool_calls' | 'length' | 'error';
+  assistantMessage: {
+    role: 'assistant';
+    content: string | null;
+    tool_calls?: GroqToolCall[];
+  };
+}
+
+export async function callLLMWithTools(
+  messages: LLMMessage[],
+  tools: GroqTool[],
+  temperature = 0.2,
+): Promise<ToolCallResult> {
+  const groqKey = process.env.GROQ_API_KEY;
+  if (!groqKey) throw new Error('GROQ_API_KEY not set');
+
+  const body = {
+    model: 'llama-3.3-70b-versatile',
+    messages,
+    tools,
+    tool_choice: 'auto',
+    temperature,
+    max_tokens: 1024,
+  };
+
+  const response = await fetch(GROQ_URL, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${groqKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`Groq tool-calling failed: ${response.status} ${err}`);
+  }
+
+  const data = await response.json();
+  const choice = data.choices?.[0];
+  const msg = choice?.message;
+
+  return {
+    content: msg?.content ?? null,
+    toolCalls: msg?.tool_calls ?? [],
+    finishReason: choice?.finish_reason ?? 'error',
+    assistantMessage: {
+      role: 'assistant',
+      content: msg?.content ?? null,
+      ...(msg?.tool_calls ? { tool_calls: msg.tool_calls } : {}),
+    },
+  };
 }
 
 interface LLMOptions {

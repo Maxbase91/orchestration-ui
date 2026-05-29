@@ -1,19 +1,25 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect, useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, Plus, ChevronDown, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Sheet,
   SheetContent,
-  SheetHeader,
-  SheetTitle,
   SheetDescription,
 } from '@/components/ui/sheet';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuthStore } from '@/stores/auth-store';
-import { mockProvider } from '@/lib/assistant/mockProvider';
-import type { ConfirmTurn } from '@/data/types';
-import { ChatMessage, type ChatMessageData } from './components/chat-message';
+import { useConversationStore } from '@/stores/conversation-store';
+import { useAssistant } from '@/lib/assistant/useAssistant';
+import type { ChatMessageData } from '@/data/types';
+import { MessagePane } from './components/message-pane';
 import { ChatInput } from './components/chat-input';
 
 const WELCOME_MESSAGE: ChatMessageData = {
@@ -42,14 +48,85 @@ export function openAIChat() {
   window.dispatchEvent(new CustomEvent('open-ai-chat'));
 }
 
+function ConversationDropdown({
+  activeTitle,
+  conversations,
+  onSelect,
+  onDelete,
+}: {
+  activeTitle: string;
+  conversations: Array<{ id: string; title: string }>;
+  onSelect: (id: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button className="flex min-w-0 flex-1 items-center gap-1 rounded px-1.5 py-0.5 text-sm font-medium hover:bg-gray-100">
+          <span className="truncate max-w-[160px]">{activeTitle}</span>
+          <ChevronDown className="size-3.5 shrink-0 text-gray-400" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-56">
+        {conversations.map((c, idx) => (
+          <div key={c.id}>
+            {idx > 0 && <DropdownMenuSeparator />}
+            <DropdownMenuItem
+              className="flex items-center justify-between gap-2 pr-1"
+              onSelect={() => onSelect(c.id)}
+            >
+              <span className="truncate text-xs">{c.title}</span>
+              <button
+                className="shrink-0 rounded p-0.5 text-gray-400 hover:text-red-500"
+                onClick={(e) => { e.stopPropagation(); onDelete(c.id); }}
+              >
+                <Trash2 className="size-3" />
+              </button>
+            </DropdownMenuItem>
+          </div>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 export function AIChatOverlay() {
   const navigate = useNavigate();
-  const { currentRole, currentUser } = useAuthStore();
-  const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState<ChatMessageData[]>([WELCOME_MESSAGE]);
-  const [isTyping, setIsTyping] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const { currentUser } = useAuthStore();
+  const {
+    conversations,
+    activeConversationId,
+    isLoading,
+    loadConversations,
+    createConversation,
+    setActive,
+    deleteConversation,
+  } = useConversationStore();
 
+  const [open, setOpen] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const initialized = useRef(false);
+
+  const { messages, isTyping, handleSend, handleConfirmAction, handleCancelConfirm } =
+    useAssistant(activeConversationId);
+
+  const displayMessages = messages.length === 0 ? [WELCOME_MESSAGE] : messages;
+
+  // Load or create a conversation when the overlay opens for the first time.
+  useEffect(() => {
+    if (!open || initialized.current) return;
+    initialized.current = true;
+
+    void (async () => {
+      await loadConversations(currentUser.id);
+      const { conversations: loaded } = useConversationStore.getState();
+      if (loaded.length === 0) {
+        await createConversation(currentUser.id);
+      }
+    })();
+  }, [open, currentUser.id, loadConversations, createConversation]);
+
+  // Open via global event (e.g., from top-nav button)
   useEffect(() => {
     const handler = () => setOpen(true);
     window.addEventListener('open-ai-chat', handler);
@@ -59,86 +136,18 @@ export function AIChatOverlay() {
   const scrollToBottom = useCallback(() => {
     if (scrollRef.current) {
       const viewport = scrollRef.current.querySelector('[data-slot="scroll-area-viewport"]');
-      if (viewport) {
-        viewport.scrollTop = viewport.scrollHeight;
-      }
+      if (viewport) viewport.scrollTop = viewport.scrollHeight;
     }
   }, []);
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, scrollToBottom]);
+  useEffect(() => { scrollToBottom(); }, [messages, scrollToBottom]);
 
-  async function handleSend(text: string) {
-    const trimmed = text.trim();
-    if (!trimmed || isTyping) return;
-
-    const userMessage: ChatMessageData = {
-      id: `msg-${Date.now()}`,
-      role: 'user',
-      content: trimmed,
-      timestamp: new Date().toISOString(),
-    };
-    setMessages((prev) => [...prev, userMessage]);
-    setIsTyping(true);
-
-    try {
-      const history = messages.map((m) => ({ role: m.role, content: m.content }));
-      history.push({ role: 'user', content: trimmed });
-
-      const turns = await mockProvider.respond(history, {
-        role: currentRole,
-        currentUser: { id: currentUser.id, name: currentUser.name },
-      });
-
-      const assistantMessage: ChatMessageData = {
-        id: `msg-${Date.now()}-ai`,
-        role: 'assistant',
-        content: '',
-        timestamp: new Date().toISOString(),
-        turns,
-      };
-      setMessages((prev) => [...prev, assistantMessage]);
-    } finally {
-      setIsTyping(false);
-    }
+  async function handleNewConversation() {
+    await createConversation(currentUser.id);
   }
 
-  async function handleConfirmAction(turn: ConfirmTurn) {
-    setIsTyping(true);
-    try {
-      const resultTurns = await mockProvider.executeAction(turn, {
-        role: currentRole,
-        currentUser: { id: currentUser.id, name: currentUser.name },
-      });
-      const resultMessage: ChatMessageData = {
-        id: `msg-${Date.now()}-result`,
-        role: 'assistant',
-        content: '',
-        timestamp: new Date().toISOString(),
-        turns: resultTurns,
-      };
-      setMessages((prev) => [...prev, resultMessage]);
-    } finally {
-      setIsTyping(false);
-    }
-  }
-
-  function handleCancelConfirm() {
-    const cancelMessage: ChatMessageData = {
-      id: `msg-${Date.now()}-cancel`,
-      role: 'assistant',
-      content: '',
-      timestamp: new Date().toISOString(),
-      turns: [{ type: 'chat-answer', content: 'No problem — action cancelled. Let me know if you need anything else.' }],
-    };
-    setMessages((prev) => [...prev, cancelMessage]);
-  }
-
-  function handleLinkClick(path: string) {
-    setOpen(false);
-    navigate(path);
-  }
+  const activeConv = conversations.find((c) => c.id === activeConversationId);
+  const activeTitle = activeConv?.title ?? 'New conversation';
 
   return (
     <>
@@ -152,49 +161,48 @@ export function AIChatOverlay() {
       )}
 
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="right" className="flex w-[360px] flex-col gap-0 p-0 sm:max-w-[360px]">
-          <SheetHeader className="border-b px-4 py-2.5">
-            <SheetTitle className="flex items-center gap-2 text-sm">
-              <Sparkles className="size-4 text-amber-500" />
-              Procurement Assistant
-            </SheetTitle>
-            <SheetDescription className="sr-only">
-              Ask questions about procurement
-            </SheetDescription>
-          </SheetHeader>
+        <SheetContent side="right" className="flex w-[400px] flex-col gap-0 p-0 sm:max-w-[400px]">
+          {/* Header */}
+          <div className="flex items-center gap-2 border-b px-3 py-2">
+            <Sparkles className="size-4 shrink-0 text-amber-500" />
+            {isLoading ? (
+              <span className="flex-1 text-sm text-gray-400">Loading…</span>
+            ) : (
+              <ConversationDropdown
+                activeTitle={activeTitle}
+                conversations={conversations}
+                onSelect={setActive}
+                onDelete={(id) => void deleteConversation(id)}
+              />
+            )}
+            <button
+              className="flex size-6 shrink-0 items-center justify-center rounded border border-gray-200 text-gray-500 hover:bg-gray-100"
+              title="New conversation"
+              onClick={() => void handleNewConversation()}
+            >
+              <Plus className="size-3.5" />
+            </button>
+          </div>
+
+          <SheetDescription className="sr-only">
+            Ask questions about procurement
+          </SheetDescription>
 
           <ScrollArea className="flex-1 overflow-hidden" ref={scrollRef}>
             <div className="space-y-4 p-4">
-              {messages.map((msg) => (
-                <ChatMessage
-                  key={msg.id}
-                  message={msg}
-                  onSuggestionClick={handleSend}
-                  onLinkClick={handleLinkClick}
-                  onConfirmAction={handleConfirmAction}
-                  onCancelConfirm={handleCancelConfirm}
-                  isProcessing={isTyping}
-                />
-              ))}
-              {isTyping && (
-                <div className="flex gap-2">
-                  <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-amber-100">
-                    <Sparkles className="size-3 text-amber-600" />
-                  </div>
-                  <div className="rounded-lg bg-gray-50 px-3 py-2">
-                    <div className="flex gap-1">
-                      <span className="size-1.5 animate-bounce rounded-full bg-gray-300" style={{ animationDelay: '0ms' }} />
-                      <span className="size-1.5 animate-bounce rounded-full bg-gray-300" style={{ animationDelay: '150ms' }} />
-                      <span className="size-1.5 animate-bounce rounded-full bg-gray-300" style={{ animationDelay: '300ms' }} />
-                    </div>
-                  </div>
-                </div>
-              )}
+              <MessagePane
+                messages={displayMessages}
+                isTyping={isTyping}
+                onSuggestionClick={handleSend}
+                onLinkClick={(path) => { setOpen(false); navigate(path); }}
+                onConfirmAction={handleConfirmAction}
+                onCancelConfirm={handleCancelConfirm}
+              />
             </div>
           </ScrollArea>
 
           <div className="border-t p-2.5">
-            <ChatInput onSend={handleSend} disabled={isTyping} />
+            <ChatInput onSend={(t) => void handleSend(t)} disabled={isTyping} />
           </div>
         </SheetContent>
       </Sheet>

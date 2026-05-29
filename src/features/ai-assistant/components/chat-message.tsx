@@ -1,27 +1,12 @@
 import { Sparkles, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { AssistantTurn, ConfirmTurn } from '@/data/types';
+import type { ConfirmTurn, ChatMessageData } from '@/data/types';
 import { TurnChatAnswer } from './turn-chat-answer';
 import { TurnDeepLink } from './turn-deep-link';
 import { TurnConfirm } from './turn-confirm';
 import { TurnSuggestionChips } from './turn-suggestion-chips';
 
-export interface ChatMessageLink {
-  label: string;
-  path: string;
-}
-
-export interface ChatMessageData {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: string;
-  // New turn-based rendering — when present, replaces content/suggestions/links.
-  turns?: AssistantTurn[];
-  // Legacy fields kept for backward compat
-  suggestions?: string[];
-  links?: ChatMessageLink[];
-}
+export type { ChatMessageData };
 
 interface ChatMessageProps {
   message: ChatMessageData;

@@ -322,3 +322,13 @@ export interface SuggestionChipsTurn {
 }
 
 export type AssistantTurn = ChatAnswerTurn | DeepLinkTurn | ConfirmTurn | SuggestionChipsTurn;
+
+export interface ChatMessageData {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+  turns?: AssistantTurn[];
+  suggestions?: string[];
+  links?: Array<{ label: string; path: string }>;
+}
