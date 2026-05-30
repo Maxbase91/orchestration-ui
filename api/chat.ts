@@ -97,6 +97,47 @@ const TOOLS: GroqTool[] = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'filter_objects',
+      description: 'Query a list of procurement objects using filter criteria. Use for "show me all X", "which Y are Z" queries (e.g. overdue requests, high-risk suppliers, expiring contracts).',
+      parameters: {
+        type: 'object',
+        properties: {
+          object_type: {
+            type: 'string',
+            enum: ['requests', 'suppliers', 'contracts', 'purchase_orders', 'invoices'],
+            description: 'The type of objects to query',
+          },
+          filters: {
+            type: 'string',
+            description: 'JSON string of filter criteria. Requests: {is_overdue, status, priority, category}. Suppliers: {risk_rating, sra_status}. Contracts: {status}. Invoices: {match_status, status}.',
+          },
+          limit: {
+            type: 'number',
+            description: 'Max results to return, 1–10 (default 5)',
+          },
+        },
+        required: ['object_type'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'remember_preference',
+      description: 'Store a user preference for future sessions — e.g. their delegate, cost centre, department, or preferred supplier. Call this when the user tells you something personal that should be remembered.',
+      parameters: {
+        type: 'object',
+        properties: {
+          key: { type: 'string', description: 'Preference key, e.g. "delegate", "cost_centre", "department", "preferred_supplier"' },
+          value: { type: 'string', description: 'The value to remember' },
+        },
+        required: ['key', 'value'],
+      },
+    },
+  },
 ];
 
 const SYSTEM_PROMPT = `You are a procurement assistant for an enterprise platform.
@@ -104,11 +145,13 @@ const SYSTEM_PROMPT = `You are a procurement assistant for an enterprise platfor
 RULES — always follow these:
 1. ALWAYS call a tool to answer. Never respond from your own knowledge or guess.
 2. Policy/process questions → search_knowledge.
-3. Status or detail queries → lookup_object (include the ID or name exactly as given).
-4. State-changing actions (delegate, watcher, escalation, PO change, etc.) → propose_action first; NEVER execute without user confirmation.
-5. User asks for human help or you cannot answer grounded → create_ticket.
-6. Buy/procure intent → start_demand.
-7. After a tool result, write a concise, grounded response using only the returned data. Do not add facts not in the result.`;
+3. Status or detail queries on a single object → lookup_object (include the ID or name exactly as given).
+4. List/filter queries ("show me all X", "which Y are Z") → filter_objects.
+5. State-changing actions (delegate, watcher, escalation, PO change, etc.) → propose_action first; NEVER execute without user confirmation.
+6. User asks for human help or you cannot answer grounded → create_ticket.
+7. Buy/procure intent → start_demand.
+8. User mentions personal info to remember (delegate name, cost centre, department) → remember_preference.
+9. After a tool result, write a concise, grounded response using only the returned data. Do not add facts not in the result.`;
 
 // ─── Tool handlers ────────────────────────────────────────────────────────────
 
@@ -225,6 +268,102 @@ async function execLookupObject(type: string, identifier: string): Promise<strin
   return JSON.stringify({ found: false, error: `Unknown object type: ${type}` });
 }
 
+async function execFilterObjects(
+  objectType: string,
+  filtersRaw: string | undefined,
+  limit: number,
+): Promise<string> {
+  const cap = Math.min(Math.max(limit, 1), 10);
+  let filters: Record<string, unknown> = {};
+  try {
+    if (filtersRaw) filters = JSON.parse(filtersRaw) as Record<string, unknown>;
+  } catch { /* ignore */ }
+
+  if (objectType === 'requests') {
+    let q = supabase
+      .from('requests')
+      .select('id, title, status, priority, value, is_overdue, days_in_stage, category')
+      .order('is_overdue', { ascending: false })
+      .order('days_in_stage', { ascending: false })
+      .limit(cap);
+    if (filters.is_overdue === true) q = q.eq('is_overdue', true);
+    if (filters.status) q = q.eq('status', filters.status as string);
+    if (filters.priority) q = q.eq('priority', filters.priority as string);
+    if (filters.category) q = q.eq('category', filters.category as string);
+    if (filters.requestor_id) q = q.eq('requestor_id', filters.requestor_id as string);
+    const { data } = await q;
+    return JSON.stringify({ found: !!data?.length, object_type: 'requests', count: data?.length ?? 0, items: data ?? [] });
+  }
+
+  if (objectType === 'suppliers') {
+    let q = supabase
+      .from('suppliers')
+      .select('id, name, risk_rating, sra_status, country, tier, performance_score')
+      .order('risk_rating', { ascending: false })
+      .limit(cap);
+    if (filters.risk_rating) q = q.eq('risk_rating', filters.risk_rating as string);
+    if (filters.sra_status) q = q.eq('sra_status', filters.sra_status as string);
+    const { data } = await q;
+    return JSON.stringify({ found: !!data?.length, object_type: 'suppliers', count: data?.length ?? 0, items: data ?? [] });
+  }
+
+  if (objectType === 'contracts') {
+    let q = supabase
+      .from('contracts')
+      .select('id, title, supplier_name, status, end_date, value, utilisation_percentage')
+      .order('end_date', { ascending: true })
+      .limit(cap);
+    if (filters.status) q = q.eq('status', filters.status as string);
+    const { data } = await q;
+    return JSON.stringify({ found: !!data?.length, object_type: 'contracts', count: data?.length ?? 0, items: data ?? [] });
+  }
+
+  if (objectType === 'purchase_orders') {
+    let q = supabase
+      .from('purchase_orders')
+      .select('id, supplier_name, value, status, delivery_date')
+      .limit(cap);
+    if (filters.status) q = q.eq('status', filters.status as string);
+    const { data } = await q;
+    return JSON.stringify({ found: !!data?.length, object_type: 'purchase_orders', count: data?.length ?? 0, items: data ?? [] });
+  }
+
+  if (objectType === 'invoices') {
+    let q = supabase
+      .from('invoices')
+      .select('id, supplier_name, amount, status, due_date, match_status, match_variance')
+      .order('due_date', { ascending: true })
+      .limit(cap);
+    if (filters.status) q = q.eq('status', filters.status as string);
+    if (filters.match_status) q = q.eq('match_status', filters.match_status as string);
+    const { data } = await q;
+    return JSON.stringify({ found: !!data?.length, object_type: 'invoices', count: data?.length ?? 0, items: data ?? [] });
+  }
+
+  return JSON.stringify({ found: false, error: `Unknown object_type: ${objectType}` });
+}
+
+async function execRememberPreference(
+  key: string,
+  value: string,
+  userId: string,
+): Promise<string> {
+  const { data: existing } = await supabase
+    .from('user_preferences')
+    .select('prefs')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  const prefs = ((existing?.prefs as Record<string, unknown>) ?? {});
+  prefs[key] = value;
+
+  await supabase
+    .from('user_preferences')
+    .upsert({ user_id: userId, prefs, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+
+  return JSON.stringify({ remembered: true, key, value });
+}
+
 async function execCreateTicket(
   summary: string,
   context: string,
@@ -301,8 +440,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
+  // Load session memory and inject into system prompt
+  const userId = ctx?.currentUser?.id ?? '';
+  let systemPrompt = SYSTEM_PROMPT;
+  if (userId) {
+    const { data: prefRow } = await supabase
+      .from('user_preferences')
+      .select('prefs')
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (prefRow?.prefs && Object.keys(prefRow.prefs as object).length > 0) {
+      systemPrompt += `\n\nUser memory (remembered from previous sessions): ${JSON.stringify(prefRow.prefs)}. Use this context when relevant.`;
+    }
+  }
+
   const llmMessages: LLMMessage[] = [
-    { role: 'system', content: SYSTEM_PROMPT },
+    { role: 'system', content: systemPrompt },
     ...rawMessages.map((m) => ({ role: m.role as LLMMessage['role'], content: m.content })),
   ];
 
@@ -474,6 +627,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         demandValue = (args.estimated_value as string) ?? null;
         demandSupplier = (args.supplier as string) ?? null;
         toolResult = JSON.stringify({ category: demandCategory, deepLinkReady: true });
+      } else if (toolName === 'filter_objects') {
+        toolResult = await execFilterObjects(
+          (args.object_type as string) ?? '',
+          args.filters as string | undefined,
+          typeof args.limit === 'number' ? args.limit : 5,
+        );
+      } else if (toolName === 'remember_preference') {
+        toolResult = await execRememberPreference(
+          (args.key as string) ?? '',
+          (args.value as string) ?? '',
+          userId,
+        );
       } else {
         toolResult = JSON.stringify({ error: `Unknown tool: ${toolName}` });
       }

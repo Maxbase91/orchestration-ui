@@ -164,6 +164,28 @@ function tryNavigationShortcut(input: string): AssistantTurn[] | null {
     ];
   }
 
+  // Filter shortcuts — "show me all overdue requests", "high-risk suppliers", etc.
+  if (/\b(overdue (requests?|demands?)|requests? (that are |which are )?overdue)\b/.test(t)) {
+    return [
+      { type: 'chat-answer', content: 'Here are all requests currently overdue. Filter further by status or category on the page.' },
+      { type: 'deep-link', label: 'Overdue Requests', description: 'All requests past their SLA deadline', path: '/requests?overdue=true' },
+    ];
+  }
+
+  if (/\b(high.?risk suppliers?|suppliers? (with |that are )?(high|critical) risk)\b/.test(t)) {
+    return [
+      { type: 'chat-answer', content: 'Opening the Supplier Risk view filtered to high and critical risk suppliers.' },
+      { type: 'deep-link', label: 'High-Risk Suppliers', description: 'Suppliers rated high or critical risk', path: '/suppliers/risk' },
+    ];
+  }
+
+  if (/\b(invoice(s)? (with )?variance|match variance|unmatched invoice)\b/.test(t)) {
+    return [
+      { type: 'chat-answer', content: 'Opening the Invoices list. Filter by match status to find variances.' },
+      { type: 'deep-link', label: 'Invoices — Variance', description: 'Invoices with match issues', path: '/purchasing/invoices' },
+    ];
+  }
+
   return null;
 }
 

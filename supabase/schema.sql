@@ -727,6 +727,18 @@ ALTER TABLE knowledge_base ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Allow all" ON knowledge_base;
 CREATE POLICY "Allow all" ON knowledge_base FOR ALL USING (true) WITH CHECK (true);
 
+-- ── User preferences (session memory) ────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS user_preferences (
+  user_id    text PRIMARY KEY,
+  prefs      jsonb NOT NULL DEFAULT '{}',
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE user_preferences ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow all" ON user_preferences;
+CREATE POLICY "Allow all" ON user_preferences FOR ALL USING (true) WITH CHECK (true);
+
 -- ── Chat feedback ─────────────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS chat_feedback (
