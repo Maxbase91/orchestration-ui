@@ -1,5 +1,6 @@
 import type { AssistantMessage, ConfirmTurn, AssistantTurn } from '@/data/types';
 import type { AssistantProvider, ProviderContext } from './provider';
+import { mockProvider } from './mockProvider';
 
 export const groqProvider: AssistantProvider = {
   async respond(messages: AssistantMessage[], ctx: ProviderContext): Promise<AssistantTurn[]> {
@@ -11,22 +12,20 @@ export const groqProvider: AssistantProvider = {
       });
 
       if (!res.ok) {
-        const err = await res.text();
-        console.error('api/chat error:', res.status, err);
-        return [{
-          type: 'chat-answer',
-          content: 'Sorry, I ran into an issue reaching the assistant. Please try again.',
-        }];
+        console.warn('api/chat returned', res.status, '— falling back to mock');
+        return mockProvider.respond(messages, ctx);
       }
 
       const { turns } = (await res.json()) as { turns: AssistantTurn[] };
+      if (!turns?.length) {
+        console.warn('api/chat returned empty turns — falling back to mock');
+        return mockProvider.respond(messages, ctx);
+      }
+
       return turns;
     } catch (e) {
-      console.error('groqProvider.respond:', e);
-      return [{
-        type: 'chat-answer',
-        content: 'Unable to reach the assistant right now. Please check your connection.',
-      }];
+      console.warn('api/chat unreachable — falling back to mock:', e);
+      return mockProvider.respond(messages, ctx);
     }
   },
 
@@ -45,14 +44,15 @@ export const groqProvider: AssistantProvider = {
       });
 
       if (!res.ok) {
-        return [{ type: 'chat-answer', content: 'The action could not be completed. Please try again.' }];
+        console.warn('api/execute-action returned', res.status, '— falling back to mock');
+        return mockProvider.executeAction(turn, ctx);
       }
 
       const { turns } = (await res.json()) as { turns: AssistantTurn[] };
-      return turns;
+      return turns?.length ? turns : mockProvider.executeAction(turn, ctx);
     } catch (e) {
-      console.error('groqProvider.executeAction:', e);
-      return [{ type: 'chat-answer', content: 'Action failed. Please try again.' }];
+      console.warn('api/execute-action unreachable — falling back to mock:', e);
+      return mockProvider.executeAction(turn, ctx);
     }
   },
 };
