@@ -23,6 +23,7 @@ interface DailyBucket {
   value: number;
   conversations: number;
   queries: number;
+  [key: string]: unknown;
 }
 
 function StatCard({ label, value, icon: Icon, sub }: {
