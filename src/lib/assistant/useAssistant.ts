@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useAuthStore } from '@/stores/auth-store';
 import { useConversationStore } from '@/stores/conversation-store';
 import { provider } from './index';
-import type { ConfirmTurn, ChatMessageData, ChatAnswerTurn } from '@/data/types';
+import type { ConfirmTurn, ChatMessageData, ChatAnswerTurn, AssistantTurn } from '@/data/types';
 
 const FALLBACK_TURN: ChatAnswerTurn = {
   type: 'chat-answer',
@@ -17,10 +17,71 @@ function turnsToText(turns: ChatMessageData['turns']): string {
     .join('\n');
 }
 
+const isGroqProvider = import.meta.env.VITE_ASSISTANT_PROVIDER === 'groq';
+
+// Fetch /api/chat via SSE and return turns. Calls onToken for each streamed text chunk.
+async function fetchSSE(
+  messages: Array<{ role: string; content: string }>,
+  ctx: { role: string; currentUser: { id: string; name: string } },
+  onToken: (chunk: string) => void,
+): Promise<AssistantTurn[]> {
+  const resp = await fetch('/api/chat', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'text/event-stream',
+    },
+    body: JSON.stringify({ messages, context: ctx }),
+  });
+
+  if (!resp.ok || !resp.body) throw new Error(`api/chat ${resp.status}`);
+
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = '';
+  let accumulatedText = '';
+  let structuralTurns: AssistantTurn[] = [];
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buf += decoder.decode(value, { stream: true });
+    const events = buf.split('\n\n');
+    buf = events.pop() ?? '';
+
+    for (const event of events) {
+      const dataLine = event.trim();
+      if (!dataLine.startsWith('data: ')) continue;
+      try {
+        const payload = JSON.parse(dataLine.slice(6)) as {
+          t: 'tok' | 'done' | 'error';
+          c?: string;
+          turns?: AssistantTurn[];
+          msg?: string;
+        };
+
+        if (payload.t === 'tok' && payload.c) {
+          accumulatedText += payload.c;
+          onToken(payload.c);
+        } else if (payload.t === 'done') {
+          structuralTurns = payload.turns ?? [];
+        }
+      } catch { /* ignore malformed events */ }
+    }
+  }
+
+  const turns: AssistantTurn[] = [];
+  if (accumulatedText) turns.push({ type: 'chat-answer', content: accumulatedText });
+  turns.push(...structuralTurns);
+  return turns.length > 0 ? turns : [FALLBACK_TURN];
+}
+
 export function useAssistant(conversationId: string | null) {
   const { currentRole, currentUser } = useAuthStore();
   const { conversations, addMessage, setTitle, createConversation } = useConversationStore();
   const [isTyping, setIsTyping] = useState(false);
+  const [streamingContent, setStreamingContent] = useState('');
 
   const conversation = useMemo(
     () => conversations.find((c) => c.id === conversationId) ?? null,
@@ -37,11 +98,10 @@ export function useAssistant(conversationId: string | null) {
     const trimmed = text.trim();
     if (!trimmed || isTyping) return;
 
-    // Auto-create a conversation if none is active yet (race condition on first open).
     let activeId = conversationId;
     if (!activeId) {
       activeId = await createConversation(currentUser.id);
-      if (!activeId) return; // creation failed — Supabase error already logged
+      if (!activeId) return;
     }
 
     const userMessage: ChatMessageData = {
@@ -58,14 +118,35 @@ export function useAssistant(conversationId: string | null) {
     }
 
     setIsTyping(true);
+    setStreamingContent('');
+
     try {
       const history = [...messages, userMessage].map((m) => ({
         role: m.role,
         content: m.role === 'assistant' && m.turns ? turnsToText(m.turns) : m.content,
       }));
 
-      const rawTurns = await provider.respond(history, ctx);
-      const turns = rawTurns.length > 0 ? rawTurns : [FALLBACK_TURN];
+      let turns: AssistantTurn[];
+
+      if (isGroqProvider) {
+        let firstToken = true;
+        try {
+          turns = await fetchSSE(history, ctx, (chunk) => {
+            if (firstToken) {
+              setIsTyping(false);
+              firstToken = false;
+            }
+            setStreamingContent((prev) => prev + chunk);
+          });
+        } catch (e) {
+          console.warn('SSE failed, falling back to mock:', e);
+          const rawTurns = await provider.respond(history, ctx);
+          turns = rawTurns.length > 0 ? rawTurns : [FALLBACK_TURN];
+        }
+      } else {
+        const rawTurns = await provider.respond(history, ctx);
+        turns = rawTurns.length > 0 ? rawTurns : [FALLBACK_TURN];
+      }
 
       const assistantMessage: ChatMessageData = {
         id: `msg-${Date.now()}-ai`,
@@ -75,9 +156,11 @@ export function useAssistant(conversationId: string | null) {
         turns,
       };
 
+      setStreamingContent('');
       await addMessage(activeId, assistantMessage, currentUser.id);
     } finally {
       setIsTyping(false);
+      setStreamingContent('');
     }
   }
 
@@ -114,5 +197,5 @@ export function useAssistant(conversationId: string | null) {
     await addMessage(activeId, cancelMessage, currentUser.id);
   }
 
-  return { messages, isTyping, handleSend, handleConfirmAction, handleCancelConfirm };
+  return { messages, isTyping, streamingContent, handleSend, handleConfirmAction, handleCancelConfirm };
 }

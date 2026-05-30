@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { callLLMWithTools, type LLMMessage, type GroqTool } from './_llm.js';
+import { callLLMWithTools, callLLMStreaming, type LLMMessage, type GroqTool } from './_llm.js';
 import { createClient } from '@supabase/supabase-js';
 import { knowledgeBase } from '../src/data/knowledgeBase.js';
 
@@ -263,18 +263,46 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'messages required' });
   }
 
+  const isSSE = req.headers['accept'] === 'text/event-stream';
+
+  if (isSSE) {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+  }
+
+  function sendTurns(turns: unknown[]) {
+    if (isSSE) {
+      res.write(`data: ${JSON.stringify({ t: 'done', turns })}\n\n`);
+      res.end();
+    } else {
+      res.status(200).json({ turns });
+    }
+  }
+
+  function sendError(msg: string) {
+    const turn = { type: 'chat-answer', content: msg };
+    if (isSSE) {
+      res.write(`data: ${JSON.stringify({ t: 'done', turns: [turn] })}\n\n`);
+      res.end();
+    } else {
+      res.status(500).json({ turns: [turn] });
+    }
+  }
+
   const llmMessages: LLMMessage[] = [
     { role: 'system', content: SYSTEM_PROMPT },
     ...rawMessages.map((m) => ({ role: m.role as LLMMessage['role'], content: m.content })),
   ];
 
-  // Track structural context for post-processing turns
   let lookupType: string | null = null;
   let lookupIdentifier: string | null = null;
   let ticketCreated: string | null = null;
   let demandCategory: string | null = null;
   let demandValue: string | null = null;
   let demandSupplier: string | null = null;
+  let hadToolCalls = false;
 
   const MAX_ITERATIONS = 5;
 
@@ -284,53 +312,46 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       result = await callLLMWithTools(llmMessages, TOOLS);
     } catch (e) {
       console.error('callLLMWithTools error:', e);
-      return res.status(500).json({
-        turns: [{ type: 'chat-answer', content: 'The assistant encountered an error. Please try again.' }],
-      });
+      sendError('The assistant encountered an error. Please try again.');
+      return;
     }
 
     llmMessages.push(result.assistantMessage as LLMMessage);
 
     if (result.finishReason === 'stop' || result.toolCalls.length === 0) {
-      // Final response — build turns
-      const text = result.content?.trim() ?? '';
-      const turns: unknown[] = [];
+      // Build structural (non-text) turns
+      const structuralTurns: unknown[] = [];
 
-      if (text) {
-        turns.push({ type: 'chat-answer', content: text });
-      }
-
-      // Structural turns based on which tools were called
       if (lookupType === 'supplier' && lookupIdentifier) {
-        turns.push({
+        structuralTurns.push({
           type: 'deep-link',
           label: `Vendor 360 — ${lookupIdentifier}`,
           description: 'Full supplier profile, contracts, and risk history',
           path: `/suppliers/${lookupIdentifier.toUpperCase()}`,
         });
       } else if (lookupType === 'request' && lookupIdentifier) {
-        turns.push({
+        structuralTurns.push({
           type: 'deep-link',
           label: `Request Detail — ${lookupIdentifier.toUpperCase()}`,
           description: 'Full request timeline, approvals, and documents',
           path: `/requests/${lookupIdentifier.toUpperCase()}`,
         });
       } else if (lookupType === 'contract' && lookupIdentifier) {
-        turns.push({
+        structuralTurns.push({
           type: 'deep-link',
           label: `Contract Detail — ${lookupIdentifier.toUpperCase()}`,
           description: 'Full contract, amendments, and renewal history',
           path: `/contracts/${lookupIdentifier.toUpperCase()}`,
         });
       } else if (lookupType === 'po' && lookupIdentifier) {
-        turns.push({
+        structuralTurns.push({
           type: 'deep-link',
           label: `Purchase Order — ${lookupIdentifier.toUpperCase()}`,
           description: 'PO lines, receipts, and invoice match status',
           path: `/purchasing/orders/${lookupIdentifier.toUpperCase()}`,
         });
       } else if (lookupType === 'invoice' && lookupIdentifier) {
-        turns.push({
+        structuralTurns.push({
           type: 'deep-link',
           label: `Invoice — ${lookupIdentifier.toUpperCase()}`,
           description: 'Invoice detail, matching, and payment status',
@@ -339,7 +360,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       if (ticketCreated) {
-        turns.push({
+        structuralTurns.push({
           type: 'deep-link',
           label: `Support Ticket — ${ticketCreated}`,
           description: 'View your ticket status and responses',
@@ -351,7 +372,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const params = new URLSearchParams({ category: demandCategory });
         if (demandValue) params.set('value', demandValue);
         if (demandSupplier) params.set('supplier', demandSupplier);
-        turns.push({
+        structuralTurns.push({
           type: 'deep-link',
           label: 'Start New Request',
           description: `Open the ${demandCategory} request wizard`,
@@ -359,14 +380,45 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
       }
 
-      if (turns.length === 0) {
-        turns.push({ type: 'chat-answer', content: 'I could not find a grounded answer. Try rephrasing or asking for human help.' });
+      // SSE streaming: stream the final LLM response token-by-token when tools were called,
+      // otherwise emit the already-fetched text as a single turn.
+      if (isSSE && hadToolCalls) {
+        try {
+          await callLLMStreaming(llmMessages, (token) => {
+            res.write(`data: ${JSON.stringify({ t: 'tok', c: token })}\n\n`);
+          });
+        } catch (e) {
+          console.error('callLLMStreaming error:', e);
+        }
+        res.write(`data: ${JSON.stringify({ t: 'done', turns: structuralTurns })}\n\n`);
+        res.end();
+        return;
       }
 
-      return res.status(200).json({ turns });
+      // Non-streaming path (or SSE without prior tool calls)
+      const text = result.content?.trim() ?? '';
+      const allTurns: unknown[] = [];
+      if (text) allTurns.push({ type: 'chat-answer', content: text });
+      allTurns.push(...structuralTurns);
+
+      if (allTurns.length === 0) {
+        allTurns.push({ type: 'chat-answer', content: 'I could not find a grounded answer. Try rephrasing or asking for human help.' });
+      }
+
+      // For SSE without tool calls: emit single tok + done so client handles it uniformly
+      if (isSSE) {
+        if (text) res.write(`data: ${JSON.stringify({ t: 'tok', c: text })}\n\n`);
+        res.write(`data: ${JSON.stringify({ t: 'done', turns: structuralTurns })}\n\n`);
+        res.end();
+        return;
+      }
+
+      sendTurns(allTurns);
+      return;
     }
 
     // Execute tool calls
+    hadToolCalls = true;
     for (const tc of result.toolCalls) {
       const toolName = tc.function.name;
       let args: Record<string, unknown> = {};
@@ -386,15 +438,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const readBack = (args.read_back as string) ?? `Execute ${actionType}`;
         const actionId = crypto.randomUUID();
 
-        return res.status(200).json({
-          turns: [{
-            type: 'confirm',
-            readBack,
-            actionType,
-            actionParams: params,
-            actionId,
-          }],
-        });
+        sendTurns([{ type: 'confirm', readBack, actionType, actionParams: params, actionId }]);
+        return;
       }
 
       if (toolName === 'search_knowledge') {
@@ -432,7 +477,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  return res.status(200).json({
-    turns: [{ type: 'chat-answer', content: 'The assistant reached its iteration limit. Please try a simpler query.' }],
-  });
+  sendError('The assistant reached its iteration limit. Please try a simpler query.');
 }

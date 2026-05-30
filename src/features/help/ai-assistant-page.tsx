@@ -140,7 +140,7 @@ export function AIAssistantPage() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const initialized = useRef(false);
 
-  const { messages, isTyping, handleSend, handleConfirmAction, handleCancelConfirm } =
+  const { messages, isTyping, streamingContent, handleSend, handleConfirmAction, handleCancelConfirm } =
     useAssistant(activeConversationId);
 
   const displayMessages = messages.length === 0 ? [WELCOME] : messages;
@@ -199,6 +199,7 @@ export function AIAssistantPage() {
               <MessagePane
                 messages={displayMessages}
                 isTyping={isTyping}
+                streamingContent={streamingContent}
                 onSuggestionClick={(text) => void submitSend(text)}
                 onLinkClick={(path) => navigate(path)}
                 onConfirmAction={handleConfirmAction}

@@ -163,6 +163,57 @@ async function callGroq(
   return data.choices?.[0]?.message?.content ?? null;
 }
 
+// Streaming Groq call — calls onToken for each content chunk
+export async function callLLMStreaming(
+  messages: LLMMessage[],
+  onToken: (token: string) => void,
+): Promise<void> {
+  const groqKey = process.env.GROQ_API_KEY;
+  if (!groqKey) throw new Error('GROQ_API_KEY not set');
+
+  const response = await fetch(GROQ_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${groqKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'llama-3.3-70b-versatile',
+      messages,
+      stream: true,
+      max_tokens: 1024,
+      temperature: 0.2,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Groq streaming failed: ${response.status}`);
+  }
+
+  const reader = response.body!.getReader();
+  const decoder = new TextDecoder();
+  let buf = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    const lines = buf.split('\n');
+    buf = lines.pop() ?? '';
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith('data: ')) continue;
+      const payload = trimmed.slice(6);
+      if (payload === '[DONE]') return;
+      try {
+        const parsed = JSON.parse(payload) as { choices?: Array<{ delta?: { content?: string } }> };
+        const content = parsed.choices?.[0]?.delta?.content;
+        if (content) onToken(content);
+      } catch { /* ignore malformed chunks */ }
+    }
+  }
+}
+
 async function callGemini(
   apiKey: string,
   messages: LLMMessage[],

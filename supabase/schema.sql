@@ -710,3 +710,16 @@ LEFT JOIN (
   WHERE contract_id IS NOT NULL
   GROUP BY contract_id
 ) r ON r.contract_id = co.id;
+
+-- ── Chat feedback ─────────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS chat_feedback (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  message_id  text        NOT NULL,
+  polarity    text        NOT NULL CHECK (polarity IN ('up', 'down')),
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE chat_feedback ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow all" ON chat_feedback;
+CREATE POLICY "Allow all" ON chat_feedback FOR ALL USING (true) WITH CHECK (true);

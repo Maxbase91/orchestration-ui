@@ -100,7 +100,7 @@ export function AIChatOverlay() {
   const [open, setOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const { messages, isTyping, handleSend, handleConfirmAction, handleCancelConfirm } =
+  const { messages, isTyping, streamingContent, handleSend, handleConfirmAction, handleCancelConfirm } =
     useAssistant(activeConversationId);
 
   const displayMessages = messages.length === 0 ? [WELCOME_MESSAGE] : messages;
@@ -208,6 +208,7 @@ export function AIChatOverlay() {
               <MessagePane
                 messages={displayMessages}
                 isTyping={isTyping}
+                streamingContent={streamingContent}
                 onSuggestionClick={handleSend}
                 onLinkClick={(path) => { setOpen(false); navigate(path); }}
                 onConfirmAction={handleConfirmAction}
