@@ -223,6 +223,8 @@ export const navigation: NavGroup[] = [
       { id: 'approval-chains', label: 'Approval Chains', icon: 'Link', path: '/admin/approvals', visibleTo: ['admin'] },
       { id: 'workflow-designer', label: 'Workflow Designer', icon: 'PenTool', path: '/admin/workflows', visibleTo: ['admin'] },
       { id: 'ai-agent-config', label: 'AI Agent Configuration', icon: 'Bot', path: '/admin/agents', visibleTo: ['admin'] },
+      { id: 'kb-management', label: 'KB Management', icon: 'BookOpen', path: '/admin/kb', visibleTo: ['admin'] },
+      { id: 'ai-analytics', label: 'AI Analytics', icon: 'BarChart2', path: '/admin/ai-analytics', visibleTo: ['admin'] },
       { id: 'policy-management', label: 'Policy Management', icon: 'ScrollText', path: '/admin/policies', visibleTo: ['admin'] },
       { id: 'user-management', label: 'User Management', icon: 'Users', path: '/admin/users', visibleTo: ['admin'] },
       { id: 'system-health', label: 'System Health', icon: 'Activity', path: '/admin/health', visibleTo: ['admin'] },

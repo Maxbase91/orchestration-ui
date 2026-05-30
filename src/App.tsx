@@ -54,6 +54,8 @@ import { DatabaseAdminPage } from '@/features/admin/database/database-admin-page
 import { AIAssistantPage } from '@/features/help/ai-assistant-page'
 import { KnowledgeBasePage } from '@/features/help/knowledge-base-page'
 import { ContactSupportPage } from '@/features/help/contact-support-page'
+import { AIAnalyticsPage } from '@/features/admin/ai-analytics-page'
+import { KBAdminPage } from '@/features/admin/kb-admin-page'
 import { MyTasksPage } from '@/features/tasks/my-tasks-page'
 import { TeamTasksPage } from '@/features/tasks/team-tasks-page'
 import { BottlenecksPage } from '@/features/workflows/bottlenecks-page'
@@ -149,6 +151,8 @@ export function App() {
             <Route path="/admin/users" element={<UserManagementPage />} />
             <Route path="/admin/health" element={<SystemHealthPage />} />
             <Route path="/admin/audit" element={<AuditLogPage />} />
+            <Route path="/admin/ai-analytics" element={<AIAnalyticsPage />} />
+            <Route path="/admin/kb" element={<KBAdminPage />} />
 
             {/* Notifications & Settings */}
             <Route path="/notifications" element={<NotificationsPage />} />

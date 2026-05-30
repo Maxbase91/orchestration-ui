@@ -112,21 +112,31 @@ RULES — always follow these:
 
 // ─── Tool handlers ────────────────────────────────────────────────────────────
 
-function execSearchKnowledge(query: string): string {
+function scoreEntry(entry: { title: string; body: string; tags: string[] }, query: string): number {
+  let score = 0;
   const q = query.toLowerCase();
-  const scored = knowledgeBase.map((entry) => {
-    let score = 0;
-    const tags = entry.tags.join(' ').toLowerCase();
-    const title = entry.title.toLowerCase();
-    const body = entry.body.toLowerCase();
-    for (const word of q.split(/\s+/).filter((w) => w.length > 3)) {
-      if (tags.includes(word)) score += 3;
-      if (title.includes(word)) score += 2;
-      if (body.includes(word)) score += 1;
-    }
-    return { entry, score };
-  });
+  const tags = entry.tags.join(' ').toLowerCase();
+  const title = entry.title.toLowerCase();
+  const body = entry.body.toLowerCase();
+  for (const word of q.split(/\s+/).filter((w) => w.length > 3)) {
+    if (tags.includes(word)) score += 3;
+    if (title.includes(word)) score += 2;
+    if (body.includes(word)) score += 1;
+  }
+  return score;
+}
 
+async function execSearchKnowledge(query: string): Promise<string> {
+  // Try Supabase dynamic KB first; fall back to hardcoded array if empty.
+  const { data: dbEntries } = await supabase
+    .from('knowledge_base')
+    .select('id, title, body, source, tags');
+
+  const pool = dbEntries && dbEntries.length > 0
+    ? (dbEntries as typeof knowledgeBase)
+    : knowledgeBase;
+
+  const scored = pool.map((entry) => ({ entry, score: scoreEntry(entry, query) }));
   const top = scored.filter((s) => s.score > 0).sort((a, b) => b.score - a.score).slice(0, 3);
   if (top.length === 0) return JSON.stringify({ found: false });
 
@@ -443,7 +453,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       if (toolName === 'search_knowledge') {
-        toolResult = execSearchKnowledge((args.query as string) ?? '');
+        toolResult = await execSearchKnowledge((args.query as string) ?? '');
       } else if (toolName === 'lookup_object') {
         const type = (args.type as string) ?? '';
         const identifier = (args.identifier as string) ?? '';

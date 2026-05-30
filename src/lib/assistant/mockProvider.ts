@@ -1,6 +1,6 @@
 import type { AssistantMessage, AssistantTurn, ConfirmTurn } from '@/data/types';
 import type { AssistantProvider, ProviderContext } from './provider';
-import { classifyIntent } from './intents';
+import { classifyIntent, classifyIntentWithConfidence } from './intents';
 import { searchKnowledge } from './capabilities/knowledge';
 import { lookupObject } from './capabilities/lookup';
 import { proposeAction, executeAction } from './capabilities/action';
@@ -250,11 +250,18 @@ export const mockProvider: AssistantProvider = {
     if (shortcut) return shortcut;
 
     const intent = classifyIntent(input);
+    const { confident } = classifyIntentWithConfidence(input);
 
     switch (intent) {
       case 'knowledge': {
         const turns = searchKnowledge(input);
         if (turns.length === 0) return helpResponse();
+        if (!confident) {
+          return [
+            { type: 'chat-answer', content: `Here's what I found — if this isn't what you were looking for, try being more specific or rephrase your question.` },
+            ...turns,
+          ];
+        }
         return turns;
       }
 

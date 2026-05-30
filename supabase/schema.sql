@@ -711,6 +711,22 @@ LEFT JOIN (
   GROUP BY contract_id
 ) r ON r.contract_id = co.id;
 
+-- ── Dynamic knowledge base ───────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS knowledge_base (
+  id          text PRIMARY KEY,
+  title       text        NOT NULL,
+  body        text        NOT NULL,
+  source      text        NOT NULL DEFAULT '',
+  tags        text[]      NOT NULL DEFAULT '{}',
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  updated_at  timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE knowledge_base ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow all" ON knowledge_base;
+CREATE POLICY "Allow all" ON knowledge_base FOR ALL USING (true) WITH CHECK (true);
+
 -- ── Chat feedback ─────────────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS chat_feedback (
