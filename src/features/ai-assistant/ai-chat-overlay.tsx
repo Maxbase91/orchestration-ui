@@ -48,6 +48,10 @@ export function openAIChat() {
   window.dispatchEvent(new CustomEvent('open-ai-chat'));
 }
 
+export function openAIChatWithPrompt(prompt: string) {
+  window.dispatchEvent(new CustomEvent('open-ai-chat-with-prompt', { detail: prompt }));
+}
+
 function ConversationDropdown({
   activeTitle,
   conversations,
@@ -131,6 +135,21 @@ export function AIChatOverlay() {
     const handler = () => setOpen(true);
     window.addEventListener('open-ai-chat', handler);
     return () => window.removeEventListener('open-ai-chat', handler);
+  }, []);
+
+  // Open with a pre-filled prompt (from the support page AI banner)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const prompt = (e as CustomEvent<string>).detail;
+      setOpen(true);
+      if (prompt) {
+        // Slight delay so the overlay finishes mounting before sending
+        setTimeout(() => void handleSend(prompt), 300);
+      }
+    };
+    window.addEventListener('open-ai-chat-with-prompt', handler);
+    return () => window.removeEventListener('open-ai-chat-with-prompt', handler);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const scrollToBottom = useCallback(() => {

@@ -4,6 +4,11 @@ import { useConversationStore } from '@/stores/conversation-store';
 import { provider } from './index';
 import type { ConfirmTurn, ChatMessageData, ChatAnswerTurn } from '@/data/types';
 
+const FALLBACK_TURN: ChatAnswerTurn = {
+  type: 'chat-answer',
+  content: "I couldn't generate a response — please try again.",
+};
+
 function turnsToText(turns: ChatMessageData['turns']): string {
   if (!turns) return '';
   return turns
@@ -14,7 +19,7 @@ function turnsToText(turns: ChatMessageData['turns']): string {
 
 export function useAssistant(conversationId: string | null) {
   const { currentRole, currentUser } = useAuthStore();
-  const { conversations, addMessage, setTitle } = useConversationStore();
+  const { conversations, addMessage, setTitle, createConversation } = useConversationStore();
   const [isTyping, setIsTyping] = useState(false);
 
   const conversation = useMemo(
@@ -30,7 +35,14 @@ export function useAssistant(conversationId: string | null) {
 
   async function handleSend(text: string) {
     const trimmed = text.trim();
-    if (!trimmed || !conversationId || isTyping) return;
+    if (!trimmed || isTyping) return;
+
+    // Auto-create a conversation if none is active yet (race condition on first open).
+    let activeId = conversationId;
+    if (!activeId) {
+      activeId = await createConversation(currentUser.id);
+      if (!activeId) return; // creation failed — Supabase error already logged
+    }
 
     const userMessage: ChatMessageData = {
       id: `msg-${Date.now()}`,
@@ -39,10 +51,10 @@ export function useAssistant(conversationId: string | null) {
       timestamp: new Date().toISOString(),
     };
 
-    await addMessage(conversationId, userMessage, currentUser.id);
+    await addMessage(activeId, userMessage, currentUser.id);
 
     if (conversation && conversation.title === 'New conversation' && messages.length === 0) {
-      await setTitle(conversationId, trimmed.slice(0, 50));
+      await setTitle(activeId, trimmed.slice(0, 50));
     }
 
     setIsTyping(true);
@@ -52,7 +64,8 @@ export function useAssistant(conversationId: string | null) {
         content: m.role === 'assistant' && m.turns ? turnsToText(m.turns) : m.content,
       }));
 
-      const turns = await provider.respond(history, ctx);
+      const rawTurns = await provider.respond(history, ctx);
+      const turns = rawTurns.length > 0 ? rawTurns : [FALLBACK_TURN];
 
       const assistantMessage: ChatMessageData = {
         id: `msg-${Date.now()}-ai`,
@@ -62,17 +75,19 @@ export function useAssistant(conversationId: string | null) {
         turns,
       };
 
-      await addMessage(conversationId, assistantMessage, currentUser.id);
+      await addMessage(activeId, assistantMessage, currentUser.id);
     } finally {
       setIsTyping(false);
     }
   }
 
   async function handleConfirmAction(turn: ConfirmTurn) {
-    if (!conversationId) return;
+    const activeId = conversationId;
+    if (!activeId) return;
     setIsTyping(true);
     try {
-      const resultTurns = await provider.executeAction(turn, ctx);
+      const rawTurns = await provider.executeAction(turn, ctx);
+      const resultTurns = rawTurns.length > 0 ? rawTurns : [FALLBACK_TURN];
       const resultMessage: ChatMessageData = {
         id: `msg-${Date.now()}-result`,
         role: 'assistant',
@@ -80,14 +95,15 @@ export function useAssistant(conversationId: string | null) {
         timestamp: new Date().toISOString(),
         turns: resultTurns,
       };
-      await addMessage(conversationId, resultMessage, currentUser.id);
+      await addMessage(activeId, resultMessage, currentUser.id);
     } finally {
       setIsTyping(false);
     }
   }
 
   async function handleCancelConfirm() {
-    if (!conversationId) return;
+    const activeId = conversationId;
+    if (!activeId) return;
     const cancelMessage: ChatMessageData = {
       id: `msg-${Date.now()}-cancel`,
       role: 'assistant',
@@ -95,7 +111,7 @@ export function useAssistant(conversationId: string | null) {
       timestamp: new Date().toISOString(),
       turns: [{ type: 'chat-answer', content: 'No problem — action cancelled. Let me know if you need anything else.' }],
     };
-    await addMessage(conversationId, cancelMessage, currentUser.id);
+    await addMessage(activeId, cancelMessage, currentUser.id);
   }
 
   return { messages, isTyping, handleSend, handleConfirmAction, handleCancelConfirm };

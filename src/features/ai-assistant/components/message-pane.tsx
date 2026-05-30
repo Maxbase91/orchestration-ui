@@ -24,9 +24,10 @@ function renderTurns(
   isTyping: boolean,
 ) {
   if (!msg.turns || msg.turns.length === 0) {
+    const text = msg.content || "I couldn't generate a response — please try again.";
     return (
       <div className="rounded-lg bg-gray-50 px-3 py-2 text-[13px] leading-relaxed text-gray-800">
-        <p className="whitespace-pre-wrap">{msg.content}</p>
+        <p className="whitespace-pre-wrap">{text}</p>
       </div>
     );
   }
