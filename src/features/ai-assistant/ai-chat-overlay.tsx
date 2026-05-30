@@ -108,25 +108,22 @@ export function AIChatOverlay() {
 
   const [open, setOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const initialized = useRef(false);
 
   const { messages, isTyping, handleSend, handleConfirmAction, handleCancelConfirm } =
     useAssistant(activeConversationId);
 
   const displayMessages = messages.length === 0 ? [WELCOME_MESSAGE] : messages;
 
+  // Every time the overlay opens: load conversations for the dropdown but always
+  // start as a fresh chat (activeConversationId = null). The first message will
+  // auto-create a new conversation via useAssistant.handleSend.
   useEffect(() => {
-    if (!open || initialized.current) return;
-    initialized.current = true;
-
+    if (!open) return;
     void (async () => {
       await loadConversations(currentUser.id);
-      const { conversations: loaded } = useConversationStore.getState();
-      if (loaded.length === 0) {
-        await createConversation(currentUser.id);
-      }
+      useConversationStore.setState({ activeConversationId: null });
     })();
-  }, [open, currentUser.id, loadConversations, createConversation]);
+  }, [open, currentUser.id, loadConversations]);
 
   useEffect(() => {
     const handler = () => setOpen(true);
