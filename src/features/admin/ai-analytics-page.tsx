@@ -20,6 +20,7 @@ interface FeedbackRow {
 
 interface DailyBucket {
   name: string;
+  value: number;
   conversations: number;
   queries: number;
 }
@@ -60,7 +61,7 @@ function buildDailyBuckets(convs: ConvRow[], days = 14): DailyBucket[] {
       (sum, c) => sum + (c.messages?.filter((m) => m.role === 'user').length ?? 0),
       0
     );
-    buckets.push({ name: dayStr, conversations: dayConvs.length, queries });
+    buckets.push({ name: dayStr, value: 0, conversations: dayConvs.length, queries });
   }
   return buckets;
 }
