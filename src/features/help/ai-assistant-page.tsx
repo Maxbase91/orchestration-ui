@@ -1,9 +1,8 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { isToday, isYesterday, isThisWeek, parseISO } from 'date-fns';
-import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { PageHeader } from '@/components/shared/page-header';
 import { useAuthStore } from '@/stores/auth-store';
@@ -11,6 +10,7 @@ import { useConversationStore, type Conversation } from '@/stores/conversation-s
 import { useAssistant } from '@/lib/assistant/useAssistant';
 import type { ChatMessageData } from '@/data/types';
 import { MessagePane } from '@/features/ai-assistant/components/message-pane';
+import { ChatInput } from '@/features/ai-assistant/components/chat-input';
 
 const WELCOME: ChatMessageData = {
   id: 'welcome',
@@ -85,11 +85,11 @@ function ConversationSidebar({
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
   return (
-    <div className="flex h-full flex-col border-r bg-gray-50/50">
+    <div className="flex h-full flex-col border-r bg-gray-50/80">
       <div className="p-3">
         <button
           onClick={onNew}
-          className="flex w-full items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors"
+          className="flex w-full items-center gap-2 rounded-lg bg-[#1B2A4A] px-3 py-2 text-sm font-medium text-white hover:bg-[#273957] transition-colors"
         >
           <Plus className="size-4 shrink-0" />
           New chat
@@ -107,10 +107,10 @@ function ConversationSidebar({
                 <button
                   key={c.id}
                   className={cn(
-                    'group relative flex w-full items-center rounded-md px-2 py-1.5 text-left text-xs transition-colors',
+                    'group relative flex w-full items-center rounded-lg px-2 py-2 text-left text-xs transition-all duration-150',
                     c.id === activeId
-                      ? 'bg-amber-50 text-amber-900 font-medium'
-                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                      ? 'bg-white shadow-sm border border-gray-200 text-gray-900 font-medium'
+                      : 'text-gray-600 hover:bg-gray-100/80 hover:text-gray-900'
                   )}
                   onClick={() => onSelect(c.id)}
                   onMouseEnter={() => setHoveredId(c.id)}
@@ -153,7 +153,6 @@ export function AIAssistantPage() {
     deleteConversation,
   } = useConversationStore();
 
-  const [input, setInput] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
   const initialized = useRef(false);
 
@@ -162,7 +161,6 @@ export function AIAssistantPage() {
 
   const displayMessages = messages.length === 0 ? [WELCOME] : messages;
 
-  // Bootstrap conversations on mount
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
@@ -188,15 +186,7 @@ export function AIAssistantPage() {
   async function submitSend(text: string) {
     const trimmed = text.trim();
     if (!trimmed || isTyping) return;
-    setInput('');
     await handleSend(trimmed);
-  }
-
-  function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      void submitSend(input);
-    }
   }
 
   return (
@@ -206,7 +196,7 @@ export function AIAssistantPage() {
         subtitle="Ask questions about procurement, requests, suppliers, and more"
       />
 
-      <div className="mt-4 flex flex-1 min-h-0 rounded-lg border overflow-hidden">
+      <div className="mt-4 flex flex-1 min-h-0 rounded-xl border border-gray-200 overflow-hidden shadow-sm">
         {/* Sidebar */}
         <div className="w-[220px] shrink-0">
           <ConversationSidebar
@@ -219,7 +209,7 @@ export function AIAssistantPage() {
         </div>
 
         {/* Main chat area */}
-        <div className="flex flex-1 flex-col min-w-0">
+        <div className="flex flex-1 flex-col min-w-0 bg-white">
           <ScrollArea className="flex-1" ref={scrollRef}>
             <div className="space-y-4 p-6">
               <MessagePane
@@ -233,25 +223,13 @@ export function AIAssistantPage() {
             </div>
           </ScrollArea>
 
-          <div className="border-t p-3">
-            <div className="flex gap-2">
-              <input
-                type="text"
-                className="flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm placeholder:text-muted-foreground focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-300"
-                placeholder="Ask me anything about procurement…"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                disabled={isTyping}
-              />
-              <Button
-                className="h-10 w-10 shrink-0 p-0"
-                onClick={() => void submitSend(input)}
-                disabled={isTyping || !input.trim()}
-              >
-                <Sparkles className="size-4" />
-              </Button>
-            </div>
+          {/* Input */}
+          <div className="bg-white border-t border-gray-100 p-4 shadow-[0_-1px_8px_rgba(0,0,0,0.04)]">
+            <ChatInput
+              onSend={(t) => void submitSend(t)}
+              disabled={isTyping}
+              placeholder="Ask me anything about procurement…"
+            />
           </div>
         </div>
       </div>

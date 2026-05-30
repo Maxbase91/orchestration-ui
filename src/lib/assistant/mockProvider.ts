@@ -197,6 +197,46 @@ function extractLookupSubject(input: string): {
   return { type: null, identifier: '' };
 }
 
+// ─── Contextual proposals based on conversation history ───────────────────────
+// Scans recent messages for object IDs and topics, adds cross-linked chips.
+
+function buildContextualProposals(messages: AssistantMessage[]): AssistantTurn[] {
+  const recent = messages.slice(-6);
+  const allText = recent.map((m) => m.content).join(' ');
+
+  const chips: Array<{ label: string; prompt: string }> = [];
+
+  const supMatch = allText.match(/\bSUP-(\d+)\b/i);
+  if (supMatch) {
+    const id = `SUP-${supMatch[1]}`;
+    chips.push({ label: 'View contracts for this supplier', prompt: `Show contracts for ${id}` });
+    chips.push({ label: 'Check supplier risk', prompt: `What is the risk rating for ${id}?` });
+  }
+
+  const reqMatch = allText.match(/\bREQ-([\w-]+)\b/i);
+  if (reqMatch) {
+    const id = `REQ-${reqMatch[1]}`;
+    chips.push({ label: 'Add me as watcher', prompt: `Add me as watcher to ${id}` });
+    chips.push({ label: 'Reassign request', prompt: `Reassign ${id}` });
+  }
+
+  const conMatch = allText.match(/\bCON-(\d+)\b/i);
+  if (conMatch) {
+    chips.push({ label: 'Request renewal', prompt: `Request contract renewal for CON-${conMatch[1]}` });
+  }
+
+  if (/\bdelegate\b|\booo\b|out.of.office/i.test(allText)) {
+    chips.push({ label: 'Delegation policy', prompt: 'What is the approval delegation policy?' });
+  }
+
+  if (/\bconsult|advisory/i.test(allText)) {
+    chips.push({ label: 'Consulting threshold', prompt: 'What is the consulting approval threshold?' });
+  }
+
+  if (chips.length === 0) return [];
+  return [{ type: 'suggestion-chips', chips: chips.slice(0, 3) }];
+}
+
 // ─── Forward-step chips ───────────────────────────────────────────────────────
 
 function buildForwardChips(ctx: ProviderContext): AssistantTurn[] {
@@ -246,7 +286,10 @@ export const mockProvider: AssistantProvider = {
         const turns = searchKnowledge(input);
         if (turns.length === 0) return helpResponse(ctx);
         const hasChips = turns.some((t) => t.type === 'suggestion-chips');
-        if (!hasChips) turns.push(...buildForwardChips(ctx));
+        if (!hasChips) {
+          const contextual = buildContextualProposals(messages);
+          turns.push(...(contextual.length > 0 ? contextual : buildForwardChips(ctx)));
+        }
         return turns;
       }
 
@@ -269,7 +312,14 @@ export const mockProvider: AssistantProvider = {
           ];
         }
 
-        return lookupObject(type, identifier);
+        const lookupTurns = lookupObject(type, identifier);
+        // Append contextual proposals if lookup didn't already add chips
+        const lookupHasChips = lookupTurns.some((t) => t.type === 'suggestion-chips');
+        if (!lookupHasChips) {
+          const contextual = buildContextualProposals(messages);
+          lookupTurns.push(...contextual);
+        }
+        return lookupTurns;
       }
 
       case 'action': {

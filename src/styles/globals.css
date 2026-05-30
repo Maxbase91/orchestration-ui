@@ -91,3 +91,19 @@
     @apply bg-background text-foreground font-sans antialiased;
   }
 }
+
+@keyframes msgFadeUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-msg-in {
+  animation: msgFadeUp 0.2s ease-out both;
+}
+
+@keyframes chipFadeIn {
+  from { opacity: 0; transform: scale(0.94); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.animate-chip-in {
+  animation: chipFadeIn 0.18s ease-out both;
+}

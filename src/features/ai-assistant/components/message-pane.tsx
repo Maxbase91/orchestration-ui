@@ -26,7 +26,7 @@ function renderTurns(
   if (!msg.turns || msg.turns.length === 0) {
     const text = msg.content || "I couldn't generate a response — please try again.";
     return (
-      <div className="rounded-lg bg-gray-50 px-3 py-2 text-[13px] leading-relaxed text-gray-800">
+      <div className="rounded-[18px] rounded-tl-[4px] bg-white border border-gray-100 shadow-sm px-4 py-3 text-[13.5px] leading-relaxed text-gray-800">
         <p className="whitespace-pre-wrap">{text}</p>
       </div>
     );
@@ -34,23 +34,37 @@ function renderTurns(
   return (
     <div className="space-y-2">
       {msg.turns.map((turn, i) => {
+        const delay = { animationDelay: `${i * 80}ms` };
         switch (turn.type) {
           case 'chat-answer':
-            return <TurnChatAnswer key={i} turn={turn} />;
+            return (
+              <div key={i} className="animate-msg-in" style={delay}>
+                <TurnChatAnswer turn={turn} />
+              </div>
+            );
           case 'deep-link':
-            return <TurnDeepLink key={i} turn={turn} onNavigate={onLinkClick} />;
+            return (
+              <div key={i} className="animate-msg-in" style={delay}>
+                <TurnDeepLink turn={turn} onNavigate={onLinkClick} />
+              </div>
+            );
           case 'confirm':
             return (
-              <TurnConfirm
-                key={i}
-                turn={turn}
-                onConfirm={onConfirmAction}
-                onCancel={onCancelConfirm}
-                disabled={isTyping}
-              />
+              <div key={i} className="animate-msg-in" style={delay}>
+                <TurnConfirm
+                  turn={turn}
+                  onConfirm={onConfirmAction}
+                  onCancel={onCancelConfirm}
+                  disabled={isTyping}
+                />
+              </div>
             );
           case 'suggestion-chips':
-            return <TurnSuggestionChips key={i} turn={turn} onChipClick={onSuggestionClick} />;
+            return (
+              <div key={i} className="animate-msg-in" style={delay}>
+                <TurnSuggestionChips turn={turn} onChipClick={onSuggestionClick} />
+              </div>
+            );
           default:
             return null;
         }
@@ -68,26 +82,35 @@ export function MessagePane({
   onCancelConfirm,
 }: MessagePaneProps) {
   return (
-    <div className="space-y-4">
-      {messages.map((msg) => {
+    <div className="space-y-5">
+      {messages.map((msg, msgIdx) => {
         const isUser = msg.role === 'user';
         return (
-          <div key={msg.id} className={cn('flex gap-2', isUser ? 'flex-row-reverse' : 'flex-row')}>
+          <div
+            key={msg.id}
+            className={cn('flex gap-2.5 animate-msg-in', isUser ? 'flex-row-reverse' : 'flex-row')}
+            style={{ animationDelay: `${msgIdx * 30}ms` }}
+          >
+            {/* Avatar */}
             <div
               className={cn(
-                'flex size-6 shrink-0 items-center justify-center rounded-full',
-                isUser ? 'bg-gray-800' : 'bg-amber-100'
+                'flex size-8 shrink-0 items-center justify-center rounded-full',
+                isUser
+                  ? 'bg-gray-700'
+                  : 'bg-gradient-to-br from-[#1B2A4A] to-[#2D5F8A]'
               )}
             >
               {isUser ? (
-                <User className="size-3 text-white" />
+                <User className="size-3.5 text-white" />
               ) : (
-                <Sparkles className="size-3 text-amber-600" />
+                <Sparkles className="size-3.5 text-white" />
               )}
             </div>
-            <div className="max-w-[85%]">
+
+            {/* Content */}
+            <div className={cn('max-w-[85%]', isUser ? 'items-end' : 'items-start')}>
               {isUser ? (
-                <div className="rounded-lg bg-gray-800 px-3 py-2 text-[13px] leading-relaxed text-white">
+                <div className="rounded-[18px] rounded-br-[4px] bg-[#1B2A4A] px-4 py-2.5 text-[13.5px] leading-relaxed text-white">
                   <p className="whitespace-pre-wrap">{msg.content}</p>
                 </div>
               ) : (
@@ -98,16 +121,17 @@ export function MessagePane({
         );
       })}
 
+      {/* Typing indicator */}
       {isTyping && (
-        <div className="flex gap-2">
-          <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-amber-100">
-            <Sparkles className="size-3 text-amber-600" />
+        <div className="flex gap-2.5 animate-msg-in">
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#1B2A4A] to-[#2D5F8A]">
+            <Sparkles className="size-3.5 text-white" />
           </div>
-          <div className="rounded-lg bg-gray-50 px-3 py-2">
-            <div className="flex gap-1">
-              <span className="size-1.5 animate-bounce rounded-full bg-gray-300" style={{ animationDelay: '0ms' }} />
-              <span className="size-1.5 animate-bounce rounded-full bg-gray-300" style={{ animationDelay: '150ms' }} />
-              <span className="size-1.5 animate-bounce rounded-full bg-gray-300" style={{ animationDelay: '300ms' }} />
+          <div className="rounded-[18px] rounded-tl-[4px] bg-white border border-gray-100 shadow-sm px-4 py-3">
+            <div className="flex gap-1 items-center h-[18px]">
+              <span className="size-1.5 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: '0ms' }} />
+              <span className="size-1.5 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: '150ms' }} />
+              <span className="size-1.5 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: '300ms' }} />
             </div>
           </div>
         </div>

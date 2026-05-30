@@ -1,13 +1,13 @@
 import { useState } from 'react';
-import { Send } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { ArrowUp } from 'lucide-react';
 
 interface ChatInputProps {
   onSend: (message: string) => void;
   disabled?: boolean;
+  placeholder?: string;
 }
 
-export function ChatInput({ onSend, disabled }: ChatInputProps) {
+export function ChatInput({ onSend, disabled, placeholder = 'Ask anything…' }: ChatInputProps) {
   const [value, setValue] = useState('');
 
   function handleSubmit() {
@@ -25,24 +25,23 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
   }
 
   return (
-    <div className="flex gap-2">
+    <div className="flex items-center gap-2">
       <input
         type="text"
-        className="flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm placeholder:text-muted-foreground focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-300"
-        placeholder="Ask anything..."
+        className="flex-1 rounded-full border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm placeholder:text-gray-400 focus:bg-white focus:border-[#2D5F8A] focus:ring-2 focus:ring-[#2D5F8A]/10 focus:outline-none transition-colors"
+        placeholder={placeholder}
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={handleKeyDown}
         disabled={disabled}
       />
-      <Button
-        size="sm"
-        className="h-9 w-9 shrink-0 p-0"
+      <button
+        className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#1B2A4A] text-white shadow-sm hover:bg-[#273957] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         onClick={handleSubmit}
         disabled={disabled || !value.trim()}
       >
-        <Send className="size-4" />
-      </Button>
+        <ArrowUp className="size-4" />
+      </button>
     </div>
   );
 }

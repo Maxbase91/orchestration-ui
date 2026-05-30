@@ -1,7 +1,6 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, Plus, ChevronDown, Trash2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Sparkles, Plus, ChevronDown, Trash2, X } from 'lucide-react';
 import {
   Sheet,
   SheetContent,
@@ -66,7 +65,7 @@ function ConversationDropdown({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="flex min-w-0 flex-1 items-center gap-1 rounded px-1.5 py-0.5 text-sm font-medium hover:bg-gray-100">
+        <button className="flex min-w-0 flex-1 items-center gap-1 rounded-md px-1.5 py-0.5 text-sm font-medium text-gray-800 hover:bg-gray-100 transition-colors">
           <span className="truncate max-w-[160px]">{activeTitle}</span>
           <ChevronDown className="size-3.5 shrink-0 text-gray-400" />
         </button>
@@ -116,7 +115,6 @@ export function AIChatOverlay() {
 
   const displayMessages = messages.length === 0 ? [WELCOME_MESSAGE] : messages;
 
-  // Load or create a conversation when the overlay opens for the first time.
   useEffect(() => {
     if (!open || initialized.current) return;
     initialized.current = true;
@@ -130,20 +128,17 @@ export function AIChatOverlay() {
     })();
   }, [open, currentUser.id, loadConversations, createConversation]);
 
-  // Open via global event (e.g., from top-nav button)
   useEffect(() => {
     const handler = () => setOpen(true);
     window.addEventListener('open-ai-chat', handler);
     return () => window.removeEventListener('open-ai-chat', handler);
   }, []);
 
-  // Open with a pre-filled prompt (from the support page AI banner)
   useEffect(() => {
     const handler = (e: Event) => {
       const prompt = (e as CustomEvent<string>).detail;
       setOpen(true);
       if (prompt) {
-        // Slight delay so the overlay finishes mounting before sending
         setTimeout(() => void handleSend(prompt), 300);
       }
     };
@@ -170,20 +165,24 @@ export function AIChatOverlay() {
 
   return (
     <>
+      {/* Floating trigger button */}
       {!open && (
-        <Button
-          className="fixed bottom-6 right-6 z-50 size-14 rounded-full bg-amber-500 p-0 shadow-lg hover:bg-amber-600"
+        <button
+          className="fixed bottom-6 right-6 z-50 flex size-14 items-center justify-center rounded-full bg-[#1B2A4A] text-white shadow-lg shadow-gray-900/20 hover:bg-[#273957] hover:scale-105 transition-all duration-200"
           onClick={() => setOpen(true)}
+          aria-label="Open AI assistant"
         >
-          <Sparkles className="size-6 text-white" />
-        </Button>
+          <Sparkles className="size-6" />
+        </button>
       )}
 
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="right" className="flex w-[400px] flex-col gap-0 p-0 sm:max-w-[400px]">
+        <SheetContent side="right" className="flex w-[420px] flex-col gap-0 p-0 sm:max-w-[420px] bg-gray-50/50">
           {/* Header */}
-          <div className="flex items-center gap-2 border-b px-3 py-2">
-            <Sparkles className="size-4 shrink-0 text-amber-500" />
+          <div className="flex items-center gap-2 bg-white border-b border-gray-100 px-4 py-3">
+            <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#1B2A4A] to-[#2D5F8A]">
+              <Sparkles className="size-3.5 text-white" />
+            </div>
             {isLoading ? (
               <span className="flex-1 text-sm text-gray-400">Loading…</span>
             ) : (
@@ -194,13 +193,22 @@ export function AIChatOverlay() {
                 onDelete={(id) => void deleteConversation(id)}
               />
             )}
-            <button
-              className="flex size-6 shrink-0 items-center justify-center rounded border border-gray-200 text-gray-500 hover:bg-gray-100"
-              title="New conversation"
-              onClick={() => void handleNewConversation()}
-            >
-              <Plus className="size-3.5" />
-            </button>
+            <div className="flex items-center gap-1 ml-auto shrink-0">
+              <button
+                className="flex size-7 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+                title="New conversation"
+                onClick={() => void handleNewConversation()}
+              >
+                <Plus className="size-4" />
+              </button>
+              <button
+                className="flex size-7 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+                title="Close"
+                onClick={() => setOpen(false)}
+              >
+                <X className="size-4" />
+              </button>
+            </div>
           </div>
 
           <SheetDescription className="sr-only">
@@ -220,7 +228,8 @@ export function AIChatOverlay() {
             </div>
           </ScrollArea>
 
-          <div className="border-t p-2.5">
+          {/* Input area */}
+          <div className="bg-white border-t border-gray-100 px-3 py-3 shadow-[0_-1px_8px_rgba(0,0,0,0.04)]">
             <ChatInput onSend={(t) => void handleSend(t)} disabled={isTyping} />
           </div>
         </SheetContent>

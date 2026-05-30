@@ -28,7 +28,7 @@ import { createRequest } from '@/lib/db/requests';
 import { useAuthStore } from '@/stores/auth-store';
 import { queryClient } from '@/lib/query-client';
 import type { RequestCategory, BuyingChannel } from '@/data/types';
-import { openAIChat } from '@/features/ai-assistant/ai-chat-overlay';
+import { openAIChat, openAIChatWithPrompt } from '@/features/ai-assistant/ai-chat-overlay';
 import { formatCurrency } from '@/lib/format';
 
 // --- Types ---
@@ -188,12 +188,21 @@ export function SmartCommandBar() {
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [orderSuccess, setOrderSuccess] = useState<string | null>(null);
 
-  // --- Submit: EVERYTHING goes through Groq ---
+  // --- Submit ---
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     const query = input.trim();
     if (!query) return;
 
+    // Fast local check: if not a catalogue match, send to AI overlay immediately
+    const localResult = localClassify(query, catalogueItems);
+    if (localResult.intent !== 'catalogue') {
+      openAIChatWithPrompt(query);
+      setInput('');
+      return;
+    }
+
+    // Catalogue query — show inline catalogue UI
     setProposal(null);
     setShowCatalogue(false);
     setLoading(true);
@@ -201,14 +210,10 @@ export function SmartCommandBar() {
     try {
       const aiResult = await queryGroq(query);
       setLoading(false);
-
-      // Use LLM result, or fall back to local classifier
-      const result = aiResult ?? localClassify(query, catalogueItems);
-      processResult(result, query);
+      processResult(aiResult ?? localResult, query);
     } catch {
       setLoading(false);
-      // Error — fall back to deterministic local classifier
-      processResult(localClassify(query, catalogueItems), query);
+      processResult(localResult, query);
     }
   }, [input, catalogueItems]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -410,6 +415,13 @@ export function SmartCommandBar() {
             </button>
           )}
         </form>
+
+        {/* AI hint */}
+        {!proposal && !showCatalogue && !loading && (
+          <p className="mt-2 text-center text-xs text-gray-400">
+            Non-catalogue queries are handled by the <span className="font-medium text-[#2D5F8A]">AI assistant</span> →
+          </p>
+        )}
 
         {/* Loading */}
         {loading && (
