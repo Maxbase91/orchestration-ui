@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { callLLMWithTools, callLLMStreaming, type LLMMessage, type GroqTool } from './_llm.js';
+import { callLLMWithTools, callLLMStreaming, callLLM, type LLMMessage, type GroqTool } from './_llm.js';
 import { createClient } from '@supabase/supabase-js';
 import { knowledgeBase } from '../src/data/knowledgeBase.js';
 
@@ -475,7 +475,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       result = await callLLMWithTools(llmMessages, TOOLS);
     } catch (e) {
       console.error('callLLMWithTools error:', e);
-      sendError('The assistant encountered an error. Please try again.');
+      // Groq tool-calling failed — fall back to plain LLM call (Groq → Gemini)
+      try {
+        const fallbackText = await callLLM({ messages: llmMessages, jsonMode: false });
+        sendTurns([{ type: 'chat-answer', content: fallbackText ?? "I'm having trouble right now. Please try again." }]);
+      } catch (e2) {
+        console.error('LLM fallback also failed:', e2);
+        sendError("I'm having trouble connecting to the AI service. Please try again in a moment.");
+      }
       return;
     }
 

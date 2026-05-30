@@ -68,6 +68,7 @@ export async function callLLMWithTools(
 
   if (!response.ok) {
     const err = await response.text();
+    console.error(`Groq tool-calling failed [${response.status}]:`, err);
     throw new Error(`Groq tool-calling failed: ${response.status} ${err}`);
   }
 
