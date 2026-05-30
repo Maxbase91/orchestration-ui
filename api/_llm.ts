@@ -168,9 +168,24 @@ async function callGroq(
 export async function callLLMStreaming(
   messages: LLMMessage[],
   onToken: (token: string) => void,
+  tools?: GroqTool[],
 ): Promise<void> {
   const groqKey = process.env.GROQ_API_KEY;
   if (!groqKey) throw new Error('GROQ_API_KEY not set');
+
+  const body: Record<string, unknown> = {
+    model: 'llama-3.3-70b-versatile',
+    messages,
+    stream: true,
+    max_tokens: 1024,
+    temperature: 0.2,
+  };
+  // When tools are provided, set tool_choice: 'none' so the model produces
+  // a plain text response rather than outputting tool-call JSON as raw text.
+  if (tools?.length) {
+    body.tools = tools;
+    body.tool_choice = 'none';
+  }
 
   const response = await fetch(GROQ_URL, {
     method: 'POST',
@@ -178,13 +193,7 @@ export async function callLLMStreaming(
       Authorization: `Bearer ${groqKey}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
-      messages,
-      stream: true,
-      max_tokens: 1024,
-      temperature: 0.2,
-    }),
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {

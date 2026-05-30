@@ -554,9 +554,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // otherwise emit the already-fetched text as a single turn.
       if (isSSE && hadToolCalls) {
         try {
+          // Pass TOOLS with tool_choice:'none' so the model writes plain text
+          // instead of trying to emit more tool calls as raw JSON.
           await callLLMStreaming(llmMessages, (token) => {
             res.write(`data: ${JSON.stringify({ t: 'tok', c: token })}\n\n`);
-          });
+          }, TOOLS);
         } catch (e) {
           console.error('callLLMStreaming error:', e);
         }
