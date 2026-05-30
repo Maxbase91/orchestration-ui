@@ -75,6 +75,21 @@ function extractActionIntent(
 function tryNavigationShortcut(input: string): AssistantTurn[] | null {
   const t = input.toLowerCase();
 
+  // Raise a PR / purchase request
+  if (/\b(how (to|do i|can i) (raise|submit|create|start|file|log)|raise|submit|create|start) (a )?(pr|purchase request|procurement request|new request|new demand)\b/.test(t)) {
+    return [
+      { type: 'chat-answer', content: 'To raise a purchase request, click below to open the request wizard. Select your category, enter the value and description, and the system will route it through the correct approval chain automatically.' },
+      { type: 'deep-link', label: 'New Purchase Request', description: 'Start a new procurement request', path: '/requests/new' },
+      {
+        type: 'suggestion-chips',
+        chips: [
+          { label: 'Approval thresholds', prompt: 'What are the approval thresholds?' },
+          { label: 'Buying channels', prompt: 'What are the buying channels?' },
+        ],
+      },
+    ];
+  }
+
   // My requests / demand status
   if (/\b(my (last|latest|recent|current|open)? ?(request|demand|order|purchase)|track (my|a) (request|demand)|where is my (request|demand)|status of my (request|demand)|what('s| is) (happening|the status) (with|of) my)\b/.test(t)) {
     return [

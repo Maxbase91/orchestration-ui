@@ -143,6 +143,15 @@ export const knowledgeBase: KnowledgeEntry[] = [
     tags: ['emergency', 'urgent', 'retroactive', 'retrospective', 'continuity', 'fast-track'],
   },
 
+  // ── Process guides ───────────────────────────────────────────────────────────
+  {
+    id: 'KB-031',
+    title: 'How to Raise a Purchase Request (PR)',
+    body: 'A Purchase Request (PR) is the standard way to initiate any procurement spend. Here is the step-by-step process:\n\n1. **Open the New Request wizard** — go to Requests → New Request, or ask the assistant to navigate there.\n2. **Select a category** — Goods, Services, Software, Consulting, Contingent Labour, or Catalogue. The category determines the buying channel and approval chain.\n3. **Enter the value** — estimated total spend in EUR, including any renewals or extensions.\n4. **Add a description** — what you need, why, and by when (delivery date).\n5. **Select a preferred supplier** (optional) — if you already know who you want to use. If no preferred supplier, sourcing will be triggered.\n6. **Submit** — the system auto-routes based on value and category:\n   - <€2K catalogue items: auto-approved.\n   - €2K–€10K: budget holder approval.\n   - €10K–€50K: budget holder + Procurement Manager.\n   - >€50K: full approval chain per the Delegation of Authority.\n\nAfter submission you can track status under My Requests. If you need to make changes, use "Request PO Change" once a PO has been issued.\n\nTip: for urgent needs, see the Emergency Procurement policy (KB-020).',
+    source: 'KOP-GEN-001 — How to Raise a Purchase Request',
+    tags: ['pr', 'purchase request', 'new request', 'raise', 'submit', 'create', 'how to', 'wizard', 'demand'],
+  },
+
   // ── Extended policies (KB-021 – KB-030) ─────────────────────────────────────
   {
     id: 'KB-021',

@@ -15,9 +15,11 @@ export function classifyIntent(input: string): IntentType {
   };
 
   // Knowledge — policy / process questions
-  if (/\b(policy|policies|threshold|limit|rule|guideline|procedure|explain|allowed|permitted|require|mandatory|kop|faq|standard)\b/.test(t)) scores.knowledge += 2;
-  if (/\b(when (can|should|do i)|how (much|many|do i|does|should)|what (is|are) the (policy|rule|limit|threshold|process|procedure|requirement|guideline|standard|penalty|deadline|definition))\b/.test(t)) scores.knowledge += 2;
-  if (/\b(consulting|approval|payment terms|sra|esg|framework|catalogue|onboard|renew|delegate|ooo|out.of.office|ir35|dpa|gdpr)\b/.test(t) && /\b(what|how|when|why|explain|policy|rule|process)\b/.test(t)) scores.knowledge += 1;
+  if (/\b(policy|policies|threshold|limit|rules?|guideline|procedure|explain|allowed|permitted|require|mandatory|kop|faq|standard)\b/.test(t)) scores.knowledge += 2;
+  if (/\b(when (can|should|do i)|how (much|many|do i|does|should|to)|what (is|are) the (policy|rule|limit|threshold|process|procedure|requirement|guideline|standard|penalty|deadline|definition))\b/.test(t)) scores.knowledge += 2;
+  if (/\b(consulting|approval|payment terms|sra|esg|framework|catalogue|onboard|renew|delegate|ooo|out.of.office|ir35|dpa|gdpr|capex|opex|tprm)\b/.test(t) && /\b(what|how|when|why|explain|policy|rule|process)\b/.test(t)) scores.knowledge += 1;
+  // "how to" process questions
+  if (/\bhow (to|do i|can i|should i)\b/.test(t)) scores.knowledge += 2;
 
   // Lookup — status / find a specific object
   if (/\b(req-|sup-|con-|po-|inv-|ra-|tkt-)\w+/.test(t)) scores.lookup += 3;
@@ -34,7 +36,8 @@ export function classifyIntent(input: string): IntentType {
   // Intake — buying / raising a demand (exclude "I need to speak/talk" to avoid handover collision)
   if (/\b(i (want|need|would like) to (buy|purchase|procure|order|get)|buy|purchase|procure|raise a demand|new (request|demand)|want to (buy|order)|can you (buy|order|raise|get))\b/.test(t) && !/\b(speak|talk|contact|person|human|someone)\b/.test(t)) scores.intake += 2;
   if (/\bi need (a|some) /.test(t) && !/\b(speak|talk|contact|person|human|someone)\b/.test(t)) scores.intake += 2;
-  if (/\b(create (a )?request|submit (a )?request)\b/.test(t)) scores.intake += 2;
+  if (/\b(create (a )?request|submit (a )?request|raise (a )?(pr|purchase request|procurement request))\b/.test(t)) scores.intake += 3;
+  if (/\b(purchase request|procurement request)\b/.test(t)) scores.intake += 2;
 
   // Handover — ask for a human (explicit "speak to"/"talk to" scored higher)
   if (/\b(speak (to|with)|talk (to|with))\b/.test(t)) scores.handover += 3;
