@@ -20,23 +20,7 @@ const WELCOME: ChatMessageData = {
   turns: [
     {
       type: 'chat-answer',
-      content: `Hello! I'm your procurement assistant. I can help you with:
-- Procurement policies, thresholds, and KOPs
-- Status lookups for requests, suppliers, contracts, POs, and invoices
-- Taking actions (delegate approvals, add watchers, escalate payments)
-- Raising new procurement demands
-- Connecting you with the right team when needed
-
-What can I help you with today?`,
-    },
-    {
-      type: 'suggestion-chips',
-      chips: [
-        { label: 'Consulting threshold', prompt: 'What is the consulting threshold policy?' },
-        { label: 'Accenture risk status', prompt: 'Show me Accenture risk status' },
-        { label: 'Set my delegate', prompt: 'Set my approval delegate' },
-        { label: 'Compare bids', prompt: 'I want to compare bids for a sourcing event' },
-      ],
+      content: `Hello! I'm your procurement assistant. I can help you with policies and thresholds, look up requests, suppliers, contracts, POs and invoices, take actions on your behalf, or raise a new demand. What can I help you with?`,
     },
   ],
 };

@@ -29,16 +29,7 @@ const WELCOME_MESSAGE: ChatMessageData = {
   turns: [
     {
       type: 'chat-answer',
-      content: 'Hi! I can help you with procurement policies, request status, supplier risk, actions, and raising new demands.',
-    },
-    {
-      type: 'suggestion-chips',
-      chips: [
-        { label: 'Check a policy', prompt: 'What is the consulting threshold?' },
-        { label: 'Find a supplier', prompt: 'Show me Accenture risk status' },
-        { label: 'Raise a demand', prompt: 'I want to buy something' },
-        { label: 'Compare bids', prompt: 'I want to compare bids' },
-      ],
+      content: 'Hi! Ask me about procurement policies, look up a request, supplier or contract, raise a new demand, or take an action.',
     },
   ],
 };

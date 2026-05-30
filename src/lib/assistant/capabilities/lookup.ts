@@ -66,7 +66,7 @@ function lookupSupplier(identifier: string): AssistantTurn[] {
     .filter(Boolean)
     .join('\n');
 
-  const turns: AssistantTurn[] = [
+  return [
     { type: 'chat-answer', content: summary },
     {
       type: 'deep-link',
@@ -75,20 +75,6 @@ function lookupSupplier(identifier: string): AssistantTurn[] {
       path: `/suppliers/${supplier.id}`,
     },
   ];
-
-  // Forward steps
-  const chips: Array<{ label: string; prompt: string }> = [];
-  if (supplier.sraStatus === 'expired' || supplier.sraStatus === 'expiring') {
-    chips.push({ label: 'Request risk reassessment', prompt: `Request a risk reassessment for ${supplier.name}` });
-  }
-  if (supplier.activeContracts > 0) {
-    chips.push({ label: 'View contracts', prompt: `Show contracts for ${supplier.name}` });
-  }
-  chips.push({ label: 'Compare bids', prompt: 'I want to compare bids for a sourcing event' });
-
-  if (chips.length > 0) turns.push({ type: 'suggestion-chips', chips });
-
-  return turns;
 }
 
 function lookupRequest(identifier: string): AssistantTurn[] {
@@ -108,7 +94,7 @@ function lookupRequest(identifier: string): AssistantTurn[] {
     `Delivery date: ${req.deliveryDate}`,
   ].join('\n');
 
-  const turns: AssistantTurn[] = [
+  return [
     { type: 'chat-answer', content: summary },
     {
       type: 'deep-link',
@@ -117,16 +103,6 @@ function lookupRequest(identifier: string): AssistantTurn[] {
       path: `/requests/${req.id}`,
     },
   ];
-
-  const chips: Array<{ label: string; prompt: string }> = [
-    { label: 'Add me as watcher', prompt: `Add me as a watcher to ${req.id}` },
-  ];
-  if (req.status === 'approval') {
-    chips.push({ label: 'Reassign request', prompt: `Reassign ${req.id} to another owner` });
-  }
-  turns.push({ type: 'suggestion-chips', chips });
-
-  return turns;
 }
 
 function lookupContract(identifier: string): AssistantTurn[] {
@@ -152,7 +128,7 @@ function lookupContract(identifier: string): AssistantTurn[] {
     `Department: ${contract.department}`,
   ].join('\n');
 
-  const turns: AssistantTurn[] = [
+  return [
     { type: 'chat-answer', content: summary },
     {
       type: 'deep-link',
@@ -161,15 +137,6 @@ function lookupContract(identifier: string): AssistantTurn[] {
       path: `/contracts/${contract.id}`,
     },
   ];
-
-  const chips: Array<{ label: string; prompt: string }> = [];
-  if (daysToExpiry < 90) {
-    chips.push({ label: 'Request renewal', prompt: `Request contract renewal for ${contract.id}` });
-  }
-  chips.push({ label: 'View supplier', prompt: `Show supplier profile for ${contract.supplierName}` });
-  turns.push({ type: 'suggestion-chips', chips });
-
-  return turns;
 }
 
 function lookupPO(identifier: string): AssistantTurn[] {
@@ -193,10 +160,6 @@ function lookupPO(identifier: string): AssistantTurn[] {
       label: `Purchase Order — ${po.id}`,
       description: 'PO lines, receipts, and invoice match status',
       path: `/purchasing/orders/${po.id}`,
-    },
-    {
-      type: 'suggestion-chips',
-      chips: [{ label: 'Request PO change', prompt: `Request a change to PO ${po.id}` }],
     },
   ];
 }
@@ -227,13 +190,6 @@ function lookupInvoice(identifier: string): AssistantTurn[] {
       path: `/purchasing/invoices`,
     },
   ];
-
-  if (inv.status === 'disputed' || inv.matchStatus === 'variance') {
-    turns.push({
-      type: 'suggestion-chips',
-      chips: [{ label: 'Raise payment escalation', prompt: `Raise a payment escalation for invoice ${inv.id}` }],
-    });
-  }
 
   return turns;
 }

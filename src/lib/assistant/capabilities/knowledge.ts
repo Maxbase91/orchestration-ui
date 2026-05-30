@@ -26,22 +26,11 @@ export function searchKnowledge(query: string): AssistantTurn[] {
 
   const best = scored[0].entry;
 
-  const turns: AssistantTurn[] = [
+  return [
     {
       type: 'chat-answer',
       content: best.body,
       source: best.source,
     },
   ];
-
-  // Suggest related entries as chips (top 2 other results)
-  const related = scored.slice(1, 3).map((x) => ({
-    label: x.entry.title,
-    prompt: x.entry.title,
-  }));
-  if (related.length > 0) {
-    turns.push({ type: 'suggestion-chips', chips: related });
-  }
-
-  return turns;
 }

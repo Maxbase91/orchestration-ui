@@ -1,6 +1,6 @@
 import type { AssistantMessage, AssistantTurn, ConfirmTurn } from '@/data/types';
 import type { AssistantProvider, ProviderContext } from './provider';
-import { classifyIntent, allowedActions } from './intents';
+import { classifyIntent } from './intents';
 import { searchKnowledge } from './capabilities/knowledge';
 import { lookupObject } from './capabilities/lookup';
 import { proposeAction, executeAction } from './capabilities/action';
@@ -197,60 +197,31 @@ function extractLookupSubject(input: string): {
   return { type: null, identifier: '' };
 }
 
-// ─── Contextual proposals based on conversation history ───────────────────────
-// Scans recent messages for object IDs and topics, adds cross-linked chips.
+// ─── Missing-param deep-link helper ──────────────────────────────────────────
+// When an action needs an ID the user didn't supply, return a link to the right
+// list so they can browse and come back with the specific ID.
 
-function buildContextualProposals(messages: AssistantMessage[]): AssistantTurn[] {
-  const recent = messages.slice(-6);
-  const allText = recent.map((m) => m.content).join(' ');
-
-  const chips: Array<{ label: string; prompt: string }> = [];
-
-  const supMatch = allText.match(/\bSUP-(\d+)\b/i);
-  if (supMatch) {
-    const id = `SUP-${supMatch[1]}`;
-    chips.push({ label: 'View contracts for this supplier', prompt: `Show contracts for ${id}` });
-    chips.push({ label: 'Check supplier risk', prompt: `What is the risk rating for ${id}?` });
+function missingParamLink(actionType: string): AssistantTurn | null {
+  switch (actionType) {
+    case 'add_watcher':
+    case 'reassign_request':
+      return { type: 'deep-link', label: 'My Requests', description: 'Find the request you want to act on', path: '/requests/my' };
+    case 'request_contract_renewal':
+      return { type: 'deep-link', label: 'Contracts', description: 'Find the contract to renew', path: '/contracts' };
+    case 'request_risk_reassessment':
+      return { type: 'deep-link', label: 'Supplier Directory', description: 'Find the supplier', path: '/suppliers' };
+    case 'request_po_change':
+      return { type: 'deep-link', label: 'Purchase Orders', description: 'Find the PO to change', path: '/purchasing/orders' };
+    case 'raise_payment_escalation':
+      return { type: 'deep-link', label: 'Invoices', description: 'Find the invoice to escalate', path: '/purchasing/invoices' };
+    default:
+      return null;
   }
-
-  const reqMatch = allText.match(/\bREQ-([\w-]+)\b/i);
-  if (reqMatch) {
-    const id = `REQ-${reqMatch[1]}`;
-    chips.push({ label: 'Add me as watcher', prompt: `Add me as watcher to ${id}` });
-    chips.push({ label: 'Reassign request', prompt: `Reassign ${id}` });
-  }
-
-  const conMatch = allText.match(/\bCON-(\d+)\b/i);
-  if (conMatch) {
-    chips.push({ label: 'Request renewal', prompt: `Request contract renewal for CON-${conMatch[1]}` });
-  }
-
-  if (/\bdelegate\b|\booo\b|out.of.office/i.test(allText)) {
-    chips.push({ label: 'Delegation policy', prompt: 'What is the approval delegation policy?' });
-  }
-
-  if (/\bconsult|advisory/i.test(allText)) {
-    chips.push({ label: 'Consulting threshold', prompt: 'What is the consulting approval threshold?' });
-  }
-
-  if (chips.length === 0) return [];
-  return [{ type: 'suggestion-chips', chips: chips.slice(0, 3) }];
-}
-
-// ─── Forward-step chips ───────────────────────────────────────────────────────
-
-function buildForwardChips(ctx: ProviderContext): AssistantTurn[] {
-  const chips = allowedActions(ctx.role)
-    .slice(0, 3)
-    .map((label) => ({ label, prompt: label }));
-  if (chips.length === 0) return [];
-  return [{ type: 'suggestion-chips', chips }];
 }
 
 // ─── Fallback ─────────────────────────────────────────────────────────────────
-// Show helpful options instead of immediately creating a ticket.
 
-function helpResponse(ctx: ProviderContext): AssistantTurn[] {
+function helpResponse(): AssistantTurn[] {
   return [
     {
       type: 'chat-answer',
@@ -262,7 +233,6 @@ function helpResponse(ctx: ProviderContext): AssistantTurn[] {
 • **Navigate** — e.g. "My requests", "My approvals", "Contract renewals"
 • **Get human help** — "I need to speak to someone"`,
     },
-    ...buildForwardChips(ctx),
   ];
 }
 
@@ -284,12 +254,7 @@ export const mockProvider: AssistantProvider = {
     switch (intent) {
       case 'knowledge': {
         const turns = searchKnowledge(input);
-        if (turns.length === 0) return helpResponse(ctx);
-        const hasChips = turns.some((t) => t.type === 'suggestion-chips');
-        if (!hasChips) {
-          const contextual = buildContextualProposals(messages);
-          turns.push(...(contextual.length > 0 ? contextual : buildForwardChips(ctx)));
-        }
+        if (turns.length === 0) return helpResponse();
         return turns;
       }
 
@@ -312,14 +277,7 @@ export const mockProvider: AssistantProvider = {
           ];
         }
 
-        const lookupTurns = lookupObject(type, identifier);
-        // Append contextual proposals if lookup didn't already add chips
-        const lookupHasChips = lookupTurns.some((t) => t.type === 'suggestion-chips');
-        if (!lookupHasChips) {
-          const contextual = buildContextualProposals(messages);
-          lookupTurns.push(...contextual);
-        }
-        return lookupTurns;
+        return lookupObject(type, identifier);
       }
 
       case 'action': {
@@ -331,18 +289,20 @@ export const mockProvider: AssistantProvider = {
               type: 'chat-answer',
               content: 'I can take actions on your behalf — here are some examples:\n• "Set my delegate to Jane Smith"\n• "Add me as a watcher to REQ-2024-0001"\n• "Request a risk reassessment for Accenture"\n• "Set out-of-office"\n\nWhat would you like to do?',
             },
-            ...buildForwardChips(ctx),
           ];
         }
 
-        // Required param is missing — ask for it specifically.
+        // Required param is missing — ask and link to the relevant list.
         if (parsed.missingParam) {
-          return [
+          const turns: AssistantTurn[] = [
             {
               type: 'chat-answer',
-              content: `To do that I need ${parsed.missingParam}. Could you provide it?`,
+              content: `To do that I need ${parsed.missingParam}. You can either type it directly or browse below to find the right one.`,
             },
           ];
+          const link = missingParamLink(parsed.actionType);
+          if (link) turns.push(link);
+          return turns;
         }
 
         return proposeAction(parsed.actionType, parsed.params, ctx);
@@ -357,7 +317,7 @@ export const mockProvider: AssistantProvider = {
       }
 
       default:
-        return helpResponse(ctx);
+        return helpResponse();
     }
   },
 
