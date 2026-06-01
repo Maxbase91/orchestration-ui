@@ -15,11 +15,42 @@ import { PaymentTracker } from './components/payment-tracker';
 import { useInvoices } from '@/lib/db/hooks/use-invoices';
 import { formatCurrency } from '@/lib/format';
 
-interface MatchScenario {
+// Variance tolerance: differences within this fraction are "minor-variance".
+// Differences beyond it are "mismatch".
+const MINOR_VARIANCE_THRESHOLD = 0.02; // 2 %
+
+function computeAmountStatus(
+  po: number,
+  gr: number | null,
+  invoice: number,
+): { status: MatchField['status']; variance?: string } {
+  if (gr === null) {
+    return { status: 'mismatch', variance: 'No GR' };
+  }
+  const ref = po;
+  if (ref === 0) return { status: 'match' };
+  const diff = Math.abs(invoice - ref);
+  const ratio = diff / ref;
+  if (ratio === 0) return { status: 'match' };
+  const sign = invoice > ref ? '+' : '-';
+  const varianceStr = `${sign}${formatCurrency(diff)}`;
+  if (ratio < MINOR_VARIANCE_THRESHOLD) return { status: 'minor-variance', variance: varianceStr };
+  return { status: 'mismatch', variance: varianceStr };
+}
+
+interface RawScenario {
   invoiceId: string;
   poId: string;
-  fields: MatchField[];
-  withinTolerance: boolean;
+  supplier: string;
+  poAmount: number;
+  grAmount: number | null;
+  invoiceAmount: number;
+  poItems: string;
+  grItems: string | null;
+  invoiceItems: string;
+  poDate: string;
+  grDate: string | null;
+  invoiceDate: string;
   paymentDates: {
     matchDate?: string;
     approvedDate?: string;
@@ -28,62 +59,126 @@ interface MatchScenario {
   };
 }
 
-const matchScenarios: MatchScenario[] = [
+function buildFields(s: RawScenario): MatchField[] {
+  const amountResult = computeAmountStatus(s.poAmount, s.grAmount, s.invoiceAmount);
+
+  const grAmountDisplay = s.grAmount !== null ? formatCurrency(s.grAmount) : 'Not received';
+  const grItemsDisplay = s.grItems ?? 'N/A';
+  const grDateDisplay = s.grDate ?? '-';
+
+  const itemStatus: MatchField['status'] =
+    s.grItems === null ? 'mismatch' : s.poItems === s.grItems && s.grItems === s.invoiceItems ? 'match' : 'minor-variance';
+
+  const dateStatus: MatchField['status'] =
+    s.grDate === null ? 'minor-variance' : 'match';
+
+  return [
+    {
+      label: 'Supplier',
+      poValue: s.supplier,
+      grValue: s.supplier,
+      invoiceValue: s.supplier,
+      status: 'match',
+    },
+    {
+      label: 'Total Amount',
+      poValue: formatCurrency(s.poAmount),
+      grValue: grAmountDisplay,
+      invoiceValue: formatCurrency(s.invoiceAmount),
+      ...amountResult,
+    },
+    {
+      label: 'Line Items',
+      poValue: s.poItems,
+      grValue: grItemsDisplay,
+      invoiceValue: s.invoiceItems,
+      status: itemStatus,
+      ...(s.grItems !== null && s.poItems !== s.grItems ? { variance: 'Qty mismatch' } : {}),
+    },
+    {
+      label: 'Invoice Date',
+      poValue: s.poDate,
+      grValue: grDateDisplay,
+      invoiceValue: s.invoiceDate,
+      status: dateStatus,
+      ...(s.grDate === null ? { variance: 'Pre-delivery' } : {}),
+    },
+  ];
+}
+
+const rawScenarios: RawScenario[] = [
   {
     invoiceId: 'INV-001',
     poId: 'PO-001',
-    fields: [
-      { label: 'Supplier', poValue: 'Amazon Web Services (AWS)', grValue: 'Amazon Web Services (AWS)', invoiceValue: 'Amazon Web Services (AWS)', status: 'match' },
-      { label: 'Total Amount', poValue: formatCurrency(480000), grValue: formatCurrency(480000), invoiceValue: formatCurrency(120000), status: 'match' },
-      { label: 'Line Items', poValue: '4 items', grValue: '4 items received', invoiceValue: 'Q3 partial (4 items)', status: 'match' },
-      { label: 'Invoice Date', poValue: '15 Jun 2024', grValue: '30 Sep 2024', invoiceValue: '01 Oct 2024', status: 'match' },
-    ],
-    withinTolerance: true,
+    supplier: 'Amazon Web Services (AWS)',
+    poAmount: 480000,
+    grAmount: 480000,
+    invoiceAmount: 120000,
+    poItems: '4 items',
+    grItems: '4 items received',
+    invoiceItems: 'Q3 partial (4 items)',
+    poDate: '15 Jun 2024',
+    grDate: '30 Sep 2024',
+    invoiceDate: '01 Oct 2024',
     paymentDates: { matchDate: '2024-10-05', approvedDate: '2024-10-10', scheduledDate: '2024-10-25', paidDate: '2024-10-28' },
   },
   {
     invoiceId: 'INV-002',
     poId: 'PO-001',
-    fields: [
-      { label: 'Supplier', poValue: 'Amazon Web Services (AWS)', grValue: 'Amazon Web Services (AWS)', invoiceValue: 'Amazon Web Services (AWS)', status: 'match' },
-      { label: 'Total Amount', poValue: formatCurrency(120000), grValue: formatCurrency(120000), invoiceValue: formatCurrency(122400), status: 'minor-variance', variance: '+2,400' },
-      { label: 'Line Items', poValue: '4 items', grValue: '4 items received', invoiceValue: '4 items', status: 'match' },
-      { label: 'Invoice Date', poValue: '15 Jun 2024', grValue: '31 Oct 2024', invoiceValue: '01 Nov 2024', status: 'match' },
-    ],
-    withinTolerance: true,
+    supplier: 'Amazon Web Services (AWS)',
+    poAmount: 120000,
+    grAmount: 120000,
+    invoiceAmount: 122400,
+    poItems: '4 items',
+    grItems: '4 items received',
+    invoiceItems: '4 items',
+    poDate: '15 Jun 2024',
+    grDate: '31 Oct 2024',
+    invoiceDate: '01 Nov 2024',
     paymentDates: { matchDate: '2024-11-05', approvedDate: '2024-11-10', scheduledDate: '2024-11-20', paidDate: '2024-11-25' },
   },
   {
     invoiceId: 'INV-009',
     poId: 'PO-008',
-    fields: [
-      { label: 'Supplier', poValue: 'Iron Mountain', grValue: 'Iron Mountain', invoiceValue: 'Iron Mountain', status: 'match' },
-      { label: 'Total Amount', poValue: formatCurrency(35000), grValue: formatCurrency(28700), invoiceValue: formatCurrency(28700), status: 'minor-variance', variance: 'Partial delivery' },
-      { label: 'Line Items', poValue: '2 items', grValue: '1 full + 1 partial (320/500)', invoiceValue: '2 items', status: 'minor-variance', variance: 'Qty mismatch' },
-      { label: 'Invoice Date', poValue: '15 Nov 2024', grValue: '10 Jan 2025', invoiceValue: '05 Jan 2025', status: 'match' },
-    ],
-    withinTolerance: false,
+    supplier: 'Iron Mountain',
+    poAmount: 35000,
+    grAmount: 28700,
+    invoiceAmount: 28700,
+    poItems: '2 items',
+    grItems: '1 full + 1 partial (320/500)',
+    invoiceItems: '2 items',
+    poDate: '15 Nov 2024',
+    grDate: '10 Jan 2025',
+    invoiceDate: '05 Jan 2025',
     paymentDates: {},
   },
   {
     invoiceId: 'INV-014',
     poId: 'PO-013',
-    fields: [
-      { label: 'Supplier', poValue: 'McKinsey & Company', grValue: 'McKinsey & Company', invoiceValue: 'McKinsey & Company', status: 'match' },
-      { label: 'Total Amount', poValue: formatCurrency(1850000), grValue: 'Not received', invoiceValue: formatCurrency(450000), status: 'mismatch', variance: 'No GR' },
-      { label: 'Line Items', poValue: '4 phases', grValue: 'N/A', invoiceValue: 'Phase 1 only', status: 'mismatch', variance: 'GR missing' },
-      { label: 'Invoice Date', poValue: '07 Jan 2025', grValue: '-', invoiceValue: '06 Jan 2025', status: 'minor-variance', variance: 'Pre-delivery' },
-    ],
-    withinTolerance: false,
+    supplier: 'McKinsey & Company',
+    poAmount: 1850000,
+    grAmount: null,
+    invoiceAmount: 450000,
+    poItems: '4 phases',
+    grItems: null,
+    invoiceItems: 'Phase 1 only',
+    poDate: '07 Jan 2025',
+    grDate: null,
+    invoiceDate: '06 Jan 2025',
     paymentDates: {},
   },
 ];
 
 export function ThreeWayMatchPage() {
   const { data: allInvoices = [] } = useInvoices();
-  const [selectedInvoice, setSelectedInvoice] = useState<string>(matchScenarios[0].invoiceId);
+  const [selectedInvoice, setSelectedInvoice] = useState<string>(rawScenarios[0].invoiceId);
 
-  const scenario = matchScenarios.find((s) => s.invoiceId === selectedInvoice);
+  const scenario = rawScenarios.find((s) => s.invoiceId === selectedInvoice);
+  const fields = scenario ? buildFields(scenario) : [];
+  const withinTolerance =
+    scenario !== undefined &&
+    fields.every((f) => f.status === 'match') &&
+    scenario.grAmount !== null;
 
   return (
     <div className="space-y-5">
@@ -101,11 +196,11 @@ export function ThreeWayMatchPage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {matchScenarios.map((s) => {
+                {rawScenarios.map((s) => {
                   const inv = allInvoices.find((i) => i.id === s.invoiceId);
                   return (
                     <SelectItem key={s.invoiceId} value={s.invoiceId}>
-                      {s.invoiceId} - {inv?.supplierName} ({formatCurrency(inv?.amount ?? 0)})
+                      {s.invoiceId} - {inv?.supplierName ?? s.supplier} ({formatCurrency(inv?.amount ?? s.invoiceAmount)})
                     </SelectItem>
                   );
                 })}
@@ -118,13 +213,13 @@ export function ThreeWayMatchPage() {
       {scenario && (
         <>
           <MatchVisualizer
-            fields={scenario.fields}
+            fields={fields}
             poId={scenario.poId}
             invoiceId={scenario.invoiceId}
           />
 
           <div className="flex gap-3">
-            {scenario.withinTolerance ? (
+            {withinTolerance ? (
               <Button>
                 <CheckCircle className="size-3.5" />
                 Auto-Approve

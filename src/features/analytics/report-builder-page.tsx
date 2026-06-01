@@ -92,6 +92,27 @@ const SAMPLE_WIDGETS: ReportWidget[] = [
 
 let widgetCounter = 4;
 
+function downloadCsv(filename: string, rows: Record<string, unknown>[]): void {
+  if (rows.length === 0) return;
+  const headers = Object.keys(rows[0]);
+  const lines = [
+    headers.join(','),
+    ...rows.map((r) =>
+      headers.map((h) => {
+        const v = String(r[h] ?? '');
+        return v.includes(',') || v.includes('"') || v.includes('\n') ? `"${v.replace(/"/g, '""')}"` : v;
+      }).join(','),
+    ),
+  ];
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export function ReportBuilderPage() {
   const [widgets, setWidgets] = useState<ReportWidget[]>(SAMPLE_WIDGETS);
   const [selectedWidgetId, setSelectedWidgetId] = useState<string | null>(null);
@@ -182,15 +203,25 @@ export function ReportBuilderPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => toast.info('Export functionality coming soon')}
+              onClick={() => {
+                const allRows = widgets.flatMap((w) =>
+                  (w.data as { name: string; value: unknown }[]).map((d) => ({
+                    widget: w.title,
+                    name: d.name,
+                    value: d.value,
+                  })),
+                );
+                downloadCsv('report.csv', allRows);
+              }}
             >
               <Download className="mr-1.5 size-3.5" />
-              Export
+              Export CSV
             </Button>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => toast.info('Schedule functionality coming soon')}
+              disabled
+              title="Scheduled reports coming soon"
             >
               <Clock className="mr-1.5 size-3.5" />
               Schedule
@@ -353,17 +384,26 @@ export function ReportBuilderPage() {
               <div className="border-t border-gray-100 pt-3">
                 <p className="text-xs font-medium text-gray-600">Export Widget</p>
                 <div className="mt-2 flex gap-1.5">
-                  {['PDF', 'Excel', 'CSV'].map((fmt) => (
-                    <Button
-                      key={fmt}
-                      variant="outline"
-                      size="sm"
-                      className="flex-1 text-xs"
-                      onClick={() => toast.info(`${fmt} export coming soon`)}
-                    >
-                      {fmt}
-                    </Button>
-                  ))}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 text-xs"
+                    onClick={() => {
+                      if (!selectedWidget) return;
+                      downloadCsv(
+                        `${selectedWidget.title.replace(/\s+/g, '_')}.csv`,
+                        selectedWidget.data as Record<string, unknown>[],
+                      );
+                    }}
+                  >
+                    CSV
+                  </Button>
+                  <Button variant="outline" size="sm" className="flex-1 text-xs" disabled title="Coming soon">
+                    Excel
+                  </Button>
+                  <Button variant="outline" size="sm" className="flex-1 text-xs" disabled title="Coming soon">
+                    PDF
+                  </Button>
                 </div>
               </div>
             </div>

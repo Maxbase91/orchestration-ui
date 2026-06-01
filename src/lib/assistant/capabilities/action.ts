@@ -1,5 +1,19 @@
 import type { AssistantTurn, ConfirmTurn } from '@/data/types';
 import type { ProviderContext } from '../provider';
+import type { Role } from '@/config/roles';
+
+const ROLE_ALLOWED_ACTIONS: Record<Role, string[]> = {
+  'service-owner':       ['add_watcher', 'set_delegate', 'set_ooo'],
+  'vendor-manager':      ['add_watcher', 'set_delegate', 'set_ooo', 'request_risk_reassessment'],
+  'operations-lead':     ['add_watcher', 'set_delegate', 'set_ooo', 'reassign_request', 'request_contract_renewal', 'request_po_change', 'raise_payment_escalation'],
+  'procurement-manager': ['add_watcher', 'set_delegate', 'set_ooo', 'approver_substitution', 'reassign_request', 'request_risk_reassessment', 'request_contract_renewal', 'request_po_change', 'raise_payment_escalation'],
+  'admin':               ['add_watcher', 'set_delegate', 'set_ooo', 'approver_substitution', 'reassign_request', 'request_risk_reassessment', 'request_contract_renewal', 'request_po_change', 'raise_payment_escalation'],
+  'supplier':            [],
+};
+
+function isActionAllowed(actionType: string, role: Role): boolean {
+  return ROLE_ALLOWED_ACTIONS[role]?.includes(actionType) ?? false;
+}
 
 // In-memory activity log — Phase 2 will write to Supabase audit_entries.
 interface ActivityEntry {
@@ -58,6 +72,10 @@ export function proposeAction(
   params: Record<string, unknown>,
   ctx: ProviderContext
 ): AssistantTurn[] {
+  if (!isActionAllowed(actionType, ctx.role)) {
+    return [{ type: 'chat-answer', content: `You don't have permission to perform "${actionType}" as a ${ctx.role}.` }];
+  }
+
   const actionId = `pa-${Date.now()}`;
   pendingActions.set(actionId, { actionType, params });
 
@@ -109,9 +127,15 @@ export function executeAction(turn: ConfirmTurn, ctx: ProviderContext): Assistan
   if (!pending) {
     return [{ type: 'chat-answer', content: 'This action has already been executed or has expired.' }];
   }
-  pendingActions.delete(turn.actionId);
 
   const { actionType, params } = pending;
+
+  if (!isActionAllowed(actionType, ctx.role)) {
+    pendingActions.delete(turn.actionId);
+    return [{ type: 'chat-answer', content: `You don't have permission to execute "${actionType}" as a ${ctx.role}.` }];
+  }
+
+  pendingActions.delete(turn.actionId);
 
   switch (actionType) {
     case 'add_watcher': {

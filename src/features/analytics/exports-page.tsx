@@ -58,12 +58,64 @@ export function ExportsPage() {
   const [toDate, setToDate] = useState<string>('');
   const [format, setFormat] = useState<ExportFormat>('csv');
 
+  function downloadCsv(filename: string, rows: Record<string, unknown>[]): void {
+    const headers = Object.keys(rows[0] ?? {});
+    if (!headers.length) return;
+    const lines = [
+      headers.join(','),
+      ...rows.map((r) =>
+        headers.map((h) => {
+          const v = String(r[h] ?? '');
+          return v.includes(',') || v.includes('"') || v.includes('\n') ? `"${v.replace(/"/g, '""')}"` : v;
+        }).join(','),
+      ),
+    ];
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  const SAMPLE_DATA: Record<string, Record<string, unknown>[]> = {
+    Requests: [
+      { id: 'REQ-001', title: 'Cybersecurity assessment', status: 'approved', value: 45000, category: 'consulting' },
+      { id: 'REQ-002', title: 'Office furniture', status: 'completed', value: 12000, category: 'goods' },
+    ],
+    Suppliers: [
+      { id: 'SUP-001', name: 'Accenture', country: 'DE', risk_rating: 'low', sra_status: 'valid' },
+      { id: 'SUP-002', name: 'AWS', country: 'US', risk_rating: 'medium', sra_status: 'expiring' },
+    ],
+    Contracts: [
+      { id: 'CON-001', title: 'IT Services Framework', status: 'active', value: 2400000, end_date: '2026-12-31' },
+    ],
+    'Purchase Orders': [
+      { id: 'PO-001', supplier: 'AWS', value: 480000, status: 'received', delivery_date: '2026-03-15' },
+    ],
+    Invoices: [
+      { id: 'INV-001', supplier: 'AWS', amount: 120000, status: 'pending', match_status: 'mismatch' },
+    ],
+    'Spend Data': [
+      { month: 'Jan 2026', total_spend: 2800000, category: 'software' },
+      { month: 'Feb 2026', total_spend: 3100000, category: 'services' },
+    ],
+  };
+
   const handleExport = () => {
     if (!dataType) {
       toast.error('Please select a data type');
       return;
     }
-    toast.success("Export started. You'll be notified when ready.");
+    if (format !== 'csv') {
+      toast.info(`${formatLabels[format]} export is not yet available. Please select CSV.`);
+      return;
+    }
+    const rows = SAMPLE_DATA[dataType] ?? [{ message: `No sample data for ${dataType}` }];
+    const filename = `${dataType.replace(/\s+/g, '_')}_export_${new Date().toISOString().slice(0, 10)}.csv`;
+    downloadCsv(filename, rows);
+    toast.success(`${dataType} exported as CSV`);
   };
 
   const columns: Column<RecentExport>[] = [
@@ -103,11 +155,31 @@ export function ExportsPage() {
     {
       key: 'download',
       label: '',
-      render: () => (
-        <Button variant="ghost" size="sm" disabled title="Export download ships with the reporting phase.">
-          <Download className="size-3.5" />
-        </Button>
-      ),
+      render: (row) => {
+        const fmt = row.format as ExportFormat;
+        if (fmt === 'csv') {
+          return (
+            <Button
+              variant="ghost"
+              size="sm"
+              title="Download"
+              onClick={() => {
+                const filename = row.name as string;
+                const sampleKey = filename.split('_')[0] ?? 'Requests';
+                const rows = SAMPLE_DATA[sampleKey] ?? [{ file: filename }];
+                downloadCsv(filename, rows);
+              }}
+            >
+              <Download className="size-3.5" />
+            </Button>
+          );
+        }
+        return (
+          <Button variant="ghost" size="sm" disabled title={`${formatLabels[fmt]} download coming soon`}>
+            <Download className="size-3.5" />
+          </Button>
+        );
+      },
     },
   ];
 

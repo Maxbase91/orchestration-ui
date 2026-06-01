@@ -393,6 +393,42 @@ async function execCreateTicket(
   return { ticketId };
 }
 
+// ─── Text-based tool-call parser ─────────────────────────────────────────────
+// Some Groq model variants emit tool calls as plain text instead of structured
+// tool_calls (e.g. "search_knowledge: approval threshold"). This parser catches
+// the most common patterns so the loop can still execute the tool and make a
+// grounded second round-trip rather than returning the raw text to the user.
+
+interface ParsedTextToolCall {
+  id: string;
+  name: string;
+  args: Record<string, unknown>;
+}
+
+function parseTextToolCall(content: string): ParsedTextToolCall | null {
+  const c = content.trim();
+
+  // search_knowledge: <query>
+  const skMatch = c.match(/^(?:.*?)?search_knowledge:\s*(.+?)(?:\n|$)/im);
+  if (skMatch) {
+    return { id: `txt-${Date.now()}`, name: 'search_knowledge', args: { query: skMatch[1].trim() } };
+  }
+
+  // lookup_object: <type> <identifier>
+  const loMatch = c.match(/^(?:.*?)?lookup_object:\s*(\S+)\s+(.+?)(?:\n|$)/im);
+  if (loMatch) {
+    return { id: `txt-${Date.now()}`, name: 'lookup_object', args: { type: loMatch[1].trim(), identifier: loMatch[2].trim() } };
+  }
+
+  // filter_objects: <type>
+  const foMatch = c.match(/^(?:.*?)?filter_objects:\s*(.+?)(?:\n|$)/im);
+  if (foMatch) {
+    return { id: `txt-${Date.now()}`, name: 'filter_objects', args: { object_type: foMatch[1].trim() } };
+  }
+
+  return null;
+}
+
 // ─── Handler ──────────────────────────────────────────────────────────────────
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -487,6 +523,45 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     llmMessages.push(result.assistantMessage as LLMMessage);
+
+    // If the model stopped but emitted a tool call as plain text (no structured
+    // tool_calls array), parse and execute it so the loop can continue rather
+    // than returning the raw tool-call text to the user.
+    if (result.toolCalls.length === 0 && result.content) {
+      const textCall = parseTextToolCall(result.content);
+      if (textCall) {
+        console.warn(`[chat] text-based tool call detected: ${textCall.name} — executing and continuing`);
+        let textToolResult = '';
+        if (textCall.name === 'search_knowledge') {
+          textToolResult = await execSearchKnowledge((textCall.args.query as string) ?? '');
+        } else if (textCall.name === 'lookup_object') {
+          const type = (textCall.args.type as string) ?? '';
+          const identifier = (textCall.args.identifier as string) ?? '';
+          lookupType = type;
+          lookupIdentifier = identifier;
+          textToolResult = await execLookupObject(type, identifier);
+        } else if (textCall.name === 'filter_objects') {
+          textToolResult = await execFilterObjects(
+            (textCall.args.object_type as string) ?? '',
+            textCall.args.filters as string | undefined,
+            typeof textCall.args.limit === 'number' ? textCall.args.limit : 5,
+          );
+        }
+        if (textToolResult) {
+          hadToolCalls = true;
+          // Replace the last assistant message with a synthetic one that has
+          // tool_calls, so Groq accepts the subsequent tool-result message.
+          llmMessages.pop();
+          llmMessages.push({
+            role: 'assistant',
+            content: null as unknown as string,
+            tool_calls: [{ id: textCall.id, type: 'function', function: { name: textCall.name, arguments: JSON.stringify(textCall.args) } }],
+          } as unknown as LLMMessage);
+          llmMessages.push({ role: 'tool', content: textToolResult, tool_call_id: textCall.id, name: textCall.name });
+          continue;
+        }
+      }
+    }
 
     if (result.finishReason === 'stop' || result.toolCalls.length === 0) {
       // Build structural (non-text) turns

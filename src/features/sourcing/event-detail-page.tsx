@@ -90,6 +90,21 @@ const mockEvents: Record<string, SourcingEventDetail> = {
       { name: 'Sodexo', status: 'responded', responseDate: '2025-02-27' },
     ],
   },
+  'SRC-004': {
+    id: 'SRC-004',
+    title: 'Cybersecurity Assessment Services',
+    category: 'Security',
+    type: 'RFP',
+    status: 'draft',
+    deadline: '2025-05-01',
+    publishDate: '',
+    evaluationDate: '',
+    awardDate: '',
+    budget: 150000,
+    owner: 'Marcus Johnson',
+    description: 'Procurement of external cybersecurity assessment services including penetration testing and compliance audit.',
+    supplierResponses: [],
+  },
 };
 
 const supplierStatusColors: Record<string, string> = {
@@ -178,7 +193,7 @@ export function EventDetailPage() {
               <CardContent className="space-y-2 text-sm">
                 <div className="flex justify-between"><span className="text-muted-foreground">Invited</span><span className="font-medium">{event.supplierResponses.length}</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">Responded</span><span className="font-medium text-green-700">{responseRate}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Response Rate</span><span className="font-medium">{Math.round((responseRate / event.supplierResponses.length) * 100)}%</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Response Rate</span><span className="font-medium">{event.supplierResponses.length > 0 ? `${Math.round((responseRate / event.supplierResponses.length) * 100)}%` : '—'}</span></div>
               </CardContent>
             </Card>
 

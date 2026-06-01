@@ -15,7 +15,7 @@ function formatValue(value: string | number, format?: string): string {
   if (typeof value === 'string') return value;
   switch (format) {
     case 'currency':
-      return new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP', maximumFractionDigits: 0 }).format(value);
+      return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(value);
     case 'percentage':
       return `${value}%`;
     default:

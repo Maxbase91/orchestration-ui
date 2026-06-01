@@ -4,7 +4,7 @@ import { ComplianceCheckResult } from './components/compliance-check-result';
 import { AISuggestionCard } from '@/components/shared/ai-suggestion-card';
 import { formatCurrency } from '@/lib/format';
 import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
-import type { Supplier } from '@/data/types';
+import type { Supplier, WorkflowTemplate, RoutingRule } from '@/data/types';
 import { useContracts } from '@/lib/db/hooks/use-contracts';
 import { useMatchingRiskAssessments } from '@/lib/db/hooks/use-risk-assessments';
 import { useFormTemplate } from '@/lib/db/hooks/use-form-templates';
@@ -24,6 +24,14 @@ import { DynamicForm } from '@/components/shared/dynamic-form';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { SupplierRecommenderCard } from './components/supplier-recommender-card';
 import type { RiskAssessment } from '@/data/types';
+
+// Stable empty fallbacks defined at module level. Inline `= []` creates a
+// new array reference on every render, which destabilises the useMemo dep
+// array and causes an infinite update loop via onUpdate.
+const EMPTY_SUPPLIERS: Supplier[] = [];
+const EMPTY_MATCHES: RiskAssessment[] = [];
+const EMPTY_RULES: RoutingRule[] = [];
+const EMPTY_TEMPLATES: WorkflowTemplate[] = [];
 
 interface MatchingRiskAssessmentSummary {
   id: string;
@@ -230,11 +238,11 @@ export function StepCompliance({
   workflowTemplateId,
   onUpdate,
 }: StepComplianceProps) {
-  const { data: suppliers = [] } = useSuppliers();
-  const { data: matches = [], isFetched: matchesFetched } = useMatchingRiskAssessments({ supplierId });
-  const { data: routingRules = [] } = useRoutingRules();
+  const { data: suppliers = EMPTY_SUPPLIERS } = useSuppliers();
+  const { data: matches = EMPTY_MATCHES, isFetched: matchesFetched } = useMatchingRiskAssessments({ supplierId });
+  const { data: routingRules = EMPTY_RULES } = useRoutingRules();
   const { data: validatorAgent } = useAiAgent('AI-002');
-  const { data: workflowTemplates = [] } = useWorkflowTemplates();
+  const { data: workflowTemplates = EMPTY_TEMPLATES } = useWorkflowTemplates();
 
   // A fetch is pending if we have a supplierId and the matching-SRA
   // lookup hasn't resolved yet. Once resolved (success or error),

@@ -8,6 +8,7 @@ import { TabWorkflow } from './tab-workflow';
 import { TabApprovals } from './tab-approvals';
 import { TabRelated } from './tab-related';
 import { TabActivity } from './tab-activity';
+import { TabCompliance } from './tab-compliance';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
 import { FileQuestion } from 'lucide-react';
@@ -46,19 +47,20 @@ export function RequestDetailPage() {
         </CardContent>
       </Card>
 
-      {/* 5-tab layout. Compliance content now lives on the Workflow
-          stage cards; Documents live per-stage + as a latest-doc chip
-          in the header; Comments + Audit are merged into Activity. */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList variant="line" className="w-full justify-start border-b">
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="compliance">Compliance</TabsTrigger>
           <TabsTrigger value="workflow">Workflow</TabsTrigger>
           <TabsTrigger value="approvals">Approvals</TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
-          <TabsTrigger value="links">Links</TabsTrigger>
+          <TabsTrigger value="links">Related</TabsTrigger>
         </TabsList>
         <TabsContent value="overview" className="pt-4">
           <TabOverview request={request} />
+        </TabsContent>
+        <TabsContent value="compliance" className="pt-4">
+          <TabCompliance request={request} />
         </TabsContent>
         <TabsContent value="workflow" className="pt-4">
           <TabWorkflow request={request} focusStageId={focusStageId} />

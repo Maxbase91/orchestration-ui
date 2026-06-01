@@ -5,10 +5,21 @@ export function getStatusColor(status: string): string {
   return statusColorMap[key] ?? 'bg-gray-100 text-gray-700';
 }
 
+const ACRONYMS: Record<string, string> = {
+  'po': 'PO',
+  'gr': 'GR',
+  'rfp': 'RFP',
+  'rfq': 'RFQ',
+  'rfi': 'RFI',
+  'sra': 'SRA',
+  'kpi': 'KPI',
+};
+
 export function getStatusLabel(status: string): string {
   return status
+    .toLowerCase()
     .split('-')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .map((word) => ACRONYMS[word] ?? (word.charAt(0).toUpperCase() + word.slice(1)))
     .join(' ');
 }
 

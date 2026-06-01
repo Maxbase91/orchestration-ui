@@ -3,6 +3,7 @@ import { Toaster } from 'sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { AppLayout } from '@/components/layout/app-layout'
 import { SupplierPortalLayout } from '@/components/layout/supplier-portal-layout'
+import { RequireRole } from '@/components/layout/require-role'
 import { DashboardPage } from '@/features/dashboard/dashboard-page'
 import { NewRequestPage } from '@/features/requests/new-request/new-request-page'
 import { RequestDetailPage } from '@/features/requests/request-detail/request-detail-page'
@@ -79,86 +80,100 @@ export function App() {
           <Route element={<AppLayout />}>
             <Route path="/" element={<DashboardPage />} />
 
-            {/* Requests */}
-            <Route path="/requests" element={<RequestListPage title="All Requests" />} />
-            <Route path="/requests/my" element={<RequestListPage title="My Requests" filterMine />} />
-            <Route path="/requests/new" element={<NewRequestPage />} />
-            <Route path="/requests/:id" element={<RequestDetailPage />} />
+            {/* Requests — all internal roles */}
+            <Route element={<RequireRole roles={['service-owner', 'procurement-manager', 'vendor-manager', 'operations-lead', 'admin']} />}>
+              <Route path="/requests" element={<RequestListPage title="All Requests" />} />
+              <Route path="/requests/my" element={<RequestListPage title="My Requests" filterMine />} />
+              <Route path="/requests/new" element={<NewRequestPage />} />
+              <Route path="/requests/:id" element={<RequestDetailPage />} />
+            </Route>
 
-            {/* Approvals */}
-            <Route path="/approvals" element={<ApprovalsPage />} />
-            <Route path="/approvals/delegation" element={<DelegationPage />} />
+            {/* Approvals & Tasks — all internal roles */}
+            <Route element={<RequireRole roles={['service-owner', 'procurement-manager', 'vendor-manager', 'operations-lead', 'admin']} />}>
+              <Route path="/approvals" element={<ApprovalsPage />} />
+              <Route path="/approvals/delegation" element={<DelegationPage />} />
+              <Route path="/tasks" element={<MyTasksPage />} />
+              <Route path="/tasks/team" element={<TeamTasksPage />} />
+            </Route>
 
-            {/* Tasks */}
-            <Route path="/tasks" element={<MyTasksPage />} />
-            <Route path="/tasks/team" element={<TeamTasksPage />} />
+            {/* Workflows & Pipeline — procurement-manager, operations-lead, admin */}
+            <Route element={<RequireRole roles={['procurement-manager', 'operations-lead', 'admin']} />}>
+              <Route path="/workflows" element={<ActiveWorkflowsPage />} />
+              <Route path="/workflows/monitor" element={<WorkflowMonitorPage />} />
+              <Route path="/workflows/bottlenecks" element={<BottlenecksPage />} />
+              <Route path="/pipeline/demand" element={<DemandPipelinePage />} />
+              <Route path="/pipeline/sourcing" element={<SourcingPipelinePage />} />
+            </Route>
 
-            {/* Workflows */}
-            <Route path="/workflows" element={<ActiveWorkflowsPage />} />
-            <Route path="/workflows/monitor" element={<WorkflowMonitorPage />} />
-            <Route path="/workflows/bottlenecks" element={<BottlenecksPage />} />
+            {/* Sourcing — procurement-manager, vendor-manager, admin */}
+            <Route element={<RequireRole roles={['procurement-manager', 'vendor-manager', 'admin']} />}>
+              <Route path="/sourcing" element={<EventListPage />} />
+              <Route path="/sourcing/new" element={<NewEventPage />} />
+              <Route path="/sourcing/templates" element={<SourcingTemplatesPage />} />
+              <Route path="/sourcing/evaluation" element={<EvaluationCentrePage />} />
+              <Route path="/sourcing/:id" element={<EventDetailPage />} />
+            </Route>
 
-            {/* Pipeline */}
-            <Route path="/pipeline/demand" element={<DemandPipelinePage />} />
-            <Route path="/pipeline/sourcing" element={<SourcingPipelinePage />} />
+            {/* Suppliers — procurement-manager, vendor-manager, operations-lead, admin */}
+            <Route element={<RequireRole roles={['procurement-manager', 'vendor-manager', 'operations-lead', 'admin']} />}>
+              <Route path="/suppliers" element={<SupplierDirectoryPage />} />
+              <Route path="/suppliers/onboarding" element={<OnboardingPipelinePage />} />
+              <Route path="/suppliers/risk" element={<RiskCompliancePage />} />
+              <Route path="/suppliers/portal-admin" element={<PortalAdminPage />} />
+              <Route path="/suppliers/messages" element={<SupplierMessagesPage />} />
+              <Route path="/suppliers/:id" element={<SupplierProfilePage />} />
+            </Route>
 
-            {/* Sourcing */}
-            <Route path="/sourcing" element={<EventListPage />} />
-            <Route path="/sourcing/new" element={<NewEventPage />} />
-            <Route path="/sourcing/templates" element={<SourcingTemplatesPage />} />
-            <Route path="/sourcing/evaluation" element={<EvaluationCentrePage />} />
-            <Route path="/sourcing/:id" element={<EventDetailPage />} />
+            {/* Contracts — procurement-manager, operations-lead, admin */}
+            <Route element={<RequireRole roles={['procurement-manager', 'operations-lead', 'admin']} />}>
+              <Route path="/contracts" element={<ContractRegisterPage />} />
+              <Route path="/contracts/renewals" element={<RenewalsPage />} />
+              <Route path="/contracts/templates" element={<TemplatesPage />} />
+              <Route path="/contracts/:id" element={<ContractDetailPage />} />
+            </Route>
 
-            {/* Suppliers */}
-            <Route path="/suppliers" element={<SupplierDirectoryPage />} />
-            <Route path="/suppliers/onboarding" element={<OnboardingPipelinePage />} />
-            <Route path="/suppliers/risk" element={<RiskCompliancePage />} />
-            <Route path="/suppliers/portal-admin" element={<PortalAdminPage />} />
-            <Route path="/suppliers/messages" element={<SupplierMessagesPage />} />
-            <Route path="/suppliers/:id" element={<SupplierProfilePage />} />
+            {/* Purchasing — procurement-manager, operations-lead, admin */}
+            <Route element={<RequireRole roles={['procurement-manager', 'operations-lead', 'admin']} />}>
+              <Route path="/purchasing/orders" element={<POListPage />} />
+              <Route path="/purchasing/orders/:id" element={<PODetailPage />} />
+              <Route path="/purchasing/receipt" element={<GoodsReceiptPage />} />
+              <Route path="/purchasing/invoices" element={<InvoiceQueuePage />} />
+              <Route path="/purchasing/match" element={<ThreeWayMatchPage />} />
+              <Route path="/purchasing/payments" element={<PaymentTrackerPage />} />
+            </Route>
 
-            {/* Contracts */}
-            <Route path="/contracts" element={<ContractRegisterPage />} />
-            <Route path="/contracts/renewals" element={<RenewalsPage />} />
-            <Route path="/contracts/templates" element={<TemplatesPage />} />
-            <Route path="/contracts/:id" element={<ContractDetailPage />} />
+            {/* Analytics — procurement-manager, operations-lead, admin */}
+            <Route element={<RequireRole roles={['procurement-manager', 'operations-lead', 'admin']} />}>
+              <Route path="/analytics/spend" element={<SpendDashboardPage />} />
+              <Route path="/analytics/compliance" element={<ComplianceKPIPage />} />
+              <Route path="/analytics/pipeline" element={<PipelineDashboardPage />} />
+              <Route path="/analytics/suppliers" element={<SupplierPerformancePage />} />
+              <Route path="/analytics/reports" element={<ReportBuilderPage />} />
+              <Route path="/analytics/reports/scheduled" element={<ScheduledReportsPage />} />
+              <Route path="/analytics/exports" element={<ExportsPage />} />
+            </Route>
 
-            {/* Purchasing */}
-            <Route path="/purchasing/orders" element={<POListPage />} />
-            <Route path="/purchasing/orders/:id" element={<PODetailPage />} />
-            <Route path="/purchasing/receipt" element={<GoodsReceiptPage />} />
-            <Route path="/purchasing/invoices" element={<InvoiceQueuePage />} />
-            <Route path="/purchasing/match" element={<ThreeWayMatchPage />} />
-            <Route path="/purchasing/payments" element={<PaymentTrackerPage />} />
+            {/* Admin — admin only */}
+            <Route element={<RequireRole roles={['admin']} />}>
+              <Route path="/admin/database" element={<DatabaseAdminPage />} />
+              <Route path="/admin/rules" element={<RoutingRulesPage />} />
+              <Route path="/admin/forms" element={<FormBuilderPage />} />
+              <Route path="/admin/approvals" element={<ApprovalChainsPage />} />
+              <Route path="/admin/workflows" element={<WorkflowDesignerPage />} />
+              <Route path="/admin/agents" element={<AIAgentsPage />} />
+              <Route path="/admin/policies" element={<PolicyManagementPage />} />
+              <Route path="/admin/users" element={<UserManagementPage />} />
+              <Route path="/admin/health" element={<SystemHealthPage />} />
+              <Route path="/admin/audit" element={<AuditLogPage />} />
+              <Route path="/admin/ai-analytics" element={<AIAnalyticsPage />} />
+              <Route path="/admin/kb" element={<KBAdminPage />} />
+            </Route>
 
-            {/* Analytics */}
-            <Route path="/analytics/spend" element={<SpendDashboardPage />} />
-            <Route path="/analytics/compliance" element={<ComplianceKPIPage />} />
-            <Route path="/analytics/pipeline" element={<PipelineDashboardPage />} />
-            <Route path="/analytics/suppliers" element={<SupplierPerformancePage />} />
-            <Route path="/analytics/reports" element={<ReportBuilderPage />} />
-            <Route path="/analytics/reports/scheduled" element={<ScheduledReportsPage />} />
-            <Route path="/analytics/exports" element={<ExportsPage />} />
-
-            {/* Admin */}
-            <Route path="/admin/database" element={<DatabaseAdminPage />} />
-            <Route path="/admin/rules" element={<RoutingRulesPage />} />
-            <Route path="/admin/forms" element={<FormBuilderPage />} />
-            <Route path="/admin/approvals" element={<ApprovalChainsPage />} />
-            <Route path="/admin/workflows" element={<WorkflowDesignerPage />} />
-            <Route path="/admin/agents" element={<AIAgentsPage />} />
-            <Route path="/admin/policies" element={<PolicyManagementPage />} />
-            <Route path="/admin/users" element={<UserManagementPage />} />
-            <Route path="/admin/health" element={<SystemHealthPage />} />
-            <Route path="/admin/audit" element={<AuditLogPage />} />
-            <Route path="/admin/ai-analytics" element={<AIAnalyticsPage />} />
-            <Route path="/admin/kb" element={<KBAdminPage />} />
-
-            {/* Notifications & Settings */}
+            {/* Notifications & Settings — all roles */}
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
 
-            {/* Help */}
+            {/* Help — all roles */}
             <Route path="/help/assistant" element={<AIAssistantPage />} />
             <Route path="/help/kb" element={<KnowledgeBasePage />} />
             <Route path="/help/support" element={<ContactSupportPage />} />
