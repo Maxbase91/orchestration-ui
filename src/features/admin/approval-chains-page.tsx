@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   ChevronDown,
   ChevronRight,
   GripVertical,
+  Loader2,
   Pencil,
   Plus,
   X,
@@ -12,76 +13,54 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { PageHeader } from '@/components/shared/page-header';
-
-interface ApprovalStep {
-  id: string;
-  role: string;
-}
-
-interface ApprovalChain {
-  id: string;
-  name: string;
-  description: string;
-  threshold: string;
-  steps: ApprovalStep[];
-  referencedBy: string[];
-}
-
-const initialChains: ApprovalChain[] = [
-  {
-    id: 'chain-1',
-    name: 'Standard',
-    description: 'For requests between EUR 10k and EUR 100k',
-    threshold: '10,000 - 100,000',
-    steps: [
-      { id: 's1', role: 'Budget Owner' },
-      { id: 's2', role: 'Category Manager' },
-      { id: 's3', role: 'Finance' },
-    ],
-    referencedBy: ['Standard Goods', 'Standard Services', 'Software Licensing'],
-  },
-  {
-    id: 'chain-2',
-    name: 'Fast-Track',
-    description: 'For requests under EUR 10k',
-    threshold: '< 10,000',
-    steps: [{ id: 's1', role: 'Category Manager' }],
-    referencedBy: ['Low-Value Purchases', 'Catalogue Orders'],
-  },
-  {
-    id: 'chain-3',
-    name: 'VP-Level',
-    description: 'For requests between EUR 100k and EUR 500k',
-    threshold: '100,000 - 500,000',
-    steps: [
-      { id: 's1', role: 'Budget Owner' },
-      { id: 's2', role: 'Category Manager' },
-      { id: 's3', role: 'Finance' },
-      { id: 's4', role: 'VP Procurement' },
-    ],
-    referencedBy: ['High-Value Consulting', 'IT Infrastructure'],
-  },
-  {
-    id: 'chain-4',
-    name: 'Board-Level',
-    description: 'For requests over EUR 500k',
-    threshold: '> 500,000',
-    steps: [
-      { id: 's1', role: 'Budget Owner' },
-      { id: 's2', role: 'Category Manager' },
-      { id: 's3', role: 'Finance' },
-      { id: 's4', role: 'VP Procurement' },
-      { id: 's5', role: 'CFO' },
-      { id: 's6', role: 'Board' },
-    ],
-    referencedBy: ['Strategic Engagements'],
-  },
-];
+import {
+  useApprovalChains,
+  useUpsertApprovalChain,
+} from '@/lib/db/hooks/use-approval-chains';
+import type { ApprovalChain } from '@/lib/db/approval-chains';
 
 export function ApprovalChainsPage() {
-  const [chains, setChains] = useState<ApprovalChain[]>(initialChains);
+  const { data: serverChains = [], isLoading } = useApprovalChains();
+  const upsertChain = useUpsertApprovalChain();
+
+  // Local edit buffer — only holds chains currently being edited
+  const [editBuffer, setEditBuffer] = useState<Record<string, ApprovalChain>>({});
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  // Clear edit buffer for chains that no longer exist (e.g. after delete)
+  useEffect(() => {
+    if (!serverChains.length) return;
+    const ids = new Set(serverChains.map((c) => c.id));
+    setEditBuffer((prev) => {
+      const next = { ...prev };
+      let changed = false;
+      for (const k of Object.keys(next)) {
+        if (!ids.has(k)) { delete next[k]; changed = true; }
+      }
+      return changed ? next : prev;
+    });
+  }, [serverChains]);
+
+  // Merge: server chains + local new chains + edit overrides
+  const newChains = Object.values(editBuffer).filter(
+    (c) => !serverChains.some((s) => s.id === c.id),
+  );
+  const chains: ApprovalChain[] = [
+    ...serverChains.map((c) => editBuffer[c.id] ?? c),
+    ...newChains,
+  ];
+
+  function getEditable(chain: ApprovalChain): ApprovalChain {
+    return editBuffer[chain.id] ?? chain;
+  }
+
+  function patchEdit(id: string, patch: Partial<ApprovalChain>) {
+    setEditBuffer((prev) => ({
+      ...prev,
+      [id]: { ...(prev[id] ?? chains.find((c) => c.id === id)!), ...patch },
+    }));
+  }
 
   function toggleExpand(id: string) {
     setExpandedId((prev) => (prev === id ? null : id));
@@ -89,67 +68,68 @@ export function ApprovalChainsPage() {
   }
 
   function addStep(chainId: string) {
-    setChains((prev) =>
-      prev.map((c) =>
-        c.id === chainId
-          ? {
-              ...c,
-              steps: [
-                ...c.steps,
-                { id: `s${Date.now()}`, role: 'New Approver' },
-              ],
-            }
-          : c
-      )
-    );
+    const chain = getEditable(chains.find((c) => c.id === chainId)!);
+    patchEdit(chainId, {
+      steps: [...chain.steps, { id: `s${Date.now()}`, role: 'New Approver' }],
+    });
   }
 
   function removeStep(chainId: string, stepId: string) {
-    setChains((prev) =>
-      prev.map((c) =>
-        c.id === chainId
-          ? { ...c, steps: c.steps.filter((s) => s.id !== stepId) }
-          : c
-      )
-    );
+    const chain = getEditable(chains.find((c) => c.id === chainId)!);
+    patchEdit(chainId, { steps: chain.steps.filter((s) => s.id !== stepId) });
   }
 
   function updateStepRole(chainId: string, stepId: string, role: string) {
-    setChains((prev) =>
-      prev.map((c) =>
-        c.id === chainId
-          ? {
-              ...c,
-              steps: c.steps.map((s) =>
-                s.id === stepId ? { ...s, role } : s
-              ),
-            }
-          : c
-      )
-    );
+    const chain = getEditable(chains.find((c) => c.id === chainId)!);
+    patchEdit(chainId, {
+      steps: chain.steps.map((s) => (s.id === stepId ? { ...s, role } : s)),
+    });
   }
 
   function updateThreshold(chainId: string, threshold: string) {
-    setChains((prev) =>
-      prev.map((c) =>
-        c.id === chainId ? { ...c, threshold } : c
-      )
-    );
+    patchEdit(chainId, { threshold });
   }
 
   function addChain() {
+    const id = `chain-${Date.now()}`;
     const newChain: ApprovalChain = {
-      id: `chain-${Date.now()}`,
+      id,
       name: 'New Chain',
       description: 'Define the approval chain',
       threshold: 'TBD',
       steps: [{ id: `s${Date.now()}`, role: 'Approver' }],
       referencedBy: [],
     };
-    setChains((prev) => [...prev, newChain]);
-    setExpandedId(newChain.id);
-    setEditingId(newChain.id);
-    toast.success('New approval chain added');
+    setEditBuffer((prev) => ({ ...prev, [id]: newChain }));
+    setExpandedId(id);
+    setEditingId(id);
+  }
+
+  async function saveChain(chainId: string) {
+    const chain = getEditable(chains.find((c) => c.id === chainId)!);
+    try {
+      await upsertChain.mutateAsync(chain);
+      // Remove from edit buffer — server is now source of truth
+      setEditBuffer((prev) => {
+        const next = { ...prev };
+        delete next[chainId];
+        return next;
+      });
+      setEditingId(null);
+      toast.success('Approval chain saved');
+    } catch (e) {
+      console.error('Failed to save approval chain:', e);
+      toast.error('Failed to save. Please try again.');
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-16 gap-2 text-muted-foreground">
+        <Loader2 className="size-5 animate-spin" />
+        <span className="text-sm">Loading approval chains…</span>
+      </div>
+    );
   }
 
   return (
@@ -166,9 +146,11 @@ export function ApprovalChainsPage() {
       />
 
       <div className="space-y-3">
-        {chains.map((chain) => {
+        {chains.map((rawChain) => {
+          const chain = getEditable(rawChain);
           const isExpanded = expandedId === chain.id;
           const isEditing = editingId === chain.id;
+          const isSaving = upsertChain.isPending;
 
           return (
             <Card key={chain.id} className="overflow-hidden">
@@ -185,9 +167,7 @@ export function ApprovalChainsPage() {
                   )}
                   <div>
                     <p className="font-medium">{chain.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {chain.description}
-                    </p>
+                    <p className="text-xs text-muted-foreground">{chain.description}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
@@ -212,13 +192,7 @@ export function ApprovalChainsPage() {
                             <GripVertical className="size-3.5 text-muted-foreground" />
                             <Input
                               value={step.role}
-                              onChange={(e) =>
-                                updateStepRole(
-                                  chain.id,
-                                  step.id,
-                                  e.target.value
-                                )
-                              }
+                              onChange={(e) => updateStepRole(chain.id, step.id, e.target.value)}
                               className="h-7 w-32 text-xs"
                             />
                             <button
@@ -234,23 +208,14 @@ export function ApprovalChainsPage() {
                             <div className="flex size-7 items-center justify-center rounded-full bg-blue-100 text-xs font-medium text-blue-700">
                               {idx + 1}
                             </div>
-                            <span className="whitespace-nowrap text-sm">
-                              {step.role}
-                            </span>
+                            <span className="whitespace-nowrap text-sm">{step.role}</span>
                           </div>
                         )}
-                        {idx < chain.steps.length - 1 && (
-                          <div className="h-px w-6 bg-gray-300" />
-                        )}
+                        {idx < chain.steps.length - 1 && <div className="h-px w-6 bg-gray-300" />}
                       </div>
                     ))}
                     {isEditing && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-8"
-                        onClick={() => addStep(chain.id)}
-                      >
+                      <Button variant="outline" size="sm" className="h-8" onClick={() => addStep(chain.id)}>
                         <Plus className="size-3.5" />
                       </Button>
                     )}
@@ -259,14 +224,10 @@ export function ApprovalChainsPage() {
                   {/* Threshold editing */}
                   {isEditing && (
                     <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground">
-                        Threshold:
-                      </span>
+                      <span className="text-sm text-muted-foreground">Threshold:</span>
                       <Input
                         value={chain.threshold}
-                        onChange={(e) =>
-                          updateThreshold(chain.id, e.target.value)
-                        }
+                        onChange={(e) => updateThreshold(chain.id, e.target.value)}
                         className="h-8 w-48 text-sm"
                       />
                     </div>
@@ -280,10 +241,7 @@ export function ApprovalChainsPage() {
                       </p>
                       <div className="flex flex-wrap gap-1.5">
                         {chain.referencedBy.map((rule) => (
-                          <span
-                            key={rule}
-                            className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs text-gray-600"
-                          >
+                          <span key={rule} className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs text-gray-600">
                             {rule}
                           </span>
                         ))}
@@ -294,23 +252,15 @@ export function ApprovalChainsPage() {
                   {/* Actions */}
                   <div className="flex gap-2 border-t pt-3">
                     {isEditing ? (
-                      <Button
-                        size="sm"
-                        onClick={() => {
-                          setEditingId(null);
-                          toast.success('Approval chain saved');
-                        }}
-                      >
+                      <Button size="sm" onClick={() => saveChain(chain.id)} disabled={isSaving}>
+                        {isSaving ? <Loader2 className="mr-1.5 size-3.5 animate-spin" /> : null}
                         Save Changes
                       </Button>
                     ) : (
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEditingId(chain.id);
-                        }}
+                        onClick={(e) => { e.stopPropagation(); setEditingId(chain.id); }}
                       >
                         <Pencil className="mr-1.5 size-3.5" />
                         Edit

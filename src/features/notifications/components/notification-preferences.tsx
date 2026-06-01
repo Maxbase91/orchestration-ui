@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
+import { useAuthStore } from '@/stores/auth-store';
+import { useUserPreferences, useUpdateUserPreferences } from '@/lib/db/hooks/use-user-preferences';
 
 interface ChannelSetting {
   label: string;
@@ -11,8 +13,16 @@ interface ChannelSetting {
   push: boolean;
 }
 
-export function NotificationPreferences() {
-  const [channels, setChannels] = useState<ChannelSetting[]>([
+interface NotifPrefs {
+  channels: ChannelSetting[];
+  quietHoursEnabled: boolean;
+  quietStart: string;
+  quietEnd: string;
+  dailyDigest: boolean;
+}
+
+const DEFAULT_PREFS: NotifPrefs = {
+  channels: [
     { label: 'Approval Requests', inApp: true, email: true, push: true },
     { label: 'Status Updates', inApp: true, email: true, push: false },
     { label: 'SLA Warnings', inApp: true, email: true, push: true },
@@ -20,17 +30,51 @@ export function NotificationPreferences() {
     { label: 'Comments', inApp: true, email: false, push: false },
     { label: 'System Alerts', inApp: true, email: true, push: false },
     { label: 'AI Insights', inApp: true, email: false, push: false },
-  ]);
+  ],
+  quietHoursEnabled: false,
+  quietStart: '22:00',
+  quietEnd: '07:00',
+  dailyDigest: true,
+};
 
-  const [quietHoursEnabled, setQuietHoursEnabled] = useState(false);
-  const [quietStart, setQuietStart] = useState('22:00');
-  const [quietEnd, setQuietEnd] = useState('07:00');
-  const [dailyDigest, setDailyDigest] = useState(true);
+export function NotificationPreferences() {
+  const { currentUser } = useAuthStore();
+  const { data: remotePrefs } = useUserPreferences(currentUser.id);
+  const updatePrefs = useUpdateUserPreferences(currentUser.id);
+
+  const [prefs, setPrefs] = useState<NotifPrefs>(DEFAULT_PREFS);
+  const hydrated = useRef(false);
+
+  // Hydrate from remote prefs once loaded
+  useEffect(() => {
+    if (hydrated.current || !remotePrefs?.notifications) return;
+    hydrated.current = true;
+    setPrefs((prev) => ({ ...prev, ...(remotePrefs.notifications as Partial<NotifPrefs>) }));
+  }, [remotePrefs]);
+
+  // Persist whenever prefs change (after initial hydration)
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  function scheduleRemoteSave(updated: NotifPrefs) {
+    if (!hydrated.current) return;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      updatePrefs.mutate({ notifications: updated as unknown as Record<string, unknown> });
+    }, 600);
+  }
+
+  function update(patch: Partial<NotifPrefs>) {
+    setPrefs((prev) => {
+      const next = { ...prev, ...patch };
+      scheduleRemoteSave(next);
+      return next;
+    });
+  }
 
   function toggleChannel(index: number, channel: 'inApp' | 'email' | 'push') {
-    setChannels((prev) =>
-      prev.map((item, i) => (i === index ? { ...item, [channel]: !item[channel] } : item))
+    const updatedChannels = prefs.channels.map((item, i) =>
+      i === index ? { ...item, [channel]: !item[channel] } : item,
     );
+    update({ channels: updatedChannels });
   }
 
   return (
@@ -39,7 +83,6 @@ export function NotificationPreferences() {
       <Card className="p-4">
         <h3 className="mb-4 text-sm font-medium">Notification Channels</h3>
         <div className="space-y-0">
-          {/* Header */}
           <div className="grid grid-cols-4 gap-4 border-b pb-2 text-xs font-medium text-muted-foreground">
             <div>Event Type</div>
             <div className="text-center">In-app</div>
@@ -47,32 +90,20 @@ export function NotificationPreferences() {
             <div className="text-center">Mobile Push</div>
           </div>
 
-          {channels.map((setting, index) => (
+          {prefs.channels.map((setting, index) => (
             <div
               key={setting.label}
               className="grid grid-cols-4 items-center gap-4 border-b py-3 last:border-0"
             >
               <Label className="text-sm">{setting.label}</Label>
               <div className="flex justify-center">
-                <Switch
-                  checked={setting.inApp}
-                  onCheckedChange={() => toggleChannel(index, 'inApp')}
-                  size="sm"
-                />
+                <Switch checked={setting.inApp} onCheckedChange={() => toggleChannel(index, 'inApp')} size="sm" />
               </div>
               <div className="flex justify-center">
-                <Switch
-                  checked={setting.email}
-                  onCheckedChange={() => toggleChannel(index, 'email')}
-                  size="sm"
-                />
+                <Switch checked={setting.email} onCheckedChange={() => toggleChannel(index, 'email')} size="sm" />
               </div>
               <div className="flex justify-center">
-                <Switch
-                  checked={setting.push}
-                  onCheckedChange={() => toggleChannel(index, 'push')}
-                  size="sm"
-                />
+                <Switch checked={setting.push} onCheckedChange={() => toggleChannel(index, 'push')} size="sm" />
               </div>
             </div>
           ))}
@@ -84,21 +115,22 @@ export function NotificationPreferences() {
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-sm font-medium">Quiet Hours</h3>
-            <p className="text-xs text-muted-foreground">
-              Suppress push notifications during these hours
-            </p>
+            <p className="text-xs text-muted-foreground">Suppress push notifications during these hours</p>
           </div>
-          <Switch checked={quietHoursEnabled} onCheckedChange={setQuietHoursEnabled} />
+          <Switch
+            checked={prefs.quietHoursEnabled}
+            onCheckedChange={(v) => update({ quietHoursEnabled: v })}
+          />
         </div>
 
-        {quietHoursEnabled && (
+        {prefs.quietHoursEnabled && (
           <div className="mt-4 flex items-center gap-3">
             <div className="flex items-center gap-2">
               <Label className="text-xs">From</Label>
               <Input
                 type="time"
-                value={quietStart}
-                onChange={(e) => setQuietStart(e.target.value)}
+                value={prefs.quietStart}
+                onChange={(e) => update({ quietStart: e.target.value })}
                 className="h-8 w-28 text-sm"
               />
             </div>
@@ -106,8 +138,8 @@ export function NotificationPreferences() {
               <Label className="text-xs">To</Label>
               <Input
                 type="time"
-                value={quietEnd}
-                onChange={(e) => setQuietEnd(e.target.value)}
+                value={prefs.quietEnd}
+                onChange={(e) => update({ quietEnd: e.target.value })}
                 className="h-8 w-28 text-sm"
               />
             </div>
@@ -124,7 +156,10 @@ export function NotificationPreferences() {
               Receive a daily email summary of all notifications at 08:00
             </p>
           </div>
-          <Switch checked={dailyDigest} onCheckedChange={setDailyDigest} />
+          <Switch
+            checked={prefs.dailyDigest}
+            onCheckedChange={(v) => update({ dailyDigest: v })}
+          />
         </div>
       </Card>
     </div>

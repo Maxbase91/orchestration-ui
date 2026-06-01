@@ -5,6 +5,17 @@ import { DataTable, type Column } from '@/components/shared/data-table';
 import { formatDate } from '@/lib/format';
 import type { AIAgent } from '@/data/types';
 
+// Static consumption map — where each agent actually affects the product UI.
+// Displayed as "Affects" badges so admins know what a status/config change will touch.
+const AGENT_AFFECTS: Record<string, string[]> = {
+  'AI-001': ['New Request Step 1'],
+  'AI-002': ['New Request Step 4'],
+  'AI-003': ['Supplier Portal: Documents'],
+  'AI-004': ['Analytics: Spend Overview'],
+  'AI-005': ['New Request Step 4'],
+  'AI-006': ['Request: Compliance Tab'],
+};
+
 const TYPE_LABELS: Record<string, string> = {
   classification: 'Classification',
   validation: 'Validation',
@@ -78,6 +89,23 @@ export function AgentLibrary({ agents, onSelectAgent, onAddAgent }: AgentLibrary
       render: (agent) => (
         <span className="text-sm text-gray-500">{formatDate(agent.lastUpdated as string)}</span>
       ),
+    },
+    {
+      key: 'affects',
+      label: 'Affects',
+      render: (agent) => {
+        const affects = AGENT_AFFECTS[agent.id as string] ?? [];
+        if (!affects.length) return <span className="text-xs text-muted-foreground">—</span>;
+        return (
+          <div className="flex flex-wrap gap-1">
+            {affects.map((surface) => (
+              <span key={surface} className="inline-flex rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-700 border border-blue-100">
+                {surface}
+              </span>
+            ))}
+          </div>
+        );
+      },
     },
   ];
 

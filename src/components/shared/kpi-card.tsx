@@ -1,6 +1,7 @@
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Sparkline } from '@/components/charts/sparkline';
+import { useSettingsStore } from '@/stores/settings-store';
 
 interface KPICardProps {
   label: string;
@@ -11,11 +12,11 @@ interface KPICardProps {
   onClick?: () => void;
 }
 
-function formatValue(value: string | number, format?: string): string {
+function formatValue(value: string | number, format?: string, currency = 'EUR'): string {
   if (typeof value === 'string') return value;
   switch (format) {
     case 'currency':
-      return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(value);
+      return new Intl.NumberFormat('de-DE', { style: 'currency', currency, maximumFractionDigits: 0 }).format(value);
     case 'percentage':
       return `${value}%`;
     default:
@@ -30,6 +31,7 @@ const trendConfig = {
 } as const;
 
 export function KPICard({ label, value, trend, sparklineData, format, onClick }: KPICardProps) {
+  const { currency } = useSettingsStore();
   return (
     <div
       className={cn(
@@ -41,7 +43,7 @@ export function KPICard({ label, value, trend, sparklineData, format, onClick }:
       <p className="text-xs font-medium text-muted-foreground">{label}</p>
       <div className="mt-1 flex items-end justify-between gap-2">
         <div>
-          <p className="text-2xl font-semibold text-gray-900">{formatValue(value, format)}</p>
+          <p className="text-2xl font-semibold text-gray-900">{formatValue(value, format, currency)}</p>
           {trend && (
             <div className={cn('mt-0.5 flex items-center gap-1 text-xs font-medium', trendConfig[trend.direction].color)}>
               {(() => {

@@ -9,6 +9,8 @@ import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuthStore } from '@/stores/auth-store';
+import { useSettingsStore } from '@/stores/settings-store';
+import { useUpdateUserPreferences } from '@/lib/db/hooks/use-user-preferences';
 import { NotificationPreferences } from '@/features/notifications/components/notification-preferences';
 
 const savedViews = [
@@ -20,9 +22,15 @@ const savedViews = [
 
 export function SettingsPage() {
   const { currentUser } = useAuthStore();
+  const { currency, setCurrency } = useSettingsStore();
+  const updatePrefs = useUpdateUserPreferences(currentUser.id);
   const [dateFormat, setDateFormat] = useState('dd/MM/yyyy');
-  const [currency, setCurrency] = useState('EUR');
   const [darkMode] = useState(false);
+
+  function handleCurrencyChange(value: string) {
+    setCurrency(value);
+    updatePrefs.mutate({ currency: value });
+  }
 
   return (
     <div className="space-y-6">
@@ -110,7 +118,7 @@ export function SettingsPage() {
 
               <div className="flex items-center justify-between">
                 <Label className="text-sm">Currency</Label>
-                <Select value={currency} onValueChange={setCurrency}>
+                <Select value={currency} onValueChange={handleCurrencyChange}>
                   <SelectTrigger className="w-40">
                     <SelectValue />
                   </SelectTrigger>

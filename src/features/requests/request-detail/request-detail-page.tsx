@@ -9,6 +9,7 @@ import { TabApprovals } from './tab-approvals';
 import { TabRelated } from './tab-related';
 import { TabActivity } from './tab-activity';
 import { TabCompliance } from './tab-compliance';
+import { TabDocuments } from './tab-documents';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
 import { FileQuestion } from 'lucide-react';
@@ -53,6 +54,7 @@ export function RequestDetailPage() {
           <TabsTrigger value="compliance">Compliance</TabsTrigger>
           <TabsTrigger value="workflow">Workflow</TabsTrigger>
           <TabsTrigger value="approvals">Approvals</TabsTrigger>
+          <TabsTrigger value="documents">Documents</TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
           <TabsTrigger value="links">Related</TabsTrigger>
         </TabsList>
@@ -67,6 +69,9 @@ export function RequestDetailPage() {
         </TabsContent>
         <TabsContent value="approvals" className="pt-4">
           <TabApprovals request={request} />
+        </TabsContent>
+        <TabsContent value="documents" className="pt-4">
+          <TabDocuments request={request} />
         </TabsContent>
         <TabsContent value="activity" className="pt-4">
           <TabActivity request={request} />

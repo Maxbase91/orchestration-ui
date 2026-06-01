@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { CategoryTile } from './components/category-tile';
 import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
+import { useAiAgent } from '@/lib/db/hooks/use-ai-agents';
 import type { RequestCategory } from '@/data/types';
 
 const CATEGORIES = [
@@ -113,6 +114,11 @@ export function StepCategory({ category, categoryDescription: _categoryDescripti
   const [aiResult, setAiResult] = useState<AIClassification | null>(null);
   const [accepted, setAccepted] = useState(false);
   const { data: suppliers = [] } = useSuppliers();
+  const { data: classifierAgent } = useAiAgent('AI-001');
+
+  // AI-001 (Category Classifier) gates LLM classification. When disabled/draft,
+  // the step falls back to local keyword classification immediately.
+  const aiClassifierEnabled = classifierAgent?.status === 'active';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,8 +129,8 @@ export function StepCategory({ category, categoryDescription: _categoryDescripti
     setAiResult(null);
     setAccepted(false);
 
-    // Try LLM first, fall back to local keyword classification
-    let result = await classifyWithAI(text);
+    // Try LLM only if AI-001 is active; otherwise use local keyword classification
+    let result = aiClassifierEnabled ? await classifyWithAI(text) : null;
 
     if (!result) {
       // LLM unavailable — use local deterministic classification
