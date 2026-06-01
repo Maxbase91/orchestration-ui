@@ -1,7 +1,20 @@
+// Status + Priority stay as union types (they drive the lifecycle state machine).
 export type RequestStatus = 'draft' | 'intake' | 'validation' | 'approval' | 'sourcing' | 'contracting' | 'po' | 'receipt' | 'invoice' | 'payment' | 'completed' | 'cancelled' | 'referred-back';
-export type RequestCategory = 'goods' | 'services' | 'software' | 'consulting' | 'contingent-labour' | 'contract-renewal' | 'supplier-onboarding' | 'catalogue';
 export type Priority = 'low' | 'medium' | 'high' | 'urgent';
-export type BuyingChannel = 'procurement-led' | 'business-led' | 'direct-po' | 'framework-call-off' | 'catalogue';
+
+// Categories and channels are widened to `string` so admin-created values work at runtime.
+// Use KNOWN_CATEGORIES / KNOWN_CHANNELS for compile-time hint arrays.
+export type RequestCategory = string;
+export type BuyingChannel = string;
+
+export const KNOWN_CATEGORIES = [
+  'goods', 'services', 'software', 'consulting', 'contingent-labour',
+  'contract-renewal', 'supplier-onboarding', 'catalogue',
+] as const;
+
+export const KNOWN_CHANNELS = [
+  'procurement-led', 'business-led', 'direct-po', 'framework-call-off', 'catalogue',
+] as const;
 export type RiskRating = 'low' | 'medium' | 'high' | 'critical';
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'delegated' | 'info-requested';
 

@@ -6,6 +6,8 @@ import { ViewToggle } from '@/components/shared/view-toggle';
 import { FilterBar, type FilterConfig } from '@/components/shared/filter-bar';
 import { Button } from '@/components/ui/button';
 import { useRequests } from '@/lib/db/hooks/use-requests';
+import { useSlaTargets } from '@/lib/db/hooks/use-sla-targets';
+import { resolveSla } from '@/lib/db/sla-targets';
 import { KanbanView } from './kanban-view';
 import { TableView } from './table-view';
 import { TimelineView } from './timeline-view';
@@ -81,7 +83,12 @@ export function ActiveWorkflowsPage() {
   const [activeFilters, setActiveFilters] = useState<Record<string, string | string[]>>({});
   const [quickFilter, setQuickFilter] = useState<string | null>(null);
   const { data: requests = [] } = useRequests();
+  const { data: slaTargets = [] } = useSlaTargets();
   const navigate = useNavigate();
+
+  function isOverSla(r: { status: string; daysInStage: number }) {
+    return r.daysInStage > resolveSla(slaTargets, r.status);
+  }
 
   // Base set: active requests only
   const activeRequests = useMemo(
@@ -90,7 +97,7 @@ export function ActiveWorkflowsPage() {
   );
 
   // Quick filter counts
-  const stuckCount = activeRequests.filter((r) => r.daysInStage > 5).length;
+  const stuckCount = activeRequests.filter(isOverSla).length;
   const myActionCount = activeRequests.filter(
     (r) => r.ownerId === CURRENT_USER_ID,
   ).length;
@@ -107,7 +114,7 @@ export function ActiveWorkflowsPage() {
 
     // Quick filter
     if (quickFilter === 'stuck') {
-      result = result.filter((r) => r.daysInStage > 5);
+      result = result.filter(isOverSla);
     } else if (quickFilter === 'my-action') {
       result = result.filter((r) => r.ownerId === CURRENT_USER_ID);
     } else if (quickFilter === 'high-value') {

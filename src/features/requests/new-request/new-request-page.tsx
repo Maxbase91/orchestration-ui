@@ -8,6 +8,7 @@ import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
 import { useAuthStore } from '@/stores/auth-store';
 import { createRequest } from '@/lib/db/requests';
 import { saveServiceDescription } from '@/lib/db/service-descriptions';
+import { initWorkflow } from '@/lib/workflow/engine';
 import { queryClient } from '@/lib/query-client';
 import type { RequestCategory, BuyingChannel } from '@/data/types';
 import { StepCategory } from './step-category';
@@ -274,6 +275,14 @@ export function NewRequestPage() {
             narrative: sow.narrative ?? '',
           });
         }
+
+        // Start workflow engine — this will auto-advance from intake
+        // and generate approval entries when the request reaches the approval stage
+        await initWorkflow(
+          id,
+          formData.workflowTemplateId,
+          formData.buyingChannelResult || 'procurement-led',
+        );
 
         queryClient.invalidateQueries({ queryKey: ['requests'] });
         toast.success('Request submitted successfully');

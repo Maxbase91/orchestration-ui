@@ -14,15 +14,13 @@ import { MatchVisualizer, type MatchField } from './components/match-visualizer'
 import { PaymentTracker } from './components/payment-tracker';
 import { useInvoices } from '@/lib/db/hooks/use-invoices';
 import { formatCurrency } from '@/lib/format';
-
-// Variance tolerance: differences within this fraction are "minor-variance".
-// Differences beyond it are "mismatch".
-const MINOR_VARIANCE_THRESHOLD = 0.02; // 2 %
+import { useSettingsStore } from '@/stores/settings-store';
 
 function computeAmountStatus(
   po: number,
   gr: number | null,
   invoice: number,
+  toleranceFraction: number,
 ): { status: MatchField['status']; variance?: string } {
   if (gr === null) {
     return { status: 'mismatch', variance: 'No GR' };
@@ -34,7 +32,7 @@ function computeAmountStatus(
   if (ratio === 0) return { status: 'match' };
   const sign = invoice > ref ? '+' : '-';
   const varianceStr = `${sign}${formatCurrency(diff)}`;
-  if (ratio < MINOR_VARIANCE_THRESHOLD) return { status: 'minor-variance', variance: varianceStr };
+  if (ratio < toleranceFraction) return { status: 'minor-variance', variance: varianceStr };
   return { status: 'mismatch', variance: varianceStr };
 }
 
@@ -59,8 +57,8 @@ interface RawScenario {
   };
 }
 
-function buildFields(s: RawScenario): MatchField[] {
-  const amountResult = computeAmountStatus(s.poAmount, s.grAmount, s.invoiceAmount);
+function buildFields(s: RawScenario, toleranceFraction: number): MatchField[] {
+  const amountResult = computeAmountStatus(s.poAmount, s.grAmount, s.invoiceAmount, toleranceFraction);
 
   const grAmountDisplay = s.grAmount !== null ? formatCurrency(s.grAmount) : 'Not received';
   const grItemsDisplay = s.grItems ?? 'N/A';
@@ -171,10 +169,11 @@ const rawScenarios: RawScenario[] = [
 
 export function ThreeWayMatchPage() {
   const { data: allInvoices = [] } = useInvoices();
+  const { matchTolerancePct } = useSettingsStore();
   const [selectedInvoice, setSelectedInvoice] = useState<string>(rawScenarios[0].invoiceId);
 
   const scenario = rawScenarios.find((s) => s.invoiceId === selectedInvoice);
-  const fields = scenario ? buildFields(scenario) : [];
+  const fields = scenario ? buildFields(scenario, matchTolerancePct / 100) : [];
   const withinTolerance =
     scenario !== undefined &&
     fields.every((f) => f.status === 'match') &&

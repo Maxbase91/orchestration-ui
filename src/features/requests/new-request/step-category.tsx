@@ -19,6 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { CategoryTile } from './components/category-tile';
 import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
 import { useAiAgent } from '@/lib/db/hooks/use-ai-agents';
+import { useProcurementCategories } from '@/lib/db/hooks/use-procurement-categories';
 import type { RequestCategory } from '@/data/types';
 
 const CATEGORIES = [
@@ -115,6 +116,25 @@ export function StepCategory({ category, categoryDescription: _categoryDescripti
   const [accepted, setAccepted] = useState(false);
   const { data: suppliers = [] } = useSuppliers();
   const { data: classifierAgent } = useAiAgent('AI-001');
+  const { data: dbCategories = [] } = useProcurementCategories();
+
+  // Merge DB categories with local fallback (DB wins on matching IDs, adds new ones)
+  const ICON_MAP: Record<string, typeof Package> = {
+    catalogue: ShoppingBag, goods: Package, services: Wrench, software: Monitor,
+    consulting: BrainCircuit, 'contingent-labour': Users, 'contract-renewal': RefreshCw,
+    'supplier-onboarding': UserPlus,
+  };
+  const activeCategories = dbCategories.length > 0
+    ? dbCategories
+        .filter((c) => c.active)
+        .map((c) => ({
+          id: c.id as RequestCategory,
+          name: c.label,
+          description: c.description,
+          timeline: `~${c.timelineDays}d`,
+          icon: ICON_MAP[c.id] ?? Package,
+        }))
+    : CATEGORIES;
 
   // AI-001 (Category Classifier) gates LLM classification. When disabled/draft,
   // the step falls back to local keyword classification immediately.
@@ -315,7 +335,7 @@ export function StepCategory({ category, categoryDescription: _categoryDescripti
             {aiResult ? 'Or select a different category' : 'Or select a category manually'}
           </p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {CATEGORIES.map((cat) => (
+            {activeCategories.map((cat) => (
               <CategoryTile
                 key={cat.id}
                 icon={cat.icon}

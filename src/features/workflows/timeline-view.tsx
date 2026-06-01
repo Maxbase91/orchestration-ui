@@ -1,6 +1,8 @@
 import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/lib/format';
 import type { ProcurementRequest, RequestStatus } from '@/data/types';
+import { useSlaTargets } from '@/lib/db/hooks/use-sla-targets';
+import { resolveSla, type SlaTarget } from '@/lib/db/sla-targets';
 import {
   Tooltip,
   TooltipContent,
@@ -41,10 +43,9 @@ function getStageIndex(status: RequestStatus): number {
  * Completed stages get a base width, current stage uses actual daysInStage,
  * future stages are gray placeholders.
  */
-function getStageSegments(request: ProcurementRequest) {
-  const currentIdx = getStageIndex(request.status);
-  const baseDays = 3; // assumed average for completed stages
-  const slaThreshold = 5;
+function getStageSegments(request: ProcurementRequest, slaTargets: SlaTarget[]) {
+  const currentIdx = getStageIndex(request.status as RequestStatus);
+  const baseDays = 3;
 
   return STAGE_ORDER.map((stage, i) => {
     let days: number;
@@ -61,6 +62,7 @@ function getStageSegments(request: ProcurementRequest) {
       state = 'future';
     }
 
+    const slaThreshold = resolveSla(slaTargets, stage);
     const isLong = state !== 'future' && days > slaThreshold;
 
     return { stage, days, state, isLong };
@@ -72,6 +74,7 @@ interface TimelineViewProps {
 }
 
 export function TimelineView({ requests }: TimelineViewProps) {
+  const { data: slaTargets = [] } = useSlaTargets();
   // Only show active (non-draft, non-completed, non-cancelled) requests
   const activeRequests = requests.filter(
     (r) =>
@@ -104,7 +107,7 @@ export function TimelineView({ requests }: TimelineViewProps) {
       {/* Rows */}
       <div className="space-y-1.5 max-h-[calc(100vh-300px)] overflow-y-auto">
         {activeRequests.map((request) => {
-          const segments = getStageSegments(request);
+          const segments = getStageSegments(request, slaTargets);
 
           return (
             <div key={request.id} className="flex items-center group">

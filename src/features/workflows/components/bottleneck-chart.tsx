@@ -1,4 +1,6 @@
 import { useMemo } from 'react';
+import { useSlaTargets } from '@/lib/db/hooks/use-sla-targets';
+import { resolveSla } from '@/lib/db/sla-targets';
 import {
   BarChart,
   Bar,
@@ -36,13 +38,13 @@ const STAGE_LABELS: Record<string, string> = {
   payment: 'Payment',
 };
 
-const SLA_TARGET = 5;
-
 interface BottleneckChartProps {
   requests: ProcurementRequest[];
 }
 
 export function BottleneckChart({ requests }: BottleneckChartProps) {
+  const { data: slaTargets = [] } = useSlaTargets();
+
   const data = useMemo(() => {
     return STAGE_ORDER.map((stage) => {
       const stageRequests = requests.filter((r) => r.status === stage);
@@ -51,15 +53,19 @@ export function BottleneckChart({ requests }: BottleneckChartProps) {
           ? stageRequests.reduce((sum, r) => sum + r.daysInStage, 0) /
             stageRequests.length
           : 0;
+      const slaTarget = resolveSla(slaTargets, stage);
 
       return {
         name: STAGE_LABELS[stage],
         value: Math.round(avgDays * 10) / 10,
         count: stageRequests.length,
-        exceedsSLA: avgDays > SLA_TARGET,
+        exceedsSLA: avgDays > slaTarget,
+        slaTarget,
       };
     });
-  }, [requests]);
+  }, [requests, slaTargets]);
+
+  const globalSlaTarget = resolveSla(slaTargets, 'approval'); // representative line
 
   return (
     <div className="rounded-md border bg-white p-4 shadow-sm">
@@ -93,11 +99,11 @@ export function BottleneckChart({ requests }: BottleneckChartProps) {
             ]}
           />
           <ReferenceLine
-            x={SLA_TARGET}
+            x={globalSlaTarget}
             stroke="#EF4444"
             strokeDasharray="4 4"
             label={{
-              value: `SLA: ${SLA_TARGET}d`,
+              value: `SLA: ${globalSlaTarget}d`,
               position: 'top',
               fontSize: 11,
               fill: '#EF4444',

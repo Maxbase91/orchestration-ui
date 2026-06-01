@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Pencil, Trash2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { PageHeader } from '@/components/shared/page-header';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/card';
@@ -22,7 +23,7 @@ const savedViews = [
 
 export function SettingsPage() {
   const { currentUser } = useAuthStore();
-  const { currency, setCurrency } = useSettingsStore();
+  const { currency, setCurrency, matchTolerancePct, setMatchTolerancePct } = useSettingsStore();
   const updatePrefs = useUpdateUserPreferences(currentUser.id);
   const [dateFormat, setDateFormat] = useState('dd/MM/yyyy');
   const [darkMode] = useState(false);
@@ -114,6 +115,22 @@ export function SettingsPage() {
                     <SelectItem value="yyyy-MM-dd">YYYY-MM-DD</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-sm">Invoice Match Tolerance</Label>
+                  <p className="text-xs text-muted-foreground">Differences within this % are "Minor Variance" in Three-Way Match</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number" min={0} max={20} step={0.5}
+                    value={matchTolerancePct}
+                    onChange={(e) => setMatchTolerancePct(parseFloat(e.target.value) || 2)}
+                    className="h-8 w-16 text-center text-sm"
+                  />
+                  <span className="text-sm text-muted-foreground">%</span>
+                </div>
               </div>
 
               <div className="flex items-center justify-between">

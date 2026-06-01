@@ -13,8 +13,8 @@ import {
 } from '@/components/ui/table';
 import { Send, AlertTriangle, UserPlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
-const SLA_DAYS = 5;
+import { useSlaTargets } from '@/lib/db/hooks/use-sla-targets';
+import { resolveSla } from '@/lib/db/sla-targets';
 
 interface StuckRequestsTableProps {
   requests: ProcurementRequest[];
@@ -23,8 +23,14 @@ interface StuckRequestsTableProps {
 export function StuckRequestsTable({ requests }: StuckRequestsTableProps) {
   useUsers();
   const lookupUser = useUserLookup();
+  const { data: slaTargets = [] } = useSlaTargets();
+
+  function slaDays(req: ProcurementRequest): number {
+    return resolveSla(slaTargets, req.status);
+  }
+
   const stuckRequests = requests
-    .filter((r) => r.daysInStage > SLA_DAYS)
+    .filter((r) => r.daysInStage > slaDays(r))
     .sort((a, b) => b.daysInStage - a.daysInStage);
 
   if (stuckRequests.length === 0) {
@@ -42,8 +48,7 @@ export function StuckRequestsTable({ requests }: StuckRequestsTableProps) {
           Stuck Requests ({stuckRequests.length})
         </h3>
         <p className="text-xs text-muted-foreground mt-0.5">
-          Requests exceeding {SLA_DAYS}-day SLA threshold, sorted by days in
-          stage
+          Requests exceeding their stage SLA threshold, sorted by days in stage
         </p>
       </div>
       <Table>
@@ -63,7 +68,8 @@ export function StuckRequestsTable({ requests }: StuckRequestsTableProps) {
         <TableBody>
           {stuckRequests.map((req) => {
             const owner = lookupUser(req.ownerId);
-            const daysOverdue = req.daysInStage - SLA_DAYS;
+            const sla = slaDays(req);
+            const daysOverdue = req.daysInStage - sla;
 
             return (
               <TableRow key={req.id}>
@@ -92,7 +98,7 @@ export function StuckRequestsTable({ requests }: StuckRequestsTableProps) {
                   </span>
                 </TableCell>
                 <TableCell className="text-center text-sm text-muted-foreground">
-                  {SLA_DAYS}
+                  {sla}
                 </TableCell>
                 <TableCell className="text-center">
                   <span className="text-sm font-semibold text-red-600">
