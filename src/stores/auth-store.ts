@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import type { Role } from '@/config/roles';
 
 interface User {
@@ -25,12 +26,23 @@ const defaultUsers: Record<Role, User> = {
   'admin': { id: 'u6', name: 'Elena Popov', email: 'elena.popov@company.com', role: 'admin', department: 'Platform Administration', initials: 'EP' },
 };
 
-export const useAuthStore = create<AuthState>((set) => ({
-  currentRole: 'procurement-manager',
-  currentUser: defaultUsers['procurement-manager'],
-  switchRole: (role: Role) =>
-    set({
-      currentRole: role,
-      currentUser: defaultUsers[role],
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set) => ({
+      currentRole: 'procurement-manager' as Role,
+      currentUser: defaultUsers['procurement-manager'],
+      switchRole: (role: Role) =>
+        set({
+          currentRole: role,
+          currentUser: defaultUsers[role],
+        }),
     }),
-}));
+    {
+      name: 'auth',
+      partialize: (state) => ({
+        currentRole: state.currentRole,
+        currentUser: state.currentUser,
+      }),
+    },
+  ),
+);

@@ -232,9 +232,11 @@ export function NewRequestPage() {
       const id = generateRequestId();
       setIsSubmitting(true);
       try {
+        const sow = formData.serviceDescription as unknown as Record<string, string> | null;
         await createRequest({
           id,
           title: formData.title,
+          description: sow?.narrative ?? formData.businessJustification ?? formData.title,
           category: formData.category as RequestCategory,
           status: 'intake',
           priority: formData.isUrgent ? 'urgent' : 'medium',
@@ -247,15 +249,18 @@ export function NewRequestPage() {
           commodityCode: formData.commodityCode,
           commodityCodeLabel: formData.commodityCodeLabel,
           costCentre: formData.costCentre,
+          budgetOwner: currentUser.name,
           businessJustification: formData.businessJustification,
           deliveryDate: formData.deliveryDate,
           isUrgent: formData.isUrgent,
           requestorId: currentUser.id,
           ownerId: currentUser.id,
+          daysInStage: 0,
+          isOverdue: false,
+          referBackCount: 0,
         });
 
-        if (formData.serviceDescription) {
-          const sow = formData.serviceDescription as unknown as Record<string, string>;
+        if (sow) {
           await saveServiceDescription(id, {
             objective: sow.objective ?? '',
             scope: sow.scope ?? '',
@@ -272,14 +277,14 @@ export function NewRequestPage() {
 
         queryClient.invalidateQueries({ queryKey: ['requests'] });
         toast.success('Request submitted successfully');
+        setRequestId(id);
+        setCurrentStep(6);
       } catch (e) {
-        console.warn('Failed to persist request:', e);
-        // Continue anyway — the UI will work with the generated ID
+        console.error('Failed to persist request:', e);
+        toast.error('Failed to submit request. Please try again.');
       } finally {
         setIsSubmitting(false);
       }
-      setRequestId(id);
-      setCurrentStep(6);
     } else {
       setCurrentStep((s) => Math.min(s + 1, 6));
     }

@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase-client';
 import type { ComplianceReport } from '@/data/compliance-reports';
+import { complianceReports as seedReports } from '@/data/compliance-reports';
 import { mapDbToComplianceReport, mapComplianceReportToDb } from './mappers';
 
 const TABLE = 'compliance_reports';
@@ -19,7 +20,8 @@ export async function getComplianceReportByRequest(
     .eq('request_id', requestId)
     .maybeSingle();
   if (error) throw error;
-  return data ? mapDbToComplianceReport(data) : null;
+  if (data) return mapDbToComplianceReport(data);
+  return seedReports.find((r) => r.requestId === requestId) ?? null;
 }
 
 export async function saveComplianceReport(

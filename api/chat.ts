@@ -142,6 +142,8 @@ const TOOLS: GroqTool[] = [
 
 const SYSTEM_PROMPT = `You are a procurement assistant for an enterprise platform.
 
+CRITICAL FORMATTING RULE: You MUST use the structured tool_calls mechanism provided by the API. NEVER write tool names or arguments as plain text in your response (e.g. do NOT write "search_knowledge: ..." or "lookup_object: ..." as text). ONLY invoke tools via the structured tool_calls format. If you write a tool call as text, the system cannot execute it and the user gets no answer.
+
 RULES — always follow these:
 1. ALWAYS call a tool to answer. Never respond from your own knowledge or guess.
 2. Policy/process questions → search_knowledge.
@@ -407,23 +409,30 @@ interface ParsedTextToolCall {
 
 function parseTextToolCall(content: string): ParsedTextToolCall | null {
   const c = content.trim();
+  const id = `call_txt_${Date.now()}`;
 
-  // search_knowledge: <query>
-  const skMatch = c.match(/^(?:.*?)?search_knowledge:\s*(.+?)(?:\n|$)/im);
+  // search_knowledge: <query>  (handles "/ search_knowledge: x /" separators too)
+  const skMatch = c.match(/search_knowledge:\s*([^/\n]+?)(?:\s*\/|\n|$)/im);
   if (skMatch) {
-    return { id: `txt-${Date.now()}`, name: 'search_knowledge', args: { query: skMatch[1].trim() } };
+    return { id, name: 'search_knowledge', args: { query: skMatch[1].trim() } };
   }
 
   // lookup_object: <type> <identifier>
-  const loMatch = c.match(/^(?:.*?)?lookup_object:\s*(\S+)\s+(.+?)(?:\n|$)/im);
+  const loMatch = c.match(/lookup_object:\s*(\S+)\s+([^/\n]+?)(?:\s*\/|\n|$)/im);
   if (loMatch) {
-    return { id: `txt-${Date.now()}`, name: 'lookup_object', args: { type: loMatch[1].trim(), identifier: loMatch[2].trim() } };
+    return { id, name: 'lookup_object', args: { type: loMatch[1].trim(), identifier: loMatch[2].trim() } };
   }
 
   // filter_objects: <type>
-  const foMatch = c.match(/^(?:.*?)?filter_objects:\s*(.+?)(?:\n|$)/im);
+  const foMatch = c.match(/filter_objects:\s*([^/\n]+?)(?:\s*\/|\n|$)/im);
   if (foMatch) {
-    return { id: `txt-${Date.now()}`, name: 'filter_objects', args: { object_type: foMatch[1].trim() } };
+    return { id, name: 'filter_objects', args: { object_type: foMatch[1].trim() } };
+  }
+
+  // start_demand: <category>
+  const sdMatch = c.match(/start_demand:\s*([^/\n]+?)(?:\s*\/|\n|$)/im);
+  if (sdMatch) {
+    return { id, name: 'start_demand', args: { category: sdMatch[1].trim() } };
   }
 
   return null;

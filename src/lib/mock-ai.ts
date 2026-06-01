@@ -4,17 +4,26 @@ import { queryClient } from '@/lib/query-client';
 
 function getSupplierFromCache(id: string): Supplier | undefined {
   const list = queryClient.getQueryData<Supplier[]>(['suppliers', 'list']);
-  return list?.find((s) => s.id === id);
+  return (
+    list?.find((s) => s.id === id) ??
+    queryClient.getQueryData<Supplier>(['suppliers', 'detail', id])
+  );
 }
 
 function getContractFromCache(id: string): Contract | undefined {
   const list = queryClient.getQueryData<Contract[]>(['contracts', 'list']);
-  return list?.find((c) => c.id === id);
+  return (
+    list?.find((c) => c.id === id) ??
+    queryClient.getQueryData<Contract>(['contracts', 'detail', id])
+  );
 }
 
 function getRequestFromCache(id: string): ProcurementRequest | undefined {
   const list = queryClient.getQueryData<ProcurementRequest[]>(['requests', 'list']);
-  return list?.find((r) => r.id === id);
+  return (
+    list?.find((r) => r.id === id) ??
+    queryClient.getQueryData<ProcurementRequest>(['requests', 'detail', id])
+  );
 }
 
 export function getAIResponse(input: string, context: string): AIResponse | null {

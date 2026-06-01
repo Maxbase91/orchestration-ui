@@ -15,9 +15,9 @@ interface SourcingEventDetail {
   type: string;
   status: string;
   deadline: string;
-  publishDate: string;
-  evaluationDate: string;
-  awardDate: string;
+  publishDate: string | null;
+  evaluationDate: string | null;
+  awardDate: string | null;
   budget: number;
   owner: string;
   description: string;
@@ -97,9 +97,9 @@ const mockEvents: Record<string, SourcingEventDetail> = {
     type: 'RFP',
     status: 'draft',
     deadline: '2025-05-01',
-    publishDate: '',
-    evaluationDate: '',
-    awardDate: '',
+    publishDate: null,
+    evaluationDate: null,
+    awardDate: null,
     budget: 150000,
     owner: 'Marcus Johnson',
     description: 'Procurement of external cybersecurity assessment services including penetration testing and compliance audit.',

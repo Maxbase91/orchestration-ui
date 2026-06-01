@@ -322,7 +322,8 @@ export function StepCompliance({
   useEffect(() => {
     if (workflowTemplateId || workflowTemplates.length === 0) return;
     const byType = workflowTemplates.find((t) => t.type === category);
-    const defaultId = byType?.id ?? workflowTemplates[0].id;
+    const standard = workflowTemplates.find((t) => t.name?.toLowerCase().includes('standard'));
+    const defaultId = byType?.id ?? standard?.id ?? workflowTemplates[0].id;
     onUpdate({ workflowTemplateId: defaultId } as Partial<ComplianceData>);
   }, [workflowTemplateId, workflowTemplates, category]); // eslint-disable-line react-hooks/exhaustive-deps
 

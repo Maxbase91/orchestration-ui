@@ -21,8 +21,10 @@ export function formatCurrency(value: number, currency = 'EUR'): string {
   return currencyFormatter.format(value);
 }
 
-export function formatDate(date: string | Date): string {
+export function formatDate(date: string | Date | null | undefined): string {
+  if (!date || date === '') return '—';
   const d = typeof date === 'string' ? parseISO(date) : date;
+  if (isNaN(d.getTime())) return '—';
   return format(d, 'dd MMM yyyy');
 }
 
