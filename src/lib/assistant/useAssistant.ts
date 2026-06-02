@@ -71,8 +71,16 @@ async function fetchSSE(
     }
   }
 
+  // Sanitise accumulated text: strip any leaked tool-call syntax before rendering.
+  const TOOL_LEAK_RE = /(?:tool_calls\.)?(?:search_knowledge|lookup_object|filter_objects|propose_action|create_ticket|start_demand|remember_preference)\s*[:(]/i;
+  const cleanedText = accumulatedText
+    .replace(/^(?:tool_calls\.)?\b(?:search_knowledge|lookup_object|filter_objects|propose_action|create_ticket|start_demand|remember_preference)\b\s*[:(][^\n]*/gim, '')
+    .trim();
+
   const turns: AssistantTurn[] = [];
-  if (accumulatedText) turns.push({ type: 'chat-answer', content: accumulatedText });
+  if (cleanedText && !TOOL_LEAK_RE.test(cleanedText)) {
+    turns.push({ type: 'chat-answer', content: cleanedText });
+  }
   turns.push(...structuralTurns);
   return turns.length > 0 ? turns : [FALLBACK_TURN];
 }

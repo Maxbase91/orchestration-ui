@@ -20,6 +20,8 @@ function cleanAssistantText(content: string): string {
     .replace(/^(#{1,3}\s*)?(\*{0,2})step\s+\d+[:.)].*$/gim, '')
     // "The final answer is:" and similar
     .replace(/^(the\s+)?(final\s+answer\s+(is|:)|therefore[,:]).*$/gim, '')
+    // Tool-call leaks: tool_calls.NAME(...) or bare NAME(...) on any line
+    .replace(/^(?:tool_calls\.)?\b(?:search_knowledge|lookup_object|filter_objects|propose_action|create_ticket|start_demand|remember_preference)\b\s*[:(][^\n]*/gim, '')
     // Trailing whitespace / multiple blank lines
     .replace(/\n{3,}/g, '\n\n')
     .trim();

@@ -149,7 +149,10 @@ OUTPUT FORMAT — mandatory:
 - NEVER show your reasoning process. Give only the final, clean answer.
 - Keep responses concise (3–5 sentences or a short bullet list). Cite the source.
 
-CRITICAL TOOL RULE: ONLY invoke tools via the structured tool_calls API format. NEVER write "search_knowledge: ..." or any tool name as plain text — the system cannot parse it.
+CRITICAL TOOL RULE: ONLY invoke tools via the structured tool_calls API format. NEVER write "search_knowledge: ...", "tool_calls.search_knowledge(...)", or any tool name as plain text in your response.
+If (and only if) the structured tool_calls API is unavailable, output the tool call alone on one line as:
+  tool_calls.FUNCTION_NAME(arg="value")
+and nothing else — no explanation, no surrounding text.
 
 RULES — always follow these:
 1. ALWAYS call a tool to answer. Never respond from your own knowledge or guess.
@@ -403,10 +406,9 @@ async function execCreateTicket(
 }
 
 // ─── Text-based tool-call parser ─────────────────────────────────────────────
-// Some Groq model variants emit tool calls as plain text instead of structured
-// tool_calls (e.g. "search_knowledge: approval threshold"). This parser catches
-// the most common patterns so the loop can still execute the tool and make a
-// grounded second round-trip rather than returning the raw text to the user.
+// Groq models occasionally emit tool calls as plain text instead of structured
+// tool_calls. This parser catches multiple shapes so the loop can execute the
+// tool and make a grounded second round-trip rather than leaking raw text to the user.
 
 interface ParsedTextToolCall {
   id: string;
@@ -414,33 +416,67 @@ interface ParsedTextToolCall {
   args: Record<string, unknown>;
 }
 
+const KNOWN_TOOLS = new Set([
+  'search_knowledge', 'lookup_object', 'filter_objects', 'propose_action',
+  'create_ticket', 'start_demand', 'remember_preference',
+]);
+
+/** True when content looks like a leaked tool call the model wrote as text. */
+function isToolCallLeak(content: string): boolean {
+  if (!content) return false;
+  return /(?:tool_calls\.)?(?:search_knowledge|lookup_object|filter_objects|propose_action|create_ticket|start_demand|remember_preference)\s*[:(]/i.test(content);
+}
+
 function parseTextToolCall(content: string): ParsedTextToolCall | null {
   const c = content.trim();
   const id = `call_txt_${Date.now()}`;
 
-  // search_knowledge: <query>  (handles "/ search_knowledge: x /" separators too)
+  // 1. tool_calls.NAME(key="val") OR bare NAME(key="val")  — new Groq shape
+  const fnMatch = c.match(/(?:tool_calls\.)?(\w+)\s*\(\s*([^)]*)\)/s);
+  if (fnMatch && KNOWN_TOOLS.has(fnMatch[1])) {
+    const name = fnMatch[1];
+    const raw = fnMatch[2];
+    const args: Record<string, unknown> = {};
+    // named args: key="val" or key='val'
+    for (const m of raw.matchAll(/(\w+)\s*=\s*["']([^"']*)["']/g)) args[m[1]] = m[2];
+    // positional string (no key): "val"
+    if (Object.keys(args).length === 0) {
+      const pos = raw.match(/^["']([^"']*)["']$/);
+      if (pos) {
+        if (name === 'search_knowledge') args.query = pos[1];
+        else if (name === 'lookup_object') args.identifier = pos[1];
+        else if (name === 'filter_objects') args.object_type = pos[1];
+        else if (name === 'start_demand') args.category = pos[1];
+      }
+    }
+    if (Object.keys(args).length > 0) return { id, name, args };
+  }
+
+  // 2. JSON shapes: {"tool":"NAME","query":"..."} or {"name":"NAME","arguments":{...}}
+  const jMatch = c.match(/\{[\s\S]*?\}/);
+  if (jMatch) {
+    try {
+      const o = JSON.parse(jMatch[0]) as Record<string, unknown>;
+      const name = (o.tool ?? o.name ?? (o.function as Record<string, unknown>)?.name) as string | undefined;
+      if (name && KNOWN_TOOLS.has(name)) {
+        const args = (o.arguments ?? o.parameters ?? o) as Record<string, unknown>;
+        return { id, name, args };
+      }
+    } catch { /* ignore malformed JSON */ }
+  }
+
+  // 3. Legacy colon patterns: search_knowledge: <query>  (handles "/ x /" separators)
   const skMatch = c.match(/search_knowledge:\s*([^/\n]+?)(?:\s*\/|\n|$)/im);
-  if (skMatch) {
-    return { id, name: 'search_knowledge', args: { query: skMatch[1].trim() } };
-  }
+  if (skMatch) return { id, name: 'search_knowledge', args: { query: skMatch[1].trim() } };
 
-  // lookup_object: <type> <identifier>
   const loMatch = c.match(/lookup_object:\s*(\S+)\s+([^/\n]+?)(?:\s*\/|\n|$)/im);
-  if (loMatch) {
-    return { id, name: 'lookup_object', args: { type: loMatch[1].trim(), identifier: loMatch[2].trim() } };
-  }
+  if (loMatch) return { id, name: 'lookup_object', args: { type: loMatch[1].trim(), identifier: loMatch[2].trim() } };
 
-  // filter_objects: <type>
   const foMatch = c.match(/filter_objects:\s*([^/\n]+?)(?:\s*\/|\n|$)/im);
-  if (foMatch) {
-    return { id, name: 'filter_objects', args: { object_type: foMatch[1].trim() } };
-  }
+  if (foMatch) return { id, name: 'filter_objects', args: { object_type: foMatch[1].trim() } };
 
-  // start_demand: <category>
   const sdMatch = c.match(/start_demand:\s*([^/\n]+?)(?:\s*\/|\n|$)/im);
-  if (sdMatch) {
-    return { id, name: 'start_demand', args: { category: sdMatch[1].trim() } };
-  }
+  if (sdMatch) return { id, name: 'start_demand', args: { category: sdMatch[1].trim() } };
 
   return null;
 }
@@ -659,7 +695,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       // Non-streaming path (or SSE without prior tool calls)
-      const text = result.content?.trim() ?? '';
+      // Guard: suppress raw tool-call text that parseTextToolCall couldn't parse
+      // (e.g. model wrote tool_calls.NAME(...) but we couldn't extract valid args).
+      const rawText = result.content?.trim() ?? '';
+      const text = isToolCallLeak(rawText) ? '' : rawText;
       const allTurns: unknown[] = [];
       if (text) allTurns.push({ type: 'chat-answer', content: text });
       allTurns.push(...structuralTurns);
@@ -670,7 +709,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       // For SSE without tool calls: emit single tok + done so client handles it uniformly
       if (isSSE) {
-        if (text) res.write(`data: ${JSON.stringify({ t: 'tok', c: text })}\n\n`);
+        if (text && !isToolCallLeak(text)) res.write(`data: ${JSON.stringify({ t: 'tok', c: text })}\n\n`);
         res.write(`data: ${JSON.stringify({ t: 'done', turns: structuralTurns })}\n\n`);
         res.end();
         return;
