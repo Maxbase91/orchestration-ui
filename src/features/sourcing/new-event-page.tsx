@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useCreateSourcingEvent } from '@/lib/db/hooks/use-sourcing-events';
+import { useAuthStore } from '@/stores/auth-store';
 import {
   Check,
   ChevronLeft,
@@ -61,6 +63,8 @@ interface RequirementSection {
 export function NewEventPage() {
   const navigate = useNavigate();
   const { data: suppliers = [] } = useSuppliers();
+  const createEvent = useCreateSourcingEvent();
+  const { currentUser } = useAuthStore();
   const [step, setStep] = useState(0);
 
   // Step 1: Event details
@@ -149,14 +153,45 @@ export function NewEventPage() {
 
   const totalWeight = criteria.reduce((sum, c) => sum + c.weight, 0);
 
-  function handlePublish() {
-    toast.success('Sourcing event published successfully');
-    navigate('/sourcing');
+  async function handlePublish() {
+    try {
+      await createEvent.mutateAsync({
+        title: title || 'Untitled Event',
+        description,
+        category,
+        type: eventType,
+        status: 'published',
+        budget: budgetMax ? parseFloat(budgetMax) : undefined,
+        deadline: endDate || undefined,
+        publishDate: new Date().toISOString().slice(0, 10),
+        ownerId: currentUser.id,
+      });
+      toast.success('Sourcing event published successfully');
+      navigate('/sourcing');
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to publish event');
+    }
   }
 
-  function handleSaveDraft() {
-    toast.success('Sourcing event saved as draft');
-    navigate('/sourcing');
+  async function handleSaveDraft() {
+    try {
+      await createEvent.mutateAsync({
+        title: title || 'Untitled Draft',
+        description,
+        category,
+        type: eventType,
+        status: 'draft',
+        budget: budgetMax ? parseFloat(budgetMax) : undefined,
+        deadline: endDate || undefined,
+        ownerId: currentUser.id,
+      });
+      toast.success('Sourcing event saved as draft');
+      navigate('/sourcing');
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to save draft');
+    }
   }
 
   return (

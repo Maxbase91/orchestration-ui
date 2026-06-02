@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import type { ProcurementRequest } from '@/data/types';
 import { useRequests } from '@/lib/db/hooks/use-requests';
-import { resolveDemoReference } from '@/lib/demo-date';
 
 const OPEN_STATUSES = new Set(['intake', 'validation', 'approval', 'sourcing', 'referred-back']);
 const MONTHS_BACK = 6;
@@ -55,8 +54,7 @@ export function useLiveKpis(): LiveKpis {
 }
 
 function compute(requests: ProcurementRequest[]): LiveKpis {
-  const refDate = resolveDemoReference(requests, MONTHS_BACK);
-  const months = lastNMonths(MONTHS_BACK, refDate);
+  const months = lastNMonths(MONTHS_BACK);
 
   // ── compliance: % of completed requests in each month with refer_back_count === 0
   const complianceSeries = months.map((m) => {

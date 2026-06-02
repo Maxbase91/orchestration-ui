@@ -1,6 +1,30 @@
 import { BookOpen } from 'lucide-react';
 import type { ChatAnswerTurn } from '@/data/types';
 
+/**
+ * Strip chain-of-thought, LaTeX math, and reasoning-token artefacts that
+ * some LLMs (especially Groq llama models) emit even when not asked to.
+ */
+function cleanAssistantText(content: string): string {
+  return content
+    // LaTeX math blocks
+    .replace(/\$\$[\s\S]*?\$\$/g, '')
+    .replace(/\$\{.*?\}\$/g, '')
+    .replace(/\\\[[\s\S]*?\\\]/g, '')
+    .replace(/\\\([\s\S]*?\\\)/g, '')
+    .replace(/\\boxed\{[^}]*\}/g, '')
+    // Thinking / reasoning tags
+    .replace(/<think>[\s\S]*?<\/think>/gi, '')
+    .replace(/<reasoning>[\s\S]*?<\/reasoning>/gi, '')
+    // CoT heading lines (## Step N, **Step N**, Step N:)
+    .replace(/^(#{1,3}\s*)?(\*{0,2})step\s+\d+[:.)].*$/gim, '')
+    // "The final answer is:" and similar
+    .replace(/^(the\s+)?(final\s+answer\s+(is|:)|therefore[,:]).*$/gim, '')
+    // Trailing whitespace / multiple blank lines
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 interface Props {
   turn: ChatAnswerTurn;
 }
@@ -97,7 +121,7 @@ export function TurnChatAnswer({ turn }: Props) {
   return (
     <div className="space-y-1.5">
       <div className="rounded-[18px] rounded-tl-[4px] bg-white border border-gray-100 shadow-sm px-4 py-3 text-[13.5px] leading-relaxed text-gray-800">
-        <MarkdownContent text={turn.content} />
+        <MarkdownContent text={cleanAssistantText(turn.content)} />
       </div>
       {turn.source && (
         <div className="flex items-center gap-1 pl-1">

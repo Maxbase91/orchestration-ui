@@ -233,6 +233,46 @@ export const complianceReports: ComplianceReport[] = [
   },
 ];
 
+// REQ-2025 entries for current-session requests (demo fallback)
+complianceReports.push(
+  {
+    requestId: 'REQ-2025-0114',
+    agentId: 'AI-006',
+    agentName: 'PR Compliance Reviewer',
+    decision: 'approved',
+    confidence: 91.2,
+    generatedAt: new Date(Date.now() - 3 * 86400_000).toISOString(),
+    summary: 'Cybersecurity consulting engagement passed all 6 compliance categories. SRA valid, budget within threshold, competitive quotes required above €25k.',
+    checks: [
+      { id: 'CHK-2025-1', category: 'Budget', check: 'Budget authority', status: 'pass', detail: 'Value within VP approval threshold. Budget owner confirmed.', severity: 'critical' },
+      { id: 'CHK-2025-2', category: 'Contract', check: 'Contract coverage', status: 'warning', detail: 'No existing contract for cybersecurity consulting — sourcing event required.', severity: 'high' },
+      { id: 'CHK-2025-3', category: 'Supplier Compliance', check: 'SRA status', status: 'pass', detail: 'Supplier SRA valid. Last assessed within 12 months.', severity: 'critical' },
+      { id: 'CHK-2025-4', category: 'Policy', check: 'Competitive sourcing', status: 'pass', detail: 'Value exceeds €25k threshold — 3 competitive quotes required.', severity: 'high' },
+      { id: 'CHK-2025-5', category: 'Risk', check: 'Sanctions screening', status: 'pass', detail: 'No sanctions flags. Supplier screening current.', severity: 'critical' },
+      { id: 'CHK-2025-6', category: 'Value', check: 'Market benchmark', status: 'pass', detail: 'Day rate within ±15% of market benchmark for cybersecurity consulting.', severity: 'medium' },
+    ],
+    recommendation: 'Approved to proceed. Initiate sourcing event for 3 competitive quotes before PO issuance.',
+  },
+  {
+    requestId: 'REQ-2025-0116',
+    agentId: 'AI-006',
+    agentName: 'PR Compliance Reviewer',
+    decision: 'needs-review',
+    confidence: 74.8,
+    generatedAt: new Date(Date.now() - 1 * 86400_000).toISOString(),
+    summary: 'Software licensing renewal requires review. Value band triggers VP approval. Existing contract expiring — renewal path valid but utilisation below 60%.',
+    checks: [
+      { id: 'CHK-2025-7', category: 'Budget', check: 'Budget authority', status: 'warning', detail: 'Value €320k triggers VP Procurement approval chain.', severity: 'critical' },
+      { id: 'CHK-2025-8', category: 'Contract', check: 'Contract coverage', status: 'pass', detail: 'Renewal of existing CON-002. Contract renewal path confirmed.', severity: 'high' },
+      { id: 'CHK-2025-9', category: 'Supplier Compliance', check: 'SRA status', status: 'pass', detail: 'SRA valid — renewal not due for 6 months.', severity: 'critical' },
+      { id: 'CHK-2025-10', category: 'Policy', check: 'Utilisation review', status: 'warning', detail: 'Contract utilisation at 58% — below 80% target. Seat reduction recommended.', severity: 'medium' },
+      { id: 'CHK-2025-11', category: 'Risk', check: 'Vendor risk', status: 'pass', detail: 'Low vendor risk. Multi-year relationship with strong performance.', severity: 'high' },
+      { id: 'CHK-2025-12', category: 'Value', check: 'Pricing review', status: 'pass', detail: 'Renewal pricing includes 3% uplift — within acceptable CPI band.', severity: 'medium' },
+    ],
+    recommendation: 'Proceed with VP approval. Request supplier review of licence count before signature.',
+  },
+);
+
 export function getComplianceReport(requestId: string): ComplianceReport | undefined {
   return complianceReports.find((r) => r.requestId === requestId);
 }

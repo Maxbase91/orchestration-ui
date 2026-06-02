@@ -3,23 +3,22 @@ import { useNavigate } from 'react-router-dom';
 import { FileWarning } from 'lucide-react';
 import { useContracts } from '@/lib/db/hooks/use-contracts';
 import { differenceInDays, parseISO } from 'date-fns';
-import { resolveDemoReference } from '@/lib/demo-date';
 
 export function WidgetExpiringContracts() {
   const navigate = useNavigate();
   const { data: contracts = [] } = useContracts();
 
   const expiring = useMemo(() => {
-    const ref = resolveDemoReference(contracts.map((c) => ({ endDate: c.endDate })), 12);
+    const now = new Date();
     return contracts
       .filter((c) => {
         const end = parseISO(c.endDate);
-        const days = differenceInDays(end, ref);
+        const days = differenceInDays(end, now);
         return days <= 90;
       })
       .map((c) => ({
         ...c,
-        daysUntilExpiry: differenceInDays(parseISO(c.endDate), ref),
+        daysUntilExpiry: differenceInDays(parseISO(c.endDate), now),
       }))
       .sort((a, b) => a.daysUntilExpiry - b.daysUntilExpiry)
       .slice(0, 5);

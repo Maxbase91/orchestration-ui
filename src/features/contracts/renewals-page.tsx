@@ -11,7 +11,6 @@ import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { differenceInDays, parseISO } from 'date-fns';
-import { resolveDemoReference } from '@/lib/demo-date';
 
 type TabFilter = 'all' | 'expiring' | 'expired';
 
@@ -31,7 +30,7 @@ export function RenewalsPage() {
   const { data: contracts = [] } = useContracts();
 
   const rows = useMemo<ContractRow[]>(() => {
-    const today = resolveDemoReference(contracts.map((c) => ({ endDate: c.endDate })), 12);
+    const today = new Date();
     return contracts.map((c) => {
       const endDate = parseISO(c.endDate);
       const daysUntilExpiry = differenceInDays(endDate, today);

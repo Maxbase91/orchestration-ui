@@ -1,13 +1,12 @@
 import { useMemo } from 'react';
 import { FileText, CheckCircle, PackageCheck } from 'lucide-react';
 import { useRequests } from '@/lib/db/hooks/use-requests';
-import { resolveDemoReference } from '@/lib/demo-date';
 
 export function WidgetQuickStats() {
   const { data: requests = [] } = useRequests();
   const stats = useMemo(() => {
-    const ref = resolveDemoReference(requests, 1);
-    const thisMonth = `${ref.getFullYear()}-${String(ref.getMonth() + 1).padStart(2, '0')}`;
+    const now = new Date();
+    const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
     const submitted = requests.filter((r) => r.createdAt.startsWith(thisMonth)).length;
     const approved = requests.filter(

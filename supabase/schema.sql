@@ -751,3 +751,105 @@ CREATE TABLE IF NOT EXISTS chat_feedback (
 ALTER TABLE chat_feedback ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Allow all" ON chat_feedback;
 CREATE POLICY "Allow all" ON chat_feedback FOR ALL USING (true) WITH CHECK (true);
+
+-- ── Tables added in June 2026 sessions ───────────────────────────────────────
+
+-- Workflow engine instances (tracks current node per request)
+CREATE TABLE IF NOT EXISTS workflow_instances (
+  id               text PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  request_id       text NOT NULL REFERENCES requests(id) ON DELETE CASCADE,
+  template_id      text NOT NULL,
+  current_node_ids jsonb NOT NULL DEFAULT '[]',
+  status           text NOT NULL DEFAULT 'running',
+  variables        jsonb NOT NULL DEFAULT '{}',
+  created_at       timestamptz NOT NULL DEFAULT now(),
+  updated_at       timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_workflow_instances_request ON workflow_instances(request_id);
+ALTER TABLE workflow_instances ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "wf_instances_all" ON workflow_instances FOR ALL USING (true) WITH CHECK (true);
+
+-- Approval chains configuration
+CREATE TABLE IF NOT EXISTS approval_chains (
+  id            text PRIMARY KEY,
+  name          text NOT NULL,
+  description   text NOT NULL DEFAULT '',
+  threshold     text NOT NULL DEFAULT '',
+  steps         jsonb NOT NULL DEFAULT '[]',
+  referenced_by jsonb NOT NULL DEFAULT '[]',
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  updated_at    timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE approval_chains ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "approval_chains_all" ON approval_chains FOR ALL USING (true) WITH CHECK (true);
+
+-- SLA targets per stage/channel
+CREATE TABLE IF NOT EXISTS sla_targets (
+  stage   text NOT NULL,
+  channel text NOT NULL DEFAULT 'default',
+  days    int  NOT NULL,
+  PRIMARY KEY (stage, channel)
+);
+ALTER TABLE sla_targets ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "sla_targets_all" ON sla_targets FOR ALL USING (true) WITH CHECK (true);
+
+-- Admin-managed procurement categories
+CREATE TABLE IF NOT EXISTS procurement_categories (
+  id            text PRIMARY KEY,
+  label         text NOT NULL,
+  description   text NOT NULL DEFAULT '',
+  icon          text,
+  timeline_days int NOT NULL DEFAULT 5,
+  sort_order    int NOT NULL DEFAULT 0,
+  active        boolean NOT NULL DEFAULT true
+);
+ALTER TABLE procurement_categories ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "categories_all" ON procurement_categories FOR ALL USING (true) WITH CHECK (true);
+
+-- Goods receipts for three-way match
+CREATE TABLE IF NOT EXISTS goods_receipts (
+  id          text PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  po_id       text NOT NULL REFERENCES purchase_orders(id) ON DELETE CASCADE,
+  request_id  text REFERENCES requests(id),
+  received_by text NOT NULL,
+  received_at timestamptz NOT NULL DEFAULT now(),
+  notes       text NOT NULL DEFAULT '',
+  line_items  jsonb NOT NULL DEFAULT '[]',
+  status      text NOT NULL DEFAULT 'complete',
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE goods_receipts ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "gr_all" ON goods_receipts FOR ALL USING (true) WITH CHECK (true);
+
+-- Sourcing events (RFx)
+CREATE TABLE IF NOT EXISTS sourcing_events (
+  id              text PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  title           text NOT NULL,
+  category        text NOT NULL DEFAULT '',
+  type            text NOT NULL DEFAULT 'RFP',
+  status          text NOT NULL DEFAULT 'draft',
+  budget          numeric,
+  deadline        date,
+  publish_date    date,
+  evaluation_date date,
+  award_date      date,
+  owner_id        text,
+  description     text NOT NULL DEFAULT '',
+  created_at      timestamptz NOT NULL DEFAULT now(),
+  updated_at      timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE sourcing_events ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "sourcing_events_all" ON sourcing_events FOR ALL USING (true) WITH CHECK (true);
+
+-- Sourcing responses (per-supplier per-event)
+CREATE TABLE IF NOT EXISTS sourcing_responses (
+  id            text PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  event_id      text NOT NULL REFERENCES sourcing_events(id) ON DELETE CASCADE,
+  supplier_id   text,
+  supplier_name text NOT NULL,
+  status        text NOT NULL DEFAULT 'not-viewed',
+  response_date date,
+  created_at    timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE sourcing_responses ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "sourcing_responses_all" ON sourcing_responses FOR ALL USING (true) WITH CHECK (true);

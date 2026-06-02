@@ -4,6 +4,8 @@ import { DataTable, type Column } from '@/components/shared/data-table';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { GoodsReceiptForm } from '@/features/purchasing/components/goods-receipt-form';
 import { usePurchaseOrders } from '@/lib/db/hooks/use-purchase-orders';
+import { useCreateGoodsReceipt } from '@/lib/db/hooks/use-goods-receipts';
+import { useAuthStore } from '@/stores/auth-store';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { toast } from 'sonner';
 import type { PurchaseOrder } from '@/data/types';
@@ -23,6 +25,8 @@ const RECEIVABLE_STATUSES = ['submitted', 'acknowledged', 'partially-received'];
 export function GoodsReceiptPage() {
   const [selectedPO, setSelectedPO] = useState<PurchaseOrder | null>(null);
   const { data: purchaseOrders = [] } = usePurchaseOrders();
+  const createReceipt = useCreateGoodsReceipt();
+  const { currentUser } = useAuthStore();
 
   const rows = useMemo<PORow[]>(() => {
     return purchaseOrders
@@ -118,13 +122,32 @@ export function GoodsReceiptPage() {
           </div>
           <GoodsReceiptForm
             lineItems={selectedPO.lineItems}
-            onConfirm={(quantities) => {
+            onConfirm={async (quantities) => {
               const allReceived = quantities.every((q, i) => q >= selectedPO.lineItems[i].quantity);
-              toast.success(
-                allReceived
-                  ? `Full receipt confirmed for ${selectedPO.id}`
-                  : `Partial receipt recorded for ${selectedPO.id}`
-              );
+              try {
+                await createReceipt.mutateAsync({
+                  poId: selectedPO.id,
+                  requestId: selectedPO.requestId,
+                  receivedBy: currentUser.name,
+                  receivedAt: new Date().toISOString(),
+                  notes: '',
+                  status: allReceived ? 'complete' : 'partial',
+                  lineItems: selectedPO.lineItems.map((item, i) => ({
+                    description: item.description,
+                    quantity: item.quantity,
+                    unitPrice: item.unitPrice,
+                    received: quantities[i] ?? 0,
+                  })),
+                });
+                toast.success(
+                  allReceived
+                    ? `Full receipt confirmed for ${selectedPO.id}`
+                    : `Partial receipt recorded for ${selectedPO.id}`
+                );
+              } catch (e) {
+                console.error(e);
+                toast.error('Failed to save receipt');
+              }
               setSelectedPO(null);
             }}
           />

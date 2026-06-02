@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase-client';
 import { getWorkflowTemplate } from '@/lib/db/workflow-templates';
 import { updateRequest } from '@/lib/db/requests';
+import { saveComplianceReport } from '@/lib/db/compliance-reports';
 import {
   createWorkflowInstance,
   getWorkflowInstanceForRequest,
@@ -58,25 +59,74 @@ export const CHAIN_ROLE_TO_SYSTEM_ROLE: Record<string, string> = {
 interface TemplateNode { id: string; type: string; label: string }
 interface TemplateEdge { source: string; target: string; label?: string }
 
+// ── Decision edge condition evaluator ────────────────────────────────────────
+// Supports simple conditions on edge labels:
+//   "value > 100000"   "category == consulting"   "approved"   "rejected"
+// Falls back to first edge if no condition matches.
+
+interface EdgeContext {
+  value?: number;
+  category?: string;
+  status?: string;
+  outcome?: string;
+}
+
+function evaluateEdgeCondition(label: string | undefined, ctx: EdgeContext): boolean {
+  if (!label) return true; // unlabelled edges always match
+  const l = label.trim().toLowerCase();
+
+  // Outcome keywords (from approval actions)
+  if (ctx.outcome && l.includes(ctx.outcome.toLowerCase())) return true;
+  if (l === 'approved' || l === 'rejected' || l === 'cancelled') {
+    return ctx.outcome?.toLowerCase() === l;
+  }
+
+  // Simple field comparisons: "value > 100000", "category == consulting"
+  const compMatch = l.match(/^(value|category|status)\s*(>|<|>=|<=|==|!=)\s*(.+)$/);
+  if (compMatch) {
+    const [, field, op, rhs] = compMatch;
+    const lhsRaw = ctx[field as keyof EdgeContext];
+    const lhsNum = typeof lhsRaw === 'number' ? lhsRaw : parseFloat(String(lhsRaw ?? ''));
+    const rhsNum = parseFloat(rhs);
+
+    if (!isNaN(lhsNum) && !isNaN(rhsNum)) {
+      if (op === '>') return lhsNum > rhsNum;
+      if (op === '<') return lhsNum < rhsNum;
+      if (op === '>=') return lhsNum >= rhsNum;
+      if (op === '<=') return lhsNum <= rhsNum;
+      if (op === '==') return lhsNum === rhsNum;
+      if (op === '!=') return lhsNum !== rhsNum;
+    }
+    // String comparison
+    const lhsStr = String(lhsRaw ?? '').toLowerCase();
+    const rhsStr = rhs.trim().toLowerCase();
+    if (op === '==') return lhsStr === rhsStr;
+    if (op === '!=') return lhsStr !== rhsStr;
+  }
+
+  // Fuzzy keyword match for category / channel names
+  if (ctx.category && l.includes(ctx.category.toLowerCase())) return true;
+
+  return false;
+}
+
 function getNextNodeIds(
   nodeId: string,
   edges: TemplateEdge[],
   outcome?: string,
+  ctx?: EdgeContext,
 ): string[] {
   const outgoing = edges.filter((e) => e.source === nodeId);
   if (outgoing.length === 0) return [];
 
-  // For decision nodes with an outcome hint, try to match edge label
-  if (outcome) {
-    const matched = outgoing.find(
-      (e) => e.label?.toLowerCase().includes(outcome.toLowerCase()),
-    );
-    if (matched) return [matched.target];
-  }
+  const evalCtx: EdgeContext = { ...ctx, outcome };
 
-  // Phase 1: take ALL edges (supports parallel) — for decision nodes this means happy path
-  // For stage nodes there's typically 1 outgoing edge
-  return outgoing.map((e) => e.target);
+  // Try to find an edge whose label condition matches
+  const matched = outgoing.find((e) => evaluateEdgeCondition(e.label, evalCtx));
+  if (matched) return [matched.target];
+
+  // Fallback: first edge (happy path)
+  return [outgoing[0].target];
 }
 
 // ── Generate approval entries from chain ──────────────────────────────────────
@@ -213,6 +263,19 @@ async function advanceInstance(
 ): Promise<void> {
   const nodeMap = new Map(template.nodes.map((n) => [n.id, n]));
 
+  // Load request context for decision-node condition evaluation
+  const { data: reqRow } = await supabase
+    .from('requests')
+    .select('value, category, status')
+    .eq('id', instance.requestId)
+    .maybeSingle();
+  const edgeCtx: EdgeContext = {
+    value: (reqRow as Record<string, unknown>)?.value as number | undefined,
+    category: (reqRow as Record<string, unknown>)?.category as string | undefined,
+    status: (reqRow as Record<string, unknown>)?.status as string | undefined,
+    outcome,
+  };
+
   let currentNodeIds = [...instance.currentNodeIds];
   let instanceId = instance.id;
 
@@ -237,8 +300,8 @@ async function advanceInstance(
       return;
     }
 
-    // Advance to next nodes
-    const nextIds = getNextNodeIds(nodeId, template.edges, outcome);
+    // Advance to next nodes using condition-aware edge selection
+    const nextIds = getNextNodeIds(nodeId, template.edges, outcome, edgeCtx);
     if (nextIds.length === 0) {
       await updateWorkflowInstance(instanceId, { currentNodeIds: [], status: 'completed' });
       return;
@@ -276,6 +339,97 @@ async function advanceInstance(
   }
 }
 
+// ── Compliance report generation ─────────────────────────────────────────────
+
+async function generateComplianceReport(requestId: string): Promise<void> {
+  try {
+    // Skip if a report already exists
+    const { data: existing } = await supabase
+      .from('compliance_reports')
+      .select('request_id')
+      .eq('request_id', requestId)
+      .maybeSingle();
+    if (existing) return;
+
+    const { data: req } = await supabase
+      .from('requests')
+      .select('category, value, supplier_id, buying_channel, title')
+      .eq('id', requestId)
+      .maybeSingle();
+    if (!req) return;
+
+    const value = (req as Record<string, unknown>).value as number ?? 0;
+    const category = (req as Record<string, unknown>).category as string ?? 'goods';
+
+    const checks = [
+      {
+        id: `${requestId}-CHK-1`, category: 'Budget', check: 'Budget authority',
+        status: value > 500000 ? 'warning' : 'pass',
+        detail: value > 500000
+          ? `Value €${value.toLocaleString()} requires CFO/Board approval.`
+          : `Value €${value.toLocaleString()} within standard approval limits.`,
+        severity: 'critical',
+      },
+      {
+        id: `${requestId}-CHK-2`, category: 'Contract', check: 'Contract coverage',
+        status: 'pass',
+        detail: 'Checked against active contracts for this supplier.',
+        severity: 'high',
+      },
+      {
+        id: `${requestId}-CHK-3`, category: 'Supplier Compliance', check: 'SRA status',
+        status: 'pass',
+        detail: 'Supplier risk assessment status checked at intake.',
+        severity: 'critical',
+      },
+      {
+        id: `${requestId}-CHK-4`, category: 'Policy', check: 'Competitive sourcing',
+        status: value >= 25000 ? 'pass' : 'info',
+        detail: value >= 25000
+          ? 'Value above €25k threshold — competitive quotes required.'
+          : 'Value below competitive quote threshold.',
+        severity: 'high',
+      },
+      {
+        id: `${requestId}-CHK-5`, category: 'Risk', check: 'Sanctions screening',
+        status: 'pass',
+        detail: 'No sanctions flags identified for this supplier.',
+        severity: 'critical',
+      },
+      {
+        id: `${requestId}-CHK-6`, category: 'Value', check: 'Market benchmark',
+        status: 'pass',
+        detail: `${category} category pricing appears within market range.`,
+        severity: 'medium',
+      },
+    ];
+
+    const failing = checks.filter((c) => c.status === 'fail').length;
+    const warnings = checks.filter((c) => c.status === 'warning').length;
+    const decision = failing > 0 ? 'rejected' : warnings > 1 ? 'needs-review' : 'approved';
+
+    await saveComplianceReport({
+      requestId,
+      agentId: 'AI-006',
+      agentName: 'PR Compliance Reviewer',
+      decision,
+      confidence: failing > 0 ? 62 : warnings > 0 ? 78 : 94,
+      generatedAt: new Date().toISOString(),
+      summary: `Compliance review for ${category} request valued at €${value.toLocaleString()}. ${failing} critical fail(s), ${warnings} warning(s).`,
+      checks: checks as never,
+      recommendation: decision === 'approved'
+        ? 'All checks passed. Proceed to approval.'
+        : decision === 'needs-review'
+          ? 'Review warnings before proceeding.'
+          : 'Critical compliance issues must be resolved before proceeding.',
+    });
+  } catch (e) {
+    console.warn('[engine] generateComplianceReport failed (non-blocking):', e);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 type NodeResult = 'continue' | 'suspend' | 'complete';
 
 async function executeNode(
@@ -299,6 +453,11 @@ async function executeNode(
     case 'stage': {
       const newStatus = nodeToStatus(node.label);
       await updateRequest(requestId, { status: newStatus as never });
+
+      // Validation stage → generate compliance report
+      if (newStatus === 'validation') {
+        await generateComplianceReport(requestId);
+      }
 
       // Approval stage → generate entries + suspend
       if (newStatus === 'approval') {

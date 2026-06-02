@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
 import { useAuthStore } from '@/stores/auth-store';
 import { createRequest } from '@/lib/db/requests';
+import { parseDeliveryDate } from '@/lib/parse-delivery-date';
 import { saveServiceDescription } from '@/lib/db/service-descriptions';
 import { initWorkflow } from '@/lib/workflow/engine';
 import { queryClient } from '@/lib/query-client';
@@ -252,7 +253,7 @@ export function NewRequestPage() {
           costCentre: formData.costCentre,
           budgetOwner: currentUser.name,
           businessJustification: formData.businessJustification,
-          deliveryDate: formData.deliveryDate,
+          deliveryDate: parseDeliveryDate(formData.deliveryDate) ?? undefined,
           isUrgent: formData.isUrgent,
           requestorId: currentUser.id,
           ownerId: currentUser.id,

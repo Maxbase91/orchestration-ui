@@ -22,7 +22,11 @@ export async function createRequest(record: Partial<ProcurementRequest>): Promis
     .insert(mapRequestToDb(record))
     .select('*')
     .single();
-  if (error) throw error;
+  if (error) {
+    const detail = (error as { message?: string; details?: string; hint?: string });
+    const msg = [detail.message, detail.details, detail.hint].filter(Boolean).join(' — ');
+    throw new Error(msg || String(error));
+  }
   return mapDbToRequest(data);
 }
 
