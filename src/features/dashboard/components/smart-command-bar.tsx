@@ -353,7 +353,7 @@ export function SmartCommandBar() {
         costCentre: '',
         budgetOwner: '',
         businessJustification: description,
-        deliveryDate: parseDeliveryDate(primary.deliveryDate ?? null) ?? undefined,
+        deliveryDate: parseDeliveryDate(primary.leadTime ?? null) ?? undefined,
         isUrgent: false,
         daysInStage: 0,
         isOverdue: false,
