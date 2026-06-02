@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FileText, Copy, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { FileText, Copy, CheckCircle, ChevronDown, ChevronUp, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import type { ProcurementRequest } from '@/data/types';
 import { useUserLookup, useUsers } from '@/lib/db/hooks/use-users';
@@ -118,6 +118,16 @@ export function TabOverview({ request }: TabOverviewProps) {
               >
                 <FileText className="size-4 text-[#2D5F8A]" />
                 <CardTitle className="text-base">Service Description</CardTitle>
+                {(svcDesc as Record<string, unknown>).quality_score !== undefined && (
+                  <span className={`inline-flex items-center gap-1 text-[10px] font-semibold rounded-full px-2 py-0.5 ml-1 ${
+                    ((svcDesc as Record<string, unknown>).quality_score as number) >= 80 ? 'bg-green-100 text-green-700' :
+                    ((svcDesc as Record<string, unknown>).quality_score as number) >= 60 ? 'bg-amber-100 text-amber-700' :
+                    'bg-red-100 text-red-700'
+                  }`}>
+                    <ShieldCheck className="size-3" />
+                    {(svcDesc as Record<string, unknown>).quality_score as number}/100
+                  </span>
+                )}
                 {sowExpanded ? <ChevronUp className="size-4 text-gray-400" /> : <ChevronDown className="size-4 text-gray-400" />}
               </button>
               <Button

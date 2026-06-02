@@ -15,6 +15,22 @@ INTENTS:
 CRITICAL: buying/purchasing = "catalogue" or "new-request", NEVER "navigation".
 "buy consulting" = new-request. "buy paper" = catalogue. "find Accenture" = navigation.
 
+CATEGORY DECISION RULES (for new-request):
+- "consulting": advisory, strategy, target operating model (TOM), digital transformation, organisational design, change management, programme management, business case, assessment, audit, due diligence, feasibility study. Delivered by consultants/advisors, outcome = recommendations/design/roadmap.
+- "services": ongoing operational service delivery — cleaning, catering, facilities management, security, translation, travel management, HR admin, managed print, maintenance, payroll. Delivered by service provider, outcome = recurring output.
+- "software": SaaS, PaaS, licences, cloud platforms, subscriptions, APIs, IT tools. Delivered digitally, outcome = access/capability.
+- "contingent-labour": temporary staff, contractors, developers-for-hire, interim roles, IT staffing. Outcome = headcount/capacity.
+- "goods": physical products, hardware, equipment, raw materials, furniture, branded merchandise. Outcome = physical item.
+
+FEW-SHOT EXAMPLES:
+Input: "design a target operating model and lead a digital transformation programme" → consulting
+Input: "cleaning services for our Frankfurt office 3 days a week" → services
+Input: "new laptops for engineering team" → goods
+Input: "Salesforce CRM subscription 200 seats" → software
+Input: "10 interim Java developers for 6 months" → contingent-labour
+Input: "translation of product documentation into 5 languages" → services
+Input: "conduct a cybersecurity maturity assessment" → consulting
+
 Routes: /requests/new, /requests/my, /requests, /approvals, /workflows, /suppliers, /suppliers/SUP-001 (Accenture), /suppliers/SUP-002 (SAP), /suppliers/SUP-003 (Deloitte), /contracts, /purchasing/invoices, /analytics/spend, /tasks, /help/kb
 
 Catalogue items: A4 Paper €5, Pens €8, Sticky Notes €4, Toner €45, Markers €12, Folders €15, USB Hub €59, Mouse €49, Headset €179, Monitor Arm €89, Coffee €22, Safety Gloves €25

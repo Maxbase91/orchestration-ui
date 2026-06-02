@@ -84,8 +84,8 @@ async function classifyWithAI(input: string): Promise<AIClassification | null> {
 function localClassify(input: string): AIClassification {
   const q = input.toLowerCase();
   let category = 'goods';
-  if (/consult|advisory|strategy|audit|transformation|business consulting/.test(q)) category = 'consulting';
-  else if (/service|cleaning|catering|maintenance|travel|training|managed/.test(q)) category = 'services';
+  if (/consult|advisory|strategy|audit|transformation|business consult|operating model|tom\b|organisational|organizational|change management|programme management|program management|due diligence|feasibility|business case|maturity assessment|roadmap|target state/.test(q)) category = 'consulting';
+  else if (/\bservice\b|cleaning|catering|maintenance|travel|translation|managed print|managed service|facilities|security guard|payroll|hr admin|helpdesk/.test(q)) category = 'services';
   else if (/software|saas|license|cloud|platform|subscription|app/.test(q)) category = 'software';
   else if (/temp|contractor|staff|developer|freelance|hire|interim/.test(q)) category = 'contingent-labour';
   else if (/renew|extend|renewal|expir/.test(q)) category = 'contract-renewal';
@@ -210,11 +210,16 @@ export function StepCategory({ category, categoryDescription: _categoryDescripti
   };
 
   const handleCategorySelect = (categoryId: string) => {
-    const cat = CATEGORIES.find((c) => c.id === categoryId);
+    // Reset AI state so this manual override is treated as the definitive choice.
+    // Without this, `accepted = true` from a prior AI accept can cause auto-advance
+    // to fire with the stale AI-classified category instead of the user's selection.
+    setAccepted(false);
+    setAiResult(null);
+    const cat = activeCategories.find((c) => c.id === categoryId);
     onUpdate({ category: categoryId, categoryDescription: cat?.name ?? categoryId });
   };
 
-  const categoryLabel = (id: string) => CATEGORIES.find((c) => c.id === id)?.name ?? id;
+  const categoryLabel = (id: string) => activeCategories.find((c) => c.id === id)?.name ?? id;
 
   return (
     <div className="space-y-6">

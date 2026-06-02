@@ -64,6 +64,34 @@ The New Request wizard is the platform's primary front door — a single intelli
 
 ---
 
+## SOW Generator (§10 — upgraded)
+
+### Architecture (Hybrid Q&A + Generate)
+
+The intake chat gathers key context (Q&A), then a dedicated AI endpoint produces a polished, validated SOW.
+
+- FR01-40 · After Q&A completes, a **"Generate SOW"** button appears in the right panel (SOW tab).
+- FR01-41 · Clicking calls `POST /api/generate-sow` with: `category`, `title`, `value`, `supplier`, `timeline`, `capturedAnswers` (all filled SOW sections), `commodityCode`.
+- FR01-42 · The endpoint uses a **category-specific system prompt** (consulting → phased delivery/RACI/KPIs; services → SLAs/coverage; software → licensing/DPA; goods → spec/incoterms) and LLM expansion — not verbatim echo.
+- FR01-43 · Each of the 9 SOW sections becomes **editable inline** (textarea); changes propagate to `formData.serviceDescription` immediately on edit.
+- FR01-44 · A **"Regenerate this section"** button (↺) on each section calls the endpoint for that section only.
+- FR01-45 · The endpoint returns a **quality score (0–100)** and per-section checklist (pass/fail + issue description).
+- FR01-46 · The quality badge is shown in the SOW panel header; clicking expands a checklist panel.
+- FR01-47 · Quality rules: acceptance criteria must contain measurable KPIs; deliverables must be a numbered list; timeline must reference phases.
+- FR01-48 · LLM unavailable → deterministic mock fallback generates expanded sections from a category template.
+- FR01-49 · The full SOW (sections + narrative + quality_score + quality_checks) persists to `service_descriptions` table.
+- FR01-50 · The request detail Overview tab shows the SOW quality badge next to the Service Description card title.
+
+### Classifier fixes (June 2026)
+- FR01-51 · `api/ai.ts` includes explicit category decision rules with 7 few-shot examples to reduce consulting/services/goods confusion.
+- FR01-52 · `localClassify()` expanded with consulting keywords: `operating model`, `TOM`, `change management`, `programme management`, `maturity assessment`.
+- FR01-53 · When the user manually overrides the AI-classified category (clicking a tile), `accepted` and `aiResult` are reset so the override propagates correctly through all subsequent steps.
+
+### Catalogue "Order Now"
+- FR01-54 · The command-bar catalogue Order Now path (`handleOrderNow`) applies `parseDeliveryDate()` to the item's delivery date field before calling `createRequest()`, preventing the empty-string DATE column error.
+
+---
+
 ## Data Flow
 
 ```

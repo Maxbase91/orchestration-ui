@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Sparkles, Send, User, CheckCircle, Circle, Loader2, AlertTriangle, FileText, Copy } from 'lucide-react';
+import { Sparkles, Send, User, CheckCircle, Circle, Loader2, AlertTriangle, FileText, Copy, RefreshCw, Wand2, ShieldCheck, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -184,6 +184,11 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
   const [summary, setSummary] = useState('');
   const [error, setError] = useState(false);
   const [svcDesc, setSvcDesc] = useState<Partial<ServiceDescription>>({});
+  const [generating, setGenerating] = useState(false);
+  const [generatingSection, setGeneratingSection] = useState<string | null>(null);
+  const [qualityScore, setQualityScore] = useState<number | null>(null);
+  const [qualityChecks, setQualityChecks] = useState<{ section: string; passed: boolean; issue: string | null }[]>([]);
+  const [showQuality, setShowQuality] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -373,6 +378,66 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
     }
   };
 
+  const callGenerateSow = useCallback(async (sectionKey?: string) => {
+    if (sectionKey) setGeneratingSection(sectionKey);
+    else setGenerating(true);
+
+    try {
+      const res = await fetch('/api/generate-sow', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          category,
+          title: data.title,
+          value: data.estimatedValue,
+          supplier: data.supplier,
+          timeline: data.deliveryDate,
+          capturedAnswers: Object.fromEntries(
+            Object.entries(svcDesc).filter(([, v]) => v?.trim()),
+          ),
+          commodityCode: data.commodityCode,
+        }),
+      });
+
+      if (!res.ok) throw new Error('generate-sow API error');
+      const result = await res.json() as {
+        sections: Partial<ServiceDescription>;
+        narrative: string;
+        qualityScore: number;
+        qualityChecks: { section: string; passed: boolean; issue: string | null }[];
+      };
+
+      if (sectionKey) {
+        // Single-section regenerate
+        const newVal = result.sections[sectionKey as keyof ServiceDescription] ?? svcDesc[sectionKey as keyof ServiceDescription] ?? '';
+        const updated = { ...svcDesc, [sectionKey]: newVal };
+        setSvcDesc(updated);
+        onUpdate({ serviceDescription: updated });
+      } else {
+        // Full SOW generation
+        const merged = { ...result.sections, narrative: result.narrative };
+        setSvcDesc(merged as Partial<ServiceDescription>);
+        onUpdate({ serviceDescription: merged });
+        setQualityScore(result.qualityScore);
+        setQualityChecks(result.qualityChecks);
+        setShowQuality(true);
+        toast.success(`SOW generated — quality score: ${result.qualityScore}/100`);
+      }
+    } catch (e) {
+      console.error('[generate-sow]', e);
+      toast.error('SOW generation failed — please try again or fill sections manually.');
+    } finally {
+      setGenerating(false);
+      setGeneratingSection(null);
+    }
+  }, [category, data, svcDesc, onUpdate]);
+
+  const handleSowEdit = useCallback((key: string, value: string) => {
+    const updated = { ...svcDesc, [key]: value };
+    setSvcDesc(updated);
+    onUpdate({ serviceDescription: updated });
+  }, [svcDesc, onUpdate]);
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 min-h-[400px]">
       {/* Chat Area (3/5) */}
@@ -551,31 +616,98 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
           {/* SERVICE DESCRIPTION TAB */}
           <TabsContent value="sow">
             <div className="rounded-lg border border-gray-200 bg-white p-4 space-y-3">
-              <div className="flex items-center justify-between">
+              {/* Header row */}
+              <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-1.5">
                   <FileText className="size-3.5 text-[#2D5F8A]" />
-                  <h4 className="text-xs font-semibold text-gray-900">Service Description</h4>
+                  <h4 className="text-xs font-semibold text-gray-900">Statement of Work</h4>
                 </div>
-                {svcDesc.narrative && (
-                  <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={() => { navigator.clipboard.writeText(svcDesc.narrative ?? ''); toast.success('Copied to clipboard'); }}>
-                    <Copy className="size-3" />Copy
+                <div className="flex items-center gap-1">
+                  {svcDesc.narrative && (
+                    <Button variant="ghost" size="sm" className="h-6 text-[10px] px-1.5" onClick={() => { navigator.clipboard.writeText(svcDesc.narrative ?? ''); toast.success('Copied'); }}>
+                      <Copy className="size-3" />
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    className="h-6 text-[10px] px-2 bg-[#2D5F8A] hover:bg-[#1B2A4A] text-white"
+                    onClick={() => callGenerateSow()}
+                    disabled={generating}
+                  >
+                    {generating ? <Loader2 className="size-3 animate-spin mr-1" /> : <Wand2 className="size-3 mr-1" />}
+                    {generating ? 'Generating…' : 'Generate SOW'}
                   </Button>
-                )}
+                </div>
               </div>
 
-              {/* SOW Sections */}
+              {/* Quality score badge */}
+              {qualityScore !== null && (
+                <div className="space-y-1">
+                  <button
+                    className="flex items-center gap-1.5 w-full"
+                    onClick={() => setShowQuality((v) => !v)}
+                  >
+                    <ShieldCheck className={`size-3.5 shrink-0 ${qualityScore >= 80 ? 'text-green-600' : qualityScore >= 60 ? 'text-amber-500' : 'text-red-500'}`} />
+                    <span className={`text-[10px] font-semibold ${qualityScore >= 80 ? 'text-green-700' : qualityScore >= 60 ? 'text-amber-700' : 'text-red-700'}`}>
+                      SOW Quality: {qualityScore}/100
+                    </span>
+                    {qualityChecks.some((c) => !c.passed) && (
+                      <Badge variant="outline" className="text-[9px] px-1 py-0 border-amber-300 text-amber-700">
+                        {qualityChecks.filter((c) => !c.passed).length} issue{qualityChecks.filter((c) => !c.passed).length > 1 ? 's' : ''}
+                      </Badge>
+                    )}
+                  </button>
+                  {showQuality && (
+                    <div className="rounded-md border border-gray-100 bg-gray-50 p-2 space-y-0.5">
+                      {qualityChecks.map((chk) => (
+                        <div key={chk.section} className="flex items-start gap-1.5 text-[10px]">
+                          {chk.passed
+                            ? <CheckCircle className="size-3 text-green-500 shrink-0 mt-0.5" />
+                            : <XCircle className="size-3 text-red-400 shrink-0 mt-0.5" />}
+                          <span className={chk.passed ? 'text-gray-500' : 'text-red-600'}>
+                            <span className="font-medium capitalize">{chk.section.replace(/([A-Z])/g, ' $1')}</span>
+                            {!chk.passed && `: ${chk.issue}`}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* SOW Sections — editable */}
               {SOW_SECTIONS.map(({ key, label }) => {
                 const value = svcDesc[key as keyof ServiceDescription];
+                const isRegenerating = generatingSection === key;
                 return (
                   <div key={key}>
-                    <div className="flex items-center gap-1.5">
-                      {value ? <CheckCircle className="size-3 text-green-500 shrink-0" /> : <Circle className="size-3 text-gray-300 shrink-0" />}
-                      <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">{label}</p>
+                    <div className="flex items-center justify-between gap-1">
+                      <div className="flex items-center gap-1.5">
+                        {value ? <CheckCircle className="size-3 text-green-500 shrink-0" /> : <Circle className="size-3 text-gray-300 shrink-0" />}
+                        <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">{label}</p>
+                      </div>
+                      {value && (
+                        <button
+                          className="text-gray-300 hover:text-[#2D5F8A] transition-colors"
+                          title={`Regenerate ${label}`}
+                          onClick={() => callGenerateSow(key)}
+                          disabled={isRegenerating || generating}
+                        >
+                          {isRegenerating
+                            ? <Loader2 className="size-3 animate-spin" />
+                            : <RefreshCw className="size-3" />}
+                        </button>
+                      )}
                     </div>
                     {value ? (
-                      <p className="text-[11px] text-gray-700 mt-0.5 pl-[18px] leading-relaxed">{value}</p>
+                      <textarea
+                        className="mt-0.5 w-full text-[11px] text-gray-700 leading-relaxed bg-transparent border border-transparent hover:border-gray-200 focus:border-[#2D5F8A] focus:bg-white focus:outline-none rounded px-1.5 py-1 resize-none transition-colors"
+                        rows={Math.max(2, Math.ceil(value.length / 80))}
+                        value={value}
+                        onChange={(e) => handleSowEdit(key, e.target.value)}
+                      />
                     ) : (
-                      <p className="text-[11px] text-gray-300 italic mt-0.5 pl-[18px]">Will be captured during conversation...</p>
+                      <p className="text-[11px] text-gray-300 italic mt-0.5 pl-[18px]">Will be captured during conversation — or click Generate SOW above.</p>
                     )}
                   </div>
                 );
@@ -592,7 +724,7 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
               )}
 
               {Object.keys(svcDesc).filter((k) => k !== 'narrative' && svcDesc[k as keyof ServiceDescription]).length === 0 && (
-                <p className="text-xs text-gray-400 text-center py-4">The service description will build up as you answer the assistant's questions.</p>
+                <p className="text-xs text-gray-400 text-center py-4">Answer the assistant's questions above, then click <strong>Generate SOW</strong> to produce a professional draft.</p>
               )}
             </div>
           </TabsContent>

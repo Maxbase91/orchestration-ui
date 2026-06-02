@@ -1,6 +1,6 @@
 # FR-13: Data Model & Validation Rules
 
-**Version:** 1.0 · **Date:** June 2026
+**Version:** 1.1 · **Date:** June 2026
 
 ---
 
@@ -93,6 +93,9 @@ This document is the authoritative reference for all Supabase tables, key field 
 ## All Supabase Tables (35)
 
 requests, stage_history, comments, comment_reads, approval_entries, audit_entries, users, user_preferences, suppliers, contracts, purchase_orders, invoices, notifications, routing_rules, workflow_templates, workflow_step_details, workflow_instances, risk_assessments, ai_agents, ai_conversations, knowledge_base, chat_feedback, form_templates, form_submissions, intake_compliance_records, compliance_reports, catalogue_items, service_descriptions, system_integrations, kpi_data, approval_chains, sla_targets, procurement_categories, goods_receipts, sourcing_events, sourcing_responses, tickets
+
+### service_descriptions (updated June 2026)
+All 11 SOW fields + narrative + **quality_score INT** (0–100, nullable) + **quality_checks JSONB** (array of `{ section, passed, issue }`, nullable). Quality fields populated by `POST /api/generate-sow` at time of SOW generation.
 
 ---
 

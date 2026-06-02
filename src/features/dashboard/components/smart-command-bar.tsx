@@ -26,6 +26,7 @@ import type { CatalogueItem } from '@/data/catalogue-items';
 import { useCatalogueItems } from '@/lib/db/hooks/use-catalogue-items';
 import { createRequest } from '@/lib/db/requests';
 import { useAuthStore } from '@/stores/auth-store';
+import { parseDeliveryDate } from '@/lib/parse-delivery-date';
 import { queryClient } from '@/lib/query-client';
 import type { RequestCategory, BuyingChannel } from '@/data/types';
 import { openAIChat, openAIChatWithPrompt } from '@/features/ai-assistant/ai-chat-overlay';
@@ -352,7 +353,7 @@ export function SmartCommandBar() {
         costCentre: '',
         budgetOwner: '',
         businessJustification: description,
-        deliveryDate: '',
+        deliveryDate: parseDeliveryDate(primary.deliveryDate ?? null) ?? undefined,
         isUrgent: false,
         daysInStage: 0,
         isOverdue: false,
