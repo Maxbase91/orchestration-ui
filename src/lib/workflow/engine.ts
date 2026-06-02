@@ -281,8 +281,8 @@ type NodeResult = 'continue' | 'suspend' | 'complete';
 async function executeNode(
   node: TemplateNode,
   requestId: string,
-  template: WorkflowTemplate,
-  outcome: string | undefined,
+  _template: WorkflowTemplate,
+  _outcome: string | undefined,
 ): Promise<NodeResult> {
   switch (node.type) {
     case 'start':

@@ -5,7 +5,6 @@ import { Check, X, RotateCcw, UserPlus, ArrowUpRight, Ban, ShoppingCart, Loader2
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { ProcurementRequest } from '@/data/types';
-import { apiWorkflowAction } from '@/lib/api';
 import { useCreatePurchaseOrder } from '@/lib/db/hooks/use-purchase-orders';
 import { queryClient } from '@/lib/query-client';
 import { ReferBackDialog } from './refer-back-dialog';
