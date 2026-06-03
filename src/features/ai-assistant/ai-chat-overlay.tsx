@@ -5,6 +5,8 @@ import {
   Sheet,
   SheetContent,
   SheetDescription,
+  SheetHeader,
+  SheetTitle,
 } from '@/components/ui/sheet';
 import {
   DropdownMenu,
@@ -166,6 +168,11 @@ export function AIChatOverlay() {
 
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent side="right" className="flex w-[420px] flex-col gap-0 p-0 sm:max-w-[420px] bg-gray-50/50">
+          {/* Visually-hidden title satisfies Radix accessibility requirement */}
+          <SheetHeader className="sr-only">
+            <SheetTitle>Procurement Assistant</SheetTitle>
+            <SheetDescription>AI-powered procurement assistant chat</SheetDescription>
+          </SheetHeader>
           {/* Header */}
           <div className="flex items-center gap-2 bg-white border-b border-gray-100 px-4 py-3">
             <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#1B2A4A] to-[#2D5F8A]">

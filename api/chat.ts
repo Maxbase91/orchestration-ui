@@ -677,17 +677,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
       }
 
-      // SSE streaming: stream the final LLM response token-by-token when tools were called,
-      // otherwise emit the already-fetched text as a single turn.
+      // SSE path with tool calls: emit result.content directly (already produced by the
+      // non-streaming callLLMWithTools above). Calling callLLMStreaming here caused a ~33s
+      // hang because llmMessages already includes the grounded answer — Groq timed out
+      // trying to respond to a conversation that was already complete.
       if (isSSE && hadToolCalls) {
-        try {
-          // Pass TOOLS with tool_choice:'none' so the model writes plain text
-          // instead of trying to emit more tool calls as raw JSON.
-          await callLLMStreaming(llmMessages, (token) => {
-            res.write(`data: ${JSON.stringify({ t: 'tok', c: token })}\n\n`);
-          }, TOOLS);
-        } catch (e) {
-          console.error('callLLMStreaming error:', e);
+        const answerText = result.content?.trim() ?? '';
+        if (answerText && !isToolCallLeak(answerText)) {
+          res.write(`data: ${JSON.stringify({ t: 'tok', c: answerText })}\n\n`);
         }
         res.write(`data: ${JSON.stringify({ t: 'done', turns: structuralTurns })}\n\n`);
         res.end();

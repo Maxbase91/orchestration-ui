@@ -81,7 +81,12 @@ function compute(requests: ProcurementRequest[]): LiveKpis {
     }, 0);
     return Math.round(total / completed.length);
   });
-  const avgCycleTime = cycleTimeSeries[cycleTimeSeries.length - 1] ?? 0;
+  // Use the average across all non-zero months rather than current-month only,
+  // so the metric is non-zero even when the current calendar month has few completions.
+  const nonZeroSeries = cycleTimeSeries.filter(v => v > 0);
+  const avgCycleTime = nonZeroSeries.length > 0
+    ? Math.round(nonZeroSeries.reduce((a, b) => a + b, 0) / nonZeroSeries.length)
+    : 0;
   const cycleTimeTrend = trend(cycleTimeSeries);
 
   // ── active sourcing: requests currently in sourcing (current month cross-section
