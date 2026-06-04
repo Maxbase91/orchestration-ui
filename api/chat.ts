@@ -528,6 +528,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
+  // Extract main logic into run() so try/finally guarantees res.end() on any unexpected throw.
+  async function run() {
   // Load session memory and inject into system prompt
   const userId = ctx?.currentUser?.id ?? '';
   let systemPrompt = SYSTEM_PROMPT;
@@ -789,4 +791,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   sendError('The assistant reached its iteration limit. Please try a simpler query.');
+  } // end run()
+
+  try {
+    await run();
+  } catch (err) {
+    console.error('[chat] unhandled handler error:', err);
+    if (!res.writableEnded) sendError("I'm having trouble right now. Please try again.");
+  } finally {
+    if (!res.writableEnded) res.end();
+  }
 }

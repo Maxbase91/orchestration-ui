@@ -48,6 +48,9 @@ export async function callLLMWithTools(
   const groqKey = process.env.GROQ_API_KEY;
   if (!groqKey) throw new Error('GROQ_API_KEY not set');
 
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+
   const body = {
     model: 'llama-3.3-70b-versatile',
     messages,
@@ -57,35 +60,40 @@ export async function callLLMWithTools(
     max_tokens: 1024,
   };
 
-  const response = await fetch(GROQ_URL, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${groqKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  });
+  try {
+    const response = await fetch(GROQ_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${groqKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
 
-  if (!response.ok) {
-    const err = await response.text();
-    console.error(`Groq tool-calling failed [${response.status}]:`, err);
-    throw new Error(`Groq tool-calling failed: ${response.status} ${err}`);
-  }
+    if (!response.ok) {
+      const err = await response.text();
+      console.error(`Groq tool-calling failed [${response.status}]:`, err);
+      throw new Error(`Groq tool-calling failed: ${response.status} ${err}`);
+    }
 
-  const data = await response.json();
-  const choice = data.choices?.[0];
-  const msg = choice?.message;
+    const data = await response.json() as { choices?: Array<{ message?: { content?: string | null; tool_calls?: GroqToolCall[] }; finish_reason?: string }> };
+    const choice = data.choices?.[0];
+    const msg = choice?.message;
 
-  return {
-    content: msg?.content ?? null,
-    toolCalls: msg?.tool_calls ?? [],
-    finishReason: choice?.finish_reason ?? 'error',
-    assistantMessage: {
-      role: 'assistant',
+    return {
       content: msg?.content ?? null,
-      ...(msg?.tool_calls ? { tool_calls: msg.tool_calls } : {}),
-    },
-  };
+      toolCalls: msg?.tool_calls ?? [],
+      finishReason: (choice?.finish_reason as ToolCallResult['finishReason']) ?? 'error',
+      assistantMessage: {
+        role: 'assistant',
+        content: msg?.content ?? null,
+        ...(msg?.tool_calls ? { tool_calls: msg.tool_calls } : {}),
+      },
+    };
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 interface LLMOptions {
@@ -140,28 +148,36 @@ async function callGroq(
     body.response_format = { type: 'json_object' };
   }
 
-  const response = await fetch(GROQ_URL, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
 
-  if (response.status === 429) {
-    console.warn('Groq rate limited (429)');
-    return null; // trigger fallback
+  try {
+    const response = await fetch(GROQ_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+
+    if (response.status === 429) {
+      console.warn('Groq rate limited (429)');
+      return null; // trigger fallback
+    }
+
+    if (!response.ok) {
+      const err = await response.text();
+      console.error('Groq error:', response.status, err);
+      return null;
+    }
+
+    const data = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
+    return data.choices?.[0]?.message?.content ?? null;
+  } finally {
+    clearTimeout(timer);
   }
-
-  if (!response.ok) {
-    const err = await response.text();
-    console.error('Groq error:', response.status, err);
-    return null;
-  }
-
-  const data = await response.json();
-  return data.choices?.[0]?.message?.content ?? null;
 }
 
 // Streaming Groq call — calls onToken for each content chunk
@@ -187,6 +203,9 @@ export async function callLLMStreaming(
     body.tool_choice = 'none';
   }
 
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 20000);
+
   const response = await fetch(GROQ_URL, {
     method: 'POST',
     headers: {
@@ -194,9 +213,11 @@ export async function callLLMStreaming(
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(body),
+    signal: controller.signal,
   });
 
   if (!response.ok) {
+    clearTimeout(timer);
     throw new Error(`Groq streaming failed: ${response.status}`);
   }
 
@@ -204,23 +225,30 @@ export async function callLLMStreaming(
   const decoder = new TextDecoder();
   let buf = '';
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buf += decoder.decode(value, { stream: true });
-    const lines = buf.split('\n');
-    buf = lines.pop() ?? '';
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed.startsWith('data: ')) continue;
-      const payload = trimmed.slice(6);
-      if (payload === '[DONE]') return;
-      try {
-        const parsed = JSON.parse(payload) as { choices?: Array<{ delta?: { content?: string } }> };
-        const content = parsed.choices?.[0]?.delta?.content;
-        if (content) onToken(content);
-      } catch { /* ignore malformed chunks */ }
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const lines = buf.split('\n');
+      buf = lines.pop() ?? '';
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith('data: ')) continue;
+        const payload = trimmed.slice(6);
+        if (payload === '[DONE]') return;
+        try {
+          const parsed = JSON.parse(payload) as { choices?: Array<{ delta?: { content?: string }; finish_reason?: string }> };
+          const choice = parsed.choices?.[0];
+          if (choice?.finish_reason) return;
+          const content = choice?.delta?.content;
+          if (content) onToken(content);
+        } catch { /* ignore malformed chunks */ }
+      }
     }
+  } finally {
+    clearTimeout(timer);
+    reader.releaseLock();
   }
 }
 

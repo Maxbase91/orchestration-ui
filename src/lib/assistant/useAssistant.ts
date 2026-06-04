@@ -20,21 +20,37 @@ function turnsToText(turns: ChatMessageData['turns']): string {
 const isGroqProvider = import.meta.env.VITE_ASSISTANT_PROVIDER === 'groq';
 
 // Fetch /api/chat via SSE and return turns. Calls onToken for each streamed text chunk.
+// Aborts and returns a graceful fallback if no done event arrives within 40s.
 async function fetchSSE(
   messages: Array<{ role: string; content: string }>,
   ctx: { role: string; currentUser: { id: string; name: string } },
   onToken: (chunk: string) => void,
 ): Promise<AssistantTurn[]> {
-  const resp = await fetch('/api/chat', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'text/event-stream',
-    },
-    body: JSON.stringify({ messages, context: ctx }),
-  });
+  const controller = new AbortController();
+  const watchdog = setTimeout(() => controller.abort(), 40000);
 
-  if (!resp.ok || !resp.body) throw new Error(`api/chat ${resp.status}`);
+  let resp: Response;
+  try {
+    resp = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'text/event-stream',
+      },
+      body: JSON.stringify({ messages, context: ctx }),
+      signal: controller.signal,
+    });
+  } catch (err: unknown) {
+    clearTimeout(watchdog);
+    const isAbort = err instanceof Error && err.name === 'AbortError';
+    if (isAbort) return [{ type: 'chat-answer', content: "That's taking too long — please try again in a moment." }];
+    throw err;
+  }
+
+  if (!resp.ok || !resp.body) {
+    clearTimeout(watchdog);
+    throw new Error(`api/chat ${resp.status}`);
+  }
 
   const reader = resp.body.getReader();
   const decoder = new TextDecoder();
@@ -42,33 +58,44 @@ async function fetchSSE(
   let accumulatedText = '';
   let structuralTurns: AssistantTurn[] = [];
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
 
-    buf += decoder.decode(value, { stream: true });
-    const events = buf.split('\n\n');
-    buf = events.pop() ?? '';
+      buf += decoder.decode(value, { stream: true });
+      const events = buf.split('\n\n');
+      buf = events.pop() ?? '';
 
-    for (const event of events) {
-      const dataLine = event.trim();
-      if (!dataLine.startsWith('data: ')) continue;
-      try {
-        const payload = JSON.parse(dataLine.slice(6)) as {
-          t: 'tok' | 'done' | 'error';
-          c?: string;
-          turns?: AssistantTurn[];
-          msg?: string;
-        };
+      for (const event of events) {
+        const dataLine = event.trim();
+        if (!dataLine.startsWith('data: ')) continue;
+        try {
+          const payload = JSON.parse(dataLine.slice(6)) as {
+            t: 'tok' | 'done' | 'error';
+            c?: string;
+            turns?: AssistantTurn[];
+            msg?: string;
+          };
 
-        if (payload.t === 'tok' && payload.c) {
-          accumulatedText += payload.c;
-          onToken(payload.c);
-        } else if (payload.t === 'done') {
-          structuralTurns = payload.turns ?? [];
-        }
-      } catch { /* ignore malformed events */ }
+          if (payload.t === 'tok' && payload.c) {
+            accumulatedText += payload.c;
+            onToken(payload.c);
+          } else if (payload.t === 'done') {
+            structuralTurns = payload.turns ?? [];
+          }
+        } catch { /* ignore malformed events */ }
+      }
     }
+  } catch (err: unknown) {
+    const isAbort = err instanceof Error && err.name === 'AbortError';
+    if (isAbort) {
+      return [{ type: 'chat-answer', content: "That's taking too long — please try again in a moment." }];
+    }
+    throw err;
+  } finally {
+    clearTimeout(watchdog);
+    reader.releaseLock();
   }
 
   // Sanitise accumulated text: strip any leaked tool-call syntax before rendering.
