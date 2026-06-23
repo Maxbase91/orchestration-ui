@@ -561,6 +561,7 @@ export function NewRequestPage() {
             isUrgent={formData.isUrgent}
             serviceDescription={formData.serviceDescription}
             workflowTemplateId={formData.workflowTemplateId}
+            requestTitle={formData.title}
             miniIrq={formData.miniIrq}
             onMiniIrqChange={(m) => updateFormData({ miniIrq: m })}
             onUpdate={(d) => updateFormData(d)}

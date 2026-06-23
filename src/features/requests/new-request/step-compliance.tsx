@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Loader2, Info, ChevronDown, ChevronUp, AlertTriangle, CheckCircle, Sparkles, Circle, MinusCircle, Clock, Recycle } from 'lucide-react';
+import { Loader2, Info, ChevronDown, ChevronUp, AlertTriangle, CheckCircle, Sparkles, Circle, MinusCircle, Clock, Recycle, Download } from 'lucide-react';
+import { toast } from 'sonner';
 import { ComplianceCheckResult } from './components/compliance-check-result';
 import { AISuggestionCard } from '@/components/shared/ai-suggestion-card';
 import { formatCurrency } from '@/lib/format';
@@ -11,6 +12,7 @@ import { determineInherentRisk, type InherentRiskResult } from '@/lib/procuremen
 import { selectReuseOutcome, type ReuseEvaluation } from '@/lib/procurement/risk-reuse';
 import { buildHandoffSteps, type HandoffStep } from '@/lib/procurement/handoff';
 import { determineContractType, determineSourcingType, type ContractType, type SourcingType } from '@/lib/procurement/determination';
+import { buildDeterminationExport } from '@/lib/procurement/determination-export';
 import type { Supplier, Contract, WorkflowTemplate, RoutingRule } from '@/data/types';
 // Risk-reuse matching stays on its specialised query (reusable + completed +
 // validity-window + supplier/contract); the generic ports do not model that yet.
@@ -30,6 +32,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { DynamicForm } from '@/components/shared/dynamic-form';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { SupplierRecommenderCard } from './components/supplier-recommender-card';
 import type { RiskAssessment } from '@/data/types';
@@ -82,6 +85,7 @@ interface StepComplianceProps {
     narrative?: string;
   } | null;
   workflowTemplateId?: string;
+  requestTitle?: string;
   /** Which half of the split step to render: the risk assessment or the determination. */
   phase: 'risk' | 'determination';
   miniIrq: { privilegedAccess: boolean; criticalService: boolean };
@@ -250,6 +254,7 @@ export function StepCompliance({
   isUrgent,
   serviceDescription,
   workflowTemplateId,
+  requestTitle,
   phase,
   miniIrq,
   onMiniIrqChange,
@@ -412,6 +417,35 @@ export function StepCompliance({
 
   const allPassed = result.policyChecks.every((c) => c.passed);
 
+  const handleExport = () => {
+    const supplierName = suppliers.find((s) => s.id === supplierId)?.name ?? supplier;
+    const { markdown, filename } = buildDeterminationExport({
+      requestTitle,
+      category,
+      estimatedValue,
+      supplierName,
+      buyingChannel: result.buyingChannelResult,
+      contractType: result.contractType,
+      sourcingType: result.sourcingType,
+      materiality: result.materiality,
+      inherentRisk: result.inherentRisk,
+      riskOutcome: result.riskOutcome
+        ? { decision: result.riskOutcome.decision, reasons: result.riskOutcome.reasons }
+        : undefined,
+      handoffSteps: result.handoffSteps,
+      policyChecks: result.policyChecks,
+      generatedAt: new Date().toISOString().slice(0, 10),
+    });
+    const blob = new Blob([markdown], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Determination exported');
+  };
+
   return (
     <div className="space-y-6">
       {phase === 'risk' && (<>
@@ -471,6 +505,13 @@ export function StepCompliance({
 
       </>)}
       {phase === 'determination' && (<>
+      {/* Determination header — the R1 endpoint is exportable. */}
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-semibold text-gray-900">Determination</p>
+        <Button variant="outline" size="sm" onClick={handleExport}>
+          <Download className="size-3.5 mr-1.5" /> Export
+        </Button>
+      </div>
       {/* Buying Channel Classification */}
       <div className="rounded-lg border border-blue-200 bg-blue-50/60 p-4">
         <div className="flex items-start gap-2">

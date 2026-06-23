@@ -273,6 +273,7 @@ six groups:
 | TC-RSK-02 | Structured reuse model (`npm run test:risk-reuse`) | Per-assessment decision by supplier/scope/data-class/inherent-tier/validity; not-reusable/not-completed/different-supplier → no-match; expired → new; worst dimension wins; `selectReuseOutcome` picks the most favourable candidate across the register. Drives the determination outcome. |
 | TC-HND-01 | Handoff / next-steps (`npm run test:handoff`) | Detailed risk assessment routed to the risk register (reuse → not-required, amend → recommended, new/change → required); material → governance step; sourcing/contract steps by channel; purchasing requisition. Surfaced as the determination's Next-steps panel with system + status + deep-link. |
 | TC-DET-01 | Contract/sourcing type (`npm run test:determination`) | Contract type: catalogue/direct-PO → none, renewal → renew, framework/existing → SOW, else new-MSA. Sourcing type: catalogue/contract → none, renewal → renewal, incumbent → benchmarking, else new-event. Both surfaced on the determination. |
+| TC-DET-02 | Export (`npm run test:determination-export` + UI smoke) | Builds structured Markdown (request, determination, risk, next-steps table, policy checks); slugified filename; graceful with missing fields. The determination **Export** button downloads a `determination-*.md` file. |
 
 ### UI smoke (automated — `npm run test:ui`, Playwright)
 

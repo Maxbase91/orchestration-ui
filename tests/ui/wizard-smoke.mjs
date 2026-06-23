@@ -97,6 +97,16 @@ try {
   check('next-steps handoff panel renders', (await page.getByText('Next steps', { exact: true }).count()) > 0);
   check('handoff routes the detailed risk assessment', (await page.getByText('Third-party risk register').count()) > 0);
 
+  // The determination is exportable — clicking Export downloads a .md file.
+  check('determination Export button renders', (await page.getByRole('button', { name: /Export/ }).count()) > 0);
+  const [download] = await Promise.all([
+    page.waitForEvent('download', { timeout: 8000 }).catch(() => null),
+    page.getByRole('button', { name: /Export/ }).click(),
+  ]);
+  check('Export downloads a determination markdown file',
+    Boolean(download) && /determination-.*\.md/.test(download.suggestedFilename()),
+    download ? download.suggestedFilename() : 'no download');
+
   // Policy checks render only when the Request Validator agent (AI-002) is
   // active (an admin toggle); otherwise the step shows the validator notice.
   // Assert the policy-check region rendered in a valid state, and when the
