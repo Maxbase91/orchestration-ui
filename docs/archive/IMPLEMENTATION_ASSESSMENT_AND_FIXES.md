@@ -37,13 +37,13 @@ This reframes the plan from "build" to mostly **"add the missing migrations + fi
 
 ## 2. PHASE 0 — Unblock the end-to-end thread (do first)
 
-### 0.1 BLOCKER — New Request insert returns 400 (E2E-1)
-- **Root cause (confirmed):** the AI chat intake captures delivery timeline as **free text** ("end of Q3", "end of August") and submits it straight into the `delivery_date` **DATE** column.
-  - Payload: `new-request-page.tsx:255` → `deliveryDate: formData.deliveryDate` (raw string).
-  - Mapper: `mappers.ts:472` → `deliveryDate: 'delivery_date'` (pass-through).
-  - Schema: `supabase/schema.sql:39` → `delivery_date DATE`.
-- **Fix:** add `src/lib/parse-delivery-date.ts` that converts phrases ("end of Q3", "by August", "30 days", ISO) → `YYYY-MM-DD` (or `null` if unparseable); call it at submit. Also: surface the Supabase error body in the catch (`requests.ts`) instead of `Failed to persist request: Object`. Confirm all NOT-NULL columns are supplied and enums valid.
-- **Acceptance:** submitting any wizard path creates a row; the new `REQ-2025-xxxx` appears in All Requests and opens at `/requests/{id}`; "Track this Request" resolves (no 404).
+> **RETEST 2 June 2026 (build `index-Dh6g69hR.js`):** complex/wizard submission is **FIXED** (REQ-2025-9145 created & persisted; "By 31 December 2026" parsed to a real date; Open Demand 26→27). **Catalogue "Order Now" is STILL BROKEN** (see 0.1). Two new bugs found: classifier accuracy (0.7) and Step-1 category override not propagating (0.8). The **Service Description generator** is verbatim-echo only — new requirement in §10.
+
+### 0.1 PARTIALLY FIXED — request insert dates (E2E-1)
+- **Wizard/complex path: FIXED** — a `delivery_date` parser now converts "By 31 December 2026" → a real date; the row persists.
+- **Catalogue "Order Now": STILL BROKEN.** Clicking Order Now on a catalogue cart returns toast **"Order failed: invalid input syntax for type date: \"\""** — an **empty string** is sent to a `DATE` column in the catalogue-order insert path (the date fix was applied to the wizard path only).
+  - **Fix:** apply the same coercion in the catalogue/auto-PO order path — coerce empty/blank dates to `null` (or compute a delivery date = today + item lead-time) before insert. Find the Order-Now handler (catalogue command-bar cart + catalogue wizard path) and the order/PO insert; ensure every date field is `null` or valid `YYYY-MM-DD`. Audit all inserts for the same `'' → DATE` hazard.
+- **Acceptance:** placing a catalogue order creates an order/PO and shows success; no date-syntax error; the order appears in Purchase Orders / the requester's list.
 
 ### 0.2 BLOCKER — Create the missing Supabase tables (+ seed)
 Code, types, admin UIs and `upsert` helpers exist; the tables don't. Add migrations for:
@@ -67,6 +67,17 @@ Code, types, admin UIs and `upsert` helpers exist; the tables don't. Add migrati
 - **Root cause:** `api/chat.ts` calls Groq once (`callLLMWithTools`, `tool_choice:'auto'`, model `llama-3.3-70b-versatile`, `_llm.ts:52`); when the model returns CoT text + a narrated tool call, the fragile `parseTextToolCall` regex misses it and the **raw content is returned** (chat.ts:539-575,655-672). No real tool execution loop; no second `tool_choice:'none'` pass; CoT/LaTeX not stripped; system prompt doesn't forbid step output.
 - **Fix:** (a) in `api/chat.ts` implement the proper loop — on structured `tool_calls`, execute the tool against KB/Supabase, append the tool result, call again with `tool_choice:'none'` for the final grounded answer; keep `parseTextToolCall` only as a guard. (b) Strengthen `SYSTEM_PROMPT` (chat.ts:143): forbid "## Step" reasoning and raw tool-name text. (c) In `turn-chat-answer.tsx`, strip `$\boxed{}$`/`## Step`/"The final answer is:" and render a **source chip**. Mirror the clean pattern already in `mockProvider.ts`/`capabilities/knowledge.ts`.
 - **Acceptance:** the 4 brief scenarios return clean, cited answers in both `mock` and `groq`; no CoT/LaTeX leakage.
+
+### 0.6 HIGH — Upgrade the Service Description (SOW) generator (see full spec in §10)
+The conversational SOW currently stores each chat answer **verbatim** into its section — it does not produce a long, detailed, validated, best-in-class Statement of Work. This is a primary requirement; full spec in §10.
+
+### 0.7 MEDIUM — Classifier accuracy (E2E-5, worse than noted)
+- A clear **management consulting** engagement ("design a target operating model and lead a digital transformation") was classified **Goods** @90%. The local/LLM classifier mislabels operational/advisory services as Goods.
+- **Fix:** improve `api/ai.ts` classifier prompt + few-shot examples (and the local fallback in `step-category.tsx`/`lib`): enforce the spec's category rules (advisory/strategy → Consulting; operational service → Services; physical product → Goods). Add the spec's worked examples as few-shots. Lower the displayed confidence when signals conflict.
+
+### 0.8 MEDIUM — Step-1 category override doesn't propagate
+- Editing the AI-classified **Category** field in Step 1 (e.g. Goods→Consulting) does not update `formData.category`: the Step-3 chat header, Summary panel, and the **submitted record all stayed "Goods"** even though I changed it. The pre-check used the new value but the form state didn't.
+- **Fix:** bind the editable Category field to `formData.category` (controlled input + onChange) so manual correction persists through all steps and into the insert. (`step-category.tsx`.)
 
 ---
 
@@ -166,3 +177,32 @@ Code, types, admin UIs and `upsert` helpers exist; the tables don't. Add migrati
 - **Live integration choice (G9):** confirm SAP S/4HANA first (vs. Ariba/Coupa) and whether a real sandbox/credentials are available, else build against a mock API with the real adapter shape.
 - **Supplier risk provider (G6):** which screening source/API (sanctions only vs. financial/ESG) and is a key available?
 - **Payments (G7):** sandbox provider preference (e.g., Stripe test) vs. status-only mock.
+
+---
+
+## 10. Service Description (SOW) generator — upgrade to a detailed, validated, best-in-class output
+
+### Current behaviour (verified live)
+- Step 3 asks one question per section and writes the **user's raw one-line answer verbatim** into that section (e.g. Objective = exactly the sentence the user typed). Empty sections read "Will be captured during conversation…".
+- There is **no AI drafting, expansion, enrichment, or validation** — the result is a thin form capture, not a professional SOW. The "narrative summary" (spec §4.4) is effectively just the concatenated short answers.
+- Files: `src/features/requests/new-request/` SOW chat component + the `serviceDescription`/`ServiceDescription` state and the right-hand 9-section panel; persisted via `service_descriptions` (see `src/data/service-descriptions.ts` / `src/lib/db/*`).
+
+### Target behaviour
+Produce a **long, structured, professionally-written, validated** 9-section SOW (Objective, Scope, Deliverables, Timeline, Resources, Acceptance Criteria, Pricing Model, Location, Dependencies) — comparable to what a senior category manager / consultant would draft — from the gathered context, then let the user refine.
+
+### What to build
+1. **LLM generation endpoint** — add `api/generate-sow.ts` (server-side, reuse the Groq/Gemini setup in `_llm.ts`). Input: category, title, description, value, timeline, supplier (if any), commodity code, and the user's captured chat answers. Output: a JSON object with all 9 sections, each a **rich, multi-sentence, professional draft** (not an echo), plus a `narrative` field (3–4 paragraph executive summary). Use a strong system prompt with category-specific guidance (consulting vs services vs software) and the spec §4.4 examples as few-shots.
+2. **Expand-not-echo** — when the user gives a short answer, the model should **expand** it into a complete section (e.g. Objective answer "design TOM" → a full objective paragraph with business rationale and success framing), and **infer sensible defaults** for sections the user didn't explicitly answer, clearly marked as AI-drafted so they can edit.
+3. **Validation / quality gate** — after generation, run a completeness+quality check (each section non-trivial, deliverables enumerated, acceptance criteria measurable, timeline phased, pricing model stated). Surface a **quality score / checklist** and flag weak sections ("Acceptance criteria not measurable — add metrics"). Block "best-in-class" claims until the gate passes; offer "Improve this section" regeneration per section.
+4. **Editable + regenerate** — each section editable inline; per-section **Regenerate** and a global **Regenerate full SOW**; "Accept" locks it. Keep the copy-to-clipboard for the narrative (spec §4.4).
+5. **Persistence** — save the full structured SOW + narrative + quality score to `service_descriptions` and show it on the request detail (Overview/Documents).
+6. **Best-practice library (optional, recommended)** — seed category templates/exemplar SOWs the model can ground on (could live in the KB) so output reflects "state of the art" patterns (e.g. consulting: phased delivery, RACI, T&M-with-cap, KPIs/SLAs; software: licensing/DPA/security; services: SLAs/coverage/transition).
+
+### Acceptance criteria
+- For a consulting request, the generated SOW is **long and specific** (each of the 9 sections is a substantive paragraph/list, deliverables numbered, timeline phased with durations, acceptance criteria measurable, pricing model explicit), not a verbatim copy of the user's sentences.
+- Unanswered sections are auto-drafted and labelled AI-generated; the user can edit/regenerate any section.
+- A visible **quality score/checklist** validates completeness and flags weak sections; the SOW persists and appears on the request detail.
+- Works in both `mock` (deterministic richer templates) and `groq/gemini` modes.
+
+### Design decision to confirm
+- Generation timing: **draft the full SOW up front** from the description (then refine via chat) vs. **keep the Q&A** but expand each answer live vs. **hybrid** (Q&A to gather, then one "Generate full SOW" step). *Recommended: hybrid — gather a few key answers, then generate the full validated SOW with per-section regenerate.* Confirm preference.

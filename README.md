@@ -107,6 +107,33 @@ npm run preview
 
 Open [http://localhost:5173](http://localhost:5173) in your browser.
 
+### Testing
+
+Integration tests run as standalone Node scripts under `tests/integration/`:
+
+```bash
+npm run test:e2e                  # end-to-end request → approval workflow
+npm run test:routing              # routing-rule evaluator
+npm run test:intake               # intake sequence
+npm run test:connectors           # source-connector layer (registry, query, live-swap seam)
+npm run test:preference           # preferred-supplier (PSL) + competitive-sourcing (DTPS) controls
+npm run test:materiality          # materiality & criticality determination
+npm run test:category-code        # category-code mapping (taxonomy translation)
+npm run test:risk-segmentation    # inherent-risk cascade + risk outcome (reuse/amend/change/new)
+npm run test:risk-reuse           # structured risk-register reuse model (supplier/scope/data-class/validity)
+npm run test:handoff              # downstream handoff / next-steps model (systems, status, deep-links)
+npm run test:admin-editors        # admin config saves
+npm run test:ui                   # browser smoke (Playwright) — wizard end-to-end to the determination screen
+npm run test:e2e-ui               # full-app browser sweep — every route × role, captures console/runtime errors
+npm run test:interactions-ui      # interaction E2E — wizard submit, admin save, AI assistant (self-cleaning)
+# …see package.json "test:*" scripts for the full list
+```
+
+`test:ui` uses Playwright. First-time setup: `npm install` then `npx playwright install chromium`.
+It boots the dev server itself and needs `.env.local` (Supabase creds).
+
+Per the repo's Definition of Done (see `CLAUDE.md`), every change ships with updated tests and docs.
+
 ### Role Switching
 
 Use the role switcher dropdown in the top-right corner to switch between:
@@ -157,6 +184,15 @@ The platform visualizes handovers to enterprise systems at each workflow stage:
 
 Integration status is visible on the process stepper, workflow cards, request detail, and table views.
 
+### Source-connector layer
+
+Upstream business objects (requests, orders, invoices, contracts, suppliers, tickets, risk records, …)
+are read through a single, standardised connector interface in `src/lib/integrations`. The default
+implementation reads the platform's **own store** — the system of record for this release — so no live
+connection is required. A later release can register a **live** connector for any object type with no
+change at the call site. Every result carries a provenance envelope (`sourceSystem`, `mode`,
+`retrievedAt`, freshness). See `src/lib/integrations/README.md` for the layer and the live-swap seam.
+
 ---
 
 ## Project Structure
@@ -168,6 +204,10 @@ src/
 ├── stores/          # Zustand state stores
 ├── hooks/           # Custom React hooks
 ├── lib/             # Utilities, formatters, mock AI engine
+│   ├── db/          # Data-access modules + TanStack Query hooks
+│   ├── integrations/# Standardised source-connector layer (own-store → live swap)
+│   ├── routing/     # Routing-rule evaluator
+│   └── workflow/    # Workflow engine
 ├── components/
 │   ├── ui/          # shadcn/ui primitives
 │   ├── layout/      # App shell, sidebar, topbar, portal layout
