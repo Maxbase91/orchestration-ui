@@ -1,7 +1,8 @@
-import { useMemo } from 'react';
-import { ShoppingCart, FileText, ArrowRight, Check, Loader2 } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { ShoppingCart, FileText, ArrowRight, ArrowLeft, Check, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Textarea } from '@/components/ui/textarea';
 import { formatCurrency } from '@/lib/format';
 import { useSourceData } from '@/lib/integrations';
 import type { CatalogueItem } from '@/data/catalogue-items';
@@ -17,6 +18,8 @@ interface StepPreCheckProps {
   onChooseCatalogue: (items: CatalogueItem[]) => void;
   onChooseContract: (contract: Contract, supplier: Supplier | undefined) => void;
   onProceedToFullRequest: () => void;
+  /** Carry enrichment text forward so the full SD / second contract check benefit. */
+  onEnrich?: (text: string) => void;
 }
 
 const STOP_WORDS = new Set([
@@ -107,9 +110,19 @@ function matchContract(contract: Contract, ctx: {
   return score >= 0.3 ? { score, reasons } : null;
 }
 
+/**
+ * Staged-intake funnel (FD-E3-10). The check is sequential, not parallel:
+ *   1. Catalogue derivation — try to fulfil from the catalogue first.
+ *   2. Contract derivation — only after catalogue is ruled out and the user has
+ *      added enrichment detail; we never assert a covering contract before
+ *      enough is known to justify it.
+ *   3. Full request — only when neither early exit fires.
+ */
+type Stage = 'catalogue' | 'contract';
+
 export function StepPreCheck({
   title, category, estimatedValue, supplierId,
-  onChooseCatalogue, onChooseContract, onProceedToFullRequest,
+  onChooseCatalogue, onChooseContract, onProceedToFullRequest, onEnrich,
 }: StepPreCheckProps) {
   // Reads go through the standardised source-connector layer (own store today,
   // live source later) rather than directly to the data layer.
@@ -118,27 +131,35 @@ export function StepPreCheck({
   const { data: contracts = [], isLoading: conLoading } = useSourceData<Contract>('contract');
   const { data: suppliers = [] } = useSourceData<Supplier>('supplier');
 
-  const tokens = useMemo(() => tokenize(title), [title]);
+  const [stage, setStage] = useState<Stage>('catalogue');
+  const [enrich, setEnrich] = useState('');
+
+  // Catalogue matches on the captured text alone (stage 1).
+  const catalogueTokens = useMemo(() => tokenize(title), [title]);
+  // Contract matching benefits from the enrichment the user adds in stage 1.
+  const contractTokens = useMemo(() => tokenize(`${title} ${enrich}`), [title, enrich]);
 
   const catalogueMatches = useMemo(() => {
     if (!title) return [];
     return catalogueItems
-      .map((item) => ({ item, score: matchCatalogueItem(item, tokens) }))
+      .map((item) => ({ item, score: matchCatalogueItem(item, catalogueTokens) }))
       .filter((r) => r.score > 0.3)
       .sort((a, b) => b.score - a.score)
       .slice(0, 6)
       .map((r) => r.item);
-  }, [catalogueItems, tokens, title]);
+  }, [catalogueItems, catalogueTokens, title]);
 
   const contractMatches = useMemo(() => {
+    // Gate: only compute (and only ever render) contracts in the contract stage.
+    if (stage !== 'contract') return [];
     if (!title && !supplierId) return [];
     const out: { contract: Contract; score: number; reasons: string[] }[] = [];
     for (const c of contracts) {
-      const m = matchContract(c, { tokens, category, estimatedValue, supplierId });
+      const m = matchContract(c, { tokens: contractTokens, category, estimatedValue, supplierId });
       if (m) out.push({ contract: c, ...m });
     }
     return out.sort((a, b) => b.score - a.score).slice(0, 4);
-  }, [contracts, tokens, category, estimatedValue, supplierId]);
+  }, [stage, contracts, contractTokens, category, estimatedValue, supplierId, title]);
 
   const supplierById = useMemo(() => new Map(suppliers.map((s) => [s.id, s])), [suppliers]);
 
@@ -146,77 +167,130 @@ export function StepPreCheck({
   const hasCatalogue = catalogueMatches.length > 0;
   const hasContract = contractMatches.length > 0;
 
+  const goToContractStage = () => {
+    if (enrich.trim() && onEnrich) onEnrich(enrich.trim());
+    setStage('contract');
+  };
+
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-gray-500">
         <Loader2 className="size-8 animate-spin text-blue-500" />
-        <p className="mt-4 text-sm font-medium">Checking catalogue and contracts…</p>
+        <p className="mt-4 text-sm font-medium">Checking the catalogue…</p>
       </div>
     );
   }
 
+  // ── Stage 1 — Catalogue derivation ───────────────────────────────────────
+  if (stage === 'catalogue') {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-base font-semibold text-gray-900">Catalogue check</h2>
+          <p className="mt-0.5 text-sm text-gray-500">
+            The fastest path is an existing catalogue item. Let&apos;s see if one fits before we go
+            any further.
+          </p>
+        </div>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <ShoppingCart className="size-4 text-green-600" />
+              Matching catalogue items
+              <span className="text-[11px] font-normal text-gray-400">
+                {hasCatalogue ? `${catalogueMatches.length} match${catalogueMatches.length === 1 ? '' : 'es'} found` : 'no match'}
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {hasCatalogue ? (
+              <div className="space-y-2">
+                {catalogueMatches.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center justify-between rounded-md border border-gray-200 bg-gray-50 p-3"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-gray-900 truncate">{item.name}</p>
+                      <p className="text-xs text-gray-500 truncate">
+                        {item.description} &middot; {item.supplierName} &middot; {item.leadTime}
+                      </p>
+                    </div>
+                    <div className="ml-3 text-sm font-semibold text-gray-900">
+                      {formatCurrency(item.unitPrice)} / {item.unit}
+                    </div>
+                  </div>
+                ))}
+                <Button
+                  className="w-full bg-green-600 hover:bg-green-700 text-white mt-3"
+                  onClick={() => onChooseCatalogue(catalogueMatches)}
+                >
+                  <Check className="size-4" />
+                  Order from catalogue ({catalogueMatches.length} match{catalogueMatches.length === 1 ? '' : 'es'})
+                </Button>
+                <p className="mt-2 text-center text-xs text-gray-400">
+                  Not what you need?{' '}
+                  <button type="button" className="font-medium text-blue-600 hover:underline" onClick={goToContractStage}>
+                    Check for a covering contract
+                  </button>
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500">
+                No catalogue item matches your description so far.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* No premature contract display. When the catalogue doesn't fit, we
+            ask for a little more detail before looking for a contract. */}
+        {!hasCatalogue && (
+          <div className="rounded-lg border border-gray-200 bg-white p-4">
+            <p className="text-sm font-medium text-gray-900">Tell us a bit more</p>
+            <p className="mt-0.5 text-xs text-gray-500">
+              A short description helps us check whether an existing contract already covers this —
+              before you complete a full request.
+            </p>
+            <Textarea
+              className="mt-3"
+              rows={3}
+              placeholder="e.g. ongoing managed service for the EMEA region, ~12 months, two FTE…"
+              value={enrich}
+              onChange={(e) => setEnrich(e.target.value)}
+            />
+            <Button className="mt-3" onClick={goToContractStage} disabled={!enrich.trim()}>
+              Check for a covering contract
+              <ArrowRight className="size-4" />
+            </Button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── Stage 2 — Contract derivation ────────────────────────────────────────
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-base font-semibold text-gray-900">Catalogue & Contract Check</h2>
-        <p className="mt-0.5 text-sm text-gray-500">
-          Before starting a full request, let&apos;s see if we can fulfil this from an existing
-          catalogue item or an active contract — it&apos;s faster for you and cheaper overall.
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-base font-semibold text-gray-900">Contract check</h2>
+          <p className="mt-0.5 text-sm text-gray-500">
+            No catalogue item fit. Next we look for an active contract that can already cover this.
+          </p>
+        </div>
+        <Button variant="ghost" size="sm" onClick={() => setStage('catalogue')}>
+          <ArrowLeft className="size-3.5" />
+          Catalogue
+        </Button>
       </div>
 
-      {/* Catalogue matches */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <ShoppingCart className="size-4 text-green-600" />
-            Matching Catalogue Items
-            <span className="text-[11px] font-normal text-gray-400">
-              {hasCatalogue ? `${catalogueMatches.length} match${catalogueMatches.length === 1 ? '' : 'es'} found` : 'no match'}
-            </span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {!hasCatalogue ? (
-            <p className="text-sm text-gray-500">
-              No catalogue item matches your description. You&apos;ll need to proceed with a full request.
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {catalogueMatches.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-center justify-between rounded-md border border-gray-200 bg-gray-50 p-3"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-gray-900 truncate">{item.name}</p>
-                    <p className="text-xs text-gray-500 truncate">
-                      {item.description} &middot; {item.supplierName} &middot; {item.leadTime}
-                    </p>
-                  </div>
-                  <div className="ml-3 text-sm font-semibold text-gray-900">
-                    {formatCurrency(item.unitPrice)} / {item.unit}
-                  </div>
-                </div>
-              ))}
-              <Button
-                className="w-full bg-green-600 hover:bg-green-700 text-white mt-3"
-                onClick={() => onChooseCatalogue(catalogueMatches)}
-              >
-                <Check className="size-4" />
-                Order from catalogue ({catalogueMatches.length} match{catalogueMatches.length === 1 ? '' : 'es'})
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Contract matches */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-sm flex items-center gap-2">
             <FileText className="size-4 text-blue-600" />
-            Active Contracts That Can Cover This
+            Active contracts that can cover this
             <span className="text-[11px] font-normal text-gray-400">
               {hasContract ? `${contractMatches.length} candidate${contractMatches.length === 1 ? '' : 's'}` : 'no match'}
             </span>
@@ -262,11 +336,14 @@ export function StepPreCheck({
         </CardContent>
       </Card>
 
-      {/* Proceed */}
+      {/* Proceed — only reachable once catalogue and contract are both ruled out. */}
       <div className="rounded-lg border border-gray-200 bg-white p-4">
         <p className="text-sm text-gray-700">
-          None of these fit? You&apos;ll need a full procurement request — we&apos;ll collect a
-          service description, identify suppliers, and assess risk before routing.
+          {hasContract
+            ? 'None of these fit? '
+            : 'No catalogue item or contract covers this. '}
+          You&apos;ll need a full procurement request — we&apos;ll collect a service description,
+          identify suppliers, and assess risk before routing.
         </p>
         <Button variant="outline" className="mt-3" onClick={onProceedToFullRequest}>
           Proceed to full request

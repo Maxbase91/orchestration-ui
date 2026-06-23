@@ -52,11 +52,18 @@ try {
   await page.locator('#root *').first().waitFor({ timeout: 15000 });
   check('app shell mounts at /', (await page.locator('#root *').count()) > 0);
 
-  // 2. New-request wizard renders its first (category) step.
+  // 2. New-request wizard renders its first (category) step. Free text is the
+  //    primary entry point (FD-E3-10); the category grid is a manual fallback
+  //    behind a disclosure, so we reveal it before asserting the tiles.
   await page.goto(`${BASE}/requests/new`, { waitUntil: 'networkidle' });
+  await page.getByText('Describe what you need').waitFor({ timeout: 15000 });
+  check('wizard category step renders free-text entry', true);
+  check('category grid is hidden by default (free text primary)',
+    (await page.getByText('Goods', { exact: true }).count()) === 0);
+  await page.getByRole('button', { name: /choose a category manually/i }).click();
   const goodsTile = page.getByText('Goods', { exact: true }).first();
   await goodsTile.waitFor({ timeout: 15000 });
-  check('wizard category step renders', await goodsTile.isVisible());
+  check('manual category grid reveals on demand', await goodsTile.isVisible());
 
   // The category taxonomy (canonical default or the configured store) maps to
   // tiles — assert several distinct categories render, not just one.
@@ -65,18 +72,29 @@ try {
       (await page.getByText(label, { exact: true }).count()) > 0);
   }
 
-  // 3. Pick a category and advance to the pre-check step. This step reads
-  //    catalogue + contracts + suppliers through the source-connector layer,
-  //    so reaching it proves those reads execute in the browser.
+  // 3. Pick a category and advance to the staged pre-check. Stage 1 is the
+  //    catalogue check, which reads catalogue items through the connector
+  //    layer — reaching it proves those reads execute in the browser. The
+  //    contract check must NOT be visible yet (no premature assertion).
   await goodsTile.click();
   await page.getByRole('button', { name: /Next/ }).click();
-  await page.getByText('Catalogue & Contract Check').waitFor({ timeout: 15000 });
-  check('pre-check step renders via connector reads', true);
+  await page.getByText('Catalogue check', { exact: true }).waitFor({ timeout: 15000 });
+  check('pre-check stage 1 (catalogue) renders via connector reads', true);
+  check('contract check is NOT shown before catalogue is ruled out',
+    (await page.getByText('Contract check', { exact: true }).count()) === 0);
 
   // 4. Step 4 — Risk & assessment: the mini-IRQ delta capture lives here.
+  //    Drive the full staged funnel: catalogue (no match) → enrich → contract
+  //    (no match) → proceed to full request.
   await page.goto(`${BASE}/requests/new`, { waitUntil: 'networkidle' });
+  await page.getByRole('button', { name: /choose a category manually/i }).click();
   await page.getByText('Contract Renewal', { exact: true }).first().click();
   await page.getByRole('button', { name: /Next/ }).click();
+  await page.getByText('Catalogue check', { exact: true }).waitFor({ timeout: 15000 });
+  await page.locator('textarea').first().fill('annual renewal of an existing managed service, EMEA region');
+  await page.getByRole('button', { name: /Check for a covering contract/ }).click();
+  await page.getByText('Contract check', { exact: true }).waitFor({ timeout: 15000 });
+  check('pre-check stage 2 (contract) reached only after enrichment', true);
   await page.getByRole('button', { name: /Proceed to full request/ }).click();
   await page.locator('#title').fill('Renewal smoke test');
   await page.locator('#value').fill('50000');

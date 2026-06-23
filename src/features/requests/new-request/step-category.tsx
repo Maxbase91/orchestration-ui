@@ -97,6 +97,9 @@ export function StepCategory({ category, onUpdate, onAutoAdvance }: StepCategory
   const [loading, setLoading] = useState(false);
   const [aiResult, setAiResult] = useState<AIClassification | null>(null);
   const [accepted, setAccepted] = useState(false);
+  // Free text is the primary entry point; the category grid is a manual
+  // fallback (FD-E3-10) revealed on demand, not a parallel set of entry tiles.
+  const [showManual, setShowManual] = useState(false);
   const { data: suppliers = [] } = useSuppliers();
   const { data: classifierAgent } = useAiAgent('AI-001');
   const { data: dbCategories = [] } = useProcurementCategories();
@@ -312,25 +315,39 @@ export function StepCategory({ category, onUpdate, onAutoAdvance }: StepCategory
         </div>
       )}
 
-      {/* Manual category selection */}
+      {/* Manual category selection — a fallback behind a disclosure, so free
+          text stays the primary entry point. Auto-opens if a category is
+          already chosen (e.g. a deep-link or returning to the step). */}
       {!loading && !accepted && (
         <div>
-          <p className="mb-3 text-sm font-medium text-gray-700">
-            {aiResult ? 'Or select a different category' : 'Or select a category manually'}
-          </p>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {activeCategories.map((cat) => (
-              <CategoryTile
-                key={cat.id}
-                icon={cat.icon}
-                name={cat.name}
-                description={cat.description}
-                timeline={cat.timeline}
-                selected={category === cat.id}
-                onClick={() => handleCategorySelect(cat.id)}
-              />
-            ))}
-          </div>
+          {!showManual && !category ? (
+            <button
+              type="button"
+              onClick={() => setShowManual(true)}
+              className="text-sm font-medium text-blue-600 hover:underline"
+            >
+              {aiResult ? 'Or choose a different category manually' : 'Or choose a category manually'}
+            </button>
+          ) : (
+            <>
+              <p className="mb-3 text-sm font-medium text-gray-700">
+                {aiResult ? 'Or select a different category' : 'Choose a category'}
+              </p>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {activeCategories.map((cat) => (
+                  <CategoryTile
+                    key={cat.id}
+                    icon={cat.icon}
+                    name={cat.name}
+                    description={cat.description}
+                    timeline={cat.timeline}
+                    selected={category === cat.id}
+                    onClick={() => handleCategorySelect(cat.id)}
+                  />
+                ))}
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>

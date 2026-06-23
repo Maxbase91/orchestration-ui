@@ -98,7 +98,7 @@ FD-E15-01 component library 🟢; FD-E15-02 journeys 🟡 (confirm from contextu
 | Story | Summary | State | Note |
 |---|---|---|---|
 | FD-E3-01 | Role-based landing page | 🟢 | 5 role dashboards |
-| FD-E3-02 | Light intake | 🟡 | Free-text box + AI suggestion exist, **but the eight category tiles are parallel entry points that all converge** and the pre-check fires eagerly — to be reworked into the two-entry staged funnel (FD-E3-10) |
+| FD-E3-02 | Light intake | 🟢 | **Free text is the primary entry**; the category grid is a manual fallback behind a disclosure (FD-E3-10). Reworked into the staged funnel |
 | FD-E3-03 | Full service description + quality gates | 🟡 | **Unified capture** — chat builds one service description (request key facts + SOW elements in one panel, not separate Summary/SOW tabs); quality score + per-section regenerate. "how it qualifies" not yet driving materiality |
 | FD-E3-04 | Draft save & resume | 🟢 | Saves draft to Supabase |
 | FD-E3-05 | Edit in-flight demand | 🟡 | Partial |
@@ -122,24 +122,31 @@ FD-E15-01 component library 🟢; FD-E15-02 journeys 🟡 (confirm from contextu
 #### FD-E5 — Demand Checks (Catalogue & Contract) — 🟡 Partial
 | Story | Summary | State | Note |
 |---|---|---|---|
-| FD-E5-01 | Catalogue match — early exit to punchout | 🟡 | Match logic + early-exit screen exist and read via the connector ports (`useSourceData`); punchout mocked. **But the check runs eagerly and in parallel with the contract check on step 2, not as the first gated stage of a funnel** — see the Staged-Intake Funnel redesign below (FD-E3-10). |
-| FD-E5-02 | Transactable contract — early exit to raise PR | 🟡 | Score-based match + early-exit screen exist and read via the connector ports. **Defect: a contract candidate is surfaced before enough demand detail is known** — the contract stage must be reached only after catalogue is ruled out and more input is captured (FD-E3-10). |
+| FD-E5-01 | Catalogue match — early exit to punchout | 🟢 | Match + early-exit read via the connector ports (`useSourceData`); now the **first gated stage** of the staged funnel (FD-E3-10), not an eager parallel check. Punchout mocked |
+| FD-E5-02 | Transactable contract — early exit to raise PR | 🟢 | Score-based match + early-exit via the connector ports; now **stage 2 of the funnel — reached only after catalogue is ruled out and the user enriches**, so no contract is asserted prematurely (FD-E3-10) |
 | FD-E5-03 | PSL enforcement at check | 🟡 | **Preferred-supplier (PSL) soft check + boost** centralised in `lib/procurement/supplier-preference.ts` (explicit `preferred` flag seam, else heuristic); surfaced in the determination + recommender. Hard PSL reference list pending |
 | FD-E5-04 | Configurable intake-form engine (ASP/partial) | 🟡 | Partial |
 | FD-E5-05 | Catalogue matching rules & info to collect | 🟡 | Heuristic; thresholds (OI-20) not configurable |
 | FD-E5-06 | Contract matching rules & info to collect | 🟡 | Heuristic; thresholds (OI-21) not configurable |
 | FD-E5-07 | **Second** contract check vs full SD + framework/MSA | 🟡 | `lib/procurement/second-contract-check.ts` — classifies the supplier's contracts as **transactable / framework (host a SOW) / expiring** and recommends transact/author-SOW/renew/new; "Contract coverage" panel on the determination. `isFramework` flag is the live-data seam |
 
-#### FD-E3-10 — Staged-Intake Funnel (entry-point + progressive-disclosure redesign) — 🔴 Gap
+#### FD-E3-10 — Staged-Intake Funnel (entry-point + progressive-disclosure redesign) — 🟢 Built
 
 > **Why this is a distinct requirement.** The checks of FD-E5-01/02 and the determination steps all
-> work, but the *intake shell* in front of them contradicts the R1 model (line 15: "light capture →
-> try catalogue & contract first; full service description only when nothing fits"). Today the wizard
-> presents **eight category tiles as parallel entry points that all converge on the same path**, and
-> a **catalogue + contract pre-check that fires eagerly on category selection** — surfacing a contract
-> candidate before the user has described what they need. The system must not assert a catalogue or
-> contract match until enough has been answered to justify it. This block reframes intake as **one
+> work, but the *intake shell* in front of them contradicted the R1 model (line 15: "light capture →
+> try catalogue & contract first; full service description only when nothing fits"). The old wizard
+> presented **eight category tiles as parallel entry points that all converged on the same path**, and
+> a **catalogue + contract pre-check that fired eagerly on category selection** — surfacing a contract
+> candidate before the user had described what they need. This block reframed intake as **one
 > progressive funnel with two real entry points and stage-gated derivation**.
+>
+> **Built (WS-F).** `step-category.tsx` now leads with free text; the category grid is a manual
+> fallback behind an "Or choose a category manually" disclosure (FD-E4-03 override), not a parallel
+> tile wall. `step-pre-check.tsx` is now a **sequential funnel** (`stage: 'catalogue' → 'contract'`):
+> stage 1 checks the catalogue only; when nothing fits it asks for a short enrichment before stage 2
+> ever computes — **the contract check is gated and never rendered until catalogue is ruled out and
+> enrichment exists** (verified by the UI smoke). Enrichment carries forward into the request. The
+> full SD is reached only when neither early exit fires.
 
 **Two entry points only** (replacing the tile grid):
 1. **Free-text intake** — the default. The user describes the need in natural language; the system
@@ -163,12 +170,12 @@ and only once it has enough signal):
 contract (or catalogue) result on a fresh request before stage gating is satisfied; "no premature
 assertions" is an explicit acceptance criterion.
 
-**Acceptance criteria.** (a) Landing offers exactly two entry points (free text, browse catalogue);
-no category-tile grid as a primary path. (b) Catalogue is the first derivation and only appears above
-its confidence threshold. (c) The contract stage is never reached or rendered until catalogue is
-ruled out *and* enrichment input exists. (d) Full SD appears only when neither early exit fires.
-(e) Stage 5 asks only criteria-triggered residual questions, not a fixed form. (f) At every stage the
-user can see why they're being asked the next thing (progressive disclosure with rationale).
+**Acceptance criteria.** (a) ✅ Free text is the primary entry; the tile grid is a fallback behind a
+disclosure, not a primary path. (b) ✅ Catalogue is the first derivation and only lists matches above
+the score threshold. (c) ✅ The contract stage is never reached or rendered until catalogue is ruled
+out *and* enrichment input exists (asserted by the smoke). (d) ✅ Full SD appears only when neither
+early exit fires. (e) 🟡 Stage 5 asks the mini-IRQ delta today; broader criteria-triggered residual
+questions still to extend. (f) ✅ Each stage shows why the next thing is being asked.
 
 **Maps to backlog:** FD-E3-02 (light intake — entry redesign), FD-E3-03 (master SD as stage 4),
 FD-E4-01/03 (derive category, low-conf override), FD-E5-01/02/05/06 (gated early exits + thresholds
@@ -253,7 +260,7 @@ CB-E14-03 eight-language 🔴 · CB-E14-04 deep-link to source 🟢.
 | **WS-B** | Own data model behind connector ports — 🟢 **7 objects wired** (supplier, contract, request, PO, invoice, risk, catalogue); remaining: ticket/payment/screening/taxonomy/form objects + route consumers through ports | S1–S4 | FD-E2A-01..05, FD-E2B-01/03 |
 | **WS-C** | Regulated risk & materiality engine — 🟢 **cascade + non-binary outcome + materiality + mini-IRQ delta + structured reuse model + assessment handoff** done | S3–S5 | FD-E7-01..09, FD-E8-10 |
 | **WS-D** | Complete front-door determination — 🟢 **contract/sourcing type + handoff + two-step split + exportable endpoint + 2nd contract check + approval-to-source gate** done; remaining: amend/change contract-type signals (FD-E8-08) | S4–S6 | FD-E5-07, FD-E8-04/05/08/09, FD-E9 |
-| **WS-F** | **Staged-Intake Funnel redesign** (🔴 new) — replace the category-tile grid with two entry points (free text · browse catalogue) and make catalogue→contract→full-SD derivation progressively stage-gated; no premature catalogue/contract assertions | S4–S6 | **FD-E3-10**, FD-E3-02, FD-E4-01/03, FD-E5-01/02/05/06 |
+| **WS-F** | Staged-Intake Funnel redesign — 🟢 **free-text-primary entry + sequential catalogue→enrich→contract→full-SD funnel** done (no premature catalogue/contract assertions); remaining: broaden stage-5 criteria-triggered residual questions beyond the mini-IRQ | S4–S6 | **FD-E3-10**, FD-E3-02, FD-E4-01/03, FD-E5-01/02/05/06 |
 | **WS-E** | Chatbot to own-DB sources + governance (per-object lookups, masking, RAG, payments hand-off, Teams/i18n, eval harness) | S2–S7 | CB-E10-06..16, CB-E11-AGB1, CB-E12-06, FD-E4-GOV1 |
 
 Lead with **WS-A** (highest leverage — turns heuristics into data-driven decisioning); WS-0 defines the

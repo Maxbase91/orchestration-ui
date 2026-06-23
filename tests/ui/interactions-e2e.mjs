@@ -60,8 +60,14 @@ try {
     const errors = [];
     page.on('pageerror', e => errors.push(e.message));
     await page.goto(`${BASE}/requests/new`, { waitUntil: 'networkidle' });
+    // Free text is primary; reveal the manual category grid (FD-E3-10).
+    await page.getByRole('button', { name: /choose a category manually/i }).click();
     await page.getByText('Contract Renewal', { exact: true }).first().click();
     await page.getByRole('button', { name: /Next/ }).click();
+    // Staged funnel: catalogue (no match) → enrich → contract (no match) → proceed.
+    await page.getByText('Catalogue check', { exact: true }).waitFor({ timeout: 15000 });
+    await page.locator('textarea').first().fill('annual renewal of an existing managed service');
+    await page.getByRole('button', { name: /Check for a covering contract/ }).click();
     await page.getByRole('button', { name: /Proceed to full request/ }).click();
     await page.locator('#title').fill('E2E submit test');
     await page.locator('#value').fill('60000');

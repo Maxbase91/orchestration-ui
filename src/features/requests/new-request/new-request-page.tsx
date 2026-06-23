@@ -483,6 +483,15 @@ export function NewRequestPage() {
               updateFormData({ preCheckOutcome: 'full-request' });
               setCurrentStep(3);
             }}
+            onEnrich={(text) => {
+              // Carry the enrichment forward so the full SD / second contract
+              // check benefit from the extra detail captured at the gate.
+              updateFormData({
+                businessJustification: formData.businessJustification
+                  ? `${formData.businessJustification}\n${text}`
+                  : text,
+              });
+            }}
           />
         )}
         {currentStep === 3 && formData.preCheckOutcome === 'catalogue' && (
