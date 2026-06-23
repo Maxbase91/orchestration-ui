@@ -31,6 +31,7 @@
     "test:approval-to-source": "node tests/integration/approval-to-source.mjs",
     "test:residual-questions": "node tests/integration/residual-questions.mjs",
     "test:operational-risk": "node tests/integration/operational-risk.mjs",
+    "test:classification-eval": "node tests/integration/classification-eval.mjs",
     "test:ui": "node tests/ui/wizard-smoke.mjs",
     "test:e2e-ui": "node tests/ui/app-e2e.mjs",
     "test:interactions-ui": "node tests/ui/interactions-e2e.mjs"

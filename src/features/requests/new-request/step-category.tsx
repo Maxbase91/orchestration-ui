@@ -14,6 +14,7 @@ import { useAiAgent } from '@/lib/db/hooks/use-ai-agents';
 import { useProcurementCategories } from '@/lib/db/hooks/use-procurement-categories';
 import { DEFAULT_CATEGORY_TAXONOMY } from '@/data/category-taxonomy';
 import { resolveCategoryIcon } from '@/data/category-icons';
+import { classifyDemandCategory } from '@/lib/procurement/classify';
 import type { RequestCategory } from '@/data/types';
 
 interface StepCategoryProps {
@@ -68,14 +69,9 @@ async function classifyWithAI(input: string): Promise<AIClassification | null> {
 
 function localClassify(input: string): AIClassification {
   const q = input.toLowerCase();
-  let category = 'goods';
-  if (/consult|advisory|strategy|audit|transformation|business consult|operating model|tom\b|organisational|organizational|change management|programme management|program management|due diligence|feasibility|business case|maturity assessment|roadmap|target state/.test(q)) category = 'consulting';
-  else if (/\bservice\b|cleaning|catering|maintenance|travel|translation|managed print|managed service|facilities|security guard|payroll|hr admin|helpdesk/.test(q)) category = 'services';
-  else if (/software|saas|license|cloud|platform|subscription|app/.test(q)) category = 'software';
-  else if (/temp|contractor|staff|developer|freelance|hire|interim/.test(q)) category = 'contingent-labour';
-  else if (/renew|extend|renewal|expir/.test(q)) category = 'contract-renewal';
-  else if (/onboard|new supplier|new vendor|register/.test(q)) category = 'supplier-onboarding';
-  else if (/paper|pen|toner|cable|headset|mouse|keyboard|office supplies/.test(q)) category = 'catalogue';
+  // Category via the shared deterministic classifier (single source of truth,
+  // benchmarked by the classification eval harness).
+  const category = classifyDemandCategory(input);
 
   // Extract supplier name if mentioned
   let supplier = '';

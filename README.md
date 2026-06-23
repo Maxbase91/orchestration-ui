@@ -128,6 +128,7 @@ npm run test:second-contract      # second contract check (frameworks/MSAs vs tr
 npm run test:approval-to-source   # approval-to-source gate (light vs full pre-sourcing approvals)
 npm run test:residual-questions   # criteria-triggered stage-5 residual questions (mini-IRQ deltas)
 npm run test:operational-risk     # preliminary operational risk assessment (per-dimension screen)
+npm run test:classification-eval  # classification eval harness + accuracy baseline (FD-E4-GOV1)
 npm run test:admin-editors        # admin config saves
 npm run test:ui                   # browser smoke (Playwright) — wizard end-to-end to the determination screen
 npm run test:e2e-ui               # full-app browser sweep — every route × role, captures console/runtime errors
@@ -212,6 +213,7 @@ src/
 ├── lib/             # Utilities, formatters, mock AI engine
 │   ├── db/          # Data-access modules + TanStack Query hooks
 │   ├── integrations/# Standardised source-connector layer (own-store → live swap)
+│   ├── procurement/ # Pure decisioning modules (classify, materiality, risk, determination, …)
 │   ├── routing/     # Routing-rule evaluator
 │   └── workflow/    # Workflow engine
 ├── components/
