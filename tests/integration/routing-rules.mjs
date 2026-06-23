@@ -40,7 +40,12 @@ function evalCondition(field, operator, value, ctx) {
       const a = toNumber(actual);
       return a !== null && Number.isFinite(lo) && Number.isFinite(hi) && a >= lo && a <= hi;
     }
-    case 'risk_rating': return false; // not wired in context yet
+    case 'risk_rating': {
+      // Threshold: ctx risk tier is at or above the rule's tier.
+      const order = { low: 0, medium: 1, high: 2, critical: 3 };
+      const a = order[actual]; const b = order[value];
+      return a !== undefined && b !== undefined && a >= b;
+    }
     default: return false;
   }
 }
@@ -179,6 +184,52 @@ async function main() {
       `matched=${m?.matchedRule?.id ?? 'none'} status=${m?.matchedRule?.status ?? 'n/a'}`,
     );
   }
+
+  // ── Risk-aware routing (risk_rating operator) — self-contained inline rules
+  const riskRules = [
+    {
+      id: 'RISK-FULL', name: 'High/critical risk → procurement-led', status: 'active',
+      conditions: [{ field: 'riskRating', operator: 'risk_rating', value: 'high' }],
+      action: { buyingChannel: 'procurement-led', approvalChain: 'category-manager > finance' },
+    },
+    {
+      id: 'RISK-LIGHT', name: 'Low-value default → business-led', status: 'active',
+      conditions: [{ field: 'value', operator: 'less_than', value: '50000' }],
+      action: { buyingChannel: 'business-led', approvalChain: 'category-manager' },
+    },
+  ];
+  const critical = evaluateRoutingRules(riskRules, { value: 10000, riskRating: 'critical' });
+  assert(critical?.matchedRule?.id === 'RISK-FULL', 'routing: critical risk escalates over low value',
+    `matched=${critical?.matchedRule?.id ?? 'none'} channel=${critical?.channel ?? 'none'}`);
+  const high = evaluateRoutingRules(riskRules, { value: 10000, riskRating: 'high' });
+  assert(high?.matchedRule?.id === 'RISK-FULL', 'routing: high risk meets the threshold',
+    `matched=${high?.matchedRule?.id ?? 'none'}`);
+  const lowRisk = evaluateRoutingRules(riskRules, { value: 10000, riskRating: 'low' });
+  assert(lowRisk?.matchedRule?.id === 'RISK-LIGHT', 'routing: low risk falls through to value rule',
+    `matched=${lowRisk?.matchedRule?.id ?? 'none'}`);
+  const noRisk = evaluateRoutingRules(riskRules, { value: 10000 });
+  assert(noRisk?.matchedRule?.id === 'RISK-LIGHT', 'routing: absent risk does not trigger risk rule',
+    `matched=${noRisk?.matchedRule?.id ?? 'none'}`);
+
+  // ── Materiality-aware routing (material field) — self-contained inline rules
+  const matRules = [
+    {
+      id: 'MAT-FULL', name: 'Material demand → procurement-led', status: 'active',
+      conditions: [{ field: 'material', operator: 'equals', value: 'true' }],
+      action: { buyingChannel: 'procurement-led', approvalChain: 'category-manager > finance > legal' },
+    },
+    {
+      id: 'MAT-LIGHT', name: 'Low-value default → business-led', status: 'active',
+      conditions: [{ field: 'value', operator: 'less_than', value: '50000' }],
+      action: { buyingChannel: 'business-led', approvalChain: 'category-manager' },
+    },
+  ];
+  const material = evaluateRoutingRules(matRules, { value: 10000, material: true });
+  assert(material?.matchedRule?.id === 'MAT-FULL', 'routing: material demand escalates over low value',
+    `matched=${material?.matchedRule?.id ?? 'none'} channel=${material?.channel ?? 'none'}`);
+  const notMaterial = evaluateRoutingRules(matRules, { value: 10000, material: false });
+  assert(notMaterial?.matchedRule?.id === 'MAT-LIGHT', 'routing: non-material falls through to value rule',
+    `matched=${notMaterial?.matchedRule?.id ?? 'none'}`);
 
   const failed = results.filter((r) => r.o === 'FAIL').length;
   for (const r of results) {
