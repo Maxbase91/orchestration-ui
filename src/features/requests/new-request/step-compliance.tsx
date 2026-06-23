@@ -16,6 +16,7 @@ import { buildDeterminationExport } from '@/lib/procurement/determination-export
 import { runSecondContractCheck, type SecondContractCheckResult } from '@/lib/procurement/second-contract-check';
 import { determineApprovalToSource, type ApprovalToSourceResult } from '@/lib/procurement/approval-to-source';
 import { determineResidualQuestions, type ResidualQuestion } from '@/lib/procurement/residual-questions';
+import { assessOperationalRisk, type OperationalRiskResult } from '@/lib/procurement/operational-risk-assessment';
 import type { Supplier, Contract, WorkflowTemplate, RoutingRule } from '@/data/types';
 // Risk-reuse matching stays on its specialised query (reusable + completed +
 // validity-window + supplier/contract); the generic ports do not model that yet.
@@ -62,6 +63,7 @@ interface ComplianceData {
   matchedRuleName?: string;
   materiality?: MaterialityResult;
   inherentRisk?: InherentRiskResult;
+  operationalRisk?: OperationalRiskResult;
   riskOutcome?: ReuseEvaluation;
   contractType?: { type: ContractType; reason: string };
   sourcingType?: { type: SourcingType; reason: string };
@@ -314,6 +316,18 @@ export function StepCompliance({
       estimatedValue,
       supplierRiskRating: supplierRec?.riskRating,
     });
+    // Preliminary operational risk assessment — a per-dimension operational view
+    // (continuity, data, concentration, regulatory, access) complementing the
+    // single-tier inherent-risk cascade.
+    const incumbentRelationship = (supplierRec?.activeContracts ?? 0) > 0 || (supplierRec?.totalSpend12m ?? 0) > 0;
+    const operationalRisk = assessOperationalRisk({
+      dataSensitivity,
+      material: materiality.material,
+      criticalService: miniIrq.criticalService,
+      privilegedAccess: miniIrq.privilegedAccess,
+      estimatedValue,
+      incumbentRelationship,
+    });
     // Structured reuse decision against the third-party risk register —
     // factors supplier, scope, data class, inherent tier and validity.
     const riskOutcome = selectReuseOutcome(
@@ -400,6 +414,7 @@ export function StepCompliance({
       matchedRuleName: routing.matchedRule?.name,
       materiality,
       inherentRisk,
+      operationalRisk,
       riskOutcome,
       contractType,
       sourcingType,
@@ -465,6 +480,7 @@ export function StepCompliance({
       sourcingType: result.sourcingType,
       materiality: result.materiality,
       inherentRisk: result.inherentRisk,
+      operationalRisk: result.operationalRisk,
       riskOutcome: result.riskOutcome
         ? { decision: result.riskOutcome.decision, reasons: result.riskOutcome.reasons }
         : undefined,
@@ -539,6 +555,40 @@ export function StepCompliance({
               Assessment outcome: <span className="font-medium text-gray-700">{result.riskOutcome.decision}</span> ({result.riskOutcome.reasons[0]})
             </p>
           )}
+        </div>
+      )}
+
+      {/* Preliminary operational risk assessment — per-dimension operational view
+          (continuity, data, concentration, regulatory, access). */}
+      {result.operationalRisk && (
+        <div className="rounded-lg border border-gray-200 bg-white p-4">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm font-medium text-gray-900">Preliminary operational risk</p>
+            <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+              result.operationalRisk.overall === 'high' ? 'bg-red-100 text-red-700'
+                : result.operationalRisk.overall === 'medium' ? 'bg-amber-100 text-amber-700'
+                  : 'bg-gray-100 text-gray-500'
+            }`}>
+              {result.operationalRisk.overall}
+            </span>
+          </div>
+          <ul className="mt-3 space-y-1.5">
+            {result.operationalRisk.dimensions.map((d) => (
+              <li key={d.key} className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <span className="text-sm text-gray-700">{d.label}</span>
+                  <span className="block text-xs text-gray-400">{d.reason}</span>
+                </div>
+                <span className={`shrink-0 text-xs font-medium ${
+                  d.rating === 'high' ? 'text-red-600'
+                    : d.rating === 'medium' ? 'text-amber-600'
+                      : 'text-gray-400'
+                }`}>
+                  {d.rating}
+                </span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 

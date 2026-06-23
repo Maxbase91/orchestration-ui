@@ -101,6 +101,8 @@ try {
   await page.getByRole('button', { name: /Next/ }).click();              // → step 4 (risk)
   await page.getByText('Mini risk questionnaire').waitFor({ timeout: 15000 });
   check('risk step renders the mini-IRQ delta capture', true);
+  check('preliminary operational risk assessment renders (FD-E7-02)',
+    (await page.getByText('Preliminary operational risk', { exact: true }).count()) > 0);
   // The residual questions are criteria-driven (FD-E3-10 stage 5): the
   // critical-service question shows because the spend is material in size, and
   // it states why it's being asked.

@@ -16,6 +16,7 @@ export interface DeterminationExportInput {
   sourcingType?: { type: string; reason: string };
   materiality?: { material: boolean; criticality: string; reasons: string[] };
   inherentRisk?: { tier: string; drivers: string[] };
+  operationalRisk?: { overall: string; dimensions: { label: string; rating: string; reason: string }[] };
   riskOutcome?: { decision: string; reasons: string[] };
   approvalToSource?: { tier: string; rationale: string; gates: { label: string; reason: string }[] };
   handoffSteps?: { label: string; system: string; status: string; deepLink?: string }[];
@@ -55,9 +56,15 @@ export function buildDeterminationExport(input: DeterminationExportInput): { mar
   }
   lines.push('');
 
-  if (input.inherentRisk || input.riskOutcome) {
+  if (input.inherentRisk || input.operationalRisk || input.riskOutcome) {
     lines.push('## Risk');
     if (input.inherentRisk) lines.push(`- Inherent risk: **${input.inherentRisk.tier}** (${input.inherentRisk.drivers.join('; ')})`);
+    if (input.operationalRisk) {
+      lines.push(`- Preliminary operational risk: **${input.operationalRisk.overall}**`);
+      for (const d of input.operationalRisk.dimensions) {
+        lines.push(`  - ${d.label}: ${d.rating} (${d.reason})`);
+      }
+    }
     if (input.riskOutcome) lines.push(`- Assessment outcome: **${input.riskOutcome.decision}** (${input.riskOutcome.reasons[0] ?? ''})`);
     lines.push('');
   }
