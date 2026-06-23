@@ -15,6 +15,7 @@ import { determineContractType, determineSourcingType, type ContractType, type S
 import { buildDeterminationExport } from '@/lib/procurement/determination-export';
 import { runSecondContractCheck, type SecondContractCheckResult } from '@/lib/procurement/second-contract-check';
 import { determineApprovalToSource, type ApprovalToSourceResult } from '@/lib/procurement/approval-to-source';
+import { determineResidualQuestions, type ResidualQuestion } from '@/lib/procurement/residual-questions';
 import type { Supplier, Contract, WorkflowTemplate, RoutingRule } from '@/data/types';
 // Risk-reuse matching stays on its specialised query (reusable + completed +
 // validity-window + supplier/contract); the generic ports do not model that yet.
@@ -66,6 +67,7 @@ interface ComplianceData {
   sourcingType?: { type: SourcingType; reason: string };
   secondContractCheck?: SecondContractCheckResult;
   approvalToSource?: ApprovalToSourceResult;
+  residualQuestions?: ResidualQuestion[];
   handoffSteps?: HandoffStep[];
   sraStatus: string;
   policyChecks: { label: string; passed: boolean; detail: string }[];
@@ -304,6 +306,14 @@ export function StepCompliance({
       privilegedAccess: miniIrq.privilegedAccess,
       criticalService: miniIrq.criticalService,
     });
+    // Stage-5 residual questions — only the deltas the SD leaves open and that
+    // would change the determination; an empty list means nothing to ask.
+    const residualQuestions = determineResidualQuestions({
+      category,
+      dataSensitivity,
+      estimatedValue,
+      supplierRiskRating: supplierRec?.riskRating,
+    });
     // Structured reuse decision against the third-party risk register —
     // factors supplier, scope, data class, inherent tier and validity.
     const riskOutcome = selectReuseOutcome(
@@ -395,6 +405,7 @@ export function StepCompliance({
       sourcingType,
       secondContractCheck,
       approvalToSource,
+      residualQuestions,
       handoffSteps,
       sraStatus: supplierRec
         ? `${supplierRec.name}: ${supplierRec.sraStatus}${supplierRec.sraExpiryDate ? ` (expires ${supplierRec.sraExpiryDate})` : ''}`
@@ -485,26 +496,28 @@ export function StepCompliance({
           </p>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="flex items-center justify-between gap-4">
-            <label htmlFor="mini-irq-access" className="text-sm text-gray-700">
-              Does this engagement grant privileged or system access?
-            </label>
-            <Switch
-              id="mini-irq-access"
-              checked={miniIrq.privilegedAccess}
-              onCheckedChange={(v) => onMiniIrqChange({ ...miniIrq, privilegedAccess: v })}
-            />
-          </div>
-          <div className="flex items-center justify-between gap-4">
-            <label htmlFor="mini-irq-critical" className="text-sm text-gray-700">
-              Does it support a critical business service?
-            </label>
-            <Switch
-              id="mini-irq-critical"
-              checked={miniIrq.criticalService}
-              onCheckedChange={(v) => onMiniIrqChange({ ...miniIrq, criticalService: v })}
-            />
-          </div>
+          {(result.residualQuestions?.length ?? 0) === 0 ? (
+            <p className="text-sm text-gray-500">
+              No further questions — your service description already covers what we need to assess.
+            </p>
+          ) : (
+            result.residualQuestions!.map((q) => {
+              const switchId = q.id === 'privileged-access' ? 'mini-irq-access' : 'mini-irq-critical';
+              return (
+                <div key={q.id} className="flex items-center justify-between gap-4">
+                  <label htmlFor={switchId} className="text-sm text-gray-700">
+                    {q.question}
+                    <span className="block text-xs text-gray-400">Asked because: {q.reason}</span>
+                  </label>
+                  <Switch
+                    id={switchId}
+                    checked={miniIrq[q.field]}
+                    onCheckedChange={(v) => onMiniIrqChange({ ...miniIrq, [q.field]: v })}
+                  />
+                </div>
+              );
+            })
+          )}
         </CardContent>
       </Card>
 

@@ -174,8 +174,11 @@ assertions" is an explicit acceptance criterion.
 disclosure, not a primary path. (b) ✅ Catalogue is the first derivation and only lists matches above
 the score threshold. (c) ✅ The contract stage is never reached or rendered until catalogue is ruled
 out *and* enrichment input exists (asserted by the smoke). (d) ✅ Full SD appears only when neither
-early exit fires. (e) 🟡 Stage 5 asks the mini-IRQ delta today; broader criteria-triggered residual
-questions still to extend. (f) ✅ Each stage shows why the next thing is being asked.
+early exit fires. (e) ✅ Stage 5 asks **criteria-triggered residual questions** — `residual-questions.ts`
+surfaces a delta question only when the derived signals leave it open and it would change the
+determination (privileged access for IT/services/sensitive data; critical-service for material spend
+/ elevated supplier risk / high sensitivity); a low-value, low-sensitivity demand is asked nothing.
+(f) ✅ Each stage — and each residual question ("Asked because…") — shows why it's being asked.
 
 **Maps to backlog:** FD-E3-02 (light intake — entry redesign), FD-E3-03 (master SD as stage 4),
 FD-E4-01/03 (derive category, low-conf override), FD-E5-01/02/05/06 (gated early exits + thresholds
@@ -197,7 +200,7 @@ FD-E6-01 permissible supplier 🟡 (PSL soft-preference now in checks) · FD-E6-
 |---|---|---|---|
 | FD-E7-01 | Risk-segmentation cascade from SD | 🟡 | `lib/procurement/risk-segmentation.ts` — inherent-risk cascade (highest-attribute-wins over data sensitivity + supplier risk + value + access/critical-service); **drives routing** and surfaces on the determination screen |
 | FD-E7-02 | PORA capture | 🔴 | Not present |
-| FD-E7-03 | Mini-IRQ in front door (delta only) | 🟡 | Compact delta questionnaire (privileged access, critical service) on the determination step — asks only what the SOW can't reveal; answers **refine the inherent-risk cascade + materiality live**. Fuller assessment still via the FORM-001 triage |
+| FD-E7-03 | Mini-IRQ in front door (delta only) | 🟢 | **Criteria-triggered** delta questionnaire (`residual-questions.ts`) on the risk step — each question (privileged access, critical service) shows only when the derived signals leave it open and states why ("Asked because…"); a low-value, low-sensitivity demand is asked nothing. Answers **refine the inherent-risk cascade + materiality live**. Fuller assessment still via the FORM-001 triage |
 | FD-E7-04 | Reuse-matching against the third-party risk register | 🟡 | **Structured reuse model** (`lib/procurement/risk-reuse.ts`) — `evaluateReuse`/`selectReuseOutcome` decide reuse/amend/change/new by supplier, scope, data class, inherent tier & validity; drives the determination outcome |
 | FD-E7-05 | Service-owner confirmation of reuse | 🟡 | Generic reviewer step exists |
 | FD-E7-06 | Detailed assessment handoff (no front-door capture) | 🟡 | `lib/procurement/handoff.ts` — when reuse isn't possible the detailed assessment is a **routed step to the risk register** (deep-link, no front-door capture); shown in the determination's Next-steps panel |
@@ -260,7 +263,7 @@ CB-E14-03 eight-language 🔴 · CB-E14-04 deep-link to source 🟢.
 | **WS-B** | Own data model behind connector ports — 🟢 **7 objects wired** (supplier, contract, request, PO, invoice, risk, catalogue); remaining: ticket/payment/screening/taxonomy/form objects + route consumers through ports | S1–S4 | FD-E2A-01..05, FD-E2B-01/03 |
 | **WS-C** | Regulated risk & materiality engine — 🟢 **cascade + non-binary outcome + materiality + mini-IRQ delta + structured reuse model + assessment handoff** done | S3–S5 | FD-E7-01..09, FD-E8-10 |
 | **WS-D** | Complete front-door determination — 🟢 **contract/sourcing type + handoff + two-step split + exportable endpoint + 2nd contract check + approval-to-source gate** done; remaining: amend/change contract-type signals (FD-E8-08) | S4–S6 | FD-E5-07, FD-E8-04/05/08/09, FD-E9 |
-| **WS-F** | Staged-Intake Funnel redesign — 🟢 **free-text-primary entry + sequential catalogue→enrich→contract→full-SD funnel** done (no premature catalogue/contract assertions); remaining: broaden stage-5 criteria-triggered residual questions beyond the mini-IRQ | S4–S6 | **FD-E3-10**, FD-E3-02, FD-E4-01/03, FD-E5-01/02/05/06 |
+| **WS-F** | Staged-Intake Funnel redesign — 🟢 **done**: free-text-primary entry + sequential catalogue→enrich→contract→full-SD funnel (no premature catalogue/contract assertions) + **criteria-triggered stage-5 residual questions** (`residual-questions.ts`) | S4–S6 | **FD-E3-10**, FD-E3-02, FD-E4-01/03, FD-E5-01/02/05/06 |
 | **WS-E** | Chatbot to own-DB sources + governance (per-object lookups, masking, RAG, payments hand-off, Teams/i18n, eval harness) | S2–S7 | CB-E10-06..16, CB-E11-AGB1, CB-E12-06, FD-E4-GOV1 |
 
 Lead with **WS-A** (highest leverage — turns heuristics into data-driven decisioning); WS-0 defines the

@@ -97,10 +97,15 @@ try {
   check('pre-check stage 2 (contract) reached only after enrichment', true);
   await page.getByRole('button', { name: /Proceed to full request/ }).click();
   await page.locator('#title').fill('Renewal smoke test');
-  await page.locator('#value').fill('50000');
+  await page.locator('#value').fill('150000');  // ≥ critical-service threshold so that residual question triggers
   await page.getByRole('button', { name: /Next/ }).click();              // → step 4 (risk)
   await page.getByText('Mini risk questionnaire').waitFor({ timeout: 15000 });
   check('risk step renders the mini-IRQ delta capture', true);
+  // The residual questions are criteria-driven (FD-E3-10 stage 5): the
+  // critical-service question shows because the spend is material in size, and
+  // it states why it's being asked.
+  check('residual question is criteria-triggered (shows its rationale)',
+    (await page.getByText(/Asked because:/).count()) > 0);
   await page.locator('#mini-irq-critical').click();                      // toggle on the risk step
 
   // 5. Step 5 — Determination: channel, contract/sourcing type, materiality,

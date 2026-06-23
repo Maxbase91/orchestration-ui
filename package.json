@@ -29,6 +29,7 @@
     "test:determination-export": "node tests/integration/determination-export.mjs",
     "test:second-contract": "node tests/integration/second-contract-check.mjs",
     "test:approval-to-source": "node tests/integration/approval-to-source.mjs",
+    "test:residual-questions": "node tests/integration/residual-questions.mjs",
     "test:ui": "node tests/ui/wizard-smoke.mjs",
     "test:e2e-ui": "node tests/ui/app-e2e.mjs",
     "test:interactions-ui": "node tests/ui/interactions-e2e.mjs"
