@@ -1,13 +1,5 @@
 import { useState } from 'react';
 import {
-  Package,
-  Wrench,
-  Monitor,
-  BrainCircuit,
-  Users,
-  RefreshCw,
-  UserPlus,
-  ShoppingBag,
   Sparkles,
   Loader2,
   ArrowRight,
@@ -20,18 +12,9 @@ import { CategoryTile } from './components/category-tile';
 import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
 import { useAiAgent } from '@/lib/db/hooks/use-ai-agents';
 import { useProcurementCategories } from '@/lib/db/hooks/use-procurement-categories';
+import { DEFAULT_CATEGORY_TAXONOMY } from '@/data/category-taxonomy';
+import { resolveCategoryIcon } from '@/data/category-icons';
 import type { RequestCategory } from '@/data/types';
-
-const CATEGORIES = [
-  { id: 'catalogue' as RequestCategory, name: 'Catalogue Purchase', description: 'Order from pre-approved catalogues — fast track, no sourcing needed', timeline: '~2 days', icon: ShoppingBag },
-  { id: 'goods' as RequestCategory, name: 'Goods', description: 'Physical products, hardware, equipment, furniture', timeline: '~5 days', icon: Package },
-  { id: 'services' as RequestCategory, name: 'Services', description: 'Facilities, catering, cleaning, travel management', timeline: '~10 days', icon: Wrench },
-  { id: 'software' as RequestCategory, name: 'Software / IT', description: 'Licences, SaaS platforms, cloud services, subscriptions', timeline: '~8 days', icon: Monitor },
-  { id: 'consulting' as RequestCategory, name: 'Consulting', description: 'Strategy advisory, audits, assessments, transformation', timeline: '~15 days', icon: BrainCircuit },
-  { id: 'contingent-labour' as RequestCategory, name: 'Contingent Labour', description: 'Temporary staff, contractors, IT staffing, augmentation', timeline: '~7 days', icon: Users },
-  { id: 'contract-renewal' as RequestCategory, name: 'Contract Renewal', description: 'Extend or renew an existing supplier contract', timeline: '~12 days', icon: RefreshCw },
-  { id: 'supplier-onboarding' as RequestCategory, name: 'Supplier Onboarding', description: 'Register and onboard a new vendor to the platform', timeline: '~20 days', icon: UserPlus },
-];
 
 interface StepCategoryProps {
   category: string;
@@ -109,7 +92,7 @@ function localClassify(input: string): AIClassification {
   };
 }
 
-export function StepCategory({ category, categoryDescription: _categoryDescription, onUpdate, onAutoAdvance }: StepCategoryProps) {
+export function StepCategory({ category, onUpdate, onAutoAdvance }: StepCategoryProps) {
   const [inputValue, setInputValue] = useState('');
   const [loading, setLoading] = useState(false);
   const [aiResult, setAiResult] = useState<AIClassification | null>(null);
@@ -118,23 +101,19 @@ export function StepCategory({ category, categoryDescription: _categoryDescripti
   const { data: classifierAgent } = useAiAgent('AI-001');
   const { data: dbCategories = [] } = useProcurementCategories();
 
-  // Merge DB categories with local fallback (DB wins on matching IDs, adds new ones)
-  const ICON_MAP: Record<string, typeof Package> = {
-    catalogue: ShoppingBag, goods: Package, services: Wrench, software: Monitor,
-    consulting: BrainCircuit, 'contingent-labour': Users, 'contract-renewal': RefreshCw,
-    'supplier-onboarding': UserPlus,
-  };
-  const activeCategories = dbCategories.length > 0
-    ? dbCategories
-        .filter((c) => c.active)
-        .map((c) => ({
-          id: c.id as RequestCategory,
-          name: c.label,
-          description: c.description,
-          timeline: `~${c.timelineDays}d`,
-          icon: ICON_MAP[c.id] ?? Package,
-        }))
-    : CATEGORIES;
+  // One taxonomy source: the configurable store when populated, else the
+  // canonical default. Both carry their own icon name, resolved the same way,
+  // so admin-defined categories render their configured icon.
+  const source = dbCategories.length > 0 ? dbCategories : DEFAULT_CATEGORY_TAXONOMY;
+  const activeCategories = source
+    .filter((c) => c.active)
+    .map((c) => ({
+      id: c.id as RequestCategory,
+      name: c.label,
+      description: c.description,
+      timeline: `~${c.timelineDays}d`,
+      icon: resolveCategoryIcon(c.icon),
+    }));
 
   // AI-001 (Category Classifier) gates LLM classification. When disabled/draft,
   // the step falls back to local keyword classification immediately.
@@ -160,7 +139,7 @@ export function StepCategory({ category, categoryDescription: _categoryDescripti
     setLoading(false);
 
     // Validate category exists
-    const validCat = CATEGORIES.find((c) => c.id === result.category);
+    const validCat = activeCategories.find((c) => c.id === result.category);
     if (validCat) {
       result.category = validCat.id;
     } else {
@@ -172,7 +151,7 @@ export function StepCategory({ category, categoryDescription: _categoryDescripti
   const handleAccept = () => {
     if (!aiResult) return;
 
-    const cat = CATEGORIES.find((c) => c.id === aiResult.category);
+    const cat = activeCategories.find((c) => c.id === aiResult.category);
     const updates: Record<string, unknown> = {
       category: aiResult.category,
       categoryDescription: cat?.name ?? aiResult.category,

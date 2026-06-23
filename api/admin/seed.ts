@@ -60,6 +60,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       { routingRules },
       { catalogueItems },
       { workflowStepDetails },
+      { DEFAULT_CATEGORY_TAXONOMY },
       { extraRequests, extraStageHistory, extraInvoices, extraComments, extraApprovals, extraPurchaseOrders },
       mappers,
     ] = await Promise.all([
@@ -86,6 +87,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       import('../../src/data/routing-rules.js'),
       import('../../src/data/catalogue-items.js'),
       import('../../src/data/workflow-step-details.js'),
+      import('../../src/data/category-taxonomy.js'),
       import('../../src/data/demo-expansion.js'),
       import('../../src/lib/db/mappers.js'),
     ]);
@@ -329,6 +331,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       'workflow_step_details',
       workflowStepDetails.map((d) => mapWorkflowStepDetailToDb(d)),
       'request_id,stage',
+    );
+
+    // 24. Procurement categories (taxonomy store). Seeded from the canonical
+    // default taxonomy so the data-driven category path is live; admins can
+    // then edit/extend it. Upsert by id keeps re-runs idempotent.
+    counts.procurement_categories = await upsert(
+      'procurement_categories',
+      DEFAULT_CATEGORY_TAXONOMY.map((c) => ({
+        id: c.id,
+        label: c.label,
+        description: c.description,
+        icon: c.icon,
+        timeline_days: c.timelineDays,
+        sort_order: c.sortOrder,
+        active: c.active,
+      })),
+      'id',
     );
 
     return res.status(201).json({ message: 'Seed complete', counts });

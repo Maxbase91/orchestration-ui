@@ -600,6 +600,7 @@ export function mapDbToSupplier(row: DbRecord): Supplier {
     screeningStatus: (row.screening_status ?? row.screeningStatus ?? 'pending') as Supplier['screeningStatus'],
     categories: (row.categories ?? []) as string[],
     tier: (row.tier ?? 3) as Supplier['tier'],
+    preferred: (row.preferred ?? row.is_preferred) as boolean | undefined,
     duns: (row.duns ?? '') as string,
     address: (row.address ?? '') as string,
     primaryContact: (row.primary_contact ?? row.primaryContact ?? '') as string,
@@ -798,6 +799,7 @@ export function mapDbToRiskAssessment(row: DbRecord): RiskAssessment {
     summary: (row.summary ?? '') as string,
     mitigations: (row.mitigations ?? []) as string[],
     reusable: (row.reusable ?? false) as boolean,
+    assessedDataClass: (row.assessed_data_class ?? row.assessedDataClass) as RiskAssessment['assessedDataClass'],
     linkedRequestIds: (row.linked_request_ids ?? row.linkedRequestIds ?? []) as string[],
   };
 }

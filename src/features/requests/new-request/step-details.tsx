@@ -72,13 +72,13 @@ export function StepDetails({ category, data, onUpdate }: StepDetailsProps) {
       return;
     }
     const timer = setTimeout(() => {
-      const result = getAICommodityCode(commodityInput);
+      const result = getAICommodityCode(commodityInput, category);
       if (result && !commodityAccepted) {
         setCommoditySuggestion(result);
       }
     }, 400);
     return () => clearTimeout(timer);
-  }, [commodityInput, commodityAccepted]);
+  }, [commodityInput, commodityAccepted, category]);
 
   const handleSupplierSelect = (supplier: Supplier) => {
     onUpdate({ supplier: supplier.name, supplierId: supplier.id });

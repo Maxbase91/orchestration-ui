@@ -1,4 +1,4 @@
-import type { RoutingRule, BuyingChannel } from '@/data/types';
+import type { RoutingRule, BuyingChannel, RiskRating } from '@/data/types';
 
 export interface RoutingContext {
   category?: string;
@@ -7,7 +7,19 @@ export interface RoutingContext {
   commodityCode?: string;
   priority?: string;
   isUrgent?: boolean;
+  /** Inherent risk tier of the demand (e.g. from the selected supplier). */
+  riskRating?: RiskRating;
+  /** Whether the demand is material (raises the regulatory/materiality flag). */
+  material?: boolean;
 }
+
+/** Risk tiers ordered low → critical, for threshold comparisons. */
+const RISK_ORDER: Record<RiskRating, number> = {
+  low: 0,
+  medium: 1,
+  high: 2,
+  critical: 3,
+};
 
 export interface RoutingMatch {
   channel: BuyingChannel;
@@ -35,6 +47,8 @@ function fieldValue(ctx: RoutingContext, field: string): string | number | boole
     case 'commodityCode': return ctx.commodityCode;
     case 'priority': return ctx.priority;
     case 'isUrgent': return ctx.isUrgent;
+    case 'riskRating': return ctx.riskRating;
+    case 'material': return ctx.material;
     default: return undefined;
   }
 }
@@ -81,11 +95,13 @@ function evalCondition(
       const a = toNumber(actual);
       return a !== null && Number.isFinite(lo) && Number.isFinite(hi) && a >= lo && a <= hi;
     }
-    case 'risk_rating':
-      // Supplier-side risk rating is not passed into RoutingContext today.
-      // Returning false means rules keyed on risk_rating are a no-op until the
-      // caller enriches the context with supplier.risk_rating.
-      return false;
+    case 'risk_rating': {
+      // Threshold match: the demand's risk tier is at or above the rule's tier
+      // (e.g. value 'high' matches actual 'high' or 'critical').
+      const actualTier = RISK_ORDER[actual as RiskRating];
+      const valueTier = RISK_ORDER[value as RiskRating];
+      return actualTier !== undefined && valueTier !== undefined && actualTier >= valueTier;
+    }
     default:
       return false;
   }

@@ -1,6 +1,7 @@
 import type { AIResponse, Supplier, Contract, ProcurementRequest } from '@/data/types';
 import { aiResponses } from '@/data/ai-responses';
 import { queryClient } from '@/lib/query-client';
+import { resolveCategoryCode } from '@/lib/procurement/category-code';
 
 function getSupplierFromCache(id: string): Supplier | undefined {
   const list = queryClient.getQueryData<Supplier[]>(['suppliers', 'list']);
@@ -151,53 +152,17 @@ export function getAICategorySuggestions(input: string): { category: string; con
   return suggestions.slice(0, 3);
 }
 
-export function getAICommodityCode(description: string): { code: string; label: string; confidence: number } | null {
-  const normalised = description.toLowerCase();
-
-  const commodityMap: { keywords: string[]; code: string; label: string }[] = [
-    { keywords: ['cloud', 'hosting', 'aws', 'azure'], code: '81112200', label: 'Cloud computing services' },
-    { keywords: ['laptop', 'computer', 'workstation', 'pc'], code: '43211500', label: 'Laptop computers' },
-    { keywords: ['sap', 'erp', 'enterprise software'], code: '43231500', label: 'Enterprise application software' },
-    { keywords: ['consulting', 'advisory', 'strategy'], code: '80101600', label: 'Management consulting' },
-    { keywords: ['security', 'audit', 'penetration', 'cyber'], code: '81111800', label: 'Information security' },
-    { keywords: ['furniture', 'desk', 'chair', 'table'], code: '56101500', label: 'Office furniture' },
-    { keywords: ['marketing', 'campaign', 'brand', 'advertising'], code: '80141600', label: 'Marketing campaign management' },
-    { keywords: ['temp', 'contractor', 'staffing', 'contingent'], code: '80111600', label: 'Temporary IT staffing' },
-    { keywords: ['catering', 'food', 'meal', 'canteen'], code: '90101600', label: 'Catering services' },
-    { keywords: ['cleaning', 'janitorial', 'housekeeping'], code: '76111500', label: 'Cleaning services' },
-    { keywords: ['print', 'printer', 'copier', 'scan'], code: '44103100', label: 'Managed print services' },
-    { keywords: ['sensor', 'iot', 'industrial'], code: '41113600', label: 'Industrial sensors' },
-    { keywords: ['network', 'switch', 'router', 'cisco'], code: '43222600', label: 'Network switches' },
-    { keywords: ['travel', 'flight', 'hotel', 'booking'], code: '90121500', label: 'Travel management services' },
-    { keywords: ['insurance', 'policy', 'coverage', 'indemnity'], code: '84131500', label: 'Insurance services' },
-    { keywords: ['tax', 'accounting', 'transfer pricing'], code: '84111500', label: 'Tax advisory services' },
-    { keywords: ['data', 'analytics', 'ml', 'ai', 'databricks'], code: '43232100', label: 'Data analytics platforms' },
-    { keywords: ['crm', 'salesforce', 'customer'], code: '43231500', label: 'CRM software' },
-    { keywords: ['translation', 'localisation', 'language'], code: '82121500', label: 'Translation services' },
-    { keywords: ['facility', 'building', 'maintenance'], code: '80131500', label: 'Facilities management' },
-    { keywords: ['warehouse', 'racking', 'storage', 'shelving'], code: '24102000', label: 'Industrial shelving and racking' },
-    { keywords: ['energy', 'renewable', 'solar', 'wind'], code: '83101800', label: 'Renewable energy services' },
-    { keywords: ['event', 'venue', 'conference', 'summit'], code: '80141800', label: 'Event management' },
-    { keywords: ['integration', 'middleware', 'api'], code: '43232300', label: 'Integration middleware' },
-    { keywords: ['records', 'archive', 'document', 'storage'], code: '80161500', label: 'Records management' },
-  ];
-
-  let bestMatch: { code: string; label: string; matchCount: number } | null = null;
-
-  for (const entry of commodityMap) {
-    let matchCount = 0;
-    for (const keyword of entry.keywords) {
-      if (normalised.includes(keyword)) {
-        matchCount += 1;
-      }
-    }
-    if (matchCount > 0 && (!bestMatch || matchCount > bestMatch.matchCount)) {
-      bestMatch = { code: entry.code, label: entry.label, matchCount };
-    }
-  }
-
-  if (!bestMatch) return null;
-
-  const confidence = Math.min(0.97, 0.6 + (bestMatch.matchCount * 0.12));
-  return { code: bestMatch.code, label: bestMatch.label, confidence };
+/**
+ * Map free text (and optionally the selected category) to a standardised
+ * commodity/category code. Delegates to the shared category-code resolver; when
+ * a category is supplied, an unmatched description still resolves via the
+ * category's default code. See `@/lib/procurement/category-code`.
+ */
+export function getAICommodityCode(
+  description: string,
+  category?: string,
+): { code: string; label: string; confidence: number } | null {
+  const result = resolveCategoryCode({ text: description, category });
+  if (!result) return null;
+  return { code: result.code, label: result.label, confidence: result.confidence };
 }

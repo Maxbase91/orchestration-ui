@@ -271,7 +271,7 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
 
         // Auto-derive commodity code from title/description
         if (updates.title && typeof updates.title === 'string') {
-          const commodity = getAICommodityCode(updates.title);
+          const commodity = getAICommodityCode(updates.title, category);
           if (commodity) {
             updates.commodityCode = commodity.code;
             updates.commodityCodeLabel = commodity.label;

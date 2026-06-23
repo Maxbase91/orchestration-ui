@@ -3,9 +3,7 @@ import { ShoppingCart, FileText, ArrowRight, Check, Loader2 } from 'lucide-react
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/format';
-import { useCatalogueItems } from '@/lib/db/hooks/use-catalogue-items';
-import { useContracts } from '@/lib/db/hooks/use-contracts';
-import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
+import { useSourceData } from '@/lib/integrations';
 import type { CatalogueItem } from '@/data/catalogue-items';
 import type { Contract, Supplier } from '@/data/types';
 
@@ -113,9 +111,12 @@ export function StepPreCheck({
   title, category, estimatedValue, supplierId,
   onChooseCatalogue, onChooseContract, onProceedToFullRequest,
 }: StepPreCheckProps) {
-  const { data: catalogueItems = [], isLoading: catLoading } = useCatalogueItems();
-  const { data: contracts = [], isLoading: conLoading } = useContracts();
-  const { data: suppliers = [] } = useSuppliers();
+  // Reads go through the standardised source-connector layer (own store today,
+  // live source later) rather than directly to the data layer.
+  const { data: catalogueItems = [], isLoading: catLoading } =
+    useSourceData<CatalogueItem>('catalogue-item');
+  const { data: contracts = [], isLoading: conLoading } = useSourceData<Contract>('contract');
+  const { data: suppliers = [] } = useSourceData<Supplier>('supplier');
 
   const tokens = useMemo(() => tokenize(title), [title]);
 

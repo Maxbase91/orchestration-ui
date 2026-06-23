@@ -5,6 +5,7 @@ import { useAiAgent } from '@/lib/db/hooks/use-ai-agents';
 import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
 import { useContracts } from '@/lib/db/hooks/use-contracts';
 import { formatCurrency } from '@/lib/format';
+import { isPreferredSupplier } from '@/lib/procurement/supplier-preference';
 import type { Supplier } from '@/data/types';
 
 interface Props {
@@ -78,11 +79,7 @@ export function SupplierRecommenderCard({ category, estimatedValue, selectedSupp
       const hasActiveContract = contracts.some(
         (c) => c.supplierId === selectedSupplier.id && (c.status === 'active' || c.status === 'expiring'),
       );
-      if (
-        hasActiveContract &&
-        selectedSupplier.riskRating !== 'critical' &&
-        (selectedSupplier.performanceScore ?? 0) >= 75
-      ) {
+      if (isPreferredSupplier(selectedSupplier, { hasActiveContract })) {
         return 'preferred';
       }
     }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { createElement, useState } from 'react';
 import { Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -20,10 +20,11 @@ import {
   useDeleteProcurementCategory,
 } from '@/lib/db/hooks/use-procurement-categories';
 import type { ProcurementCategory } from '@/lib/db/procurement-categories';
+import { CATEGORY_ICON_NAMES, resolveCategoryIcon } from '@/data/category-icons';
 
 type EditForm = Omit<ProcurementCategory, 'sortOrder'>;
 
-const EMPTY_FORM: EditForm = { id: '', label: '', description: '', timelineDays: 5, active: true };
+const EMPTY_FORM: EditForm = { id: '', label: '', description: '', icon: 'Package', timelineDays: 5, active: true };
 
 export function CategoriesPage() {
   const { data: categories = [], isLoading } = useProcurementCategories();
@@ -41,7 +42,7 @@ export function CategoriesPage() {
   }
 
   function openEdit(cat: ProcurementCategory) {
-    setForm({ id: cat.id, label: cat.label, description: cat.description, timelineDays: cat.timelineDays, active: cat.active });
+    setForm({ id: cat.id, label: cat.label, description: cat.description, icon: cat.icon ?? 'Package', timelineDays: cat.timelineDays, active: cat.active });
     setIsNew(false);
     setDialogOpen(true);
   }
@@ -139,6 +140,21 @@ export function CategoriesPage() {
             <div className="space-y-1.5">
               <Label>Typical Timeline (days)</Label>
               <Input type="number" min={1} value={form.timelineDays} onChange={(e) => setForm((p) => ({ ...p, timelineDays: parseInt(e.target.value) || 5 }))} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Icon</Label>
+              <div className="flex items-center gap-2">
+                {createElement(resolveCategoryIcon(form.icon), { className: 'size-4 text-muted-foreground' })}
+                <select
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+                  value={form.icon ?? 'Package'}
+                  onChange={(e) => setForm((p) => ({ ...p, icon: e.target.value }))}
+                >
+                  {CATEGORY_ICON_NAMES.map((name) => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                </select>
+              </div>
             </div>
             <div className="flex items-center justify-between">
               <Label>Active</Label>

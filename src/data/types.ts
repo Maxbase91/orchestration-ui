@@ -127,6 +127,8 @@ export interface Supplier {
   screeningStatus: 'clear' | 'flagged' | 'pending';
   categories: string[];
   tier: 1 | 2 | 3;
+  /** On the preferred-supplier list (PSL). Soft preference, not a hard gate. */
+  preferred?: boolean;
   duns: string;
   address: string;
   primaryContact: string;
@@ -254,6 +256,8 @@ export interface RiskAssessment {
   summary: string;
   mitigations: string[];
   reusable: boolean;
+  /** Highest data class the assessment covers (for reuse comparison). */
+  assessedDataClass?: 'none' | 'low' | 'medium' | 'high' | 'critical';
   linkedRequestIds: string[];
 }
 

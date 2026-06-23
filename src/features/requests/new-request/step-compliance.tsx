@@ -1,11 +1,18 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { Loader2, Info, ChevronDown, ChevronUp, AlertTriangle, CheckCircle, Sparkles, Circle, MinusCircle, Clock, Recycle } from 'lucide-react';
 import { ComplianceCheckResult } from './components/compliance-check-result';
 import { AISuggestionCard } from '@/components/shared/ai-suggestion-card';
 import { formatCurrency } from '@/lib/format';
-import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
-import type { Supplier, WorkflowTemplate, RoutingRule } from '@/data/types';
-import { useContracts } from '@/lib/db/hooks/use-contracts';
+import { useSourceData } from '@/lib/integrations';
+import { isPreferredSupplier, competitiveSourcingCheck, preferredSupplierCheck } from '@/lib/procurement/supplier-preference';
+import { determineMateriality, type MaterialityResult } from '@/lib/procurement/materiality';
+import { determineInherentRisk, type InherentRiskResult } from '@/lib/procurement/risk-segmentation';
+import { selectReuseOutcome, type ReuseEvaluation } from '@/lib/procurement/risk-reuse';
+import { buildHandoffSteps, type HandoffStep } from '@/lib/procurement/handoff';
+import type { Supplier, Contract, WorkflowTemplate, RoutingRule } from '@/data/types';
+// Risk-reuse matching stays on its specialised query (reusable + completed +
+// validity-window + supplier/contract); the generic ports do not model that yet.
 import { useMatchingRiskAssessments } from '@/lib/db/hooks/use-risk-assessments';
 import { useFormTemplate } from '@/lib/db/hooks/use-form-templates';
 import { useRoutingRules } from '@/lib/db/hooks/use-routing-rules';
@@ -22,6 +29,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { DynamicForm } from '@/components/shared/dynamic-form';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Switch } from '@/components/ui/switch';
 import { SupplierRecommenderCard } from './components/supplier-recommender-card';
 import type { RiskAssessment } from '@/data/types';
 
@@ -44,6 +52,10 @@ interface MatchingRiskAssessmentSummary {
 interface ComplianceData {
   buyingChannelResult: string;
   matchedRuleName?: string;
+  materiality?: MaterialityResult;
+  inherentRisk?: InherentRiskResult;
+  riskOutcome?: ReuseEvaluation;
+  handoffSteps?: HandoffStep[];
   sraStatus: string;
   policyChecks: { label: string; passed: boolean; detail: string }[];
   duplicateCheck: string | null;
@@ -216,14 +228,9 @@ function generatePolicyChecks(
       : 'Supplier not selected; SRA status unknown',
   });
 
-  checks.push({
-    label: 'Competitive quotes policy',
-    passed: value < 25000 || category === 'contingent-labour',
-    detail:
-      value >= 25000 && category !== 'contingent-labour'
-        ? `Value (${formatCurrency(value)}) requires minimum 3 competitive quotes`
-        : 'Below competitive quote threshold or exempt category',
-  });
+  const isPreferred = isPreferredSupplier(supplier);
+  checks.push(competitiveSourcingCheck({ value, category, isPreferred }));
+  checks.push(preferredSupplierCheck({ supplier, isPreferred }));
 
   return checks;
 }
@@ -238,11 +245,15 @@ export function StepCompliance({
   workflowTemplateId,
   onUpdate,
 }: StepComplianceProps) {
-  const { data: suppliers = EMPTY_SUPPLIERS } = useSuppliers();
+  const { data: suppliers = EMPTY_SUPPLIERS } = useSourceData<Supplier>('supplier');
   const { data: matches = EMPTY_MATCHES, isFetched: matchesFetched } = useMatchingRiskAssessments({ supplierId });
   const { data: routingRules = EMPTY_RULES } = useRoutingRules();
   const { data: validatorAgent } = useAiAgent('AI-002');
   const { data: workflowTemplates = EMPTY_TEMPLATES } = useWorkflowTemplates();
+
+  // Mini-IRQ (delta only): the two inherent-risk inputs that cannot be inferred
+  // from the service description. Toggling these refines the cascade live.
+  const [miniIrq, setMiniIrq] = useState({ privilegedAccess: false, criticalService: false });
 
   // A fetch is pending if we have a supplierId and the matching-SRA
   // lookup hasn't resolved yet. Once resolved (success or error),
@@ -255,15 +266,51 @@ export function StepCompliance({
   // create a feedback loop.
   const result = useMemo<ComplianceData | null>(() => {
     if (loading) return null;
+    const supplierRec = suppliers.find((s) => s.id === supplierId);
+    const dataSensitivity = inferDataSensitivity(serviceDescription ?? null);
+    const materiality = determineMateriality({
+      dataSensitivity,
+      riskRating: supplierRec?.riskRating,
+      value: estimatedValue,
+      criticalService: miniIrq.criticalService,
+    });
+    // Inherent-risk cascade — the demand's risk tier (richer than supplier risk
+    // alone), which drives routing and the assessment outcome. The mini-IRQ
+    // delta answers feed the attributes the SOW cannot reveal.
+    const inherentRisk = determineInherentRisk({
+      dataSensitivity,
+      supplierRiskRating: supplierRec?.riskRating,
+      value: estimatedValue,
+      privilegedAccess: miniIrq.privilegedAccess,
+      criticalService: miniIrq.criticalService,
+    });
+    // Structured reuse decision against the third-party risk register —
+    // factors supplier, scope, data class, inherent tier and validity.
+    const riskOutcome = selectReuseOutcome(
+      {
+        supplierId,
+        category,
+        dataSensitivity,
+        inherentTier: inherentRisk.tier,
+        now: new Date().toISOString().slice(0, 10),
+      },
+      matches,
+    );
     const routing = resolveRouting(routingRules, {
       category,
       value: estimatedValue,
       supplierId,
       priority: isUrgent ? 'urgent' : undefined,
       isUrgent,
+      riskRating: inherentRisk.tier,
+      material: materiality.material,
     });
     const label = buyingChannelLabel(routing.channel);
-    const supplierRec = suppliers.find((s) => s.id === supplierId);
+    const handoffSteps = buildHandoffSteps({
+      channel: routing.channel,
+      riskOutcome: riskOutcome.decision,
+      material: materiality.material,
+    });
 
     const validatorActive = validatorAgent?.status === 'active';
     const policyChecks = validatorActive
@@ -297,6 +344,10 @@ export function StepCompliance({
     return {
       buyingChannelResult: label,
       matchedRuleName: routing.matchedRule?.name,
+      materiality,
+      inherentRisk,
+      riskOutcome,
+      handoffSteps,
       sraStatus: supplierRec
         ? `${supplierRec.name}: ${supplierRec.sraStatus}${supplierRec.sraExpiryDate ? ` (expires ${supplierRec.sraExpiryDate})` : ''}`
         : 'Will be initiated upon submission',
@@ -306,7 +357,7 @@ export function StepCompliance({
       validatorAgentStatus: (validatorAgent?.status ?? 'missing') as ComplianceData['validatorAgentStatus'],
       validatorAgentName: validatorAgent?.name,
     };
-  }, [loading, category, estimatedValue, supplierId, isUrgent, suppliers, matches, routingRules, validatorAgent]);
+  }, [loading, category, estimatedValue, supplierId, isUrgent, serviceDescription, miniIrq, suppliers, matches, routingRules, validatorAgent]);
 
   // Push the composed result up to the parent whenever the data changes.
   // We intentionally exclude `onUpdate` from the deps: it's a new arrow
@@ -345,6 +396,39 @@ export function StepCompliance({
 
   return (
     <div className="space-y-6">
+      {/* Mini-IRQ (delta only) — the two inherent-risk attributes that cannot be
+          inferred from the service description. Answers refine the cascade live. */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm">Mini risk questionnaire</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            We only ask what we couldn&apos;t derive from your service description.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-center justify-between gap-4">
+            <label htmlFor="mini-irq-access" className="text-sm text-gray-700">
+              Does this engagement grant privileged or system access?
+            </label>
+            <Switch
+              id="mini-irq-access"
+              checked={miniIrq.privilegedAccess}
+              onCheckedChange={(v) => setMiniIrq((p) => ({ ...p, privilegedAccess: v }))}
+            />
+          </div>
+          <div className="flex items-center justify-between gap-4">
+            <label htmlFor="mini-irq-critical" className="text-sm text-gray-700">
+              Does it support a critical business service?
+            </label>
+            <Switch
+              id="mini-irq-critical"
+              checked={miniIrq.criticalService}
+              onCheckedChange={(v) => setMiniIrq((p) => ({ ...p, criticalService: v }))}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Buying Channel Classification */}
       <div className="rounded-lg border border-blue-200 bg-blue-50/60 p-4">
         <div className="flex items-start gap-2">
@@ -360,9 +444,66 @@ export function StepCompliance({
                 ? `Matched routing rule: ${result.matchedRuleName}`
                 : 'No admin routing rule matched — using default fallback.'}
             </p>
+            {result.materiality && (
+              <p className="mt-1 text-sm text-gray-700">
+                Materiality:{' '}
+                <span className={result.materiality.material ? 'font-semibold text-amber-700' : 'font-medium text-gray-600'}>
+                  {result.materiality.material
+                    ? `Material — ${result.materiality.criticality} (regulatory flag raised)`
+                    : 'Not material'}
+                </span>
+                {result.materiality.material && (
+                  <span className="text-xs text-gray-500"> · {result.materiality.reasons.join('; ')}</span>
+                )}
+              </p>
+            )}
+            {result.inherentRisk && (
+              <p className="mt-1 text-sm text-gray-700">
+                Inherent risk:{' '}
+                <span className="font-semibold text-gray-900">{result.inherentRisk.tier}</span>
+                <span className="text-xs text-gray-500"> · {result.inherentRisk.drivers.join('; ')}</span>
+                {result.riskOutcome && (
+                  <span className="text-xs text-gray-500">
+                    {' '}· assessment: <span className="font-medium text-gray-700">{result.riskOutcome.decision}</span> ({result.riskOutcome.reasons[0]})
+                  </span>
+                )}
+              </p>
+            )}
           </div>
         </div>
       </div>
+
+      {/* Next steps — the structured handoff panel: each step, its system,
+          status and deep-link. R1 routes (deep-links), it does not write. */}
+      {result.handoffSteps && result.handoffSteps.length > 0 && (
+        <div className="rounded-lg border border-gray-200 bg-white p-4">
+          <p className="text-sm font-medium text-gray-900">Next steps</p>
+          <ul className="mt-3 space-y-2">
+            {result.handoffSteps.map((step) => (
+              <li key={step.key} className="flex items-start justify-between gap-3 border-b border-gray-50 pb-2 last:border-0 last:pb-0">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-gray-800">{step.label}</p>
+                  <p className="text-xs text-gray-500">{step.system} · {step.detail}</p>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                    step.status === 'required' ? 'bg-amber-100 text-amber-700'
+                      : step.status === 'recommended' ? 'bg-blue-100 text-blue-700'
+                        : 'bg-gray-100 text-gray-500'
+                  }`}>
+                    {step.status}
+                  </span>
+                  {step.deepLink && (
+                    <Link to={step.deepLink} className="text-xs font-medium text-blue-600 hover:underline">
+                      Open
+                    </Link>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* SRA Status */}
       <div className="rounded-lg border border-gray-200 bg-white p-4">
@@ -697,8 +838,8 @@ function SmartAssessmentSection({
   category: string;
   estimatedValue: number;
 }) {
-  const { data: suppliers = [] } = useSuppliers();
-  const { data: contracts = [] } = useContracts();
+  const { data: suppliers = [] } = useSourceData<Supplier>('supplier');
+  const { data: contracts = [] } = useSourceData<Contract>('contract');
   const assessment = useMemo(() => {
     // Vendor match
     const matchedSupplier = supplierId
