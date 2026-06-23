@@ -85,14 +85,18 @@
 | TC-REQ-19 | Save as Draft mid-wizard | Draft saved + retrievable |
 | TC-REQ-20 | Submit each remaining category (Services, Software, Contingent Labour, Contract Renewal, Supplier Onboarding) | Each routes/submits correctly |
 
-## Suite SOW — Service Description generator (target: long, validated, best-in-class)
+## Suite SOW — Service Description (unified, auto-composed; no manual generate)
+
+The SOW and the service description are **one document**, built automatically from the conversation —
+there is **no "Generate SOW" button** and no per-section regenerate (verified by `npm run test:ui`).
 
 | ID | Steps | Expected |
 |---|---|---|
 | TC-SOW-01 | Consulting request → Step 3, answer Objective with one line | **Section is expanded** into a full professional paragraph (NOT a verbatim echo) |
-| TC-SOW-02 | Answer 3–4 questions, then view all 9 sections | Objective/Scope/Deliverables/Timeline/Resources/Acceptance/Pricing/Location/Dependencies all **substantive**; unanswered sections **auto-drafted** & labelled AI-generated |
+| TC-SOW-02 | Answer the questions until complete, then view all 9 sections | The document **auto-composes on completion** (no button click): Objective/Scope/Deliverables/Timeline/Resources/Acceptance/Pricing/Location/Dependencies all **substantive**; unanswered sections **auto-drafted** |
 | TC-SOW-03 | Check Deliverables / Timeline / Acceptance | Deliverables numbered; timeline phased w/ durations; acceptance criteria **measurable** |
-| TC-SOW-04 | Quality gate | Visible quality score/checklist; weak sections flagged; per-section **Regenerate** works |
+| TC-SOW-04 | Quality gate | Visible quality score/checklist (auto-populated on completion); weak sections flagged |
+| TC-SOW-04b | No manual generation (`npm run test:ui`) | The chat-intake step shows **no "Generate SOW" button** and no "click Generate SOW" hint; the SOW panel still renders and builds from the conversation |
 | TC-SOW-05 | Narrative summary + copy button | 3–4 paragraph narrative; copy works |
 | TC-SOW-06 | Submit; open request detail | Full SOW persisted + displayed (Overview/Documents) |
 | TC-SOW-07 | Provider modes | Works in `mock` and `groq/gemini` |

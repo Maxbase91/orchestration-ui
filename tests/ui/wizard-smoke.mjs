@@ -148,7 +148,25 @@ try {
       (await page.getByText('Preferred-supplier routing').count()) > 0);
   }
 
-  // 5. No runtime errors surfaced during the flow.
+  // 5. Service-description capture (chat intake): the SOW and the service
+  //    description are one document built automatically from the conversation —
+  //    there is NO manual "Generate SOW" button.
+  await page.goto(`${BASE}/requests/new`, { waitUntil: 'networkidle' });
+  await page.getByRole('button', { name: /choose a category manually/i }).click();
+  await page.getByText('Consulting', { exact: true }).first().click();
+  await page.getByRole('button', { name: /Next/ }).click();
+  await page.getByText('Catalogue check', { exact: true }).waitFor({ timeout: 15000 });
+  await page.locator('textarea').first().fill('operating model design, 3 months, two consultants');
+  await page.getByRole('button', { name: /Check for a covering contract/ }).click();
+  await page.getByRole('button', { name: /Proceed to full request/ }).click();
+  await page.getByText('Statement of Work', { exact: true }).waitFor({ timeout: 15000 });
+  check('service-description capture renders (unified SOW panel)', true);
+  check('NO manual "Generate SOW" button (auto-composed from chat)',
+    (await page.getByRole('button', { name: /Generate SOW/ }).count()) === 0);
+  check('SOW sections build from the conversation (no generate hint)',
+    (await page.getByText(/click Generate SOW/i).count()) === 0);
+
+  // 6. No runtime errors surfaced during the flow.
   check('no console / page errors during flow', consoleErrors.length === 0,
     consoleErrors.slice(0, 3).join(' | '));
 

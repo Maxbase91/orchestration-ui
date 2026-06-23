@@ -64,17 +64,22 @@ The New Request wizard is the platform's primary front door — a single intelli
 
 ---
 
-## SOW Generator (§10 — upgraded)
+## Service description (§10 — unified, auto-composed)
 
-### Architecture (Hybrid Q&A + Generate)
+### Architecture (conversation-driven, no manual generate)
 
-The intake chat gathers key context (Q&A), then a dedicated AI endpoint produces a polished, validated SOW.
+The SOW and the service description are **one document**. The intake chat gathers the required
+components through guided Q&A, and the service description is **composed automatically** once all
+components are captured — there is **no manual "Generate SOW" action** and no per-section regenerate.
 
-- FR01-40 · After Q&A completes, a **"Generate SOW"** button appears in the right panel (SOW tab).
-- FR01-41 · Clicking calls `POST /api/generate-sow` with: `category`, `title`, `value`, `supplier`, `timeline`, `capturedAnswers` (all filled SOW sections), `commodityCode`.
+- FR01-40 · The conversation keeps asking until every required component is captured (title, value,
+  objective, scope, deliverables, resources); only then is the document composed.
+- FR01-41 · On completion the front door **automatically** calls `POST /api/generate-sow` with:
+  `category`, `title`, `value`, `supplier`, `timeline`, `capturedAnswers` (all filled SOW sections),
+  `commodityCode` — no user action required.
 - FR01-42 · The endpoint uses a **category-specific system prompt** (consulting → phased delivery/RACI/KPIs; services → SLAs/coverage; software → licensing/DPA; goods → spec/incoterms) and LLM expansion — not verbatim echo.
-- FR01-43 · Each of the 9 SOW sections becomes **editable inline** (textarea); changes propagate to `formData.serviceDescription` immediately on edit.
-- FR01-44 · A **"Regenerate this section"** button (↺) on each section calls the endpoint for that section only.
+- FR01-43 · Each of the 9 sections is **editable inline** (textarea); changes propagate to `formData.serviceDescription` immediately on edit.
+- FR01-44 · If the endpoint is unavailable the step **degrades gracefully** — the conversation has already composed a working narrative — with no user-facing error and no button to retry.
 - FR01-45 · The endpoint returns a **quality score (0–100)** and per-section checklist (pass/fail + issue description).
 - FR01-46 · The quality badge is shown in the SOW panel header; clicking expands a checklist panel.
 - FR01-47 · Quality rules: acceptance criteria must contain measurable KPIs; deliverables must be a numbered list; timeline must reference phases.

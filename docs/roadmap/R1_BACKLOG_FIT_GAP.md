@@ -99,7 +99,7 @@ FD-E15-01 component library 🟢; FD-E15-02 journeys 🟡 (confirm from contextu
 |---|---|---|---|
 | FD-E3-01 | Role-based landing page | 🟢 | 5 role dashboards |
 | FD-E3-02 | Light intake | 🟢 | **Free text is the primary entry**; the category grid is a manual fallback behind a disclosure (FD-E3-10). Reworked into the staged funnel |
-| FD-E3-03 | Full service description + quality gates | 🟡 | **Unified capture** — chat builds one service description (request key facts + SOW elements in one panel, not separate Summary/SOW tabs); quality score + per-section regenerate. "how it qualifies" not yet driving materiality |
+| FD-E3-03 | Full service description + quality gates | 🟡 | **Unified, auto-composed capture** — the chat builds one service description (request key facts + SOW elements in one panel, no separate Summary/SOW tabs and **no manual "Generate SOW" button**); the conversation asks until all components are captured, then the document is **composed automatically** (quality score shown). Inline-editable; graceful offline. "how it qualifies" not yet driving materiality |
 | FD-E3-04 | Draft save & resume | 🟢 | Saves draft to Supabase |
 | FD-E3-05 | Edit in-flight demand | 🟡 | Partial |
 | FD-E3-06 | Demand validation — permissibility/prohibited | 🟡 | Some policy checks hardcoded |
