@@ -4,11 +4,11 @@ import {
   Loader2,
   ArrowRight,
   CheckCircle,
+  ShoppingCart,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { CategoryTile } from './components/category-tile';
 import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
 import { useAiAgent } from '@/lib/db/hooks/use-ai-agents';
 import { useProcurementCategories } from '@/lib/db/hooks/use-procurement-categories';
@@ -31,6 +31,8 @@ interface StepCategoryProps {
     businessJustification?: string;
   }) => void;
   onAutoAdvance?: () => void;
+  /** Jump straight to the catalogue — the one explicit alternative entry point. */
+  onBrowseCatalogue?: () => void;
 }
 
 interface AIClassification {
@@ -92,14 +94,11 @@ function localClassify(input: string): AIClassification {
   };
 }
 
-export function StepCategory({ category, onUpdate, onAutoAdvance }: StepCategoryProps) {
+export function StepCategory({ onUpdate, onAutoAdvance, onBrowseCatalogue }: StepCategoryProps) {
   const [inputValue, setInputValue] = useState('');
   const [loading, setLoading] = useState(false);
   const [aiResult, setAiResult] = useState<AIClassification | null>(null);
   const [accepted, setAccepted] = useState(false);
-  // Free text is the primary entry point; the category grid is a manual
-  // fallback (FD-E3-10) revealed on demand, not a parallel set of entry tiles.
-  const [showManual, setShowManual] = useState(false);
   const { data: suppliers = [] } = useSuppliers();
   const { data: classifierAgent } = useAiAgent('AI-001');
   const { data: dbCategories = [] } = useProcurementCategories();
@@ -191,16 +190,6 @@ export function StepCategory({ category, onUpdate, onAutoAdvance }: StepCategory
     if (onAutoAdvance) setTimeout(onAutoAdvance, 600);
   };
 
-  const handleCategorySelect = (categoryId: string) => {
-    // Reset AI state so this manual override is treated as the definitive choice.
-    // Without this, `accepted = true` from a prior AI accept can cause auto-advance
-    // to fire with the stale AI-classified category instead of the user's selection.
-    setAccepted(false);
-    setAiResult(null);
-    const cat = activeCategories.find((c) => c.id === categoryId);
-    onUpdate({ category: categoryId, categoryDescription: cat?.name ?? categoryId });
-  };
-
   const categoryLabel = (id: string) => activeCategories.find((c) => c.id === id)?.name ?? id;
 
   return (
@@ -211,7 +200,8 @@ export function StepCategory({ category, onUpdate, onAutoAdvance }: StepCategory
           Describe what you need
         </label>
         <p className="text-xs text-gray-500 mb-2">
-          Press Enter — the AI will identify the right category, extract details, and take you to the next step.
+          Press Enter — we&apos;ll find the fastest way to fulfil it: an existing catalogue item, an
+          active contract, or a full request. No need to pick a category.
         </p>
         <form onSubmit={handleSubmit} className="relative">
           <Sparkles className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
@@ -315,39 +305,17 @@ export function StepCategory({ category, onUpdate, onAutoAdvance }: StepCategory
         </div>
       )}
 
-      {/* Manual category selection — a fallback behind a disclosure, so free
-          text stays the primary entry point. Auto-opens if a category is
-          already chosen (e.g. a deep-link or returning to the step). */}
-      {!loading && !accepted && (
-        <div>
-          {!showManual && !category ? (
-            <button
-              type="button"
-              onClick={() => setShowManual(true)}
-              className="text-sm font-medium text-blue-600 hover:underline"
-            >
-              {aiResult ? 'Or choose a different category manually' : 'Or choose a category manually'}
-            </button>
-          ) : (
-            <>
-              <p className="mb-3 text-sm font-medium text-gray-700">
-                {aiResult ? 'Or select a different category' : 'Choose a category'}
-              </p>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                {activeCategories.map((cat) => (
-                  <CategoryTile
-                    key={cat.id}
-                    icon={cat.icon}
-                    name={cat.name}
-                    description={cat.description}
-                    timeline={cat.timeline}
-                    selected={category === cat.id}
-                    onClick={() => handleCategorySelect(cat.id)}
-                  />
-                ))}
-              </div>
-            </>
-          )}
+      {/* The one explicit alternative entry point: the catalogue, for known
+          off-the-shelf items. There is no commodity-category selection — the
+          fulfilment path (catalogue / contract / full request) is derived from
+          the description, not chosen up front. */}
+      {!loading && !accepted && onBrowseCatalogue && (
+        <div className="rounded-lg border border-dashed border-gray-200 p-4 text-center">
+          <p className="text-sm text-gray-600">Already know it&apos;s an off-the-shelf catalogue item?</p>
+          <Button variant="outline" size="sm" className="mt-2" onClick={onBrowseCatalogue}>
+            <ShoppingCart className="size-4" />
+            Browse the catalogue
+          </Button>
         </div>
       )}
     </div>

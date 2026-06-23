@@ -438,6 +438,17 @@ export function NewRequestPage() {
             categoryDescription={formData.categoryDescription}
             onUpdate={(d) => updateFormData(d)}
             onAutoAdvance={() => setCurrentStep(2)}
+            onBrowseCatalogue={() => {
+              // Direct catalogue entry — the user already knows it's an
+              // off-the-shelf item, so skip the funnel and go to the catalogue.
+              updateFormData({
+                category: 'catalogue',
+                categoryDescription: 'Catalogue Purchase',
+                preCheckOutcome: 'catalogue',
+                buyingChannelResult: 'catalogue',
+              });
+              setCurrentStep(3);
+            }}
           />
         )}
         {currentStep === 2 && (

@@ -44,7 +44,15 @@ try {
   const page = await browser.newContext().then((c) => c.newPage());
 
   const consoleErrors = [];
-  page.on('console', (m) => { if (m.type() === 'error') consoleErrors.push(m.text()); });
+  page.on('console', (m) => {
+    if (m.type() !== 'error') return;
+    const url = m.location()?.url ?? '';
+    // The vite dev server has no serverless functions, so /api/* endpoints 404
+    // here and the app falls back gracefully (local classify / local narrative).
+    // These are expected in dev and not app errors.
+    if (/\/api\//.test(url) && /Failed to load resource/.test(m.text())) return;
+    consoleErrors.push(m.text());
+  });
   page.on('pageerror', (e) => consoleErrors.push(`pageerror: ${e.message}`));
 
   // 1. App boots and React mounts.
@@ -52,46 +60,37 @@ try {
   await page.locator('#root *').first().waitFor({ timeout: 15000 });
   check('app shell mounts at /', (await page.locator('#root *').count()) > 0);
 
-  // 2. New-request wizard renders its first (category) step. Free text is the
-  //    primary entry point (FD-E3-10); the category grid is a manual fallback
-  //    behind a disclosure, so we reveal it before asserting the tiles.
+  // 2. New-request wizard: free text is the ONLY commodity entry — there are no
+  //    category tiles (the fulfilment path is derived, not chosen). "Browse the
+  //    catalogue" is the one explicit alternative entry point.
   await page.goto(`${BASE}/requests/new`, { waitUntil: 'networkidle' });
   await page.getByText('Describe what you need').waitFor({ timeout: 15000 });
   check('wizard category step renders free-text entry', true);
-  check('category grid is hidden by default (free text primary)',
-    (await page.getByText('Goods', { exact: true }).count()) === 0);
-  await page.getByRole('button', { name: /choose a category manually/i }).click();
-  const goodsTile = page.getByText('Goods', { exact: true }).first();
-  await goodsTile.waitFor({ timeout: 15000 });
-  check('manual category grid reveals on demand', await goodsTile.isVisible());
+  check('NO commodity-category tiles (Goods/Contingent Labour are not a choice)',
+    (await page.getByText('Goods', { exact: true }).count()) === 0
+    && (await page.getByText('Contingent Labour', { exact: true }).count()) === 0);
+  check('catalogue is the one explicit alternative entry point',
+    (await page.getByRole('button', { name: /Browse the catalogue/ }).count()) > 0);
 
-  // The category taxonomy (canonical default or the configured store) maps to
-  // tiles — assert several distinct categories render, not just one.
-  for (const label of ['Consulting', 'Software / IT', 'Services']) {
-    check(`taxonomy renders "${label}" tile`,
-      (await page.getByText(label, { exact: true }).count()) > 0);
-  }
-
-  // 3. Pick a category and advance to the staged pre-check. Stage 1 is the
-  //    catalogue check, which reads catalogue items through the connector
-  //    layer — reaching it proves those reads execute in the browser. The
-  //    contract check must NOT be visible yet (no premature assertion).
-  await goodsTile.click();
-  await page.getByRole('button', { name: /Next/ }).click();
+  // 3. Describe a need in free text → the system derives the category and routes
+  //    into the staged pre-check (stage 1 = catalogue, read via the connector
+  //    layer). The contract check must NOT be visible yet.
+  await page.locator('#need-input').fill('a few standard office laptops for a new starter');
+  await page.locator('#need-input').press('Enter');
+  await page.getByRole('button', { name: /Accept & continue/ }).click();
   await page.getByText('Catalogue check', { exact: true }).waitFor({ timeout: 15000 });
-  check('pre-check stage 1 (catalogue) renders via connector reads', true);
+  check('free-text classification routes into pre-check stage 1 (catalogue)', true);
   check('contract check is NOT shown before catalogue is ruled out',
     (await page.getByText('Contract check', { exact: true }).count()) === 0);
 
-  // 4. Step 4 — Risk & assessment: the mini-IRQ delta capture lives here.
-  //    Drive the full staged funnel: catalogue (no match) → enrich → contract
-  //    (no match) → proceed to full request.
+  // 4. Full staged funnel via free text: classify → catalogue (no match) →
+  //    enrich → contract (no match) → proceed to full request → risk step.
   await page.goto(`${BASE}/requests/new`, { waitUntil: 'networkidle' });
-  await page.getByRole('button', { name: /choose a category manually/i }).click();
-  await page.getByText('Contract Renewal', { exact: true }).first().click();
-  await page.getByRole('button', { name: /Next/ }).click();
+  await page.locator('#need-input').fill('renew our existing vendor contract for another year');
+  await page.locator('#need-input').press('Enter');
+  await page.getByRole('button', { name: /Accept & continue/ }).click();
   await page.getByText('Catalogue check', { exact: true }).waitFor({ timeout: 15000 });
-  await page.locator('textarea').first().fill('annual renewal of an existing managed service, EMEA region');
+  await page.locator('textarea').first().fill('annual renewal of an existing vendor engagement, EMEA region');
   await page.getByRole('button', { name: /Check for a covering contract/ }).click();
   await page.getByText('Contract check', { exact: true }).waitFor({ timeout: 15000 });
   check('pre-check stage 2 (contract) reached only after enrichment', true);
@@ -152,9 +151,9 @@ try {
   //    description are one document built automatically from the conversation —
   //    there is NO manual "Generate SOW" button.
   await page.goto(`${BASE}/requests/new`, { waitUntil: 'networkidle' });
-  await page.getByRole('button', { name: /choose a category manually/i }).click();
-  await page.getByText('Consulting', { exact: true }).first().click();
-  await page.getByRole('button', { name: /Next/ }).click();
+  await page.locator('#need-input').fill('management consulting to design a target operating model');
+  await page.locator('#need-input').press('Enter');
+  await page.getByRole('button', { name: /Accept & continue/ }).click();
   await page.getByText('Catalogue check', { exact: true }).waitFor({ timeout: 15000 });
   await page.locator('textarea').first().fill('operating model design, 3 months, two consultants');
   await page.getByRole('button', { name: /Check for a covering contract/ }).click();

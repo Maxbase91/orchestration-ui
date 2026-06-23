@@ -98,7 +98,7 @@ FD-E15-01 component library 🟢; FD-E15-02 journeys 🟡 (confirm from contextu
 | Story | Summary | State | Note |
 |---|---|---|---|
 | FD-E3-01 | Role-based landing page | 🟢 | 5 role dashboards |
-| FD-E3-02 | Light intake | 🟢 | **Free text is the primary entry**; the category grid is a manual fallback behind a disclosure (FD-E3-10). Reworked into the staged funnel |
+| FD-E3-02 | Light intake | 🟢 | **Free text is the only commodity entry — there is no category selection.** Commodity categories (Goods/Services/…) are derived metadata, not a user choice; the fulfilment path (catalogue / contract / full request) is derived by the funnel. The catalogue is the one explicit alternative entry (FD-E3-10) |
 | FD-E3-03 | Full service description + quality gates | 🟡 | **Unified, auto-composed capture** — the chat builds one service description (request key facts + SOW elements in one panel, no separate Summary/SOW tabs and **no manual "Generate SOW" button**); the conversation asks until all components are captured, then the document is **composed automatically** (quality score shown). Inline-editable; graceful offline. "how it qualifies" not yet driving materiality |
 | FD-E3-04 | Draft save & resume | 🟢 | Saves draft to Supabase |
 | FD-E3-05 | Edit in-flight demand | 🟡 | Partial |
@@ -113,7 +113,7 @@ FD-E15-01 component library 🟢; FD-E15-02 journeys 🟡 (confirm from contextu
 |---|---|---|---|
 | FD-E4-01 | AI classification + catalogue/contract sufficiency | 🟡 | Real LLM (Groq/Gemini); now validates against the **configured taxonomy** (not a separate hardcoded list); category-code mapping pending |
 | FD-E4-02 | Category-code assignment & taxonomy translation | 🟡 | `lib/procurement/category-code.ts` — keyword → standardised code, **category-aware** with **per-category default codes** so every demand resolves; centralises the old commodity map. Organisation-specific code scheme pending |
-| FD-E4-03 | Low-confidence handling & manual override | 🟢 | UI override works |
+| FD-E4-03 | Low-confidence handling & manual override | 🟢 | The AI classification is shown with extracted details before it's accepted; if it's wrong the user **re-describes** ("Try again") rather than picking from a commodity-category grid (which has been removed — categories are derived, not chosen) |
 | FD-E4-GOV0 | AI governance & **model selection** | 🔴 | No governance; runs Groq/Gemini (recommend Claude) |
 | FD-E4-GOV1 | Classification eval harness & baseline | 🔴 | No eval harness |
 | FD-E4-GOV6/7, AGT5/7 | Quality monitoring, model change mgmt, tuning, observability | 🔴 | Not present |
@@ -140,9 +140,10 @@ FD-E15-01 component library 🟢; FD-E15-02 journeys 🟡 (confirm from contextu
 > candidate before the user had described what they need. This block reframed intake as **one
 > progressive funnel with two real entry points and stage-gated derivation**.
 >
-> **Built (WS-F).** `step-category.tsx` now leads with free text; the category grid is a manual
-> fallback behind an "Or choose a category manually" disclosure (FD-E4-03 override), not a parallel
-> tile wall. `step-pre-check.tsx` is now a **sequential funnel** (`stage: 'catalogue' → 'contract'`):
+> **Built (WS-F).** `step-category.tsx` now leads with free text and has **no commodity-category
+> selection at all** — Goods/Services/… are derived metadata, not a choice (the path is catalogue /
+> contract / full request, decided by the funnel), with the catalogue as the one explicit alternative
+> entry. `step-pre-check.tsx` is now a **sequential funnel** (`stage: 'catalogue' → 'contract'`):
 > stage 1 checks the catalogue only; when nothing fits it asks for a short enrichment before stage 2
 > ever computes — **the contract check is gated and never rendered until catalogue is ruled out and
 > enrichment exists** (verified by the UI smoke). Enrichment carries forward into the request. The
@@ -150,8 +151,9 @@ FD-E15-01 component library 🟢; FD-E15-02 journeys 🟡 (confirm from contextu
 
 **Two entry points only** (replacing the tile grid):
 1. **Free-text intake** — the default. The user describes the need in natural language; the system
-   derives category/commodity code (FD-E4) rather than asking the user to pre-classify. Manual
-   category selection survives *only* as a low-confidence override (FD-E4-03), not as a primary grid.
+   derives category/commodity code (FD-E4) rather than asking the user to pre-classify. There is
+   **no commodity-category selection at all** — Goods/Services/… are derived metadata, not a choice;
+   to correct a misread the user re-describes ("Try again"), there is no category grid (FD-E4-03).
 2. **Browse catalogue directly** — for users who already know they want a catalogue item; jumps
    straight to the punchout/catalogue-order early exit.
 
@@ -170,8 +172,9 @@ and only once it has enough signal):
 contract (or catalogue) result on a fresh request before stage gating is satisfied; "no premature
 assertions" is an explicit acceptance criterion.
 
-**Acceptance criteria.** (a) ✅ Free text is the primary entry; the tile grid is a fallback behind a
-disclosure, not a primary path. (b) ✅ Catalogue is the first derivation and only lists matches above
+**Acceptance criteria.** (a) ✅ Free text is the only commodity entry — there is **no category grid**;
+the fulfilment path is derived, not chosen, and the catalogue is the one explicit alternative entry.
+(b) ✅ Catalogue is the first derivation and only lists matches above
 the score threshold. (c) ✅ The contract stage is never reached or rendered until catalogue is ruled
 out *and* enrichment input exists (asserted by the smoke). (d) ✅ Full SD appears only when neither
 early exit fires. (e) ✅ Stage 5 asks **criteria-triggered residual questions** — `residual-questions.ts`
