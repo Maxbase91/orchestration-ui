@@ -4,7 +4,6 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
 import { getAICommodityCode } from '@/lib/mock-ai';
@@ -208,6 +207,13 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
     if (key === 'estimatedValue') return data.estimatedValue > 0;
     return !!(data as Record<string, unknown>)[key];
   }).length;
+
+  // Unified completeness across the request key facts AND the SOW elements —
+  // the service description is one document, not a summary plus a separate SOW.
+  const sowFilledCount = SOW_SECTIONS.filter((s) => svcDesc[s.key as keyof ServiceDescription]).length;
+  const unifiedTotal = FIELD_LABELS.length + SOW_SECTIONS.length;
+  const unifiedDone = filledCount + sowFilledCount;
+  const unifiedPct = Math.round((unifiedDone / unifiedTotal) * 100);
 
   const getFieldValue = (key: string): string => {
     if (key === 'category') return categoryDescription;
@@ -549,32 +555,24 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
 
       {/* Right Sidebar (2/5) */}
       <div className="lg:col-span-2 space-y-4 sticky top-4">
-        <Tabs defaultValue={Object.keys(svcDesc).length > 0 ? 'sow' : 'summary'}>
-          <TabsList className="w-full">
-            <TabsTrigger value="summary" className="flex-1 text-xs">Summary</TabsTrigger>
-            <TabsTrigger value="sow" className="flex-1 text-xs">
-              Service Description
-              {Object.keys(svcDesc).filter((k) => k !== 'narrative' && svcDesc[k as keyof ServiceDescription]).length > 0 && (
-                <Badge variant="secondary" className="ml-1 text-[9px] px-1 py-0">
-                  {Object.keys(svcDesc).filter((k) => k !== 'narrative' && svcDesc[k as keyof ServiceDescription]).length}
-                </Badge>
-              )}
-            </TabsTrigger>
-          </TabsList>
-
-          {/* REQUEST SUMMARY TAB */}
-          <TabsContent value="summary">
-            <div className="rounded-lg border border-gray-200 bg-white p-4 space-y-4">
-              {/* Progress */}
+        {/* Single service-description panel — the master capture. The request
+            key facts and the SOW are one document, not separate tabs. */}
+        <div className="rounded-lg border border-gray-200 bg-white p-4 space-y-4">
+              {/* Title + unified progress (request key facts + SOW elements) */}
+              <div className="flex items-center gap-1.5">
+                <FileText className="size-3.5 text-[#2D5F8A]" />
+                <h4 className="text-xs font-semibold text-gray-900">Service Description</h4>
+              </div>
               <div>
                 <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-                  <span>{filledCount} of {FIELD_LABELS.length} fields</span>
-                  <span>{Math.round((filledCount / FIELD_LABELS.length) * 100)}%</span>
+                  <span>{unifiedDone} of {unifiedTotal} captured</span>
+                  <span>{unifiedPct}%</span>
                 </div>
                 <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden">
-                  <div className="h-full rounded-full bg-[#2D5F8A] transition-all duration-500" style={{ width: `${(filledCount / FIELD_LABELS.length) * 100}%` }} />
+                  <div className="h-full rounded-full bg-[#2D5F8A] transition-all duration-500" style={{ width: `${unifiedPct}%` }} />
                 </div>
               </div>
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Key facts</p>
 
               <div className="space-y-2">
                 {FIELD_LABELS.map(({ key, label }) => {
@@ -604,18 +602,8 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
                   <p className="text-[11px] text-green-800">{data.supplier}</p>
                 </div>
               )}
-              {isComplete && (
-                <div className="rounded-md bg-green-50 border border-green-200 p-2 text-center">
-                  <CheckCircle className="size-4 text-green-600 mx-auto mb-0.5" />
-                  <p className="text-xs font-medium text-green-800">Ready for validation</p>
-                </div>
-              )}
-            </div>
-          </TabsContent>
-
-          {/* SERVICE DESCRIPTION TAB */}
-          <TabsContent value="sow">
-            <div className="rounded-lg border border-gray-200 bg-white p-4 space-y-3">
+              {/* SERVICE DESCRIPTION — the master document, same panel as the facts above */}
+              <div className="pt-3 border-t border-gray-100 space-y-3">
               {/* Header row */}
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-1.5">
@@ -727,8 +715,13 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
                 <p className="text-xs text-gray-400 text-center py-4">Answer the assistant's questions above, then click <strong>Generate SOW</strong> to produce a professional draft.</p>
               )}
             </div>
-          </TabsContent>
-        </Tabs>
+          {isComplete && (
+            <div className="rounded-md bg-green-50 border border-green-200 p-2 text-center mt-3">
+              <CheckCircle className="size-4 text-green-600 mx-auto mb-0.5" />
+              <p className="text-xs font-medium text-green-800">Ready for validation</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
