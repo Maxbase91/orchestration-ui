@@ -97,6 +97,8 @@ try {
   check('next-steps handoff panel renders', (await page.getByText('Next steps', { exact: true }).count()) > 0);
   check('handoff routes the detailed risk assessment', (await page.getByText('Third-party risk register').count()) > 0);
   check('second contract check (Contract coverage) renders', (await page.getByText('Contract coverage', { exact: true }).count()) > 0);
+  check('approval-to-source gate renders', (await page.getByText('Approval to source', { exact: true }).count()) > 0);
+  check('approval-to-source shows a demand-validation gate', (await page.getByText('Demand validation', { exact: true }).count()) > 0);
 
   // The determination is exportable — clicking Export downloads a .md file.
   check('determination Export button renders', (await page.getByRole('button', { name: /Export/ }).count()) > 0);

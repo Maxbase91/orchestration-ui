@@ -14,6 +14,7 @@ import { buildHandoffSteps, type HandoffStep } from '@/lib/procurement/handoff';
 import { determineContractType, determineSourcingType, type ContractType, type SourcingType } from '@/lib/procurement/determination';
 import { buildDeterminationExport } from '@/lib/procurement/determination-export';
 import { runSecondContractCheck, type SecondContractCheckResult } from '@/lib/procurement/second-contract-check';
+import { determineApprovalToSource, type ApprovalToSourceResult } from '@/lib/procurement/approval-to-source';
 import type { Supplier, Contract, WorkflowTemplate, RoutingRule } from '@/data/types';
 // Risk-reuse matching stays on its specialised query (reusable + completed +
 // validity-window + supplier/contract); the generic ports do not model that yet.
@@ -64,6 +65,7 @@ interface ComplianceData {
   contractType?: { type: ContractType; reason: string };
   sourcingType?: { type: SourcingType; reason: string };
   secondContractCheck?: SecondContractCheckResult;
+  approvalToSource?: ApprovalToSourceResult;
   handoffSteps?: HandoffStep[];
   sraStatus: string;
   policyChecks: { label: string; passed: boolean; detail: string }[];
@@ -344,6 +346,15 @@ export function StepCompliance({
       category,
       hasExistingSupplierRelationship: (supplierRec?.activeContracts ?? 0) > 0 || (supplierRec?.totalSpend12m ?? 0) > 0,
     });
+    // Approval-to-source gate — which pre-sourcing approvals are required
+    // before the demand can move into sourcing. A transactable contract is an
+    // early exit (transact, not source), so no gate applies.
+    const approvalToSource = determineApprovalToSource({
+      estimatedValue,
+      material: materiality.material,
+      inherentTier: inherentRisk.tier,
+      earlyExit: secondContractCheck.recommendation === 'transact',
+    });
 
     const validatorActive = validatorAgent?.status === 'active';
     const policyChecks = validatorActive
@@ -383,6 +394,7 @@ export function StepCompliance({
       contractType,
       sourcingType,
       secondContractCheck,
+      approvalToSource,
       handoffSteps,
       sraStatus: supplierRec
         ? `${supplierRec.name}: ${supplierRec.sraStatus}${supplierRec.sraExpiryDate ? ` (expires ${supplierRec.sraExpiryDate})` : ''}`
@@ -445,6 +457,7 @@ export function StepCompliance({
       riskOutcome: result.riskOutcome
         ? { decision: result.riskOutcome.decision, reasons: result.riskOutcome.reasons }
         : undefined,
+      approvalToSource: result.approvalToSource,
       handoffSteps: result.handoffSteps,
       policyChecks: result.policyChecks,
       generatedAt: new Date().toISOString().slice(0, 10),
@@ -576,6 +589,34 @@ export function StepCompliance({
           </div>
         </div>
       </div>
+
+      {/* Approval to source — the pre-sourcing gate (FD-E8-05): which
+          approvals are required before the demand can move into sourcing. */}
+      {result.approvalToSource && (
+        <div className="rounded-lg border border-gray-200 bg-white p-4">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm font-medium text-gray-900">Approval to source</p>
+            <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+              result.approvalToSource.tier === 'full' ? 'bg-amber-100 text-amber-700'
+                : result.approvalToSource.tier === 'light' ? 'bg-blue-100 text-blue-700'
+                  : 'bg-gray-100 text-gray-500'
+            }`}>
+              {result.approvalToSource.tier === 'none' ? 'not required' : `${result.approvalToSource.tier} gate`}
+            </span>
+          </div>
+          <p className="mt-0.5 text-xs text-gray-500">{result.approvalToSource.rationale}</p>
+          {result.approvalToSource.gates.length > 0 && (
+            <ul className="mt-3 space-y-2">
+              {result.approvalToSource.gates.map((gate) => (
+                <li key={gate.id} className="border-b border-gray-50 pb-2 last:border-0 last:pb-0">
+                  <p className="text-sm font-medium text-gray-800">{gate.label}</p>
+                  <p className="text-xs text-gray-500">{gate.reason}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       {/* Next steps — the structured handoff panel: each step, its system,
           status and deep-link. R1 routes (deep-links), it does not write. */}

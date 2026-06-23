@@ -275,6 +275,7 @@ six groups:
 | TC-DET-01 | Contract/sourcing type (`npm run test:determination`) | Contract type: catalogue/direct-PO → none, renewal → renew, framework/existing → SOW, else new-MSA. Sourcing type: catalogue/contract → none, renewal → renewal, incumbent → benchmarking, else new-event. Both surfaced on the determination. |
 | TC-DET-02 | Export (`npm run test:determination-export` + UI smoke) | Builds structured Markdown (request, determination, risk, next-steps table, policy checks); slugified filename; graceful with missing fields. The determination **Export** button downloads a `determination-*.md` file. |
 | TC-DET-03 | Second contract check (`npm run test:second-contract` + UI smoke) | Classifies the supplier's contracts as transactable / framework (host a SOW) / expiring; filters supplier/category/expired; recommends transact/author-SOW/renew/new; strongest route wins. "Contract coverage" panel renders on the determination. |
+| TC-DET-04 | Approval-to-source gate (`npm run test:approval-to-source` + UI smoke) | Light (demand validation + cost-centre) vs full (demand validation + intent-to-source + category approval); full triggered by value ≥ threshold, materiality, or high/critical inherent risk; transactable early exit ⇒ no gate. "Approval to source" panel renders on the determination and appears in the export. |
 
 ### UI smoke (automated — `npm run test:ui`, Playwright)
 

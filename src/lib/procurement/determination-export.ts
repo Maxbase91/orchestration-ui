@@ -17,6 +17,7 @@ export interface DeterminationExportInput {
   materiality?: { material: boolean; criticality: string; reasons: string[] };
   inherentRisk?: { tier: string; drivers: string[] };
   riskOutcome?: { decision: string; reasons: string[] };
+  approvalToSource?: { tier: string; rationale: string; gates: { label: string; reason: string }[] };
   handoffSteps?: { label: string; system: string; status: string; deepLink?: string }[];
   policyChecks?: { label: string; passed: boolean; detail: string }[];
   /** ISO date stamp, supplied by the caller (kept out of the pure function). */
@@ -58,6 +59,15 @@ export function buildDeterminationExport(input: DeterminationExportInput): { mar
     lines.push('## Risk');
     if (input.inherentRisk) lines.push(`- Inherent risk: **${input.inherentRisk.tier}** (${input.inherentRisk.drivers.join('; ')})`);
     if (input.riskOutcome) lines.push(`- Assessment outcome: **${input.riskOutcome.decision}** (${input.riskOutcome.reasons[0] ?? ''})`);
+    lines.push('');
+  }
+
+  if (input.approvalToSource) {
+    lines.push('## Approval to source');
+    lines.push(`- Gate: **${input.approvalToSource.tier === 'none' ? 'not required' : input.approvalToSource.tier}** — ${input.approvalToSource.rationale}`);
+    for (const g of input.approvalToSource.gates) {
+      lines.push(`  - ${g.label}: ${g.reason}`);
+    }
     lines.push('');
   }
 
