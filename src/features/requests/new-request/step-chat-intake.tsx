@@ -558,11 +558,8 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
         {/* Single service-description panel — the master capture. The request
             key facts and the SOW are one document, not separate tabs. */}
         <div className="rounded-lg border border-gray-200 bg-white p-4 space-y-4">
-              {/* Title + unified progress (request key facts + SOW elements) */}
-              <div className="flex items-center gap-1.5">
-                <FileText className="size-3.5 text-[#2D5F8A]" />
-                <h4 className="text-xs font-semibold text-gray-900">Service Description</h4>
-              </div>
+              {/* Unified progress (request key facts + SOW elements). The panel
+                  title is the step heading ("Service description") above. */}
               <div>
                 <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
                   <span>{unifiedDone} of {unifiedTotal} captured</span>

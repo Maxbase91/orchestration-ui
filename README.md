@@ -29,7 +29,7 @@ An interactive UI prototype that shows what a modern procurement orchestration p
 | Screen | Description |
 |--------|-------------|
 | Role-Based Dashboards | 5 tailored dashboards (Service Owner, Procurement Manager, Vendor Manager, Operations Lead, Admin) |
-| New Request Wizard | 5-step intake form with AI category suggestion, supplier autocomplete, compliance checks, routing preview |
+| New Request Wizard | 7-step intake: category, pre-check, service description, **risk & assessment**, **determination**, routing, confirmation |
 | Request Detail | Full lifecycle tracker with 7 tabs (Overview, Workflow, Comments, Approvals, Documents, Related, Audit) |
 | Active Workflows | Kanban board (drag-and-drop), sortable table, Gantt timeline — with system integration badges |
 | Workflow Monitor | Bottleneck dashboard, stuck requests, SLA tracker, heatmap, AI bottleneck analysis |

@@ -82,6 +82,10 @@ interface StepComplianceProps {
     narrative?: string;
   } | null;
   workflowTemplateId?: string;
+  /** Which half of the split step to render: the risk assessment or the determination. */
+  phase: 'risk' | 'determination';
+  miniIrq: { privilegedAccess: boolean; criticalService: boolean };
+  onMiniIrqChange: (m: { privilegedAccess: boolean; criticalService: boolean }) => void;
   onUpdate: (data: Partial<ComplianceData>) => void;
 }
 
@@ -246,6 +250,9 @@ export function StepCompliance({
   isUrgent,
   serviceDescription,
   workflowTemplateId,
+  phase,
+  miniIrq,
+  onMiniIrqChange,
   onUpdate,
 }: StepComplianceProps) {
   const { data: suppliers = EMPTY_SUPPLIERS } = useSourceData<Supplier>('supplier');
@@ -254,9 +261,8 @@ export function StepCompliance({
   const { data: validatorAgent } = useAiAgent('AI-002');
   const { data: workflowTemplates = EMPTY_TEMPLATES } = useWorkflowTemplates();
 
-  // Mini-IRQ (delta only): the two inherent-risk inputs that cannot be inferred
-  // from the service description. Toggling these refines the cascade live.
-  const [miniIrq, setMiniIrq] = useState({ privilegedAccess: false, criticalService: false });
+  // Mini-IRQ (delta only) — lifted to the parent so the answers captured on the
+  // risk step still drive the determination step.
 
   // A fetch is pending if we have a supplierId and the matching-SRA
   // lookup hasn't resolved yet. Once resolved (success or error),
@@ -408,6 +414,7 @@ export function StepCompliance({
 
   return (
     <div className="space-y-6">
+      {phase === 'risk' && (<>
       {/* Mini-IRQ (delta only) — the two inherent-risk attributes that cannot be
           inferred from the service description. Answers refine the cascade live. */}
       <Card>
@@ -425,7 +432,7 @@ export function StepCompliance({
             <Switch
               id="mini-irq-access"
               checked={miniIrq.privilegedAccess}
-              onCheckedChange={(v) => setMiniIrq((p) => ({ ...p, privilegedAccess: v }))}
+              onCheckedChange={(v) => onMiniIrqChange({ ...miniIrq, privilegedAccess: v })}
             />
           </div>
           <div className="flex items-center justify-between gap-4">
@@ -435,12 +442,35 @@ export function StepCompliance({
             <Switch
               id="mini-irq-critical"
               checked={miniIrq.criticalService}
-              onCheckedChange={(v) => setMiniIrq((p) => ({ ...p, criticalService: v }))}
+              onCheckedChange={(v) => onMiniIrqChange({ ...miniIrq, criticalService: v })}
             />
           </div>
         </CardContent>
       </Card>
 
+      {/* Inherent risk — echoed here so the mini-IRQ answers above show their
+          effect on this step (the full read carries through to the determination). */}
+      {result.inherentRisk && (
+        <div className="rounded-lg border border-gray-200 bg-white p-4">
+          <p className="text-sm font-medium text-gray-900">Inherent risk</p>
+          <p className="mt-1 text-sm text-gray-700">
+            <span className={`font-semibold ${
+              result.inherentRisk.tier === 'critical' ? 'text-red-700'
+                : result.inherentRisk.tier === 'high' ? 'text-amber-700'
+                  : 'text-gray-900'
+            }`}>{result.inherentRisk.tier}</span>
+            <span className="text-xs text-gray-500"> · {result.inherentRisk.drivers.join('; ')}</span>
+          </p>
+          {result.riskOutcome && (
+            <p className="mt-0.5 text-xs text-gray-500">
+              Assessment outcome: <span className="font-medium text-gray-700">{result.riskOutcome.decision}</span> ({result.riskOutcome.reasons[0]})
+            </p>
+          )}
+        </div>
+      )}
+
+      </>)}
+      {phase === 'determination' && (<>
       {/* Buying Channel Classification */}
       <div className="rounded-lg border border-blue-200 bg-blue-50/60 p-4">
         <div className="flex items-start gap-2">
@@ -525,6 +555,8 @@ export function StepCompliance({
         </div>
       )}
 
+      </>)}
+      {phase === 'risk' && (<>
       {/* SRA Status */}
       <div className="rounded-lg border border-gray-200 bg-white p-4">
         <p className="text-sm font-medium text-gray-900">SRA Status</p>
@@ -564,6 +596,8 @@ export function StepCompliance({
         </div>
       )}
 
+      </>)}
+      {phase === 'determination' && (<>
       {/* Policy Checks */}
       <div>
         <div className="mb-3 flex items-baseline justify-between">
@@ -607,6 +641,8 @@ export function StepCompliance({
         </div>
       )}
 
+      </>)}
+      {phase === 'risk' && (<>
       {/* Risk Assessment Triage — gated on whether a triage is actually
           required. Pre-filled from the collected SOW when shown. */}
       {(() => {
@@ -675,6 +711,8 @@ export function StepCompliance({
         estimatedValue={estimatedValue}
       />
 
+      </>)}
+      {phase === 'determination' && (<>
       {/* AI-005 Supplier Recommender */}
       <SupplierRecommenderCard
         category={category}
@@ -716,6 +754,7 @@ export function StepCompliance({
           </CardContent>
         </Card>
       )}
+      </>)}
     </div>
   );
 }

@@ -65,9 +65,11 @@ try {
     await page.getByRole('button', { name: /Proceed to full request/ }).click();
     await page.locator('#title').fill('E2E submit test');
     await page.locator('#value').fill('60000');
-    await page.getByRole('button', { name: /Next/ }).click();          // → compliance
+    await page.getByRole('button', { name: /Next/ }).click();          // → step 4 (risk)
+    await page.getByText('Mini risk questionnaire').waitFor({ timeout: 15000 });
+    await page.getByRole('button', { name: /Next/ }).click();          // → step 5 (determination)
     await page.getByText('Buying Channel Classification', { exact: true }).waitFor({ timeout: 15000 });
-    await page.getByRole('button', { name: /Next/ }).click();          // → routing preview
+    await page.getByRole('button', { name: /Next/ }).click();          // → step 6 (routing)
     await page.getByRole('button', { name: /Submit Request/ }).click();
     await page.getByRole('heading', { name: 'Request Submitted Successfully' }).waitFor({ timeout: 20000 });
     const body = await page.locator('body').innerText();

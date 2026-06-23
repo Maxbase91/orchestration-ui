@@ -153,7 +153,7 @@ FD-E6-01 permissible supplier 🟡 (PSL soft-preference now in checks) · FD-E6-
 | FD-E8-01 | Sourcing strategy from SD | 🟡 | Via routing rules; not SD-driven |
 | FD-E8-02 | Threshold treatment & in/out-of-scope routing | 🟢 | Threshold rules exist |
 | FD-E8-03 | Review demand summary (business vs GP-led) | 🟡 | Partial |
-| FD-E8-04 | **Determination screen** (the R1 endpoint) | 🟡 | Results panel + **Next-steps handoff panel** (each step with system, status, deep-link). Export still to add |
+| FD-E8-04 | **Determination screen** (the R1 endpoint) | 🟡 | Split into two lighter steps — **Risk & assessment** then **Determination** (channel, contract/sourcing type, materiality, Next-steps handoff with system/status/deep-link). Export still to add |
 | FD-E8-05 | Approval-to-source: DVMO validation & NTI | 🔴 | Not present |
 | FD-E8-07 | Sourcing scope determination rules | 🟡 | Partial |
 | FD-E8-08 | Contract type: MSA/SOW/amend/change/renew | 🟡 | `lib/procurement/determination.ts` `determineContractType` — none / renew / SOW (under framework) / new-MSA from channel + category + existing-contract; surfaced on the determination. amend/change pending scope/headroom signals |

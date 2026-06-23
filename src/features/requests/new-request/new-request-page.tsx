@@ -60,6 +60,7 @@ interface RequestFormData {
   contractTitle: string;
   workflowTemplateId: string;
   // Step 4 (shifted)
+  miniIrq: { privilegedAccess: boolean; criticalService: boolean };
   buyingChannelResult: string;
   sraStatus: string;
   policyChecks: { label: string; passed: boolean; detail: string }[];
@@ -90,6 +91,7 @@ const INITIAL_DATA: RequestFormData = {
   contractTitle: '',
   workflowTemplateId: '',
   buyingChannelResult: '',
+  miniIrq: { privilegedAccess: false, criticalService: false },
   sraStatus: '',
   policyChecks: [],
   duplicateCheck: null,
@@ -101,9 +103,10 @@ const STEPS = [
   { number: 1, title: 'Category', description: 'What do you need?' },
   { number: 2, title: 'Pre-check', description: 'Catalogue & contract match' },
   { number: 3, title: 'Details', description: 'Service description' },
-  { number: 4, title: 'Compliance', description: 'Supplier, risk, sourcing' },
-  { number: 5, title: 'Routing', description: 'Routing & approvals' },
-  { number: 6, title: 'Confirmation', description: 'Submitted' },
+  { number: 4, title: 'Risk & assessment', description: 'Risk, IRQ, reuse' },
+  { number: 5, title: 'Determination', description: 'Channel, contract, sourcing' },
+  { number: 6, title: 'Routing', description: 'Routing & approvals' },
+  { number: 7, title: 'Confirmation', description: 'Submitted' },
 ];
 
 function generateRequestId(): string {
@@ -220,8 +223,11 @@ export function NewRequestPage() {
         }
         return !!formData.title && formData.estimatedValue > 0;
       case 4:
-        return !!formData.buyingChannelResult;
+        // Risk & assessment — always allow proceeding to the determination.
+        return true;
       case 5:
+        return !!formData.buyingChannelResult;
+      case 6:
         return true;
       default:
         return false;
@@ -229,7 +235,7 @@ export function NewRequestPage() {
   };
 
   const handleNext = async () => {
-    if (currentStep === 5) {
+    if (currentStep === 6) {
       // Submit
       const id = generateRequestId();
       setIsSubmitting(true);
@@ -288,7 +294,7 @@ export function NewRequestPage() {
         queryClient.invalidateQueries({ queryKey: ['requests'] });
         toast.success('Request submitted successfully');
         setRequestId(id);
-        setCurrentStep(6);
+        setCurrentStep(7);
       } catch (e) {
         console.error('Failed to persist request:', e);
         toast.error('Failed to submit request. Please try again.');
@@ -296,7 +302,7 @@ export function NewRequestPage() {
         setIsSubmitting(false);
       }
     } else {
-      setCurrentStep((s) => Math.min(s + 1, 6));
+      setCurrentStep((s) => Math.min(s + 1, 7));
     }
   };
 
@@ -545,8 +551,9 @@ export function NewRequestPage() {
             onUpdate={(d) => updateFormData(d)}
           />
         )}
-        {currentStep === 4 && (
+        {(currentStep === 4 || currentStep === 5) && (
           <StepCompliance
+            phase={currentStep === 4 ? 'risk' : 'determination'}
             category={formData.category}
             estimatedValue={formData.estimatedValue}
             supplierId={formData.supplierId}
@@ -554,10 +561,12 @@ export function NewRequestPage() {
             isUrgent={formData.isUrgent}
             serviceDescription={formData.serviceDescription}
             workflowTemplateId={formData.workflowTemplateId}
+            miniIrq={formData.miniIrq}
+            onMiniIrqChange={(m) => updateFormData({ miniIrq: m })}
             onUpdate={(d) => updateFormData(d)}
           />
         )}
-        {currentStep === 5 && (
+        {currentStep === 6 && (
           <StepRoutingPreview
             category={formData.category}
             estimatedValue={formData.estimatedValue}
@@ -566,7 +575,7 @@ export function NewRequestPage() {
             onUpdate={(d) => updateFormData(d)}
           />
         )}
-        {currentStep === 6 && (
+        {currentStep === 7 && (
           <StepConfirmation
             requestId={requestId}
             data={{
@@ -589,7 +598,7 @@ export function NewRequestPage() {
       </div>
 
       {/* Navigation */}
-      {currentStep < 6 && (
+      {currentStep < 7 && (
         <div className="flex items-center justify-between">
           <Button
             variant="ghost"
@@ -600,7 +609,7 @@ export function NewRequestPage() {
             Back
           </Button>
           <div className="flex items-center gap-2">
-            {currentStep === 5 && (
+            {currentStep === 6 && (
               <Button variant="ghost" onClick={handleSaveDraft} disabled={isSubmitting}>
                 <Save className="size-4" />
                 Save as Draft
@@ -610,7 +619,7 @@ export function NewRequestPage() {
               onClick={handleNext}
               disabled={!canProceed() || isSubmitting}
             >
-              {currentStep === 5 ? (
+              {currentStep === 6 ? (
                 isSubmitting ? (
                   <>
                     <Loader2 className="size-4 animate-spin" />
