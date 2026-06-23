@@ -25,6 +25,7 @@
     "test:risk-segmentation": "node tests/integration/risk-segmentation.mjs",
     "test:risk-reuse": "node tests/integration/risk-reuse.mjs",
     "test:handoff": "node tests/integration/handoff.mjs",
+    "test:determination": "node tests/integration/determination.mjs",
     "test:ui": "node tests/ui/wizard-smoke.mjs",
     "test:e2e-ui": "node tests/ui/app-e2e.mjs",
     "test:interactions-ui": "node tests/ui/interactions-e2e.mjs"

@@ -272,6 +272,7 @@ six groups:
 | TC-RSK-01 | Risk segmentation (`npm run test:risk-segmentation`) | Inherent-risk cascade highest-attribute-wins (critical data/access/service → critical; high risk or value≥250k → high; value≥50k → medium); outcome: no reusable → new, within band → reuse, one tier above → amend, more → change. Surfaced on the determination screen + drives routing. |
 | TC-RSK-02 | Structured reuse model (`npm run test:risk-reuse`) | Per-assessment decision by supplier/scope/data-class/inherent-tier/validity; not-reusable/not-completed/different-supplier → no-match; expired → new; worst dimension wins; `selectReuseOutcome` picks the most favourable candidate across the register. Drives the determination outcome. |
 | TC-HND-01 | Handoff / next-steps (`npm run test:handoff`) | Detailed risk assessment routed to the risk register (reuse → not-required, amend → recommended, new/change → required); material → governance step; sourcing/contract steps by channel; purchasing requisition. Surfaced as the determination's Next-steps panel with system + status + deep-link. |
+| TC-DET-01 | Contract/sourcing type (`npm run test:determination`) | Contract type: catalogue/direct-PO → none, renewal → renew, framework/existing → SOW, else new-MSA. Sourcing type: catalogue/contract → none, renewal → renewal, incumbent → benchmarking, else new-event. Both surfaced on the determination. |
 
 ### UI smoke (automated — `npm run test:ui`, Playwright)
 

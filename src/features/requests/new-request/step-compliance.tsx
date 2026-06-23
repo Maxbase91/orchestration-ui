@@ -10,6 +10,7 @@ import { determineMateriality, type MaterialityResult } from '@/lib/procurement/
 import { determineInherentRisk, type InherentRiskResult } from '@/lib/procurement/risk-segmentation';
 import { selectReuseOutcome, type ReuseEvaluation } from '@/lib/procurement/risk-reuse';
 import { buildHandoffSteps, type HandoffStep } from '@/lib/procurement/handoff';
+import { determineContractType, determineSourcingType, type ContractType, type SourcingType } from '@/lib/procurement/determination';
 import type { Supplier, Contract, WorkflowTemplate, RoutingRule } from '@/data/types';
 // Risk-reuse matching stays on its specialised query (reusable + completed +
 // validity-window + supplier/contract); the generic ports do not model that yet.
@@ -55,6 +56,8 @@ interface ComplianceData {
   materiality?: MaterialityResult;
   inherentRisk?: InherentRiskResult;
   riskOutcome?: ReuseEvaluation;
+  contractType?: { type: ContractType; reason: string };
+  sourcingType?: { type: SourcingType; reason: string };
   handoffSteps?: HandoffStep[];
   sraStatus: string;
   policyChecks: { label: string; passed: boolean; detail: string }[];
@@ -311,6 +314,13 @@ export function StepCompliance({
       riskOutcome: riskOutcome.decision,
       material: materiality.material,
     });
+    const hasContract = routing.channel === 'framework-call-off' || (supplierRec?.activeContracts ?? 0) > 0;
+    const contractType = determineContractType({ channel: routing.channel, category, hasFrameworkOrContract: hasContract });
+    const sourcingType = determineSourcingType({
+      channel: routing.channel,
+      category,
+      hasExistingSupplierRelationship: (supplierRec?.activeContracts ?? 0) > 0 || (supplierRec?.totalSpend12m ?? 0) > 0,
+    });
 
     const validatorActive = validatorAgent?.status === 'active';
     const policyChecks = validatorActive
@@ -347,6 +357,8 @@ export function StepCompliance({
       materiality,
       inherentRisk,
       riskOutcome,
+      contractType,
+      sourcingType,
       handoffSteps,
       sraStatus: supplierRec
         ? `${supplierRec.name}: ${supplierRec.sraStatus}${supplierRec.sraExpiryDate ? ` (expires ${supplierRec.sraExpiryDate})` : ''}`
@@ -455,6 +467,14 @@ export function StepCompliance({
                 {result.materiality.material && (
                   <span className="text-xs text-gray-500"> · {result.materiality.reasons.join('; ')}</span>
                 )}
+              </p>
+            )}
+            {result.contractType && result.sourcingType && (
+              <p className="mt-1 text-sm text-gray-700">
+                Contract type: <span className="font-semibold text-gray-900">{result.contractType.type}</span>
+                <span className="text-xs text-gray-500"> ({result.contractType.reason})</span>
+                {' · '}Sourcing: <span className="font-semibold text-gray-900">{result.sourcingType.type}</span>
+                <span className="text-xs text-gray-500"> ({result.sourcingType.reason})</span>
               </p>
             )}
             {result.inherentRisk && (

@@ -156,8 +156,8 @@ FD-E6-01 permissible supplier 🟡 (PSL soft-preference now in checks) · FD-E6-
 | FD-E8-04 | **Determination screen** (the R1 endpoint) | 🟡 | Results panel + **Next-steps handoff panel** (each step with system, status, deep-link). Export still to add |
 | FD-E8-05 | Approval-to-source: DVMO validation & NTI | 🔴 | Not present |
 | FD-E8-07 | Sourcing scope determination rules | 🟡 | Partial |
-| FD-E8-08 | Contract type: MSA/SOW/amend/change/renew | 🔴 | Not an explicit output |
-| FD-E8-09 | Sourcing type: new/renewal/benchmarking | 🔴 | Not present |
+| FD-E8-08 | Contract type: MSA/SOW/amend/change/renew | 🟡 | `lib/procurement/determination.ts` `determineContractType` — none / renew / SOW (under framework) / new-MSA from channel + category + existing-contract; surfaced on the determination. amend/change pending scope/headroom signals |
+| FD-E8-09 | Sourcing type: new/renewal/benchmarking | 🟡 | `determineSourcingType` — none / renewal / benchmarking (incumbent) / new-event from channel + category + relationship; surfaced on the determination |
 | FD-E8-10 | **Materiality & criticality** (regulatory flag) | 🟡 | `lib/procurement/materiality.ts` — highest-attribute-wins from data sensitivity + supplier risk + value (+ explicit critical-service seam); **feeds routing** (`material` field) and **surfaces on the determination screen**. Explicit "how it qualifies" capture pending |
 | FD-E8-BFF4 | Recommendation composition API | 🟡 | Partial |
 
@@ -200,7 +200,7 @@ CB-E14-03 eight-language 🔴 · CB-E14-04 deep-link to source 🟢.
 | **WS-A** | Decisioning data & reference plane (taxonomy, PSL, DTPS, reuse criteria, routing table from OI-01); make routing risk/materiality-aware — 🟡 **risk- & materiality-aware routing**, **taxonomy generalised**, **PSL/DTPS checks**, **materiality**, **category-code mapping**, **taxonomy store seeded/live** done; remaining: org-specific code scheme, hard PSL reference list | S1–S3 | FD-E1-01..06, FD-E4-02 |
 | **WS-B** | Own data model behind connector ports — 🟢 **7 objects wired** (supplier, contract, request, PO, invoice, risk, catalogue); remaining: ticket/payment/screening/taxonomy/form objects + route consumers through ports | S1–S4 | FD-E2A-01..05, FD-E2B-01/03 |
 | **WS-C** | Regulated risk & materiality engine — 🟢 **cascade + non-binary outcome + materiality + mini-IRQ delta + structured reuse model + assessment handoff** done | S3–S5 | FD-E7-01..09, FD-E8-10 |
-| **WS-D** | Complete front-door determination (2nd contract check, contract/sourcing type, DVMO/NTI, exportable endpoint w/ deep-links) | S4–S6 | FD-E5-07, FD-E8-04/05/08/09, FD-E9 |
+| **WS-D** | Complete front-door determination — 🟡 **contract-type + sourcing-type + handoff/next-steps** done; remaining: 2nd contract check, DVMO/NTI, exportable endpoint | S4–S6 | FD-E5-07, FD-E8-04/05/08/09, FD-E9 |
 | **WS-E** | Chatbot to own-DB sources + governance (per-object lookups, masking, RAG, payments hand-off, Teams/i18n, eval harness) | S2–S7 | CB-E10-06..16, CB-E11-AGB1, CB-E12-06, FD-E4-GOV1 |
 
 Lead with **WS-A** (highest leverage — turns heuristics into data-driven decisioning); WS-0 defines the

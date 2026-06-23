@@ -97,6 +97,7 @@ try {
   check('mini-IRQ toggle drives the cascade (critical service → critical risk)', true);
 
   // The determination endpoint lists the downstream handoff steps with systems.
+  check('contract-type & sourcing-type surface', (await page.getByText(/Contract type:/).count()) > 0);
   check('next-steps handoff panel renders', (await page.getByText('Next steps', { exact: true }).count()) > 0);
   check('handoff routes the detailed risk assessment', (await page.getByText('Third-party risk register').count()) > 0);
 
