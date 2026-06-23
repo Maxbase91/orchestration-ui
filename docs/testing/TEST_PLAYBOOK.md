@@ -274,6 +274,7 @@ six groups:
 | TC-HND-01 | Handoff / next-steps (`npm run test:handoff`) | Detailed risk assessment routed to the risk register (reuse → not-required, amend → recommended, new/change → required); material → governance step; sourcing/contract steps by channel; purchasing requisition. Surfaced as the determination's Next-steps panel with system + status + deep-link. |
 | TC-DET-01 | Contract/sourcing type (`npm run test:determination`) | Contract type: catalogue/direct-PO → none, renewal → renew, framework/existing → SOW, else new-MSA. Sourcing type: catalogue/contract → none, renewal → renewal, incumbent → benchmarking, else new-event. Both surfaced on the determination. |
 | TC-DET-02 | Export (`npm run test:determination-export` + UI smoke) | Builds structured Markdown (request, determination, risk, next-steps table, policy checks); slugified filename; graceful with missing fields. The determination **Export** button downloads a `determination-*.md` file. |
+| TC-DET-03 | Second contract check (`npm run test:second-contract` + UI smoke) | Classifies the supplier's contracts as transactable / framework (host a SOW) / expiring; filters supplier/category/expired; recommends transact/author-SOW/renew/new; strongest route wins. "Contract coverage" panel renders on the determination. |
 
 ### UI smoke (automated — `npm run test:ui`, Playwright)
 

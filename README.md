@@ -124,6 +124,7 @@ npm run test:risk-reuse           # structured risk-register reuse model (suppli
 npm run test:handoff              # downstream handoff / next-steps model (systems, status, deep-links)
 npm run test:determination        # contract-type + sourcing-type determination
 npm run test:determination-export # exportable determination (structured Markdown)
+npm run test:second-contract      # second contract check (frameworks/MSAs vs transactable)
 npm run test:admin-editors        # admin config saves
 npm run test:ui                   # browser smoke (Playwright) — wizard end-to-end to the determination screen
 npm run test:e2e-ui               # full-app browser sweep — every route × role, captures console/runtime errors

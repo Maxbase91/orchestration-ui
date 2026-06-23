@@ -128,7 +128,7 @@ FD-E15-01 component library 🟢; FD-E15-02 journeys 🟡 (confirm from contextu
 | FD-E5-04 | Configurable intake-form engine (ASP/partial) | 🟡 | Partial |
 | FD-E5-05 | Catalogue matching rules & info to collect | 🟡 | Heuristic; thresholds (OI-20) not configurable |
 | FD-E5-06 | Contract matching rules & info to collect | 🟡 | Heuristic; thresholds (OI-21) not configurable |
-| FD-E5-07 | **Second** contract check vs full SD + framework/MSA | 🔴 | Single light check only; needs own-DB Sirion read |
+| FD-E5-07 | **Second** contract check vs full SD + framework/MSA | 🟡 | `lib/procurement/second-contract-check.ts` — classifies the supplier's contracts as **transactable / framework (host a SOW) / expiring** and recommends transact/author-SOW/renew/new; "Contract coverage" panel on the determination. `isFramework` flag is the live-data seam |
 
 #### FD-E6 — Supplier Identification & Selection — 🟡 Partial/mock
 FD-E6-01 permissible supplier 🟡 (PSL soft-preference now in checks) · FD-E6-02 DTPS & supplier-count 🟡 (**competitive-sourcing/DTPS check** in `supplier-preference.ts` — threshold + exemptions for preferred route, exempt category, single-source justification) · FD-E6-03 screening display 🟡 (status shown, no real screening).
@@ -200,7 +200,7 @@ CB-E14-03 eight-language 🔴 · CB-E14-04 deep-link to source 🟢.
 | **WS-A** | Decisioning data & reference plane (taxonomy, PSL, DTPS, reuse criteria, routing table from OI-01); make routing risk/materiality-aware — 🟡 **risk- & materiality-aware routing**, **taxonomy generalised**, **PSL/DTPS checks**, **materiality**, **category-code mapping**, **taxonomy store seeded/live** done; remaining: org-specific code scheme, hard PSL reference list | S1–S3 | FD-E1-01..06, FD-E4-02 |
 | **WS-B** | Own data model behind connector ports — 🟢 **7 objects wired** (supplier, contract, request, PO, invoice, risk, catalogue); remaining: ticket/payment/screening/taxonomy/form objects + route consumers through ports | S1–S4 | FD-E2A-01..05, FD-E2B-01/03 |
 | **WS-C** | Regulated risk & materiality engine — 🟢 **cascade + non-binary outcome + materiality + mini-IRQ delta + structured reuse model + assessment handoff** done | S3–S5 | FD-E7-01..09, FD-E8-10 |
-| **WS-D** | Complete front-door determination — 🟡 **contract/sourcing type + handoff/next-steps + two-step split + exportable endpoint** done; remaining: 2nd contract check (FD-E5-07), DVMO/NTI (FD-E8-05) | S4–S6 | FD-E5-07, FD-E8-04/05/08/09, FD-E9 |
+| **WS-D** | Complete front-door determination — 🟡 **contract/sourcing type + handoff + two-step split + exportable endpoint + 2nd contract check** done; remaining: approval-to-source gate (FD-E8-05) | S4–S6 | FD-E5-07, FD-E8-04/05/08/09, FD-E9 |
 | **WS-E** | Chatbot to own-DB sources + governance (per-object lookups, masking, RAG, payments hand-off, Teams/i18n, eval harness) | S2–S7 | CB-E10-06..16, CB-E11-AGB1, CB-E12-06, FD-E4-GOV1 |
 
 Lead with **WS-A** (highest leverage — turns heuristics into data-driven decisioning); WS-0 defines the

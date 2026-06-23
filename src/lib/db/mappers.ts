@@ -654,6 +654,7 @@ export function mapDbToContract(row: DbRecord): Contract {
     category: (row.category ?? '') as string,
     renewalDate: (row.renewal_date ?? row.renewalDate) as string | undefined,
     utilisationPercentage: (row.utilisation_percentage ?? row.utilisationPercentage ?? 0) as number,
+    isFramework: (row.is_framework ?? row.isFramework) as boolean | undefined,
     // Prefer the live array from contracts_with_derived view; fall back
     // to the seeded column on the base table.
     linkedRequestIds: (row.linked_request_ids_live ?? row.linked_request_ids ?? row.linkedRequestIds ?? []) as string[],

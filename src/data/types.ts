@@ -153,6 +153,8 @@ export interface Contract {
   category: string;
   renewalDate?: string;
   utilisationPercentage: number;
+  /** A framework / master agreement: not directly transactable, but a SOW can be authored under it. */
+  isFramework?: boolean;
   linkedRequestIds: string[];
 }
 

@@ -13,6 +13,7 @@ import { selectReuseOutcome, type ReuseEvaluation } from '@/lib/procurement/risk
 import { buildHandoffSteps, type HandoffStep } from '@/lib/procurement/handoff';
 import { determineContractType, determineSourcingType, type ContractType, type SourcingType } from '@/lib/procurement/determination';
 import { buildDeterminationExport } from '@/lib/procurement/determination-export';
+import { runSecondContractCheck, type SecondContractCheckResult } from '@/lib/procurement/second-contract-check';
 import type { Supplier, Contract, WorkflowTemplate, RoutingRule } from '@/data/types';
 // Risk-reuse matching stays on its specialised query (reusable + completed +
 // validity-window + supplier/contract); the generic ports do not model that yet.
@@ -41,6 +42,7 @@ import type { RiskAssessment } from '@/data/types';
 // new array reference on every render, which destabilises the useMemo dep
 // array and causes an infinite update loop via onUpdate.
 const EMPTY_SUPPLIERS: Supplier[] = [];
+const EMPTY_CONTRACTS: Contract[] = [];
 const EMPTY_MATCHES: RiskAssessment[] = [];
 const EMPTY_RULES: RoutingRule[] = [];
 const EMPTY_TEMPLATES: WorkflowTemplate[] = [];
@@ -61,6 +63,7 @@ interface ComplianceData {
   riskOutcome?: ReuseEvaluation;
   contractType?: { type: ContractType; reason: string };
   sourcingType?: { type: SourcingType; reason: string };
+  secondContractCheck?: SecondContractCheckResult;
   handoffSteps?: HandoffStep[];
   sraStatus: string;
   policyChecks: { label: string; passed: boolean; detail: string }[];
@@ -261,6 +264,7 @@ export function StepCompliance({
   onUpdate,
 }: StepComplianceProps) {
   const { data: suppliers = EMPTY_SUPPLIERS } = useSourceData<Supplier>('supplier');
+  const { data: allContracts = EMPTY_CONTRACTS } = useSourceData<Contract>('contract');
   const { data: matches = EMPTY_MATCHES, isFetched: matchesFetched } = useMatchingRiskAssessments({ supplierId });
   const { data: routingRules = EMPTY_RULES } = useRoutingRules();
   const { data: validatorAgent } = useAiAgent('AI-002');
@@ -325,6 +329,14 @@ export function StepCompliance({
       riskOutcome: riskOutcome.decision,
       material: materiality.material,
     });
+    // Second contract check (after the full SD) — surfaces transactable
+    // contracts and frameworks/MSAs against the supplier.
+    const secondContractCheck = runSecondContractCheck({
+      supplierId,
+      category,
+      now: new Date().toISOString().slice(0, 10),
+      contracts: allContracts,
+    });
     const hasContract = routing.channel === 'framework-call-off' || (supplierRec?.activeContracts ?? 0) > 0;
     const contractType = determineContractType({ channel: routing.channel, category, hasFrameworkOrContract: hasContract });
     const sourcingType = determineSourcingType({
@@ -370,6 +382,7 @@ export function StepCompliance({
       riskOutcome,
       contractType,
       sourcingType,
+      secondContractCheck,
       handoffSteps,
       sraStatus: supplierRec
         ? `${supplierRec.name}: ${supplierRec.sraStatus}${supplierRec.sraExpiryDate ? ` (expires ${supplierRec.sraExpiryDate})` : ''}`
@@ -380,7 +393,7 @@ export function StepCompliance({
       validatorAgentStatus: (validatorAgent?.status ?? 'missing') as ComplianceData['validatorAgentStatus'],
       validatorAgentName: validatorAgent?.name,
     };
-  }, [loading, category, estimatedValue, supplierId, isUrgent, serviceDescription, miniIrq, suppliers, matches, routingRules, validatorAgent]);
+  }, [loading, category, estimatedValue, supplierId, isUrgent, serviceDescription, miniIrq, suppliers, allContracts, matches, routingRules, validatorAgent]);
 
   // Push the composed result up to the parent whenever the data changes.
   // We intentionally exclude `onUpdate` from the deps: it's a new arrow
@@ -593,6 +606,35 @@ export function StepCompliance({
               </li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {/* Second contract check — transactable contracts vs frameworks/MSAs. */}
+      {result.secondContractCheck && (
+        <div className="rounded-lg border border-gray-200 bg-white p-4">
+          <p className="text-sm font-medium text-gray-900">Contract coverage</p>
+          <p className="mt-0.5 text-xs text-gray-500">
+            Recommendation: <span className="font-medium text-gray-700">{result.secondContractCheck.recommendation}</span> — {result.secondContractCheck.reason}
+          </p>
+          {result.secondContractCheck.candidates.length > 0 && (
+            <ul className="mt-2 space-y-1.5">
+              {result.secondContractCheck.candidates.map((c) => (
+                <li key={c.contractId} className="flex items-start justify-between gap-3 border-b border-gray-50 pb-1.5 last:border-0 last:pb-0">
+                  <div className="min-w-0">
+                    <p className="text-sm text-gray-800">{c.title}</p>
+                    <p className="text-xs text-gray-500">{c.reason}</p>
+                  </div>
+                  <span className={`shrink-0 inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                    c.kind === 'transactable' ? 'bg-green-100 text-green-700'
+                      : c.kind === 'framework' ? 'bg-blue-100 text-blue-700'
+                        : 'bg-amber-100 text-amber-700'
+                  }`}>
+                    {c.kind}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
 
