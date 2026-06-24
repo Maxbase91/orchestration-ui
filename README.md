@@ -54,6 +54,7 @@ An interactive UI prototype that shows what a modern procurement orchestration p
 | Screen | Description |
 |--------|-------------|
 | Routing Rules Engine | 3-panel layout: rule tree, visual IF/THEN editor, test panel |
+| Decisioning Thresholds | Edit the governed decisioning thresholds (approval/materiality/risk/sourcing/contract); Save applies them to the live front door; live simulation previews a sample demand's outcome |
 | Workflow Designer | React Flow canvas with 10 custom node types, drag-from-palette, node configuration, simulation |
 | AI Agent Configuration | Agent library, type-specific config forms, test panel, performance dashboard |
 | Approval Chains | Visual approval chain editor with threshold configuration |

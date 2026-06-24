@@ -59,6 +59,7 @@ import { KnowledgeBasePage } from '@/features/help/knowledge-base-page'
 import { ContactSupportPage } from '@/features/help/contact-support-page'
 import { AIAnalyticsPage } from '@/features/admin/ai-analytics-page'
 import { KBAdminPage } from '@/features/admin/kb-admin-page'
+import { PolicyConfigPage } from '@/features/admin/policy-config/policy-config-page'
 import { MyTasksPage } from '@/features/tasks/my-tasks-page'
 import { TeamTasksPage } from '@/features/tasks/team-tasks-page'
 import { BottlenecksPage } from '@/features/workflows/bottlenecks-page'
@@ -161,6 +162,7 @@ export function App() {
               <Route path="/admin/sla-targets" element={<SlaTargetsPage />} />
               <Route path="/admin/database" element={<DatabaseAdminPage />} />
               <Route path="/admin/rules" element={<RoutingRulesPage />} />
+              <Route path="/admin/thresholds" element={<PolicyConfigPage />} />
               <Route path="/admin/forms" element={<FormBuilderPage />} />
               <Route path="/admin/approvals" element={<ApprovalChainsPage />} />
               <Route path="/admin/workflows" element={<WorkflowDesignerPage />} />

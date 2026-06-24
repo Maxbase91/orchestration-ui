@@ -8,7 +8,7 @@
 // caller, so it works the same when a live contract source is wired in.
 
 import type { Contract } from '@/data/types';
-import { DEFAULT_POLICY_CONFIG } from './policy-config';
+import { DEFAULT_POLICY_CONFIG, getActivePolicyConfig, type PolicyConfig } from './policy-config';
 
 export type ContractKind = 'transactable' | 'framework' | 'expiring';
 export type SecondCheckRecommendation = 'transact' | 'author-sow' | 'renew' | 'new-contract';
@@ -53,7 +53,10 @@ function daysBetween(fromIso: string, toIso: string): number {
  * transact under a usable contract, author a SOW under a framework, renew an
  * expiring one, or proceed to a new contract.
  */
-export function runSecondContractCheck(input: SecondContractCheckInput): SecondContractCheckResult {
+export function runSecondContractCheck(
+  input: SecondContractCheckInput,
+  config: PolicyConfig = getActivePolicyConfig(),
+): SecondContractCheckResult {
   const candidates: ContractCandidate[] = [];
 
   for (const c of input.contracts) {
@@ -62,7 +65,7 @@ export function runSecondContractCheck(input: SecondContractCheckInput): SecondC
     if (c.status === 'expired' || c.status === 'terminated') continue;
     if (c.endDate && c.endDate < input.now) continue;
 
-    const expiringSoon = c.status === 'expiring' || daysBetween(input.now, c.endDate) <= EXPIRY_BUFFER_DAYS;
+    const expiringSoon = c.status === 'expiring' || daysBetween(input.now, c.endDate) <= config.contractExpiryBufferDays;
 
     let kind: ContractKind;
     let reason: string;
@@ -72,7 +75,7 @@ export function runSecondContractCheck(input: SecondContractCheckInput): SecondC
     } else if (expiringSoon) {
       kind = 'expiring';
       reason = 'Active but expiring — renew or extend before relying on it';
-    } else if (c.status === 'active' && c.utilisationPercentage < UTILISATION_HEADROOM) {
+    } else if (c.status === 'active' && c.utilisationPercentage < config.contractUtilisationHeadroom) {
       kind = 'transactable';
       reason = `Active with headroom (${c.utilisationPercentage}% utilised) — transact directly`;
     } else {

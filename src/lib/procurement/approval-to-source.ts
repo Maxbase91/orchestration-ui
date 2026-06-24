@@ -17,7 +17,7 @@
 
 import type { RiskTier } from './risk-segmentation';
 import { riskTierRank } from './risk-segmentation';
-import { DEFAULT_POLICY_CONFIG } from './policy-config';
+import { DEFAULT_POLICY_CONFIG, getActivePolicyConfig, type PolicyConfig } from './policy-config';
 
 export type ApprovalTier = 'none' | 'light' | 'full';
 
@@ -73,7 +73,10 @@ const LIGHT_GATES: ApprovalGate[] = [
  * `full` is triggered by value at/above the threshold, materiality, or
  * high/critical inherent risk — whichever applies first.
  */
-export function determineApprovalToSource(input: ApprovalToSourceInput): ApprovalToSourceResult {
+export function determineApprovalToSource(
+  input: ApprovalToSourceInput,
+  config: PolicyConfig = getActivePolicyConfig(),
+): ApprovalToSourceResult {
   if (input.earlyExit) {
     return {
       tier: 'none',
@@ -83,8 +86,8 @@ export function determineApprovalToSource(input: ApprovalToSourceInput): Approva
   }
 
   const triggers: string[] = [];
-  if (input.estimatedValue >= FULL_APPROVAL_VALUE_THRESHOLD) {
-    triggers.push(`value at or above the ${FULL_APPROVAL_VALUE_THRESHOLD.toLocaleString()} threshold`);
+  if (input.estimatedValue >= config.approvalFullThreshold) {
+    triggers.push(`value at or above the ${config.approvalFullThreshold.toLocaleString()} threshold`);
   }
   if (input.material) triggers.push('material demand');
   if (riskTierRank(input.inherentTier) >= riskTierRank('high')) {

@@ -55,3 +55,25 @@ export const DEFAULT_POLICY_CONFIG: PolicyConfig = {
 export function resolvePolicyConfig(overrides?: Partial<PolicyConfig>): PolicyConfig {
   return { ...DEFAULT_POLICY_CONFIG, ...(overrides ?? {}) };
 }
+
+// Active config — the decisioning functions default to this, so admin-applied
+// overrides drive the live front door without threading config through every
+// call site. A simulation passes an explicit config instead of mutating this.
+let activeConfig: PolicyConfig = { ...DEFAULT_POLICY_CONFIG };
+
+/** The config the live decisioning runs against (defaults unless overridden). */
+export function getActivePolicyConfig(): PolicyConfig {
+  return activeConfig;
+}
+
+/** Apply admin overrides to the active config (e.g. on app boot / on save). */
+export function applyPolicyOverrides(overrides?: Partial<PolicyConfig>): PolicyConfig {
+  activeConfig = resolvePolicyConfig(overrides);
+  return activeConfig;
+}
+
+/** Restore the active config to the shipped defaults. */
+export function resetActivePolicyConfig(): PolicyConfig {
+  activeConfig = { ...DEFAULT_POLICY_CONFIG };
+  return activeConfig;
+}

@@ -221,6 +221,7 @@ export const navigation: NavGroup[] = [
       { id: 'categories', label: 'Categories', icon: 'Tag', path: '/admin/categories', visibleTo: ['admin'] },
       { id: 'sla-targets', label: 'SLA Targets', icon: 'Timer', path: '/admin/sla-targets', visibleTo: ['admin'] },
       { id: 'routing-rules', label: 'Routing Rules', icon: 'Route', path: '/admin/rules', visibleTo: ['admin'] },
+      { id: 'decisioning-thresholds', label: 'Decisioning Thresholds', icon: 'SlidersHorizontal', path: '/admin/thresholds', visibleTo: ['admin'] },
       { id: 'form-builder', label: 'Form Builder', icon: 'ClipboardList', path: '/admin/forms', visibleTo: ['admin'] },
       { id: 'approval-chains', label: 'Approval Chains', icon: 'Link', path: '/admin/approvals', visibleTo: ['admin'] },
       { id: 'workflow-designer', label: 'Workflow Designer', icon: 'PenTool', path: '/admin/workflows', visibleTo: ['admin'] },

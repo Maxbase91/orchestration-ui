@@ -12,7 +12,7 @@
 
 import type { DataSensitivity } from './materiality';
 import type { RiskTier } from './risk-segmentation';
-import { DEFAULT_POLICY_CONFIG } from './policy-config';
+import { DEFAULT_POLICY_CONFIG, getActivePolicyConfig, type PolicyConfig } from './policy-config';
 
 export type ResidualQuestionId = 'privileged-access' | 'critical-service';
 
@@ -48,7 +48,10 @@ const SENSITIVITY_RANK: Record<DataSensitivity, number> = {
  * Decide which residual questions to ask. Returns an ordered list; an empty
  * list means the service description already determines everything we need.
  */
-export function determineResidualQuestions(ctx: ResidualQuestionContext): ResidualQuestion[] {
+export function determineResidualQuestions(
+  ctx: ResidualQuestionContext,
+  config: PolicyConfig = getActivePolicyConfig(),
+): ResidualQuestion[] {
   const out: ResidualQuestion[] = [];
   const sensitivity = SENSITIVITY_RANK[ctx.dataSensitivity] ?? 0;
 
@@ -69,11 +72,11 @@ export function determineResidualQuestions(ctx: ResidualQuestionContext): Residu
   // supplier is already elevated-risk, or the data is highly sensitive.
   const supplierElevated = ctx.supplierRiskRating === 'high' || ctx.supplierRiskRating === 'critical';
   if (
-    ctx.estimatedValue >= CRITICAL_SERVICE_VALUE_THRESHOLD ||
+    ctx.estimatedValue >= config.criticalServiceThreshold ||
     supplierElevated ||
     sensitivity >= SENSITIVITY_RANK.high
   ) {
-    const reason = ctx.estimatedValue >= CRITICAL_SERVICE_VALUE_THRESHOLD
+    const reason = ctx.estimatedValue >= config.criticalServiceThreshold
       ? 'material spend'
       : supplierElevated
         ? `${ctx.supplierRiskRating} supplier risk`

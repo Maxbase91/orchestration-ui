@@ -11,7 +11,7 @@
 // exposure, access), not any organisation-specific control set.
 
 import type { DataSensitivity } from './materiality';
-import { DEFAULT_POLICY_CONFIG } from './policy-config';
+import { DEFAULT_POLICY_CONFIG, getActivePolicyConfig, type PolicyConfig } from './policy-config';
 
 export type OpRiskRating = 'low' | 'medium' | 'high';
 
@@ -59,17 +59,20 @@ const SENSITIVITY_RANK: Record<DataSensitivity, number> = {
  * Run the preliminary operational risk assessment. Each dimension is rated
  * independently; the overall rating is the worst dimension.
  */
-export function assessOperationalRisk(input: OperationalRiskInput): OperationalRiskResult {
+export function assessOperationalRisk(
+  input: OperationalRiskInput,
+  config: PolicyConfig = getActivePolicyConfig(),
+): OperationalRiskResult {
   const dimensions: OpRiskDimension[] = [];
 
   // Business continuity — dependence on the service being available.
   dimensions.push({
     key: 'business-continuity',
     label: 'Business continuity',
-    rating: input.criticalService ? 'high' : input.estimatedValue >= CONTINUITY_VALUE_THRESHOLD ? 'medium' : 'low',
+    rating: input.criticalService ? 'high' : input.estimatedValue >= config.continuityThreshold ? 'medium' : 'low',
     reason: input.criticalService
       ? 'Supports a critical business service'
-      : input.estimatedValue >= CONTINUITY_VALUE_THRESHOLD
+      : input.estimatedValue >= config.continuityThreshold
         ? 'Material spend implies an operational dependency'
         : 'No critical-service or material-spend dependency',
   });

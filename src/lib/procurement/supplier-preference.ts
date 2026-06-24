@@ -7,7 +7,7 @@
 // configurable rule store without changing call sites.
 
 import type { Supplier } from '@/data/types';
-import { DEFAULT_POLICY_CONFIG } from './policy-config';
+import { DEFAULT_POLICY_CONFIG, getActivePolicyConfig, type PolicyConfig } from './policy-config';
 
 /** Order value at/above which competitive sourcing applies, unless exempt. */
 export const COMPETITIVE_SOURCING_THRESHOLD = DEFAULT_POLICY_CONFIG.competitiveSourcingThreshold;
@@ -28,6 +28,7 @@ export const PREFERRED_MIN_PERFORMANCE = DEFAULT_POLICY_CONFIG.preferredMinPerfo
 export function isPreferredSupplier(
   supplier: Supplier | undefined,
   opts: { hasActiveContract?: boolean } = {},
+  config: PolicyConfig = getActivePolicyConfig(),
 ): boolean {
   if (!supplier) return false;
   if (typeof supplier.preferred === 'boolean') return supplier.preferred;
@@ -35,7 +36,7 @@ export function isPreferredSupplier(
   return (
     established &&
     supplier.riskRating !== 'critical' &&
-    (supplier.performanceScore ?? 0) >= PREFERRED_MIN_PERFORMANCE
+    (supplier.performanceScore ?? 0) >= config.preferredMinPerformance
   );
 }
 
@@ -56,7 +57,7 @@ export function competitiveSourcingCheck(params: {
   isPreferred: boolean;
   exemptCategories?: string[];
   singleSourceJustified?: boolean;
-}): PolicyCheck {
+}, config: PolicyConfig = getActivePolicyConfig()): PolicyCheck {
   const {
     value,
     category,
@@ -65,7 +66,7 @@ export function competitiveSourcingCheck(params: {
     singleSourceJustified = false,
   } = params;
 
-  const belowThreshold = value < COMPETITIVE_SOURCING_THRESHOLD;
+  const belowThreshold = value < config.competitiveSourcingThreshold;
   const categoryExempt = exemptCategories.includes(category);
   const exempt = belowThreshold || categoryExempt || isPreferred || singleSourceJustified;
 
@@ -74,7 +75,7 @@ export function competitiveSourcingCheck(params: {
   else if (categoryExempt) detail = `Exempt category (${category})`;
   else if (isPreferred) detail = 'Preferred-supplier route — competitive quotes waived';
   else if (singleSourceJustified) detail = 'Single-source justification on file';
-  else detail = `Requires a minimum of ${MIN_COMPETITIVE_QUOTES} competitive quotes`;
+  else detail = `Requires a minimum of ${config.minCompetitiveQuotes} competitive quotes`;
 
   return { label: 'Competitive sourcing', passed: exempt, detail };
 }

@@ -65,14 +65,14 @@ the regulated *decisioning + integrations* core is the gap.
 #### CFG — Configuration & Reference-Data Framework — 🟡 Partial
 | Story | Summary | State | Note |
 |---|---|---|---|
-| CFG-01 | Routing & threshold rule engine | 🟡 | `evaluate-routing-rules.ts` real; **risk- and materiality-aware** (supplier risk tier + `material` flow into routing). **All decisioning thresholds now centralised** in `lib/procurement/policy-config.ts` (`DEFAULT_POLICY_CONFIG` + `resolvePolicyConfig` override seam) — single governed source for approval/materiality/risk-band/competitive-sourcing/contract thresholds |
+| CFG-01 | Routing & threshold rule engine | 🟢 | `evaluate-routing-rules.ts` real; **risk- and materiality-aware**. **All decisioning thresholds centralised** in `lib/procurement/policy-config.ts` and **admin-editable** via `/admin/thresholds` — the config-aware decisioning functions default to the active config, so admin edits **drive the live front door** (persisted; applied on boot) |
 | CFG-02 | Approval-chain & threshold-band config | 🟡 | Editor + `approval_chains` table exist (earlier "missing table" note was stale); re-verify saves end-to-end |
 | CFG-03 | Taxonomy & category reference management | 🟡 | **Canonical taxonomy seeded & live** in the `procurement_categories` store (wizard reads it, admin edits it) + **configurable icons**. Pure-data/icons split keeps the server seed clean. Org-specific code scheme still pending |
 | CFG-04 | PSL & competitive sourcing rule management | 🟡 | Competitive-sourcing threshold + min-quotes + preferred-supplier performance bar centralised in `policy-config.ts` (tunable via `resolvePolicyConfig`); hard PSL reference list + admin editor still pending |
 | CFG-05 | Catalogue source & link-out config | 🟡 | Catalogue seed only; no source-type/link-out config |
 | CFG-06 | Risk-reuse & contract-reuse criteria config | 🔴 | Only a `reusable` boolean on seed rows |
 | CFG-07 | KB content management w/o change request | 🟢 | `kb-admin-page.tsx` CRUD to Supabase |
-| CFG-08 | Config test & simulation panel | 🟢 | Routing-rules 3-panel tester exists; extend to new inputs |
+| CFG-08 | Config test & simulation panel | 🟢 | Routing-rules 3-panel tester + **Decisioning Thresholds admin page** (`/admin/thresholds`): edit every threshold, **Save applies to the live front door** (persisted, re-applied on boot), Reset to defaults, and a **live simulation** previews a sample demand's materiality / inherent risk / approval gate under the edited values before saving |
 | CFG-D0/3/5 | Architecture decisions / ring-fencing / scale | 🔴 | Not formalised |
 | CFG-G3 | KB governance & sign-off | 🟡 | KB editable; no sign-off workflow |
 | CFG-W0 | Config service skeleton & rule schema | 🟡 | Routing schema exists; reference-data schema gaps |

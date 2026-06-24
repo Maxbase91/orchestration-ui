@@ -79,6 +79,7 @@ import {
   LayoutTemplate,
   Files,
   CalendarPlus,
+  SlidersHorizontal,
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -93,6 +94,7 @@ import {
 
 const iconMap: Record<string, LucideIcon> = {
   Home,
+  SlidersHorizontal,
   FileText,
   CheckSquare,
   ListTodo,

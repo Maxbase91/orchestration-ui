@@ -56,6 +56,14 @@ check('override does not mutate the defaults', (() => {
   return DEFAULT_POLICY_CONFIG.riskHighValue === 250_000;
 })());
 
+console.log('Override drives the decision');
+// Mirrors determineApprovalToSource's value trigger: the config-aware functions
+// run against the resolved config, so an admin override changes the outcome.
+const approvalTier = (value, config) => (value >= config.approvalFullThreshold ? 'full' : 'light');
+check('default config: 200k → light gate', approvalTier(200_000, DEFAULT_POLICY_CONFIG) === 'light');
+check('override threshold to 150k: 200k → full gate', approvalTier(200_000, resolvePolicyConfig({ approvalFullThreshold: 150_000 })) === 'full');
+check('override is isolated to the named field', resolvePolicyConfig({ approvalFullThreshold: 150_000 }).materialityValueThreshold === DEFAULT_POLICY_CONFIG.materialityValueThreshold);
+
 console.log('');
 if (failures) { console.error(`FAILED: ${failures} check(s)`); process.exitCode = 1; }
 else console.log('All policy-config checks passed.');

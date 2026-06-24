@@ -8,7 +8,7 @@
 
 import type { RiskRating } from '@/data/types';
 import type { DataSensitivity } from './materiality';
-import { DEFAULT_POLICY_CONFIG } from './policy-config';
+import { DEFAULT_POLICY_CONFIG, getActivePolicyConfig, type PolicyConfig } from './policy-config';
 
 /** Inherent risk tier — same scale as supplier risk ratings. */
 export type RiskTier = RiskRating;
@@ -58,7 +58,10 @@ export interface InherentRiskResult {
  * tier to critical; high sensitivity/risk or value over the high threshold drive
  * it to high; and so on.
  */
-export function determineInherentRisk(input: InherentRiskInput): InherentRiskResult {
+export function determineInherentRisk(
+  input: InherentRiskInput,
+  config: PolicyConfig = getActivePolicyConfig(),
+): InherentRiskResult {
   let level = 0;
   const drivers: string[] = [];
   const raise = (to: number, reason: string) => {
@@ -77,8 +80,8 @@ export function determineInherentRisk(input: InherentRiskInput): InherentRiskRes
   else if (input.supplierRiskRating === 'medium') raise(1, 'Medium supplier risk');
 
   const value = input.value ?? 0;
-  if (value >= RISK_HIGH_VALUE) raise(2, 'High contract value');
-  else if (value >= RISK_MEDIUM_VALUE) raise(1, 'Moderate contract value');
+  if (value >= config.riskHighValue) raise(2, 'High contract value');
+  else if (value >= config.riskMediumValue) raise(1, 'Moderate contract value');
 
   return { tier: TIERS[level], drivers: drivers.length ? drivers : ['No elevated risk drivers'] };
 }

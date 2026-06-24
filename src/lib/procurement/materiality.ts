@@ -12,7 +12,7 @@
 // so they can later move into the configurable rule store.
 
 import type { RiskRating } from '@/data/types';
-import { DEFAULT_POLICY_CONFIG } from './policy-config';
+import { DEFAULT_POLICY_CONFIG, getActivePolicyConfig, type PolicyConfig } from './policy-config';
 
 export type DataSensitivity = 'none' | 'low' | 'medium' | 'high' | 'critical';
 export type Criticality = 'standard' | 'important' | 'critical';
@@ -46,7 +46,10 @@ const CRITICALITY: Criticality[] = ['standard', 'important', 'critical'];
  * the demand critical; high sensitivity/risk or value over the threshold make it
  * important. Anything else is standard (not material).
  */
-export function determineMateriality(input: MaterialityInput): MaterialityResult {
+export function determineMateriality(
+  input: MaterialityInput,
+  config: PolicyConfig = getActivePolicyConfig(),
+): MaterialityResult {
   let level = 0;
   const reasons: string[] = [];
   const raise = (to: number, reason: string) => {
@@ -62,7 +65,7 @@ export function determineMateriality(input: MaterialityInput): MaterialityResult
   if (input.riskRating === 'critical') raise(2, 'Critical inherent supplier risk');
   else if (input.riskRating === 'high') raise(1, 'High inherent supplier risk');
 
-  if ((input.value ?? 0) >= MATERIALITY_VALUE_THRESHOLD) {
+  if ((input.value ?? 0) >= config.materialityValueThreshold) {
     raise(1, 'Value at or above the materiality threshold');
   }
 
