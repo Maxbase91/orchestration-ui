@@ -158,14 +158,12 @@ async function generateApprovalEntries(
     const assigneeId = personaRow?.is_ooo && personaRow.delegate_id ? personaRow.delegate_id : persona.id;
 
     await supabase.from('approval_entries').insert({
+      id: `APR-${requestId}-${steps.indexOf(step)}`,
       request_id: requestId,
       approver_id: assigneeId,
       approver_name: persona.name,
       approver_role: step.role,
-      stage: step.role,
       status: 'pending',
-      chain_id: chain.id,
-      step_order: steps.indexOf(step),
     });
   }
 }
@@ -173,14 +171,12 @@ async function generateApprovalEntries(
 async function createDefaultApprovalEntry(requestId: string): Promise<void> {
   const persona = resolveApprover('Approver'); // → procurement-manager persona
   await supabase.from('approval_entries').insert({
+    id: `APR-${requestId}-0`,
     request_id: requestId,
     approver_id: persona.id,
     approver_name: persona.name,
     approver_role: 'Approval',
-    stage: 'Approval',
     status: 'pending',
-    chain_id: null,
-    step_order: 0,
   });
 }
 

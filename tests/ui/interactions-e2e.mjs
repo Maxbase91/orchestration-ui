@@ -214,6 +214,30 @@ try {
     await ctx.close();
   }
 
+  // ── Flow 5: approval resolves to a switchable persona (Approve button shows) ──
+  // Every approval is owned by one of the 6 switchable role personas, so opening
+  // a request with a pending approval as the matching role surfaces the button.
+  console.log('Flow 5 — approval resolves to a switchable persona (Approve button shows)');
+  {
+    const PM = { id: 'u2', name: 'James Chen', email: 'james.chen@company.com', role: 'procurement-manager', department: 'Strategic Procurement', initials: 'JC' };
+    const { data: pend } = await sb.from('approval_entries').select('request_id').eq('approver_id', 'u2').eq('status', 'pending').limit(1).maybeSingle();
+    if (pend?.request_id) {
+      const ctx = await browser.newContext();
+      await ctx.addInitScript((u) => localStorage.setItem('auth', JSON.stringify({ state: { currentRole: 'procurement-manager', currentUser: u }, version: 0 })), PM);
+      const page = await ctx.newPage();
+      const errors = []; page.on('pageerror', e => errors.push(e.message));
+      await page.goto(`${BASE}/requests/${pend.request_id}`, { waitUntil: 'networkidle' });
+      await page.getByRole('tab', { name: 'Approvals' }).click();
+      let visible = false;
+      try { await page.getByRole('button', { name: /^Approve$/ }).first().waitFor({ timeout: 10000 }); visible = true; } catch { /* no button */ }
+      check('Approve button shows for the procurement-manager persona on a pending u2 approval', visible, pend.request_id);
+      check('no errors on the approvals tab', errors.length === 0, errors[0]);
+      await ctx.close();
+    } else {
+      check('a pending procurement-manager approval exists to demo the fix', false, 'none found');
+    }
+  }
+
   console.log('');
   if (failures) { console.error(`FAILED: ${failures} interaction check(s) failed`); process.exitCode = 1; }
   else console.log('All interaction E2E checks passed.');
