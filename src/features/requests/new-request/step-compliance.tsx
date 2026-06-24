@@ -1143,6 +1143,16 @@ function SmartAssessmentSection({
     return { matchedSupplier, matchedContracts, hasActiveContract, hasExpiringContract, steps, totalDays };
   }, [supplier, supplierId, category, estimatedValue, suppliers, contracts]);
 
+  // Vendor onboarding — derived from the supplier's onboardingStatus (data),
+  // surfaced so a new/unonboarded supplier is flagged before engagement.
+  const onboarding = (() => {
+    const s = assessment.matchedSupplier;
+    if (!s) return { tone: 'amber' as const, message: 'Vendor onboarding — a new supplier must be onboarded before a PO can be raised.' };
+    if (s.onboardingStatus === 'completed') return { tone: 'green' as const, message: `Onboarding complete — ${s.name} is ready to transact.` };
+    if (s.onboardingStatus === 'in-progress') return { tone: 'amber' as const, message: 'Onboarding in progress — complete before engagement.' };
+    return { tone: 'red' as const, message: `Onboarding required — ${s.name} is not yet onboarded.` };
+  })();
+
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -1209,6 +1219,25 @@ function SmartAssessmentSection({
             </p>
           </div>
         )}
+
+        {/* Vendor onboarding (always shown — a new supplier needs onboarding) */}
+        <div className={`flex items-start gap-2 rounded-lg border p-3 ${
+          onboarding.tone === 'green' ? 'border-green-200 bg-green-50'
+            : onboarding.tone === 'amber' ? 'border-amber-200 bg-amber-50'
+              : 'border-red-200 bg-red-50'
+        }`}>
+          {onboarding.tone === 'green' ? (
+            <CheckCircle className="size-4 text-green-600 mt-0.5 shrink-0" />
+          ) : onboarding.tone === 'amber' ? (
+            <AlertTriangle className="size-4 text-amber-600 mt-0.5 shrink-0" />
+          ) : (
+            <MinusCircle className="size-4 text-red-600 mt-0.5 shrink-0" />
+          )}
+          <p className={`text-sm font-medium ${
+            onboarding.tone === 'green' ? 'text-green-800'
+              : onboarding.tone === 'amber' ? 'text-amber-800' : 'text-red-800'
+          }`}>{onboarding.message}</p>
+        </div>
 
         {/* Estimated Journey */}
         <div className="space-y-2 pt-2">
