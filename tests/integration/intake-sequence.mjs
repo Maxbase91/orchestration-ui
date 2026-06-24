@@ -71,16 +71,15 @@ function matchContract(contract, ctx) {
   const catLower = (contract.category ?? '').toLowerCase();
   if (catLower.includes(ctx.category) && ctx.category) {
     score += 0.3; hasPrimarySignal = true; reasons.push('category match');
-  } else {
-    let kwHits = 0;
-    for (const t of ctx.tokens) {
-      if (catLower.includes(t) || (contract.title ?? '').toLowerCase().includes(t)) {
-        kwHits += 1;
-      }
-    }
-    score += kwHits * 0.1;
-    if (kwHits >= 2) hasPrimarySignal = true;
   }
+  // Always score (title + enrichment) keywords so detail refines the ranking.
+  const haystack = `${contract.title ?? ''} ${contract.category ?? ''}`.toLowerCase();
+  let kwHits = 0;
+  for (const t of ctx.tokens) {
+    if (haystack.includes(t)) kwHits += 1;
+  }
+  score += kwHits * 0.15;
+  if (kwHits >= 2) hasPrimarySignal = true;
   if (!hasPrimarySignal) return null;
   const remainingPct = Math.max(0, 100 - (contract.utilisation_percentage ?? 0));
   if (remainingPct < 5) return null;
@@ -137,6 +136,24 @@ async function scenarioContractMatch(contracts) {
   out.sort((a, b) => b.score - a.score);
   assert(out.length > 0, 'contract: Accenture consulting query finds active contracts', `top=${out.slice(0, 3).map((o) => `${o.id}(${o.score.toFixed(2)})`).join(', ')}`);
   assert(out[0]?.score >= 0.5, 'contract: top candidate has supplier-match bonus', `score=${out[0]?.score}`);
+}
+
+function scenarioContractEnrichmentRanking() {
+  // Two same-category consulting contracts — without enrichment they tie on the
+  // +0.3 category match. The "tell us more" detail must break the tie (bug 4).
+  const conA = { id: 'C-A', status: 'active', supplier_id: '', category: 'IT Consulting', title: 'IT Strategy Advisory', value: 1_000_000, utilisation_percentage: 50 };
+  const conB = { id: 'C-B', status: 'active', supplier_id: '', category: 'Management Consulting', title: 'Strategic Advisory', value: 1_000_000, utilisation_percentage: 50 };
+  const rank = (enrich) => {
+    const tokens = tokenize(`consultants ${enrich}`);
+    return [conA, conB]
+      .map((c) => ({ id: c.id, m: matchContract(c, { tokens, category: 'consulting', estimatedValue: 0, supplierId: '' }) }))
+      .filter((x) => x.m)
+      .sort((a, b) => b.m.score - a.m.score);
+  };
+  const itStrategy = rank('IT strategy engagement');
+  const management = rank('management transformation programme');
+  assert(itStrategy[0]?.id === 'C-A', 'contract: "IT strategy" enrichment ranks the IT Strategy contract first', JSON.stringify(itStrategy.map((x) => [x.id, x.m.score])));
+  assert(management[0]?.id === 'C-B', 'contract: "management" enrichment ranks the Management Consulting contract first', JSON.stringify(management.map((x) => [x.id, x.m.score])));
 }
 
 async function scenarioNoMatch(catalogueItems, contracts) {
@@ -300,6 +317,7 @@ async function main() {
   console.log(`Loaded ${catalogueItems.length} catalogue items, ${contracts.length} contracts`);
   await scenarioCatalogueMatch(catalogueItems);
   await scenarioContractMatch(contracts);
+  scenarioContractEnrichmentRanking();
   await scenarioNoMatch(catalogueItems, contracts);
   await scenarioChatIntakePromptDynamic();
   await scenarioRiskTriagePrefill();

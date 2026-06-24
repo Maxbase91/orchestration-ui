@@ -78,18 +78,25 @@ function matchContract(contract: Contract, ctx: {
     score += 0.3;
     hasPrimarySignal = true;
     reasons.push(`contract category is ${contract.category}`);
-  } else {
-    let kwHits = 0;
-    for (const t of ctx.tokens) {
-      if (catLower.includes(t) || contract.title.toLowerCase().includes(t)) {
-        kwHits += 1;
-        if (!reasons.some((r) => r.includes(t))) reasons.push(`title/category keyword match: "${t}"`);
-      }
-    }
-    score += kwHits * 0.1;
-    // Two or more keyword hits count as a primary signal on their own
-    if (kwHits >= 2) hasPrimarySignal = true;
   }
+
+  // ALWAYS score the (title + enrichment) keywords against the contract's title
+  // + category — not only when the category fails to match. Otherwise every
+  // contract in a matching category (e.g. all "Consulting" contracts) ties on
+  // the +0.3 alone and the enrichment the user adds changes nothing. Scoring the
+  // keywords here makes the detail refine the ranking so the best-fit contract
+  // surfaces first.
+  const haystack = `${contract.title} ${contract.category}`.toLowerCase();
+  let kwHits = 0;
+  for (const t of ctx.tokens) {
+    if (haystack.includes(t)) {
+      kwHits += 1;
+      if (!reasons.some((r) => r.includes(t))) reasons.push(`matches "${t}"`);
+    }
+  }
+  score += kwHits * 0.15;
+  // Two or more keyword hits count as a primary signal on their own.
+  if (kwHits >= 2) hasPrimarySignal = true;
 
   // Without a primary signal (supplier / category / >=2 keywords), reject
   // early so incidental one-word overlaps don't trigger a false match.
@@ -119,6 +126,19 @@ function matchContract(contract: Contract, ctx: {
  *   3. Full request — only when neither early exit fires.
  */
 type Stage = 'catalogue' | 'contract';
+
+// Category-specific guidance so "Tell us a bit more" asks for the detail that
+// actually distinguishes one contract from another — not a generic prompt.
+const ENRICH_GUIDANCE: Record<string, string> = {
+  consulting: 'e.g. the focus area (IT strategy, operating model, finance), expected duration, and team size',
+  services: 'e.g. the service type, region/sites covered, duration, and SLA expectations',
+  software: 'e.g. the product or area, number of users/licences, hosting, and contract term',
+  'contingent-labour': 'e.g. the role, seniority, number of people, and engagement length',
+  goods: 'e.g. the items, quantity, key specifications, and delivery location',
+  'contract-renewal': 'e.g. the existing supplier/contract, the term to renew, and any scope change',
+};
+const enrichGuidance = (category: string) =>
+  ENRICH_GUIDANCE[category] ?? 'e.g. the scope, region, duration, and approximate size';
 
 export function StepPreCheck({
   title, category, estimatedValue, supplierId,
@@ -250,13 +270,14 @@ export function StepPreCheck({
           <div className="rounded-lg border border-gray-200 bg-white p-4">
             <p className="text-sm font-medium text-gray-900">Tell us a bit more</p>
             <p className="mt-0.5 text-xs text-gray-500">
-              A short description helps us check whether an existing contract already covers this —
-              before you complete a full request.
+              Add the specifics that distinguish this from a generic{' '}
+              {category ? `${category} ` : ''}need — it sharpens the contract match.{' '}
+              {enrichGuidance(category)}.
             </p>
             <Textarea
               className="mt-3"
               rows={3}
-              placeholder="e.g. ongoing managed service for the EMEA region, ~12 months, two FTE…"
+              placeholder={enrichGuidance(category)}
               value={enrich}
               onChange={(e) => setEnrich(e.target.value)}
             />
