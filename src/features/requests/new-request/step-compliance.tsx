@@ -29,14 +29,6 @@ import { useRoutingRules } from '@/lib/db/hooks/use-routing-rules';
 import { useAiAgent } from '@/lib/db/hooks/use-ai-agents';
 import { useWorkflowTemplates } from '@/lib/db/hooks/use-workflow-templates';
 import { resolveRouting, buyingChannelLabel } from '@/lib/routing/evaluate-routing-rules';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
 import { DynamicForm } from '@/components/shared/dynamic-form';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -976,40 +968,8 @@ export function StepCompliance({
         selectedSupplierId={supplierId}
       />
 
-      {/* Workflow template picker — chosen template is stored on the
-          request and rendered on the request-detail workflow tab. */}
-      {workflowTemplates.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm">Workflow</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <Label className="text-xs text-gray-500">
-              Which template should this request follow?
-            </Label>
-            <Select
-              value={workflowTemplateId ?? ''}
-              onValueChange={(v) => onUpdate({ workflowTemplateId: v } as Partial<ComplianceData>)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select a template..." />
-              </SelectTrigger>
-              <SelectContent>
-                {workflowTemplates.map((t) => (
-                  <SelectItem key={t.id} value={t.id}>
-                    {t.name}
-                    {t.type ? ` (${t.type})` : ''}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-[11px] text-gray-400">
-              The request lifecycle still follows the 9-stage enum; the chosen template is
-              attached for reference and visible on the request detail.
-            </p>
-          </CardContent>
-        </Card>
-      )}
+      {/* The workflow is PRE-DEFINED from the input (derived by category in the
+          effect above) and attached silently — it is not user-selectable. */}
       </>)}
     </div>
   );
