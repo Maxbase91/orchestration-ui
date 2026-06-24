@@ -117,6 +117,7 @@ try {
   check('demand disposition surfaces (RTE-06: proceed/request-change/refer-back)',
     (await page.getByText(/^(Proceed|Request change|Refer back)$/).count()) > 0);
   check('materiality determination surfaces', (await page.getByText(/Materiality:/).count()) > 0);
+  check('supplier screening surfaces (SUP-03)', (await page.getByText(/Supplier screening:/).count()) > 0);
   check('inherent risk segmentation surfaces', (await page.getByText(/Inherent risk:/).count()) > 0);
   check('mini-IRQ toggle drove the cascade (critical-service driver appears)', (await page.getByText('Supports a critical service').count()) > 0);
   check('contract-type & sourcing-type surface', (await page.getByText(/Contract type:/).count()) > 0);

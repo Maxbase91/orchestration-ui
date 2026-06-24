@@ -208,7 +208,7 @@ POL-20/21), CHK-07 (second contract check already lives in stage 5), RSK-03 / DE
   surface it when classification confidence is low?
 
 #### SUP — Supplier Identification & Selection — 🟡 Partial/mock
-SUP-01 permissible supplier 🟡 (PSL soft-preference now in checks) · SUP-02 competitive sourcing & supplier-count 🟡 (**competitive-sourcing/competitive sourcing check** in `supplier-preference.ts` — threshold + exemptions for preferred route, exempt category, single-source justification) · SUP-03 screening display 🟡 (status shown, no real screening).
+SUP-01 permissible supplier 🟡 (PSL soft-preference now in checks) · SUP-02 competitive sourcing & supplier-count 🟡 (**competitive-sourcing check** in `supplier-preference.ts` — threshold + exemptions for preferred route, exempt category, single-source justification) · SUP-03 screening display 🟢 (**`screening.ts` evaluator** surfaces the supplier's screening status on the determination — clear / pending / flagged / not-screened; a **flagged supplier blocks the demand** → refer-back via the disposition. Real screening provider still mocked).
 
 #### RSK — Risk & Mini-IRQ Pre-Assessment — 🟡 Partial (core decisioning now modelled)
 | Story | Summary | State | Note |

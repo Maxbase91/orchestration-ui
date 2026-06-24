@@ -13,6 +13,8 @@ export interface ReferralInput {
   missingMandatory: boolean;
   /** The demand falls outside supported/permissible scope. */
   outOfScope: boolean;
+  /** The selected supplier is blocked (e.g. flagged in screening). */
+  supplierBlocked?: boolean;
   /** Count of hard policy-check failures (0 when none / validator inactive). */
   failedPolicyChecks: number;
   /** A likely duplicate of an existing request was detected. */
@@ -36,6 +38,9 @@ export function determineReferral(input: ReferralInput): ReferralResult {
   }
   if (input.outOfScope) {
     return { outcome: 'refer-back', reason: 'Demand falls outside supported scope — refer back to the requester' };
+  }
+  if (input.supplierBlocked) {
+    return { outcome: 'refer-back', reason: 'Selected supplier is blocked (screening) — refer back before proceeding' };
   }
   if (input.failedPolicyChecks > 0) {
     return {

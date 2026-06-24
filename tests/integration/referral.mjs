@@ -13,6 +13,7 @@ function check(name, cond, detail = '') {
 function determineReferral(i) {
   if (i.missingMandatory) return { outcome: 'refer-back' };
   if (i.outOfScope) return { outcome: 'refer-back' };
+  if (i.supplierBlocked) return { outcome: 'refer-back' };
   if (i.failedPolicyChecks > 0) return { outcome: 'request-change' };
   if (i.duplicateDetected) return { outcome: 'request-change' };
   return { outcome: 'proceed' };
@@ -29,6 +30,8 @@ check('missing mandatory → refer-back', o({ ...clear, missingMandatory: true }
 check('out of scope → refer-back', o({ ...clear, outOfScope: true }) === 'refer-back');
 check('missing mandatory outranks policy + duplicate', o({ missingMandatory: true, outOfScope: false, failedPolicyChecks: 3, duplicateDetected: true }) === 'refer-back');
 check('out of scope outranks policy', o({ ...clear, outOfScope: true, failedPolicyChecks: 2 }) === 'refer-back');
+check('blocked supplier (screening) → refer-back', o({ ...clear, supplierBlocked: true }) === 'refer-back');
+check('blocked supplier outranks policy + duplicate', o({ ...clear, supplierBlocked: true, failedPolicyChecks: 2, duplicateDetected: true }) === 'refer-back');
 
 console.log('Request-change');
 check('failed policy checks → request-change', o({ ...clear, failedPolicyChecks: 1 }) === 'request-change');

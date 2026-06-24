@@ -18,6 +18,7 @@ import { determineApprovalToSource, type ApprovalToSourceResult } from '@/lib/pr
 import { determineResidualQuestions, type ResidualQuestion } from '@/lib/procurement/residual-questions';
 import { assessOperationalRisk, type OperationalRiskResult } from '@/lib/procurement/operational-risk-assessment';
 import { determineReferral, type ReferralResult } from '@/lib/procurement/referral';
+import { evaluateScreening, type ScreeningResult } from '@/lib/procurement/screening';
 import type { Supplier, Contract, WorkflowTemplate, RoutingRule } from '@/data/types';
 // Risk-reuse matching stays on its specialised query (reusable + completed +
 // validity-window + supplier/contract); the generic ports do not model that yet.
@@ -72,6 +73,7 @@ interface ComplianceData {
   approvalToSource?: ApprovalToSourceResult;
   residualQuestions?: ResidualQuestion[];
   referral?: ReferralResult;
+  screening?: ScreeningResult;
   handoffSteps?: HandoffStep[];
   sraStatus: string;
   policyChecks: { label: string; passed: boolean; detail: string }[];
@@ -420,11 +422,16 @@ export function StepCompliance({
       });
     }
 
+    // Supplier screening — surfaced on the determination; a flagged supplier
+    // blocks the demand (refer back).
+    const screening = evaluateScreening(supplierRec?.screeningStatus);
+
     // Demand disposition — proceed / request-change / refer-back. Driven by the
     // completeness, policy and scope signals the determination already computed.
     const referral = determineReferral({
       missingMandatory: !requestTitle?.trim() || estimatedValue <= 0,
       outOfScope: policyChecks.some((c) => !c.passed && /prohibit|permissib|out of scope|blocked/i.test(c.label)),
+      supplierBlocked: screening.blocking,
       failedPolicyChecks: validatorActive ? policyChecks.filter((c) => !c.passed).length : 0,
       duplicateDetected: false,
     });
@@ -442,6 +449,7 @@ export function StepCompliance({
       approvalToSource,
       residualQuestions,
       referral,
+      screening,
       handoffSteps,
       sraStatus: supplierRec
         ? `${supplierRec.name}: ${supplierRec.sraStatus}${supplierRec.sraExpiryDate ? ` (expires ${supplierRec.sraExpiryDate})` : ''}`
@@ -698,6 +706,16 @@ export function StepCompliance({
                     {' '}· assessment: <span className="font-medium text-gray-700">{result.riskOutcome.decision}</span> ({result.riskOutcome.reasons[0]})
                   </span>
                 )}
+              </p>
+            )}
+            {result.screening && (
+              <p className="mt-1 text-sm text-gray-700">
+                Supplier screening:{' '}
+                <span className={`font-semibold ${
+                  result.screening.blocking ? 'text-red-700'
+                    : result.screening.cleared ? 'text-green-700' : 'text-amber-700'
+                }`}>{result.screening.status}</span>
+                <span className="text-xs text-gray-500"> · {result.screening.message}</span>
               </p>
             )}
           </div>
