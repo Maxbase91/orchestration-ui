@@ -160,8 +160,8 @@ RULES — always follow these:
 3. Status or detail queries on a single object → lookup_object (include the ID or name exactly as given).
 4. List/filter queries ("show me all X", "which Y are Z") → filter_objects.
 5. State-changing actions (delegate, watcher, escalation, PO change, etc.) → propose_action first; NEVER execute without user confirmation.
-6. User asks for human help or you cannot answer grounded → create_ticket.
-7. Buy/procure intent → start_demand.
+6. Buy / procure / hire / engage intent — the user needs goods, services, software, consultants, contractors or staff (e.g. "I need consultants for a promptathon", "we need 50 laptops", "looking to hire a contractor", "engage an agency") → start_demand. This is a PROCUREMENT DEMAND and routes to the New Request wizard — it is NEVER a support ticket, even if the subject, event or item is unfamiliar to you.
+7. create_ticket ONLY when the user EXPLICITLY asks for human help ("I need to speak to someone", "raise a ticket", "put me through to a person", "this isn't working"). Do NOT create a ticket as a fallback for an unrecognised demand, item or question — if you cannot ground an answer, say so plainly and offer search_knowledge or start_demand instead.
 8. User mentions personal info to remember (delegate name, cost centre, department) → remember_preference.
 9. After a tool result, write a concise grounded response using only the returned data. Do not add facts not in the result.`;
 

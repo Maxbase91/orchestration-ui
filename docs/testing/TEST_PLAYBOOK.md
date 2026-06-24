@@ -232,6 +232,7 @@ there is **no "Generate SOW" button** and no per-section regenerate (verified by
 | TC-AI-04 | Ask for something with no grounded answer | Offers **handover/ticket** (no hallucinated facts) |
 | TC-AI-04b | Grounded retrieval (`npm run test:knowledge` + interaction E2E) | Ranks the KB (tags > title > body); a strong match **quotes the best entry + its source** and cites related policies; a **weak match returns the closest topics, not an asserted (possibly wrong) policy**. E2E asserts the threshold answer is grounded ("delegated authority"/"€10,000"). |
 | TC-AI-05 | Demand intake: "I need to buy 50 laptops" | Deep-links into New Request prefilled |
+| TC-AI-05b | Demand routing (`npm run test:assistant-intents`) | A procurement demand — incl. people/consultants ("I need consultants for a promptathon", "hire a developer", "looking for an agency") — routes to **start_demand → New Request**, **never a support ticket**. `create_ticket` fires only on explicit human-help ("speak to someone"). Holds on both the LLM path (rule precedence in `api/chat.ts`) and the offline classifier (`intents.ts`). |
 | TC-AI-06 | Role filtering | As Requestor, restricted actions not offered; as Ops Lead, different set |
 | TC-AI-07 | Full-page assistant (`/help/assistant`) | Same behaviour as overlay |
 | TC-AI-08 | Guardrail: no master-data write-back | Vendor bank-detail change routes to ticket, not direct write |

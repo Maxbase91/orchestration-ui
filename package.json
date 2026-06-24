@@ -31,6 +31,7 @@
     "test:approval-to-source": "node tests/integration/approval-to-source.mjs",
     "test:residual-questions": "node tests/integration/residual-questions.mjs",
     "test:demand-conversation": "node tests/integration/demand-conversation.mjs",
+    "test:assistant-intents": "node tests/integration/assistant-intents.mjs",
     "test:operational-risk": "node tests/integration/operational-risk.mjs",
     "test:classification-eval": "node tests/integration/classification-eval.mjs",
     "test:referral": "node tests/integration/referral.mjs",

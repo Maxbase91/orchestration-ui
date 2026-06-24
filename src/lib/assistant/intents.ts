@@ -36,6 +36,15 @@ export function classifyIntent(input: string): IntentType {
   // Intake — buying / raising a demand (exclude "I need to speak/talk" to avoid handover collision)
   if (/\b(i (want|need|would like) to (buy|purchase|procure|order|get)|buy|purchase|procure|raise a demand|new (request|demand)|want to (buy|order)|can you (buy|order|raise|get))\b/.test(t) && !/\b(speak|talk|contact|person|human|someone)\b/.test(t)) scores.intake += 2;
   if (/\bi need (a|some) /.test(t) && !/\b(speak|talk|contact|person|human|someone)\b/.test(t)) scores.intake += 2;
+  // A need/hire/engage verb + a procurement noun is a demand — e.g. "I need
+  // consultants for a promptathon", "hire a contractor", "looking for an agency".
+  // Distinct from "I need to speak to someone" (handover) and "I need to know the
+  // policy" (knowledge), which the exclusion list filters out.
+  if (
+    /\b(need|want|require|hire|engage|procure|looking (for|to))\b/.test(t) &&
+    /\b(consultant|consultancy|contractor|developer|engineer|designer|staff|headcount|agency|supplier|vendor|resource|freelancer|specialist|advisor|laptop|hardware|software|licen[sc]e|service|equipment|subscription|hosting|tooling)s?\b/.test(t) &&
+    !/\b(speak|talk|contact|person|human|someone|policy|polic|rule|threshold|guideline|status|how (much|many|to|do))\b/.test(t)
+  ) scores.intake += 2;
   if (/\b(create (a )?request|submit (a )?request|raise (a )?(pr|purchase request|procurement request))\b/.test(t)) scores.intake += 3;
   if (/\b(purchase request|procurement request)\b/.test(t)) scores.intake += 2;
 
@@ -76,6 +85,15 @@ export function classifyIntentWithConfidence(input: string): { intent: IntentTyp
   if (/\b(approve on my behalf|cover for me|change (the )?(approver|owner)|update (the )?(po|contract)|raise (a |an )?(escalation|payment))\b/.test(t)) scores.action += 2;
   if (/\b(i (want|need|would like) to (buy|purchase|procure|order|get)|buy|purchase|procure|raise a demand|new (request|demand)|want to (buy|order)|can you (buy|order|raise|get))\b/.test(t) && !/\b(speak|talk|contact|person|human|someone)\b/.test(t)) scores.intake += 2;
   if (/\bi need (a|some) /.test(t) && !/\b(speak|talk|contact|person|human|someone)\b/.test(t)) scores.intake += 2;
+  // A need/hire/engage verb + a procurement noun is a demand — e.g. "I need
+  // consultants for a promptathon", "hire a contractor", "looking for an agency".
+  // Distinct from "I need to speak to someone" (handover) and "I need to know the
+  // policy" (knowledge), which the exclusion list filters out.
+  if (
+    /\b(need|want|require|hire|engage|procure|looking (for|to))\b/.test(t) &&
+    /\b(consultant|consultancy|contractor|developer|engineer|designer|staff|headcount|agency|supplier|vendor|resource|freelancer|specialist|advisor|laptop|hardware|software|licen[sc]e|service|equipment|subscription|hosting|tooling)s?\b/.test(t) &&
+    !/\b(speak|talk|contact|person|human|someone|policy|polic|rule|threshold|guideline|status|how (much|many|to|do))\b/.test(t)
+  ) scores.intake += 2;
   if (/\b(create (a )?request|submit (a )?request|raise (a )?(pr|purchase request|procurement request))\b/.test(t)) scores.intake += 3;
   if (/\b(purchase request|procurement request)\b/.test(t)) scores.intake += 2;
   if (/\b(speak (to|with)|talk (to|with))\b/.test(t)) scores.handover += 3;
