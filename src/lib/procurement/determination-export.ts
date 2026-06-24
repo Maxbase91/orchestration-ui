@@ -15,6 +15,7 @@ export interface DeterminationExportInput {
   referral?: { outcome: string; reason: string };
   contractType?: { type: string; reason: string };
   sourcingType?: { type: string; reason: string };
+  contractCoverage?: { recommendation: string; reason: string; candidates: { title: string; kind: string }[] };
   materiality?: { material: boolean; criticality: string; reasons: string[] };
   inherentRisk?: { tier: string; drivers: string[] };
   operationalRisk?: { overall: string; dimensions: { label: string; rating: string; reason: string }[] };
@@ -55,6 +56,12 @@ export function buildDeterminationExport(input: DeterminationExportInput): { mar
   if (input.sourcingType) lines.push(`- Sourcing type: **${input.sourcingType.type}** (${input.sourcingType.reason})`);
   if (input.materiality) {
     lines.push(`- Materiality: **${input.materiality.material ? `Material — ${input.materiality.criticality}` : 'Not material'}**${input.materiality.material ? ` (${input.materiality.reasons.join('; ')})` : ''}`);
+  }
+  if (input.contractCoverage) {
+    lines.push(`- Contract coverage: **${input.contractCoverage.recommendation}** — ${input.contractCoverage.reason}`);
+    for (const c of input.contractCoverage.candidates) {
+      lines.push(`  - ${c.title}: ${c.kind}`);
+    }
   }
   lines.push('');
 

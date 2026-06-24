@@ -500,6 +500,13 @@ export function StepCompliance({
       referral: result.referral,
       contractType: result.contractType,
       sourcingType: result.sourcingType,
+      contractCoverage: result.secondContractCheck
+        ? {
+            recommendation: result.secondContractCheck.recommendation,
+            reason: result.secondContractCheck.reason,
+            candidates: result.secondContractCheck.candidates.map((c) => ({ title: c.title, kind: c.kind })),
+          }
+        : undefined,
       materiality: result.materiality,
       inherentRisk: result.inherentRisk,
       operationalRisk: result.operationalRisk,

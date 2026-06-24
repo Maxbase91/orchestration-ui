@@ -27,6 +27,10 @@ function buildDeterminationExport(input) {
   lines.push(`- Buying channel: **${input.buyingChannel}**`);
   if (input.contractType) lines.push(`- Contract type: **${input.contractType.type}** (${input.contractType.reason})`);
   if (input.sourcingType) lines.push(`- Sourcing type: **${input.sourcingType.type}** (${input.sourcingType.reason})`);
+  if (input.contractCoverage) {
+    lines.push(`- Contract coverage: **${input.contractCoverage.recommendation}** — ${input.contractCoverage.reason}`);
+    for (const c of input.contractCoverage.candidates) lines.push(`  - ${c.title}: ${c.kind}`);
+  }
   if (input.materiality) lines.push(`- Materiality: **${input.materiality.material ? `Material — ${input.materiality.criticality}` : 'Not material'}**${input.materiality.material ? ` (${input.materiality.reasons.join('; ')})` : ''}`);
   lines.push('');
   if (input.inherentRisk || input.riskOutcome) {
@@ -53,6 +57,7 @@ const full = buildDeterminationExport({
   supplierName: 'Acme', buyingChannel: 'procurement-led',
   contractType: { type: 'new-msa', reason: 'No existing agreement' },
   sourcingType: { type: 'new-event', reason: 'New sourcing event' },
+  contractCoverage: { recommendation: 'author-sow', reason: 'Framework available', candidates: [{ title: 'MSA — Acme', kind: 'framework' }] },
   materiality: { material: true, criticality: 'critical', reasons: ['Critical data sensitivity'] },
   inherentRisk: { tier: 'critical', drivers: ['Highly confidential data'] },
   riskOutcome: { decision: 'new', reasons: ['No reusable assessment covers this engagement'] },
@@ -67,6 +72,7 @@ check('filename is slugified from the title', full.filename === 'determination-c
 check('request section formats the value as currency', full.markdown.includes('Estimated value: €120,000'));
 check('determination section lists the channel', full.markdown.includes('Buying channel: **procurement-led**'));
 check('includes contract + sourcing type', full.markdown.includes('Contract type: **new-msa**') && full.markdown.includes('Sourcing type: **new-event**'));
+check('includes contract coverage + candidates', full.markdown.includes('Contract coverage: **author-sow**') && full.markdown.includes('MSA — Acme: framework'));
 check('materiality reflected when material', full.markdown.includes('Material — critical'));
 check('risk section present', full.markdown.includes('## Risk') && full.markdown.includes('Inherent risk: **critical**'));
 check('next steps rendered as a table', full.markdown.includes('| Detailed risk assessment | Third-party risk register | required | /suppliers/risk |'));
