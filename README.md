@@ -135,6 +135,7 @@ npm run test:knowledge            # grounded policy-Q&A retrieval (ranking, cita
 npm run test:policy-config        # central decisioning thresholds (defaults pinned + override resolver)
 npm run test:screening            # supplier screening — clear / pending / flagged / unknown + blocking
 npm run test:supplier-data        # supplier master-data completeness → remediation handoff (RTE-04)
+npm run test:approver-resolution  # approval step role → switchable role persona (u1–u6)
 npm run test:admin-editors        # admin config saves
 npm run test:ui                   # browser smoke (Playwright) — wizard end-to-end to the determination screen
 npm run test:e2e-ui               # full-app browser sweep — every route × role, captures console/runtime errors

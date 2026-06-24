@@ -29,6 +29,7 @@ import { formatCurrency } from '@/lib/format';
 import { getStatusLabel } from '@/lib/status';
 import { useUserLookup, useUsers } from '@/lib/db/hooks/use-users';
 import { useUpdateApproval } from '@/lib/db/hooks/use-approvals';
+import { useAuthStore } from '@/stores/auth-store';
 import type { ProcurementRequest, ApprovalEntry } from '@/data/types';
 
 interface ApprovalCardProps {
@@ -73,6 +74,9 @@ export function ApprovalCard({
   const [showOOOWarning, setShowOOOWarning] = useState(false);
 
   const { data: users = [] } = useUsers();
+  const { currentUser } = useAuthStore();
+  // Only the assigned approver can act (matches the request-detail Approvals tab).
+  const isCurrentUserApprover = approval.approverId === currentUser.id;
   const lookupUser = useUserLookup();
   const requestor = lookupUser(request.requestorId);
   const priorityCfg = priorityConfig[request.priority] ?? priorityConfig.medium;
@@ -241,7 +245,15 @@ export function ApprovalCard({
             />
           )}
 
-          {/* Action buttons */}
+          {/* Action buttons — only the assigned approver can act on a pending
+              approval. Others see who it's with (consistent with the
+              request-detail Approvals tab); resolved approvals show no actions. */}
+          {approval.status !== 'pending' ? null : !isCurrentUserApprover ? (
+            <p className="text-xs text-gray-500">
+              Awaiting <span className="font-medium text-gray-700">{approval.approverName || approval.approverRole}</span>
+              {' '}— switch to that role to act on it.
+            </p>
+          ) : (
           <div className="flex items-center gap-2 flex-wrap">
             <Button
               size="sm"
@@ -289,6 +301,7 @@ export function ApprovalCard({
               Delegate
             </Button>
           </div>
+          )}
 
           {/* Expanded inline forms */}
           {expandedAction === 'reject' && (

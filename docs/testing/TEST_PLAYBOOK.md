@@ -106,7 +106,8 @@ there is **no "Generate SOW" button** and no per-section regenerate (verified by
 | ID | Steps | Expected |
 |---|---|---|
 | TC-APR-01 | `/approvals` queue | Pending count, filters (urgency/value/category), AI summaries |
-| TC-APR-02 | Approve a pending item | Toast; pending count decrements; **persists**; audit entry |
+| TC-APR-02 | Approve a pending item | Toast; pending count decrements; **persists**; audit entry. The Approve/Reject buttons show **only to the assigned approver** (request-detail tab *and* the `/approvals` card now both gate by `approverId === currentUser.id`); others see "Awaiting <role>". |
+| TC-APR-02b | Approver resolution (`npm run test:approver-resolution`) | Every approval-step role resolves to a **switchable role persona** (u1–u6) — Finance Approver → procurement-manager (u2), VP Procurement → admin (u6), Budget Owner → service-owner (u1), etc. So switching to the matching role surfaces the Approve button (no approval stranded on a non-switchable user). |
 | TC-APR-03 | Reject (with reason) / Request Info | State changes; reason captured |
 | TC-APR-04 | Delegate; Delegation page | Delegate set; OOO routing applies |
 | TC-APR-05 | `/tasks` My Tasks + Team Tasks | Priority-sorted lists render |

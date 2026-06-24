@@ -10,6 +10,7 @@ import {
 } from '@/lib/db/workflow-instances';
 import type { WorkflowTemplate } from '@/data/types';
 import { getStagesForChannel } from './buying-channel-stages';
+import { resolveApprover } from './approver-resolution';
 
 // ── Label → RequestStatus normalisation ──────────────────────────────────────
 
@@ -39,20 +40,8 @@ function nodeToStatus(label: string): string {
   return LABEL_TO_STATUS[key] ?? key.replace(/\s+/g, '-');
 }
 
-// ── Chain step role → system role mapping ────────────────────────────────────
-
-export const CHAIN_ROLE_TO_SYSTEM_ROLE: Record<string, string> = {
-  'Budget Owner': 'service-owner',
-  'Category Manager': 'procurement-manager',
-  'Finance': 'procurement-manager',
-  'VP Procurement': 'procurement-manager',
-  'CFO': 'admin',
-  'Board': 'admin',
-  'Approver': 'procurement-manager',
-  'Supplier Manager': 'vendor-manager',
-  'Operations Lead': 'operations-lead',
-  'New Approver': 'procurement-manager',
-};
+// Chain step role → system role + persona resolution lives in
+// `./approver-resolution` (the single source of truth).
 
 // ── Node traversal helpers ────────────────────────────────────────────────────
 
@@ -158,36 +147,36 @@ async function generateApprovalEntries(
   const steps = (chain.steps as { id: string; role: string }[]) ?? [];
 
   for (const step of steps) {
-    const systemRole = CHAIN_ROLE_TO_SYSTEM_ROLE[step.role] ?? 'procurement-manager';
-
-    // Find all users with this system role
-    const { data: usersWithRole } = await supabase
+    // Resolve the step's role to its canonical persona (a switchable role
+    // holder), honouring out-of-office delegation on that persona.
+    const persona = resolveApprover(step.role);
+    const { data: personaRow } = await supabase
       .from('users')
-      .select('id, name, is_ooo, delegate_id')
-      .eq('role', systemRole);
+      .select('is_ooo, delegate_id')
+      .eq('id', persona.id)
+      .maybeSingle();
+    const assigneeId = personaRow?.is_ooo && personaRow.delegate_id ? personaRow.delegate_id : persona.id;
 
-    const candidates = usersWithRole ?? [];
-    const targets = candidates.length > 0 ? candidates : [{ id: 'u2', name: 'James Chen', is_ooo: false, delegate_id: null }];
-
-    for (const user of targets) {
-      const assigneeId = user.is_ooo && user.delegate_id ? user.delegate_id : user.id;
-
-      await supabase.from('approval_entries').insert({
-        request_id: requestId,
-        approver_id: assigneeId,
-        stage: step.role,
-        status: 'pending',
-        chain_id: chain.id,
-        step_order: steps.indexOf(step),
-      });
-    }
+    await supabase.from('approval_entries').insert({
+      request_id: requestId,
+      approver_id: assigneeId,
+      approver_name: persona.name,
+      approver_role: step.role,
+      stage: step.role,
+      status: 'pending',
+      chain_id: chain.id,
+      step_order: steps.indexOf(step),
+    });
   }
 }
 
 async function createDefaultApprovalEntry(requestId: string): Promise<void> {
+  const persona = resolveApprover('Approver'); // → procurement-manager persona
   await supabase.from('approval_entries').insert({
     request_id: requestId,
-    approver_id: 'u2', // procurement-manager default
+    approver_id: persona.id,
+    approver_name: persona.name,
+    approver_role: 'Approval',
     stage: 'Approval',
     status: 'pending',
     chain_id: null,
@@ -277,7 +266,7 @@ async function advanceInstance(
   };
 
   let currentNodeIds = [...instance.currentNodeIds];
-  let instanceId = instance.id;
+  const instanceId = instance.id;
 
   // Process each current node
   for (const nodeId of currentNodeIds) {
