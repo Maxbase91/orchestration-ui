@@ -84,9 +84,7 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <SmartCommandBar />
-
-      {/* Welcome */}
+      {/* Welcome — leads the page so the greeting sets context before the tools. */}
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">
@@ -103,6 +101,8 @@ export function DashboardPage() {
           </Button>
         </div>
       </div>
+
+      <SmartCommandBar />
 
       {/* Quick Actions */}
       <div className="flex flex-wrap gap-2">

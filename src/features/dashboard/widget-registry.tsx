@@ -67,8 +67,10 @@ export const allQuickActions: QuickActionConfig[] = [
 
 export function getDefaultLayout(role: Role): string[] {
   switch (role) {
-    case 'service-owner': return ['quick-stats', 'my-requests', 'mentions', 'recent-activity', 'ai-assistant', 'ai-insights', 'expiring-contracts'];
-    case 'procurement-manager': return ['kpi-open-demand', 'kpi-sourcing', 'kpi-cycle-time', 'kpi-compliance', 'demand-pipeline', 'team-workload', 'attention-required', 'mentions', 'ai-insights'];
+    // Decluttered defaults — lead with the actionable widget, fewer cards.
+    // Users can re-add any widget via "Add Widget" (the registry is unchanged).
+    case 'service-owner': return ['my-requests', 'quick-stats', 'expiring-contracts', 'ai-insights'];
+    case 'procurement-manager': return ['attention-required', 'kpi-open-demand', 'kpi-cycle-time', 'kpi-compliance', 'demand-pipeline', 'ai-insights'];
     case 'vendor-manager': return ['validation-queue', 'quick-stats', 'mentions', 'supplier-risk', 'recent-activity', 'ai-insights'];
     case 'operations-lead': return ['workflow-health', 'sla-tracker', 'attention-required', 'mentions', 'ai-insights', 'recent-activity'];
     case 'admin': return ['system-health', 'quick-stats', 'workflow-health', 'supplier-risk', 'mentions', 'ai-insights'];
