@@ -419,7 +419,7 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
   }, [svcDesc, onUpdate]);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 min-h-[400px]">
+    <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 lg:h-[calc(100vh-16rem)] lg:max-h-[640px] lg:min-h-[420px]">
       {/* Chat Area (3/5) */}
       <div className="lg:col-span-3 flex flex-col rounded-lg border border-gray-200 bg-white overflow-hidden">
         {/* Chat Header */}
@@ -528,7 +528,7 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
       </div>
 
       {/* Right Sidebar (2/5) */}
-      <div className="lg:col-span-2 space-y-4 sticky top-4">
+      <div className="lg:col-span-2 space-y-4 lg:h-full lg:overflow-y-auto lg:pr-1">
         {/* Single service-description panel — the master capture. The request
             key facts and the SOW are one document, not separate tabs. */}
         <div className="rounded-lg border border-gray-200 bg-white p-4 space-y-4">
