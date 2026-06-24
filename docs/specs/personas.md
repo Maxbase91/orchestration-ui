@@ -1,5 +1,8 @@
 # Personas & Access Model — Procurement Orchestration Platform
 
+> 📘 Looking for a non-technical, stakeholder-ready version? See **[personas-business.md](personas-business.md)**.
+
+
 **Purpose.** Define each user persona: who they are, what they see, what they can access, what
 they actually *do*, and how complex the experience is for them — **in Release 1** (the current
 read/classify/recommend/route scope) **and in the end state** (live execution + automation). Use this
