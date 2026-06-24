@@ -671,6 +671,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const params = new URLSearchParams({ category: demandCategory });
         if (demandValue) params.set('value', demandValue);
         if (demandSupplier) params.set('supplier', demandSupplier);
+        // Carry the original demand text so the wizard's "Describe what you
+        // need" is pre-populated instead of starting blank.
+        const demandText = [...rawMessages].reverse().find((m) => m.role === 'user')?.content?.trim();
+        if (demandText) params.set('q', demandText.slice(0, 300));
         structuralTurns.push({
           type: 'deep-link',
           label: 'Start New Request',

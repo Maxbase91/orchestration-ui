@@ -161,6 +161,10 @@ const CATEGORY_LABELS: Record<string, string> = {
 export function NewRequestPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [currentStep, setCurrentStep] = useState(1);
+  // Original demand text forwarded from the home "What do you need?" box —
+  // captured once so the Step 1 input starts pre-populated (read synchronously
+  // before the deep-link params are cleared).
+  const [categoryPrefill] = useState(() => searchParams.get('q') ?? '');
   const [formData, setFormData] = useState<RequestFormData>(INITIAL_DATA);
   const [requestId, setRequestId] = useState('');
   const [initialized, setInitialized] = useState(false);
@@ -480,6 +484,7 @@ export function NewRequestPage() {
           <StepCategory
             category={formData.category}
             categoryDescription={formData.categoryDescription}
+            prefill={categoryPrefill}
             onUpdate={(d) => updateFormData(d)}
             onAutoAdvance={() => setCurrentStep(2)}
             onBrowseCatalogue={() => {

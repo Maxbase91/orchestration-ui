@@ -49,6 +49,9 @@ export function startDemand(input: string): AssistantTurn[] {
   params.set('category', category);
   if (value) params.set('value', String(value));
   if (supplier) params.set('supplier', supplier);
+  // Carry the original demand text so the wizard's "Describe what you need" is
+  // pre-populated instead of starting blank.
+  if (input.trim()) params.set('q', input.trim().slice(0, 300));
 
   const prefilledNote = [
     `Category: **${category}**`,

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Sparkles,
   Loader2,
@@ -20,6 +20,8 @@ import type { RequestCategory } from '@/data/types';
 interface StepCategoryProps {
   category: string;
   categoryDescription: string;
+  /** Original demand text forwarded from the home page — seeds the input. */
+  prefill?: string;
   onUpdate: (data: {
     category: string;
     categoryDescription: string;
@@ -90,8 +92,8 @@ function localClassify(input: string): AIClassification {
   };
 }
 
-export function StepCategory({ onUpdate, onAutoAdvance, onBrowseCatalogue }: StepCategoryProps) {
-  const [inputValue, setInputValue] = useState('');
+export function StepCategory({ prefill, onUpdate, onAutoAdvance, onBrowseCatalogue }: StepCategoryProps) {
+  const [inputValue, setInputValue] = useState(prefill ?? '');
   const [loading, setLoading] = useState(false);
   const [aiResult, setAiResult] = useState<AIClassification | null>(null);
   const [accepted, setAccepted] = useState(false);
@@ -117,9 +119,8 @@ export function StepCategory({ onUpdate, onAutoAdvance, onBrowseCatalogue }: Ste
   // the step falls back to local keyword classification immediately.
   const aiClassifierEnabled = classifierAgent?.status === 'active';
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const text = inputValue.trim();
+  const runClassification = async (raw: string) => {
+    const text = raw.trim();
     if (!text || loading) return;
 
     setLoading(true);
@@ -138,13 +139,24 @@ export function StepCategory({ onUpdate, onAutoAdvance, onBrowseCatalogue }: Ste
 
     // Validate category exists
     const validCat = activeCategories.find((c) => c.id === result.category);
-    if (validCat) {
-      result.category = validCat.id;
-    } else {
-      result.category = 'goods';
-    }
+    result.category = validCat ? validCat.id : 'goods';
     setAiResult(result);
   };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    void runClassification(inputValue);
+  };
+
+  // Forwarded from the home page with a demand already typed — classify it once
+  // automatically so the user lands on the result ready to accept.
+  const autoRan = useRef(false);
+  useEffect(() => {
+    if (autoRan.current || !prefill?.trim()) return;
+    autoRan.current = true;
+    void runClassification(prefill);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefill]);
 
   const handleAccept = () => {
     if (!aiResult) return;
