@@ -46,7 +46,10 @@ export function ApprovalsPage() {
   const { data: requests = [] } = useRequests();
   const currentUser = useAuthStore((s) => s.currentUser);
   const updateApproval = useUpdateApproval();
-  const [statusFilter, setStatusFilter] = useState<'all' | ApprovalStatus>('all');
+  // Lead with the actionable queue (pending), not resolved history — an
+  // approvals inbox should open on "what needs my decision". Approved/rejected
+  // stay available via their tabs.
+  const [statusFilter, setStatusFilter] = useState<'all' | ApprovalStatus>('pending');
   const [urgencyFilter, setUrgencyFilter] = useState<UrgencyFilter>('all');
   const [valueFilter, setValueFilter] = useState<ValueFilter>('all');
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
