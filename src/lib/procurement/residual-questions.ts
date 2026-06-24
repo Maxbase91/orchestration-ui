@@ -12,6 +12,7 @@
 
 import type { DataSensitivity } from './materiality';
 import type { RiskTier } from './risk-segmentation';
+import { DEFAULT_POLICY_CONFIG } from './policy-config';
 
 export type ResidualQuestionId = 'privileged-access' | 'critical-service';
 
@@ -34,7 +35,7 @@ export interface ResidualQuestion {
 }
 
 /** Spend at or above which a critical-service dependency is worth confirming. */
-export const CRITICAL_SERVICE_VALUE_THRESHOLD = 100_000;
+export const CRITICAL_SERVICE_VALUE_THRESHOLD = DEFAULT_POLICY_CONFIG.criticalServiceThreshold;
 
 // Categories where privileged or system access is plausible enough to confirm.
 const ACCESS_CATEGORIES = new Set(['software', 'services', 'consulting', 'contingent-labour']);

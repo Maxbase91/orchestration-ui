@@ -8,6 +8,7 @@
 
 import type { RiskRating } from '@/data/types';
 import type { DataSensitivity } from './materiality';
+import { DEFAULT_POLICY_CONFIG } from './policy-config';
 
 /** Inherent risk tier — same scale as supplier risk ratings. */
 export type RiskTier = RiskRating;
@@ -32,9 +33,9 @@ export function highestRiskTier(tiers: RiskTier[]): RiskTier | undefined {
 }
 
 /** Value contributing to a high inherent tier. */
-export const RISK_HIGH_VALUE = 250_000;
+export const RISK_HIGH_VALUE = DEFAULT_POLICY_CONFIG.riskHighValue;
 /** Value contributing to a medium inherent tier. */
-export const RISK_MEDIUM_VALUE = 50_000;
+export const RISK_MEDIUM_VALUE = DEFAULT_POLICY_CONFIG.riskMediumValue;
 
 export interface InherentRiskInput {
   dataSensitivity?: DataSensitivity;

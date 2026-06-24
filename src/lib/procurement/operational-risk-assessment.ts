@@ -11,6 +11,7 @@
 // exposure, access), not any organisation-specific control set.
 
 import type { DataSensitivity } from './materiality';
+import { DEFAULT_POLICY_CONFIG } from './policy-config';
 
 export type OpRiskRating = 'low' | 'medium' | 'high';
 
@@ -47,7 +48,7 @@ export interface OperationalRiskResult {
 }
 
 /** Spend at or above which availability/continuity dependence is non-trivial. */
-export const CONTINUITY_VALUE_THRESHOLD = 250_000;
+export const CONTINUITY_VALUE_THRESHOLD = DEFAULT_POLICY_CONFIG.continuityThreshold;
 
 const RANK: Record<OpRiskRating, number> = { low: 0, medium: 1, high: 2 };
 const SENSITIVITY_RANK: Record<DataSensitivity, number> = {

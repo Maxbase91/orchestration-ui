@@ -12,12 +12,13 @@
 // so they can later move into the configurable rule store.
 
 import type { RiskRating } from '@/data/types';
+import { DEFAULT_POLICY_CONFIG } from './policy-config';
 
 export type DataSensitivity = 'none' | 'low' | 'medium' | 'high' | 'critical';
 export type Criticality = 'standard' | 'important' | 'critical';
 
 /** Value at/above which a demand is treated as material on size alone. */
-export const MATERIALITY_VALUE_THRESHOLD = 1_000_000;
+export const MATERIALITY_VALUE_THRESHOLD = DEFAULT_POLICY_CONFIG.materialityValueThreshold;
 
 export interface MaterialityInput {
   dataSensitivity?: DataSensitivity;

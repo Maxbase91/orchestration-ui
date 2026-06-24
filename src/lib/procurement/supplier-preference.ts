@@ -7,13 +7,14 @@
 // configurable rule store without changing call sites.
 
 import type { Supplier } from '@/data/types';
+import { DEFAULT_POLICY_CONFIG } from './policy-config';
 
 /** Order value at/above which competitive sourcing applies, unless exempt. */
-export const COMPETITIVE_SOURCING_THRESHOLD = 25000;
+export const COMPETITIVE_SOURCING_THRESHOLD = DEFAULT_POLICY_CONFIG.competitiveSourcingThreshold;
 /** Minimum competitive quotes required above the threshold when not exempt. */
-export const MIN_COMPETITIVE_QUOTES = 3;
+export const MIN_COMPETITIVE_QUOTES = DEFAULT_POLICY_CONFIG.minCompetitiveQuotes;
 /** Performance score at/above which an established supplier qualifies as preferred. */
-export const PREFERRED_MIN_PERFORMANCE = 75;
+export const PREFERRED_MIN_PERFORMANCE = DEFAULT_POLICY_CONFIG.preferredMinPerformance;
 
 /**
  * Preferred-supplier (PSL) determination — a soft preference, not a hard gate.

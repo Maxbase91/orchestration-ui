@@ -8,14 +8,15 @@
 // caller, so it works the same when a live contract source is wired in.
 
 import type { Contract } from '@/data/types';
+import { DEFAULT_POLICY_CONFIG } from './policy-config';
 
 export type ContractKind = 'transactable' | 'framework' | 'expiring';
 export type SecondCheckRecommendation = 'transact' | 'author-sow' | 'renew' | 'new-contract';
 
 /** Headroom: a contract at/above this utilisation can't absorb more directly. */
-export const UTILISATION_HEADROOM = 95;
+export const UTILISATION_HEADROOM = DEFAULT_POLICY_CONFIG.contractUtilisationHeadroom;
 /** Days before expiry within which a contract is flagged as expiring. */
-export const EXPIRY_BUFFER_DAYS = 60;
+export const EXPIRY_BUFFER_DAYS = DEFAULT_POLICY_CONFIG.contractExpiryBufferDays;
 
 export interface SecondContractCheckInput {
   supplierId?: string;

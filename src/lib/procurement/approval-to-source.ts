@@ -17,6 +17,7 @@
 
 import type { RiskTier } from './risk-segmentation';
 import { riskTierRank } from './risk-segmentation';
+import { DEFAULT_POLICY_CONFIG } from './policy-config';
 
 export type ApprovalTier = 'none' | 'light' | 'full';
 
@@ -50,9 +51,9 @@ export interface ApprovalToSourceResult {
 
 /**
  * Value at or above which a demand always needs the full approval-to-source
- * gate. Seedable in the CFG simulation panel (POL-01 default).
+ * gate. Sourced from the central policy config (CFG).
  */
-export const FULL_APPROVAL_VALUE_THRESHOLD = 250_000;
+export const FULL_APPROVAL_VALUE_THRESHOLD = DEFAULT_POLICY_CONFIG.approvalFullThreshold;
 
 const LIGHT_GATES: ApprovalGate[] = [
   {

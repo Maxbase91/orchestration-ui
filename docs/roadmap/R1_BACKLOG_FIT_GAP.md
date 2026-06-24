@@ -65,10 +65,10 @@ the regulated *decisioning + integrations* core is the gap.
 #### CFG — Configuration & Reference-Data Framework — 🟡 Partial
 | Story | Summary | State | Note |
 |---|---|---|---|
-| CFG-01 | Routing & threshold rule engine | 🟡 | `evaluate-routing-rules.ts` real; **risk- and materiality-aware** (supplier risk tier + `material` flow into routing) |
+| CFG-01 | Routing & threshold rule engine | 🟡 | `evaluate-routing-rules.ts` real; **risk- and materiality-aware** (supplier risk tier + `material` flow into routing). **All decisioning thresholds now centralised** in `lib/procurement/policy-config.ts` (`DEFAULT_POLICY_CONFIG` + `resolvePolicyConfig` override seam) — single governed source for approval/materiality/risk-band/competitive-sourcing/contract thresholds |
 | CFG-02 | Approval-chain & threshold-band config | 🟡 | Editor + `approval_chains` table exist (earlier "missing table" note was stale); re-verify saves end-to-end |
 | CFG-03 | Taxonomy & category reference management | 🟡 | **Canonical taxonomy seeded & live** in the `procurement_categories` store (wizard reads it, admin edits it) + **configurable icons**. Pure-data/icons split keeps the server seed clean. Org-specific code scheme still pending |
-| CFG-04 | PSL & competitive sourcing rule management | 🔴 | Not present |
+| CFG-04 | PSL & competitive sourcing rule management | 🟡 | Competitive-sourcing threshold + min-quotes + preferred-supplier performance bar centralised in `policy-config.ts` (tunable via `resolvePolicyConfig`); hard PSL reference list + admin editor still pending |
 | CFG-05 | Catalogue source & link-out config | 🟡 | Catalogue seed only; no source-type/link-out config |
 | CFG-06 | Risk-reuse & contract-reuse criteria config | 🔴 | Only a `reusable` boolean on seed rows |
 | CFG-07 | KB content management w/o change request | 🟢 | `kb-admin-page.tsx` CRUD to Supabase |
