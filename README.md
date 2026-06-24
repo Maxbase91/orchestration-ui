@@ -116,7 +116,7 @@ npm run test:e2e                  # end-to-end request → approval workflow
 npm run test:routing              # routing-rule evaluator
 npm run test:intake               # intake sequence
 npm run test:connectors           # source-connector layer (registry, query, live-swap seam)
-npm run test:preference           # preferred-supplier (PSL) + competitive-sourcing (DTPS) controls
+npm run test:preference           # preferred-supplier (PSL) + competitive-sourcing controls
 npm run test:materiality          # materiality & criticality determination
 npm run test:category-code        # category-code mapping (taxonomy translation)
 npm run test:risk-segmentation    # inherent-risk cascade + risk outcome (reuse/amend/change/new)
@@ -128,7 +128,7 @@ npm run test:second-contract      # second contract check (frameworks/MSAs vs tr
 npm run test:approval-to-source   # approval-to-source gate (light vs full pre-sourcing approvals)
 npm run test:residual-questions   # criteria-triggered stage-5 residual questions (mini-IRQ deltas)
 npm run test:operational-risk     # preliminary operational risk assessment (per-dimension screen)
-npm run test:classification-eval  # classification eval harness + accuracy baseline (FD-E4-GOV1)
+npm run test:classification-eval  # classification eval harness + accuracy baseline (CLS-G1)
 npm run test:admin-editors        # admin config saves
 npm run test:ui                   # browser smoke (Playwright) — wizard end-to-end to the determination screen
 npm run test:e2e-ui               # full-app browser sweep — every route × role, captures console/runtime errors

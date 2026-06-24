@@ -1,9 +1,9 @@
-// Deterministic demand classifier (FD-E4-02).
+// Deterministic demand classifier (CLS-02).
 //
 // The single source of truth for keyword-based category classification, used by
 // the intake step as the local fallback when the governed LLM classifier
 // (AI-001) is unavailable, and benchmarked by the classification eval harness
-// (FD-E4-GOV1, tests/integration/classification-eval.mjs).
+// (CLS-G1, tests/integration/classification-eval.mjs).
 //
 // Rules are evaluated in order, first-match-wins. The order encodes precedence:
 // a "consulting" intent outranks the broad "services" bucket, etc. Anything that

@@ -111,7 +111,7 @@ function matchContract(contract: Contract, ctx: {
 }
 
 /**
- * Staged-intake funnel (FD-E3-10). The check is sequential, not parallel:
+ * Staged-intake funnel (INT-10). The check is sequential, not parallel:
  *   1. Catalogue derivation — try to fulfil from the catalogue first.
  *   2. Contract derivation — only after catalogue is ruled out and the user has
  *      added enrichment detail; we never assert a covering contract before

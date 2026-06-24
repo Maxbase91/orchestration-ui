@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Verifies the preferred-supplier (PSL) and competitive-sourcing (DTPS) controls.
+// Verifies the preferred-supplier (PSL) and competitive-sourcing controls.
 //
 // Self-contained — mirrors src/lib/procurement/supplier-preference.ts. Keep in
 // sync. Run: node tests/integration/supplier-preference.mjs
@@ -27,7 +27,7 @@ function competitiveSourcingCheck({ value, category, isPreferred, exemptCategori
   const belowThreshold = value < COMPETITIVE_SOURCING_THRESHOLD;
   const categoryExempt = exemptCategories.includes(category);
   const exempt = belowThreshold || categoryExempt || isPreferred || singleSourceJustified;
-  return { label: 'Competitive sourcing (DTPS)', passed: exempt };
+  return { label: 'Competitive sourcing', passed: exempt };
 }
 
 // ── PSL determination ──
@@ -41,8 +41,8 @@ check('critical risk → not preferred', isPreferredSupplier({ activeContracts: 
 check('low performance → not preferred', isPreferredSupplier({ activeContracts: 2, riskRating: 'low', performanceScore: 74 }) === false);
 check('undefined supplier → not preferred', isPreferredSupplier(undefined) === false);
 
-// ── DTPS / competitive sourcing ──
-console.log('Competitive sourcing (DTPS)');
+// ── competitive sourcing ──
+console.log('Competitive sourcing');
 check('below threshold is exempt', competitiveSourcingCheck({ value: 10000, category: 'goods', isPreferred: false }).passed === true);
 check('above threshold, not exempt → requires quotes', competitiveSourcingCheck({ value: 50000, category: 'goods', isPreferred: false }).passed === false);
 check('preferred supplier waives quotes', competitiveSourcingCheck({ value: 50000, category: 'goods', isPreferred: true }).passed === true);

@@ -1,4 +1,4 @@
-// Preliminary Operational Risk Assessment (FD-E7-02).
+// Preliminary Operational Risk Assessment (RSK-02).
 //
 // A structured, front-door operational-risk screen across standard operational
 // dimensions. Where the inherent-risk cascade (risk-segmentation.ts) gives a
@@ -8,9 +8,7 @@
 //
 // Standardised / white-label: the dimensions are generic operational-risk
 // categories (business continuity, data handling, concentration, regulatory
-// exposure, access), not any organisation-specific control set. (This is the
-// generalised form of the backlog's "PORA" — the opaque acronym is not used in
-// code or UI.)
+// exposure, access), not any organisation-specific control set.
 
 import type { DataSensitivity } from './materiality';
 

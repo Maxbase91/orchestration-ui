@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Verifies the criteria-triggered residual questions (FD-E3-10, stage 5).
+// Verifies the criteria-triggered residual questions (INT-10, stage 5).
 //
 // Self-contained — mirrors src/lib/procurement/residual-questions.ts. Keep in
 // sync. Run: node tests/integration/residual-questions.mjs

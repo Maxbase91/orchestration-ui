@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Verifies the preliminary operational risk assessment (FD-E7-02).
+// Verifies the preliminary operational risk assessment (RSK-02).
 //
 // Self-contained — mirrors src/lib/procurement/operational-risk-assessment.ts.
 // Keep in sync. Run: node tests/integration/operational-risk.mjs

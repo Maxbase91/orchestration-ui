@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Verifies the approval-to-source gate (FD-E8-05).
+// Verifies the approval-to-source gate (DET-05).
 //
 // Self-contained — mirrors src/lib/procurement/approval-to-source.ts. Keep in
 // sync. Run: node tests/integration/approval-to-source.mjs

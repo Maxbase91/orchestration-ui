@@ -26,7 +26,7 @@ function buildHandoffSteps(input) {
 }
 const byKey = (steps, k) => steps.find((s) => s.key === k);
 
-console.log('Risk-assessment handoff (FD-E7-06)');
+console.log('Risk-assessment handoff (RSK-06)');
 check('reuse → risk assessment not required (no deep-link)', (() => { const s = byKey(buildHandoffSteps({ channel: 'catalogue', riskOutcome: 'reuse', material: false }), 'risk-assessment'); return s.status === 'not-required' && !s.deepLink; })());
 check('amend → recommended (delta)', byKey(buildHandoffSteps({ channel: 'catalogue', riskOutcome: 'amend', material: false }), 'risk-assessment').status === 'recommended');
 check('new → required, routed to risk register', (() => { const s = byKey(buildHandoffSteps({ channel: 'catalogue', riskOutcome: 'new', material: false }), 'risk-assessment'); return s.status === 'required' && s.deepLink === '/suppliers/risk'; })());

@@ -60,7 +60,7 @@ try {
     const errors = [];
     page.on('pageerror', e => errors.push(e.message));
     await page.goto(`${BASE}/requests/new`, { waitUntil: 'networkidle' });
-    // Free text is the only commodity entry — no category tiles (FD-E3-10).
+    // Free text is the only commodity entry — no category tiles (INT-10).
     // Describe the need; the system derives the category.
     await page.locator('#need-input').fill('renew our existing vendor contract for another year');
     await page.locator('#need-input').press('Enter');
@@ -143,7 +143,7 @@ try {
     } catch { /* hang */ }
     check('assistant returns a response (no hang)', responded);
 
-    // CB-E10: the assistant reads the same governed source as the front door —
+    // AST-Q: the assistant reads the same governed source as the front door —
     // look up a real supplier and assert the connector-backed data comes back.
     const { data: sup } = await sb.from('suppliers').select('id').order('id').limit(1).maybeSingle();
     if (sup?.id) {
@@ -157,9 +157,9 @@ try {
           before2, { timeout: 25000 });
         looked = true;
       } catch { /* no governed data returned */ }
-      check('assistant lookup returns governed data via connector ports (CB-E10)', looked, sup.id);
+      check('assistant lookup returns governed data via connector ports (AST-Q)', looked, sup.id);
     } else {
-      check('assistant lookup returns governed data via connector ports (CB-E10)', false, 'no supplier in store');
+      check('assistant lookup returns governed data via connector ports (AST-Q)', false, 'no supplier in store');
     }
 
     check('no uncaught errors in the assistant', errors.length === 0, errors[0]);

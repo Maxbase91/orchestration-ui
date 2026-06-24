@@ -1,4 +1,4 @@
-// Preferred-supplier (PSL) and competitive-sourcing (DTPS) controls.
+// Preferred-supplier (PSL) and competitive-sourcing controls.
 //
 // Standardised, organisation-agnostic procurement rules used by the front-door
 // checks. Both are SOFT preferences/controls surfaced to the user — never hard
@@ -45,7 +45,7 @@ export interface PolicyCheck {
 }
 
 /**
- * Competitive-sourcing (DTPS) check. Above the threshold, competitive quotes are
+ * Competitive-sourcing check. Above the threshold, competitive quotes are
  * required unless the demand is exempt: routed to a preferred (PSL) supplier, in
  * an exempt category, or covered by an explicit single-source justification.
  */
@@ -75,7 +75,7 @@ export function competitiveSourcingCheck(params: {
   else if (singleSourceJustified) detail = 'Single-source justification on file';
   else detail = `Requires a minimum of ${MIN_COMPETITIVE_QUOTES} competitive quotes`;
 
-  return { label: 'Competitive sourcing (DTPS)', passed: exempt, detail };
+  return { label: 'Competitive sourcing', passed: exempt, detail };
 }
 
 /** Soft policy check surfacing whether the selected supplier is on the PSL. */

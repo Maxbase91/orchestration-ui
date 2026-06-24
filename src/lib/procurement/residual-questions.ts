@@ -1,4 +1,4 @@
-// Criteria-triggered residual questions (FD-E3-10, stage 5).
+// Criteria-triggered residual questions (INT-10, stage 5).
 //
 // The front door derives as much as it can from the service description, then
 // asks only the residual questions that the derived signals leave open AND that

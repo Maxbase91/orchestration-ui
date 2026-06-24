@@ -100,9 +100,9 @@ try {
   await page.getByRole('button', { name: /Next/ }).click();              // → step 4 (risk)
   await page.getByText('Mini risk questionnaire').waitFor({ timeout: 15000 });
   check('risk step renders the mini-IRQ delta capture', true);
-  check('preliminary operational risk assessment renders (FD-E7-02)',
+  check('preliminary operational risk assessment renders (RSK-02)',
     (await page.getByText('Preliminary operational risk', { exact: true }).count()) > 0);
-  // The residual questions are criteria-driven (FD-E3-10 stage 5): the
+  // The residual questions are criteria-driven (INT-10 stage 5): the
   // critical-service question shows because the spend is material in size, and
   // it states why it's being asked.
   check('residual question is criteria-triggered (shows its rationale)',
@@ -137,13 +137,13 @@ try {
   // Policy checks render only when the Request Validator agent (AI-002) is
   // active (an admin toggle); otherwise the step shows the validator notice.
   // Assert the policy-check region rendered in a valid state, and when the
-  // validator is active, that the new DTPS + PSL checks are the ones surfaced.
-  const dtps = await page.getByText('Competitive sourcing (DTPS)').count();
+  // validator is active, that the new competitive sourcing + PSL checks are the ones surfaced.
+  const dtps = await page.getByText('Competitive sourcing').count();
   const validatorNotice = await page.getByText('Request Validator agent').count();
-  check('policy-check region renders (DTPS checks when validator active, else notice)',
+  check('policy-check region renders (competitive sourcing checks when validator active, else notice)',
     dtps > 0 || validatorNotice > 0, `dtps=${dtps} notice=${validatorNotice}`);
   if (dtps > 0) {
-    check('preferred-supplier (PSL) check surfaces alongside DTPS',
+    check('preferred-supplier (PSL) check surfaces alongside competitive sourcing',
       (await page.getByText('Preferred-supplier routing').count()) > 0);
   }
 

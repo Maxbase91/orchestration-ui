@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Classification eval harness + accuracy baseline (FD-E4-GOV1).
+// Classification eval harness + accuracy baseline (CLS-G1).
 //
 // Benchmarks the deterministic demand classifier against a labelled set and
 // reports accuracy + a per-category breakdown. Gates on a baseline so keyword

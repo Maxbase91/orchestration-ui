@@ -1,4 +1,4 @@
-// Approval-to-source gate (FD-E8-05).
+// Approval-to-source gate (DET-05).
 //
 // Before a demand can move into sourcing, the front door determines which
 // pre-sourcing approval gates are required, based on value, materiality and
@@ -6,7 +6,7 @@
 // names generic roles (demand validation, cost-centre, intent-to-source,
 // category approval) rather than any organisation-specific committee.
 //
-// Two tiers, mirroring the routing defaults (OI-01):
+// Two tiers, mirroring the routing defaults (POL-01):
 //   - light: low/medium risk, below the full-approval value threshold and not
 //            material → demand validation + cost-centre sign-off.
 //   - full:  at/above the threshold, OR material, OR high/critical inherent
@@ -50,7 +50,7 @@ export interface ApprovalToSourceResult {
 
 /**
  * Value at or above which a demand always needs the full approval-to-source
- * gate. Seedable in the FD-E1 simulation panel (OI-01 default).
+ * gate. Seedable in the CFG simulation panel (POL-01 default).
  */
 export const FULL_APPROVAL_VALUE_THRESHOLD = 250_000;
 

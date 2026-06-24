@@ -44,7 +44,7 @@ A change is not done until **all** of these hold (state explicitly if you delibe
    - the module's own `README.md` (e.g. `src/lib/integrations/README.md`);
    - the root `README.md` — capabilities, **Project Structure**, and the **Testing** script list;
    - `docs/testing/TEST_PLAYBOOK.md` — the suite/scope for the area;
-   - `docs/roadmap/R1_BACKLOG_FIT_GAP.md` — flip the affected backlog story/epic status when a gap closes.
+   - `docs/roadmap/R1_BACKLOG_FIT_GAP.md` — flip the affected roadmap story/epic status when a gap closes.
 
 ---
 
@@ -53,7 +53,7 @@ A change is not done until **all** of these hold (state explicitly if you delibe
   React Router 7, Tailwind 4, shadcn/ui, Zustand 5, TanStack Query 5, React Hook Form 7 + Zod 4.
 - **Backend:** Supabase (Postgres) — schema in `supabase/schema.sql`; Vercel serverless functions in `api/`.
 - **AI:** assistant via `api/chat.ts` using **Groq + Gemini** (the governed providers — free tier,
-  already connected). **Model selection is governed (FD-E4-GOV0):** keep Groq + Gemini; do **not**
+  already connected). **Model selection is governed (CLS-G0):** keep Groq + Gemini; do **not**
   add a paid provider (e.g. Claude) or any new model provider without explicit approval.
 
 ## Commands
@@ -79,7 +79,7 @@ entitled roles.
 
 ## Source-of-truth docs
 See `docs/README.md` for the full map (specs / roadmap / testing / archive). Key ones:
-- `docs/roadmap/R1_BACKLOG_FIT_GAP.md` — fit/gap vs the R1 backlog + the workstream roadmap (what to build next).
+- `docs/roadmap/R1_BACKLOG_FIT_GAP.md` — Release-1 capability roadmap + fit/gap (what to build next).
 - `docs/testing/TEST_PLAYBOOK.md` — full test scope (manual suites + automated `test:*`).
 - `src/lib/integrations/README.md` — the connector layer and the live-swap seam.
 - `docs/specs/functional-specification.md`, `docs/specs/design-document.md` — feature + UX spec.

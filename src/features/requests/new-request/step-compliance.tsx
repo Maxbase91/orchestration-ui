@@ -368,7 +368,7 @@ export function StepCompliance({
       channel: routing.channel,
       category,
       hasFrameworkOrContract: hasContract,
-      // Scope/headroom signals (FD-E8-08): a material demand on an existing
+      // Scope/headroom signals (DET-08): a material demand on an existing
       // agreement needs a change; a transactable contract has capacity (SOW),
       // otherwise the agreement is amended to extend coverage.
       scopeChange: materiality.material ? 'material' : 'none',
@@ -662,7 +662,7 @@ export function StepCompliance({
         </div>
       </div>
 
-      {/* Approval to source — the pre-sourcing gate (FD-E8-05): which
+      {/* Approval to source — the pre-sourcing gate (DET-05): which
           approvals are required before the demand can move into sourcing. */}
       {result.approvalToSource && (
         <div className="rounded-lg border border-gray-200 bg-white p-4">
