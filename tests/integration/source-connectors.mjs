@@ -180,7 +180,7 @@ async function main() {
   // it (or vice versa) fails here.
   const EXPECTED_OBJECTS = [
     'supplier', 'contract', 'purchase-request', 'purchase-order',
-    'invoice', 'risk-assessment', 'catalogue-item',
+    'invoice', 'risk-assessment', 'catalogue-item', 'payment',
   ].sort();
 
   const ownStoreDir = 'src/lib/integrations/own-store';

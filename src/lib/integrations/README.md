@@ -36,9 +36,14 @@ Nothing here is specific to any organisation or industry. The upstream
 | `invoice` | `db/invoices` | `accounts-payable` |
 | `risk-assessment` | `db/risk-assessments` | `risk-register` |
 | `catalogue-item` | `db/catalogue-items` | `catalogue` |
+| `payment` | `db/payments` | `accounts-payable-master` |
 
-Not yet wired (no own-store read module): `support-ticket`, `payment`, `risk-screening`,
-`category-taxonomy`, `form-submission` — add a connector behind the ports when their data lands.
+`payment` is the supplier banking/payment master — a vendor-data **foundation** (not an R1 flow);
+its `iban`/`bic` are sensitive and must be masked when surfaced. Seed-backed today; the `db/payments`
+module is the seam to a Supabase table / live AP source later.
+
+Not yet wired (no own-store read module): `support-ticket`, `risk-screening`, `category-taxonomy`,
+`form-submission` — add a connector behind the ports when their data lands.
 Coverage is guarded by `npm run test:connectors` (drift guard).
 
 ## Reading data

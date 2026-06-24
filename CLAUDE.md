@@ -52,9 +52,9 @@ A change is not done until **all** of these hold (state explicitly if you delibe
 - **Frontend:** React 19 + Vite 8, TypeScript 6 (strict; `noUnusedLocals`/`noUnusedParameters`),
   React Router 7, Tailwind 4, shadcn/ui, Zustand 5, TanStack Query 5, React Hook Form 7 + Zod 4.
 - **Backend:** Supabase (Postgres) — schema in `supabase/schema.sql`; Vercel serverless functions in `api/`.
-- **AI:** assistant via `api/chat.ts` using Groq/Gemini today. **Model selection is governed** — for
-  classification + assistant tiers prefer **Claude** (see FD-E4-GOV0); do not add a new model provider
-  without flagging it.
+- **AI:** assistant via `api/chat.ts` using **Groq + Gemini** (the governed providers — free tier,
+  already connected). **Model selection is governed (FD-E4-GOV0):** keep Groq + Gemini; do **not**
+  add a paid provider (e.g. Claude) or any new model provider without explicit approval.
 
 ## Commands
 ```bash

@@ -186,6 +186,30 @@ export interface Invoice {
   paidDate?: string;
 }
 
+/**
+ * Supplier payment / banking master — vendor-data foundation (not an R1 flow).
+ * Read through the `payment` source-connector port. `iban` and `bic` are
+ * sensitive: they must be masked by default and shown only to entitled roles
+ * when surfaced (per the platform's masking rule).
+ */
+export interface SupplierPayment {
+  id: string;
+  supplierId: string;
+  supplierName: string;
+  bankName: string;
+  accountHolder: string;
+  /** Sensitive — mask by default. */
+  iban: string;
+  /** Sensitive — mask by default. */
+  bic: string;
+  currency: string;
+  /** e.g. 'Net 30', 'Net 60'. */
+  paymentTerms: string;
+  preferredMethod: 'bank-transfer' | 'card' | 'direct-debit';
+  verificationStatus: 'verified' | 'pending' | 'unverified';
+  verifiedAt?: string;
+}
+
 export interface Notification {
   id: string;
   type: 'approval-request' | 'status-update' | 'sla-warning' | 'escalation' | 'comment' | 'system-alert' | 'ai-insight';

@@ -78,13 +78,14 @@ express as **own-store read ports** behind the connector interface; live/MCP is 
 **Done (WS-0 + WS-B breadth):** the standardised connector layer is in place —
 `src/lib/integrations/{ports,registry}.ts`, `own-store/factory.ts`, `useSourceObject`/`useSourceList`
 hooks, the documented live-swap seam (`src/lib/integrations/README.md`), and own-store connectors for
-**seven objects** (supplier, contract, purchase-request, purchase-order, invoice, risk-assessment,
-catalogue-item); covered by `npm run test:connectors` (22 checks incl. a drift guard).
+**eight objects** (supplier, contract, purchase-request, purchase-order, invoice, risk-assessment,
+catalogue-item, **payment** — supplier banking/payment master, a vendor-data foundation behind the
+ports); covered by `npm run test:connectors` (drift guard pins the object set).
 **Consumers routed:** the front-door catalogue + contract checks (`step-pre-check.tsx`), the
 supplier/contract reads in `step-compliance.tsx` (`useSourceData`), and the **assistant lookups**
 (`src/lib/assistant/capabilities/lookup.ts` now reads suppliers/requests/contracts/POs/invoices/risk
 through `requireConnector(...)` — so the chatbot and front door share one governed source).
-**Remaining:** connectors for objects without an own-store read module yet (support-ticket, payment,
+**Remaining:** connectors for objects without an own-store read module yet (support-ticket,
 risk-screening, category-taxonomy, form-submission); routing **risk reuse-matching** through the ports
 (needs validity-window query support — WS-C) and the **server-side** assistant path (`api/chat.ts`
 needs a server connector variant — WS-E).
@@ -116,7 +117,7 @@ FD-E15-01 component library 🟢; FD-E15-02 journeys 🟡 (confirm from contextu
 | FD-E4-01 | AI classification + catalogue/contract sufficiency | 🟡 | Real LLM (Groq/Gemini); now validates against the **configured taxonomy** (not a separate hardcoded list). The deterministic fallback classifier is centralised in `lib/procurement/classify.ts` (single source of truth, benchmarked) |
 | FD-E4-02 | Category-code assignment & taxonomy translation | 🟡 | `lib/procurement/category-code.ts` — keyword → standardised code, **category-aware** with **per-category default codes** so every demand resolves; centralises the old commodity map. Organisation-specific code scheme pending |
 | FD-E4-03 | Low-confidence handling & manual override | 🟢 | The AI classification is shown with extracted details before it's accepted; if it's wrong the user **re-describes** ("Try again") rather than picking from a commodity-category grid (which has been removed — categories are derived, not chosen) |
-| FD-E4-GOV0 | AI governance & **model selection** | 🔴 | No governance; runs Groq/Gemini (recommend Claude) |
+| FD-E4-GOV0 | AI governance & **model selection** | 🟢 | **Decided: keep Groq + Gemini** (governed providers, free tier, already connected); a paid provider (e.g. Claude) is **not** adopted and no new provider is added without explicit approval |
 | FD-E4-GOV1 | Classification eval harness & baseline | 🟡 | `npm run test:classification-eval` — labelled benchmark over the deterministic classifier with a per-category breakdown and an **accuracy-baseline gate (≥85%)** so rule changes can't silently regress (currently 95.8%). LLM-tier eval still needs the governed endpoint |
 | FD-E4-GOV6/7, AGT5/7 | Quality monitoring, model change mgmt, tuning, observability | 🔴 | Not present |
 | FD-E4-BFF2 | Classification aggregation API | 🟡 | `/api/ai.ts` exists |
@@ -269,7 +270,7 @@ CB-E14-03 eight-language 🔴 · CB-E14-04 deep-link to source 🟢.
 |---|---|---|---|
 | **WS-0** | Unblock platform — ✅ **connector interface built** (`src/lib/integrations`, tested); core tables already present; remaining: architecture decisions, data-shape spikes | S0–S1 | FD-E1-WF0, FD-E1-ARC0, FD-E4-GOV0, OI-26/27/09 |
 | **WS-A** | Decisioning data & reference plane (taxonomy, PSL, DTPS, reuse criteria, routing table from OI-01); make routing risk/materiality-aware — 🟡 **risk- & materiality-aware routing**, **taxonomy generalised**, **PSL/DTPS checks**, **materiality**, **category-code mapping**, **taxonomy store seeded/live** done; remaining: org-specific code scheme, hard PSL reference list | S1–S3 | FD-E1-01..06, FD-E4-02 |
-| **WS-B** | Own data model behind connector ports — 🟢 **7 objects wired** (supplier, contract, request, PO, invoice, risk, catalogue); remaining: ticket/payment/screening/taxonomy/form objects + route consumers through ports | S1–S4 | FD-E2A-01..05, FD-E2B-01/03 |
+| **WS-B** | Own data model behind connector ports — 🟢 **8 objects wired** (supplier, contract, request, PO, invoice, risk, catalogue, **payment**); remaining: ticket/screening/taxonomy/form objects + route remaining consumers through ports | S1–S4 | FD-E2A-01..05, FD-E2B-01/03 |
 | **WS-C** | Regulated risk & materiality engine — 🟢 **cascade + non-binary outcome + materiality + mini-IRQ delta + structured reuse model + assessment handoff + preliminary operational risk assessment** done; remaining: risk-matching hardening (FD-E7-AGT6) | S3–S5 | FD-E7-01..09, FD-E8-10 |
 | **WS-D** | Complete front-door determination — 🟢 **done**: contract/sourcing type (incl. amend/change), handoff, two-step split, exportable endpoint, 2nd contract check, approval-to-source gate | S4–S6 | FD-E5-07, FD-E8-04/05/08/09, FD-E9 |
 | **WS-F** | Staged-Intake Funnel redesign — 🟢 **done**: free-text-primary entry + sequential catalogue→enrich→contract→full-SD funnel (no premature catalogue/contract assertions) + **criteria-triggered stage-5 residual questions** (`residual-questions.ts`) | S4–S6 | **FD-E3-10**, FD-E3-02, FD-E4-01/03, FD-E5-01/02/05/06 |
@@ -300,7 +301,7 @@ simulation panel before go-live:
 
 ## 7. Decisions to confirm
 
-1. **Model selection** (FD-E4-GOV0): recommend **Claude** for classification + assistant tiers (currently Groq/Gemini).
+1. **Model selection** (FD-E4-GOV0): ✅ **decided — keep Groq + Gemini** (free tier, already connected); no paid provider (e.g. Claude) without explicit approval.
 2. Accept the OI recommended-defaults (§6) as seed config, to refine in the simulation panel.
 3. Confirm the own-DB approach covers **all** named source objects and the data volume needed for credible demos/UAT.
 4. Which workstream to start: **WS-0** (unblock) is the natural first step; **WS-A** delivers the most visible value.
