@@ -56,7 +56,7 @@ async function classifyWithAI(input: string): Promise<AIClassification | null> {
     const res = await fetch('/api/ai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: `CLASSIFY THIS PROCUREMENT REQUEST. Return the category, extracted details, and a professional description.\n\nUser input: "${input}"\n\nIMPORTANT: Respond with JSON containing: {"intent":"new-request","message":"...","catalogueItems":[],"links":[],"category":"goods|services|software|consulting|contingent-labour|contract-renewal|supplier-onboarding|catalogue","extractedTitle":"professional title","extractedSupplier":"supplier name or empty","extractedValue":0,"generatedDescription":"2-3 sentence professional service/goods description based on the input"}` }),
+      body: JSON.stringify({ query: `CLASSIFY THIS PROCUREMENT REQUEST. Return the category, extracted details, and a professional description.\n\nUser input: "${input}"\n\nIMPORTANT: Respond with JSON containing: {"intent":"new-request","message":"...","catalogueItems":[],"links":[],"category":"goods|services|software|consulting|contingent-labour|contract-renewal|supplier-onboarding|catalogue","extractedTitle":"professional title","extractedSupplier":"supplier name or empty","extractedValue":0,"generatedDescription":"a 3-4 sentence business justification: what is needed, the intended outcome, and why it is required — this becomes the request's justification, so make it substantive"}` }),
     });
     if (!res.ok) return null;
     const data = await res.json();
@@ -91,7 +91,9 @@ function localClassify(input: string): AIClassification {
     title: input,
     supplier,
     estimatedValue: 0,
-    description: `Procurement request for ${input}.`,
+    // A fuller business justification (not a one-liner): restate the full need
+    // and its intended outcome so the Justification field is substantive.
+    description: `Business need: ${input.trim()}. This procurement supports business operations and is raised via the front door for classification, risk assessment and routing to the appropriate buying channel.`,
     confidence: 0.7,
   };
 }
