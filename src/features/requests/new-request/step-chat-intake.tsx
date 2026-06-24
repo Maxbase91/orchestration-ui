@@ -48,10 +48,14 @@ const WELCOME_MESSAGES: Record<string, string> = {
   'contingent-labour': "I'll help you request temporary staff or contractors. What role or skills do you need?",
 };
 
+// Key facts captured during intake. Supplier is intentionally NOT here — it is
+// selected later (during compliance / supplier identification), so showing it
+// as "Pending" was misleading and dragged the progress down. When a supplier IS
+// already known (e.g. named in the demand), the "Supplier Matched" chip below
+// surfaces it.
 const FIELD_LABELS: { key: string; label: string }[] = [
   { key: 'title', label: 'Description' },
   { key: 'category', label: 'Commodity Code' },
-  { key: 'supplier', label: 'Supplier' },
   { key: 'estimatedValue', label: 'Estimated Value' },
   { key: 'deliveryDate', label: 'Delivery Timeline' },
   { key: 'businessJustification', label: 'Justification' },
@@ -564,9 +568,13 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
                 })}
               </div>
 
-              {data.supplierId && (
+              {/* Only shown when a supplier is already known (named in the
+                  demand); otherwise the supplier is chosen later in compliance. */}
+              {data.supplier && (
                 <div className="rounded-md bg-green-50 border border-green-100 px-2 py-1.5">
-                  <p className="text-[9px] font-medium text-green-600 uppercase tracking-wider">Supplier Matched</p>
+                  <p className="text-[9px] font-medium text-green-600 uppercase tracking-wider">
+                    {data.supplierId ? 'Supplier Matched' : 'Supplier Named'}
+                  </p>
                   <p className="text-[11px] text-green-800">{data.supplier}</p>
                 </div>
               )}
