@@ -154,56 +154,53 @@ async function scenarioNoMatch(catalogueItems, contracts) {
   assert(conMatches.length === 0, 'no-match: contracts yield nothing for exotic query', `con=${conMatches.length}`);
 }
 
-async function scenarioChatIntakePromptMandatorySow() {
-  // The chat-intake system prompt lives in the serverless function. We don't
-  // call the endpoint (that would burn a real LLM credit); we read the
-  // committed file and assert the SOW branch was removed.
+async function scenarioChatIntakePromptDynamic() {
+  // The intake conversation is now ENGINE-driven, not a hard-coded sequence.
+  // We read the committed files (calling the endpoint would burn an LLM credit)
+  // and assert the static sequence is gone and the dynamic agenda is injected.
   const src = readFileSync(new URL('../../api/chat-intake.ts', import.meta.url), 'utf8');
   assert(
-    !src.includes('Would you like me to help build a detailed service description'),
-    'chat: optional-SOW prompt removed from server',
+    !src.includes('STRICT QUESTION SEQUENCE') && !/STEP 1:[\s\S]*STEP 7:/.test(src),
+    'chat: static 7-step question sequence removed from server',
   );
   assert(
-    src.includes('SOW is MANDATORY'),
-    'chat: mandatory-SOW enforcement present',
+    src.includes("from '../src/lib/procurement/demand-conversation.js'") && src.includes('determineNextQuestion'),
+    'chat: question order driven by the demand-conversation engine',
   );
   assert(
-    src.includes('Never ask "do you want a detailed SOW?"') || src.includes('Never offer to "keep it quick"'),
-    'chat: explicit rule against offering to skip SOW',
+    src.includes('YOUR NEXT MESSAGE') && src.includes('Ask EXACTLY this one question'),
+    'chat: prompt injects the single engine-selected next question',
   );
   assert(
-    src.includes('NEVER ask meta-questions') &&
-    src.includes('Would you like to refine this?') &&
-    src.includes('step directly to the NEXT question'),
-    'chat: explicit rule forbids refine/expand meta-questions',
+    src.includes('full service description (SOW) is required'),
+    'chat: mandatory-SOW intent retained',
   );
   assert(
-    src.includes('INTERNAL FINALISATION') &&
-    src.includes('NEVER return the literal strings "Set complete=true"'),
-    'chat: explicit rule forbids leaking internal step directives as nextQuestion',
+    src.includes('NEVER ask meta-questions'),
+    'chat: meta-questions still forbidden',
+  );
+  assert(
+    src.includes("requester's location/country") && src.includes('who the request is for'),
+    'chat: never asks requester location or beneficiary (handled outside the chat)',
   );
 
-  // Client-side welcome message must also not offer to refine — it should
-  // dive into the next question in the sequence instead.
+  // The client drives the next question + completeness through the engine, not
+  // a static sequence — and no longer needs an instruction-leak sanitiser.
   const clientSrc = readFileSync(
     new URL('../../src/features/requests/new-request/step-chat-intake.tsx', import.meta.url),
     'utf8',
   );
-
-  // Client-side guard strips leaked instructions.
   assert(
-    clientSrc.includes('INSTRUCTION_LEAKS') &&
-    clientSrc.includes('set\\s+complete') &&
-    clientSrc.includes('Thanks — all details captured'),
-    'chat: client sanitises leaked instruction text from nextQuestion',
+    clientSrc.includes('determineNextQuestion') && clientSrc.includes('isConversationComplete'),
+    'chat: client selects the next question + completeness via the engine',
+  );
+  assert(
+    !clientSrc.includes('firstMissingQuestion'),
+    'chat: static firstMissingQuestion sequence removed from client',
   );
   assert(
     !clientSrc.includes('Would you like to refine this'),
-    'chat: welcome does not ask "refine or ask questions"',
-  );
-  assert(
-    clientSrc.includes('firstMissingQuestion'),
-    'chat: welcome routes to the next unanswered question in the mandated sequence',
+    'chat: welcome does not offer to refine',
   );
 }
 
@@ -304,7 +301,7 @@ async function main() {
   await scenarioCatalogueMatch(catalogueItems);
   await scenarioContractMatch(contracts);
   await scenarioNoMatch(catalogueItems, contracts);
-  await scenarioChatIntakePromptMandatorySow();
+  await scenarioChatIntakePromptDynamic();
   await scenarioRiskTriagePrefill();
   await scenarioRiskTriageGate();
 

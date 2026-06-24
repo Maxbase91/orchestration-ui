@@ -1,94 +1,59 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { callLLM } from '../src/lib/llm.js';
+import {
+  determineNextQuestion,
+  buildAgenda,
+  isConversationComplete,
+  type DemandConversationContext,
+} from '../src/lib/procurement/demand-conversation.js';
 
-const SYSTEM_PROMPT = `You are a procurement intake assistant. Follow the EXACT question sequence below. ONE question at a time.
+// Base intake assistant rules. The QUESTION ORDER is NOT hard-coded here — it is
+// computed per-turn by the demand-conversation engine and injected below, so the
+// conversation adapts to prior answers and never re-asks known facts.
+const BASE_PROMPT = `You are a procurement intake assistant. Capture a demand through a short, ADAPTIVE conversation — ONE question at a time.
 
-The user has already been shown any matching catalogue items and active contracts upstream. They are only in this chat because neither fit — which means a full service description (SOW) is REQUIRED to drive downstream supplier selection, risk assessment, and sourcing strategy. Never offer to "keep it quick" or skip SOW.
-
-## STRICT QUESTION SEQUENCE
-
-Follow this order EXACTLY. Skip any question where the data is already in "Data collected so far".
-
-STEP 1: "What do you need? Please describe what you're looking to procure."
-→ Extract: title, supplier (if mentioned)
-
-STEP 2: "What's the estimated budget for this? (e.g. €50,000 or 150k)"
-→ Extract: estimatedValue
-
-STEP 3: "When do you need this delivered by?"
-→ Extract: deliveryDate
-
-STEP 4: "What's the primary objective of this engagement?"
-→ Extract: serviceDescription.objective
-
-STEP 5: "What should be in scope — and anything explicitly out of scope?"
-→ Extract: serviceDescription.scope
-
-STEP 6: "What are the key deliverables?"
-→ Extract: serviceDescription.deliverables
-
-STEP 7: "What resources, skills or team size does this need?"
-→ Extract: serviceDescription.resources
-
-INTERNAL FINALISATION (do NOT output this as a message to the user):
-once STEP 7 is answered, set complete=true, generate the narrative from
-all collected SOW fields, and return a short natural-language closing
-like "Thanks — all details captured, you can proceed to the next step."
-NEVER return the literal strings "Set complete=true", "Generate narrative",
-"STEP 8" or similar internal instructions as nextQuestion.
-
-MAXIMUM 7 questions to the user. SOW is MANDATORY — do NOT set
-complete=true before objective + scope + deliverables + resources are
-all populated.
+The user is here because no catalogue item or active contract fit, so a full service description (SOW) is required to drive supplier selection, risk and sourcing.
 
 ## RULES
-- Follow the sequence above — do NOT reorder or add extra questions
-- Skip steps where data is already provided in "Data collected so far"
-- Extract ALL data from each answer (if user gives value + timeline in one answer, capture both and skip ahead)
-- Do NOT ask about cost centre
-- Keep questions under 2 sentences
-- Give one brief example with each question relevant to the category
-- If the user provides enough info in the first message (title + value + objective), skip the questions whose fields are already known
-- Never ask "do you want a detailed SOW?" — the SOW is mandatory
-- NEVER ask meta-questions. Do NOT say any of:
-  - "Would you like to refine this?"
-  - "Shall I ask you a few questions to make it stronger?"
-  - "Do you want more detail?"
-  - "Should we proceed / continue / expand?"
-  Always step directly to the NEXT question in the sequence, even if previous answers look thin.
-- Do NOT summarise what the user just said before asking the next question. Ask the question directly.
+- Ask ONLY the single next question provided below. Do NOT invent, reorder, batch or skip ahead.
+- Extract ALL data the user provides in their answer — if they give value + timeline together, capture both.
+- Skip anything already in "Data collected so far".
+- Keep the question under 2 sentences; do not summarise the user's last answer before asking.
+- NEVER ask meta-questions ("Would you like to refine this?", "Shall I ask more?", "Should we proceed/continue/expand?", "Do you want a detailed SOW?"). Step straight to the next question.
+- Do NOT ask about cost centre, the requester's location/country, or who the request is for — those are captured outside this chat.
+- NEVER output internal directives (e.g. "STEP 3", "set complete=true", "generate narrative") as the message text.
 
 Known suppliers: Accenture, SAP SE, Deloitte, KPMG, Capgemini, AWS, Microsoft, Siemens, Bosch, WPP, Sodexo, Randstad, Hays, Iron Mountain, Konica Minolta
 
-## SOW FIELDS (all required before complete=true)
-- objective, scope, deliverables, resources (the 4 core fields)
-- timeline, acceptanceCriteria, pricingModel, location, dependencies (optional — only include if user volunteers them)
-
-## WHEN COMPLETE
-Only set complete=true after objective, scope, deliverables and resources are all populated.
-Generate:
-1. "narrative": professional 2-3 paragraph summary of all collected SOW fields
-2. Set businessJustification to the narrative
-- If an answer is thin, silently capture it and move on — do NOT prompt the user to strengthen it.
-- For goods/software categories, adapt SOW fields (e.g., "deliverables" = items/features, "acceptance criteria" = testing/quality)
+## EXTRACTION TARGETS
+- Top-level request fields → "extracted": title, supplier, estimatedValue, deliveryDate, businessJustification, isUrgent.
+- SOW elements → "serviceDescription": objective, scope, deliverables, resources, timeline, acceptanceCriteria, pricingModel, location, dependencies, narrative. Accumulate — include ALL previously collected SOW fields plus any new ones from this turn.
 
 Respond with ONLY JSON:
 {
-  "extracted": {
-    "title": "...", "supplier": "...", "estimatedValue": 0, "deliveryDate": "...",
-    "businessJustification": "...", "isUrgent": false
-  },
-  "serviceDescription": {
-    "objective": "...", "scope": "...", "deliverables": "...", "timeline": "...",
-    "resources": "...", "acceptanceCriteria": "...", "pricingModel": "...",
-    "location": "...", "dependencies": "...", "narrative": "..."
-  },
-  "nextQuestion": "Your next question with category-specific example",
+  "extracted": { "title": "...", "supplier": "...", "estimatedValue": 0, "deliveryDate": "...", "businessJustification": "...", "isUrgent": false },
+  "serviceDescription": { "objective": "...", "scope": "...", "deliverables": "...", "timeline": "...", "resources": "...", "acceptanceCriteria": "...", "pricingModel": "...", "location": "...", "dependencies": "...", "narrative": "..." },
+  "nextQuestion": "Your phrasing of the single next question below",
   "complete": false,
   "summary": "One-line summary"
 }
+Only include fields you have actually extracted.`;
 
-Only include fields you have actually extracted. serviceDescription fields should accumulate — include ALL previously collected fields plus any new ones from this turn.`;
+/** Build the engine context from the running "data collected so far". */
+function contextFrom(category: string, soFar: Record<string, unknown>): DemandConversationContext {
+  const sow = (soFar.serviceDescription ?? {}) as Record<string, string | undefined>;
+  return {
+    category,
+    title: (soFar.title as string) || undefined,
+    estimatedValue: (soFar.estimatedValue as number) || undefined,
+    deliveryDate: (soFar.deliveryDate as string) || undefined,
+    sow: {
+      objective: sow.objective, scope: sow.scope, deliverables: sow.deliverables,
+      resources: sow.resources, timeline: sow.timeline, acceptanceCriteria: sow.acceptanceCriteria,
+      pricingModel: sow.pricingModel, dependencies: sow.dependencies,
+    },
+  };
+}
 
 export const config = { maxDuration: 30 };
 
@@ -97,7 +62,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const { messages, category, extractedSoFar } = req.body;
 
-  const systemMessage = `${SYSTEM_PROMPT}\n\nRequest category: ${category}\nData collected so far: ${JSON.stringify(extractedSoFar ?? {})}`;
+  // The engine decides what to ask next from everything captured so far.
+  const ctx = contextFrom(category ?? 'goods', (extractedSoFar ?? {}) as Record<string, unknown>);
+  const next = determineNextQuestion(ctx);
+  const complete = isConversationComplete(ctx);
+  const remaining = buildAgenda(ctx).map((s) => s.id).join(', ') || 'none';
+
+  const agendaBlock = next
+    ? `## YOUR NEXT MESSAGE\nAsk EXACTLY this one question (rephrase only for tone, keep it a single short question):\n"${next.prompt}"\nThe user's answer fills the "${next.slot.target.kind === 'sow' ? 'serviceDescription.' : ''}${next.slot.target.field}" field.\nStill to capture after this (do NOT ask these yet): ${remaining}.`
+    : `## YOUR NEXT MESSAGE\nAll required details are captured. Do NOT ask anything else. Set complete=true, generate "narrative" (a professional 2-3 paragraph SOW summary), set businessJustification to it, and return a short closing like "Thanks — all details captured, you can proceed to the next step."`;
+
+  const systemMessage = `${BASE_PROMPT}\n\n${agendaBlock}\n\nRequest category: ${category}\nConversation complete: ${complete}\nData collected so far: ${JSON.stringify(extractedSoFar ?? {})}`;
 
   try {
     const content = await callLLM({

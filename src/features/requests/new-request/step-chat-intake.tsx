@@ -8,6 +8,12 @@ import { cn } from '@/lib/utils';
 import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
 import { getAICommodityCode } from '@/lib/mock-ai';
 import { formatCurrency } from '@/lib/format';
+import {
+  determineNextQuestion,
+  isConversationComplete,
+  requiredSlotsFilled,
+  type DemandConversationContext,
+} from '@/lib/procurement/demand-conversation';
 import type { ServiceDescription } from './new-request-page';
 
 interface StepChatIntakeProps {
@@ -64,10 +70,36 @@ const SOW_SECTIONS: { key: string; label: string }[] = [
 ];
 
 
-// --- Deterministic fallback: SOW is mandatory, so collect all 4 core SOW fields
-//     before marking complete. Used only when the LLM endpoint is unavailable.
+// Build the dynamic-conversation engine context from the request data + the SOW
+// captured so far. The engine decides the next question and completeness from
+// this — so behaviour is identical whether the LLM is up or we use the fallback.
+function buildContext(
+  category: string,
+  data: StepChatIntakeProps['data'],
+  sow: Partial<ServiceDescription>,
+): DemandConversationContext {
+  return {
+    category,
+    title: data.title || undefined,
+    estimatedValue: data.estimatedValue || undefined,
+    deliveryDate: data.deliveryDate || undefined,
+    sow: {
+      objective: sow.objective, scope: sow.scope, deliverables: sow.deliverables,
+      resources: sow.resources, timeline: sow.timeline, acceptanceCriteria: sow.acceptanceCriteria,
+      pricingModel: sow.pricingModel, dependencies: sow.dependencies,
+    },
+  };
+}
+
+/**
+ * Deterministic fallback used only when the LLM endpoint is unavailable. Writes
+ * the user's answer into whichever slot the engine is currently asking for, then
+ * asks the engine for the next one — so the same adaptive, carry-forward flow
+ * runs offline. Mandatory SOW still holds (completeness = engine agenda empty).
+ */
 function localFallbackResponse(
   userText: string,
+  category: string,
   data: StepChatIntakeProps['data'],
   svcDesc: Partial<ServiceDescription>,
 ): {
@@ -79,77 +111,42 @@ function localFallbackResponse(
   const extracted: Record<string, unknown> = {};
   const sowUpdate: Partial<ServiceDescription> = {};
 
-  // Try to extract a value
-  const valueMatch = userText.match(/[\d,]+[kK]|\d[\d,.]+/);
-  if (valueMatch && !data.estimatedValue) {
-    let val = valueMatch[0].replace(/,/g, '');
-    if (val.toLowerCase().endsWith('k')) val = String(Number(val.slice(0, -1)) * 1000);
-    const num = Number(val);
-    if (num > 0) extracted.estimatedValue = num;
+  // Which slot is the user answering right now?
+  const answering = determineNextQuestion(buildContext(category, data, svcDesc))?.slot;
+  if (answering) {
+    if (answering.target.kind === 'request') {
+      if (answering.target.field === 'estimatedValue') {
+        const m = userText.match(/[\d,]+[kK]|\d[\d,.]+/);
+        if (m) {
+          let val = m[0].replace(/,/g, '');
+          if (val.toLowerCase().endsWith('k')) val = String(Number(val.slice(0, -1)) * 1000);
+          const num = Number(val);
+          if (num > 0) extracted.estimatedValue = num;
+        }
+      } else {
+        extracted[answering.target.field] = userText.slice(0, 200); // title / deliveryDate
+      }
+    } else {
+      sowUpdate[answering.target.field] = userText;
+    }
   }
 
-  // Use first user message as title if we don't have one
-  if (!data.title) {
-    extracted.title = userText.slice(0, 120);
+  // Recompute against the just-captured answer to get the next question.
+  const nextData = { ...data, ...(extracted as Partial<StepChatIntakeProps['data']>) };
+  const nextSow = { ...svcDesc, ...sowUpdate };
+  const ctx = buildContext(category, nextData, nextSow);
+  const complete = isConversationComplete(ctx);
+
+  if (complete) {
+    const narrative = [nextSow.objective, nextSow.scope, nextSow.deliverables, nextSow.resources]
+      .filter(Boolean)
+      .join('\n\n');
+    sowUpdate.narrative = narrative;
+    extracted.businessJustification = narrative;
+    return { extracted, sow: sowUpdate, nextQuestion: 'All details captured. Click Next to proceed to supplier identification and compliance.', complete: true };
   }
 
-  // Mandatory SOW flow: title → value → objective → scope → deliverables → resources → complete
-  if (!data.title) {
-    return { extracted, sow: sowUpdate, nextQuestion: "Thanks. What's the estimated budget? (e.g., €50,000 or 150k)", complete: false };
-  }
-  if (!data.estimatedValue && !extracted.estimatedValue) {
-    return { extracted, sow: sowUpdate, nextQuestion: "What's the estimated value for this request?", complete: false };
-  }
-  if (!svcDesc.objective) {
-    sowUpdate.objective = userText;
-    return { extracted, sow: sowUpdate, nextQuestion: "What should be in scope — and anything explicitly out of scope?", complete: false };
-  }
-  if (!svcDesc.scope) {
-    sowUpdate.scope = userText;
-    return { extracted, sow: sowUpdate, nextQuestion: "What are the key deliverables?", complete: false };
-  }
-  if (!svcDesc.deliverables) {
-    sowUpdate.deliverables = userText;
-    return { extracted, sow: sowUpdate, nextQuestion: "What resources, skills or team size does this need?", complete: false };
-  }
-  if (!svcDesc.resources) {
-    sowUpdate.resources = userText;
-  }
-
-  // We have all four core SOW fields — complete
-  const narrative = [
-    svcDesc.objective ?? sowUpdate.objective,
-    svcDesc.scope ?? sowUpdate.scope,
-    svcDesc.deliverables ?? sowUpdate.deliverables,
-    svcDesc.resources ?? sowUpdate.resources,
-  ].filter(Boolean).join('\n\n');
-  sowUpdate.narrative = narrative;
-  extracted.businessJustification = narrative;
-
-  return {
-    extracted,
-    sow: sowUpdate,
-    nextQuestion: 'SOW captured. Click Next to proceed to supplier identification and compliance.',
-    complete: true,
-  };
-}
-
-/**
- * Pick the next unanswered question from the mandatory intake sequence.
- * Mirrors the order enforced by api/chat-intake.ts SYSTEM_PROMPT so the
- * user experiences the same flow whether the LLM is available or not.
- */
-function firstMissingQuestion(category: string, data: StepChatIntakeProps['data']): string {
-  if (!data.title) {
-    return WELCOME_MESSAGES[category] ?? WELCOME_MESSAGES.goods;
-  }
-  if (data.estimatedValue <= 0) {
-    return "What's the estimated budget for this? (e.g. €50,000 or 150k)";
-  }
-  if (!data.deliveryDate) {
-    return 'When do you need this delivered by?';
-  }
-  return "What's the primary objective of this engagement?";
+  return { extracted, sow: sowUpdate, nextQuestion: determineNextQuestion(ctx)?.prompt ?? '', complete: false };
 }
 
 function buildWelcomeMessage(category: string, data: StepChatIntakeProps['data']): string {
@@ -161,10 +158,13 @@ function buildWelcomeMessage(category: string, data: StepChatIntakeProps['data']
     if (data.title) parts.push(`• **${data.title}**`);
     if (data.supplier) parts.push(`• Supplier: ${data.supplier}`);
     if (data.estimatedValue > 0) parts.push(`• Value: €${data.estimatedValue.toLocaleString()}`);
-    // Go straight to the next unanswered question in the mandated
-    // sequence instead of asking "do you want to refine this?".
+    // Go straight to the next unanswered question the engine selects instead
+    // of asking "do you want to refine this?".
     parts.push('');
-    parts.push(firstMissingQuestion(category, data));
+    parts.push(
+      determineNextQuestion(buildContext(category, data, {}))?.prompt ??
+        (WELCOME_MESSAGES[category] ?? WELCOME_MESSAGES.goods),
+    );
   } else {
     parts.push(WELCOME_MESSAGES[category] ?? WELCOME_MESSAGES.goods);
   }
@@ -253,15 +253,14 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
 
       const result = await response.json();
 
-      // Merge extracted data
+      // Merge extracted request fields (LLM does the extraction).
+      const updates: Record<string, unknown> = {};
       if (result.extracted) {
-        const updates: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(result.extracted)) {
           if (value !== undefined && value !== null && value !== '' && value !== 0) {
             updates[key] = value;
           }
         }
-
         // Match supplier against directory
         if (updates.supplier && typeof updates.supplier === 'string') {
           const matched = suppliers.find((s) =>
@@ -273,7 +272,6 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
             updates.supplier = matched.name;
           }
         }
-
         // Auto-derive commodity code from title/description
         if (updates.title && typeof updates.title === 'string') {
           const commodity = getAICommodityCode(updates.title, category);
@@ -282,81 +280,50 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
             updates.commodityCodeLabel = commodity.label;
           }
         }
-
-        onUpdate(updates);
+        if (Object.keys(updates).length > 0) onUpdate(updates);
       }
 
-      // Merge service description sections
+      // Merge SOW sections.
+      let mergedSow: Partial<ServiceDescription> = svcDesc;
       if (result.serviceDescription) {
-        setSvcDesc((prev: Partial<ServiceDescription>) => {
-          const merged = { ...prev };
-          for (const [key, value] of Object.entries(result.serviceDescription)) {
-            if (value && typeof value === 'string' && value.trim()) {
-              merged[key as keyof ServiceDescription] = value as string;
-            }
+        const merged: Partial<ServiceDescription> = { ...svcDesc };
+        for (const [key, value] of Object.entries(result.serviceDescription)) {
+          if (value && typeof value === 'string' && value.trim()) {
+            merged[key as keyof ServiceDescription] = value as string;
           }
-          // Pass to parent
-          onUpdate({ serviceDescription: merged });
-          return merged;
-        });
+        }
+        mergedSow = merged;
+        setSvcDesc(merged);
+        onUpdate({ serviceDescription: merged });
       }
 
-      // Add assistant response. Guard against the LLM leaking internal
-      // instruction text (e.g. "Set complete=true. Generate narrative...")
-      // into the user-facing chat. Any message that pattern-matches the
-      // prompt's internal step directives is replaced with a clean closing.
-      const INSTRUCTION_LEAKS = [
-        /^\s*step\s*\d+\b/i,
-        /\bset\s+complete\s*=\s*true\b/i,
-        /\bgenerate\s+(the\s+)?narrative\b/i,
-        /\binternal\s+finalisation\b/i,
-      ];
-      let safeNext = typeof result.nextQuestion === 'string' ? result.nextQuestion : '';
-      if (safeNext && INSTRUCTION_LEAKS.some((re) => re.test(safeNext))) {
-        safeNext = 'Thanks — all details captured. You can proceed to the next step.';
-      }
-      if (safeNext) {
-        setMessages((prev) => [...prev, { role: 'assistant', content: safeNext }]);
-      }
+      // The ENGINE — not the LLM — owns the next question and completeness,
+      // computed from the just-merged state. So the flow is adaptive, carries
+      // everything forward, and never re-asks or short-circuits the mandatory
+      // SOW (regardless of what the LLM returns for nextQuestion/complete).
+      const mergedData = {
+        ...data,
+        title: (updates.title as string) || data.title,
+        estimatedValue: (updates.estimatedValue as number) || data.estimatedValue,
+        deliveryDate: (updates.deliveryDate as string) || data.deliveryDate,
+      };
+      const ctx = buildContext(category, mergedData, mergedSow);
 
-      // Mandatory SOW: we only accept "complete" if title, value AND the four
-      // core SOW fields are populated. Otherwise we keep prompting.
-      const resultExtracted = (result.extracted as Record<string, unknown>) ?? {};
-      const resultSow = (result.serviceDescription as Partial<ServiceDescription> | undefined) ?? {};
-      const mergedSow: Partial<ServiceDescription> = { ...svcDesc, ...resultSow };
-      const hasTitle = !!(data.title || resultExtracted.title);
-      const hasValue = (data.estimatedValue > 0) || ((resultExtracted.estimatedValue as number) > 0);
-      const hasObjective = !!mergedSow.objective?.trim();
-      const hasScope = !!mergedSow.scope?.trim();
-      const hasDeliverables = !!mergedSow.deliverables?.trim();
-      const hasResources = !!mergedSow.resources?.trim();
-      const sowComplete = hasObjective && hasScope && hasDeliverables && hasResources;
-      const actuallyComplete = result.complete && hasTitle && hasValue && sowComplete;
-
-      if (actuallyComplete) {
+      if (isConversationComplete(ctx) && requiredSlotsFilled(ctx)) {
         setIsComplete(true);
         setSummary(result.summary ?? 'Service description captured. Ready for supplier identification and compliance.');
-        if (!result.nextQuestion) {
-          setMessages((prev) => [
-            ...prev,
-            { role: 'assistant', content: result.summary ?? 'All details captured. You can proceed to validation.' },
-          ]);
-        }
-      } else if (result.complete && !actuallyComplete) {
-        // LLM tried to short-circuit — prompt for the next missing field in
-        // the mandated sequence so we never skip SOW.
-        let missing = "What's the title or description of this request?";
-        if (hasTitle && !hasValue) missing = "What's the estimated value?";
-        else if (hasTitle && hasValue && !hasObjective) missing = "What's the primary objective of this engagement?";
-        else if (!hasScope) missing = 'What should be in scope — and anything explicitly out of scope?';
-        else if (!hasDeliverables) missing = 'What are the key deliverables?';
-        else if (!hasResources) missing = 'What resources, skills or team size does this need?';
-        setMessages((prev) => [...prev, { role: 'assistant', content: missing }]);
+        setMessages((prev) => [
+          ...prev,
+          { role: 'assistant', content: result.summary ?? 'All details captured. You can proceed to the next step.' },
+        ]);
+      } else {
+        const prompt = determineNextQuestion(ctx)?.prompt;
+        if (prompt) setMessages((prev) => [...prev, { role: 'assistant', content: prompt }]);
       }
     } catch {
-      // LLM unavailable — walk a deterministic question sequence that still
-      // enforces a mandatory SOW (objective → scope → deliverables → resources).
-      const fallback = localFallbackResponse(text, data, svcDesc);
+      // LLM unavailable — the engine still drives the same adaptive, carry-
+      // forward flow (mandatory SOW preserved) using a lightweight extraction.
+      const fallback = localFallbackResponse(text, category, data, svcDesc);
 
       if (Object.keys(fallback.extracted).length > 0) {
         onUpdate(fallback.extracted);
@@ -374,7 +341,7 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
     } finally {
       setIsTyping(false);
     }
-  }, [inputValue, isTyping, messages, category, data, svcDesc, onUpdate]);
+  }, [inputValue, isTyping, messages, category, data, svcDesc, onUpdate, suppliers]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {

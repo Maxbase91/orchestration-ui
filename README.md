@@ -128,6 +128,7 @@ npm run test:determination-export # exportable determination (structured Markdow
 npm run test:second-contract      # second contract check (frameworks/MSAs vs transactable)
 npm run test:approval-to-source   # approval-to-source gate (light vs full pre-sourcing approvals)
 npm run test:residual-questions   # criteria-triggered stage-5 residual questions (mini-IRQ deltas)
+npm run test:demand-conversation  # dynamic intake — answer-driven next question + carry-forward + branching
 npm run test:operational-risk     # preliminary operational risk assessment (per-dimension screen)
 npm run test:classification-eval  # classification eval harness + accuracy baseline (CLS-G1)
 npm run test:referral             # demand disposition — proceed / request-change / refer-back (RTE-06)
