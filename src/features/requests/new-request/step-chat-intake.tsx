@@ -50,7 +50,7 @@ const WELCOME_MESSAGES: Record<string, string> = {
 
 const FIELD_LABELS: { key: string; label: string }[] = [
   { key: 'title', label: 'Description' },
-  { key: 'category', label: 'Category' },
+  { key: 'category', label: 'Commodity Code' },
   { key: 'supplier', label: 'Supplier' },
   { key: 'estimatedValue', label: 'Estimated Value' },
   { key: 'deliveryDate', label: 'Delivery Timeline' },
@@ -215,7 +215,13 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
   const unifiedPct = Math.round((unifiedDone / unifiedTotal) * 100);
 
   const getFieldValue = (key: string): string => {
-    if (key === 'category') return categoryDescription;
+    // The "Commodity Code" key-fact shows the specific UNSPSC code + label (the
+    // meaningful classification), falling back to the high-level category.
+    if (key === 'category') {
+      return data.commodityCode
+        ? `${data.commodityCode} — ${data.commodityCodeLabel}`
+        : categoryDescription;
+    }
     if (key === 'estimatedValue') return data.estimatedValue > 0 ? formatCurrency(data.estimatedValue) : '';
     return String((data as Record<string, unknown>)[key] ?? '');
   };
@@ -555,12 +561,6 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
                 })}
               </div>
 
-              {data.commodityCode && (
-                <div className="rounded-md bg-blue-50 border border-blue-100 px-2 py-1.5">
-                  <p className="text-[9px] font-medium text-blue-600 uppercase tracking-wider">Commodity</p>
-                  <p className="text-[11px] text-blue-800">{data.commodityCode} — {data.commodityCodeLabel}</p>
-                </div>
-              )}
               {data.supplierId && (
                 <div className="rounded-md bg-green-50 border border-green-100 px-2 py-1.5">
                   <p className="text-[9px] font-medium text-green-600 uppercase tracking-wider">Supplier Matched</p>

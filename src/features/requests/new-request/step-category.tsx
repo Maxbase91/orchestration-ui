@@ -15,6 +15,7 @@ import { useProcurementCategories } from '@/lib/db/hooks/use-procurement-categor
 import { DEFAULT_CATEGORY_TAXONOMY } from '@/data/category-taxonomy';
 import { resolveCategoryIcon } from '@/data/category-icons';
 import { classifyDemandCategory } from '@/lib/procurement/classify';
+import { resolveCategoryCode } from '@/lib/procurement/category-code';
 import type { RequestCategory } from '@/data/types';
 
 interface StepCategoryProps {
@@ -45,6 +46,9 @@ interface AIClassification {
   estimatedValue: number;
   description: string;
   confidence: number;
+  /** Derived UNSPSC-style commodity code — the specific classification. */
+  commodityCode?: string;
+  commodityCodeLabel?: string;
 }
 
 async function classifyWithAI(input: string): Promise<AIClassification | null> {
@@ -140,6 +144,15 @@ export function StepCategory({ prefill, onUpdate, onAutoAdvance, onBrowseCatalog
     // Validate category exists
     const validCat = activeCategories.find((c) => c.id === result.category);
     result.category = validCat ? validCat.id : 'goods';
+
+    // Derive the commodity code — the specific, meaningful classification (the
+    // high-level category only drives the fulfilment routing).
+    const cc = resolveCategoryCode({ text, category: result.category });
+    if (cc) {
+      result.commodityCode = cc.code;
+      result.commodityCodeLabel = cc.label;
+    }
+
     setAiResult(result);
   };
 
@@ -167,6 +180,12 @@ export function StepCategory({ prefill, onUpdate, onAutoAdvance, onBrowseCatalog
       categoryDescription: cat?.name ?? aiResult.category,
       title: aiResult.title || inputValue,
     };
+
+    // Carry the derived commodity code downstream (shown in the SOW panel).
+    if (aiResult.commodityCode) {
+      updates.commodityCode = aiResult.commodityCode;
+      updates.commodityCodeLabel = aiResult.commodityCodeLabel;
+    }
 
     // Pre-fill supplier if extracted
     if (aiResult.supplier) {
@@ -252,9 +271,17 @@ export function StepCategory({ prefill, onUpdate, onAutoAdvance, onBrowseCatalog
 
               {/* Extracted info */}
               <div className="grid grid-cols-2 gap-2">
+                {aiResult.commodityCode && (
+                  <div className="rounded-md bg-white border border-gray-200 px-3 py-2">
+                    <p className="text-[10px] font-medium uppercase tracking-wider text-gray-400">Commodity Code</p>
+                    <p className="text-sm font-semibold text-gray-900">{aiResult.commodityCode}</p>
+                    <p className="text-[11px] text-gray-500 truncate">{aiResult.commodityCodeLabel}</p>
+                  </div>
+                )}
                 <div className="rounded-md bg-white border border-gray-200 px-3 py-2">
                   <p className="text-[10px] font-medium uppercase tracking-wider text-gray-400">Category</p>
                   <p className="text-sm font-semibold text-gray-900">{categoryLabel(aiResult.category)}</p>
+                  <p className="text-[11px] text-gray-400">routes the request</p>
                 </div>
                 {aiResult.title && (
                   <div className="rounded-md bg-white border border-gray-200 px-3 py-2">
