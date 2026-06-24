@@ -13,7 +13,13 @@ function check(name, cond, detail = '') {
 function determineContractType(i) {
   if (i.channel === 'catalogue' || i.channel === 'direct-po') return { type: 'none' };
   if (i.category === 'contract-renewal') return { type: 'renew' };
-  if (i.channel === 'framework-call-off' || i.hasFrameworkOrContract) return { type: 'sow' };
+  if (i.channel === 'framework-call-off' || i.hasFrameworkOrContract) {
+    const scopeChange = i.scopeChange ?? 'none';
+    const withinHeadroom = i.withinHeadroom ?? true;
+    if (scopeChange === 'material') return { type: 'change' };
+    if (scopeChange === 'extends' || !withinHeadroom) return { type: 'amend' };
+    return { type: 'sow' };
+  }
   return { type: 'new-msa' };
 }
 function determineSourcingType(i) {
@@ -29,7 +35,12 @@ check('direct-po → none', determineContractType({ channel: 'direct-po', catego
 check('contract-renewal category → renew', determineContractType({ channel: 'procurement-led', category: 'contract-renewal', hasFrameworkOrContract: true }).type === 'renew');
 check('framework-call-off → sow', determineContractType({ channel: 'framework-call-off', category: 'services', hasFrameworkOrContract: true }).type === 'sow');
 check('existing contract on supplier → sow', determineContractType({ channel: 'procurement-led', category: 'services', hasFrameworkOrContract: true }).type === 'sow');
-check('no agreement → new-msa', determineContractType({ channel: 'procurement-led', category: 'consulting', hasFrameworkOrContract: false }).type === 'new-msa');
+check('existing contract + within headroom (transactable) → sow', determineContractType({ channel: 'procurement-led', category: 'services', hasFrameworkOrContract: true, withinHeadroom: true }).type === 'sow');
+check('existing contract + at capacity → amend', determineContractType({ channel: 'procurement-led', category: 'services', hasFrameworkOrContract: true, withinHeadroom: false }).type === 'amend');
+check('existing contract + scope extends → amend', determineContractType({ channel: 'procurement-led', category: 'services', hasFrameworkOrContract: true, scopeChange: 'extends' }).type === 'amend');
+check('existing contract + material change → change', determineContractType({ channel: 'procurement-led', category: 'services', hasFrameworkOrContract: true, scopeChange: 'material' }).type === 'change');
+check('material change outranks headroom', determineContractType({ channel: 'procurement-led', category: 'services', hasFrameworkOrContract: true, scopeChange: 'material', withinHeadroom: true }).type === 'change');
+check('no agreement → new-msa (signals ignored)', determineContractType({ channel: 'procurement-led', category: 'consulting', hasFrameworkOrContract: false, scopeChange: 'material', withinHeadroom: false }).type === 'new-msa');
 
 console.log('Sourcing type');
 check('catalogue → none', determineSourcingType({ channel: 'catalogue', category: 'goods', hasExistingSupplierRelationship: false }).type === 'none');

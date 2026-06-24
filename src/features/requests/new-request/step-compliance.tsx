@@ -364,7 +364,16 @@ export function StepCompliance({
       contracts: allContracts,
     });
     const hasContract = routing.channel === 'framework-call-off' || (supplierRec?.activeContracts ?? 0) > 0;
-    const contractType = determineContractType({ channel: routing.channel, category, hasFrameworkOrContract: hasContract });
+    const contractType = determineContractType({
+      channel: routing.channel,
+      category,
+      hasFrameworkOrContract: hasContract,
+      // Scope/headroom signals (FD-E8-08): a material demand on an existing
+      // agreement needs a change; a transactable contract has capacity (SOW),
+      // otherwise the agreement is amended to extend coverage.
+      scopeChange: materiality.material ? 'material' : 'none',
+      withinHeadroom: secondContractCheck.recommendation === 'transact',
+    });
     const sourcingType = determineSourcingType({
       channel: routing.channel,
       category,

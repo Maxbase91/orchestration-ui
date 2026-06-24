@@ -17,6 +17,14 @@ export interface ContractTypeInput {
   category: string;
   /** A transactable framework/contract is in place (matched or via the supplier). */
   hasFrameworkOrContract: boolean;
+  /**
+   * The new demand's relationship to the existing agreement's scope:
+   * `none` (fits), `extends` (new scope to add), or `material` (significant
+   * change). Drives amend vs change. Defaults to `none`.
+   */
+  scopeChange?: 'none' | 'extends' | 'material';
+  /** The existing framework/contract still has capacity for this demand. Defaults to true. */
+  withinHeadroom?: boolean;
 }
 
 export interface SourcingTypeInput {
@@ -28,9 +36,10 @@ export interface SourcingTypeInput {
 
 /**
  * Determine the contract type. Catalogue/direct-PO need none; a renewal category
- * renews; an existing framework/contract is filled with a statement of work;
- * otherwise a new master agreement is needed. (`amend`/`change` are part of the
- * outcome set and produced once scope/headroom signals are captured.)
+ * renews; against an existing framework/contract the scope/headroom signals
+ * decide between a statement of work (fits with capacity), an amendment (extends
+ * scope or out of capacity), or a change request (material change); otherwise a
+ * new master agreement is needed.
  */
 export function determineContractType(input: ContractTypeInput): { type: ContractType; reason: string } {
   if (input.channel === 'catalogue' || input.channel === 'direct-po') {
@@ -40,6 +49,19 @@ export function determineContractType(input: ContractTypeInput): { type: Contrac
     return { type: 'renew', reason: 'Renewal of an existing contract' };
   }
   if (input.channel === 'framework-call-off' || input.hasFrameworkOrContract) {
+    const scopeChange = input.scopeChange ?? 'none';
+    const withinHeadroom = input.withinHeadroom ?? true;
+    if (scopeChange === 'material') {
+      return { type: 'change', reason: 'Material change to the existing agreement — raise a change request' };
+    }
+    if (scopeChange === 'extends' || !withinHeadroom) {
+      return {
+        type: 'amend',
+        reason: withinHeadroom
+          ? 'Demand extends the existing scope — amend the agreement'
+          : 'Existing agreement is at capacity — amend to extend coverage',
+      };
+    }
     return { type: 'sow', reason: 'Author a statement of work under the existing framework / contract' };
   }
   return { type: 'new-msa', reason: 'No existing agreement — a new master agreement (and SOW) is needed' };
