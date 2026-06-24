@@ -125,6 +125,16 @@ const STEPS = [
   { number: 7, title: 'Confirmation', description: 'Submitted' },
 ];
 
+// Catalogue is a fast track: pre-approved, pre-priced items need no risk,
+// determination or approval routing — just pick and place the order. The
+// wizard jumps Step 3 (Order) straight to Confirmation.
+const CATALOGUE_STEPS = [
+  { number: 1, title: 'Category', description: 'What do you need?' },
+  { number: 2, title: 'Pre-check', description: 'Catalogue match' },
+  { number: 3, title: 'Order', description: 'Pick items & place the order' },
+  { number: 7, title: 'Confirmation', description: 'Order placed' },
+];
+
 function generateRequestId(): string {
   const num = Math.floor(1000 + Math.random() * 9000);
   return `REQ-2025-${num}`;
@@ -242,6 +252,14 @@ export function NewRequestPage() {
     setFormData((prev) => ({ ...prev, ...updates }));
   }, []);
 
+  // Catalogue fast track — drives the reduced stepper and the Step-3 "Create
+  // order" action that skips risk/determination/routing.
+  const isCatalogue = formData.preCheckOutcome === 'catalogue' || formData.category === 'catalogue';
+  const wizardSteps = isCatalogue ? CATALOGUE_STEPS : STEPS;
+  const lastStepNumber = wizardSteps[wizardSteps.length - 1].number;
+  const currentStepMeta =
+    wizardSteps.find((s) => s.number === currentStep) ?? STEPS[Math.min(currentStep, STEPS.length) - 1];
+
   const canProceed = (): boolean => {
     switch (currentStep) {
       case 1:
@@ -267,6 +285,65 @@ export function NewRequestPage() {
         return true;
       default:
         return false;
+    }
+  };
+
+  // Fast-track a catalogue order — pre-approved items skip risk/determination/
+  // routing and go straight to a raised PO. No SOW, no approval workflow. Takes
+  // the cart payload directly so it's a single click from the catalogue.
+  const submitCatalogueOrder = async (order: {
+    title: string;
+    estimatedValue: number;
+    supplier: string;
+    supplierId: string;
+    catalogueItems: { itemId: string; name: string; quantity: number; unitPrice: number; supplierId: string }[];
+  }) => {
+    const id = generateRequestId();
+    updateFormData(order); // keep the confirmation screen in sync
+    setIsSubmitting(true);
+    try {
+      const lines = order.catalogueItems
+        .map((i) => `- ${i.name} × ${i.quantity} @ €${i.unitPrice.toLocaleString('de-DE')}`)
+        .join('\n');
+      await createRequest({
+        id,
+        title: order.title || 'Catalogue order',
+        description: lines || order.title,
+        category: 'catalogue' as RequestCategory,
+        status: 'po',
+        priority: formData.isUrgent ? 'urgent' : 'medium',
+        value: order.estimatedValue,
+        currency: formData.currency,
+        supplierId: order.supplierId || undefined,
+        buyingChannel: 'catalogue' as BuyingChannel,
+        commodityCode: formData.commodityCode,
+        commodityCodeLabel: formData.commodityCodeLabel,
+        costCentre: formData.costCentre,
+        budgetOwner: currentUser.name,
+        businessJustification: 'Pre-approved catalogue purchase — no approval required.',
+        deliveryDate: parseDeliveryDate(formData.deliveryDate) ?? undefined,
+        isUrgent: formData.isUrgent,
+        requestorId: currentUser.id,
+        ownerId: currentUser.id,
+        daysInStage: 0,
+        isOverdue: false,
+        referBackCount: 0,
+        requesterCountry: formData.requesterCountry || undefined,
+        requesterCountryCode: formData.requesterCountryCode || undefined,
+        beneficiaryId: formData.beneficiaryId || undefined,
+        beneficiaryName: formData.beneficiaryName || undefined,
+        beneficiaryCountry: formData.beneficiaryCountry || undefined,
+        beneficiaryCountryCode: formData.beneficiaryCountryCode || undefined,
+      });
+      queryClient.invalidateQueries({ queryKey: ['requests'] });
+      toast.success('Catalogue order placed');
+      setRequestId(id);
+      setCurrentStep(7);
+    } catch (e) {
+      console.error('Failed to place catalogue order:', e);
+      toast.error('Failed to place the order. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -414,14 +491,16 @@ export function NewRequestPage() {
       <div>
         <h1 className="text-xl font-semibold text-gray-900">New Request</h1>
         <p className="mt-0.5 text-sm text-gray-500">
-          Create a new procurement request in {STEPS.length} steps
+          {isCatalogue
+            ? 'Fast catalogue order — pre-approved items, no approval needed'
+            : `Create a new procurement request in ${STEPS.length} steps`}
         </p>
       </div>
 
       {/* Progress Bar */}
       {currentStep < 6 && (
         <div className="flex items-center gap-1">
-          {STEPS.map((step) => (
+          {wizardSteps.map((step) => (
             <div key={step.number} className="flex flex-1 flex-col items-center gap-1.5">
               <div className="flex w-full items-center">
                 <div
@@ -442,7 +521,7 @@ export function NewRequestPage() {
                     step.number
                   )}
                 </div>
-                {step.number < STEPS.length && (
+                {step.number < lastStepNumber && (
                   <div
                     className={cn(
                       'mx-1 h-0.5 flex-1',
@@ -472,7 +551,7 @@ export function NewRequestPage() {
       {currentStep < 6 && (
         <div className="border-b border-gray-200 pb-3">
           <h2 className="text-lg font-semibold text-gray-900">
-            Step {currentStep}: {STEPS[currentStep - 1].description}
+            {currentStepMeta.title}: {currentStepMeta.description}
           </h2>
         </div>
       )}
@@ -566,9 +645,7 @@ export function NewRequestPage() {
           />
         )}
         {currentStep === 3 && formData.preCheckOutcome === 'catalogue' && (
-          <StepCatalogue
-            onUpdate={(d) => updateFormData(d)}
-          />
+          <StepCatalogue onPlaceOrder={(order) => void submitCatalogueOrder(order)} />
         )}
         {currentStep === 3 && formData.preCheckOutcome === 'contract' && (
           <StepDetails
@@ -590,7 +667,7 @@ export function NewRequestPage() {
           />
         )}
         {currentStep === 3 && formData.preCheckOutcome === 'full-request' && formData.category === 'catalogue' && (
-          <StepCatalogue onUpdate={(d) => updateFormData(d)} />
+          <StepCatalogue onPlaceOrder={(order) => void submitCatalogueOrder(order)} />
         )}
         {currentStep === 3 && formData.preCheckOutcome === 'full-request' && ['contract-renewal', 'supplier-onboarding'].includes(formData.category) && (
           <StepDetails
@@ -696,29 +773,33 @@ export function NewRequestPage() {
                 Save as Draft
               </Button>
             )}
-            <Button
-              onClick={handleNext}
-              disabled={!canProceed() || isSubmitting}
-            >
-              {currentStep === 6 ? (
-                isSubmitting ? (
-                  <>
-                    <Loader2 className="size-4 animate-spin" />
-                    Submitting...
-                  </>
+            {/* Catalogue places the order from the cart itself (single click),
+                so the footer shows no primary action on that step. */}
+            {!(isCatalogue && currentStep === 3) && (
+              <Button
+                onClick={handleNext}
+                disabled={!canProceed() || isSubmitting}
+              >
+                {currentStep === 6 ? (
+                  isSubmitting ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" />
+                      Submitting...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="size-4" />
+                      Submit Request
+                    </>
+                  )
                 ) : (
                   <>
-                    <Send className="size-4" />
-                    Submit Request
+                    Next
+                    <ArrowRight className="size-4" />
                   </>
-                )
-              ) : (
-                <>
-                  Next
-                  <ArrowRight className="size-4" />
-                </>
-              )}
-            </Button>
+                )}
+              </Button>
+            )}
           </div>
         </div>
       )}

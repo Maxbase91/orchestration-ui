@@ -28,7 +28,8 @@ interface CartItem {
 }
 
 interface StepCatalogueProps {
-  onUpdate: (data: {
+  /** Place the catalogue order in one click — pre-approved, no further steps. */
+  onPlaceOrder: (data: {
     title: string;
     estimatedValue: number;
     supplier: string;
@@ -53,7 +54,7 @@ const CATALOGUE_DEFS: { id: string; name: string; icon: typeof Monitor }[] = [
   { id: 'print-stationery', name: 'Print & Stationery', icon: Printer },
 ];
 
-export function StepCatalogue({ onUpdate }: StepCatalogueProps) {
+export function StepCatalogue({ onPlaceOrder }: StepCatalogueProps) {
   const [selectedCatalogue, setSelectedCatalogue] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -119,7 +120,7 @@ export function StepCatalogue({ onUpdate }: StepCatalogueProps) {
     setCart((prev) => prev.filter((c) => c.itemId !== itemId));
   };
 
-  const handleProceed = () => {
+  const handlePlaceOrder = () => {
     // Determine primary supplier (most items or highest value)
     const supplierSpend: Record<string, { name: string; total: number }> = {};
     for (const item of cart) {
@@ -138,7 +139,7 @@ export function StepCatalogue({ onUpdate }: StepCatalogueProps) {
       ? `Catalogue order: ${cart[0].name}`
       : `Catalogue order: ${cart.length} items`;
 
-    onUpdate({
+    onPlaceOrder({
       title,
       estimatedValue: cartTotal,
       supplier: primarySupplier?.[1].name ?? '',
@@ -191,8 +192,8 @@ export function StepCatalogue({ onUpdate }: StepCatalogueProps) {
                 {'\u20AC'}{cartTotal.toLocaleString('de-DE', { minimumFractionDigits: 2 })}
               </span>
             </div>
-            <Button size="sm" className="w-full" onClick={handleProceed}>
-              Proceed with order
+            <Button size="sm" className="w-full" onClick={handlePlaceOrder}>
+              Place Order — no approval needed
             </Button>
           </div>
         )}
@@ -353,8 +354,8 @@ export function StepCatalogue({ onUpdate }: StepCatalogueProps) {
                   </div>
                 </div>
 
-                <Button size="sm" className="w-full" onClick={handleProceed}>
-                  Proceed with order
+                <Button size="sm" className="w-full" onClick={handlePlaceOrder}>
+                  Place Order — no approval needed
                 </Button>
               </>
             )}

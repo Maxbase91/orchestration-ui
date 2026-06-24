@@ -178,6 +178,26 @@ try {
   check('SOW sections build from the conversation (no generate hint)',
     (await page.getByText(/click Generate SOW/i).count()) === 0);
 
+  // 5b. Catalogue fast track: pre-approved items skip risk / determination /
+  //     routing and place the order in a single click from the cart.
+  await page.goto(`${BASE}/requests/new`, { waitUntil: 'networkidle' });
+  await page.getByRole('button', { name: /Browse the catalogue/ }).click();
+  await page.getByText('Browse Catalogues').waitFor({ timeout: 10000 });
+  check('catalogue fast track omits the Risk & Determination steps',
+    (await page.getByText('Risk & assessment').count()) === 0 &&
+    (await page.getByText('Determination', { exact: true }).count()) === 0);
+  check('catalogue shows the fast-track header',
+    (await page.getByText(/Fast catalogue order/i).count()) > 0);
+  await page.getByRole('button', { name: /IT Equipment/ }).first().click();
+  await page.getByRole('button', { name: /^Add$/ }).first().click();
+  const placeBtn = page.getByRole('button', { name: /Place Order/ });
+  check('catalogue cart shows a single-click Place Order', (await placeBtn.count()) > 0);
+  await placeBtn.first().click();
+  await page.getByText('Request Submitted Successfully').waitFor({ timeout: 15000 });
+  check('catalogue order placed → confirmation reached without the full wizard', true);
+  check('confirmation lists the catalogue items',
+    (await page.getByText(/Catalogue Items/).count()) > 0);
+
   // 6. No runtime errors surfaced during the flow.
   check('no console / page errors during flow', consoleErrors.length === 0,
     consoleErrors.slice(0, 3).join(' | '));
