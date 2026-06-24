@@ -767,7 +767,7 @@ export function NewRequestPage() {
             Back
           </Button>
           <div className="flex items-center gap-2">
-            {currentStep === 6 && (
+            {(currentStep === 5 || currentStep === 6) && (
               <Button variant="ghost" onClick={handleSaveDraft} disabled={isSubmitting}>
                 <Save className="size-4" />
                 Save as Draft
