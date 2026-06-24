@@ -161,8 +161,8 @@ try {
   await page.locator('textarea').first().fill('operating model design, 3 months, two consultants');
   await page.getByRole('button', { name: /Check for a covering contract/ }).click();
   await page.getByRole('button', { name: /Proceed to full request/ }).click();
-  await page.getByText('Statement of Work', { exact: true }).waitFor({ timeout: 15000 });
-  check('service-description capture renders (unified SOW panel)', true);
+  await page.getByText('Service description components', { exact: true }).waitFor({ timeout: 15000 });
+  check('service-description capture renders (components panel)', true);
 
   // Requester context (who / where) is established in the shell for every path:
   // location is auto-derived from the profile, beneficiary defaults to self.

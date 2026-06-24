@@ -57,16 +57,19 @@ const FIELD_LABELS: { key: string; label: string }[] = [
   { key: 'businessJustification', label: 'Justification' },
 ];
 
-const SOW_SECTIONS: { key: string; label: string; hint: string }[] = [
-  { key: 'objective', label: 'Objective', hint: 'e.g. design a target operating model for 3 business units' },
-  { key: 'scope', label: 'Scope of Work', hint: "e.g. in scope: process redesign; out of scope: implementation" },
-  { key: 'deliverables', label: 'Deliverables', hint: 'e.g. current-state assessment, future-state blueprint, roadmap' },
-  { key: 'timeline', label: 'Timeline', hint: 'e.g. 12 weeks, kickoff in September, readout at week 8' },
-  { key: 'resources', label: 'Resources', hint: 'e.g. a partner, 2 consultants, change-management support' },
-  { key: 'acceptanceCriteria', label: 'Acceptance Criteria', hint: 'e.g. board-approved operating model, signed off by the sponsor' },
-  { key: 'pricingModel', label: 'Pricing Model', hint: 'e.g. fixed price, time & materials, or milestone-based' },
-  { key: 'location', label: 'Location', hint: 'e.g. on-site 2 days/week, remote otherwise; EMEA' },
-  { key: 'dependencies', label: 'Dependencies', hint: 'e.g. access to finance data and the current ERP team' },
+// The service-description components. Examples/guidance live in the chat (the
+// assistant asks with a category-specific example) — this panel just tracks
+// what's been captured.
+const SOW_SECTIONS: { key: string; label: string }[] = [
+  { key: 'objective', label: 'Objective' },
+  { key: 'scope', label: 'Scope of Work' },
+  { key: 'deliverables', label: 'Deliverables' },
+  { key: 'timeline', label: 'Timeline' },
+  { key: 'resources', label: 'Resources' },
+  { key: 'acceptanceCriteria', label: 'Acceptance Criteria' },
+  { key: 'pricingModel', label: 'Pricing Model' },
+  { key: 'location', label: 'Location' },
+  { key: 'dependencies', label: 'Dependencies' },
 ];
 
 
@@ -574,7 +577,7 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-1.5">
                   <FileText className="size-3.5 text-[#2D5F8A]" />
-                  <h4 className="text-xs font-semibold text-gray-900">Statement of Work</h4>
+                  <h4 className="text-xs font-semibold text-gray-900">Service description components</h4>
                 </div>
                 <div className="flex items-center gap-1.5">
                   {generating && (
@@ -627,7 +630,7 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
               )}
 
               {/* SOW Sections — captured through the conversation, editable */}
-              {SOW_SECTIONS.map(({ key, label, hint }) => {
+              {SOW_SECTIONS.map(({ key, label }) => {
                 const value = svcDesc[key as keyof ServiceDescription];
                 return (
                   <div key={key}>
@@ -643,7 +646,7 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
                         onChange={(e) => handleSowEdit(key, e.target.value)}
                       />
                     ) : (
-                      <p className="text-[11px] text-gray-400 mt-0.5 pl-[18px]">{hint}</p>
+                      <p className="text-[11px] text-gray-300 italic mt-0.5 pl-[18px]">Pending — captured as you answer.</p>
                     )}
                   </div>
                 );

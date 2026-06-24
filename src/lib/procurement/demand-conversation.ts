@@ -80,6 +80,15 @@ const TIME_BASED_CATEGORIES = new Set(['services', 'consulting', 'contingent-lab
 /** Categories that are outcome-based, where acceptance criteria matter. */
 const OUTCOME_CATEGORIES = new Set(['services', 'consulting', 'software']);
 
+/** A category-specific example, wrapped as "(e.g. …)", falling back to generic. */
+function ex(
+  ctx: DemandConversationContext,
+  byCategory: Partial<Record<string, string>>,
+  fallback: string,
+): string {
+  return `(e.g. ${byCategory[ctx.category] ?? fallback})`;
+}
+
 /**
  * The canonical slot order. Required slots reproduce the previous fixed
  * sequence (title → value → objective → scope → deliverables → resources);
@@ -91,12 +100,12 @@ const ALL_SLOTS: DemandSlot[] = [
     target: { kind: 'request', field: 'title' },
     required: true,
     prompt: "What do you need? Describe what you're looking to procure.",
-    example: (ctx) =>
-      ctx.category === 'contingent-labour'
-        ? '(e.g. 3 senior Java developers for 6 months)'
-        : ctx.category === 'software'
-          ? '(e.g. 200 CRM licences with a service module)'
-          : '(e.g. market-research study for APAC expansion)',
+    example: (ctx) => ex(ctx, {
+      'contingent-labour': '3 senior Java developers for 6 months',
+      software: '200 CRM licences with a service module',
+      consulting: 'consultants to run a 2-day promptathon',
+      goods: '50 height-adjustable desks for the new office',
+    }, 'market-research study for APAC expansion'),
   },
   {
     id: 'value',
@@ -110,38 +119,52 @@ const ALL_SLOTS: DemandSlot[] = [
     target: { kind: 'request', field: 'deliveryDate' },
     required: false,
     prompt: 'When do you need this delivered or started by?',
+    example: () => '(e.g. by end of Q3, or a specific date)',
   },
   {
     id: 'objective',
     target: { kind: 'sow', field: 'objective' },
     required: true,
     prompt: "What's the primary objective of this engagement?",
+    example: (ctx) => ex(ctx, {
+      consulting: 'run a promptathon to upskill 40 staff on AI tooling',
+      software: 'roll out a new CRM to 200 sales users',
+      services: 'stand up a managed support service for EMEA',
+      'contingent-labour': 'augment the platform team to hit the Q3 release',
+      goods: 'equip the new office with workstations',
+    }, 'the outcome this should achieve'),
   },
   {
     id: 'scope',
     target: { kind: 'sow', field: 'scope' },
     required: true,
     prompt: 'What should be in scope — and anything explicitly out of scope?',
+    example: (ctx) => ex(ctx, {
+      consulting: 'in: facilitation, materials & coaching; out: tooling licences',
+      software: 'in: Sales & Service modules + migration; out: custom reports',
+    }, "what's included — and anything explicitly out of scope"),
   },
   {
     id: 'deliverables',
     target: { kind: 'sow', field: 'deliverables' },
     required: true,
     prompt: 'What are the key deliverables?',
-    example: (ctx) =>
-      ctx.category === 'goods' || ctx.category === 'software'
-        ? '(e.g. the items, licences or features expected)'
-        : '(e.g. the reports, milestones or outputs expected)',
+    example: (ctx) => ex(ctx, {
+      consulting: 'agenda, run-of-show, facilitated sessions, write-up',
+      software: 'the configured modules, migrated data and trained users',
+      goods: 'the items delivered and installed',
+    }, 'the reports, milestones or outputs expected'),
   },
   {
     id: 'resources',
     target: { kind: 'sow', field: 'resources' },
     required: true,
     prompt: 'What resources, skills or team size does this need?',
-    example: (ctx) =>
-      ctx.category === 'contingent-labour'
-        ? '(e.g. role, seniority and headcount)'
-        : '(e.g. the skills or roles required)',
+    example: (ctx) => ex(ctx, {
+      'contingent-labour': 'role, seniority and headcount',
+      consulting: 'a lead facilitator and 2 AI specialists',
+      software: 'an implementation lead and a data engineer',
+    }, 'the skills or roles required'),
   },
   // ── Conditional enrichment slots (answer-driven) ──────────────────────────
   {
@@ -149,6 +172,10 @@ const ALL_SLOTS: DemandSlot[] = [
     target: { kind: 'sow', field: 'timeline' },
     required: false,
     prompt: 'What is the timeline or key milestones?',
+    example: (ctx) => ex(ctx, {
+      consulting: 'a 2-day event in September, prep 3 weeks before',
+      'contingent-labour': '6-month engagement starting October',
+    }, '12 weeks, kickoff in September, readout at week 8'),
     appliesWhen: (ctx) => TIME_BASED_CATEGORIES.has(ctx.category),
   },
   {
@@ -156,6 +183,10 @@ const ALL_SLOTS: DemandSlot[] = [
     target: { kind: 'sow', field: 'acceptanceCriteria' },
     required: false,
     prompt: 'How will success be measured — what are the acceptance criteria?',
+    example: (ctx) => ex(ctx, {
+      consulting: '40 staff trained, >80% satisfaction, 3 prototypes built',
+      software: 'UAT passed, <2% error rate, go-live sign-off',
+    }, 'sign-off criteria / how success is measured'),
     appliesWhen: (ctx) => OUTCOME_CATEGORIES.has(ctx.category),
   },
   {
@@ -163,7 +194,10 @@ const ALL_SLOTS: DemandSlot[] = [
     target: { kind: 'sow', field: 'pricingModel' },
     required: false,
     prompt: 'What pricing or commercial model applies?',
-    example: () => '(e.g. fixed price, time & materials, subscription)',
+    example: (ctx) => ex(ctx, {
+      software: 'per-user annual subscription',
+      'contingent-labour': 'day rate per resource',
+    }, 'fixed price, time & materials, or milestone-based'),
     // High-value demands warrant capturing the commercial model up front.
     appliesWhen: (ctx, config) => (ctx.estimatedValue ?? 0) >= config.criticalServiceThreshold,
   },
@@ -172,6 +206,7 @@ const ALL_SLOTS: DemandSlot[] = [
     target: { kind: 'sow', field: 'dependencies' },
     required: false,
     prompt: 'Are there key dependencies or systems this relies on?',
+    example: () => '(e.g. systems, data, venues or teams this relies on)',
     // Large engagements carry continuity-relevant dependencies worth surfacing.
     appliesWhen: (ctx, config) => (ctx.estimatedValue ?? 0) >= config.continuityThreshold,
   },
