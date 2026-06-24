@@ -170,6 +170,50 @@ try {
     await ctx.close();
   }
 
+  // ── Flow 4: admin threshold edit drives the live front-door determination ──
+  // Proves the new policy-config wiring: an admin-saved threshold override flows
+  // through to the live determination. A €50k demand is a LIGHT approval gate at
+  // the default 250k threshold; after the admin lowers it to 10k and saves, the
+  // same demand becomes a FULL gate.
+  console.log('Flow 4 — admin threshold edit drives the live determination');
+  {
+    const ctx = await browser.newContext();
+    await ctx.addInitScript((u) => localStorage.setItem('auth', JSON.stringify({ state: { currentRole: 'admin', currentUser: u }, version: 0 })), ADMIN);
+    const page = await ctx.newPage();
+    const errors = [];
+    page.on('pageerror', e => errors.push(e.message));
+
+    // 1. Lower the full-approval threshold to 10,000 and save (persists + applies).
+    await page.goto(`${BASE}/admin/thresholds`, { waitUntil: 'networkidle' });
+    const thr = page.locator('#cfg-approvalFullThreshold');
+    await thr.waitFor({ timeout: 15000 });
+    await thr.fill('10000');
+    // The page simulation reflects the edit immediately for a 50k sample.
+    await page.locator('#sim-value').fill('50000');
+    const simFull = await page.getByText('full', { exact: true }).count();
+    check('admin simulation reflects the edited threshold (50k → full)', simFull > 0, `simFull=${simFull}`);
+    await page.getByRole('button', { name: /^Save$/ }).click();
+
+    // 2. Drive a €50k demand through the wizard to the determination.
+    await page.goto(`${BASE}/requests/new`, { waitUntil: 'networkidle' });
+    await page.locator('#need-input').fill('renew our existing vendor contract for another year');
+    await page.locator('#need-input').press('Enter');
+    await page.getByRole('button', { name: /Accept & continue/ }).click();
+    await page.getByText('Catalogue check', { exact: true }).waitFor({ timeout: 15000 });
+    await page.locator('textarea').first().fill('annual renewal of an existing vendor engagement');
+    await page.getByRole('button', { name: /Check for a covering contract/ }).click();
+    await page.getByRole('button', { name: /Proceed to full request/ }).click();
+    await page.locator('#title').fill('Config wiring test');
+    await page.locator('#value').fill('50000');
+    await page.getByRole('button', { name: /Next/ }).click();   // → step 4 risk
+    await page.getByRole('button', { name: /Next/ }).click();   // → step 5 determination
+    await page.getByText('Approval to source', { exact: true }).waitFor({ timeout: 15000 });
+    const fullGate = await page.getByText('full gate', { exact: true }).count();
+    check('admin-edited threshold drives the LIVE determination (50k → full gate)', fullGate > 0, `fullGate=${fullGate}`);
+    check('no uncaught errors during config-wiring flow', errors.length === 0, errors[0]);
+    await ctx.close();
+  }
+
   console.log('');
   if (failures) { console.error(`FAILED: ${failures} interaction check(s) failed`); process.exitCode = 1; }
   else console.log('All interaction E2E checks passed.');
