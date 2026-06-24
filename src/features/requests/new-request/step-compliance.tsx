@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Loader2, Info, ChevronDown, ChevronUp, AlertTriangle, CheckCircle, Sparkles, Circle, MinusCircle, Clock, Recycle, Download } from 'lucide-react';
 import { toast } from 'sonner';
@@ -945,14 +945,11 @@ export function StepCompliance({
         }
         return (
           <RiskAssessmentTriageSection
-            category={category}
-            supplierName={selectedSupplier?.name ?? ''}
-            estimatedValue={estimatedValue}
             supplierRegistered={!!supplierId}
             supplierSraStatus={selectedSupplier?.sraStatus}
             inferredDataSensitivity={sensitivity}
-            sowNarrative={serviceDescription?.narrative ?? ''}
             triageReason={gate.reason}
+            reuseCount={result.matchingRiskAssessments.length}
           />
         );
       })()}
@@ -1021,124 +1018,76 @@ export function StepCompliance({
 // ── Risk Assessment Triage Section ──────────────────────────────────
 
 function RiskAssessmentTriageSection({
-  category,
-  supplierName,
-  estimatedValue,
   supplierRegistered,
   supplierSraStatus,
   inferredDataSensitivity,
-  sowNarrative,
   triageReason,
+  reuseCount,
 }: {
-  category: string;
-  supplierName: string;
-  estimatedValue: number;
   supplierRegistered: boolean;
   supplierSraStatus?: string;
   inferredDataSensitivity: 'none' | 'low' | 'medium' | 'high' | 'critical';
-  sowNarrative: string;
   triageReason: string;
+  reuseCount: number;
 }) {
-  const [collapsed, setCollapsed] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-  const [triageResult, setTriageResult] = useState<'full-sra' | 'no-action' | null>(null);
-
-  const handleTriageSubmit = useCallback(
-    (values: Record<string, string | string[] | boolean>) => {
-      const sraStatus = values['f001-sra-status'] as string;
-      const dataSensitivity = values['f001-data-sensitivity'] as string;
-      const needsFullSRA =
-        sraStatus === 'no' ||
-        sraStatus === 'unknown' ||
-        dataSensitivity === 'high' ||
-        dataSensitivity === 'critical';
-      setTriageResult(needsFullSRA ? 'full-sra' : 'no-action');
-      setSubmitted(true);
+  // Everything here is DERIVED — the requester is never asked to state the
+  // supplier's SRA status or the data sensitivity (they wouldn't know). We show
+  // what the system determined, with the reason, and conclude whether a risk
+  // assessment is due. The only user inputs are the mini-IRQ deltas above.
+  const rows: { label: string; value: string; reason: string }[] = [
+    {
+      label: 'Data sensitivity',
+      value: inferredDataSensitivity,
+      reason: 'inferred from your service description',
     },
-    [],
-  );
-
-  const { data: template } = useFormTemplate('FORM-001');
-  if (!template) return null;
-
-  const prePopulateContext: Record<string, string> = {
-    supplierName,
-    value: String(estimatedValue),
-    category,
-    // Answers derived upstream from the SOW. DynamicForm resolves each
-    // field via prePopulateFrom first, then falls back to the field.id —
-    // so we provide both namings for any field that lacks an explicit key.
-    sraStatus: mapSraStatus(supplierSraStatus),
-    'f001-sra-status': mapSraStatus(supplierSraStatus),
-    'f001-registered': supplierRegistered ? 'yes' : 'no',
-    'f001-data-sensitivity': inferredDataSensitivity,
-    'f001-annual-spend': String(estimatedValue),
-  };
+    {
+      label: 'Risk assessment on file',
+      value: supplierRegistered ? mapSraStatus(supplierSraStatus) : 'no supplier selected yet',
+      reason: supplierRegistered
+        ? "read from the supplier's record"
+        : 'a supplier is selected later, during validation',
+    },
+    {
+      label: 'Reusable assessment',
+      value: reuseCount > 0 ? `${reuseCount} available` : 'none found',
+      reason: reuseCount > 0
+        ? 'a valid assessment matches this supplier + category'
+        : 'no valid assessment covers this demand',
+    },
+  ];
 
   return (
     <Card>
-      <CardHeader className="pb-3">
-        <button
-          type="button"
-          onClick={() => setCollapsed(!collapsed)}
-          className="flex w-full items-center justify-between text-left"
-        >
-          <CardTitle className="text-sm">Risk Assessment Triage</CardTitle>
-          {collapsed ? (
-            <ChevronDown className="size-4 text-gray-400" />
-          ) : (
-            <ChevronUp className="size-4 text-gray-400" />
-          )}
-        </button>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm">Risk assessment</CardTitle>
         <p className="text-xs text-muted-foreground">
-          Triage required — <em>{triageReason}</em>. Fields are pre-filled from the service
-          description; adjust before submitting.
+          Derived from your service description and the supplier — there&apos;s no questionnaire to fill in.
         </p>
       </CardHeader>
-      {!collapsed && (
-        <CardContent className="space-y-4">
-          {!submitted ? (
-            <>
-              {sowNarrative && (
-                <div className="rounded-md border border-blue-100 bg-blue-50/40 p-3 text-xs text-gray-600">
-                  <p className="font-medium text-gray-700">Pre-filled from your service description</p>
-                  <p className="mt-1">
-                    Data sensitivity inferred as <strong>{inferredDataSensitivity}</strong>;
-                    supplier SRA status mapped to <strong>{mapSraStatus(supplierSraStatus)}</strong>.
-                    Adjust any field below if needed.
-                  </p>
-                </div>
-              )}
-              <DynamicForm
-                template={template}
-                prePopulateContext={prePopulateContext}
-                onSubmit={handleTriageSubmit}
-              />
-            </>
-          ) : triageResult === 'full-sra' ? (
-            <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4">
-              <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />
-              <div>
-                <p className="text-sm font-medium text-amber-800">
-                  Full Supplier Risk Assessment required
-                </p>
-                <p className="mt-1 text-xs text-amber-700">
-                  A detailed questionnaire will be triggered during the Validation stage.
-                </p>
+      <CardContent className="space-y-3">
+        <ul className="space-y-2">
+          {rows.map((r) => (
+            <li key={r.label} className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <span className="text-sm text-gray-700">{r.label}</span>
+                <span className="block text-xs text-gray-400">{r.reason}</span>
               </div>
-            </div>
-          ) : (
-            <div className="flex items-start gap-3 rounded-lg border border-green-200 bg-green-50 p-4">
-              <CheckCircle className="mt-0.5 size-4 shrink-0 text-green-600" />
-              <div>
-                <p className="text-sm font-medium text-green-800">
-                  No additional risk assessment required at this time.
-                </p>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      )}
+              <span className="shrink-0 text-sm font-medium capitalize text-gray-900">{r.value}</span>
+            </li>
+          ))}
+        </ul>
+        <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />
+          <div>
+            <p className="text-sm font-medium text-amber-800">A risk assessment is required</p>
+            <p className="mt-1 text-xs text-amber-700">
+              {reuseCount > 0
+                ? `A reusable assessment exists, but a fresh one is needed here because ${triageReason}.`
+                : 'No assessment can be reused, so a risk assessment is carried out — it appears as a step in the workflow.'}
+            </p>
+          </div>
+        </div>
+      </CardContent>
     </Card>
   );
 }
