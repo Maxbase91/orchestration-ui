@@ -16,6 +16,7 @@ docs/
 | Doc | What it covers |
 |---|---|
 | [functional-specification.md](specs/functional-specification.md) | The approved functional specification (S2C, P2P, supplier portal, admin). |
+| [personas.md](specs/personas.md) | The 6 personas — who each is, what they see/access/do, and complexity per persona, in R1 and end-state. Incl. the route-guard access matrix. |
 | [design-document.md](specs/design-document.md) | UX / design specification and screen designs. |
 | [requirements/](specs/requirements/) | Detailed requirements by domain, numbered `00`–`14` (intake, workflow, approvals, suppliers, sourcing, contracts, P2P, analytics, admin, AI assistant, data model, APIs). |
 
