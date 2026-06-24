@@ -44,15 +44,15 @@ function getWorkflowSteps(category: string, value: number) {
 
 function getApprovers(_category: string, value: number) {
   const approvers: { name: string; role: string; type: 'sequential' | 'parallel' }[] = [
-    { name: 'James Chen', role: 'Category Manager', type: 'sequential' },
+    { name: 'Anna Müller', role: 'Category Manager', type: 'sequential' },
   ];
 
   if (value > 25000) {
-    approvers.push({ name: 'Sarah Mitchell', role: 'Budget Owner', type: 'parallel' });
+    approvers.push({ name: "James O'Brien", role: 'Budget Owner', type: 'parallel' });
   }
 
   if (value > 100000) {
-    approvers.push({ name: 'Dr. Klaus Richter', role: 'VP Procurement', type: 'sequential' });
+    approvers.push({ name: 'Christine Dupont', role: 'VP Procurement', type: 'sequential' });
   }
 
   if (value > 500000) {

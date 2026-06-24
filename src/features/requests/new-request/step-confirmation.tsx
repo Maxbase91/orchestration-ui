@@ -104,7 +104,7 @@ export function StepConfirmation({ requestId, data, onReset }: StepConfirmationP
         <h3 className="text-sm font-semibold text-gray-900">What happens next?</h3>
         <ul className="mt-2 space-y-1.5 text-sm text-gray-600">
           <li>
-            Your request will be reviewed by <span className="font-medium">James Chen</span> within{' '}
+            Your request will be reviewed by <span className="font-medium">Anna Müller</span> within{' '}
             <span className="font-medium">2 business days</span>.
           </li>
           <li>You will receive email notifications at each stage transition.</li>

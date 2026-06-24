@@ -25,7 +25,7 @@ const initialDelegations: Delegation[] = [
   {
     id: 'del-1',
     delegateId: 'u4',
-    delegateName: 'Michael Torres',
+    delegateName: 'Marcus Johnson',
     fromDate: '2025-02-15',
     toDate: '2025-02-28',
     scope: 'All approvals',

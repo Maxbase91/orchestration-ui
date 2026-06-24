@@ -14,8 +14,8 @@ import { chromium } from 'playwright';
 const BASE = 'http://localhost:5173';
 
 const USERS = {
-  admin: { id: 'u6', name: 'Elena Popov', email: 'elena.popov@company.com', role: 'admin', department: 'Platform Administration', initials: 'EP' },
-  supplier: { id: 'u5', name: 'David Schneider', email: 'david.schneider@accenture.com', role: 'supplier', department: 'Accenture', initials: 'DS' },
+  admin: { id: 'u11', name: 'Christine Dupont', email: 'christine.dupont@company.com', role: 'admin', department: 'Global Procurement', initials: 'CD' },
+  supplier: { id: 'u13', name: 'David Schneider', email: 'david.schneider@accenture.com', role: 'supplier', department: 'Accenture (External)', initials: 'DS' },
 };
 
 // Static routes by role. :id detail routes resolved separately.

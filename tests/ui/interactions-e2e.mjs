@@ -13,7 +13,7 @@ import { chromium } from 'playwright';
 import { createClient } from '@supabase/supabase-js';
 
 const BASE = 'http://localhost:5173';
-const ADMIN = { id: 'u6', name: 'Elena Popov', email: 'elena.popov@company.com', role: 'admin', department: 'Platform Administration', initials: 'EP' };
+const ADMIN = { id: 'u11', name: 'Christine Dupont', email: 'christine.dupont@company.com', role: 'admin', department: 'Global Procurement', initials: 'CD' };
 
 const raw = readFileSync(new URL('../../.env.local', import.meta.url), 'utf8');
 for (const l of raw.split('\n')) { const m = l.match(/^([A-Z_][A-Z0-9_]*)=(.*)$/); if (m && !process.env[m[1]]) process.env[m[1]] = m[2]; }
@@ -219,8 +219,8 @@ try {
   // a request with a pending approval as the matching role surfaces the button.
   console.log('Flow 5 — approval resolves to a switchable persona (Approve button shows)');
   {
-    const PM = { id: 'u2', name: 'James Chen', email: 'james.chen@company.com', role: 'procurement-manager', department: 'Strategic Procurement', initials: 'JC' };
-    const { data: pend } = await sb.from('approval_entries').select('request_id').eq('approver_id', 'u2').eq('status', 'pending').limit(1).maybeSingle();
+    const PM = { id: 'u1', name: 'Anna Müller', email: 'anna.mueller@company.com', role: 'procurement-manager', department: 'Global Procurement', initials: 'AM' };
+    const { data: pend } = await sb.from('approval_entries').select('request_id').eq('approver_id', 'u1').eq('status', 'pending').limit(1).maybeSingle();
     if (pend?.request_id) {
       const ctx = await browser.newContext();
       await ctx.addInitScript((u) => localStorage.setItem('auth', JSON.stringify({ state: { currentRole: 'procurement-manager', currentUser: u }, version: 0 })), PM);
@@ -230,7 +230,7 @@ try {
       await page.getByRole('tab', { name: 'Approvals' }).click();
       let visible = false;
       try { await page.getByRole('button', { name: /^Approve$/ }).first().waitFor({ timeout: 10000 }); visible = true; } catch { /* no button */ }
-      check('Approve button shows for the procurement-manager persona on a pending u2 approval', visible, pend.request_id);
+      check('Approve button shows for the procurement-manager rep on a pending u1 approval', visible, pend.request_id);
       check('no errors on the approvals tab', errors.length === 0, errors[0]);
       await ctx.close();
     } else {
@@ -251,7 +251,9 @@ try {
     await page.getByRole('button', { name: /Add User/ }).click();
     await page.locator('#nu-name').fill('E2E Test User');
     await page.locator('#nu-email').fill(TEST_USER_EMAIL);
-    await page.locator('#nu-role').fill('Category Manager');
+    // Role is a canonical-roles Select (no off-namespace freeform roles).
+    await page.locator('#nu-role').click();
+    await page.getByRole('option', { name: 'Vendor Manager' }).click();
     await page.getByRole('button', { name: /^Add$/ }).click();
     await page.getByText('E2E Test User').first().waitFor({ timeout: 10000 });
     check('new user appears in the table', true);
@@ -261,7 +263,7 @@ try {
   {
     const { data } = await sb.from('users').select('id,name,role').eq('email', TEST_USER_EMAIL).maybeSingle();
     check('user persisted to the store', Boolean(data), `data=${JSON.stringify(data)}`);
-    check('role saved on the new user', data?.role === 'Category Manager');
+    check('canonical role saved on the new user', data?.role === 'vendor-manager');
     await sb.from('users').delete().eq('email', TEST_USER_EMAIL);
     const { data: after } = await sb.from('users').select('id').eq('email', TEST_USER_EMAIL).maybeSingle();
     check('cleanup removed the test user', !after);

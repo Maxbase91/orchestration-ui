@@ -18,7 +18,11 @@ import {
 import { PageHeader } from '@/components/shared/page-header';
 import { DataTable, type Column } from '@/components/shared/data-table';
 import { useUsers, useCreateUser, useUpdateUser, useDeleteUser } from '@/lib/db/hooks/use-users';
+import { roles as canonicalRoles } from '@/config/roles';
 import type { User } from '@/data/types';
+
+/** Canonical system role id → friendly label (falls back to the raw value). */
+const roleLabel = (id: string) => canonicalRoles.find((r) => r.id === id)?.label ?? id;
 
 interface UserRow {
   id: string;
@@ -72,7 +76,7 @@ export function UserManagementPage() {
       id: `u${Date.now()}`,
       name: form.name.trim(),
       email: form.email.trim(),
-      role: form.role.trim() || 'Business Requestor',
+      role: form.role.trim() || 'service-owner',
       department: form.department.trim() || 'General',
       initials: initialsOf(form.name),
       isOOO: false,
@@ -144,7 +148,7 @@ export function UserManagementPage() {
       label: 'Role',
       render: (item) => (
         <span className="inline-flex rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700">
-          {item.role as string}
+          {roleLabel(item.role as string)}
         </span>
       ),
     },
@@ -236,7 +240,7 @@ export function UserManagementPage() {
             <SelectItem value="all">All Roles</SelectItem>
             {allRoles.map((r) => (
               <SelectItem key={r} value={r}>
-                {r}
+                {roleLabel(r)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -281,7 +285,12 @@ export function UserManagementPage() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label htmlFor="nu-role">Role</Label>
-                <Input id="nu-role" value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))} placeholder="e.g. Category Manager" />
+                <Select value={form.role} onValueChange={(v) => setForm((f) => ({ ...f, role: v }))}>
+                  <SelectTrigger id="nu-role"><SelectValue placeholder="Select a role" /></SelectTrigger>
+                  <SelectContent>
+                    {canonicalRoles.map((r) => (<SelectItem key={r.id} value={r.id}>{r.label}</SelectItem>))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-1">
                 <Label htmlFor="nu-dept">Department</Label>
@@ -305,7 +314,7 @@ export function UserManagementPage() {
             <Select value={editRole} onValueChange={setEditRole}>
               <SelectTrigger><SelectValue placeholder="Select a role" /></SelectTrigger>
               <SelectContent>
-                {allRoles.map((r) => (<SelectItem key={r} value={r}>{r}</SelectItem>))}
+                {canonicalRoles.map((r) => (<SelectItem key={r.id} value={r.id}>{r.label}</SelectItem>))}
               </SelectContent>
             </Select>
           </div>

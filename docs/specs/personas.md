@@ -210,17 +210,28 @@ Requestor   Supplier   Vendor Mgr / Ops Lead   Proc. Manager   Admin
 
 ---
 
-## 5. Implementation note — two role namespaces (current state → target)
+## 5. Implementation note — one unified identity namespace
 
-Today there are **two role models** that are **bridged but not yet unified**:
+There is now a **single identity set**: the editable `users` directory (`/admin/users`) is the one source
+of truth, and every user carries **one of the six canonical system roles** (`src/config/roles.ts`). The
+role-switcher's switchable personas are **real rows in that directory** — one canonical representative per
+role — so an `id` means exactly one person everywhere (switcher, requests, approvals, comments).
 
-1. **Six switchable personas** (`src/stores/auth-store.ts`, ids `u1–u6`) — the canonical role holders the
-   role-switcher logs you in as, and what approvals resolve to (`approver-resolution.ts`).
-2. **The editable users table** (`/admin/users`, ids `u1–u12`) — a larger directory with freeform
-   functional roles ("Category Manager", "Finance Approver", …), now full CRUD.
+| System role | Switchable representative |
+|---|---|
+| Requestor / Service Owner | `u6` — James O'Brien |
+| Procurement Manager | `u1` — Anna Müller |
+| Vendor Manager | `u3` — Sarah Chen |
+| Operations Lead | `u4` — Marcus Johnson |
+| Supplier (external) | `u13` — David Schneider |
+| Admin / Platform Owner | `u11` — Christine Dupont |
 
-Approvals were wired to bridge these (every approval step resolves to one of the six personas), but the
-**role-switcher itself is still driven by the six hardcoded personas, not the users table**. The end-state
-target is to **unify them** — drive the switchable identities (and their permissions) from the editable
-users/roles directory, so this document's access matrix becomes data-driven configuration rather than code.
-That unification is the natural next step and is scoped separately.
+- `src/stores/auth-store.ts` derives `currentUser` from the selected role using these directory reps, and
+  persists **only the role** (the user is recomputed on load, so a retired identity can never linger).
+- `approver-resolution.ts` resolves every approval-chain step to the **same** switchable rep, so a pending
+  approval is always actionable by switching to the matching role.
+- The remaining directory members (`u2, u5, u7–u10, u12`) are additional holders of the same six roles
+  (for delegation/out-of-office and a realistic directory), not separate switchable identities.
+
+**End-state target:** make the access matrix itself data-driven (per-role permissions read from
+configuration rather than the route-guard code) — the identity collision is closed; permissions remain code.

@@ -39,7 +39,7 @@ const threads: Thread[] = [
     messages: [
       {
         id: 'm1',
-        sender: 'James Chen',
+        sender: 'Anna Müller',
         senderInitials: 'JC',
         content: 'Hi Patrick, the IT Strategy Advisory contract (CON-001) is up for renewal later this year. Can we schedule a call to discuss terms?',
         timestamp: '2025-01-08 10:15',
@@ -55,7 +55,7 @@ const threads: Thread[] = [
       },
       {
         id: 'm3',
-        sender: 'James Chen',
+        sender: 'Anna Müller',
         senderInitials: 'JC',
         content: 'Tuesday works. Let us set up a 1-hour slot at 2pm CET. I will send a calendar invite.',
         timestamp: '2025-01-10 14:30',
@@ -73,7 +73,7 @@ const threads: Thread[] = [
     messages: [
       {
         id: 'm4',
-        sender: 'Anna Kowalski',
+        sender: 'Sarah Chen',
         senderInitials: 'AK',
         content: 'Hi Patrick, we noticed your ISO 27001 certificate is approaching renewal. Could you please upload the renewed version once available?',
         timestamp: '2025-01-05 16:00',
@@ -100,7 +100,7 @@ const threads: Thread[] = [
     messages: [
       {
         id: 'm6',
-        sender: 'Michael Torres',
+        sender: 'Marcus Johnson',
         senderInitials: 'MT',
         content: 'Hi Patrick, invoice INV-011 for €85,000 was flagged as unmatched. Could you provide a reference PO number or supporting documentation?',
         timestamp: '2025-01-04 14:20',
@@ -127,7 +127,7 @@ const threads: Thread[] = [
     messages: [
       {
         id: 'm8',
-        sender: 'James Chen',
+        sender: 'Anna Müller',
         senderInitials: 'JC',
         content: 'Hi Thomas, we are planning the SAP license renewal for 2025. Could you share updated pricing for our current tier?',
         timestamp: '2025-01-03 10:00',
@@ -153,7 +153,7 @@ const threads: Thread[] = [
     messages: [
       {
         id: 'm10',
-        sender: 'Anna Kowalski',
+        sender: 'Sarah Chen',
         senderInitials: 'AK',
         content: 'Hi Sarah, as part of the annual SRA refresh, we require Deloitte to complete the updated risk questionnaire. The deadline is January 31.',
         timestamp: '2025-01-02 09:00',
@@ -179,7 +179,7 @@ const threads: Thread[] = [
     messages: [
       {
         id: 'm12',
-        sender: 'Michael Torres',
+        sender: 'Marcus Johnson',
         senderInitials: 'MT',
         content: 'Hi Capgemini team, your onboarding is at Step 3 (Bank Verification). Could you confirm the DUNS number and submit bank details?',
         timestamp: '2025-01-02 11:00',
@@ -219,7 +219,7 @@ export function SupplierMessagesPage() {
     if (!messageInput.trim() || !activeThread) return;
     const newMessage: Message = {
       id: `m-${Date.now()}`,
-      sender: 'James Chen',
+      sender: 'Anna Müller',
       senderInitials: 'JC',
       content: messageInput,
       timestamp: new Date().toISOString().replace('T', ' ').slice(0, 16),

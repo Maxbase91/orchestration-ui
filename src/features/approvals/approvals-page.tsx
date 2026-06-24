@@ -17,6 +17,7 @@ import { ApprovalCard } from './components/approval-card';
 import { BulkApproveDialog } from './components/bulk-approve-dialog';
 import { useApprovals, useUpdateApproval } from '@/lib/db/hooks/use-approvals';
 import { useRequests } from '@/lib/db/hooks/use-requests';
+import { useAuthStore } from '@/stores/auth-store';
 import type { ApprovalStatus, ProcurementRequest, ApprovalEntry } from '@/data/types';
 
 // AI summaries for each request in approval stage
@@ -43,6 +44,7 @@ interface ApprovalItem {
 export function ApprovalsPage() {
   const { data: approvalEntries = [] } = useApprovals();
   const { data: requests = [] } = useRequests();
+  const currentUser = useAuthStore((s) => s.currentUser);
   const updateApproval = useUpdateApproval();
   const [statusFilter, setStatusFilter] = useState<'all' | ApprovalStatus>('all');
   const [urgencyFilter, setUrgencyFilter] = useState<UrgencyFilter>('all');
@@ -52,16 +54,20 @@ export function ApprovalsPage() {
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
   const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
 
-  // Build joined list of approvals with their requests
+  // Build joined list of approvals with their requests — scoped to the current
+  // user's queue (assigned to them, or delegated to them while an approver is
+  // out of office). "My Approvals" means mine: switch role to see another
+  // queue. Approver identities are the canonical switchable users (one set).
   const allItems: ApprovalItem[] = useMemo(() => {
     return approvalEntries
+      .filter((a) => a.approverId === currentUser.id || a.delegatedTo === currentUser.id)
       .map((a) => {
         const req = requests.find((r) => r.id === a.requestId);
         if (!req) return null;
         return { request: req, approval: a };
       })
       .filter((item): item is ApprovalItem => item !== null);
-  }, [approvalEntries, requests]);
+  }, [approvalEntries, requests, currentUser.id]);
 
   // Apply filters
   const filteredItems = useMemo(() => {
@@ -262,8 +268,11 @@ export function ApprovalsPage() {
         {(['all', 'pending', 'approved', 'rejected'] as const).map((tab) => (
           <TabsContent key={tab} value={tab} className="space-y-3 mt-4">
             {filteredItems.length === 0 ? (
-              <div className="flex items-center justify-center rounded-md border border-dashed py-12">
-                <p className="text-sm text-gray-500">No approvals match the current filters.</p>
+              <div className="flex flex-col items-center justify-center gap-1 rounded-md border border-dashed py-12">
+                <p className="text-sm text-gray-500">
+                  No approvals in {currentUser.name}&rsquo;s queue match the current filters.
+                </p>
+                <p className="text-xs text-gray-400">Switch role to view another approver&rsquo;s queue.</p>
               </div>
             ) : (
               filteredItems.map((item) => (

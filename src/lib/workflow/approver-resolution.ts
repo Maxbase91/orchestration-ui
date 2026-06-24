@@ -27,14 +27,18 @@ export const CHAIN_ROLE_TO_SYSTEM_ROLE: Record<string, Role> = {
   'Operations Lead': 'operations-lead',
 };
 
-/** The canonical persona for each system role — matches the role-switcher (u1–u6). */
+/**
+ * The canonical switchable user for each system role — these are real rows in
+ * the `users` directory and match the role-switcher exactly, so an approval
+ * assigned here is always actionable by switching to the matching role.
+ */
 export const PERSONA_BY_ROLE: Record<Role, { id: string; name: string }> = {
-  'service-owner': { id: 'u1', name: 'Sarah Mitchell' },
-  'procurement-manager': { id: 'u2', name: 'James Chen' },
-  'vendor-manager': { id: 'u3', name: 'Anna Kowalski' },
-  'operations-lead': { id: 'u4', name: 'Michael Torres' },
-  supplier: { id: 'u5', name: 'David Schneider' },
-  admin: { id: 'u6', name: 'Elena Popov' },
+  'service-owner': { id: 'u6', name: "James O'Brien" },
+  'procurement-manager': { id: 'u1', name: 'Anna Müller' },
+  'vendor-manager': { id: 'u3', name: 'Sarah Chen' },
+  'operations-lead': { id: 'u4', name: 'Marcus Johnson' },
+  supplier: { id: 'u13', name: 'David Schneider' },
+  admin: { id: 'u11', name: 'Christine Dupont' },
 };
 
 export interface ResolvedApprover {
