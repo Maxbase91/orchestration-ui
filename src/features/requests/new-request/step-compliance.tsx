@@ -17,6 +17,7 @@ import { runSecondContractCheck, type SecondContractCheckResult } from '@/lib/pr
 import { determineApprovalToSource, type ApprovalToSourceResult } from '@/lib/procurement/approval-to-source';
 import { determineResidualQuestions, type ResidualQuestion } from '@/lib/procurement/residual-questions';
 import { assessOperationalRisk, type OperationalRiskResult } from '@/lib/procurement/operational-risk-assessment';
+import { determineReferral, type ReferralResult } from '@/lib/procurement/referral';
 import type { Supplier, Contract, WorkflowTemplate, RoutingRule } from '@/data/types';
 // Risk-reuse matching stays on its specialised query (reusable + completed +
 // validity-window + supplier/contract); the generic ports do not model that yet.
@@ -70,6 +71,7 @@ interface ComplianceData {
   secondContractCheck?: SecondContractCheckResult;
   approvalToSource?: ApprovalToSourceResult;
   residualQuestions?: ResidualQuestion[];
+  referral?: ReferralResult;
   handoffSteps?: HandoffStep[];
   sraStatus: string;
   policyChecks: { label: string; passed: boolean; detail: string }[];
@@ -418,6 +420,15 @@ export function StepCompliance({
       });
     }
 
+    // Demand disposition — proceed / request-change / refer-back. Driven by the
+    // completeness, policy and scope signals the determination already computed.
+    const referral = determineReferral({
+      missingMandatory: !requestTitle?.trim() || estimatedValue <= 0,
+      outOfScope: policyChecks.some((c) => !c.passed && /prohibit|permissib|out of scope|blocked/i.test(c.label)),
+      failedPolicyChecks: validatorActive ? policyChecks.filter((c) => !c.passed).length : 0,
+      duplicateDetected: false,
+    });
+
     return {
       buyingChannelResult: label,
       matchedRuleName: routing.matchedRule?.name,
@@ -430,6 +441,7 @@ export function StepCompliance({
       secondContractCheck,
       approvalToSource,
       residualQuestions,
+      referral,
       handoffSteps,
       sraStatus: supplierRec
         ? `${supplierRec.name}: ${supplierRec.sraStatus}${supplierRec.sraExpiryDate ? ` (expires ${supplierRec.sraExpiryDate})` : ''}`
@@ -485,6 +497,7 @@ export function StepCompliance({
       estimatedValue,
       supplierName,
       buyingChannel: result.buyingChannelResult,
+      referral: result.referral,
       contractType: result.contractType,
       sourcingType: result.sourcingType,
       materiality: result.materiality,
@@ -610,6 +623,28 @@ export function StepCompliance({
           <Download className="size-3.5 mr-1.5" /> Export
         </Button>
       </div>
+
+      {/* Demand disposition — proceed / request-change / refer-back. The
+          headline routing decision: can this demand move to its next step? */}
+      {result.referral && (
+        <div className={`rounded-lg border p-3 ${
+          result.referral.outcome === 'refer-back' ? 'border-red-200 bg-red-50/60'
+            : result.referral.outcome === 'request-change' ? 'border-amber-200 bg-amber-50/60'
+              : 'border-green-200 bg-green-50/60'
+        }`}>
+          <div className="flex items-center gap-2">
+            <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${
+              result.referral.outcome === 'refer-back' ? 'bg-red-100 text-red-700'
+                : result.referral.outcome === 'request-change' ? 'bg-amber-100 text-amber-700'
+                  : 'bg-green-100 text-green-700'
+            }`}>
+              {result.referral.outcome === 'refer-back' ? 'Refer back'
+                : result.referral.outcome === 'request-change' ? 'Request change' : 'Proceed'}
+            </span>
+            <span className="text-xs text-gray-600">{result.referral.reason}</span>
+          </div>
+        </div>
+      )}
       {/* Buying Channel Classification */}
       <div className="rounded-lg border border-blue-200 bg-blue-50/60 p-4">
         <div className="flex items-start gap-2">

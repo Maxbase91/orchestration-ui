@@ -12,6 +12,7 @@ export interface DeterminationExportInput {
   currency?: string;
   supplierName?: string;
   buyingChannel: string;
+  referral?: { outcome: string; reason: string };
   contractType?: { type: string; reason: string };
   sourcingType?: { type: string; reason: string };
   materiality?: { material: boolean; criticality: string; reasons: string[] };
@@ -48,6 +49,7 @@ export function buildDeterminationExport(input: DeterminationExportInput): { mar
   lines.push('');
 
   lines.push('## Determination');
+  if (input.referral) lines.push(`- Disposition: **${input.referral.outcome}** (${input.referral.reason})`);
   lines.push(`- Buying channel: **${input.buyingChannel}**`);
   if (input.contractType) lines.push(`- Contract type: **${input.contractType.type}** (${input.contractType.reason})`);
   if (input.sourcingType) lines.push(`- Sourcing type: **${input.sourcingType.type}** (${input.sourcingType.reason})`);
