@@ -3,6 +3,11 @@ import { Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
 import {
   Select,
   SelectContent,
@@ -12,7 +17,8 @@ import {
 } from '@/components/ui/select';
 import { PageHeader } from '@/components/shared/page-header';
 import { DataTable, type Column } from '@/components/shared/data-table';
-import { useUsers } from '@/lib/db/hooks/use-users';
+import { useUsers, useCreateUser, useUpdateUser, useDeleteUser } from '@/lib/db/hooks/use-users';
+import type { User } from '@/data/types';
 
 interface UserRow {
   id: string;
@@ -40,10 +46,67 @@ const mockLastLogins: Record<string, string> = {
   u12: '2026-04-03 15:10',
 };
 
+const blankForm = { name: '', email: '', role: '', department: '' };
+const initialsOf = (name: string) =>
+  name.split(/\s+/).filter(Boolean).map((w) => w[0]).join('').slice(0, 2).toUpperCase() || 'U';
+
 export function UserManagementPage() {
   const { data: users = [] } = useUsers();
+  const createUser = useCreateUser();
+  const updateUser = useUpdateUser();
+  const deleteUser = useDeleteUser();
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [deptFilter, setDeptFilter] = useState<string>('all');
+
+  const [addOpen, setAddOpen] = useState(false);
+  const [form, setForm] = useState(blankForm);
+  const [editUser, setEditUser] = useState<UserRow | null>(null);
+  const [editRole, setEditRole] = useState('');
+
+  const handleAdd = async () => {
+    if (!form.name.trim() || !form.email.trim()) {
+      toast.error('Name and email are required');
+      return;
+    }
+    const user: User = {
+      id: `u${Date.now()}`,
+      name: form.name.trim(),
+      email: form.email.trim(),
+      role: form.role.trim() || 'Business Requestor',
+      department: form.department.trim() || 'General',
+      initials: initialsOf(form.name),
+      isOOO: false,
+    };
+    try {
+      await createUser.mutateAsync(user);
+      toast.success(`${user.name} added`);
+      setAddOpen(false);
+      setForm(blankForm);
+    } catch (e) {
+      toast.error(`Add failed: ${e instanceof Error ? e.message : 'unknown'}`);
+    }
+  };
+
+  const handleSaveRole = async () => {
+    if (!editUser) return;
+    try {
+      await updateUser.mutateAsync({ id: editUser.id, patch: { role: editRole } });
+      toast.success(`Role updated for ${editUser.name}`);
+      setEditUser(null);
+    } catch (e) {
+      toast.error(`Update failed: ${e instanceof Error ? e.message : 'unknown'}`);
+    }
+  };
+
+  const handleDeactivate = async (item: UserRow) => {
+    if (!confirm(`Remove ${item.name}? This deletes the user record.`)) return;
+    try {
+      await deleteUser.mutateAsync(item.id);
+      toast.success(`${item.name} removed`);
+    } catch (e) {
+      toast.error(`Remove failed: ${e instanceof Error ? e.message : 'unknown'}`);
+    }
+  };
 
   const userRows: UserRow[] = useMemo(
     () =>
@@ -112,7 +175,8 @@ export function UserManagementPage() {
             className="h-7 text-xs"
             onClick={(e) => {
               e.stopPropagation();
-              toast.info(`Edit role for ${item.name}`);
+              setEditUser(item);
+              setEditRole(item.role as string);
             }}
           >
             Edit Role
@@ -120,26 +184,13 @@ export function UserManagementPage() {
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 text-xs"
-            onClick={(e) => {
-              e.stopPropagation();
-              toast.success(`Password reset sent to ${item.email}`);
-            }}
-          >
-            Reset PW
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
             className="h-7 text-xs text-red-600"
             onClick={(e) => {
               e.stopPropagation();
-              if (confirm(`Deactivate ${item.name}?`)) {
-                toast.success(`${item.name} deactivated`);
-              }
+              handleDeactivate(item);
             }}
           >
-            Deactivate
+            Remove
           </Button>
         </div>
       ),
@@ -152,7 +203,7 @@ export function UserManagementPage() {
         title="User Management"
         subtitle="Manage user accounts and roles"
         actions={
-          <Button onClick={() => toast.info('Add user form coming soon')}>
+          <Button onClick={() => { setForm(blankForm); setAddOpen(true); }}>
             <Plus className="mr-1.5 size-4" />
             Add User
           </Button>
@@ -213,6 +264,57 @@ export function UserManagementPage() {
           searchPlaceholder="Search users..."
         />
       </Card>
+
+      {/* Add user */}
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Add User</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label htmlFor="nu-name">Name</Label>
+              <Input id="nu-name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="e.g. Jane Doe" />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="nu-email">Email</Label>
+              <Input id="nu-email" type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} placeholder="jane.doe@company.com" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="nu-role">Role</Label>
+                <Input id="nu-role" value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))} placeholder="e.g. Category Manager" />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="nu-dept">Department</Label>
+                <Input id="nu-dept" value={form.department} onChange={(e) => setForm((f) => ({ ...f, department: e.target.value }))} placeholder="e.g. Procurement" />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setAddOpen(false)}>Cancel</Button>
+            <Button onClick={handleAdd} disabled={createUser.isPending}>{createUser.isPending ? 'Adding…' : 'Add'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit role */}
+      <Dialog open={!!editUser} onOpenChange={(o) => !o && setEditUser(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Edit Role{editUser ? ` — ${editUser.name}` : ''}</DialogTitle></DialogHeader>
+          <div className="space-y-1">
+            <Label>Role</Label>
+            <Select value={editRole} onValueChange={setEditRole}>
+              <SelectTrigger><SelectValue placeholder="Select a role" /></SelectTrigger>
+              <SelectContent>
+                {allRoles.map((r) => (<SelectItem key={r} value={r}>{r}</SelectItem>))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEditUser(null)}>Cancel</Button>
+            <Button onClick={handleSaveRole} disabled={updateUser.isPending || !editRole}>{updateUser.isPending ? 'Saving…' : 'Save'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

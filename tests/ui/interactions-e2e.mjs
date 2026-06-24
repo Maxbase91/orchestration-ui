@@ -238,6 +238,35 @@ try {
     }
   }
 
+  // ── Flow 6: admin user create → persist (wired CRUD) ────────────────
+  console.log('Flow 6 — admin user create → persist');
+  const TEST_USER_EMAIL = 'e2e.test.user@company.com';
+  await sb.from('users').delete().eq('email', TEST_USER_EMAIL); // pre-clean
+  {
+    const ctx = await browser.newContext();
+    await ctx.addInitScript((u) => localStorage.setItem('auth', JSON.stringify({ state: { currentRole: 'admin', currentUser: u }, version: 0 })), ADMIN);
+    const page = await ctx.newPage();
+    const errors = []; page.on('pageerror', e => errors.push(e.message));
+    await page.goto(`${BASE}/admin/users`, { waitUntil: 'networkidle' });
+    await page.getByRole('button', { name: /Add User/ }).click();
+    await page.locator('#nu-name').fill('E2E Test User');
+    await page.locator('#nu-email').fill(TEST_USER_EMAIL);
+    await page.locator('#nu-role').fill('Category Manager');
+    await page.getByRole('button', { name: /^Add$/ }).click();
+    await page.getByText('E2E Test User').first().waitFor({ timeout: 10000 });
+    check('new user appears in the table', true);
+    check('no uncaught errors during user create', errors.length === 0, errors[0]);
+    await ctx.close();
+  }
+  {
+    const { data } = await sb.from('users').select('id,name,role').eq('email', TEST_USER_EMAIL).maybeSingle();
+    check('user persisted to the store', Boolean(data), `data=${JSON.stringify(data)}`);
+    check('role saved on the new user', data?.role === 'Category Manager');
+    await sb.from('users').delete().eq('email', TEST_USER_EMAIL);
+    const { data: after } = await sb.from('users').select('id').eq('email', TEST_USER_EMAIL).maybeSingle();
+    check('cleanup removed the test user', !after);
+  }
+
   console.log('');
   if (failures) { console.error(`FAILED: ${failures} interaction check(s) failed`); process.exitCode = 1; }
   else console.log('All interaction E2E checks passed.');

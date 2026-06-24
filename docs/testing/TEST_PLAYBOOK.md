@@ -213,7 +213,7 @@ there is **no "Generate SOW" button** and no per-section regenerate (verified by
 | TC-ADM-11 | Categories admin | `procurement_categories` **seeded** from the canonical taxonomy (8 rows); add/edit category **persists** and appears in intake; **Icon picker** sets the tile icon shown at intake |
 | TC-ADM-12 | SLA targets admin | Edit per-stage SLA **persists** (requires `sla_targets` table); reflects in SLA tracker |
 | TC-ADM-13 | `/admin/policies` | Policies versioned; view full text |
-| TC-ADM-14 | `/admin/users` | 12 users; edit role / OOO+delegate / deactivate |
+| TC-ADM-14 | `/admin/users` (wired CRUD) | **Add User** (dialog) persists to Supabase and appears in the table; **Edit Role** updates the role; **Remove** deletes the record — all via the real mutation hooks (no more toast-only no-ops). Verified by `npm run test:interactions-ui` (create → persist → cleanup). |
 | TC-ADM-15 | `/admin/health` System Health | Integration status, uptime, error log |
 | TC-ADM-16 | `/admin/audit` Audit Log | 40+ entries; filters; **Export** |
 | TC-ADM-17 | `/admin/kb` KB Management | Add entry persists; assistant uses it |
