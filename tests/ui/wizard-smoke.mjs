@@ -163,6 +163,16 @@ try {
   await page.getByRole('button', { name: /Proceed to full request/ }).click();
   await page.getByText('Statement of Work', { exact: true }).waitFor({ timeout: 15000 });
   check('service-description capture renders (unified SOW panel)', true);
+
+  // Requester context (who / where) is established in the shell for every path:
+  // location is auto-derived from the profile, beneficiary defaults to self.
+  check('requester-context block renders requester location',
+    (await page.getByText('Requesting from').count()) > 0);
+  check('requester location is a read-only profile value',
+    (await page.getByText('from your profile').count()) > 0);
+  check('beneficiary defaults to self with a Change control',
+    (await page.getByText('Buying for').count()) > 0 &&
+    (await page.getByRole('button', { name: /Change/ }).count()) > 0);
   check('NO manual "Generate SOW" button (auto-composed from chat)',
     (await page.getByRole('button', { name: /Generate SOW/ }).count()) === 0);
   check('SOW sections build from the conversation (no generate hint)',

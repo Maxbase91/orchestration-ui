@@ -11,6 +11,8 @@ CREATE TABLE IF NOT EXISTS users (
   initials TEXT,
   is_ooo BOOLEAN DEFAULT false,
   delegate_id TEXT,
+  country TEXT,
+  country_code TEXT,
   created_at TIMESTAMP DEFAULT now()
 );
 
@@ -43,6 +45,12 @@ CREATE TABLE IF NOT EXISTS requests (
   is_overdue BOOLEAN DEFAULT false,
   refer_back_count INTEGER DEFAULT 0,
   workflow_template_id TEXT,
+  requester_country TEXT,
+  requester_country_code TEXT,
+  beneficiary_id TEXT,
+  beneficiary_name TEXT,
+  beneficiary_country TEXT,
+  beneficiary_country_code TEXT,
   created_at TIMESTAMP DEFAULT now(),
   updated_at TIMESTAMP DEFAULT now()
 );
@@ -61,6 +69,18 @@ EXCEPTION
   WHEN duplicate_object THEN NULL;
   WHEN undefined_table THEN NULL;  -- workflow_templates created later in file
 END $$;
+
+-- Requester location (auto-derived from the requestor's profile) on existing
+-- deployments. Nullable capture fields — no backfill, no constraints.
+DO $$ BEGIN ALTER TABLE users ADD COLUMN country TEXT; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN ALTER TABLE users ADD COLUMN country_code TEXT; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN ALTER TABLE requests ADD COLUMN requester_country TEXT; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN ALTER TABLE requests ADD COLUMN requester_country_code TEXT; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+-- Beneficiary ("buying for") — defaults to the requestor; another user when on-behalf-of.
+DO $$ BEGIN ALTER TABLE requests ADD COLUMN beneficiary_id TEXT; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN ALTER TABLE requests ADD COLUMN beneficiary_name TEXT; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN ALTER TABLE requests ADD COLUMN beneficiary_country TEXT; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN ALTER TABLE requests ADD COLUMN beneficiary_country_code TEXT; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 
 -- Stage History
 CREATE TABLE IF NOT EXISTS stage_history (

@@ -437,6 +437,8 @@ export function mapDbToUser(row: DbRecord): User {
     isOOO: (row.is_ooo ?? row.isOOO ?? false) as boolean,
     delegateId: (row.delegate_id ?? row.delegateId) as string | undefined,
     avatar: row.avatar as string | undefined,
+    country: (row.country ?? undefined) as string | undefined,
+    countryCode: (row.country_code ?? row.countryCode ?? undefined) as string | undefined,
   };
 }
 
@@ -451,6 +453,8 @@ export function mapUserToDb(u: Partial<User>): DbRecord {
   if (u.isOOO !== undefined) out.is_ooo = u.isOOO;
   if (u.delegateId !== undefined) out.delegate_id = u.delegateId;
   if (u.avatar !== undefined) out.avatar = u.avatar;
+  if (u.country !== undefined) out.country = u.country;
+  if (u.countryCode !== undefined) out.country_code = u.countryCode;
   return out;
 }
 
@@ -478,6 +482,12 @@ const REQUEST_FIELD_MAP: Record<string, string> = {
   isOverdue: 'is_overdue',
   referBackCount: 'refer_back_count',
   workflowTemplateId: 'workflow_template_id',
+  requesterCountry: 'requester_country',
+  requesterCountryCode: 'requester_country_code',
+  beneficiaryId: 'beneficiary_id',
+  beneficiaryName: 'beneficiary_name',
+  beneficiaryCountry: 'beneficiary_country',
+  beneficiaryCountryCode: 'beneficiary_country_code',
 };
 
 const REVERSE_REQUEST_MAP: Record<string, string> = Object.fromEntries(

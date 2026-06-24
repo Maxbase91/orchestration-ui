@@ -136,6 +136,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         initials: u.initials,
         is_ooo: u.isOOO,
         delegate_id: u.delegateId ?? null,
+        country: u.country ?? null,
+        country_code: u.countryCode ?? null,
       })),
       'id',
     );

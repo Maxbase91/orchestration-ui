@@ -28,6 +28,10 @@ export interface User {
   isOOO: boolean;
   delegateId?: string;
   avatar?: string;
+  /** Home country of the user — drives requester location + future country workflows. */
+  country?: string;
+  /** ISO 3166-1 alpha-2 code for `country` (e.g. "DE"). */
+  countryCode?: string;
 }
 
 export interface ProcurementRequest {
@@ -59,6 +63,18 @@ export interface ProcurementRequest {
   isOverdue: boolean;
   referBackCount: number;
   workflowTemplateId?: string;
+  /** Requester's country — auto-derived from the requestor's profile (read-only). */
+  requesterCountry?: string;
+  requesterCountryCode?: string;
+  /**
+   * Who the request is for. Defaults to the requestor ("self"); set to another
+   * directory user when buying on behalf of someone else. "Self" is derived:
+   * `!beneficiaryId || beneficiaryId === requestorId`.
+   */
+  beneficiaryId?: string;
+  beneficiaryName?: string;
+  beneficiaryCountry?: string;
+  beneficiaryCountryCode?: string;
 }
 
 export interface StageHistoryEntry {

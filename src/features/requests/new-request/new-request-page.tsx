@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
+import { useUsers } from '@/lib/db/hooks/use-users';
 import { useAuthStore } from '@/stores/auth-store';
 import { createRequest } from '@/lib/db/requests';
 import { parseDeliveryDate } from '@/lib/parse-delivery-date';
@@ -20,6 +21,7 @@ import { StepPreCheck } from './step-pre-check';
 import { StepCompliance } from './step-compliance';
 import { StepRoutingPreview } from './step-routing-preview';
 import { StepConfirmation } from './step-confirmation';
+import { RequesterContextBlock } from './components/requester-context-block';
 import type { Contract } from '@/data/types';
 import type { CatalogueItem } from '@/data/catalogue-items';
 
@@ -68,6 +70,14 @@ interface RequestFormData {
   // Step 5 (shifted)
   additionalReviewers: string[];
   notes: string;
+  // Requester context (universal — applies to all paths). Country is derived
+  // from the requestor's profile (read-only); beneficiary defaults to self.
+  requesterCountry: string;
+  requesterCountryCode: string;
+  beneficiaryId: string;
+  beneficiaryName: string;
+  beneficiaryCountry: string;
+  beneficiaryCountryCode: string;
 }
 
 const INITIAL_DATA: RequestFormData = {
@@ -97,6 +107,12 @@ const INITIAL_DATA: RequestFormData = {
   duplicateCheck: null,
   additionalReviewers: [],
   notes: '',
+  requesterCountry: '',
+  requesterCountryCode: '',
+  beneficiaryId: '',
+  beneficiaryName: '',
+  beneficiaryCountry: '',
+  beneficiaryCountryCode: '',
 };
 
 const STEPS = [
@@ -151,6 +167,22 @@ export function NewRequestPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { currentUser } = useAuthStore();
   const { data: suppliers = [] } = useSuppliers();
+  const { data: users = [] } = useUsers();
+
+  // Auto-derive the requester's country from their profile (read-only). Runs
+  // once the directory loads; the user never sets or edits this. It can drive
+  // country-based workflows in future.
+  useEffect(() => {
+    if (formData.requesterCountry) return;
+    const me = users.find((u) => u.id === currentUser.id);
+    if (me?.country) {
+      setFormData((prev) => ({
+        ...prev,
+        requesterCountry: me.country ?? '',
+        requesterCountryCode: me.countryCode ?? '',
+      }));
+    }
+  }, [users, currentUser.id, formData.requesterCountry]);
 
   // Read URL params on mount — skip to Step 2 if pre-filled from home page.
   // Depend on suppliers so the directory match runs once suppliers load.
@@ -266,6 +298,12 @@ export function NewRequestPage() {
           daysInStage: 0,
           isOverdue: false,
           referBackCount: 0,
+          requesterCountry: formData.requesterCountry || undefined,
+          requesterCountryCode: formData.requesterCountryCode || undefined,
+          beneficiaryId: formData.beneficiaryId || undefined,
+          beneficiaryName: formData.beneficiaryName || undefined,
+          beneficiaryCountry: formData.beneficiaryCountry || undefined,
+          beneficiaryCountryCode: formData.beneficiaryCountryCode || undefined,
         });
 
         if (sow) {
@@ -343,6 +381,12 @@ export function NewRequestPage() {
         daysInStage: 0,
         isOverdue: false,
         referBackCount: 0,
+        requesterCountry: formData.requesterCountry || undefined,
+        requesterCountryCode: formData.requesterCountryCode || undefined,
+        beneficiaryId: formData.beneficiaryId || undefined,
+        beneficiaryName: formData.beneficiaryName || undefined,
+        beneficiaryCountry: formData.beneficiaryCountry || undefined,
+        beneficiaryCountryCode: formData.beneficiaryCountryCode || undefined,
       });
       queryClient.invalidateQueries({ queryKey: ['requests'] });
       toast.success(`Draft saved as ${id}`);
@@ -503,6 +547,17 @@ export function NewRequestPage() {
                   : text,
               });
             }}
+          />
+        )}
+        {/* Requester context — who / where — established before the per-path
+            capture so catalogue / contract / SOW all inherit it. */}
+        {currentStep === 3 && (
+          <RequesterContextBlock
+            requestorId={currentUser.id}
+            requesterCountry={formData.requesterCountry}
+            beneficiaryId={formData.beneficiaryId}
+            beneficiaryName={formData.beneficiaryName}
+            onUpdate={(d) => updateFormData(d)}
           />
         )}
         {currentStep === 3 && formData.preCheckOutcome === 'catalogue' && (

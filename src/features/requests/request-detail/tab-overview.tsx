@@ -84,6 +84,17 @@ export function TabOverview({ request }: TabOverviewProps) {
                 <DetailRow label="Cost Centre" value={request.costCentre} />
                 <DetailRow label="Budget Owner" value={request.budgetOwner} />
                 <DetailRow label="Requestor" value={requestor?.name} />
+                {request.requesterCountry && (
+                  <DetailRow label="Requester Location" value={request.requesterCountry} />
+                )}
+                <DetailRow
+                  label="Buying For"
+                  value={
+                    request.beneficiaryId && request.beneficiaryId !== request.requestorId
+                      ? `${request.beneficiaryName ?? 'Someone else'}${request.beneficiaryCountry ? ` · ${request.beneficiaryCountry}` : ''}`
+                      : `${requestor?.name ?? 'Requestor'} (self)`
+                  }
+                />
                 <DetailRow label="Current Owner" value={owner?.name} />
                 <DetailRow label="Delivery Date" value={formatDate(request.deliveryDate)} />
                 <DetailRow label="Created" value={formatDate(request.createdAt)} />

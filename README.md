@@ -29,7 +29,7 @@ An interactive UI prototype that shows what a modern procurement orchestration p
 | Screen | Description |
 |--------|-------------|
 | Role-Based Dashboards | 5 tailored dashboards (Service Owner, Procurement Manager, Vendor Manager, Operations Lead, Admin) |
-| New Request Wizard | 7-step intake with a **staged-intake funnel**: free-text entry (no category selection — the path is derived), then a sequential **catalogue → enrich → contract** pre-check (no premature contract assertion), service description, **risk & assessment**, **determination**, routing, confirmation |
+| New Request Wizard | 7-step intake with a **staged-intake funnel**: free-text entry (no category selection — the path is derived), then a sequential **catalogue → enrich → contract** pre-check (no premature contract assertion), service description, **risk & assessment**, **determination**, routing, confirmation. The service-description capture is a **dynamic, answer-driven conversation** (next question depends on prior answers, nothing is re-asked — `demand-conversation.ts`). **Requester context** is established up front: the requester's **country is auto-derived from their profile** (read-only) and the **beneficiary defaults to self** with a type-ahead to buy on behalf of someone else |
 | Request Detail | Full lifecycle tracker with 7 tabs (Overview, Workflow, Comments, Approvals, Documents, Related, Audit) |
 | Active Workflows | Kanban board (drag-and-drop), sortable table, Gantt timeline — with system integration badges |
 | Workflow Monitor | Bottleneck dashboard, stuck requests, SLA tracker, heatmap, AI bottleneck analysis |
