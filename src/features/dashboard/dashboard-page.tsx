@@ -47,11 +47,6 @@ export function DashboardPage() {
   const [addOpen, setAddOpen] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
 
-  // Supplier redirect
-  if (currentRole === 'supplier') {
-    return <Navigate to="/portal" replace />;
-  }
-
   const layout = dashboardStore.getLayout(currentRole);
   const selectedQuickActionIds = dashboardStore.getQuickActions(currentRole);
   const selectedQuickActions = selectedQuickActionIds
@@ -81,6 +76,11 @@ export function DashboardPage() {
       dashboardStore.reorderWidgets(currentRole, fromIndex, toIndex);
     }
   };
+
+  // Suppliers have their own portal — redirect (after all hooks, per rules-of-hooks).
+  if (currentRole === 'supplier') {
+    return <Navigate to="/portal" replace />;
+  }
 
   return (
     <div className="space-y-6">
