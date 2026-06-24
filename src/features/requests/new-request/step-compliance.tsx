@@ -634,6 +634,7 @@ export function StepCompliance({
         </Button>
       </div>
 
+      <SectionHeader label="Decision" />
       {/* Demand disposition — proceed / request-change / refer-back. The
           headline routing decision: can this demand move to its next step? */}
       {result.referral && (
@@ -717,6 +718,7 @@ export function StepCompliance({
         </div>
       </div>
 
+      <SectionHeader label="Routing & approvals" />
       {/* Approval to source — the pre-sourcing gate (DET-05): which
           approvals are required before the demand can move into sourcing. */}
       {result.approvalToSource && (
@@ -849,6 +851,7 @@ export function StepCompliance({
 
       </>)}
       {phase === 'determination' && (<>
+      <SectionHeader label="Compliance checks" />
       {/* Policy Checks */}
       <div>
         <div className="mb-3 flex items-baseline justify-between">
@@ -961,6 +964,7 @@ export function StepCompliance({
 
       </>)}
       {phase === 'determination' && (<>
+      <SectionHeader label="Recommended suppliers" />
       {/* AI-005 Supplier Recommender */}
       <SupplierRecommenderCard
         category={category}
@@ -971,6 +975,19 @@ export function StepCompliance({
       {/* The workflow is PRE-DEFINED from the input (derived by category in the
           effect above) and attached silently — it is not user-selectable. */}
       </>)}
+    </div>
+  );
+}
+
+/** A small labelled divider that breaks the determination into scannable
+ *  sections (item 10 — the screen was a flat, unstructured stack of cards). */
+function SectionHeader({ label }: { label: string }) {
+  return (
+    <div className="flex items-center gap-2 pt-1">
+      <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+        {label}
+      </span>
+      <span className="h-px flex-1 bg-gray-100" />
     </div>
   );
 }

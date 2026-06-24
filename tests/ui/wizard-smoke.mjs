@@ -127,6 +127,22 @@ try {
   check('approval-to-source gate renders', (await page.getByText('Approval to source', { exact: true }).count()) > 0);
   check('approval-to-source shows a demand-validation gate', (await page.getByText('Demand validation', { exact: true }).count()) > 0);
 
+  // Item 10 — the determination is grouped under scannable section headings
+  // (was a flat, unstructured stack of cards).
+  check('determination is grouped under section headings (item 10)',
+    (await page.getByText('Decision', { exact: true }).count()) > 0 &&
+    (await page.getByText('Routing & approvals', { exact: true }).count()) > 0 &&
+    (await page.getByText('Compliance checks', { exact: true }).count()) > 0 &&
+    (await page.getByText('Recommended suppliers', { exact: true }).count()) > 0);
+
+  // Item 8 — the workflow is predefined from the input; there is NO picker.
+  check('NO workflow-template picker on the determination (item 8)',
+    (await page.getByText('Which template should this request follow?').count()) === 0);
+
+  // Item 9 — Save as draft is available on the determination step (not just routing).
+  check('Save as Draft is available on the determination (item 9)',
+    (await page.getByRole('button', { name: /Save as Draft/ }).count()) > 0);
+
   // The determination is exportable — clicking Export downloads a .md file.
   check('determination Export button renders', (await page.getByRole('button', { name: /Export/ }).count()) > 0);
   const [download] = await Promise.all([
