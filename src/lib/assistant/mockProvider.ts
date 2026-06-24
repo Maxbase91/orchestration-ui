@@ -306,7 +306,7 @@ export const mockProvider: AssistantProvider = {
           ];
         }
 
-        return lookupObject(type, identifier);
+        return await lookupObject(type, identifier);
       }
 
       case 'action': {

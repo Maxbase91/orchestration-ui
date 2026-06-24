@@ -142,6 +142,26 @@ try {
       responded = true;
     } catch { /* hang */ }
     check('assistant returns a response (no hang)', responded);
+
+    // CB-E10: the assistant reads the same governed source as the front door —
+    // look up a real supplier and assert the connector-backed data comes back.
+    const { data: sup } = await sb.from('suppliers').select('id').order('id').limit(1).maybeSingle();
+    if (sup?.id) {
+      const before2 = (await page.locator('body').innerText()).length;
+      await input.fill(`Look up supplier ${sup.id}`);
+      await input.press('Enter');
+      let looked = false;
+      try {
+        await page.waitForFunction(
+          (n) => /Risk rating/i.test(document.body.innerText) && document.body.innerText.length > n,
+          before2, { timeout: 25000 });
+        looked = true;
+      } catch { /* no governed data returned */ }
+      check('assistant lookup returns governed data via connector ports (CB-E10)', looked, sup.id);
+    } else {
+      check('assistant lookup returns governed data via connector ports (CB-E10)', false, 'no supplier in store');
+    }
+
     check('no uncaught errors in the assistant', errors.length === 0, errors[0]);
     await ctx.close();
   }

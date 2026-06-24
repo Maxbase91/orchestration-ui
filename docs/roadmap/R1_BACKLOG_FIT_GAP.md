@@ -80,12 +80,14 @@ express as **own-store read ports** behind the connector interface; live/MCP is 
 hooks, the documented live-swap seam (`src/lib/integrations/README.md`), and own-store connectors for
 **seven objects** (supplier, contract, purchase-request, purchase-order, invoice, risk-assessment,
 catalogue-item); covered by `npm run test:connectors` (22 checks incl. a drift guard).
-**Consumers routed:** the front-door catalogue + contract checks (`step-pre-check.tsx`) and the
-supplier/contract reads in `step-compliance.tsx` now read through the ports (`useSourceData`).
+**Consumers routed:** the front-door catalogue + contract checks (`step-pre-check.tsx`), the
+supplier/contract reads in `step-compliance.tsx` (`useSourceData`), and the **assistant lookups**
+(`src/lib/assistant/capabilities/lookup.ts` now reads suppliers/requests/contracts/POs/invoices/risk
+through `requireConnector(...)` — so the chatbot and front door share one governed source).
 **Remaining:** connectors for objects without an own-store read module yet (support-ticket, payment,
 risk-screening, category-taxonomy, form-submission); routing **risk reuse-matching** through the ports
-(needs validity-window query support — WS-C) and the **assistant lookups** (needs a server-side
-connector variant for `api/chat.ts` — WS-E).
+(needs validity-window query support — WS-C) and the **server-side** assistant path (`api/chat.ts`
+needs a server connector variant — WS-E).
 
 #### FD-E15 — Design System & User Journeys — 🟢 Built
 FD-E15-01 component library 🟢; FD-E15-02 journeys 🟡 (confirm from contextual inquiry, OI-10); ARC7 env/rollback 🟡.
@@ -233,10 +235,14 @@ FD-E9-01 processing scope (PO required) 🟢 · FD-E9-02 finalise record 🟢 ·
 
 #### CB-E10 — NL Data Query — 🟡 Partial
 Real Groq tool-calling over **internal Supabase** (request, supplier, contract, PO, invoice, risk) + filter
-(CB-E10-02 🟢) + partial aggregation (CB-E10-03 🟡). The per-source object stories below are 🔴 until they
-read the own-DB source tables via the connector ports:
-CB-E10-06 CSD (ServiceNow) · 07 PR/PO (Ariba) · 08 Contract (Sirion) · 09 Catalogue · 10 Supplier · 11 Invoice ·
-12 Guided Buying · 13 Sourcing Request · 14 Supplier Request · 15 TPRA (Coupa) · 16 Coupa status — all 🔴/🟡.
+(CB-E10-02 🟢) + partial aggregation (CB-E10-03 🟡). The **client-side assistant lookups now read through the
+connector ports** (`capabilities/lookup.ts` → `requireConnector`), so the chatbot and front door share one
+governed source with the provenance envelope; degrades gracefully on a source outage. Verified end-to-end by
+`test:interactions-ui` (assistant returns connector-backed supplier data).
+Per-source object stories — CB-E10-07 PR/PO (Ariba) · 08 Contract (Sirion) · 09 Catalogue · 10 Supplier ·
+11 Invoice — are **🟡 (read via the own-store ports today)**; CB-E10-06 CSD (ServiceNow) · 12 Guided Buying ·
+13 Sourcing Request · 14 Supplier Request · 15 TPRA (Coupa) · 16 Coupa status remain 🔴 (need own-store
+objects modelled). The **server-side** `api/chat.ts` tool path still reads Supabase directly (WS-E).
 CB-E10-GOV4 field masking (OI-28) 🔴 · CB-E10-BFF5 gateway 🟡 · CB-E10-AGB2 orchestration 🟢.
 
 #### CB-E11 — Grounded Policy Q&A — 🟡 Partial
@@ -267,7 +273,7 @@ CB-E14-03 eight-language 🔴 · CB-E14-04 deep-link to source 🟢.
 | **WS-C** | Regulated risk & materiality engine — 🟢 **cascade + non-binary outcome + materiality + mini-IRQ delta + structured reuse model + assessment handoff + preliminary operational risk assessment** done; remaining: risk-matching hardening (FD-E7-AGT6) | S3–S5 | FD-E7-01..09, FD-E8-10 |
 | **WS-D** | Complete front-door determination — 🟢 **done**: contract/sourcing type (incl. amend/change), handoff, two-step split, exportable endpoint, 2nd contract check, approval-to-source gate | S4–S6 | FD-E5-07, FD-E8-04/05/08/09, FD-E9 |
 | **WS-F** | Staged-Intake Funnel redesign — 🟢 **done**: free-text-primary entry + sequential catalogue→enrich→contract→full-SD funnel (no premature catalogue/contract assertions) + **criteria-triggered stage-5 residual questions** (`residual-questions.ts`) | S4–S6 | **FD-E3-10**, FD-E3-02, FD-E4-01/03, FD-E5-01/02/05/06 |
-| **WS-E** | Chatbot to own-DB sources + governance — 🟡 **classification eval harness + accuracy baseline** done (FD-E4-GOV1); remaining: per-object lookups, masking, RAG, payments hand-off, Teams/i18n | S2–S7 | CB-E10-06..16, CB-E11-AGB1, CB-E12-06, FD-E4-GOV1 |
+| **WS-E** | Chatbot to own-DB sources + governance — 🟡 **classification eval harness** (FD-E4-GOV1) + **client assistant lookups routed through the connector ports** (CB-E10, one governed source) done; remaining: server-side `api/chat.ts` path, more source objects, masking, RAG, payments hand-off, Teams/i18n | S2–S7 | CB-E10-06..16, CB-E11-AGB1, CB-E12-06, FD-E4-GOV1 |
 
 Lead with **WS-A** (highest leverage — turns heuristics into data-driven decisioning); WS-0 defines the
 connector interface so **WS-B** can proceed in parallel.

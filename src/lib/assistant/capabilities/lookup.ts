@@ -1,12 +1,40 @@
-import { requests } from '@/data/requests';
-import { suppliers } from '@/data/suppliers';
-import { contracts } from '@/data/contracts';
-import { purchaseOrders } from '@/data/purchase-orders';
-import { invoices } from '@/data/invoices';
-import { riskAssessments } from '@/data/risk-assessments';
-import type { AssistantTurn } from '@/data/types';
+import { requireConnector, type SourceObject } from '@/lib/integrations';
+import type {
+  AssistantTurn, Supplier, Contract, PurchaseOrder, Invoice, RiskAssessment, ProcurementRequest,
+} from '@/data/types';
 
 type ObjectType = 'request' | 'supplier' | 'contract' | 'po' | 'invoice' | 'risk-assessment';
+
+// The assistant reads the same governed source as the front door — every lookup
+// goes through the standardised connector ports (own store today, live source
+// later), never a static data import. Reads are wrapped so a source outage
+// degrades gracefully rather than throwing.
+const SOURCE_OBJECT: Record<ObjectType, SourceObject> = {
+  request: 'purchase-request',
+  supplier: 'supplier',
+  contract: 'contract',
+  po: 'purchase-order',
+  invoice: 'invoice',
+  'risk-assessment': 'risk-assessment',
+};
+
+async function getRecord<T>(type: ObjectType, key: string): Promise<T | null> {
+  try {
+    const rec = await requireConnector<string, T>(SOURCE_OBJECT[type]).get(key);
+    return rec?.data ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function listRecords<T>(type: ObjectType, query?: Parameters<ReturnType<typeof requireConnector<string, T>>['list']>[0]): Promise<T[]> {
+  try {
+    const recs = await requireConnector<string, T>(SOURCE_OBJECT[type]).list(query);
+    return recs.map((r) => r.data);
+  } catch {
+    return [];
+  }
+}
 
 function detectType(identifier: string): ObjectType | null {
   const id = identifier.toUpperCase();
@@ -19,7 +47,7 @@ function detectType(identifier: string): ObjectType | null {
   return null;
 }
 
-export function lookupObject(type: ObjectType | null, identifier: string): AssistantTurn[] {
+export async function lookupObject(type: ObjectType | null, identifier: string): Promise<AssistantTurn[]> {
   const resolvedType = type ?? detectType(identifier);
 
   if (!resolvedType || !identifier) {
@@ -42,18 +70,18 @@ export function lookupObject(type: ObjectType | null, identifier: string): Assis
   return lookupSupplier(identifier);
 }
 
-function lookupSupplier(identifier: string): AssistantTurn[] {
+async function lookupSupplier(identifier: string): Promise<AssistantTurn[]> {
   const id = identifier.toUpperCase();
   const name = identifier.toLowerCase();
   const supplier =
-    suppliers.find((s) => s.id === id) ??
-    suppliers.find((s) => s.name.toLowerCase().includes(name));
+    (await getRecord<Supplier>('supplier', id)) ??
+    (await listRecords<Supplier>('supplier', { search: name })).find((s) => s.name.toLowerCase().includes(name));
 
   if (!supplier) {
     return [{ type: 'chat-answer', content: `No supplier found matching "${identifier}". Check the Supplier Directory for a full list.` }];
   }
 
-  const riskAssessment = riskAssessments.find((r) => r.supplierId === supplier.id);
+  const riskAssessment = (await listRecords<RiskAssessment>('risk-assessment', { filters: { supplierId: supplier.id } }))[0];
 
   const summary = [
     `**${supplier.name}** (${supplier.id}) — Tier ${supplier.tier} supplier, ${supplier.country}.`,
@@ -77,9 +105,9 @@ function lookupSupplier(identifier: string): AssistantTurn[] {
   ];
 }
 
-function lookupRequest(identifier: string): AssistantTurn[] {
+async function lookupRequest(identifier: string): Promise<AssistantTurn[]> {
   const id = identifier.toUpperCase();
-  const req = requests.find((r) => r.id === id);
+  const req = await getRecord<ProcurementRequest>('request', id);
 
   if (!req) {
     return [{ type: 'chat-answer', content: `No request found with ID ${identifier}. Check the Requests module for a full list.` }];
@@ -105,11 +133,11 @@ function lookupRequest(identifier: string): AssistantTurn[] {
   ];
 }
 
-function lookupContract(identifier: string): AssistantTurn[] {
+async function lookupContract(identifier: string): Promise<AssistantTurn[]> {
   const id = identifier.toUpperCase();
   const contract =
-    contracts.find((c) => c.id === id) ??
-    contracts.find((c) => c.supplierName.toLowerCase().includes(identifier.toLowerCase()));
+    (await getRecord<Contract>('contract', id)) ??
+    (await listRecords<Contract>('contract', { search: identifier.toLowerCase() })).find((c) => c.supplierName.toLowerCase().includes(identifier.toLowerCase()));
 
   if (!contract) {
     return [{ type: 'chat-answer', content: `No contract found matching "${identifier}".` }];
@@ -139,9 +167,9 @@ function lookupContract(identifier: string): AssistantTurn[] {
   ];
 }
 
-function lookupPO(identifier: string): AssistantTurn[] {
+async function lookupPO(identifier: string): Promise<AssistantTurn[]> {
   const id = identifier.toUpperCase();
-  const po = purchaseOrders.find((p) => p.id === id);
+  const po = await getRecord<PurchaseOrder>('po', id);
 
   if (!po) {
     return [{ type: 'chat-answer', content: `No PO found with ID ${identifier}.` }];
@@ -164,9 +192,9 @@ function lookupPO(identifier: string): AssistantTurn[] {
   ];
 }
 
-function lookupInvoice(identifier: string): AssistantTurn[] {
+async function lookupInvoice(identifier: string): Promise<AssistantTurn[]> {
   const id = identifier.toUpperCase();
-  const inv = invoices.find((i) => i.id === id);
+  const inv = await getRecord<Invoice>('invoice', id);
 
   if (!inv) {
     return [{ type: 'chat-answer', content: `No invoice found with ID ${identifier}.` }];
@@ -194,9 +222,9 @@ function lookupInvoice(identifier: string): AssistantTurn[] {
   return turns;
 }
 
-function lookupRisk(identifier: string): AssistantTurn[] {
+async function lookupRisk(identifier: string): Promise<AssistantTurn[]> {
   const id = identifier.toUpperCase();
-  const ra = riskAssessments.find((r) => r.id === id);
+  const ra = await getRecord<RiskAssessment>('risk-assessment', id);
 
   if (!ra) {
     return [{ type: 'chat-answer', content: `No risk assessment found with ID ${identifier}.` }];
