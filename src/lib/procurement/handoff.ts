@@ -26,6 +26,8 @@ export interface HandoffInput {
   channel: BuyingChannel;
   riskOutcome: 'reuse' | 'amend' | 'change' | 'new' | 'no-match';
   material: boolean;
+  /** The selected supplier's master data is incomplete (RTE-04). */
+  supplierDataIssue?: boolean;
 }
 
 const PO_CHANNELS: BuyingChannel[] = ['catalogue', 'direct-po', 'framework-call-off'];
@@ -33,6 +35,19 @@ const PO_CHANNELS: BuyingChannel[] = ['catalogue', 'direct-po', 'framework-call-
 /** Build the ordered list of downstream handoff steps for a determination. */
 export function buildHandoffSteps(input: HandoffInput): HandoffStep[] {
   const steps: HandoffStep[] = [];
+
+  // 0. Supplier master-data remediation — a prerequisite when the selected
+  //    supplier isn't fully onboarded / has stale records (RTE-04).
+  if (input.supplierDataIssue) {
+    steps.push({
+      key: 'supplier-data',
+      label: 'Resolve supplier master data',
+      system: 'Supplier management',
+      status: 'required',
+      detail: 'The selected supplier’s master data is incomplete — complete onboarding / refresh records before proceeding.',
+      deepLink: '/suppliers/onboarding',
+    });
+  }
 
   // 1. Detailed risk assessment — routed to the risk register, not captured in
   //    the front door. Reuse → not required; delta → recommended; else required.

@@ -239,7 +239,7 @@ SUP-01 permissible supplier 🟡 (PSL soft-preference now in checks) · SUP-02 c
 | DET-B4 | Recommendation composition API | 🟡 | Partial |
 
 #### RTE — Route & Handoff — 🟡 Partial
-RTE-01 processing scope (PO required) 🟢 · RTE-02 finalise record 🟢 · RTE-03 handoff triggers 🟡 (**structured next-steps with system + status + deep-link** via `handoff.ts`) · RTE-04 supplier-data issue 🟡 · RTE-05 sourcing handoff (no write) 🟡 · RTE-06 PR refer/change 🟢 (**demand disposition** in `lib/procurement/referral.ts` — proceed / request-change / refer-back, most-blocking-wins from completeness + policy + scope signals; headline banner on the determination + in the export) · DEC-6 write-path/idempotency 🔴 · WFL-7 hardening 🟡.
+RTE-01 processing scope (PO required) 🟢 · RTE-02 finalise record 🟢 · RTE-03 handoff triggers 🟡 (**structured next-steps with system + status + deep-link** via `handoff.ts`) · RTE-04 supplier-data issue 🟢 (**`supplier-data.ts`** flags an incomplete supplier record — onboarding not completed / expired certifications — and `handoff.ts` adds a **"Resolve supplier master data" remediation step** routed to onboarding) · RTE-05 sourcing handoff (no write) 🟡 · RTE-06 PR refer/change 🟢 (**demand disposition** in `lib/procurement/referral.ts` — proceed / request-change / refer-back, most-blocking-wins from completeness + policy + scope signals; headline banner on the determination + in the export) · DEC-6 write-path/idempotency 🔴 · WFL-7 hardening 🟡.
 
 ### Cluster: Chatbot
 

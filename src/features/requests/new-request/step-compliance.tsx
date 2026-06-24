@@ -11,6 +11,7 @@ import { determineMateriality, type MaterialityResult } from '@/lib/procurement/
 import { determineInherentRisk, type InherentRiskResult } from '@/lib/procurement/risk-segmentation';
 import { selectReuseOutcome, type ReuseEvaluation } from '@/lib/procurement/risk-reuse';
 import { buildHandoffSteps, type HandoffStep } from '@/lib/procurement/handoff';
+import { evaluateSupplierData } from '@/lib/procurement/supplier-data';
 import { determineContractType, determineSourcingType, type ContractType, type SourcingType } from '@/lib/procurement/determination';
 import { buildDeterminationExport } from '@/lib/procurement/determination-export';
 import { runSecondContractCheck, type SecondContractCheckResult } from '@/lib/procurement/second-contract-check';
@@ -354,10 +355,12 @@ export function StepCompliance({
       material: materiality.material,
     });
     const label = buyingChannelLabel(routing.channel);
+    const supplierData = evaluateSupplierData(supplierRec);
     const handoffSteps = buildHandoffSteps({
       channel: routing.channel,
       riskOutcome: riskOutcome.decision,
       material: materiality.material,
+      supplierDataIssue: !supplierData.complete,
     });
     // Second contract check (after the full SD) — surfaces transactable
     // contracts and frameworks/MSAs against the supplier.

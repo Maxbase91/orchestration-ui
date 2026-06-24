@@ -13,6 +13,7 @@ function check(name, cond, detail = '') {
 const PO_CHANNELS = ['catalogue', 'direct-po', 'framework-call-off'];
 function buildHandoffSteps(input) {
   const steps = [];
+  if (input.supplierDataIssue) steps.push({ key: 'supplier-data', system: 'Supplier management', status: 'required', deepLink: '/suppliers/onboarding' });
   const riskStatus = input.riskOutcome === 'reuse' ? 'not-required' : input.riskOutcome === 'amend' ? 'recommended' : 'required';
   steps.push({ key: 'risk-assessment', system: 'Third-party risk register', status: riskStatus, deepLink: riskStatus === 'not-required' ? undefined : '/suppliers/risk' });
   if (input.material) steps.push({ key: 'materiality-governance', system: 'Governance', status: 'required', deepLink: '/approvals' });
@@ -31,6 +32,8 @@ check('reuse → risk assessment not required (no deep-link)', (() => { const s 
 check('amend → recommended (delta)', byKey(buildHandoffSteps({ channel: 'catalogue', riskOutcome: 'amend', material: false }), 'risk-assessment').status === 'recommended');
 check('new → required, routed to risk register', (() => { const s = byKey(buildHandoffSteps({ channel: 'catalogue', riskOutcome: 'new', material: false }), 'risk-assessment'); return s.status === 'required' && s.deepLink === '/suppliers/risk'; })());
 check('change → required', byKey(buildHandoffSteps({ channel: 'catalogue', riskOutcome: 'change', material: false }), 'risk-assessment').status === 'required');
+check('supplier-data issue → remediation step (required, routed to onboarding)', (() => { const s = byKey(buildHandoffSteps({ channel: 'catalogue', riskOutcome: 'reuse', material: false, supplierDataIssue: true }), 'supplier-data'); return s && s.status === 'required' && s.deepLink === '/suppliers/onboarding'; })());
+check('no supplier-data issue → no remediation step', !byKey(buildHandoffSteps({ channel: 'catalogue', riskOutcome: 'reuse', material: false }), 'supplier-data'));
 
 console.log('Materiality / governance');
 check('material → governance step present + required', byKey(buildHandoffSteps({ channel: 'catalogue', riskOutcome: 'reuse', material: true }), 'materiality-governance')?.status === 'required');

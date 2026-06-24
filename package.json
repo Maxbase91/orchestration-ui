@@ -34,6 +34,7 @@
     "test:classification-eval": "node tests/integration/classification-eval.mjs",
     "test:referral": "node tests/integration/referral.mjs",
     "test:screening": "node tests/integration/screening.mjs",
+    "test:supplier-data": "node tests/integration/supplier-data.mjs",
     "test:policy-config": "node tests/integration/policy-config.mjs",
     "test:knowledge": "node tests/integration/knowledge-retrieval.mjs",
     "test:ui": "node tests/ui/wizard-smoke.mjs",
