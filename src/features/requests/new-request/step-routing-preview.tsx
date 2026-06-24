@@ -1,86 +1,84 @@
-import { Clock, Users as UsersIcon } from 'lucide-react';
+import { useMemo } from 'react';
+import { Clock, Users as UsersIcon, ShieldCheck } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { WorkflowPreview } from './components/workflow-preview';
-
-const AVAILABLE_REVIEWERS = [
-  { id: 'r1', name: 'Thomas Weber', role: 'Finance Director' },
-  { id: 'r2', name: 'Anna Muller', role: 'Legal Counsel' },
-  { id: 'r3', name: 'Robert Fischer', role: 'IT Director' },
-  { id: 'r4', name: 'Dr. Katrin Bauer', role: 'Compliance Officer' },
-  { id: 'r5', name: 'Markus Braun', role: 'Category Manager' },
-];
+import { useWorkflowTemplate } from '@/lib/db/hooks/use-workflow-templates';
+import { useApprovalChains } from '@/lib/db/hooks/use-approval-chains';
+import { useProcurementCategories } from '@/lib/db/hooks/use-procurement-categories';
+import { useUsers } from '@/lib/db/hooks/use-users';
+import { resolveApprover } from '@/lib/workflow/approver-resolution';
+import { composeWorkflowSteps, selectApprovalChainForValue } from '@/lib/workflow/workflow-steps';
 
 interface StepRoutingPreviewProps {
   category: string;
   estimatedValue: number;
+  /** The workflow template attached to the request (derived from the input). */
+  workflowTemplateId: string;
+  /** Determination signals that overlay conditional lifecycle steps. */
+  riskAssessmentRequired: boolean;
+  supplierOnboardingRequired: boolean;
   additionalReviewers: string[];
   notes: string;
   onUpdate: (data: { additionalReviewers: string[]; notes: string }) => void;
 }
 
-function getWorkflowSteps(category: string, value: number) {
-  const steps = [
-    { label: 'Intake Review', owner: 'System', parallel: false },
-    { label: 'Validation', owner: 'Category Manager', parallel: false },
-  ];
-
-  if (value > 100000) {
-    steps.push({ label: 'VP Approval', owner: 'VP Procurement', parallel: false });
-  }
-
-  steps.push({ label: 'Budget Approval', owner: 'Finance', parallel: value > 100000 });
-
-  if (category === 'consulting' || category === 'services') {
-    steps.push({ label: 'Sourcing', owner: 'Procurement Lead', parallel: false });
-  }
-
-  steps.push({ label: 'Contracting', owner: 'Legal', parallel: false });
-  steps.push({ label: 'PO Creation', owner: 'System', parallel: false });
-
-  return steps;
-}
-
-function getApprovers(_category: string, value: number) {
-  const approvers: { name: string; role: string; type: 'sequential' | 'parallel' }[] = [
-    { name: 'Anna Müller', role: 'Category Manager', type: 'sequential' },
-  ];
-
-  if (value > 25000) {
-    approvers.push({ name: "James O'Brien", role: 'Budget Owner', type: 'parallel' });
-  }
-
-  if (value > 100000) {
-    approvers.push({ name: 'Christine Dupont', role: 'VP Procurement', type: 'sequential' });
-  }
-
-  if (value > 500000) {
-    approvers.push({ name: 'Maria Hoffmann', role: 'CFO', type: 'sequential' });
-  }
-
-  return approvers;
-}
-
-function getEstimatedTimeline(category: string, value: number): number {
-  let days = 5;
-  if (category === 'consulting') days += 5;
-  if (category === 'services') days += 3;
-  if (value > 100000) days += 4;
-  if (value > 500000) days += 3;
-  return days;
-}
-
+/**
+ * The Routing step is a PRESENTATION of the determination's config-driven
+ * outputs — it holds no policy of its own. The lifecycle comes from the attached
+ * workflow template (admin Workflow Designer) plus determination-driven Risk /
+ * Onboarding steps; approvals from the admin approval chains banded by value;
+ * the SLA from the category configuration; reviewers from the user directory.
+ * Nothing here is hardcoded.
+ */
 export function StepRoutingPreview({
   category,
   estimatedValue,
+  workflowTemplateId,
+  riskAssessmentRequired,
+  supplierOnboardingRequired,
   additionalReviewers,
   notes,
   onUpdate,
 }: StepRoutingPreviewProps) {
-  const workflowSteps = getWorkflowSteps(category, estimatedValue);
-  const approvers = getApprovers(category, estimatedValue);
-  const estimatedDays = getEstimatedTimeline(category, estimatedValue);
+  const { data: template } = useWorkflowTemplate(workflowTemplateId || undefined);
+  const { data: chains = [] } = useApprovalChains();
+  const { data: categories = [] } = useProcurementCategories();
+  const { data: users = [] } = useUsers();
+
+  // Lifecycle ← the attached template's stage nodes + conditional Risk / Onboarding.
+  const workflowSteps = useMemo(
+    () => composeWorkflowSteps(template?.nodes ?? [], { riskAssessmentRequired, supplierOnboardingRequired }),
+    [template, riskAssessmentRequired, supplierOnboardingRequired],
+  );
+
+  // Approvers ← the approval chain whose value band covers this spend, each
+  // step's functional role resolved to its actionable persona. Duplicate
+  // personas (a person wearing two role hats) are merged.
+  const approvalChain = useMemo(
+    () => selectApprovalChainForValue(chains, estimatedValue),
+    [chains, estimatedValue],
+  );
+  const approvers = useMemo(() => {
+    const out: { id: string; name: string; roles: string[] }[] = [];
+    for (const step of approvalChain?.steps ?? []) {
+      const resolved = resolveApprover(step.role);
+      const existing = out.find((a) => a.id === resolved.id);
+      if (existing) existing.roles.push(step.role);
+      else out.push({ id: resolved.id, name: resolved.name, roles: [step.role] });
+    }
+    return out;
+  }, [approvalChain]);
+
+  // Timeline ← the category's configured SLA (admin-editable).
+  const matchedCategory = useMemo(
+    () => categories.find((c) => c.id === category || c.label.toLowerCase() === category.toLowerCase()),
+    [categories, category],
+  );
+
+  // Reviewers ← the internal user directory (suppliers excluded).
+  const reviewers = useMemo(() => users.filter((u) => u.role !== 'supplier'), [users]);
 
   const toggleReviewer = (id: string) => {
     const updated = additionalReviewers.includes(id)
@@ -91,65 +89,99 @@ export function StepRoutingPreview({
 
   return (
     <div className="space-y-6">
-      {/* Workflow Preview */}
+      {/* Workflow Preview — the lifecycle from the attached template. */}
       <div>
-        <p className="mb-3 text-sm font-medium text-gray-700">Workflow Preview</p>
+        <div className="mb-3 flex items-baseline justify-between">
+          <p className="text-sm font-medium text-gray-700">Workflow Preview</p>
+          {template && <p className="text-[11px] text-gray-400">from “{template.name}”</p>}
+        </div>
         <div className="rounded-lg border border-gray-200 bg-white p-4">
-          <WorkflowPreview steps={workflowSteps} />
+          {workflowSteps.length > 0 ? (
+            <WorkflowPreview steps={workflowSteps} />
+          ) : (
+            <p className="text-sm text-gray-400">
+              The lifecycle will display once the workflow template is attached.
+            </p>
+          )}
         </div>
-      </div>
-
-      {/* Required Approvals */}
-      <div>
-        <p className="mb-3 text-sm font-medium text-gray-700">Required Approvals</p>
-        <div className="space-y-2">
-          {approvers.map((approver) => (
-            <div
-              key={approver.name}
-              className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3"
-            >
-              <div className="flex items-center gap-3">
-                <div className="flex size-8 items-center justify-center rounded-full bg-gray-100 text-xs font-medium text-gray-600">
-                  {approver.name.split(' ').map((n) => n[0]).join('')}
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-900">{approver.name}</p>
-                  <p className="text-xs text-gray-500">{approver.role}</p>
-                </div>
-              </div>
-              <Badge variant="outline" className="text-xs">
-                {approver.type}
-              </Badge>
-            </div>
-          ))}
-        </div>
-        {approvers.some((a) => a.type === 'parallel') && (
-          <p className="mt-2 text-xs text-gray-500">
-            Parallel approvals run simultaneously, reducing overall cycle time.
+        {(riskAssessmentRequired || supplierOnboardingRequired) && (
+          <p className="mt-2 flex items-center gap-1.5 text-xs text-amber-700">
+            <ShieldCheck className="size-3.5" />
+            {riskAssessmentRequired && supplierOnboardingRequired
+              ? 'A risk assessment and vendor onboarding have been added to the lifecycle.'
+              : riskAssessmentRequired
+                ? 'A risk assessment has been added to the lifecycle.'
+                : 'Vendor onboarding has been added to the lifecycle.'}
           </p>
         )}
       </div>
 
-      {/* Estimated Timeline */}
-      <div className="flex items-center gap-3 rounded-lg border border-blue-200 bg-blue-50/60 p-4">
-        <Clock className="size-5 text-blue-500" />
-        <div>
-          <p className="text-sm font-medium text-gray-900">Estimated Timeline</p>
-          <p className="text-sm text-gray-600">
-            Based on similar requests, approximately{' '}
-            <span className="font-semibold text-blue-700">{estimatedDays} business days</span>
-          </p>
+      {/* Required Approvals — the value-banded approval chain. */}
+      <div>
+        <div className="mb-3 flex items-baseline justify-between">
+          <p className="text-sm font-medium text-gray-700">Required Approvals</p>
+          {approvalChain && (
+            <p className="text-[11px] text-gray-400">
+              {approvalChain.name} chain · {approvalChain.threshold}
+            </p>
+          )}
         </div>
+        {approvers.length > 0 ? (
+          <div className="space-y-2">
+            {approvers.map((approver, i) => (
+              <div
+                key={approver.id}
+                className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="flex size-8 items-center justify-center rounded-full bg-gray-100 text-xs font-medium text-gray-600">
+                    {approver.name.split(' ').map((n) => n[0]).join('')}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">{approver.name}</p>
+                    <p className="text-xs text-gray-500">{approver.roles.join(' · ')}</p>
+                  </div>
+                </div>
+                <Badge variant="outline" className="text-xs">
+                  Step {i + 1}
+                </Badge>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500">
+            No approvals required for this value band.
+          </p>
+        )}
+        {approvers.length > 1 && (
+          <p className="mt-2 text-xs text-gray-500">
+            Approvals in this chain run in sequence.
+          </p>
+        )}
       </div>
 
-      {/* Additional Reviewers */}
+      {/* Estimated Timeline — the category's configured SLA. */}
+      {matchedCategory && (
+        <div className="flex items-center gap-3 rounded-lg border border-blue-200 bg-blue-50/60 p-4">
+          <Clock className="size-5 text-blue-500" />
+          <div>
+            <p className="text-sm font-medium text-gray-900">Estimated Timeline</p>
+            <p className="text-sm text-gray-600">
+              {matchedCategory.label} requests target approximately{' '}
+              <span className="font-semibold text-blue-700">{matchedCategory.timelineDays} business days</span>
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Additional Reviewers — from the user directory. */}
       <div>
         <div className="mb-3 flex items-center gap-2">
           <UsersIcon className="size-4 text-gray-500" />
           <p className="text-sm font-medium text-gray-700">Add Reviewers / Watchers</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {AVAILABLE_REVIEWERS.map((reviewer) => {
+          {reviewers.map((reviewer) => {
             const selected = additionalReviewers.includes(reviewer.id);
             return (
               <button
@@ -163,7 +195,7 @@ export function StepRoutingPreview({
                 }`}
               >
                 {reviewer.name}
-                <span className="text-gray-400">{reviewer.role}</span>
+                <span className="text-gray-400">{reviewer.department || reviewer.role}</span>
               </button>
             );
           })}

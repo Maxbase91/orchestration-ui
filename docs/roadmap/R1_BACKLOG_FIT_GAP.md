@@ -239,7 +239,15 @@ SUP-01 permissible supplier 🟡 (PSL soft-preference now in checks) · SUP-02 c
 | DET-B4 | Recommendation composition API | 🟡 | Partial |
 
 #### RTE — Route & Handoff — 🟡 Partial
-RTE-01 processing scope (PO required) 🟢 · RTE-02 finalise record 🟢 · RTE-03 handoff triggers 🟡 (**structured next-steps with system + status + deep-link** via `handoff.ts`) · RTE-04 supplier-data issue 🟢 (**`supplier-data.ts`** flags an incomplete supplier record — onboarding not completed / expired certifications — and `handoff.ts` adds a **"Resolve supplier master data" remediation step** routed to onboarding) · RTE-05 sourcing handoff (no write) 🟡 · RTE-06 PR refer/change 🟢 (**demand disposition** in `lib/procurement/referral.ts` — proceed / request-change / refer-back, most-blocking-wins from completeness + policy + scope signals; headline banner on the determination + in the export) · DEC-6 write-path/idempotency 🔴 · WFL-7 hardening 🟡.
+RTE-01 processing scope (PO required) 🟢 · RTE-02 finalise record 🟢 · RTE-03 handoff triggers 🟡 (**structured next-steps with system + status + deep-link** via `handoff.ts`) · RTE-04 supplier-data issue 🟢 (**`supplier-data.ts`** flags an incomplete supplier record — onboarding not completed / expired certifications — and `handoff.ts` adds a **"Resolve supplier master data" remediation step** routed to onboarding) · RTE-05 sourcing handoff (no write) 🟡 · RTE-06 PR refer/change 🟢 (**demand disposition** in `lib/procurement/referral.ts` — proceed / request-change / refer-back, most-blocking-wins from completeness + policy + scope signals; headline banner on the determination + in the export) · **RTE-07 config-driven Routing step 🟢** (the Routing preview is now a **presentation of config**, no hardcoded literals: the **lifecycle** comes from the attached workflow template's stage nodes — `useWorkflowTemplate` — with **conditional Risk assessment / Vendor onboarding steps** overlaid from the determination signals via the pure `lib/workflow/workflow-steps.ts` `composeWorkflowSteps` (`test:workflow-steps`); **approvers** from the value-banded **approval chain** (`selectApprovalChainForValue` + `resolveApprover`); **timeline** from `procurement_categories.timelineDays`; **reviewers** from the user directory. Fixes the old fake "Intake review by system" step) · DEC-6 write-path/idempotency 🔴 · WFL-7 hardening 🟡.
+
+> **Documented future-config gaps (RTE-07).** The Routing step derives from existing admin config, but a
+> few *selection rules* are not admin-editable yet — derived pragmatically now, recorded here as future
+> admin work rather than invented UI: (a) **category → workflow-template** mapping (today `template.type ===
+> category`, else the "standard" template); (b) **category/value → approval-chain** mapping (today by the
+> chain's `threshold` band); (c) **buying-channel → stage list** (`lib/workflow/buying-channel-stages.ts`,
+> hardcoded, no admin page); (d) a **CFO / top approval-tier threshold** (not in `policy-config.ts`); (e)
+> **value-based timeline** adjustment (only `category.timelineDays` is configurable, not a value multiplier).
 
 ### Cluster: Chatbot
 

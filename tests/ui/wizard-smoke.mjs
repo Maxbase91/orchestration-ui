@@ -166,6 +166,34 @@ try {
       (await page.getByText('Preferred-supplier routing').count()) > 0);
   }
 
+  // 4c. Routing step (6): the lifecycle, approvals, timeline and reviewers are
+  //     all DERIVED from admin config (items 7+11) — no hardcoded literals. The
+  //     renewal demand (€150k, no supplier) drives both conditional steps.
+  await page.getByRole('button', { name: /Next/ }).click();              // → step 6 (routing)
+  await page.getByText('Workflow Preview', { exact: true }).waitFor({ timeout: 15000 });
+  // Wait for the template query to resolve so the lifecycle is populated.
+  await page.getByText('Validation', { exact: true }).waitFor({ timeout: 15000 });
+  check('routing step renders the workflow preview', true);
+  check('lifecycle is template-derived — real stages, not the old "Intake Review by System"',
+    (await page.getByText('Intake Review', { exact: true }).count()) === 0
+    && (await page.getByText('Validation', { exact: true }).count()) > 0);
+  check('dynamic Risk assessment step overlaid on the lifecycle (item 11)',
+    (await page.getByText('Risk assessment', { exact: true }).count()) > 0);
+  check('dynamic Vendor onboarding step overlaid on the lifecycle (item 11)',
+    (await page.getByText('Vendor onboarding', { exact: true }).count()) > 0);
+  check('approvals derive from the value-banded chain (€150k → VP-Level)',
+    (await page.getByText(/VP-Level chain/).count()) > 0);
+  check('approver resolves to the actionable persona (config, not a hardcoded name)',
+    (await page.getByText('Christine Dupont').count()) > 0);
+  check('timeline derives from the category SLA config',
+    (await page.getByText(/business days/).count()) > 0);
+  // Sarah Chen is a real directory user (vendor-manager) and not a VP-Level
+  // approver, so her chip proves reviewers come from the directory; "Markus
+  // Braun" was a fabricated name in the old hardcoded list and must be gone.
+  check('reviewers come from the user directory (not the old hardcoded list)',
+    (await page.getByText('Sarah Chen').count()) > 0
+    && (await page.getByText('Markus Braun').count()) === 0);
+
   // 5. Service-description capture (chat intake): the SOW and the service
   //    description are one document built automatically from the conversation —
   //    there is NO manual "Generate SOW" button.

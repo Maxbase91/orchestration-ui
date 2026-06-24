@@ -138,8 +138,9 @@ npm run test:policy-config        # central decisioning thresholds (defaults pin
 npm run test:screening            # supplier screening — clear / pending / flagged / unknown + blocking
 npm run test:supplier-data        # supplier master-data completeness → remediation handoff (RTE-04)
 npm run test:approver-resolution  # approval step role → switchable directory rep (one identity namespace)
+npm run test:workflow-steps       # config-driven Routing — template lifecycle + risk/onboarding steps + approval-chain banding
 npm run test:admin-editors        # admin config saves
-npm run test:ui                   # browser smoke (Playwright) — wizard end-to-end to the determination screen
+npm run test:ui                   # browser smoke (Playwright) — wizard end-to-end through the determination + config-driven routing steps
 npm run test:e2e-ui               # full-app browser sweep — every route × role, captures console/runtime errors
 npm run test:interactions-ui      # interaction E2E — wizard submit, admin save, AI assistant (self-cleaning)
 # …see package.json "test:*" scripts for the full list

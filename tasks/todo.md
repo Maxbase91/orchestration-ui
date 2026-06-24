@@ -20,13 +20,13 @@ Reference demand: "I need consultants for a promptathon"
 - [x] 4 → 88eae8a (dropped always-pending Supplier key-fact; chip when named/matched)
 - [x] 5 → 0625116 (SRA questionnaire replaced by a DERIVED summary — attributes + reasons, no questions)
 - [x] 6 → b5b3459 (vendor onboarding card in the Smart Assessment; tone from onboardingStatus)
-- [~] 7 risk/determination — "risk assessment required" now surfaced; the WORKFLOW STEP wiring lands with item 11
+- [x] 7+11 → (this commit) config-driven Routing: lifecycle from the attached template's stage nodes + dynamic Risk assessment / Vendor onboarding steps (composeWorkflowSteps, test:workflow-steps); approvers from the value-banded approval chain (resolveApprover); timeline from category.timelineDays; reviewers from the directory. Removed all hardcoded steps/approvers/timeline/reviewers. Fixes "intake review by system"
 - [x] 8 → e1a4867 (removed the workflow-template picker; template derived + attached silently)
 - [x] 9 → 74663e5 (Save as Draft now shows on the determination, step 5)
 - [x] 10 → 7efe56a (determination grouped under 4 SectionHeaders; test:ui extended)
-- [ ] 11 routing — dynamic workflow steps; replace "intake review by system"; add risk + onboarding steps (with item 7)
+- [x] 11 routing — done with item 7 (see above)
 
-Items 1-4 shipped to main (88eae8a). 5-10 done; 7+11 (config-driven routing) is the last group.
+Items 1-4 shipped to main (88eae8a). 5-11 all done — the intake bug tracker is complete.
 
 NOTE for item 5: the current risk step asks only the mini-IRQ deltas
 ("privileged/system access?", "critical business service?") — engagement

@@ -67,6 +67,9 @@ interface RequestFormData {
   sraStatus: string;
   policyChecks: { label: string; passed: boolean; detail: string }[];
   duplicateCheck: string | null;
+  // Determination signals that overlay conditional lifecycle steps (item 7+11).
+  riskAssessmentRequired: boolean;
+  supplierOnboardingRequired: boolean;
   // Step 5 (shifted)
   additionalReviewers: string[];
   notes: string;
@@ -105,6 +108,8 @@ const INITIAL_DATA: RequestFormData = {
   sraStatus: '',
   policyChecks: [],
   duplicateCheck: null,
+  riskAssessmentRequired: false,
+  supplierOnboardingRequired: false,
   additionalReviewers: [],
   notes: '',
   requesterCountry: '',
@@ -728,6 +733,9 @@ export function NewRequestPage() {
           <StepRoutingPreview
             category={formData.category}
             estimatedValue={formData.estimatedValue}
+            workflowTemplateId={formData.workflowTemplateId}
+            riskAssessmentRequired={formData.riskAssessmentRequired}
+            supplierOnboardingRequired={formData.supplierOnboardingRequired}
             additionalReviewers={formData.additionalReviewers}
             notes={formData.notes}
             onUpdate={(d) => updateFormData(d)}

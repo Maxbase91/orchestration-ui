@@ -75,6 +75,11 @@ interface ComplianceData {
   validatorAgentStatus?: 'active' | 'draft' | 'disabled' | 'missing';
   validatorAgentName?: string;
   workflowTemplateId?: string;
+  /** Determination signals that overlay conditional steps on the Routing
+   *  lifecycle: a risk assessment when none can be reused and the demand is
+   *  triage-worthy/high-risk; vendor onboarding when no/incomplete supplier. */
+  riskAssessmentRequired?: boolean;
+  supplierOnboardingRequired?: boolean;
 }
 
 interface StepComplianceProps {
@@ -421,6 +426,22 @@ export function StepCompliance({
     // blocks the demand (refer back).
     const screening = evaluateScreening(supplierRec?.screeningStatus);
 
+    // Determination signals that drive the Routing step's conditional lifecycle
+    // (item 7+11). A risk assessment is needed when none can be reused and the
+    // demand is triage-worthy or high/critical inherent risk; vendor onboarding
+    // when there is no supplier or its master data is incomplete.
+    const triage = isTriageRequired({
+      supplierSraStatus: supplierRec?.sraStatus,
+      supplierRiskRating: supplierRec?.riskRating,
+      supplierRegistered: !!supplierId,
+      matchingReusableSraCount: matchingRiskAssessments.length,
+      inferredDataSensitivity: dataSensitivity,
+    });
+    const riskAssessmentRequired =
+      matchingRiskAssessments.length === 0 &&
+      (triage.required || inherentRisk.tier === 'high' || inherentRisk.tier === 'critical');
+    const supplierOnboardingRequired = !supplierId || !supplierData.complete;
+
     // Demand disposition — proceed / request-change / refer-back. Driven by the
     // completeness, policy and scope signals the determination already computed.
     const referral = determineReferral({
@@ -454,6 +475,8 @@ export function StepCompliance({
       matchingRiskAssessments,
       validatorAgentStatus: (validatorAgent?.status ?? 'missing') as ComplianceData['validatorAgentStatus'],
       validatorAgentName: validatorAgent?.name,
+      riskAssessmentRequired,
+      supplierOnboardingRequired,
     };
   }, [loading, category, estimatedValue, supplierId, isUrgent, serviceDescription, miniIrq, suppliers, allContracts, matches, routingRules, validatorAgent]);
 

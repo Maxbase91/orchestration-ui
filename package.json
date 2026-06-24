@@ -38,6 +38,7 @@
     "test:screening": "node tests/integration/screening.mjs",
     "test:supplier-data": "node tests/integration/supplier-data.mjs",
     "test:approver-resolution": "node tests/integration/approver-resolution.mjs",
+    "test:workflow-steps": "node tests/integration/workflow-steps.mjs",
     "test:policy-config": "node tests/integration/policy-config.mjs",
     "test:knowledge": "node tests/integration/knowledge-retrieval.mjs",
     "test:ui": "node tests/ui/wizard-smoke.mjs",
