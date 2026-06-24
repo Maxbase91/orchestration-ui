@@ -143,6 +143,10 @@ try {
     } catch { /* hang */ }
     check('assistant returns a response (no hang)', responded);
 
+    // AST-P: the policy answer is grounded in the knowledge base, not generic.
+    const grounded = await page.getByText(/delegated authority|€10,000/i).count().catch(() => 0);
+    check('policy answer is grounded in the knowledge base (AST-P)', grounded > 0, `matches=${grounded}`);
+
     // AST-Q: the assistant reads the same governed source as the front door —
     // look up a real supplier and assert the connector-backed data comes back.
     const { data: sup } = await sb.from('suppliers').select('id').order('id').limit(1).maybeSingle();

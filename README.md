@@ -130,6 +130,7 @@ npm run test:residual-questions   # criteria-triggered stage-5 residual question
 npm run test:operational-risk     # preliminary operational risk assessment (per-dimension screen)
 npm run test:classification-eval  # classification eval harness + accuracy baseline (CLS-G1)
 npm run test:referral             # demand disposition — proceed / request-change / refer-back (RTE-06)
+npm run test:knowledge            # grounded policy-Q&A retrieval (ranking, citations, low-confidence)
 npm run test:admin-editors        # admin config saves
 npm run test:ui                   # browser smoke (Playwright) — wizard end-to-end to the determination screen
 npm run test:e2e-ui               # full-app browser sweep — every route × role, captures console/runtime errors

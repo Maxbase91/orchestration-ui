@@ -256,8 +256,12 @@ objects modelled). The **server-side** `api/chat.ts` tool path still reads Supab
 AST-Q-G4 field masking (POL-28) 🔴 · AST-Q-B5 gateway 🟡 · AST-Q-T2 orchestration 🟢.
 
 #### AST-P — Grounded Policy Q&A — 🟡 Partial
-AST-P-01 policy Q&A 🟡 (real LLM over ~95 KB entries; no 8-domain structure) · AST-P-02 walk-through 🟡 ·
-AST-P-03 replace TIM 🔴 · AST-P-G2 guardrail library 🔴 · AST-P-T1 KB ingestion/embedding (RAG) 🔴.
+AST-P-01 policy Q&A 🟡 → now **grounded retrieval**: `capabilities/knowledge.ts` (`rankKnowledge`) ranks the
+KB, **quotes the best match with its source citation**, cites strongly-relevant related policies, and on a
+**weak match returns the closest topics instead of asserting a possibly-wrong policy** (no confident
+hallucination). Verified by `npm run test:knowledge` + the interaction E2E (grounded threshold answer).
+No 8-domain structure yet · AST-P-02 walk-through 🟡 · AST-P-03 replace TIM 🔴 · AST-P-G2 guardrail library 🔴 ·
+AST-P-T1 KB ingestion/**embedding (vector RAG)** 🔴 (lexical retrieval today; swap `rankKnowledge` for a vector index).
 
 #### AST-A — Agentic Actions — 🟡 Partial
 Propose→confirm-before-act + audit logging exist (AST-A-G5 🟢-ish; actions logged not executed).
@@ -283,7 +287,7 @@ AST-X-03 eight-language 🔴 · AST-X-04 deep-link to source 🟢.
 | **WS-C** | Regulated risk & materiality engine — 🟢 **cascade + non-binary outcome + materiality + mini-IRQ delta + structured reuse model + assessment handoff + preliminary operational risk assessment** done; remaining: risk-matching hardening (RSK-T6) | S3–S5 | RSK-01..09, DET-10 |
 | **WS-D** | Complete front-door determination — 🟢 **done**: contract/sourcing type (incl. amend/change), handoff, two-step split, exportable endpoint, 2nd contract check, approval-to-source gate | S4–S6 | CHK-07, DET-04/05/08/09, RTE |
 | **WS-F** | Staged-Intake Funnel redesign — 🟢 **done**: free-text-primary entry + sequential catalogue→enrich→contract→full-SD funnel (no premature catalogue/contract assertions) + **criteria-triggered stage-5 residual questions** (`residual-questions.ts`) | S4–S6 | **INT-10**, INT-02, CLS-01/03, CHK-01/02/05/06 |
-| **WS-E** | Chatbot to own-DB sources + governance — 🟡 **classification eval harness** (CLS-G1) + **client assistant lookups routed through the connector ports** (AST-Q, one governed source) done; remaining: server-side `api/chat.ts` path, more source objects, masking, RAG, payments hand-off, Teams/i18n | S2–S7 | AST-Q-06..16, AST-P-T1, AST-A-06, CLS-G1 |
+| **WS-E** | Chatbot to own-DB sources + governance — 🟡 **classification eval harness** (CLS-G1) + **assistant lookups via connector ports** (AST-Q) + **grounded policy Q&A with citations** (AST-P) done; remaining: server-side `api/chat.ts` path, more source objects, masking, vector RAG, payments hand-off, Teams/i18n | S2–S7 | AST-Q-06..16, AST-P-T1, AST-A-06, CLS-G1 |
 
 Lead with **WS-A** (highest leverage — turns heuristics into data-driven decisioning); WS-0 defines the
 connector interface so **WS-B** can proceed in parallel.
