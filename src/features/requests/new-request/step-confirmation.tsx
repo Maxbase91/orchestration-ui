@@ -115,7 +115,6 @@ export function StepConfirmation({ requestId, data, onReset }: StepConfirmationP
       {/* AI follow-up */}
       <AISuggestionCard
         title="Stay informed"
-        confidence={96}
         onAccept={() => {
           // Mock accept - in real app would set up notification
         }}

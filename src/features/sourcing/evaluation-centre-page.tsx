@@ -78,7 +78,6 @@ export function EvaluationCentrePage() {
       {showAI && (
         <AISuggestionCard
           title="AI-Assisted Scoring Analysis"
-          confidence={0.82}
           onDismiss={() => setShowAI(false)}
           showExplanation
           explanation="Analysis based on submitted RFP responses, past performance data, and compliance documentation."

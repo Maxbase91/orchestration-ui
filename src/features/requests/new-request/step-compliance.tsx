@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import { Loader2, Info, ChevronDown, ChevronUp, AlertTriangle, CheckCircle, Sparkles, Circle, MinusCircle, Clock, Recycle, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { ComplianceCheckResult } from './components/compliance-check-result';
-import { AISuggestionCard } from '@/components/shared/ai-suggestion-card';
 import { formatCurrency } from '@/lib/format';
 import { useSourceData } from '@/lib/integrations';
 import { isPreferredSupplier, competitiveSourcingCheck, preferredSupplierCheck } from '@/lib/procurement/supplier-preference';
@@ -898,14 +897,6 @@ export function StepCompliance({
           ))}
         </div>
       </div>
-
-      {/* Duplicate Check */}
-      <AISuggestionCard
-        title="Duplicate Check"
-        confidence={92}
-      >
-        <p>{result.duplicateCheck ?? 'No similar requests found in the last 90 days.'}</p>
-      </AISuggestionCard>
 
       {/* Summary */}
       {allPassed ? (

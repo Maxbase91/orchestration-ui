@@ -109,7 +109,7 @@ export function TabOverview({ request }: TabOverviewProps) {
           </Card>
         </div>
         <div>
-          <AISuggestionCard title="Request Summary" confidence={0.92}>
+          <AISuggestionCard title="Request Summary">
             <p>{summary}</p>
           </AISuggestionCard>
           {/* Compliance report moved to the Workflow tab's approval

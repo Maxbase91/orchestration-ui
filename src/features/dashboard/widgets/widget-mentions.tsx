@@ -31,7 +31,7 @@ export function WidgetMentions() {
   if (display.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
-        No mentions — nobody has @{currentUser.id}’d you yet.
+        No mentions — nobody has @-mentioned you yet.
       </p>
     );
   }

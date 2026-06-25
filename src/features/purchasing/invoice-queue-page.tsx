@@ -113,7 +113,6 @@ export function InvoiceQueuePage() {
       {showAI && (
         <AISuggestionCard
           title="Invoice Matching Summary"
-          confidence={0.95}
           onDismiss={() => setShowAI(false)}
         >
           <p>

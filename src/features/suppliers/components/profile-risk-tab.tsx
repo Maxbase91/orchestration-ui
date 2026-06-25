@@ -27,7 +27,7 @@ export function ProfileRiskTab({ supplier }: ProfileRiskTabProps) {
 
   return (
     <div className="space-y-6">
-      <AISuggestionCard title="Risk Classification" confidence={0.88}>
+      <AISuggestionCard title="Risk Classification">
         <p>{riskSuggestion}</p>
       </AISuggestionCard>
 

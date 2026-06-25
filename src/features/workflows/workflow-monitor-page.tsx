@@ -82,7 +82,6 @@ export function WorkflowMonitorPage() {
       {/* Top Bottleneck AI Card */}
       <AISuggestionCard
         title="Top Bottleneck Identified"
-        confidence={0.93}
       >
         <p>
           <strong>{bottleneck.stage}</strong> is the #1 bottleneck this month.{' '}

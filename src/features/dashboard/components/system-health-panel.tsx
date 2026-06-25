@@ -1,109 +1,65 @@
 import { useMemo } from 'react';
-import { Settings, AlertTriangle } from 'lucide-react';
 import { useRequests } from '@/lib/db/hooks/use-requests';
 import { KPICard } from '@/components/shared/kpi-card';
 
+// Requests still moving through the pipeline (mirrors the live-KPI definition).
+const OPEN_STATUSES = new Set(['intake', 'validation', 'approval', 'sourcing', 'referred-back']);
+
 export function SystemHealthPanel() {
-  const { data: requests = [] } = useRequests();
-  const requestVolume = useMemo(() => {
-    // Simulate: today = 3, this week = 8, this month = 15
-    const total = requests.length;
-    return { today: 3, week: 8, month: total };
-  }, [requests.length]);
+  const { data: requests = [], isLoading, isError } = useRequests();
+
+  const stats = useMemo(() => {
+    const now = new Date();
+    const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const weekAgo = startToday - 6 * 24 * 60 * 60 * 1000; // last 7 days, today inclusive
+    const startMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+
+    let today = 0;
+    let week = 0;
+    let month = 0;
+    const activeUsers = new Set<string>();
+
+    for (const r of requests) {
+      const t = new Date(r.createdAt).getTime();
+      if (t >= startToday) today += 1;
+      if (t >= weekAgo) week += 1;
+      if (t >= startMonth) month += 1;
+      if (OPEN_STATUSES.has(r.status)) {
+        activeUsers.add(r.ownerId);
+        activeUsers.add(r.requestorId);
+      }
+    }
+    return { today, week, month, activeUsers: activeUsers.size };
+  }, [requests]);
+
+  // The only upstream the SPA depends on in R1 is its own data source, so the
+  // status reflects the actual query health rather than a hardcoded "Healthy".
+  const dataSource = isLoading
+    ? { label: 'Checking…', dot: 'bg-gray-400', ping: false, note: 'Verifying the data source' }
+    : isError
+      ? { label: 'Degraded', dot: 'bg-red-500', ping: false, note: 'Data source unreachable' }
+      : { label: 'Healthy', dot: 'bg-green-500', ping: true, note: 'Data source responding' };
 
   return (
     <div className="grid grid-cols-3 gap-4">
+      <KPICard label="Active Users" value={stats.activeUsers} />
       <KPICard
-        label="Active Users"
-        value={47}
-        trend={{ direction: 'up', percentage: 12 }}
-      />
-      <KPICard
-        label="Request Volume"
-        value={`${requestVolume.today} / ${requestVolume.week} / ${requestVolume.month}`}
-        trend={{ direction: 'up', percentage: 6 }}
+        label="Requests (today / 7d / month)"
+        value={`${stats.today} / ${stats.week} / ${stats.month}`}
       />
       <div className="rounded-md bg-white p-4 shadow-[0_1px_4px_rgba(0,0,0,0.08)]">
-        <p className="text-xs font-medium text-muted-foreground">API Status</p>
+        <p className="text-xs font-medium text-muted-foreground">Data Source</p>
         <div className="mt-1 flex items-center gap-2">
           <span className="relative flex size-2.5">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
-            <span className="relative inline-flex size-2.5 rounded-full bg-green-500" />
+            {dataSource.ping && (
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
+            )}
+            <span className={`relative inline-flex size-2.5 rounded-full ${dataSource.dot}`} />
           </span>
-          <p className="text-2xl font-semibold text-gray-900">Healthy</p>
+          <p className="text-2xl font-semibold text-gray-900">{dataSource.label}</p>
         </div>
-        <p className="mt-0.5 text-xs text-gray-500">All systems operational</p>
+        <p className="mt-0.5 text-xs text-gray-500">{dataSource.note}</p>
       </div>
-    </div>
-  );
-}
-
-interface AuditLogEntry {
-  id: string;
-  timestamp: string;
-  user: string;
-  action: string;
-  detail: string;
-}
-
-const recentChanges: AuditLogEntry[] = [
-  { id: '1', timestamp: '2025-01-08T09:30:00Z', user: 'Christine Dupont', action: 'Updated routing rule', detail: 'Modified threshold for IT consulting from EUR 100K to EUR 150K' },
-  { id: '2', timestamp: '2025-01-08T08:15:00Z', user: 'Christine Dupont', action: 'Created workflow template', detail: 'Added "Express PO" workflow for catalogue purchases under EUR 10K' },
-  { id: '3', timestamp: '2025-01-07T16:45:00Z', user: 'Anna Müller', action: 'Disabled AI agent', detail: 'Disabled "Duplicate Detector v1" agent for retraining' },
-  { id: '4', timestamp: '2025-01-07T14:00:00Z', user: 'Christine Dupont', action: 'Updated approval chain', detail: 'Added VP Finance to approval chain for requests > EUR 500K' },
-  { id: '5', timestamp: '2025-01-07T11:30:00Z', user: 'Christine Dupont', action: 'Modified SLA config', detail: 'Extended validation SLA from 5 to 7 business days' },
-  { id: '6', timestamp: '2025-01-06T17:00:00Z', user: 'Anna Müller', action: 'Added commodity code', detail: 'Added 83101800 "Renewable energy services" to code library' },
-  { id: '7', timestamp: '2025-01-06T15:20:00Z', user: 'Christine Dupont', action: 'Updated user role', detail: 'Promoted Lisa Nakamura to Senior Supplier Manager' },
-  { id: '8', timestamp: '2025-01-06T10:00:00Z', user: 'Christine Dupont', action: 'Created routing rule', detail: 'New rule: "Contingent labour > EUR 200K requires VP approval"' },
-  { id: '9', timestamp: '2025-01-05T14:30:00Z', user: 'Anna Müller', action: 'Enabled AI agent', detail: 'Enabled "Category Classifier v3" with 94.2% accuracy' },
-  { id: '10', timestamp: '2025-01-05T09:00:00Z', user: 'Christine Dupont', action: 'Updated system config', detail: 'Set default currency display to EUR for all dashboards' },
-];
-
-export function RecentChangesLog() {
-  return (
-    <div className="space-y-2">
-      {recentChanges.map((entry) => (
-        <div key={entry.id} className="flex items-start gap-3 rounded border border-gray-100 bg-white p-3">
-          <div className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-gray-50 text-gray-400">
-            <Settings className="size-3.5" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 text-xs text-gray-500">
-              <span className="font-medium text-gray-700">{entry.user}</span>
-              <span>&middot;</span>
-              <span>{new Date(entry.timestamp).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
-            </div>
-            <p className="mt-0.5 text-sm font-medium text-gray-900">{entry.action}</p>
-            <p className="mt-0.5 text-xs text-gray-500">{entry.detail}</p>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-export function ConfigurationAlerts() {
-  const alerts = [
-    { icon: AlertTriangle, label: '2 routing rules have never fired', severity: 'warning' as const },
-    { icon: Settings, label: '1 workflow has an unused branch', severity: 'info' as const },
-  ];
-
-  return (
-    <div className="space-y-2">
-      {alerts.map((alert, i) => {
-        const Icon = alert.icon;
-        return (
-          <div
-            key={i}
-            className={`flex items-center gap-3 rounded-md p-3 ${
-              alert.severity === 'warning' ? 'bg-amber-50 border border-amber-100' : 'bg-blue-50 border border-blue-100'
-            }`}
-          >
-            <Icon className={`size-4 shrink-0 ${alert.severity === 'warning' ? 'text-amber-500' : 'text-blue-500'}`} />
-            <p className={`text-sm ${alert.severity === 'warning' ? 'text-amber-700' : 'text-blue-700'}`}>{alert.label}</p>
-          </div>
-        );
-      })}
     </div>
   );
 }

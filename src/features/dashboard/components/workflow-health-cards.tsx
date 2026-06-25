@@ -27,21 +27,11 @@ export function WorkflowHealthCards() {
 
   return (
     <div className="grid grid-cols-3 gap-4">
-      <KPICard
-        label="Active Workflows"
-        value={activeCount}
-        trend={{ direction: 'up', percentage: 8 }}
-      />
-      <KPICard
-        label="Stuck / Blocked"
-        value={stuckCount}
-        trend={stuckCount > 0 ? { direction: 'up', percentage: 15 } : { direction: 'flat', percentage: 0 }}
-      />
-      <KPICard
-        label="Avg Days in Current Step"
-        value={`${avgDays}d`}
-        trend={{ direction: 'down', percentage: 5 }}
-      />
+      {/* Counts are live; no trend is shown rather than a fabricated one (there
+          is no historical snapshot to compute a real period-over-period delta). */}
+      <KPICard label="Active Workflows" value={activeCount} />
+      <KPICard label="Stuck / Blocked" value={stuckCount} />
+      <KPICard label="Avg Days in Current Step" value={`${avgDays}d`} />
     </div>
   );
 }

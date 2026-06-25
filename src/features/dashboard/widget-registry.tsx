@@ -22,7 +22,7 @@ export const widgetRegistry: WidgetConfig[] = [
   { id: 'demand-pipeline', title: 'Demand Pipeline', description: 'Requests by workflow stage', icon: 'BarChart3', size: 'medium', availableTo: coreInternal },
   { id: 'team-workload', title: 'Team Workload', description: 'Request distribution per team member', icon: 'Users', size: 'medium', availableTo: ['procurement-manager', 'operations-lead'] },
   { id: 'attention-required', title: 'Attention Required', description: 'Overdue and referred-back items needing action', icon: 'AlertTriangle', size: 'medium', availableTo: allInternal },
-  { id: 'ai-insights', title: 'AI Insights', description: 'AI-generated strategic procurement insights', icon: 'Sparkles', size: 'small', availableTo: allInternal },
+  { id: 'ai-insights', title: 'Pipeline Insights', description: 'Live insights derived from your requests and suppliers', icon: 'Sparkles', size: 'small', availableTo: allInternal },
   { id: 'validation-queue', title: 'Validation Queue', description: 'Requests awaiting validation review', icon: 'ClipboardCheck', size: 'large', availableTo: ['vendor-manager', 'procurement-manager'] },
   { id: 'workflow-health', title: 'Workflow Health', description: 'Active workflows, stuck count, avg processing days', icon: 'Activity', size: 'full', availableTo: ['operations-lead', 'procurement-manager', 'admin'] },
   { id: 'recent-activity', title: 'Recent Activity', description: 'Latest platform events and updates', icon: 'Bell', size: 'small', availableTo: allInternal },

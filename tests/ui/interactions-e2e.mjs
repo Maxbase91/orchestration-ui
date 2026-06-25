@@ -289,6 +289,27 @@ try {
     await ctx.close();
   }
 
+  // ── Flow 8: dashboard shows real data, not fabricated KPIs/AI ──────────────
+  // Regression: System Health hardcoded "47 active users" + always-"Healthy"
+  // API + fake trends, and the "AI Insights" widget claimed analysis it never
+  // ran. They must now reflect live data and drop the fabricated framing.
+  console.log('Flow 8 — dashboard integrity (real data, no fabricated AI)');
+  {
+    const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    await ctx.addInitScript((u) => localStorage.setItem('auth', JSON.stringify({ state: { currentRole: 'admin', currentUser: u }, version: 0 })), ADMIN);
+    const page = await ctx.newPage();
+    const errors = []; page.on('pageerror', e => errors.push(e.message));
+    await page.goto(`${BASE}/`, { waitUntil: 'networkidle' });
+    await page.getByText('Data Source', { exact: true }).waitFor({ timeout: 15000 });
+    await page.waitForTimeout(800);
+    check('System Health shows the real Data Source status (not a hardcoded API tile)',
+      (await page.getByText(/Requests \(today/).count()) > 0);
+    check('the fabricated "AI Insights" analysis claim is gone',
+      (await page.getByText(/Based on analysis of current request pipeline/).count()) === 0);
+    check('no uncaught errors on the dashboard', errors.length === 0, errors[0]);
+    await ctx.close();
+  }
+
   console.log('');
   if (failures) { console.error(`FAILED: ${failures} interaction check(s) failed`); process.exitCode = 1; }
   else console.log('All interaction E2E checks passed.');

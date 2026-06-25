@@ -32,7 +32,7 @@ export function ProfileSpendTab({ supplier }: ProfileSpendTabProps) {
 
   return (
     <div className="space-y-6">
-      <AISuggestionCard title="Spend Insight" confidence={0.85}>
+      <AISuggestionCard title="Spend Insight">
         <p>
           Spend with {supplier.name} has {direction} {Math.abs(yoyChange)}% year-over-year.
           {yoyChange > 15

@@ -208,7 +208,7 @@ export function ApprovalCard({
           </div>
 
           {/* AI Summary */}
-          <AISuggestionCard confidence={0.92}>
+          <AISuggestionCard>
             <p>{aiSummary}</p>
           </AISuggestionCard>
 

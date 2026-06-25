@@ -1,52 +1,72 @@
-import { AISuggestionCard } from '@/components/shared/ai-suggestion-card';
+import type { ProcurementRequest, RequestStatus } from '@/data/types';
+import { useRequests } from '@/lib/db/hooks/use-requests';
+
+const STAGE_LABEL: Partial<Record<RequestStatus, string>> = {
+  intake: 'Intake',
+  validation: 'Validation',
+  approval: 'Approval',
+  sourcing: 'Sourcing',
+  contracting: 'Contracting',
+  po: 'PO Creation',
+};
+const ACTIVE_STAGES = Object.keys(STAGE_LABEL) as RequestStatus[];
+
+interface StageStat {
+  stage: string;
+  count: number;
+  avgDays: number;
+  overdue: number;
+}
+
+/** Real bottleneck stats off the live pipeline — active stages ranked by the
+ *  average time requests have spent in them. No model, no fabricated numbers. */
+function analyseBottlenecks(requests: ProcurementRequest[]): StageStat[] {
+  const byStage = new Map<string, ProcurementRequest[]>();
+  for (const r of requests) {
+    if (!ACTIVE_STAGES.includes(r.status)) continue;
+    const label = STAGE_LABEL[r.status] ?? r.status;
+    const arr = byStage.get(label);
+    if (arr) arr.push(r);
+    else byStage.set(label, [r]);
+  }
+  return Array.from(byStage.entries())
+    .map(([stage, rs]) => ({
+      stage,
+      count: rs.length,
+      avgDays: Math.round(rs.reduce((s, r) => s + r.daysInStage, 0) / rs.length),
+      overdue: rs.filter((r) => r.isOverdue).length,
+    }))
+    .sort((a, b) => b.avgDays - a.avgDays)
+    .slice(0, 3);
+}
 
 export function AIBottleneckAnalysis() {
+  const { data: requests = [] } = useRequests();
+  const stats = analyseBottlenecks(requests);
+
   return (
     <div className="space-y-3">
-      <h3 className="text-sm font-semibold text-gray-900">
-        AI Bottleneck Analysis
-      </h3>
+      <h3 className="text-sm font-semibold text-gray-900">Bottleneck Analysis</h3>
 
-      <div className="grid gap-3 md:grid-cols-1 lg:grid-cols-3">
-        <AISuggestionCard
-          title="Finance team overloaded"
-          confidence={0.91}
-          showExplanation
-          explanation="Based on approval queue depth and average response times over the past 30 days. Robert Fischer (u8) has been OOO since Jan 2, with no delegate actively processing his queue."
-        >
-          <p>
-            Finance team has 15 pending approvals. 8 are from Robert Fischer
-            who has been out of office since 02 Jan. Suggest: reassign to
-            delegate Dr. Katrin Bauer.
-          </p>
-        </AISuggestionCard>
+      {stats.length === 0 ? (
+        <p className="text-sm text-gray-500">No active requests to analyse yet.</p>
+      ) : (
+        <div className="grid gap-3 md:grid-cols-1 lg:grid-cols-3">
+          {stats.map((s) => (
+            <div key={s.stage} className="rounded-md border-l-2 border-blue-400 bg-blue-50/70 p-4">
+              <p className="text-sm font-medium text-gray-900">{s.stage}</p>
+              <p className="mt-1 text-sm text-gray-700">
+                {s.count} active request{s.count > 1 ? 's' : ''}, averaging {s.avgDays} day
+                {s.avgDays !== 1 ? 's' : ''} in stage{s.overdue > 0 ? ` · ${s.overdue} past SLA` : ''}.
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
 
-        <AISuggestionCard
-          title="Sourcing stage slowdown"
-          confidence={0.87}
-          showExplanation
-          explanation="Comparing 30-day rolling average to 90-day baseline. 60% of sourcing requests are missing mandatory supplier risk assessment data, requiring additional follow-up loops."
-        >
-          <p>
-            Sourcing stage has increased from 5-day average to 9 days this
-            month. Root cause: 60% of requests are missing supplier risk
-            data, causing re-work and delays.
-          </p>
-        </AISuggestionCard>
-
-        <AISuggestionCard
-          title="Vendor Management validation queue backlog"
-          confidence={0.94}
-          showExplanation
-          explanation="Queue depth calculated from validation-stage request count. Throughput rate based on 14-day rolling average of validation completions (4 per day). ETA = 22 / 4 = 5.5 working days."
-        >
-          <p>
-            Vendor Management validation queue has 22 items. At current throughput (4/day),
-            this will take 5.5 working days to clear. Consider temporary
-            resource allocation.
-          </p>
-        </AISuggestionCard>
-      </div>
+      <p className="text-[11px] text-gray-400">
+        Derived from live request data — active stages ranked by average time in stage.
+      </p>
     </div>
   );
 }

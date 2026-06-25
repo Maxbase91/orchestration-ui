@@ -13,7 +13,7 @@ export function ProfileOverviewTab({ supplier }: ProfileOverviewTabProps) {
 
   return (
     <div className="space-y-6">
-      <AISuggestionCard title="AI Summary" confidence={0.92}>
+      <AISuggestionCard title="AI Summary">
         <p>{aiSummary}</p>
       </AISuggestionCard>
 
