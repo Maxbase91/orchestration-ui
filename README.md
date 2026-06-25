@@ -140,6 +140,7 @@ npm run test:supplier-data        # supplier master-data completeness → remedi
 npm run test:approver-resolution  # approval step role → switchable directory rep (one identity namespace)
 npm run test:workflow-steps       # config-driven Routing — template lifecycle + risk/onboarding steps + approval-chain banding
 npm run test:admin-editors        # admin config saves
+npm run walkthrough               # visual QA harness (Playwright) — drives the front door across scenarios + every tab, screenshots to /tmp/fd (no assertions)
 npm run test:ui                   # browser smoke (Playwright) — wizard end-to-end through the determination + config-driven routing steps
 npm run test:e2e-ui               # full-app browser sweep — every route × role, captures console/runtime errors
 npm run test:interactions-ui      # interaction E2E — wizard submit, admin save, AI assistant (self-cleaning)
