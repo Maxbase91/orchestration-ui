@@ -212,8 +212,13 @@ export function WorkflowDesignerPage() {
         <NodePalette />
 
         <div className="relative flex-1">
+          {/* Key on the resolved template id (not just canvasKey): the templates
+              query resolves AFTER first mount, so without this the canvas stays
+              initialised with the empty node set until a manual template switch.
+              Remounting when the template first becomes available picks up its
+              nodes on initial load. */}
           <DesignerCanvas
-            key={canvasKey}
+            key={`${template?.id ?? 'empty'}-${canvasKey}`}
             initialNodes={initialNodes}
             initialEdges={initialEdges}
             onNodeClick={handleNodeClick}

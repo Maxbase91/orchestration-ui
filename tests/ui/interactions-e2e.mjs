@@ -269,6 +269,26 @@ try {
     check('cleanup removed the test user', !after);
   }
 
+  // ── Flow 7: workflow designer renders the selected template on first load ──
+  // Regression: the ReactFlow canvas mounted with the empty node set before the
+  // templates query resolved and never re-initialised, so it stayed blank until
+  // a manual template switch. It must now paint the default template's nodes.
+  console.log('Flow 7 — workflow designer renders the template on load');
+  {
+    const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    await ctx.addInitScript((u) => localStorage.setItem('auth', JSON.stringify({ state: { currentRole: 'admin', currentUser: u }, version: 0 })), ADMIN);
+    const page = await ctx.newPage();
+    const errors = []; page.on('pageerror', e => errors.push(e.message));
+    await page.goto(`${BASE}/admin/workflows`, { waitUntil: 'networkidle' });
+    await page.getByRole('heading', { name: 'Workflow Designer' }).waitFor({ timeout: 15000 });
+    // No manual template switch — just wait for the default template to paint.
+    await page.locator('.react-flow__node').first().waitFor({ timeout: 15000 }).catch(() => {});
+    const nodeCount = await page.locator('.react-flow__node').count();
+    check('designer canvas renders the template nodes on first load (not blank)', nodeCount > 0, `nodes=${nodeCount}`);
+    check('no uncaught errors on the workflow designer', errors.length === 0, errors[0]);
+    await ctx.close();
+  }
+
   console.log('');
   if (failures) { console.error(`FAILED: ${failures} interaction check(s) failed`); process.exitCode = 1; }
   else console.log('All interaction E2E checks passed.');
