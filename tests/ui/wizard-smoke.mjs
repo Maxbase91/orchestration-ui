@@ -171,8 +171,10 @@ try {
   //     renewal demand (€150k, no supplier) drives both conditional steps.
   await page.getByRole('button', { name: /Next/ }).click();              // → step 6 (routing)
   await page.getByText('Workflow Preview', { exact: true }).waitFor({ timeout: 15000 });
-  // Wait for the template query to resolve so the lifecycle is populated.
+  // Wait for the config queries to resolve: a base lifecycle stage proves the
+  // template loaded; the chain caption proves the approval chains resolved.
   await page.getByText('Validation', { exact: true }).waitFor({ timeout: 15000 });
+  await page.getByText(/VP-Level chain/).waitFor({ timeout: 15000 });
   check('routing step renders the workflow preview', true);
   check('lifecycle is template-derived — real stages, not the old "Intake Review by System"',
     (await page.getByText('Intake Review', { exact: true }).count()) === 0

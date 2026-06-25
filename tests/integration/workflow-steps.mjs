@@ -59,6 +59,13 @@ const selectApprovalChainForValue = (chains, value) =>
     return value >= min && value < max;
   });
 
+function selectWorkflowTemplateForCategory(templates, category) {
+  if (templates.length === 0) return undefined;
+  const byType = templates.find((t) => t.type === category);
+  const standard = templates.find((t) => t.name?.toLowerCase().includes('standard'));
+  return byType ?? standard ?? templates[0];
+}
+
 // ── Fixtures — the real seed templates (WF-001 standard, WF-003 onboarding) ──
 const labels = (steps) => steps.map((s) => s.label);
 const WF001_NODES = [
@@ -150,6 +157,23 @@ check('boundary €100k lands in the higher band (VP-Level)', bandFor(100_000) =
 check('boundary €10k lands in the higher band (Standard)', bandFor(10_000) === 'Standard');
 check('parse "< 10,000" → [0, 10000)', parseThresholdBand('< 10,000').min === 0 && parseThresholdBand('< 10,000').max === 10_000);
 check('parse "> 500,000" → [500000, ∞)', parseThresholdBand('> 500,000').min === 500_000 && parseThresholdBand('> 500,000').max === Infinity);
+
+console.log('\nWorkflow-template selection by category');
+const TEMPLATES = [
+  { id: 'WF-001', name: 'Standard Procurement', type: 'procurement' },
+  { id: 'WF-002', name: 'Catalogue Purchase', type: 'catalogue' },
+  { id: 'WF-003', name: 'Supplier Onboarding', type: 'onboarding' },
+  { id: 'WF-004', name: 'Contract Renewal', type: 'renewal' },
+];
+check('exact type match wins (catalogue → WF-002)',
+  selectWorkflowTemplateForCategory(TEMPLATES, 'catalogue')?.id === 'WF-002');
+check('no type match → the "Standard" template (consulting → WF-001)',
+  selectWorkflowTemplateForCategory(TEMPLATES, 'consulting')?.id === 'WF-001');
+check('no type and no "standard" → the first template',
+  selectWorkflowTemplateForCategory(
+    [{ id: 'X', name: 'Alpha', type: 'a' }, { id: 'Y', name: 'Beta', type: 'b' }], 'consulting')?.id === 'X');
+check('empty list → undefined (Routing then shows only the conditional steps)',
+  selectWorkflowTemplateForCategory([], 'consulting') === undefined);
 
 console.log('');
 if (failures) { console.error(`FAILED: ${failures} check(s)`); process.exit(1); }

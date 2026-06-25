@@ -98,6 +98,22 @@ export function composeWorkflowSteps(
   return [...steps.slice(0, idx), ...inserts, ...steps.slice(idx)];
 }
 
+/**
+ * Select the workflow template for a category: an exact `type` match, else the
+ * "standard" template, else the first available. One source of truth shared by
+ * the request's auto-derive effect and the Routing step's fallback, so the
+ * lifecycle is consistent however the template is resolved.
+ */
+export function selectWorkflowTemplateForCategory<T extends { type: string; name: string }>(
+  templates: T[],
+  category: string,
+): T | undefined {
+  if (templates.length === 0) return undefined;
+  const byType = templates.find((t) => t.type === category);
+  const standard = templates.find((t) => t.name?.toLowerCase().includes('standard'));
+  return byType ?? standard ?? templates[0];
+}
+
 /** Parse an approval-chain threshold string ("< 10,000", "10,000 - 100,000",
  *  "> 500,000") into a numeric [min, max) band. Reads the admin's own value,
  *  no thresholds are baked in here. */

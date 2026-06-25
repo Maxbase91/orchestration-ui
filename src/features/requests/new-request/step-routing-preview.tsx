@@ -4,12 +4,16 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { WorkflowPreview } from './components/workflow-preview';
-import { useWorkflowTemplate } from '@/lib/db/hooks/use-workflow-templates';
+import { useWorkflowTemplate, useWorkflowTemplates } from '@/lib/db/hooks/use-workflow-templates';
 import { useApprovalChains } from '@/lib/db/hooks/use-approval-chains';
 import { useProcurementCategories } from '@/lib/db/hooks/use-procurement-categories';
 import { useUsers } from '@/lib/db/hooks/use-users';
 import { resolveApprover } from '@/lib/workflow/approver-resolution';
-import { composeWorkflowSteps, selectApprovalChainForValue } from '@/lib/workflow/workflow-steps';
+import {
+  composeWorkflowSteps,
+  selectApprovalChainForValue,
+  selectWorkflowTemplateForCategory,
+} from '@/lib/workflow/workflow-steps';
 
 interface StepRoutingPreviewProps {
   category: string;
@@ -42,10 +46,21 @@ export function StepRoutingPreview({
   notes,
   onUpdate,
 }: StepRoutingPreviewProps) {
-  const { data: template } = useWorkflowTemplate(workflowTemplateId || undefined);
+  const { data: detailTemplate } = useWorkflowTemplate(workflowTemplateId || undefined);
+  const { data: allTemplates = [] } = useWorkflowTemplates();
   const { data: chains = [] } = useApprovalChains();
   const { data: categories = [] } = useProcurementCategories();
   const { data: users = [] } = useUsers();
+
+  // The attached template, made robust: if the request never persisted a
+  // workflowTemplateId (the deriving effect lives on the risk/determination
+  // steps, which are unmounted here — and on a cold template-list cache it can
+  // miss), fall back to deriving the template from the category right here, with
+  // the same rule the effect uses. The Routing lifecycle then always renders.
+  const template = useMemo(
+    () => detailTemplate ?? selectWorkflowTemplateForCategory(allTemplates, category),
+    [detailTemplate, allTemplates, category],
+  );
 
   // Lifecycle ← the attached template's stage nodes + conditional Risk / Onboarding.
   const workflowSteps = useMemo(

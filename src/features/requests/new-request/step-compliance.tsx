@@ -29,6 +29,7 @@ import { useRoutingRules } from '@/lib/db/hooks/use-routing-rules';
 import { useAiAgent } from '@/lib/db/hooks/use-ai-agents';
 import { useWorkflowTemplates } from '@/lib/db/hooks/use-workflow-templates';
 import { resolveRouting, buyingChannelLabel } from '@/lib/routing/evaluate-routing-rules';
+import { selectWorkflowTemplateForCategory } from '@/lib/workflow/workflow-steps';
 import { DynamicForm } from '@/components/shared/dynamic-form';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -493,10 +494,9 @@ export function StepCompliance({
   // hasn't picked one yet. Same onUpdate-exclusion reasoning applies.
   useEffect(() => {
     if (workflowTemplateId || workflowTemplates.length === 0) return;
-    const byType = workflowTemplates.find((t) => t.type === category);
-    const standard = workflowTemplates.find((t) => t.name?.toLowerCase().includes('standard'));
-    const defaultId = byType?.id ?? standard?.id ?? workflowTemplates[0].id;
-    onUpdate({ workflowTemplateId: defaultId } as Partial<ComplianceData>);
+    const derived = selectWorkflowTemplateForCategory(workflowTemplates, category);
+    if (!derived) return;
+    onUpdate({ workflowTemplateId: derived.id } as Partial<ComplianceData>);
   }, [workflowTemplateId, workflowTemplates, category]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) {
