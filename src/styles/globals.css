@@ -107,3 +107,44 @@
 .animate-chip-in {
   animation: chipFadeIn 0.18s ease-out both;
 }
+
+/* ===== Apple-style home designs — scoped to .lp-apple-scope so nothing leaks ===== */
+.lp-apple-scope {
+  --lp-text: #1d1d1f;
+  --lp-text-2: #6e6e73;
+  --lp-text-3: #86868b;
+  --lp-accent: #0071e3;
+  --lp-accent-hover: #0077ed;
+  --lp-bright: #2997ff;
+  --lp-green: #34c759;
+  --lp-surface: #f5f5f7;
+  --lp-surface-hover: #eef0f3;
+  --lp-font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: var(--lp-font);
+  color: var(--lp-text);
+}
+
+@keyframes lpToken  { 0%{left:-2%;opacity:0} 6%{opacity:1} 94%{opacity:1} 100%{left:102%;opacity:0} }
+@keyframes lpTokenV { 0%{top:-2%;opacity:0}  6%{opacity:1} 94%{opacity:1} 100%{top:102%;opacity:0} }
+@keyframes lpDash   { to { stroke-dashoffset:-220 } }
+@keyframes lpPulse  { 0%{transform:scale(.85);opacity:.55} 100%{transform:scale(1.7);opacity:0} }
+@keyframes lpFloat  { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-9px)} }
+@keyframes lpFade   { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:none} }
+@keyframes lpGrad   { 0%{background-position:0% 50%} 100%{background-position:200% 50%} }
+@keyframes lpNode   { 0%,100%{box-shadow:0 0 0 0 rgba(0,113,227,0)} 50%{box-shadow:0 0 0 7px rgba(0,113,227,.10)} }
+
+.animate-lp-token   { animation: lpToken 4.4s linear infinite; }
+.animate-lp-token-v { animation: lpTokenV 5s linear infinite; }
+.animate-lp-dash    { animation: lpDash 3s linear infinite; }
+.animate-lp-pulse   { animation: lpPulse 2.6s ease-out infinite; }
+.animate-lp-float   { animation: lpFloat 5s ease-in-out infinite; }
+.animate-lp-fade    { animation: lpFade .9s ease both; }
+.animate-lp-grad    { animation: lpGrad 6s linear infinite; }
+.animate-lp-node    { animation: lpNode 3s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-lp-token, .animate-lp-token-v, .animate-lp-dash, .animate-lp-pulse,
+  .animate-lp-float, .animate-lp-fade, .animate-lp-grad, .animate-lp-node {
+    animation: none !important;
+  }
+}

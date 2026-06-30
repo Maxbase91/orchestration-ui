@@ -4,7 +4,7 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { AppLayout } from '@/components/layout/app-layout'
 import { SupplierPortalLayout } from '@/components/layout/supplier-portal-layout'
 import { RequireRole } from '@/components/layout/require-role'
-import { DashboardPage } from '@/features/dashboard/dashboard-page'
+import { HomeRoute } from '@/features/dashboard/home-route'
 import { NewRequestPage } from '@/features/requests/new-request/new-request-page'
 import { RequestDetailPage } from '@/features/requests/request-detail/request-detail-page'
 import { RequestListPage } from '@/features/requests/request-list-page'
@@ -81,7 +81,7 @@ export function App() {
         <Routes>
           {/* Internal app routes */}
           <Route element={<AppLayout />}>
-            <Route path="/" element={<DashboardPage />} />
+            <Route path="/" element={<HomeRoute />} />
 
             {/* Requests — all internal roles */}
             <Route element={<RequireRole roles={['service-owner', 'procurement-manager', 'vendor-manager', 'operations-lead', 'admin']} />}>

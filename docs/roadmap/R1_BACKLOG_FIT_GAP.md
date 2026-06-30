@@ -101,6 +101,7 @@ needs a server connector variant — WS-E).
 
 #### UX — Design System & User Journeys — 🟢 Built
 UX-01 component library 🟢; UX-02 journeys 🟡 (confirm from contextual inquiry, POL-10); DEC-7 env/rollback 🟡.
+**UX-04 switchable home designs 🟢** — the home (`/`) ships in 4 selectable designs (default Dashboard + three Apple-style layouts 1a/1b/1c), all **fully functional** (front door + quick actions + live KPIs + live demand pipeline), picked from a top-bar toggle and persisted per user (`features/dashboard/home-designs/`, `test:home-designs`). The dashboard is untouched.
 
 #### PLT — Sourcing/Award/Contract handoff (R2 stub) — out of R1 scope.
 

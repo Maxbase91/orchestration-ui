@@ -29,6 +29,7 @@ An interactive UI prototype that shows what a modern procurement orchestration p
 | Screen | Description |
 |--------|-------------|
 | Role-Based Dashboards | 5 tailored dashboards (Service Owner, Procurement Manager, Vendor Manager, Operations Lead, Admin) |
+| Switchable home designs | The home (`/`) ships in 4 selectable designs — the default Dashboard plus three Apple-style layouts (1a Cupertino · 1b Bento · 1c Editorial), all fully functional (front door, quick actions, live KPIs + demand pipeline). Picked from a top-bar toggle next to the role-switcher; persisted per user |
 | New Request Wizard | 7-step intake with a **staged-intake funnel**: free-text entry (no category selection — the path is derived), then a sequential **catalogue → enrich → contract** pre-check (no premature contract assertion), service description, **risk & assessment**, **determination**, routing, confirmation. The service-description capture is a **dynamic, answer-driven conversation** (next question depends on prior answers, nothing is re-asked — `demand-conversation.ts`). **Requester context** is established up front: the requester's **country is auto-derived from their profile** (read-only) and the **beneficiary defaults to self** with a type-ahead to buy on behalf of someone else |
 | Request Detail | Full lifecycle tracker with 7 tabs (Overview, Workflow, Comments, Approvals, Documents, Related, Audit) |
 | Active Workflows | Kanban board (drag-and-drop), sortable table, Gantt timeline — with system integration badges |
@@ -144,6 +145,7 @@ npm run walkthrough               # visual QA harness (Playwright) — drives th
 npm run test:ui                   # browser smoke (Playwright) — wizard end-to-end through the determination + config-driven routing steps
 npm run test:e2e-ui               # full-app browser sweep — every route × role, captures console/runtime errors
 npm run test:interactions-ui      # interaction E2E — wizard submit, admin save, AI assistant (self-cleaning)
+npm run test:home-designs         # alternative home designs (1a/1b/1c) are fully functional + dashboard intact
 # …see package.json "test:*" scripts for the full list
 ```
 
@@ -233,7 +235,7 @@ src/
 │   ├── shared/      # Reusable components (badges, cards, tables, charts)
 │   └── charts/      # Recharts wrappers
 └── features/        # Feature modules
-    ├── dashboard/   # Role-based dashboards
+    ├── dashboard/   # Role-based dashboards + home-designs/ (alternative Apple-style homes)
     ├── requests/    # New request wizard, request detail
     ├── workflows/   # Kanban, table, timeline, monitor
     ├── suppliers/   # Directory, profile, portal

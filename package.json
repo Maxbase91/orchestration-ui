@@ -44,6 +44,7 @@
     "test:ui": "node tests/ui/wizard-smoke.mjs",
     "test:e2e-ui": "node tests/ui/app-e2e.mjs",
     "test:interactions-ui": "node tests/ui/interactions-e2e.mjs",
+    "test:home-designs": "node tests/ui/home-designs.mjs",
     "walkthrough": "node tests/ui/walkthrough.mjs"
   },
   "dependencies": {

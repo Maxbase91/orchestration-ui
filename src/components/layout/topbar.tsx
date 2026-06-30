@@ -2,6 +2,7 @@ import { Breadcrumbs } from './breadcrumbs';
 import { GlobalSearch } from './global-search';
 import { NotificationBell } from './notification-bell';
 import { RoleSwitcher } from './role-switcher';
+import { DesignSwitcher } from './design-switcher';
 import { Separator } from '@/components/ui/separator';
 
 export function Topbar() {
@@ -12,6 +13,8 @@ export function Topbar() {
         <GlobalSearch />
         <Separator orientation="vertical" className="h-6 mx-1" />
         <NotificationBell />
+        <Separator orientation="vertical" className="h-6 mx-1" />
+        <DesignSwitcher />
         <Separator orientation="vertical" className="h-6 mx-1" />
         <RoleSwitcher />
       </div>
