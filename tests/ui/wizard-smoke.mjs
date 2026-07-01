@@ -80,6 +80,11 @@ try {
   await page.getByRole('button', { name: /Accept & continue/ }).click();
   await page.getByText('Catalogue check', { exact: true }).waitFor({ timeout: 15000 });
   check('free-text classification routes into pre-check stage 1 (catalogue)', true);
+  // Regression: a plain product word ("laptops") must surface catalogue items,
+  // even though the seed laptop is named by model ("ThinkPad T14 Gen 5").
+  check('catalogue items surface for a plain product word (laptops)',
+    (await page.getByText(/match(?:es)? found/).count()) > 0
+    && (await page.getByRole('button', { name: /Order from catalogue/ }).count()) > 0);
   check('contract check is NOT shown before catalogue is ruled out',
     (await page.getByText('Contract check', { exact: true }).count()) === 0);
 

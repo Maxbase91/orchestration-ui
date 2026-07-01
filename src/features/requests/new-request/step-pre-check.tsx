@@ -48,12 +48,18 @@ function matchCatalogueItem(item: CatalogueItem, tokens: string[]): number {
   const haystack = `${item.description} ${item.catalogueName}`.toLowerCase();
   let score = 0;
   for (const t of tokens) {
-    // Name hits are weighted higher — matching "thinkpad" in the item name
-    // is more signal than matching "engineering" in the description.
+    // Name hits are strongest, but a description/catalogue hit counts on its own
+    // — a plain product word ("laptops") must surface items named by model
+    // ("ThinkPad T14 Gen 5", whose description reads "…business laptop…").
+    // RAW SUM, deliberately NOT divided by the query length: a verbose ask
+    // ("a few laptops for a new starter") must match as well as "laptops" — the
+    // old length-normalisation halved single-word hits below the threshold and
+    // diluted them further with every extra word, so catalogue items only ever
+    // matched when the user typed the product's exact name.
     if (tokenMatches(name, t)) score += 1.0;
-    else if (tokenMatches(haystack, t)) score += 0.4;
+    else if (tokenMatches(haystack, t)) score += 0.5;
   }
-  return score / Math.max(tokens.length, 2); // at least-2 normalisation dampens 1-token queries
+  return score;
 }
 
 function matchContract(contract: Contract, ctx: {
@@ -163,7 +169,7 @@ export function StepPreCheck({
     if (!title) return [];
     return catalogueItems
       .map((item) => ({ item, score: matchCatalogueItem(item, catalogueTokens) }))
-      .filter((r) => r.score > 0.3)
+      .filter((r) => r.score >= 0.5) // at least one name- or description-level hit
       .sort((a, b) => b.score - a.score)
       .slice(0, 6)
       .map((r) => r.item);

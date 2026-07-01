@@ -55,10 +55,12 @@ function matchCatalogueItem(item, tokens) {
   const haystack = `${item.description} ${item.catalogue_name}`.toLowerCase();
   let score = 0;
   for (const t of tokens) {
+    // Raw sum (NOT length-normalised): a plain product word must surface items
+    // named by model, and extra words must not dilute a real hit.
     if (tokenMatches(name, t)) score += 1.0;
-    else if (tokenMatches(haystack, t)) score += 0.4;
+    else if (tokenMatches(haystack, t)) score += 0.5;
   }
-  return score / Math.max(tokens.length, 2);
+  return score;
 }
 function matchContract(contract, ctx) {
   if (contract.status !== 'active' && contract.status !== 'expiring') return null;
@@ -102,22 +104,33 @@ async function loadTables() {
   return { catalogueItems: cat.data ?? [], contracts: con.data ?? [] };
 }
 
-async function scenarioCatalogueMatch(catalogueItems) {
-  // A clearly catalogue-shaped query: ThinkPad laptops (IT-001 in seed).
-  const tokens = tokenize('I need ThinkPad laptops for the engineering team');
-  const matches = catalogueItems
-    .map((item) => ({ item, score: matchCatalogueItem(item, tokens) }))
-    .filter((r) => r.score > 0.3)
+function catalogueMatches(catalogueItems, query) {
+  return catalogueItems
+    .map((item) => ({ item, score: matchCatalogueItem(item, tokenize(query)) }))
+    .filter((r) => r.score >= 0.5) // at least one name- or description-level hit
     .sort((a, b) => b.score - a.score);
-  assert(matches.length > 0, 'catalogue: laptop query finds matches', `matches=${matches.slice(0, 3).map((m) => `${m.item.id} (${m.score.toFixed(2)})`).join(', ')}`);
-  assert(matches[0]?.item.id?.startsWith('IT-'), 'catalogue: top match is IT category', `top=${matches[0]?.item.id}`);
+}
 
-  // A simpler single-word search should still work
-  const pens = catalogueItems
-    .map((item) => ({ item, score: matchCatalogueItem(item, tokenize('pens')) }))
-    .filter((r) => r.score > 0.3)
-    .sort((a, b) => b.score - a.score);
-  assert(pens.length > 0 && pens[0].item.id.startsWith('OS-'), 'catalogue: single-word query "pens" matches office supplies', `top=${pens[0]?.item.id}`);
+async function scenarioCatalogueMatch(catalogueItems) {
+  // Regression: a plain product word — NOT the model name — must match. The seed
+  // laptop is named "ThinkPad T14 Gen 5" with "…business laptop…" only in its
+  // description, so "I need laptops" used to score below threshold and surface
+  // nothing (the reported bug).
+  const laptops = catalogueMatches(catalogueItems, 'I need laptops');
+  assert(laptops.length > 0, 'catalogue: "I need laptops" finds matches (model-named items)', `matches=${laptops.slice(0, 3).map((m) => `${m.item.id} (${m.score.toFixed(2)})`).join(', ')}`);
+  assert(laptops[0]?.item.id?.startsWith('IT-'), 'catalogue: top laptop match is IT category', `top=${laptops[0]?.item.id}`);
+
+  // A verbose ask must match just as well as the bare word (no length dilution).
+  const verbose = catalogueMatches(catalogueItems, 'a few standard office laptops for a new starter');
+  assert(verbose.some((m) => m.item.id.startsWith('IT-')), 'catalogue: verbose laptop request still matches', `matches=${verbose.slice(0, 2).map((m) => m.item.id).join(', ')}`);
+
+  // A single-word search still works via a name hit.
+  const pens = catalogueMatches(catalogueItems, 'pens');
+  assert(pens.length > 0 && pens[0].item.id.startsWith('OS-'), 'catalogue: single-word "pens" matches office supplies', `top=${pens[0]?.item.id}`);
+
+  // And an unrelated services ask must NOT falsely match a catalogue item.
+  const consulting = catalogueMatches(catalogueItems, 'management consulting to design a target operating model');
+  assert(consulting.length === 0, 'catalogue: a consulting ask finds no catalogue match', `matches=${consulting.slice(0, 2).map((m) => m.item.id).join(', ')}`);
 }
 
 async function scenarioContractMatch(contracts) {
@@ -157,11 +170,12 @@ function scenarioContractEnrichmentRanking() {
 }
 
 async function scenarioNoMatch(catalogueItems, contracts) {
-  // Query unlikely to match anything catalogue/contract
-  const title = 'custom Antarctic research expedition logistics';
+  // Query unlikely to match anything catalogue/contract. Avoid words that appear
+  // in a catalogue item name/description (e.g. "custom" → "Rubber Stamps Custom").
+  const title = 'Antarctic research expedition logistics';
   const tokens = tokenize(title);
 
-  const catMatches = catalogueItems.filter((item) => matchCatalogueItem(item, tokens) > 0.3);
+  const catMatches = catalogueItems.filter((item) => matchCatalogueItem(item, tokens) >= 0.5);
   assert(catMatches.length === 0, 'no-match: catalogue yields nothing for exotic query', `cat=${catMatches.length}`);
 
   // Use a category that doesn't exist in any contract — this proves the
