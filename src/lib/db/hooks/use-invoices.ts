@@ -1,3 +1,6 @@
+// TanStack Query hooks over lib/db/invoices. Query keys live under the
+// ['invoices'] prefix; useInvoiceLookup serves by-supplier/by-PO joins (e.g.
+// three-way match) from the cached list.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Invoice } from '@/data/types';
 import {

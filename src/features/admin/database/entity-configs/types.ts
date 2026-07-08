@@ -1,3 +1,9 @@
+// Contract every entity config in this directory implements. The database admin
+// browser is fully driven by these configs: `columns` render the table,
+// `fields` generate the edit form, `filters` the toolbar, and `defaultNew`
+// seeds a fresh record. `renderComplexFields` is the escape hatch for nested
+// structures the generic form can't express.
+
 import type { ReactNode } from 'react';
 import type { Column } from '@/components/shared/data-table';
 import type { EntityKey, EntityRecordMap } from '@/stores/database-admin-store';

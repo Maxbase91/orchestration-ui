@@ -1,3 +1,5 @@
+// Dialog for transferring request ownership from the request detail page. A
+// reason is mandatory so every reassignment leaves an audit trail.
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -40,6 +42,8 @@ export function ReassignDialog({ open, onOpenChange, request }: ReassignDialogPr
     const user = users.find((u) => u.id === userId);
     setSubmitting(true);
     try {
+      // Reassignment changes the owner only — the request keeps its current
+      // stage, hence newStatus mirrors the existing status.
       await apiWorkflowAction({
         requestId: request.id,
         action: 'reassigned',

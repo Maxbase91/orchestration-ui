@@ -1,3 +1,5 @@
+// Dashboard entry point into the AI assistant: a teaser input plus suggested
+// prompts that open the chat overlay.
 import { useState } from 'react';
 import { Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -13,6 +15,8 @@ const suggestedPrompts = [
 export function WidgetAIAssistant() {
   const [prompt, setPrompt] = useState('');
 
+  // The typed text is intentionally not forwarded — conversation state lives
+  // in the overlay, so the widget only clears itself and hands over.
   const handleSubmit = (text?: string) => {
     const _q = text ?? prompt;
     if (_q.trim()) {

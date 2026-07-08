@@ -1,3 +1,6 @@
+// Widget picker for the customisable dashboard: searchable catalogue drawn
+// from the widget registry, gated to the active role, adding into that role's
+// persisted layout.
 import { useState } from 'react';
 import {
   FileText, TrendingUp, Search, Clock, ShieldCheck, BarChart3, Users,
@@ -37,6 +40,8 @@ export function AddWidgetDialog({ open, onOpenChange }: AddWidgetDialogProps) {
   const { getLayout, addWidget } = useDashboardStore();
 
   const layout = getLayout(currentRole);
+  // Role gate: only offer widgets the registry marks for the active role, so a
+  // requester never sees approver/admin-only tiles.
   const available = widgetRegistry.filter((w) => w.availableTo.includes(currentRole));
   const filtered = search
     ? available.filter((w) => w.title.toLowerCase().includes(search.toLowerCase()) || w.description.toLowerCase().includes(search.toLowerCase()))

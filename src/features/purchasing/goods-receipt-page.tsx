@@ -1,3 +1,6 @@
+// Goods receipt page: lists purchase orders still awaiting delivery and lets
+// the user record full or partial receipts against their line items. Receipts
+// are persisted to the own store and later consumed by the three-way match.
 import { useMemo, useState } from 'react';
 import { PageHeader } from '@/components/shared/page-header';
 import { DataTable, type Column } from '@/components/shared/data-table';
@@ -20,6 +23,8 @@ interface PORow extends Record<string, unknown> {
   po: PurchaseOrder;
 }
 
+// Only POs that can still take a receipt: drafts have not gone to the
+// supplier yet, and fully received/closed/cancelled POs have nothing pending.
 const RECEIVABLE_STATUSES = ['submitted', 'acknowledged', 'partially-received'];
 
 export function GoodsReceiptPage() {
@@ -123,6 +128,8 @@ export function GoodsReceiptPage() {
           <GoodsReceiptForm
             lineItems={selectedPO.lineItems}
             onConfirm={async (quantities) => {
+              // Complete vs partial is derived from the entered quantities;
+              // the receipt record stores the derived status for the match.
               const allReceived = quantities.every((q, i) => q >= selectedPO.lineItems[i].quantity);
               try {
                 await createReceipt.mutateAsync({

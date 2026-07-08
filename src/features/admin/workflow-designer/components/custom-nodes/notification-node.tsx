@@ -1,3 +1,6 @@
+// Workflow designer canvas node: notification step (channels, recipient,
+// template). Configured in the node config panel.
+
 import { Handle, Position, type NodeProps, type Node } from '@xyflow/react';
 import { Bell } from 'lucide-react';
 

@@ -1,3 +1,6 @@
+// Dialog for sending a request back to an earlier lifecycle stage (e.g. more
+// information needed). Requires a coded reason so referrals are reportable,
+// with optional free text for context.
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -22,6 +25,8 @@ import { toast } from 'sonner';
 import { apiWorkflowAction } from '@/lib/api';
 import { queryClient } from '@/lib/query-client';
 
+// Only pre-PO stages are valid return targets — once a PO exists, backing out
+// is a different (commercial) process, not a referral.
 const PREVIOUS_STEPS = [
   { value: 'intake', label: 'Intake' },
   { value: 'validation', label: 'Validation' },
@@ -53,6 +58,8 @@ export function ReferBackDialog({ open, onOpenChange, request }: ReferBackDialog
   async function handleSubmit() {
     if (!step || !reason) return;
     setSubmitting(true);
+    // Keep the coded reason as the notes prefix so the audit trail stays
+    // machine-filterable even when free text is added.
     const notes = explanation ? `${reason}: ${explanation}` : reason;
     try {
       await apiWorkflowAction({

@@ -1,3 +1,6 @@
+// Invoice queue page: all supplier invoices with lifecycle and match-status
+// filters, plus a matching summary card that flags what needs manual review.
+// Read-only in R1 — variances are resolved via the three-way match page.
 import { useState, useMemo } from 'react';
 import { PageHeader } from '@/components/shared/page-header';
 import { DataTable, type Column } from '@/components/shared/data-table';
@@ -82,6 +85,8 @@ export function InvoiceQueuePage() {
   const [filters, setFilters] = useState<Record<string, string | string[]>>({});
   const [showAI, setShowAI] = useState(true);
 
+  // Summary counts: paid invoices are done, so only unpaid matches count as
+  // "auto-matched"; variance/unmatched are the two states needing a human.
   const autoMatched = invoices.filter((i) => i.matchStatus === 'matched' && i.status !== 'paid').length;
   const needsReview = invoices.filter((i) => i.matchStatus === 'variance' || i.matchStatus === 'unmatched').length;
 

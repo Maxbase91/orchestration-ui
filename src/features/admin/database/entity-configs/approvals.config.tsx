@@ -1,3 +1,6 @@
+// Database admin config for approval entries: table columns, edit form fields,
+// and status filter for the own-store approval records.
+
 import type { Column } from '@/components/shared/data-table';
 import type { ApprovalEntry } from '@/data/types';
 import type { EntityConfig } from './types';

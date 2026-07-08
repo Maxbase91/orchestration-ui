@@ -1,3 +1,6 @@
+// CRUD for the `invoices` table. Components read through the use-invoices
+// hooks; row mapping is shared via ./mappers. Lists newest-first by invoice
+// date.
 import { supabase } from '@/lib/supabase-client';
 import type { Invoice } from '@/data/types';
 import { mapDbToInvoice, mapInvoiceToDb } from './mappers';

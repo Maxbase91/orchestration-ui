@@ -1,3 +1,5 @@
+// Data access for service_descriptions (the SOW captured during intake), one
+// row per request. Reads flow through use-service-description.ts hooks.
 import { supabase } from '@/lib/supabase-client';
 import { mapDbToServiceDescription, type ServiceDescriptionRecord } from './mappers';
 

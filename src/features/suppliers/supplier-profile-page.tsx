@@ -1,3 +1,5 @@
+// Supplier profile: single-supplier detail with tabs for overview, contracts,
+// risk, spend, performance, documents and activity.
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';

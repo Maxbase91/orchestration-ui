@@ -1,3 +1,6 @@
+// TanStack Query hooks over lib/db/catalogue-items (the buyable catalogue
+// used by intake matching). Query keys live under the ['catalogue-items']
+// prefix; mutations invalidate the whole prefix.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { CatalogueItem } from '@/data/catalogue-items';
 import {

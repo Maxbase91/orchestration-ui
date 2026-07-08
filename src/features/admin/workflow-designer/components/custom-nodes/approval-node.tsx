@@ -1,3 +1,6 @@
+// Workflow designer canvas node: approval step (single/majority/unanimous,
+// timeout, delegation). Configured in the node config panel.
+
 import { Handle, Position, type NodeProps, type Node } from '@xyflow/react';
 import { CheckCircle } from 'lucide-react';
 
@@ -29,6 +32,8 @@ export function ApprovalNode({ data, selected }: NodeProps<ApprovalNodeType>) {
           <div className="text-sm font-semibold text-amber-900">{data.label}</div>
         </div>
       </div>
+      {/* Two named outcome handles — edges bind to these ids, so renaming
+          "approved"/"rejected" would silently orphan saved template edges. */}
       <Handle
         type="source"
         position={Position.Bottom}

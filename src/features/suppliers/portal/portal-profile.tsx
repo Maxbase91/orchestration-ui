@@ -1,8 +1,12 @@
+// Company profile page inside the supplier portal — the supplier's own view
+// of their master data. Fields are read-only: R1 has no supplier self-service
+// writes, and banking details are shown pre-masked.
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { useSupplier } from '@/lib/db/hooks/use-suppliers';
 
+// The portal has no supplier auth yet — it impersonates a fixed demo supplier.
 const PORTAL_SUPPLIER_ID = 'SUP-001';
 
 export function PortalProfile() {

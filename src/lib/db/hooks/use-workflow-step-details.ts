@@ -1,3 +1,6 @@
+// TanStack Query hooks over lib/db/workflow-step-details (per-request,
+// per-stage progress records shown on the request timeline). Keys:
+// ['workflow-step-details', 'list' | 'request' + requestId].
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { WorkflowStepDetail } from '@/data/workflow-step-details';
 import {

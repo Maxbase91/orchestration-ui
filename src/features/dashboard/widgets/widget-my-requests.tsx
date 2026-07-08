@@ -1,9 +1,13 @@
+// Dashboard widget listing the user's requests still in flight, capped for
+// glanceability. Each row deep-links to the request detail page.
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRequests } from '@/lib/db/hooks/use-requests';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { formatCurrency } from '@/lib/format';
 
+// "Active" spans draft through invoice and includes referred-back (needs the
+// requester's action); only terminal states drop off.
 const activeStatuses = new Set([
   'draft', 'intake', 'validation', 'approval', 'sourcing', 'contracting', 'po', 'receipt', 'invoice', 'referred-back',
 ]);

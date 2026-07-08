@@ -1,3 +1,6 @@
+// Config-driven filter row used above list pages. Controlled component: the
+// page owns the active-filter state; this renders the selects and the
+// clear-all affordance.
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -47,6 +50,8 @@ export function FilterBar({ filters, activeFilters, onFilterChange, onClear }: F
             key={filter.key}
             value={stringValue || undefined}
             onValueChange={(val) => {
+              // Multi-select reuses the single Select control: each pick
+              // toggles membership in the value array rather than replacing it.
               if (filter.type === 'multi-select') {
                 const current = Array.isArray(currentValue) ? currentValue : [];
                 const updated = current.includes(val)

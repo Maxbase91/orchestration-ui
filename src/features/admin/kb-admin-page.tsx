@@ -1,3 +1,7 @@
+// Admin — knowledge base management. CRUD over the Supabase `knowledge_base`
+// table; entries here override/supplement the built-in KB and are the first
+// source the AI assistant grounds its answers in.
+
 import { useEffect, useState } from 'react';
 import { Plus, Pencil, Trash2, X, Save, BookOpen, ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '@/lib/supabase-client';
@@ -173,6 +177,8 @@ export function KBAdminPage() {
   useEffect(() => { void load(); }, []);
 
   async function handleSave(entry: KBEntry) {
+    // Upsert on id so saving an edited entry with an unchanged id updates it
+    // rather than failing on the primary key.
     await supabase
       .from('knowledge_base')
       .upsert({ ...entry, updated_at: new Date().toISOString() }, { onConflict: 'id' });

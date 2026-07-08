@@ -1,3 +1,7 @@
+// Database admin config for procurement requests — the central entity of the
+// front door. Status options mirror the full request lifecycle (draft →
+// payment/completed) and must stay in sync with the RequestStatus type.
+
 import type { Column } from '@/components/shared/data-table';
 import type { ProcurementRequest } from '@/data/types';
 import type { EntityConfig } from './types';

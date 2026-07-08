@@ -1,3 +1,6 @@
+// Scheduled reports page (analytics): recurring report definitions with an
+// enable/disable toggle. Local sample state only — distribution/scheduling
+// infrastructure is out of R1 scope.
 import { useState } from 'react';
 import { PageHeader } from '@/components/shared/page-header';
 import { DataTable, type Column } from '@/components/shared/data-table';

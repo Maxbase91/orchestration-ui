@@ -1,3 +1,5 @@
+// Supplier risk & compliance overview: risk-rating/SRA/screening KPIs and a
+// filterable table across the full supplier base, drilling into each profile.
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/shared/page-header';

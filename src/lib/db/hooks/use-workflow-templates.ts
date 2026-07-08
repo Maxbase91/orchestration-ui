@@ -1,3 +1,6 @@
+// TanStack Query hooks over lib/db/workflow-templates (designer-authored
+// workflow definitions). Query keys live under the ['workflow-templates']
+// prefix; mutations invalidate the whole prefix.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { WorkflowTemplate } from '@/data/types';
 import {

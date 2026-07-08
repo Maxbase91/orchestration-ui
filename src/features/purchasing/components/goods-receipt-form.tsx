@@ -1,3 +1,6 @@
+// Goods receipt form: per-line received-quantity capture against a PO's line
+// items, used on the goods receipt page. Receipt state feeds the three-way
+// match (PO vs receipt vs invoice).
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -22,6 +25,8 @@ export function GoodsReceiptForm({ lineItems, onConfirm }: GoodsReceiptFormProps
   const updateQuantity = (index: number, value: number) => {
     setQuantities((prev) => {
       const next = [...prev];
+      // Clamp to [0, ordered]: over-receipting is not allowed in R1, it would
+      // have to be resolved as a PO change rather than a receipt.
       next[index] = Math.max(0, Math.min(value, lineItems[index].quantity));
       return next;
     });

@@ -1,3 +1,6 @@
+// Renewals & expiries page: contract end-date watchlist with expiry KPIs and
+// an initiate-renewal action per row. Expiry maths is derived from end dates
+// at render time rather than stored, so it never goes stale.
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/shared/page-header';
@@ -46,6 +49,8 @@ export function RenewalsPage() {
     });
   }, [contracts]);
 
+  // 90 days is the renewal-assessment window (matches the register's expiry
+  // badges); anything at or past its end date counts as expired.
   const filtered = useMemo(() => {
     switch (activeTab) {
       case 'expiring':
@@ -123,6 +128,7 @@ export function RenewalsPage() {
           variant="outline"
           size="sm"
           onClick={(e) => {
+            // Keep the row's navigate-to-detail click from firing too.
             e.stopPropagation();
             toast.success(`Renewal initiated for ${row.title}`);
           }}

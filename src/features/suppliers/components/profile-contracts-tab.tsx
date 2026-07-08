@@ -1,3 +1,5 @@
+// Contracts tab on the supplier profile: all contracts for the supplier, with
+// a renewal warning banner for those inside the 90-day window.
 import { AlertTriangle } from 'lucide-react';
 import { DataTable, type Column } from '@/components/shared/data-table';
 import { StatusBadge } from '@/components/shared/status-badge';
@@ -57,6 +59,8 @@ export function ProfileContractsTab({ supplierId }: ProfileContractsTabProps) {
   const { bySupplier } = useContractLookup();
   const contracts = bySupplier(supplierId);
 
+  // Banner scope: live contracts ending in the next 90 days. Already-expired
+  // ones are excluded — nothing left to renew there.
   const expiringContracts = contracts.filter((c) => {
     if (c.status !== 'active' && c.status !== 'expiring') return false;
     const endDate = new Date(c.endDate);

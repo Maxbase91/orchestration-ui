@@ -1,3 +1,6 @@
+// Three-way match visualiser: side-by-side PO / goods receipt / invoice grid
+// with per-field match status colouring. Purely presentational — match logic
+// and variance values are computed by the caller.
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 
@@ -47,6 +50,8 @@ export function MatchVisualizer({ fields, poId, invoiceId }: MatchVisualizerProp
           <div className="border-b p-2 font-medium text-center text-muted-foreground">Goods Receipt</div>
           <div className="border-b p-2 font-medium text-center text-muted-foreground">Invoice</div>
 
+          {/* display:contents keeps the four cells per field in the parent
+              grid while still letting each row be keyed as one element. */}
           {fields.map((field) => (
             <div key={field.label} className={cn('contents')}>
               <div className={cn('border-b p-2 font-medium flex items-center gap-2', statusStyles[field.status])}>

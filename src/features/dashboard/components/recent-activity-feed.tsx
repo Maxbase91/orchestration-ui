@@ -1,3 +1,6 @@
+// Compact notification feed for the dashboard: icon/colour per notification
+// type, capped to the latest few, with an unread dot. Read-only — acting on a
+// notification happens on the notifications page.
 import { Bell, MessageSquare, AlertTriangle, ArrowRight, Sparkles, Shield } from 'lucide-react';
 import { formatRelativeTime } from '@/lib/format';
 import type { Notification } from '@/data/types';

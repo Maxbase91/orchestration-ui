@@ -1,3 +1,6 @@
+// CRUD for the `approval_entries` table (individual approval work items).
+// Components read through the use-approvals hooks; row mapping is shared via
+// ./mappers. Lists newest-first by request date.
 import { supabase } from '@/lib/supabase-client';
 import type { ApprovalEntry } from '@/data/types';
 import { mapDbToApproval, mapApprovalToDb } from './mappers';

@@ -1,3 +1,6 @@
+// Sheet for customising the dashboard quick-action row: checkboxes over the
+// registry's action catalogue, filtered to the active role and persisted
+// per-role in the dashboard store.
 import {
   Plus, Search, CheckCircle, Sparkles, FileText, AlertTriangle, Building2,
   BarChart3, Shield, MessageSquare, ShoppingBag, ListTodo, FileSignature,
@@ -10,6 +13,8 @@ import { useAuthStore } from '@/stores/auth-store';
 import { useDashboardStore } from '@/stores/dashboard-store';
 import { allQuickActions } from '../widget-registry';
 
+// Registry entries name their icon as a string; unknown names fall back to
+// Plus below. 'Workflow' is deliberately aliased rather than imported.
 const iconMap: Record<string, LucideIcon> = {
   Plus, Search, CheckCircle, Sparkles, FileText, AlertTriangle, Building2,
   BarChart3, Shield, MessageSquare, ShoppingBag, ListTodo, FileSignature,

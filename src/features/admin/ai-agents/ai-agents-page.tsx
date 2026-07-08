@@ -1,3 +1,7 @@
+// Admin — AI agent configuration page. Library + detail view for the governed AI
+// agents (classification, extraction, etc.) whose settings drive the automated
+// decisions made in the front door's intake and determination steps.
+
 import { useState, useEffect, useCallback } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -12,6 +16,8 @@ import { AgentPerformance } from './components/agent-performance';
 export function AIAgentsPage() {
   const { data: serverAgents = [] } = useAiAgents();
   const [agents, setAgents] = useState<AIAgent[]>([]);
+  // Seed local state from the server exactly once — later refetches must not
+  // clobber in-session additions (draft agents live only in local state).
   useEffect(() => {
     if (agents.length === 0 && serverAgents.length > 0) setAgents(serverAgents);
   }, [agents.length, serverAgents]);

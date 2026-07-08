@@ -1,3 +1,5 @@
+// Table of requests that have overrun their stage's SLA target — "stuck" is
+// defined purely by daysInStage vs. the admin-configured SLA, not a status flag.
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { useUserLookup, useUsers } from '@/lib/db/hooks/use-users';

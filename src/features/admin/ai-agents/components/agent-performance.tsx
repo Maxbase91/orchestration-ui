@@ -1,3 +1,7 @@
+// Performance dashboard for a single AI agent (admin > AI agents detail view).
+// There is no per-day telemetry store in R1, so trend/volume series are
+// illustrative, derived from the agent's headline accuracy figure.
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LineChartWidget } from '@/components/charts/line-chart-widget';
 import { BarChartWidget } from '@/components/charts/bar-chart-widget';
@@ -35,6 +39,8 @@ interface AgentPerformanceProps {
 export function AgentPerformance({ agent }: AgentPerformanceProps) {
   const accuracyData = generateAccuracyData(agent.accuracy);
   const decisionsData = generateDecisionsData();
+  // Heuristic: humans override most, but not all, wrong decisions — so the
+  // override rate is modelled as 80% of the error rate.
   const overrideRate = Math.round((100 - agent.accuracy) * 0.8 * 10) / 10;
 
   return (

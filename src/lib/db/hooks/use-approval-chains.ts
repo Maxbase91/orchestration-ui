@@ -1,3 +1,5 @@
+// TanStack Query hooks over lib/db/approval-chains. Query keys live under the
+// ['approval-chains'] prefix; mutations invalidate the whole prefix.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ApprovalChain } from '@/lib/db/approval-chains';
 import { listApprovalChains, upsertApprovalChain, deleteApprovalChain } from '@/lib/db/approval-chains';

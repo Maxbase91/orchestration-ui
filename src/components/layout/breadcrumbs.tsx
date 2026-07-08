@@ -1,3 +1,6 @@
+// Header breadcrumb trail. Purely presentational — the crumb list is derived
+// from the current route by useBreadcrumbs; the last crumb is the current page
+// and therefore not a link.
 import { Link } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
 import { useBreadcrumbs } from '@/hooks/use-breadcrumbs';

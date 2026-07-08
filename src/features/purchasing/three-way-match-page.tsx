@@ -1,3 +1,7 @@
+// Three-way match page: field-by-field comparison of PO, goods receipt and
+// invoice for a selected invoice, with auto-approve within the configurable
+// tolerance and exception handling outside it. Scenarios are worked examples
+// spanning the interesting cases (clean match, variance, partial GR, no GR).
 import { useState } from 'react';
 import { CheckCircle, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -16,6 +20,9 @@ import { useInvoices } from '@/lib/db/hooks/use-invoices';
 import { formatCurrency } from '@/lib/format';
 import { useSettingsStore } from '@/stores/settings-store';
 
+// Amount match rule: invoicing before any goods receipt is always a mismatch;
+// otherwise the invoice is compared against the PO amount and a relative
+// variance inside the configured tolerance only counts as minor.
 function computeAmountStatus(
   po: number,
   gr: number | null,
@@ -26,6 +33,7 @@ function computeAmountStatus(
     return { status: 'mismatch', variance: 'No GR' };
   }
   const ref = po;
+  // Guard the division below; a zero-value PO cannot meaningfully vary.
   if (ref === 0) return { status: 'match' };
   const diff = Math.abs(invoice - ref);
   const ratio = diff / ref;
@@ -64,6 +72,9 @@ function buildFields(s: RawScenario, toleranceFraction: number): MatchField[] {
   const grItemsDisplay = s.grItems ?? 'N/A';
   const grDateDisplay = s.grDate ?? '-';
 
+  // Line items must agree across all three documents to match; any GR at all
+  // downgrades a difference to minor. A missing GR date means the invoice
+  // arrived pre-delivery — flagged but not a hard mismatch.
   const itemStatus: MatchField['status'] =
     s.grItems === null ? 'mismatch' : s.poItems === s.grItems && s.grItems === s.invoiceItems ? 'match' : 'minor-variance';
 
@@ -173,7 +184,10 @@ export function ThreeWayMatchPage() {
   const [selectedInvoice, setSelectedInvoice] = useState<string>(rawScenarios[0].invoiceId);
 
   const scenario = rawScenarios.find((s) => s.invoiceId === selectedInvoice);
+  // Tolerance is admin-configurable (settings store) as a percentage.
   const fields = scenario ? buildFields(scenario, matchTolerancePct / 100) : [];
+  // Auto-approval requires every field to match exactly AND a goods receipt
+  // to exist — minor variances still go through a human decision.
   const withinTolerance =
     scenario !== undefined &&
     fields.every((f) => f.status === 'match') &&

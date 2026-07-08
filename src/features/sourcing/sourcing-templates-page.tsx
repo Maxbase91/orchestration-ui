@@ -1,3 +1,6 @@
+// Sourcing templates page: gallery of standard event formats (RFQ, RFP,
+// mini-competition, reverse auction, EOI) with indicative timelines; every
+// template funnels into the same new-event flow.
 import { useNavigate } from 'react-router-dom';
 import {
   FileText,

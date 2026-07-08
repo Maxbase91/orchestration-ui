@@ -1,3 +1,6 @@
+// Demand pipeline page: stage-by-stage view of all in-flight requests from
+// intake through purchase order, with pipeline KPIs and collapsible per-stage
+// tables that deep-link into request detail.
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/shared/page-header';
@@ -10,6 +13,8 @@ import { ChevronDown, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { RequestStatus } from '@/data/types';
 
+// The active pipeline only: draft (not yet started) and terminal states
+// (completed/cancelled) are deliberately excluded from the stage list.
 const PIPELINE_STAGES: { key: RequestStatus; label: string }[] = [
   { key: 'intake', label: 'Intake' },
   { key: 'validation', label: 'Validation' },
@@ -22,6 +27,8 @@ const PIPELINE_STAGES: { key: RequestStatus; label: string }[] = [
 export function DemandPipelinePage() {
   const navigate = useNavigate();
   const { data: requests = [] } = useRequests();
+  // Intake and approval open by default — the two stages where work most
+  // often queues up and needs attention first.
   const [expandedStages, setExpandedStages] = useState<Set<string>>(new Set(['intake', 'approval']));
 
   const pipelineRequests = useMemo(() => {
@@ -40,6 +47,8 @@ export function DemandPipelinePage() {
   const avgDays = pipelineRequests.length > 0
     ? Math.round(pipelineRequests.reduce((sum, r) => sum + r.daysInStage, 0) / pipelineRequests.length)
     : 0;
+  // Conversion = completed / everything that actually entered the pipeline;
+  // drafts never started and cancellations are excluded from the denominator.
   const completedCount = requests.filter((r) => r.status === 'completed').length;
   const totalStarted = requests.filter((r) => r.status !== 'draft' && r.status !== 'cancelled').length;
   const conversionRate = totalStarted > 0 ? Math.round((completedCount / totalStarted) * 100) : 0;
@@ -123,6 +132,7 @@ export function DemandPipelinePage() {
                           </td>
                           <td className="px-4 py-2 text-right">{formatCurrency(r.value)}</td>
                           <td className="px-4 py-2 text-center">
+                            {/* More than 5 days in one stage is treated as stalling. */}
                             <span className={cn('font-semibold', r.daysInStage > 5 ? 'text-red-600' : 'text-gray-700')}>
                               {r.daysInStage}
                             </span>

@@ -1,3 +1,6 @@
+// TanStack Query hooks over lib/db/sourcing-events (RFx events). Query keys
+// live under the ['sourcing-events'] prefix; mutations invalidate the whole
+// prefix. No delete hook — events are closed/awarded, not removed.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { SourcingEvent } from '@/lib/db/sourcing-events';
 import {

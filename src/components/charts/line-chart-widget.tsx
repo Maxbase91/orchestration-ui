@@ -1,3 +1,6 @@
+// Reusable Recharts line-chart wrapper with the platform's shared axis/tooltip
+// styling. Multi-series via dataKeys; used by dashboard and analytics widgets
+// so chart styling stays consistent across pages.
 import {
   LineChart,
   Line,

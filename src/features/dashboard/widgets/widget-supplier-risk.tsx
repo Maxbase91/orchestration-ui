@@ -1,9 +1,13 @@
+// Dashboard widget flagging suppliers needing risk attention: high/critical
+// rating, or a lapsed risk assessment regardless of rating.
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShieldAlert } from 'lucide-react';
 import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
 import { cn } from '@/lib/utils';
 
+// Only the two admitting tiers get strong colours; lower-rated suppliers that
+// slip in via an expired assessment fall back to the muted style below.
 const riskColors: Record<string, string> = {
   critical: 'text-red-600 bg-red-50',
   high: 'text-orange-600 bg-orange-50',

@@ -1,3 +1,6 @@
+// Dashboard list of requests needing intervention. "Attention" means overdue
+// against SLA or referred back to the requester — the two states where waiting
+// costs the most.
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, Clock, ArrowLeftCircle } from 'lucide-react';
@@ -12,6 +15,8 @@ export function AttentionRequiredList() {
   const lookupUser = useUserLookup();
   const { data: requests = [] } = useRequests();
   const flaggedItems = useMemo(() => {
+    // Overdue items outrank referrals; within each group the longest-stuck
+    // request surfaces first.
     return requests
       .filter((r) => r.isOverdue || r.status === 'referred-back')
       .sort((a, b) => {

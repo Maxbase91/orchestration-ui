@@ -1,3 +1,6 @@
+// Knowledge base page (help centre): self-service how-to articles about the
+// platform itself, grouped by topic with full-text search and an accordion
+// reader. Content is bundled in-file; the admin-managed KB is a separate page.
 import { useState } from 'react';
 import { Search, ThumbsUp, ThumbsDown, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
@@ -121,6 +124,8 @@ export function KnowledgeBasePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedArticle, setExpandedArticle] = useState<string | null>(null);
 
+  // Search matches title or body; categories with no surviving articles are
+  // dropped entirely so empty headings never render.
   const filteredCategories = categories
     .map((cat) => ({
       ...cat,

@@ -1,3 +1,5 @@
+// Dashboard bar chart of open requests per owner, heaviest first — a quick
+// read on who is overloaded and where to rebalance.
 import { useMemo } from 'react';
 import { useRequests } from '@/lib/db/hooks/use-requests';
 import { useUserLookup, useUsers } from '@/lib/db/hooks/use-users';
@@ -9,6 +11,8 @@ export function WorkloadChart() {
   const { data: requests = [] } = useRequests();
   const data = useMemo(() => {
     const ownerCounts: Record<string, number> = {};
+    // Workload = live work only: terminal states (completed/rejected) don't
+    // occupy anyone, but referred-back still needs the owner's attention.
     const activeStatuses = new Set([
       'intake', 'validation', 'approval', 'sourcing', 'contracting', 'po', 'receipt', 'invoice', 'referred-back',
     ]);

@@ -1,3 +1,6 @@
+// Status badge/card for a handover to an upstream system (Ariba, Coupa,
+// Sirion, SAP). R1 routes via deep-links rather than live writes, so this
+// visualises the lifecycle of a handover record, not a live API call.
 import { CheckCircle, XCircle, Clock, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { SystemIntegration, IntegrationStatus } from '@/data/system-integrations';

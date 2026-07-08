@@ -1,3 +1,7 @@
+// Database admin — "Related Items" side panel. Resolves the selected record's
+// foreign-key graph (declared in ../relationships) in both directions so admins
+// can hop between linked own-store records.
+
 import { ArrowRight } from 'lucide-react';
 import { useDatabaseAdminStore } from '@/stores/database-admin-store';
 import type { EntityKey, EntityRecordMap } from '@/stores/database-admin-store';
@@ -32,6 +36,8 @@ export function RelatedItemsPanel<K extends EntityKey>({
     })
     .filter((x): x is NonNullable<typeof x> => x !== null);
 
+  // Incoming references are found by scanning the source collection — the
+  // own-store keeps no reverse indexes, and admin data volumes are small.
   const incoming = rel.incoming.map((r) => {
     const matches = (store[r.from] as unknown as Record<string, unknown>[]).filter(
       (item) => item[r.via] === recordId,

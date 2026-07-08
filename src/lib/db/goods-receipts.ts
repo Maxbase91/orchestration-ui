@@ -1,3 +1,6 @@
+// Data access for the `goods_receipts` table (receipt confirmations against a
+// purchase order, feeding the three-way match). Line items are stored as a
+// jsonb array on the row rather than a child table.
 import { supabase } from '@/lib/supabase-client';
 
 export interface GoodsReceiptLineItem {

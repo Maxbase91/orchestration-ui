@@ -1,3 +1,6 @@
+// Quick-action button row for the dashboard plus the per-role presets it
+// renders. Each action is either a route link (`to`) or a handler (`onClick`);
+// role presets keep the most-used entry points one click away.
 import { Link } from 'react-router-dom';
 import {
   Plus,
@@ -104,6 +107,8 @@ export const adminActions: QuickAction[] = [
   { label: 'Audit Log', icon: Search, to: '/admin/audit' },
 ];
 
+// Unknown roles fall back to the requester set — the safest, least privileged
+// preset.
 export function getActionsForRole(role: Role): QuickAction[] {
   switch (role) {
     case 'service-owner':

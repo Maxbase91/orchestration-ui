@@ -1,3 +1,6 @@
+// Sourcing event list page: register of RFI/RFP/RFQ events with status, type
+// and category filters; rows deep-link into the event detail page. Sample
+// events mirror the ids used by the detail page's fixtures.
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';

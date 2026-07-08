@@ -1,3 +1,6 @@
+// Data access for workflow_instances — the runtime state of a request's
+// attached workflow template (which node(s) it's currently on). One instance
+// per request; getWorkflowInstanceForRequest resolves the latest by created_at.
 import { supabase } from '@/lib/supabase-client';
 
 export interface WorkflowInstance {

@@ -1,3 +1,6 @@
+// Sourcing event detail page: overview, per-supplier response tracking and the
+// Q&A board for one RFx event. Backed by in-file sample events keyed by id,
+// covering each lifecycle stage (draft, published, in-evaluation, award).
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Send, FileEdit } from 'lucide-react';
 import { Button } from '@/components/ui/button';

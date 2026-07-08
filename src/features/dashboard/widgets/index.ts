@@ -1,3 +1,6 @@
+// Barrel for the dashboard widget components plus the id → component map the
+// dashboard renderer resolves layouts against. Ids must stay in sync with the
+// catalogue entries in widget-registry.ts.
 import type React from 'react';
 import { WidgetMyRequests } from './widget-my-requests';
 import { WidgetKPIOpenDemand } from './widget-kpi-open-demand';

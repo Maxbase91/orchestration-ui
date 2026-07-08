@@ -1,3 +1,6 @@
+// CRUD for the `requests` table — the central procurement-request entity.
+// Components read through the use-requests hooks; row mapping is shared via
+// ./mappers. Lists newest-first.
 import { supabase } from '@/lib/supabase-client';
 import type { ProcurementRequest } from '@/data/types';
 import { mapDbToRequest, mapRequestToDb } from './mappers';
@@ -23,6 +26,9 @@ export async function createRequest(record: Partial<ProcurementRequest>): Promis
     .select('*')
     .single();
   if (error) {
+    // Surface Supabase's details/hint alongside the message — intake submits
+    // fail here most often (constraint violations) and the bare message alone
+    // is rarely enough to diagnose.
     const detail = (error as { message?: string; details?: string; hint?: string });
     const msg = [detail.message, detail.details, detail.hint].filter(Boolean).join(' — ');
     throw new Error(msg || String(error));

@@ -1,3 +1,5 @@
+// Message composer for the AI assistant panel: single-line input + send button.
+// Kept dumb on purpose — send/disable state is owned by the conversation store.
 import { useState } from 'react';
 import { ArrowUp } from 'lucide-react';
 

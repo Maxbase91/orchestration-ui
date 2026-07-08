@@ -1,3 +1,6 @@
+// Data access for the `procurement_categories` table (the admin-editable
+// category taxonomy used across intake and classification). Lists in admin-
+// defined sort_order so display order is data, not code.
 import { supabase } from '@/lib/supabase-client';
 
 export interface ProcurementCategory {

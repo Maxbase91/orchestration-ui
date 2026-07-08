@@ -1,3 +1,7 @@
+// Confirm-before-act card for assistant-proposed actions (R1 boundary: the
+// assistant proposes, the user confirms — no action runs without this step).
+// Renders the read-back of what will happen so the user approves the exact
+// intent, not a paraphrase.
 import { ShieldCheck, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { ConfirmTurn } from '@/data/types';

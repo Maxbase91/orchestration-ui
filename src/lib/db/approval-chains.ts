@@ -1,3 +1,7 @@
+// Data access for the `approval_chains` table (admin-configured approval
+// sequences and their value thresholds). Components read through the
+// use-approval-chains hooks; this module owns the snake_case <-> camelCase
+// row mapping.
 import { supabase } from '@/lib/supabase-client';
 
 export interface ApprovalChainStep {
@@ -39,6 +43,7 @@ function mapChainToDb(chain: ApprovalChain): Record<string, unknown> {
     threshold: chain.threshold,
     steps: chain.steps,
     referenced_by: chain.referencedBy,
+    // Stamped client-side — there is no DB trigger maintaining updated_at.
     updated_at: new Date().toISOString(),
   };
 }

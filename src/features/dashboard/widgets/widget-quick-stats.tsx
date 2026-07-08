@@ -1,3 +1,5 @@
+// Dashboard widget with this month's throughput counters (submitted /
+// approved / completed).
 import { useMemo } from 'react';
 import { FileText, CheckCircle, PackageCheck } from 'lucide-react';
 import { useRequests } from '@/lib/db/hooks/use-requests';
@@ -6,8 +8,11 @@ export function WidgetQuickStats() {
   const { data: requests = [] } = useRequests();
   const stats = useMemo(() => {
     const now = new Date();
+    // ISO timestamps let "this month" be a cheap string-prefix match.
     const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
+    // Approved/completed are proxies: requests carry no per-event history, so
+    // "approved" = updated this month and already past the approval stage.
     const submitted = requests.filter((r) => r.createdAt.startsWith(thisMonth)).length;
     const approved = requests.filter(
       (r) => r.updatedAt.startsWith(thisMonth) && ['sourcing', 'contracting', 'po', 'receipt', 'invoice', 'payment', 'completed'].includes(r.status),

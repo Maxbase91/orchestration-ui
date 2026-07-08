@@ -1,3 +1,6 @@
+// Card tile for the supplier directory grid view: risk rating, headline
+// numbers and a compliance traffic-light row, with shortcuts to the profile
+// and to raising a request pre-filled with this supplier.
 import { useNavigate } from 'react-router-dom';
 import { Eye, Plus, Check, X } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -45,6 +48,8 @@ export function SupplierCard({ supplier }: SupplierCardProps) {
   const navigate = useNavigate();
   const flag = countryFlags[supplier.countryCode] ?? '';
 
+  // "Expiring" still counts as a pass — the assessment remains valid until it
+  // actually lapses. Certificates pass only if some exist and none expired.
   const hasSra = supplier.sraStatus === 'valid' || supplier.sraStatus === 'expiring';
   const hasScreening = supplier.screeningStatus === 'clear';
   const hasCerts = supplier.certifications.length > 0 && supplier.certifications.every((c) => c.status !== 'expired');
@@ -84,6 +89,7 @@ export function SupplierCard({ supplier }: SupplierCardProps) {
           <ComplianceCheck label="Certificates" pass={hasCerts} />
         </div>
 
+        {/* Buttons stop propagation — the whole card is itself a click target. */}
         <div className="flex items-center gap-2 pt-1">
           <Button
             size="sm"

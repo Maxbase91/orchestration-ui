@@ -1,3 +1,6 @@
+// TanStack Query hooks over lib/db/purchase-orders. Query keys live under the
+// ['purchase-orders'] prefix; usePurchaseOrderLookup resolves by-contract/
+// by-supplier joins from the cached list.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { PurchaseOrder } from '@/data/types';
 import {

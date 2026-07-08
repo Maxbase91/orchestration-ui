@@ -1,3 +1,5 @@
+// Draggable request card for the workflow kanban board — one card per request,
+// sortable within/between stage columns via dnd-kit.
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { cn } from '@/lib/utils';

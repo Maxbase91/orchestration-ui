@@ -1,3 +1,6 @@
+// Bottlenecks page: stage-level SLA breach chart, the stuck-requests table,
+// and an escalation feed. Escalation data is illustrative — no escalation
+// backend in R1.
 import { PageHeader } from '@/components/shared/page-header';
 import { BottleneckChart } from '@/features/workflows/components/bottleneck-chart';
 import { StuckRequestsTable } from '@/features/workflows/components/stuck-requests-table';

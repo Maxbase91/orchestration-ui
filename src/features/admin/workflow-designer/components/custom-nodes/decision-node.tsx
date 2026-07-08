@@ -1,3 +1,6 @@
+// Workflow designer canvas node: decision/branch step, rendered as the classic
+// flowchart diamond (a rotated square with counter-rotated content).
+
 import { Handle, Position, type NodeProps, type Node } from '@xyflow/react';
 import { GitBranch } from 'lucide-react';
 
@@ -26,6 +29,8 @@ export function DecisionNode({ data, selected }: NodeProps<DecisionNodeType>) {
           </span>
         </div>
       </div>
+      {/* Branch handles are addressed by id — saved template edges reference
+          "yes"/"no", so the ids must stay stable. */}
       <Handle
         type="source"
         position={Position.Left}

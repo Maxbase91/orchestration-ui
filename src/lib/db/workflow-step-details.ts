@@ -1,3 +1,6 @@
+// Data access for workflow_step_details — the per-stage system/status/detail
+// rows shown on a request's workflow tab. Keyed by (request_id, stage), so
+// saves upsert on that composite key rather than a single id.
 import { supabase } from '@/lib/supabase-client';
 import type { WorkflowStepDetail } from '@/data/workflow-step-details';
 import { mapDbToWorkflowStepDetail, mapWorkflowStepDetailToDb } from './mappers';

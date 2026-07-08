@@ -1,3 +1,6 @@
+// Reusable Recharts area-chart wrapper with the platform's shared axis/tooltip
+// styling. Supports multi-series and optional stacking; used by dashboard and
+// analytics widgets so chart styling stays consistent across pages.
 import {
   AreaChart,
   Area,

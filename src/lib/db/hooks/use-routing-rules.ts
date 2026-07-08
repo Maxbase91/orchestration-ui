@@ -1,3 +1,6 @@
+// TanStack Query hooks over lib/db/routing-rules (admin-managed rules the
+// front door uses to route demands). Query keys live under the
+// ['routing-rules'] prefix; mutations invalidate the whole prefix.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { RoutingRule } from '@/data/types';
 import {

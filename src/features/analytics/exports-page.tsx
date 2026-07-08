@@ -1,3 +1,6 @@
+// Exports page (analytics): on-demand data extracts from the front door's own
+// store. CSV downloads are generated client-side; Excel/PDF are surfaced as
+// formats but deferred, so the page stays honest about what actually works.
 import { useState } from 'react';
 import { PageHeader } from '@/components/shared/page-header';
 import { Button } from '@/components/ui/button';
@@ -66,6 +69,8 @@ export function ExportsPage() {
       ...rows.map((r) =>
         headers.map((h) => {
           const v = String(r[h] ?? '');
+          // RFC 4180 quoting: wrap and double-up quotes only when the value
+          // contains a delimiter, quote or newline, so plain values stay clean.
           return v.includes(',') || v.includes('"') || v.includes('\n') ? `"${v.replace(/"/g, '""')}"` : v;
         }).join(','),
       ),
@@ -108,6 +113,8 @@ export function ExportsPage() {
       toast.error('Please select a data type');
       return;
     }
+    // Only CSV is generated client-side today; other formats need a server-side
+    // renderer, so we say so up front rather than downloading a broken file.
     if (format !== 'csv') {
       toast.info(`${formatLabels[format]} export is not yet available. Please select CSV.`);
       return;
@@ -165,6 +172,8 @@ export function ExportsPage() {
               title="Download"
               onClick={() => {
                 const filename = row.name as string;
+                // Historic export names are underscore-delimited with the data
+                // type as the first segment; use it to pick a matching sample.
                 const sampleKey = filename.split('_')[0] ?? 'Requests';
                 const rows = SAMPLE_DATA[sampleKey] ?? [{ file: filename }];
                 downloadCsv(filename, rows);

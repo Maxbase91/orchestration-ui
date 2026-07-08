@@ -1,3 +1,6 @@
+// Derives the breadcrumb trail from the current URL path. Segments map to
+// display labels via a lookup table, with a title-case fallback so unknown
+// segments (e.g. record ids or new routes) still render something sensible.
 import { useLocation } from 'react-router-dom';
 
 export interface Breadcrumb {

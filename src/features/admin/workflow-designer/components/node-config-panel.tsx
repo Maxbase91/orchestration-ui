@@ -1,3 +1,7 @@
+// Workflow designer — right-hand node configuration panel. Renders the
+// type-specific settings form for the selected canvas node; edits are staged
+// in local form state and only written back to the graph on Save.
+
 import { useState, useEffect } from 'react';
 import { Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -21,6 +25,8 @@ export function NodeConfigPanel({ node, onUpdate, onDelete, onClose }: NodeConfi
   const { data: aiAgents = [] } = useAiAgents();
   const [formData, setFormData] = useState<Record<string, unknown>>({ ...node.data });
 
+  // Reset the staged form whenever a different node is selected, so unsaved
+  // edits from the previous node don't leak into the new one.
   useEffect(() => {
     setFormData({ ...node.data });
   }, [node.id, node.data]);

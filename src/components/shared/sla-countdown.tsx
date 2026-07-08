@@ -1,3 +1,6 @@
+// Time-to-deadline label for SLA tracking: green while comfortable, amber
+// within three days, red once overdue. Computed at render time — no ticking
+// timer, a re-render is enough at day-level granularity.
 import { cn } from '@/lib/utils';
 import { differenceInDays, differenceInHours, parseISO } from 'date-fns';
 

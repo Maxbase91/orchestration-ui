@@ -1,3 +1,7 @@
+// Database admin config for purchase orders: table columns, edit form fields,
+// and status filter. Line items are shown read-only via renderComplexFields —
+// the generic form can't edit nested arrays, and the PO detail page owns that.
+
 import type { Column } from '@/components/shared/data-table';
 import type { PurchaseOrder } from '@/data/types';
 import type { EntityConfig } from './types';

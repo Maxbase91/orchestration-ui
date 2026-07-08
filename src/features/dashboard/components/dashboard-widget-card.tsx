@@ -1,3 +1,6 @@
+// Sortable shell around every dashboard widget: drag handle, remove button and
+// the size → grid-column mapping. Widget content is passed in as children so
+// the drag/layout mechanics live in one place.
 import type { ReactNode } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -47,6 +50,7 @@ export function DashboardWidgetCard({ id, title, size, onRemove, children }: Das
     >
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
+          {/* Drag listeners sit on the grip only, so buttons/links inside the widget stay clickable. */}
           <button
             type="button"
             className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none"

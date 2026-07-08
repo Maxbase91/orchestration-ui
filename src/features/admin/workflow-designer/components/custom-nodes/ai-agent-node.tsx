@@ -1,3 +1,7 @@
+// Workflow designer canvas node: AI agent step. Its data carries the agent
+// binding plus confidence threshold / fallback used when the agent isn't sure;
+// values are edited in the node config panel, not here.
+
 import { Handle, Position, type NodeProps, type Node } from '@xyflow/react';
 import { Sparkles } from 'lucide-react';
 

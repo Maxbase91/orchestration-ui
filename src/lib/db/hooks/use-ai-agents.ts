@@ -1,3 +1,6 @@
+// TanStack Query hooks over lib/db/ai-agents (agent configuration records).
+// Query keys live under the ['ai-agents'] prefix; mutations invalidate the
+// whole prefix so list and detail views refetch together.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { AIAgent } from '@/data/types';
 import { listAiAgents, getAiAgent, saveAiAgent, deleteAiAgent } from '../ai-agents';

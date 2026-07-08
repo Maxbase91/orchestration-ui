@@ -1,3 +1,6 @@
+// Generic client-side data table: column config with custom cell renderers,
+// optional text search across all columns, and click-to-sort. All filtering/
+// sorting happens in memory — fine for the list sizes this platform serves.
 import { useState, useMemo } from 'react';
 import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -65,6 +68,8 @@ export function DataTable<T extends Record<string, unknown>>({
     return [...filtered].sort((a, b) => {
       const aVal = a[sortKey];
       const bVal = b[sortKey];
+      // Nulls always sort last regardless of direction; numeric-aware
+      // localeCompare gives one comparator for both text and number columns.
       if (aVal == null && bVal == null) return 0;
       if (aVal == null) return 1;
       if (bVal == null) return -1;

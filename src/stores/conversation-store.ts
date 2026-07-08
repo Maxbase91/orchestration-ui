@@ -1,3 +1,7 @@
+// AI-assistant conversation history: per-user threads persisted to Supabase
+// (assistant_conversations), with an in-memory list + active-thread pointer for
+// the chat UI. Not persisted via zustand/persist — the source of truth is the
+// table, reloaded per user via loadConversations.
 import { create } from 'zustand';
 import { supabase } from '@/lib/supabase-client';
 import type { ChatMessageData } from '@/data/types';
@@ -55,6 +59,8 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
     }
 
     const conversations = (data ?? []).map(rowToConversation);
+    // Keep whatever thread is already active (e.g. the one just created); only
+    // default to the most recent thread on a fresh load.
     const activeConversationId =
       get().activeConversationId ?? conversations[0]?.id ?? null;
 
@@ -98,6 +104,8 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
   addMessage: async (conversationId: string, message: ChatMessageData, userId: string) => {
     const now = new Date().toISOString();
 
+    // Update local state first so the message renders immediately, then
+    // persist; the list re-sorts so the most-recently-active thread stays on top.
     set((state) => {
       const conversations = state.conversations
         .map((c) => {

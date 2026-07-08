@@ -1,3 +1,6 @@
+// Inline banner shown when a request is routed to an approver who is out of
+// office: offers re-routing to their named delegate instead of letting the
+// approval sit idle. The caller decides what accept/dismiss actually do.
 import { AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 

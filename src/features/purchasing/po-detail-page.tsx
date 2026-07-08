@@ -1,3 +1,6 @@
+// Purchase order detail page: lifecycle stepper, line items with received
+// quantities, inline goods-receipt capture and links back to the originating
+// contract/request. The compliance report card surfaces the request's checks.
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -40,6 +43,8 @@ export function PODetailPage() {
     );
   }
 
+  // The stepper has no partial stage; a partially received PO sits on the
+  // 'received' step (the badge above still shows the exact status).
   const effectiveStatus = po.status === 'partially-received' ? 'received' : po.status;
   const steps = getSteps(effectiveStatus);
 

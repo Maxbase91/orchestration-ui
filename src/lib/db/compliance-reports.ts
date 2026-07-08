@@ -1,3 +1,6 @@
+// Data access for the `compliance_reports` table (per-request compliance
+// snapshots). Upserts key on request_id — one report per request, saving
+// replaces the previous snapshot.
 import { supabase } from '@/lib/supabase-client';
 import type { ComplianceReport } from '@/data/compliance-reports';
 import { complianceReports as seedReports } from '@/data/compliance-reports';
@@ -21,6 +24,8 @@ export async function getComplianceReportByRequest(
     .maybeSingle();
   if (error) throw error;
   if (data) return mapDbToComplianceReport(data);
+  // Fall back to bundled seed data so demo requests that were never saved to
+  // the DB still show a compliance tab.
   return seedReports.find((r) => r.requestId === requestId) ?? null;
 }
 

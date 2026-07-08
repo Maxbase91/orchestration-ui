@@ -1,3 +1,7 @@
+// Database admin config for contracts: table columns, edit form fields, and
+// status filter for the own-store contract records the front door reads
+// (contract path eligibility, renewals, utilisation).
+
 import type { Column } from '@/components/shared/data-table';
 import type { Contract } from '@/data/types';
 import type { EntityConfig } from './types';

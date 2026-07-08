@@ -1,3 +1,5 @@
+// Serverless CRUD for ai_conversations: the assistant's per-request scratchpad
+// (captured messages + any structured extraction), keyed by request_id.
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabaseQuery } from '../src/lib/supabase.js';
 

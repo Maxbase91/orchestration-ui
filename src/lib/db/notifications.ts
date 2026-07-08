@@ -1,3 +1,7 @@
+// Data access for the `notifications` table (in-app notification feed).
+// Components read through the use-notifications hooks; newest first.
+// markAllNotificationsRead filters on is_read=false so already-read rows
+// aren't rewritten.
 import { supabase } from '@/lib/supabase-client';
 import type { Notification } from '@/data/types';
 import { mapDbToNotification, mapNotificationToDb } from './mappers';

@@ -1,3 +1,5 @@
+// Controlled text-search input with leading icon and a clear button that
+// appears once there is a value. Shared by tables and list pages.
 import { Search, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 

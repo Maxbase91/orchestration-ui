@@ -1,3 +1,5 @@
+// Notification feed: renders a list of notifications bucketed by recency
+// (Today / Yesterday / Earlier). Used by the notifications page for every tab.
 import { parseISO, isToday, isYesterday } from 'date-fns';
 import { NotificationItem } from './notification-item';
 import type { Notification } from '@/data/types';
@@ -26,6 +28,8 @@ function groupByDate(items: Notification[]): { label: string; items: Notificatio
     groups[label].push(item);
   }
 
+  // Fixed newest-first bucket order; empty buckets are dropped so headings
+  // only appear when they have content.
   const order = ['Today', 'Yesterday', 'Earlier'];
   return order
     .filter((label) => groups[label]?.length)

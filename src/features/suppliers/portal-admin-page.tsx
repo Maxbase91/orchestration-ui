@@ -1,3 +1,5 @@
+// Admin view of the supplier portal: account list, onboarding queue and login
+// activity. Illustrative sample data — no portal-account backend in R1.
 import { useState } from 'react';
 import { KeyRound, UserX } from 'lucide-react';
 import { Button } from '@/components/ui/button';

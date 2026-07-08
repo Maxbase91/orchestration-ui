@@ -1,3 +1,6 @@
+// Risk tab on the supplier profile: assessment status, screening result and
+// certifications, headed by deterministic guidance derived from the record
+// (not an LLM call).
 import { ShieldCheck, ShieldAlert, ShieldX } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatusBadge } from '@/components/shared/status-badge';
@@ -18,6 +21,8 @@ interface ProfileRiskTabProps {
 
 export function ProfileRiskTab({ supplier }: ProfileRiskTabProps) {
   const SraIcon = sraIcons[supplier.sraStatus];
+  // Guidance priority: rating severity first, then assessment currency, else
+  // steady state — the most urgent issue wins the headline.
   const riskSuggestion =
     supplier.riskRating === 'high' || supplier.riskRating === 'critical'
       ? `${supplier.name} is classified as ${supplier.riskRating.toUpperCase()} risk. Consider enhanced due diligence and more frequent monitoring cycles.`

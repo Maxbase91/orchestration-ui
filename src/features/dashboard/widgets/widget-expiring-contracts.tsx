@@ -1,3 +1,6 @@
+// Dashboard widget listing contracts inside the 90-day renewal window —
+// enough lead time to act before notice periods lapse. Already-expired
+// contracts pass the filter on purpose and are flagged red.
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FileWarning } from 'lucide-react';
@@ -20,6 +23,7 @@ export function WidgetExpiringContracts() {
         ...c,
         daysUntilExpiry: differenceInDays(parseISO(c.endDate), now),
       }))
+      // Most urgent first; capped so the widget stays glanceable.
       .sort((a, b) => a.daysUntilExpiry - b.daysUntilExpiry)
       .slice(0, 5);
   }, [contracts]);

@@ -1,3 +1,6 @@
+// TanStack Query hooks over lib/db/form-templates (admin form-builder
+// definitions). Query keys live under the ['form-templates'] prefix;
+// forStage() resolves which forms trigger at a given workflow stage.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { FormTemplate } from '@/data/form-templates';
 import {

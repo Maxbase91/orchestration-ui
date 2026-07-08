@@ -1,3 +1,7 @@
+// Live assistant provider: forwards chat/action requests to the serverless
+// endpoints (api/chat, api/execute-action) backed by the governed LLM
+// providers. Every failure path degrades to the mock provider so the
+// assistant keeps working offline or when the API is misconfigured.
 import type { AssistantMessage, ConfirmTurn, AssistantTurn } from '@/data/types';
 import type { AssistantProvider, ProviderContext } from './provider';
 import { mockProvider } from './mockProvider';

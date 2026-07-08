@@ -1,3 +1,4 @@
+// Dashboard widget surfacing requests at or past SLA risk, worst first.
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Timer } from 'lucide-react';
@@ -7,6 +8,8 @@ export function WidgetSLATracker() {
   const navigate = useNavigate();
   const { data: requests = [] } = useRequests();
 
+  // "At risk" = already flagged overdue, or >20 days in one stage — a
+  // heuristic for near-breach even before the overdue flag trips.
   const atRisk = useMemo(
     () =>
       requests

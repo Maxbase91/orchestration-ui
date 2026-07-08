@@ -1,3 +1,7 @@
+// Workflow designer canvas node: automated system action (send email, update
+// status, create PO). In R1 these describe intended behaviour only — the
+// platform routes and deep-links, it does not execute upstream writes.
+
 import { Handle, Position, type NodeProps, type Node } from '@xyflow/react';
 import { Cog } from 'lucide-react';
 

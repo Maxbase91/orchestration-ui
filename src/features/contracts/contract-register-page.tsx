@@ -1,3 +1,6 @@
+// Contract register page: the searchable list of all contracts in the own
+// store, with lifecycle tabs, faceted filters and expiry-countdown badges.
+// Rows deep-link into the contract detail page.
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/shared/page-header';
@@ -57,6 +60,9 @@ function daysUntilExpiry(endDate: string): number {
   return Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 }
 
+// Countdown badge only for live contracts approaching expiry. The 30/60/90-day
+// bands mirror the renewal timeline used on the contract detail page (red =
+// final approval window, amber = negotiate, yellow = start assessment).
 function expiryBadge(endDate: string, status: string) {
   if (status === 'expired' || status === 'terminated' || status === 'draft') return null;
   const days = daysUntilExpiry(endDate);
@@ -122,6 +128,8 @@ export function ContractRegisterPage() {
 
   const filterConfigs = useMemo(() => buildFilterConfigs(allContracts), [allContracts]);
 
+  // Tabs and dropdown filters compose (AND semantics): the tab narrows by
+  // lifecycle first, then each active facet narrows further.
   const filtered = useMemo(() => {
     let result: Contract[] = allContracts;
 

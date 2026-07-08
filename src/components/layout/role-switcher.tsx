@@ -1,3 +1,6 @@
+// Header dropdown for switching between the demo persona roles defined in
+// config/roles. Role drives navigation visibility and entitlements via the
+// auth store; there is no real sign-in in this release.
 import { Check } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 import { roles } from '@/config/roles';

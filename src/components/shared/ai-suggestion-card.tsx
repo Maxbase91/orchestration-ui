@@ -1,3 +1,6 @@
+// Shared frame for AI-produced content: labels it "AI-generated", shows the
+// confidence badge, and offers accept/dismiss plus an expandable "why"
+// explanation — the transparency treatment every AI suggestion must carry.
 import { useState } from 'react';
 import { Sparkles, ChevronDown, ChevronUp, X, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';

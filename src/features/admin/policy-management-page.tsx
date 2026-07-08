@@ -1,3 +1,7 @@
+// Admin — policy library (read-only in R1). Displays the procurement policy
+// documents the front door's rules paraphrase; editing/archiving is disabled
+// until the policy-management backend ships, so the corpus lives inline here.
+
 import { useState } from 'react';
 import {
   Archive,

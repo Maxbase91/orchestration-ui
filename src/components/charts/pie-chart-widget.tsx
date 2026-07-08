@@ -1,3 +1,6 @@
+// Reusable Recharts pie/donut wrapper (innerRadius > 0 makes it a donut).
+// Slices fall back to the shared palette when no explicit colour is given, so
+// ad-hoc data sets still render on-brand.
 import type { PieLabelRenderProps } from 'recharts';
 import {
   PieChart,

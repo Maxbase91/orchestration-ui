@@ -1,3 +1,6 @@
+// Shared empty-state placeholder for lists and search results, with an
+// optional call-to-action. Icons are referenced by string key so callers
+// don't import lucide directly.
 import {
   Inbox,
   Search,

@@ -1,3 +1,6 @@
+// Payment tracker page: invoice payment progress from matching through to
+// settlement, with an inline mini-stepper per row and pending/scheduled/paid
+// KPIs. Display-only — payment execution stays in the upstream finance system.
 import { useMemo, useState } from 'react';
 import { PageHeader } from '@/components/shared/page-header';
 import { KPICard } from '@/components/shared/kpi-card';
@@ -22,6 +25,8 @@ interface InvoiceRow extends Record<string, unknown> {
 
 const PAYMENT_STEPS = ['Matched', 'Approved', 'Scheduled', 'Paid'];
 
+// Maps the linear invoice lifecycle onto a 1-based step index; pre-match
+// states (submitted, under-review, disputed) sit at 0 = no progress yet.
 function getPaymentStep(status: string): number {
   switch (status) {
     case 'paid': return 4;
@@ -70,6 +75,8 @@ export function PaymentTrackerPage() {
   const { data: invoices = [] } = useInvoices();
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
+  // The single invoice status is unpacked into separate approval and payment
+  // columns: any status at or past 'approved' implies approval happened.
   const rows = useMemo<InvoiceRow[]>(() => {
     return invoices.map((inv) => {
       const matchLabel = inv.matchStatus.replace('-', ' ');
@@ -98,6 +105,8 @@ export function PaymentTrackerPage() {
     return rows.filter((r) => r.status === statusFilter);
   }, [rows, statusFilter]);
 
+  // Pending = everything not settled; disputed amounts are excluded because
+  // they will not be paid as invoiced.
   const totalPending = invoices
     .filter((i) => !['paid', 'disputed'].includes(i.status))
     .reduce((sum, i) => sum + i.amount, 0);

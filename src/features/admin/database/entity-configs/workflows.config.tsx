@@ -1,3 +1,7 @@
+// Database admin config for workflow templates. Deliberately read-only here:
+// node/edge graphs need the Workflow Designer's canvas — the generic record
+// editor would let admins corrupt a graph it can't validate.
+
 import type { Column } from '@/components/shared/data-table';
 import type { WorkflowTemplate } from '@/data/types';
 import type { EntityConfig } from './types';

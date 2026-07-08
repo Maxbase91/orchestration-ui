@@ -1,3 +1,6 @@
+// Initials-based avatar (no profile images in this release) with optional
+// inline name, in three sizes. Wraps the shadcn Avatar so the fallback
+// styling stays uniform.
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 

@@ -1,3 +1,6 @@
+// Foreign-key chip for the database admin browser: renders a linked record id
+// as a button that jumps to that record inside the admin view (no route change).
+
 import { ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { EntityKey } from '@/stores/database-admin-store';
@@ -18,6 +21,7 @@ export function FkLink({ entity, id, label, onNavigate, className }: FkLinkProps
     <button
       type="button"
       onClick={(e) => {
+        // Chips sit inside clickable table rows — don't also open the row.
         e.stopPropagation();
         onNavigate(entity, id);
       }}

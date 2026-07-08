@@ -1,3 +1,6 @@
+// TanStack Query hooks over lib/db/comments (request comment threads,
+// @-mentions and per-user read receipts). Keys: ['comments', 'request'|
+// 'mentions', ...] plus a separate ['comment-reads', userId] key for reads.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   listCommentsByRequest,
@@ -37,6 +40,8 @@ export function useAddComment() {
     }) => addComment(input),
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: KEYS.byRequest(variables.requestId) });
+      // Prefix invalidation (no userId): a new comment can mention anyone, so
+      // every user's mentions feed must refetch.
       qc.invalidateQueries({ queryKey: ['comments', 'mentions'] });
     },
   });
@@ -47,6 +52,8 @@ export function useCommentsMentioning(userId: string | undefined) {
     queryKey: KEYS.mentioning(userId ?? ''),
     queryFn: () => listCommentsMentioning(userId!),
     enabled: Boolean(userId),
+    // Polling stands in for a realtime subscription — mentions feed the
+    // notification badge, so it should pick up new activity within a minute.
     refetchInterval: 60_000,
   });
 }

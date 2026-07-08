@@ -1,3 +1,6 @@
+// Data access for the users directory — the canonical identity table the
+// switchable role personas resolve to (see approver-resolution.ts). Reads flow
+// through use-users.ts hooks.
 import { supabase } from '@/lib/supabase-client';
 import type { User } from '@/data/types';
 import { mapDbToUser, mapUserToDb } from './mappers';

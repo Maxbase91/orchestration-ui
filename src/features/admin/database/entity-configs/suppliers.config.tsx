@@ -1,3 +1,7 @@
+// Database admin config for suppliers. Risk rating, tier, SRA and screening
+// status edited here feed the front door's risk determination and supplier
+// preference logic.
+
 import type { Column } from '@/components/shared/data-table';
 import type { Supplier } from '@/data/types';
 import type { EntityConfig } from './types';

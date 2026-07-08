@@ -1,3 +1,6 @@
+// Reusable Recharts bar-chart wrapper with the platform's shared axis/tooltip
+// styling. Supports horizontal and vertical layouts; used by dashboard and
+// analytics widgets so chart styling stays consistent across pages.
 import {
   BarChart,
   Bar,

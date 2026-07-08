@@ -1,3 +1,7 @@
+// Database admin config for the third-party risk register. The `reusable` flag
+// matters downstream: reusable assessments are offered to requesters during
+// front-door validation instead of forcing a fresh assessment.
+
 import type { Column } from '@/components/shared/data-table';
 import type { RiskAssessment } from '@/data/types';
 import type { EntityConfig } from './types';

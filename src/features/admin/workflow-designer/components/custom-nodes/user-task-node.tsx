@@ -1,3 +1,6 @@
+// Workflow designer canvas node: manual user task (assignee, instructions,
+// optional timeout escalation). Configured in the node config panel.
+
 import { Handle, Position, type NodeProps, type Node } from '@xyflow/react';
 import { User } from 'lucide-react';
 

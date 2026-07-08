@@ -1,3 +1,6 @@
+// Q&A board (sourcing): supplier clarification questions and buyer answers for
+// a sourcing event, shown on the event detail page. Sample data only — answers
+// shared here would go to all bidders to keep the event fair.
 import { MessageSquare } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 

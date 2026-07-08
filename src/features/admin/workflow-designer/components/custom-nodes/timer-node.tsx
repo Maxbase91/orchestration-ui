@@ -1,3 +1,6 @@
+// Workflow designer canvas node: timer/wait step with an on-expiry action
+// (escalate, skip, or notify). Configured in the node config panel.
+
 import { Handle, Position, type NodeProps, type Node } from '@xyflow/react';
 import { Clock } from 'lucide-react';
 

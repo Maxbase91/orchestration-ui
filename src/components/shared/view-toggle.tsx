@@ -1,3 +1,6 @@
+// Segmented control for switching a page between views (table / grid /
+// timeline...). Icons resolved from string keys so page configs stay
+// serialisable.
 import { cn } from '@/lib/utils';
 import {
   LayoutGrid,

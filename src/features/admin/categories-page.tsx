@@ -1,3 +1,6 @@
+// Admin — category taxonomy CRUD. Edits the procurement categories that drive
+// intake classification, routing rules, and analytics groupings in the front door.
+
 import { createElement, useState } from 'react';
 import { Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -51,6 +54,8 @@ export function CategoriesPage() {
     if (!form.label.trim()) { toast.error('Label is required'); return; }
     const existing = categories.find((c) => c.id === form.id);
     try {
+      // The form never edits sortOrder: edits keep their position, new
+      // categories append at the end.
       await upsert.mutateAsync({
         ...form,
         sortOrder: existing?.sortOrder ?? categories.length,
@@ -125,6 +130,8 @@ export function CategoriesPage() {
             <DialogTitle>{isNew ? 'New Category' : 'Edit Category'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            {/* The id is the stable key referenced by requests and routing rules —
+                slugified on entry and locked once the category exists. */}
             <div className="space-y-1.5">
               <Label>ID {!isNew && <span className="text-muted-foreground text-xs">(immutable)</span>}</Label>
               <Input value={form.id} disabled={!isNew} onChange={(e) => setForm((p) => ({ ...p, id: e.target.value.toLowerCase().replace(/\s+/g, '-') }))} placeholder="e.g. research-services" />

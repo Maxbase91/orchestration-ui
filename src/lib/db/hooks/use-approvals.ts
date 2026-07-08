@@ -1,3 +1,6 @@
+// TanStack Query hooks over lib/db/approvals. Query keys live under the
+// ['approvals'] prefix; mutations invalidate list + detail so approval queues
+// stay fresh after a decision.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ApprovalEntry } from '@/data/types';
 import {
@@ -29,6 +32,8 @@ export function useApproval(id: string | undefined) {
   });
 }
 
+// In-memory lookups over the cached list — avoids firing a query per id when
+// a page needs many approvals (e.g. rendering a request's approval trail).
 export function useApprovalLookup() {
   const { data } = useApprovals();
   return {

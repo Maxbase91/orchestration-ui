@@ -1,3 +1,7 @@
+// Documents tab on the request detail page. There is no separate document
+// store yet — the list is derived from the documents each workflow step
+// recorded as added, flattened into one table. Download stays disabled until
+// binary storage ships.
 import { useMemo } from 'react';
 import { FileText, Download } from 'lucide-react';
 import type { ProcurementRequest } from '@/data/types';

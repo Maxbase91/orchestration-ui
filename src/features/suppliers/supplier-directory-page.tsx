@@ -1,3 +1,5 @@
+// Supplier directory: searchable/filterable grid or table of all suppliers,
+// the entry point into each supplier's profile.
 import { useState, useMemo } from 'react';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';

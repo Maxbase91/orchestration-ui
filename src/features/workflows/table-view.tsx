@@ -1,3 +1,5 @@
+// Table (list) view of workflow requests — an alternative to the kanban board
+// for scanning/sorting the same request set as flat rows.
 import { useNavigate } from 'react-router-dom';
 import { DataTable, type Column } from '@/components/shared/data-table';
 import { StatusBadge } from '@/components/shared/status-badge';

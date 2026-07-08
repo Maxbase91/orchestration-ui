@@ -1,3 +1,6 @@
+// Confirmation dialog for bulk approval from the approvals queue. Lists every
+// selected request and the combined value so the approver sees the aggregate
+// exposure before committing in one click.
 import {
   Dialog,
   DialogContent,

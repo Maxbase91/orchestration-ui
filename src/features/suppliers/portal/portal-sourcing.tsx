@@ -1,3 +1,7 @@
+// Sourcing events page inside the supplier portal: the supplier-facing view of
+// invitations they can respond to, split into active and past. Events are
+// static demo data until portal invitations link to the internal sourcing
+// module.
 import { Calendar, Clock, CheckCircle2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';

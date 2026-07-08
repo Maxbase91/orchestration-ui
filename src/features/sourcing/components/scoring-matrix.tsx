@@ -1,3 +1,6 @@
+// Scoring matrix (sourcing): weighted criteria-by-supplier evaluation grid
+// with shortlist/eliminate toggles, used by the evaluation centre. Controlled
+// component — scores and shortlist state live with the caller.
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 
@@ -21,6 +24,9 @@ interface ScoringMatrixProps {
   onShortlistToggle?: (supplierId: string) => void;
 }
 
+// Weighted average on the 1–5 scale, normalised by the weight sum so totals
+// stay comparable even if the configured weights don't add up to exactly 100.
+// Unscored criteria count as 0, penalising incomplete evaluations.
 function calcWeightedTotal(scores: Record<string, number>, criteria: Criterion[]): number {
   let totalWeight = 0;
   let weightedSum = 0;
@@ -66,6 +72,7 @@ export function ScoringMatrix({ criteria, suppliers, onScoreChange, onShortlistT
                         className="w-16 mx-auto text-center"
                         value={s.scores[c.id] ?? ''}
                         onChange={(e) => {
+                          // Clamp typed values to the 1–5 scoring scale.
                           const val = Math.max(1, Math.min(5, Number(e.target.value)));
                           onScoreChange?.(s.supplierId, c.id, val);
                         }}

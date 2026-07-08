@@ -1,3 +1,6 @@
+// TanStack Query hooks over lib/db/requests — the platform's central entity.
+// Query keys live under the ['requests'] prefix; useRequestLookup resolves
+// by-supplier/by-contract joins from the cached list.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ProcurementRequest } from '@/data/types';
 import {

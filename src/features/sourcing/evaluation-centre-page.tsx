@@ -1,3 +1,6 @@
+// Evaluation centre page (sourcing): weighted bid scoring for one sourcing
+// event, driving a live award recommendation. The recommendation only ranks
+// shortlisted suppliers — the human decides who stays on the shortlist.
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Award } from 'lucide-react';
@@ -110,6 +113,8 @@ export function EvaluationCentrePage() {
             <p className="text-sm text-gray-700">
               Based on weighted scoring, the recommended award is to{' '}
               <strong>
+                {/* Highest weighted total among shortlisted suppliers wins;
+                    eliminated suppliers can never be recommended. */}
                 {[...suppliers]
                   .filter((s) => s.shortlisted)
                   .sort((a, b) => {

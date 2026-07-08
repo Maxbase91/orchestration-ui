@@ -1,8 +1,12 @@
+// Dashboard bar chart of open demand by lifecycle stage. Counts only active
+// pipeline stages — terminal states (completed/rejected) are deliberately
+// excluded so the chart reads as work in flight.
 import { useMemo } from 'react';
 import { useRequests } from '@/lib/db/hooks/use-requests';
 import { BarChartWidget } from '@/components/charts/bar-chart-widget';
 import type { RequestStatus } from '@/data/types';
 
+// Bar order mirrors the lifecycle left to right.
 const stageOrder: { key: RequestStatus; label: string }[] = [
   { key: 'intake', label: 'Intake' },
   { key: 'validation', label: 'Validation' },

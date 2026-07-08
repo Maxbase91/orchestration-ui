@@ -1,3 +1,5 @@
+// Status/priority display helpers: badge colours, human labels and priority
+// icons, driven by shared lookup tables so every screen renders them the same.
 import { statusColorMap, type StatusKey } from '@/config/theme';
 
 export function getStatusColor(status: string): string {
@@ -5,6 +7,8 @@ export function getStatusColor(status: string): string {
   return statusColorMap[key] ?? 'bg-gray-100 text-gray-700';
 }
 
+// Domain acronyms that must stay upper-case when a status/label is title-cased
+// word-by-word (e.g. "po-created" → "PO Created", not "Po Created").
 const ACRONYMS: Record<string, string> = {
   'po': 'PO',
   'gr': 'GR',

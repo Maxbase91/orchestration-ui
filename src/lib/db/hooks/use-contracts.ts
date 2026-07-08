@@ -1,3 +1,6 @@
+// TanStack Query hooks over lib/db/contracts. Query keys live under the
+// ['contracts'] prefix; useContractLookup answers by-id/by-supplier questions
+// from the cached list instead of extra queries.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Contract } from '@/data/types';
 import {

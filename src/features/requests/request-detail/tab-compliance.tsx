@@ -1,3 +1,6 @@
+// Compliance tab on the request detail page: the intake-time policy checks
+// (buying channel, risk-assessment status, policy gates) alongside the fuller
+// compliance report produced after Validation. Either block may be absent.
 import type { ProcurementRequest } from '@/data/types';
 import { useComplianceReport } from '@/lib/db/hooks/use-compliance-reports';
 import { useIntakeCompliance } from '@/lib/db/hooks/use-intake-compliance';

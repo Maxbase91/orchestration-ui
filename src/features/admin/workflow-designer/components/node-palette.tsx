@@ -1,3 +1,7 @@
+// Workflow designer — draggable node palette. The `type` values here must match
+// the nodeTypes registered on the canvas; the drop handler reads them back from
+// the 'application/reactflow' dataTransfer key.
+
 import {
   Play,
   Square,

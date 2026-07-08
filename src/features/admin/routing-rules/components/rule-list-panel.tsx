@@ -1,3 +1,7 @@
+// Routing-rules admin — left-hand rule list, grouped by category. Selecting a
+// rule opens it in the editor panel; these rules decide which channel/workflow
+// the front door routes a classified request to.
+
 import { useMemo } from 'react';
 import { Plus, GripVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';

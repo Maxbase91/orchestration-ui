@@ -1,3 +1,6 @@
+// Horizontal step strip previewing the approval workflow a request will take,
+// shown in the new-request wizard before submission. Purely presentational —
+// the routing engine decides the steps.
 import { cn } from '@/lib/utils';
 
 interface WorkflowStep {

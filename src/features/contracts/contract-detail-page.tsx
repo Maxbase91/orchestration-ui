@@ -1,3 +1,6 @@
+// Contract detail page: single-contract view with summary, financials,
+// obligations, renewal, documents and related-object tabs. Reads the contract
+// from the own store; obligations/documents are illustrative sample data.
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, RefreshCw, FileText, Link2 } from 'lucide-react';
@@ -56,9 +59,12 @@ export function ContractDetailPage() {
     );
   }
 
+  // Actual spend is derived from utilisation (no transaction feed in R1);
+  // committed uses an illustrative 85% of contract value for the comparison.
   const actualSpend = Math.round(contract.value * contract.utilisationPercentage / 100);
   const committedSpend = Math.round(contract.value * 0.85);
 
+  // Invoices link to contracts indirectly via their PO, so resolve POs first.
   const linkedPOs = purchaseOrders.filter((po) => po.contractId === contract.id);
   const linkedInvoices = invoices.filter((inv) => linkedPOs.some((po) => po.id === inv.poId));
 
@@ -191,6 +197,7 @@ export function ContractDetailPage() {
                     </p>
                     <p className="text-xs text-muted-foreground">Due: {formatDate(ob.dueDate)}</p>
                   </div>
+                  {/* Overdue is derived at render time from the due date, not stored. */}
                   <StatusBadge
                     status={ob.completed ? 'completed' : new Date(ob.dueDate) < new Date() ? 'overdue' : 'pending'}
                     size="sm"

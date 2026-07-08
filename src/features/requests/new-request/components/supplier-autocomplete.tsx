@@ -1,3 +1,7 @@
+// Supplier picker for the new-request wizard. Shows risk rating, assessment
+// status, contracts and spend at selection time so requesters see problems
+// (e.g. an expired assessment) before committing to a supplier, not after
+// routing.
 import { useState } from 'react';
 import { ChevronsUpDown, Building2, ShieldCheck, ShieldAlert, ShieldX, AlertTriangle } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';

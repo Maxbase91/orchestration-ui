@@ -1,3 +1,6 @@
+// Contract templates page: gallery of standardised agreement templates (MSA,
+// NDA, SOW, ...) with an in-dialog preview. Template bodies are illustrative
+// placeholder text with [bracketed] merge fields — not legal content.
 import { useState } from 'react';
 import { PageHeader } from '@/components/shared/page-header';
 import { Button } from '@/components/ui/button';
@@ -203,6 +206,8 @@ export function TemplatesPage() {
                   size="sm"
                   variant="outline"
                   onClick={(e) => {
+                    // The whole card also opens the preview; stop the bubble so
+                    // the dialog isn't toggled twice by one click.
                     e.stopPropagation();
                     setPreviewTemplate(tpl);
                   }}

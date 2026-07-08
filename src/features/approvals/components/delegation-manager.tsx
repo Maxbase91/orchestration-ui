@@ -1,3 +1,6 @@
+// Out-of-office delegation manager for the approvals page: lets an approver
+// hand their queue to a colleague for a date range. Delegations are local UI
+// state seeded with demo data — persistence lands with the approvals backend.
 import { useState } from 'react';
 import { Calendar, UserCheck, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -115,6 +118,7 @@ export function DelegationManager() {
                 <SelectValue placeholder="Select a delegate" />
               </SelectTrigger>
               <SelectContent>
+                {/* An absent delegate would just re-orphan the queue, so OOO users are not offered. */}
                 {users
                   .filter((u) => !u.isOOO)
                   .map((u) => (

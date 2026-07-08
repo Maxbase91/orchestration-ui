@@ -1,3 +1,6 @@
+// Bar chart of average days-in-stage per workflow stage, with each stage's SLA
+// target (admin-configured) drawn as a reference line, so breaches are visible
+// at a glance rather than read off a table.
 import { useMemo } from 'react';
 import { useSlaTargets } from '@/lib/db/hooks/use-sla-targets';
 import { resolveSla } from '@/lib/db/sla-targets';

@@ -1,3 +1,6 @@
+// Notifications page: the in-app notification centre. Tabs filter the feed by
+// read state or notification type, with a preferences tab alongside; read
+// state persists through the notifications DB hooks.
 import { useState, useMemo } from 'react';
 import { CheckCheck } from 'lucide-react';
 import { PageHeader } from '@/components/shared/page-header';
@@ -38,6 +41,8 @@ export function NotificationsPage() {
     markAllMutation.mutate();
   }
 
+  // Type-filter tabs use the notification type as their tab value, so the
+  // fallthrough can compare the tab id against n.type directly.
   const filtered = useMemo(() => {
     if (activeTab === 'all') return items;
     if (activeTab === 'unread') return items.filter((n: Notification) => !n.isRead);

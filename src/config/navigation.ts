@@ -1,3 +1,6 @@
+// Single source of truth for the sidebar navigation tree. Every group/item
+// carries a `visibleTo` role list — the sidebar filters against the active
+// role, so role-based visibility lives here rather than in the components.
 import type { Role } from './roles';
 
 export interface NavItem {

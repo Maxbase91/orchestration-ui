@@ -1,3 +1,5 @@
+// Data access for sourcing_events (RFP/RFQ/RFI events run in the Sourcing area).
+// Reads flow through use-sourcing-events.ts hooks.
 import { supabase } from '@/lib/supabase-client';
 
 export interface SourcingEvent {
@@ -38,6 +40,8 @@ function mapRow(row: Record<string, unknown>): SourcingEvent {
   };
 }
 
+// Partial patch mapper — only includes fields the caller actually set, so an
+// update() never clobbers unrelated columns with undefined.
 function mapToDb(e: Partial<SourcingEvent>): Record<string, unknown> {
   const row: Record<string, unknown> = {};
   if (e.title !== undefined) row.title = e.title;

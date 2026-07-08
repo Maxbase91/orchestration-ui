@@ -1,3 +1,7 @@
+// Workflow designer — template picker dialog. Lists the stored workflow
+// templates (the graphs that drive request routing); selecting one loads its
+// graph onto the canvas via the parent's onSelect.
+
 import { useWorkflowTemplates } from '@/lib/db/hooks/use-workflow-templates';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';

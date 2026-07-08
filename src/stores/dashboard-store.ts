@@ -1,3 +1,6 @@
+// Per-role dashboard customisation (widget layout + quick actions). NOT
+// zustand/persist'd — state resets on reload and falls back to the role's
+// registry defaults, so a role always has a sane starting layout.
 import { create } from 'zustand';
 import { arrayMove } from '@dnd-kit/sortable';
 import type { Role } from '@/config/roles';
@@ -21,6 +24,8 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
   quickActions: {},
 
   getLayout: (role: Role) => {
+    // undefined (never customised, or explicitly reset) falls back to the
+    // role's registry default rather than an empty grid.
     return get().layouts[role] ?? getDefaultLayout(role);
   },
 
@@ -63,6 +68,9 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
   },
 
   resetToDefault: (role: Role) => {
+    // Setting the entry to undefined (not deleting the key) is deliberate: it
+    // makes getLayout/getQuickActions fall through to the registry default on
+    // the very next read, same as a role that was never customised.
     set((state) => ({
       layouts: { ...state.layouts, [role]: undefined as unknown as string[] },
       quickActions: { ...state.quickActions, [role]: undefined as unknown as string[] },

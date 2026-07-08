@@ -1,3 +1,6 @@
+// Activity tab on the request detail page: merges comments, stage history,
+// audit entries and notifications into one reverse-chronological stream with
+// filter chips, so the full story of a request lives in a single timeline.
 import { useMemo, useState } from 'react';
 import type { ProcurementRequest } from '@/data/types';
 import { useStageHistoryByRequest } from '@/lib/db/hooks/use-stage-history';
@@ -76,6 +79,8 @@ export function TabActivity({ request }: TabActivityProps) {
       });
     }
 
+    // Audit + notification hooks are global feeds; narrow to this request
+    // client-side.
     for (const a of auditEntries) {
       if (a.requestId !== request.id) continue;
       out.push({
@@ -99,6 +104,7 @@ export function TabActivity({ request }: TabActivityProps) {
       });
     }
 
+    // ISO timestamps sort lexicographically — newest first.
     return out.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
   }, [comments, history, auditEntries, notifications, request.id, currentUser.id, lookupUser]);
 
@@ -108,6 +114,8 @@ export function TabActivity({ request }: TabActivityProps) {
         return entries.filter((e) => e.kind === 'comment');
       case 'events':
         return entries.filter((e) => e.kind !== 'comment');
+      // "Mine" = things I did or was pulled into (mentions), not just
+      // authored items.
       case 'mine':
         return entries.filter(
           (e) =>

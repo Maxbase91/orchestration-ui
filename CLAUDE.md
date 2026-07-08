@@ -73,7 +73,13 @@ entitled roles.
   (TanStack Query). Domain types in `src/data/types.ts`.
 - **Upstream reads:** through `src/lib/integrations` ports only (see its README + the live-swap seam).
 - **Code:** TypeScript strict, **no `any`** unless justified; **named exports** over default;
-  co-locate component, types, and tests; comments explain *why*, not *what*.
+  co-locate component, types, and tests.
+- **Comments (required, part of Definition of Done):** every non-trivial file (≈30+ code lines)
+  starts with a short **header comment** saying what the module is and where it fits (1–3 lines);
+  every piece of **non-obvious logic** (business rules, thresholds, workarounds, ordering
+  constraints, gotchas) gets a **why-comment**. Comments explain *why*, not *what* — do **not**
+  narrate obvious code, and never leave a TODO without explaining it. A change that adds or edits
+  an uncommented non-trivial file is not done until the comments are in.
 - **Git:** conventional commits (`feat:`/`fix:`/`refactor:`/`test:`/`docs:`/`chore:`); `main` stays
   deployable; run the relevant `test:*` before committing. Commit/push only when asked.
 

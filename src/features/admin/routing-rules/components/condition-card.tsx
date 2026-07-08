@@ -1,3 +1,8 @@
+// Routing-rules editor — single condition row (field / operator / value).
+// The value control adapts to the chosen field so admins pick from the same
+// enumerations the front door's rule evaluation matches against, instead of
+// free-typing values that would never match.
+
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -49,6 +54,7 @@ interface ConditionCardProps {
 }
 
 export function ConditionCard({ condition, onChange, onRemove }: ConditionCardProps) {
+  // Presence checks are unary — hide the value control entirely.
   const needsValueInput = !['is_empty', 'is_not_empty'].includes(condition.operator);
 
   function getValueInput() {
@@ -108,6 +114,8 @@ export function ConditionCard({ condition, onChange, onRemove }: ConditionCardPr
       );
     }
 
+    // contractId conditions test existence (has a contract: yes/no), not a
+    // specific id — hence the boolean select rather than a text input.
     if (condition.field === 'isUrgent' || condition.field === 'contractId') {
       return (
         <Select

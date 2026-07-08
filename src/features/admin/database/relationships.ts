@@ -1,3 +1,8 @@
+// Declarative foreign-key graph for the database admin browser. Each entry
+// lists where an entity points (`outgoing`, via its own FK field) and what
+// points back at it (`incoming`, via the referencing entity's FK field).
+// Drives the Related Items panel; not a database constraint.
+
 import type { EntityKey } from '@/stores/database-admin-store';
 
 export interface OutgoingRelation {

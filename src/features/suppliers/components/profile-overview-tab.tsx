@@ -1,3 +1,5 @@
+// Overview tab on the supplier profile: AI summary, master-data details and
+// category coverage. Read-only — master data is owned by the supplier record.
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AISuggestionCard } from '@/components/shared/ai-suggestion-card';

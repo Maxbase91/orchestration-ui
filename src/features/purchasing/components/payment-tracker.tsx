@@ -1,3 +1,6 @@
+// Payment tracker: matched → approved → scheduled → paid stepper for an
+// invoice. Stage state is inferred purely from which dates are present, so
+// the caller only supplies the milestones it knows about.
 import { ProcessStepper, type Step } from '@/components/shared/process-stepper';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -13,6 +16,8 @@ export function PaymentTracker({ matchDate, approvedDate, scheduledDate, paidDat
     {
       id: 'matched',
       label: 'Matched',
+      // Any later milestone implies matching already happened, even when the
+      // match date itself was never recorded.
       status: matchDate ? 'completed' : paidDate || scheduledDate || approvedDate ? 'completed' : 'current',
       date: matchDate,
     },

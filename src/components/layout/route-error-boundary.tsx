@@ -1,3 +1,6 @@
+// Per-route React error boundary: a render crash in one page shows a recover
+// screen instead of blanking the whole app shell. Class component because
+// error boundaries have no hook equivalent.
 import { Component, type ReactNode } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -34,6 +37,7 @@ export class RouteErrorBoundary extends Component<Props, State> {
           <p className="text-sm text-muted-foreground max-w-sm text-center">{this.state.message}</p>
           <div className="flex gap-3">
             <Button variant="outline" onClick={this.reset}>Try again</Button>
+            {/* Hard navigation (not router navigate) so any corrupted in-memory state is discarded. */}
             <Button onClick={() => { this.reset(); window.location.href = '/'; }}>Go to Home</Button>
           </div>
         </div>

@@ -1,3 +1,5 @@
+// Purchase order list page: searchable, sortable register of all POs in the
+// own store; rows deep-link into the PO detail page.
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/shared/page-header';
 import { DataTable, type Column } from '@/components/shared/data-table';

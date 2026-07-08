@@ -1,3 +1,6 @@
+// Table view for the supplier directory (the list counterpart to the card
+// grid); rows click through to the supplier profile. Shares flag/risk styling
+// with SupplierCard so both views stay consistent.
 import { useNavigate } from 'react-router-dom';
 import { DataTable, type Column } from '@/components/shared/data-table';
 import { StatusBadge } from '@/components/shared/status-badge';
@@ -76,6 +79,8 @@ const columns: Column<SupplierRow>[] = [
     className: 'text-right',
     render: (s) => {
       const score = s.performanceScore as number;
+      // Performance bands: >=80 healthy, 60–79 watch, below 60 problem; 0
+      // means "not yet scored", shown as a dash rather than a red zero.
       return (
         <span className={`text-sm font-medium ${score >= 80 ? 'text-green-700' : score >= 60 ? 'text-amber-700' : 'text-red-700'}`}>
           {score > 0 ? `${score}/100` : '--'}

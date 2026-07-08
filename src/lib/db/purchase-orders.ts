@@ -1,3 +1,6 @@
+// CRUD for the `purchase_orders` table. Components read through the
+// use-purchase-orders hooks; row mapping is shared via ./mappers. Lists
+// newest-first.
 import { supabase } from '@/lib/supabase-client';
 import type { PurchaseOrder } from '@/data/types';
 import { mapDbToPurchaseOrder, mapPurchaseOrderToDb } from './mappers';

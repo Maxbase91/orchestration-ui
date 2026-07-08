@@ -1,3 +1,6 @@
+// Database admin config for invoices: table columns, edit form fields, and
+// status filter. Match status here feeds the three-way-match views.
+
 import type { Column } from '@/components/shared/data-table';
 import type { Invoice } from '@/data/types';
 import type { EntityConfig } from './types';

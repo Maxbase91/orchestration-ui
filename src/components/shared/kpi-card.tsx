@@ -1,3 +1,6 @@
+// Dashboard KPI tile: headline value with optional trend arrow and sparkline.
+// Currency formatting follows the user's currency preference from the
+// settings store so every KPI renders in the same unit.
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Sparkline } from '@/components/charts/sparkline';

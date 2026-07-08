@@ -1,3 +1,7 @@
+// Admin — SLA targets. Sets the max days per workflow stage (default channel);
+// these thresholds drive the overdue flags and SLA countdowns shown on
+// requests, dashboards, and bottleneck views.
+
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/shared/page-header';
@@ -48,11 +52,13 @@ export function SlaTargetsPage() {
         </CardHeader>
         <CardContent className="space-y-3">
           {orderedStages.map((stage) => {
+            // Stages without a stored target fall back to 5 days, the platform default.
             const current = (targets as SlaTarget[]).find((t) => t.stage === stage && t.channel === 'default')?.days ?? 5;
             return (
               <div key={stage} className="flex items-center justify-between gap-4">
                 <span className="text-sm font-medium text-gray-700 w-36">{STAGE_LABELS[stage]}</span>
                 <div className="flex items-center gap-2">
+                  {/* No save button: values persist on blur, and Enter just blurs. */}
                   <Input
                     type="number"
                     min={1}
