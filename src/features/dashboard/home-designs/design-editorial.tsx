@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { SmartCommandBar } from '../components/smart-command-bar';
 import { FlowLink, PillButton, QuickActionPills } from './home-design-shared';
 import { useDemandPipeline, useHomeKpis, useWelcome } from './home-design-data';
@@ -57,7 +58,11 @@ export function DesignEditorial() {
               const Icon = node.Icon;
               const last = i === pipeline.length - 1;
               return (
-                <div key={node.key} className="flex items-start gap-7">
+                <Link
+                  key={node.key}
+                  to="/pipeline/demand"
+                  className="flex items-start gap-7 rounded-2xl transition-colors hover:bg-white/5"
+                >
                   <div
                     className={`z-[1] flex size-[62px] shrink-0 items-center justify-center rounded-[18px] ${
                       last ? 'bg-[linear-gradient(150deg,#0071e3,#34c759)]' : 'bg-[#1c1c1e]'
@@ -72,7 +77,7 @@ export function DesignEditorial() {
                     </div>
                     <div className="mt-1 text-[16px] text-[#a1a1a6]">{node.sub}</div>
                   </div>
-                </div>
+                </Link>
               );
             })}
           </div>
@@ -83,11 +88,11 @@ export function DesignEditorial() {
       <section className="px-16 pt-20">
         <div className="grid grid-cols-3 gap-12">
           {kpis.slice(0, 3).map((k) => (
-            <div key={k.key}>
+            <Link key={k.key} to={k.to} className="group">
               <div className="text-[56px] font-semibold leading-none tracking-[-0.02em] text-[var(--lp-text)]">{k.value}</div>
-              <h3 className="mt-3 text-[24px] font-semibold tracking-[-0.01em] text-[var(--lp-text)]">{k.label}</h3>
+              <h3 className="mt-3 text-[24px] font-semibold tracking-[-0.01em] text-[var(--lp-text)] group-hover:text-[var(--lp-accent)]">{k.label}</h3>
               <p className="mt-1 text-[16px] text-[var(--lp-text-2)]">{k.sub}</p>
-            </div>
+            </Link>
           ))}
         </div>
       </section>

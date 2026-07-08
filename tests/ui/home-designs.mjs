@@ -48,6 +48,15 @@ try {
     let stagesSeen = 0;
     for (const s of STAGES) if ((await page.getByText(s, { exact: true }).count()) > 0) stagesSeen++;
     check('live demand-pipeline stages render (real data)', stagesSeen === STAGES.length, `${stagesSeen}/5`);
+    // Every pipeline node/row and every KPI tile must be a real link, not
+    // decorative — this is the gap the user flagged ("links not setup
+    // throughout the design") after the initial ship.
+    check('pipeline nodes link to the demand-pipeline page',
+      (await page.locator('a[href="/pipeline/demand"]').count()) > 0);
+    check('KPI tiles link to their backing screens (Requests/Pipeline/Compliance/Sourcing)',
+      (await page.locator('a[href="/requests"]').count()) > 0
+      && (await page.locator('a[href="/analytics/pipeline"]').count()) > 0
+      && (await page.locator('a[href="/analytics/compliance"]').count()) > 0);
     check('role quick-actions render (functional)', (await page.getByText('New Request', { exact: true }).count()) > 0);
     check('it is a design, not the dashboard (no Customise control)', (await page.getByText('Customise', { exact: true }).count()) === 0);
     // The "Start a request" CTA actually routes into the front door.

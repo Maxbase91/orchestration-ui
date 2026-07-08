@@ -46,14 +46,16 @@ export function useDemandPipeline(): PipelineNode[] {
 }
 
 // ── Live KPI tiles (real values from useLiveKpis) ───────────────────────────
-export interface HomeKpi { key: string; label: string; value: string; sub: string }
+// Each tile is a real link into the app screen that backs its number — kept
+// here (not per-design) so all three designs route KPIs identically.
+export interface HomeKpi { key: string; label: string; value: string; sub: string; to: string }
 
 export function useHomeKpis(): HomeKpi[] {
   const k = useLiveKpis();
   return [
-    { key: 'demand', label: 'Open demand', value: String(k.openDemandCount), sub: 'requests in flight' },
-    { key: 'cycle', label: 'Avg cycle time', value: `${k.avgCycleTime}d`, sub: 'intake to close' },
-    { key: 'compliance', label: 'Compliance', value: `${k.complianceRate}%`, sub: 'first-time-right' },
-    { key: 'sourcing', label: 'Active sourcing', value: String(k.activeSourcing), sub: 'live events' },
+    { key: 'demand', label: 'Open demand', value: String(k.openDemandCount), sub: 'requests in flight', to: '/requests' },
+    { key: 'cycle', label: 'Avg cycle time', value: `${k.avgCycleTime}d`, sub: 'intake to close', to: '/analytics/pipeline' },
+    { key: 'compliance', label: 'Compliance', value: `${k.complianceRate}%`, sub: 'first-time-right', to: '/analytics/compliance' },
+    { key: 'sourcing', label: 'Active sourcing', value: String(k.activeSourcing), sub: 'live events', to: '/sourcing' },
   ];
 }

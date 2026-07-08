@@ -34,7 +34,7 @@ export function DesignBento() {
       <section className="mb-6 grid auto-rows-[208px] grid-cols-[1.3fr_1fr_1fr] gap-5">
         {/* tall front-door / live pipeline tile */}
         <Link
-          to="/requests"
+          to="/pipeline/demand"
           className="row-span-2 flex flex-col justify-between rounded-[24px] bg-[var(--lp-surface)] p-8 transition-colors hover:bg-[var(--lp-surface-hover)]"
         >
           <div>
@@ -66,11 +66,12 @@ export function DesignBento() {
         {kpis.map((k) => {
           const accent = k.key === 'sourcing';
           return (
-            <div
+            <Link
               key={k.key}
+              to={k.to}
               className={cn(
-                'flex flex-col justify-between rounded-[24px] p-7',
-                accent ? 'bg-[var(--lp-accent)] text-white' : 'bg-[var(--lp-surface)]',
+                'flex flex-col justify-between rounded-[24px] p-7 transition-colors',
+                accent ? 'bg-[var(--lp-accent)] text-white hover:bg-[var(--lp-accent-hover)]' : 'bg-[var(--lp-surface)] hover:bg-[var(--lp-surface-hover)]',
               )}
             >
               <div className={cn('text-[13px] font-medium', accent ? 'text-white/85' : 'text-[var(--lp-text-3)]')}>
@@ -82,7 +83,7 @@ export function DesignBento() {
                 </div>
                 <div className={cn('mt-1 text-[13px]', accent ? 'text-white/85' : 'text-[var(--lp-text-3)]')}>{k.sub}</div>
               </div>
-            </div>
+            </Link>
           );
         })}
       </section>

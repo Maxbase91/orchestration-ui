@@ -51,7 +51,7 @@ export function DesignCupertino() {
               {pipeline.map((node, i) => {
                 const Icon = node.Icon;
                 return (
-                  <Link key={node.key} to="/requests" className="w-[150px] text-center">
+                  <Link key={node.key} to="/pipeline/demand" className="w-[150px] text-center">
                     <div
                       className="mx-auto flex size-[70px] items-center justify-center rounded-[20px] bg-white shadow-[0_4px_18px_rgba(0,0,0,.08)] animate-lp-node"
                       style={{ animationDelay: `${i * 0.6}s` }}
@@ -78,11 +78,15 @@ export function DesignCupertino() {
 
         <div className="mb-6 grid grid-cols-4 gap-5">
           {kpis.map((k) => (
-            <div key={k.key} className="rounded-[22px] bg-[var(--lp-surface)] p-7 text-center">
+            <Link
+              key={k.key}
+              to={k.to}
+              className="rounded-[22px] bg-[var(--lp-surface)] p-7 text-center transition-colors hover:bg-[var(--lp-surface-hover)]"
+            >
               <div className="text-[44px] font-semibold leading-none tracking-[-0.02em] text-[var(--lp-text)]">{k.value}</div>
               <div className="mt-3 text-[15px] font-medium text-[var(--lp-text)]">{k.label}</div>
               <div className="text-[13px] text-[var(--lp-text-3)]">{k.sub}</div>
-            </div>
+            </Link>
           ))}
         </div>
         <div className="grid grid-cols-2 gap-5">
