@@ -262,6 +262,38 @@ Deployed as a static SPA on Vercel. The `vercel.json` handles client-side routin
 
 Push to `main` triggers automatic deployment.
 
+### Environment variables
+
+Set these in **Vercel → Settings → Environment Variables** (all environments) before deploying.
+Full descriptions live in `.env.example`.
+
+| Variable | Scope | Required | Notes |
+| --- | --- | --- | --- |
+| `VITE_SUPABASE_URL` | Browser | Yes | Project REST URL, e.g. `https://<ref>.supabase.co` |
+| `VITE_SUPABASE_ANON_KEY` | Browser | Yes | Legacy **anon JWT** — see the key note below |
+| `SUPABASE_URL` | Serverless (`api/`) | Yes | Same URL, without the `VITE_` prefix |
+| `SUPABASE_ANON_KEY` | Serverless (`api/`) | Yes | Same anon JWT |
+| `SUPABASE_SERVICE_ROLE_KEY` | Serverless (`api/`) | Only for seeding | Bypasses RLS. Never prefix with `VITE_` |
+| `ADMIN_SEED_SECRET` | Serverless (`api/`) | Only for seeding | Shared secret for `api/admin/seed.ts` |
+| `VITE_ASSISTANT_PROVIDER` | Browser | No | `groq` (default) or `mock` for a fully offline assistant |
+| `GROQ_API_KEY` / `GEMINI_API_KEY` | Serverless (`api/`) | For the assistant | Server-side only, used by `api/chat.ts` |
+
+Two things that reliably break a deploy:
+
+- **`VITE_*` variables are baked in at build time, not read at runtime.** Adding or changing one has
+  no effect until you trigger a *new build* — a redeploy from cache keeps the old values. Because
+  `src/lib/supabase-client.ts` throws on module load when they are missing, a build without them
+  ships a bundle that white-screens on first paint.
+- **Use the legacy anon JWT (`eyJhbGciOi…`), not a `sb_publishable_…` key.** The REST helper in
+  `src/lib/supabase.ts` sends the key as `Authorization: Bearer <key>`, which PostgREST rejects
+  unless it is a JWT.
+
+If the Supabase project was provisioned through the Vercel integration, it injects `SUPABASE_URL`
+and `SUPABASE_ANON_KEY` automatically but **not** the `VITE_`-prefixed pair — add those by hand.
+
+> Supabase free-tier projects pause after a period of inactivity, which surfaces in the app as
+> connection timeouts. Restore the project from the Supabase dashboard to bring it back.
+
 ---
 
 ## License
