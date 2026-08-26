@@ -181,6 +181,7 @@ async function main() {
   const EXPECTED_OBJECTS = [
     'supplier', 'contract', 'purchase-request', 'purchase-order',
     'invoice', 'risk-assessment', 'catalogue-item', 'payment', 'support-ticket',
+    'sourcing-event',
   ].sort();
 
   const ownStoreDir = 'src/lib/integrations/own-store';

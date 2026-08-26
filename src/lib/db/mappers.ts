@@ -467,6 +467,8 @@ const REQUEST_FIELD_MAP: Record<string, string> = {
   supplierName: 'supplier_name',
   contractId: 'contract_id',
   poId: 'po_id',
+  sourcingType: 'sourcing_type',
+  sourcingTypeReason: 'sourcing_type_reason',
   buyingChannel: 'buying_channel',
   commodityCode: 'commodity_code',
   commodityCodeLabel: 'commodity_code_label',

@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { SourcingEvent } from '@/lib/db/sourcing-events';
 import {
   listSourcingEvents,
+  listSourcingEventsForRequest,
   getSourcingEvent,
   createSourcingEvent,
   updateSourcingEvent,
@@ -14,6 +15,7 @@ const KEYS = {
   all: ['sourcing-events'] as const,
   list: () => ['sourcing-events', 'list'] as const,
   detail: (id: string) => ['sourcing-events', 'detail', id] as const,
+  forRequest: (requestId: string) => ['sourcing-events', 'request', requestId] as const,
 };
 
 export function useSourcingEvents() {
@@ -28,10 +30,19 @@ export function useSourcingEvent(id: string | undefined) {
   });
 }
 
+/** Events raised from a request — powers the request's Related tab. */
+export function useSourcingEventsForRequest(requestId: string | undefined) {
+  return useQuery({
+    queryKey: KEYS.forRequest(requestId ?? ''),
+    queryFn: () => listSourcingEventsForRequest(requestId!),
+    enabled: Boolean(requestId),
+  });
+}
+
 export function useCreateSourcingEvent() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (e: Omit<SourcingEvent, 'id' | 'createdAt' | 'updatedAt'>) => createSourcingEvent(e),
+    mutationFn: (e: Omit<SourcingEvent, 'createdAt' | 'updatedAt'>) => createSourcingEvent(e),
     onSuccess: () => qc.invalidateQueries({ queryKey: KEYS.all }),
   });
 }

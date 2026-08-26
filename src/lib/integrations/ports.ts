@@ -22,6 +22,7 @@ export type SourceObject =
   | 'supplier'
   | 'catalogue-item'
   | 'support-ticket'
+  | 'sourcing-event'
   | 'risk-assessment'
   | 'risk-screening'
   | 'category-taxonomy'

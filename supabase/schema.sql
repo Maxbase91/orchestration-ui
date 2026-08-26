@@ -984,3 +984,75 @@ INSERT INTO sla_targets (stage, channel, days, hours) VALUES
   ('ticket', 'low',     3, 24),
   ('ticket', 'default', 1, 8)
 ON CONFLICT (stage, channel) DO UPDATE SET hours = EXCLUDED.hours, days = EXCLUDED.days;
+
+-- ── Sourcing: orchestration linkage ─────────────────────────────────────────
+-- The event is raised *from* a request in the sourcing stage. Without this
+-- column, status='sourcing' is a label rather than a link. Nullable: a standing
+-- category event (a framework refresh) legitimately has no originating request.
+ALTER TABLE sourcing_events ADD COLUMN IF NOT EXISTS request_id TEXT REFERENCES requests(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS sourcing_events_request_idx ON sourcing_events(request_id);
+
+-- Wizard fields that were collected and thrown away on publish. jsonb rather
+-- than child tables: both lists are authored and read as a whole with the event,
+-- and criteria weights must travel with the scores that use them.
+ALTER TABLE sourcing_events ADD COLUMN IF NOT EXISTS requirements jsonb NOT NULL DEFAULT '[]';
+ALTER TABLE sourcing_events ADD COLUMN IF NOT EXISTS criteria     jsonb NOT NULL DEFAULT '[]';
+ALTER TABLE sourcing_events ADD COLUMN IF NOT EXISTS budget_min   numeric;
+ALTER TABLE sourcing_events ADD COLUMN IF NOT EXISTS start_date   date;
+ALTER TABLE sourcing_events ADD COLUMN IF NOT EXISTS currency     text NOT NULL DEFAULT 'EUR';
+ALTER TABLE sourcing_events ADD COLUMN IF NOT EXISTS awarded_supplier_id TEXT REFERENCES suppliers(id) ON DELETE SET NULL;
+
+-- Sequence-backed event ids. Deliberately NOT reusing next_ticket_id()'s
+-- regexp_replace(id,'\D','','g'): existing events carry gen_random_uuid() ids,
+-- whose digits that expression would read as an astronomical number and burn
+-- the sequence. Only well-formed SRC-nnnn ids set the high-water mark.
+CREATE SEQUENCE IF NOT EXISTS sourcing_event_number_seq AS bigint START WITH 1;
+SELECT setval('sourcing_event_number_seq', GREATEST(
+  (SELECT COALESCE(MAX(substring(id from '^SRC-(\d+)$')::bigint), 0) FROM sourcing_events), 1));
+
+CREATE OR REPLACE FUNCTION next_sourcing_event_id() RETURNS TEXT
+LANGUAGE sql VOLATILE SET search_path = public AS
+$$ SELECT 'SRC-' || lpad(nextval('sourcing_event_number_seq')::text, 4, '0') $$;
+
+-- ── Sourcing responses: one row per invited supplier per event ──────────────
+-- The row is the invitation AND the response, which is what lets the buyer see
+-- "invited but not yet viewed" and lets the portal show a supplier only the
+-- events they were actually asked to bid on.
+--
+-- supplier_id was a bare nullable text. It is the join to the supplier master
+-- that makes an invitation addressable from the portal, so it becomes a real FK.
+-- Verified 0 rows before setting NOT NULL.
+ALTER TABLE sourcing_responses ALTER COLUMN supplier_id SET NOT NULL;
+ALTER TABLE sourcing_responses DROP CONSTRAINT IF EXISTS sourcing_responses_supplier_fk;
+ALTER TABLE sourcing_responses ADD CONSTRAINT sourcing_responses_supplier_fk
+  FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE CASCADE;
+
+ALTER TABLE sourcing_responses ADD COLUMN IF NOT EXISTS invited_at     timestamptz NOT NULL DEFAULT now();
+ALTER TABLE sourcing_responses ADD COLUMN IF NOT EXISTS viewed_at      timestamptz;
+ALTER TABLE sourcing_responses ADD COLUMN IF NOT EXISTS submitted_at   timestamptz;
+ALTER TABLE sourcing_responses ADD COLUMN IF NOT EXISTS price          numeric;
+ALTER TABLE sourcing_responses ADD COLUMN IF NOT EXISTS currency       text NOT NULL DEFAULT 'EUR';
+ALTER TABLE sourcing_responses ADD COLUMN IF NOT EXISTS lead_time_days int;
+ALTER TABLE sourcing_responses ADD COLUMN IF NOT EXISTS narrative      text NOT NULL DEFAULT '';
+-- Buyer-side evaluation. scores maps criterionId -> 1..5; weighted_total is
+-- denormalised so a queue can rank without re-reading the event's criteria.
+ALTER TABLE sourcing_responses ADD COLUMN IF NOT EXISTS scores         jsonb NOT NULL DEFAULT '{}';
+ALTER TABLE sourcing_responses ADD COLUMN IF NOT EXISTS weighted_total numeric;
+ALTER TABLE sourcing_responses ADD COLUMN IF NOT EXISTS shortlisted    boolean NOT NULL DEFAULT true;
+ALTER TABLE sourcing_responses ADD COLUMN IF NOT EXISTS awarded        boolean NOT NULL DEFAULT false;
+ALTER TABLE sourcing_responses ADD COLUMN IF NOT EXISTS updated_at     timestamptz NOT NULL DEFAULT now();
+
+-- Invitations are idempotent: re-publishing an event must not double-invite.
+ALTER TABLE sourcing_responses DROP CONSTRAINT IF EXISTS sourcing_responses_event_supplier_key;
+ALTER TABLE sourcing_responses ADD CONSTRAINT sourcing_responses_event_supplier_key UNIQUE (event_id, supplier_id);
+
+-- At most one award per event, enforced structurally rather than by the UI.
+CREATE UNIQUE INDEX IF NOT EXISTS sourcing_responses_one_award
+  ON sourcing_responses(event_id) WHERE awarded;
+CREATE INDEX IF NOT EXISTS sourcing_responses_supplier_idx ON sourcing_responses(supplier_id, status);
+
+-- ── Requests: persist the determined sourcing type ──────────────────────────
+-- determineSourcingType() has been computed, rendered and exported since DET-09
+-- but never stored, so 'new-event' meant nothing once the wizard unmounted.
+ALTER TABLE requests ADD COLUMN IF NOT EXISTS sourcing_type        TEXT;
+ALTER TABLE requests ADD COLUMN IF NOT EXISTS sourcing_type_reason TEXT;

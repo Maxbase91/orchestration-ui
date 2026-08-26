@@ -28,6 +28,7 @@
     "test:determination": "node tests/integration/determination.mjs",
     "test:determination-export": "node tests/integration/determination-export.mjs",
     "test:second-contract": "node tests/integration/second-contract-check.mjs",
+    "test:sourcing": "node tests/integration/sourcing.mjs",
     "test:sow-narrative": "node tests/integration/sow-narrative.mjs",
     "test:tickets": "node tests/integration/tickets.mjs",
     "test:ticket-sla": "node tests/integration/ticket-sla.mjs",

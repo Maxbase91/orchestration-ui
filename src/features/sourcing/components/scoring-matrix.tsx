@@ -4,12 +4,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 
-interface Criterion {
-  id: string;
-  name: string;
-  weight: number;
-}
-
 interface SupplierScore {
   supplierId: string;
   supplierName: string;
@@ -18,25 +12,16 @@ interface SupplierScore {
 }
 
 interface ScoringMatrixProps {
-  criteria: Criterion[];
+  criteria: SourcingCriterion[];
   suppliers: SupplierScore[];
   onScoreChange?: (supplierId: string, criterionId: string, score: number) => void;
   onShortlistToggle?: (supplierId: string) => void;
 }
 
-// Weighted average on the 1–5 scale, normalised by the weight sum so totals
-// stay comparable even if the configured weights don't add up to exactly 100.
-// Unscored criteria count as 0, penalising incomplete evaluations.
-function calcWeightedTotal(scores: Record<string, number>, criteria: Criterion[]): number {
-  let totalWeight = 0;
-  let weightedSum = 0;
-  for (const c of criteria) {
-    const score = scores[c.id] ?? 0;
-    weightedSum += score * c.weight;
-    totalWeight += c.weight;
-  }
-  return totalWeight > 0 ? Math.round((weightedSum / totalWeight) * 100) / 100 : 0;
-}
+// The weighted-average rule lives in lib/procurement/sourcing-award.ts so the
+// award action and this grid cannot drift apart on how a score is computed.
+import { calcWeightedTotal } from '@/lib/procurement/sourcing-award';
+import type { SourcingCriterion } from '@/lib/db/sourcing-events';
 
 export function ScoringMatrix({ criteria, suppliers, onScoreChange, onShortlistToggle }: ScoringMatrixProps) {
   return (
@@ -61,7 +46,7 @@ export function ScoringMatrix({ criteria, suppliers, onScoreChange, onShortlistT
             <tbody>
               {criteria.map((c) => (
                 <tr key={c.id} className="border-b">
-                  <td className="py-2 pr-4 font-medium">{c.name}</td>
+                  <td className="py-2 pr-4 font-medium">{c.label}</td>
                   <td className="py-2 px-2 text-center text-muted-foreground">{c.weight}%</td>
                   {suppliers.map((s) => (
                     <td key={s.supplierId} className="py-2 px-3 text-center">
@@ -117,5 +102,5 @@ export function ScoringMatrix({ criteria, suppliers, onScoreChange, onShortlistT
   );
 }
 
-export { calcWeightedTotal };
-export type { Criterion, SupplierScore };
+export type { SupplierScore };
+export type { SourcingCriterion as Criterion };

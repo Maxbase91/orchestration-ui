@@ -11,10 +11,10 @@ import { AISuggestionCard } from '@/components/shared/ai-suggestion-card';
 import { ScoringMatrix, type Criterion, type SupplierScore } from './components/scoring-matrix';
 
 const criteria: Criterion[] = [
-  { id: 'technical', name: 'Technical Capability', weight: 35 },
-  { id: 'price', name: 'Price Competitiveness', weight: 30 },
-  { id: 'experience', name: 'Experience', weight: 20 },
-  { id: 'risk', name: 'Risk Profile', weight: 15 },
+  { id: 'technical', label: 'Technical Capability', weight: 35 },
+  { id: 'price', label: 'Price Competitiveness', weight: 30 },
+  { id: 'experience', label: 'Experience', weight: 20 },
+  { id: 'risk', label: 'Risk Profile', weight: 15 },
 ];
 
 const initialSuppliers: SupplierScore[] = [

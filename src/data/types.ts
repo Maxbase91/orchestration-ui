@@ -49,6 +49,14 @@ export interface ProcurementRequest {
   contractId?: string;
   poId?: string;
   buyingChannel: BuyingChannel;
+  /**
+   * The determined sourcing route ('new-event' | 'renewal' | 'benchmarking' |
+   * 'none'). Computed at intake by determineSourcingType(); persisted so that
+   * 'new-event' still means something after the wizard unmounts — previously it
+   * was rendered, exported to Markdown and then discarded.
+   */
+  sourcingType?: string;
+  sourcingTypeReason?: string;
   commodityCode: string;
   commodityCodeLabel: string;
   costCentre: string;

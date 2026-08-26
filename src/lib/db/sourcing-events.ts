@@ -1,6 +1,17 @@
 // Data access for sourcing_events (RFP/RFQ/RFI events run in the Sourcing area).
 // Reads flow through use-sourcing-events.ts hooks.
+//
+// An event is normally raised *from* a procurement request sitting in the
+// sourcing stage — `requestId` is that link. It is nullable because a standing
+// category event (a framework refresh) legitimately has no originating request.
 import { supabase } from '@/lib/supabase-client';
+
+/** One scored dimension of an RFx. Weights across an event must total 100. */
+export interface SourcingCriterion {
+  id: string;
+  label: string;
+  weight: number;
+}
 
 export interface SourcingEvent {
   id: string;
@@ -15,6 +26,17 @@ export interface SourcingEvent {
   awardDate?: string;
   ownerId?: string;
   description: string;
+  /** The request this event was raised from, when there is one. */
+  requestId?: string;
+  /** Free-text scope lines captured in the wizard. */
+  requirements: string[];
+  /** Weighted evaluation criteria; the scoring matrix reads these. */
+  criteria: SourcingCriterion[];
+  budgetMin?: number;
+  startDate?: string;
+  currency: string;
+  /** Set on award, alongside the winning response. */
+  awardedSupplierId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -35,6 +57,13 @@ function mapRow(row: Record<string, unknown>): SourcingEvent {
     awardDate: row.award_date as string | undefined,
     ownerId: row.owner_id as string | undefined,
     description: (row.description as string) ?? '',
+    requestId: row.request_id as string | undefined,
+    requirements: (row.requirements as string[]) ?? [],
+    criteria: (row.criteria as SourcingCriterion[]) ?? [],
+    budgetMin: row.budget_min as number | undefined,
+    startDate: row.start_date as string | undefined,
+    currency: (row.currency as string) ?? 'EUR',
+    awardedSupplierId: row.awarded_supplier_id as string | undefined,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
   };
@@ -55,6 +84,13 @@ function mapToDb(e: Partial<SourcingEvent>): Record<string, unknown> {
   if (e.awardDate !== undefined) row.award_date = e.awardDate;
   if (e.ownerId !== undefined) row.owner_id = e.ownerId;
   if (e.description !== undefined) row.description = e.description;
+  if (e.requestId !== undefined) row.request_id = e.requestId;
+  if (e.requirements !== undefined) row.requirements = e.requirements;
+  if (e.criteria !== undefined) row.criteria = e.criteria;
+  if (e.budgetMin !== undefined) row.budget_min = e.budgetMin;
+  if (e.startDate !== undefined) row.start_date = e.startDate;
+  if (e.currency !== undefined) row.currency = e.currency;
+  if (e.awardedSupplierId !== undefined) row.awarded_supplier_id = e.awardedSupplierId;
   row.updated_at = new Date().toISOString();
   return row;
 }
@@ -71,14 +107,43 @@ export async function getSourcingEvent(id: string): Promise<SourcingEvent | null
   return data ? mapRow(data) : null;
 }
 
-export async function createSourcingEvent(event: Omit<SourcingEvent, 'id' | 'createdAt' | 'updatedAt'>): Promise<SourcingEvent> {
-  const { data, error } = await supabase
-    .from(TABLE)
-    .insert(mapToDb(event))
-    .select('*')
-    .single();
+/**
+ * Next readable event id (SRC-0001, SRC-0002, …) from a Postgres sequence.
+ *
+ * Falls back to a timestamp id if the RPC is unavailable — an environment
+ * provisioned before the sequence existed. A non-sequential id beats refusing
+ * to create the event.
+ */
+export async function nextSourcingEventId(): Promise<string> {
+  const { data, error } = await supabase.rpc('next_sourcing_event_id');
+  if (error || !data) return `SRC-${Date.now().toString().slice(-8)}`;
+  return String(data);
+}
+
+/**
+ * Create an event. The caller supplies the id (mirroring createPurchaseOrder, so
+ * the caller can navigate to it immediately); omit it and the table's
+ * gen_random_uuid() default produces an unreadable UUID.
+ */
+export async function createSourcingEvent(
+  event: Omit<SourcingEvent, 'createdAt' | 'updatedAt'> | Omit<SourcingEvent, 'id' | 'createdAt' | 'updatedAt'>,
+): Promise<SourcingEvent> {
+  const row = mapToDb(event as Partial<SourcingEvent>);
+  if ('id' in event && event.id) row.id = event.id;
+  const { data, error } = await supabase.from(TABLE).insert(row).select('*').single();
   if (error) throw error;
   return mapRow(data);
+}
+
+/** Events raised from a given request — powers the request's Related tab. */
+export async function listSourcingEventsForRequest(requestId: string): Promise<SourcingEvent[]> {
+  const { data, error } = await supabase
+    .from(TABLE)
+    .select('*')
+    .eq('request_id', requestId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map(mapRow);
 }
 
 export async function updateSourcingEvent(id: string, patch: Partial<SourcingEvent>): Promise<SourcingEvent> {

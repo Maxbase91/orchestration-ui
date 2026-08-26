@@ -38,6 +38,7 @@ Nothing here is specific to any organisation or industry. The upstream
 | `catalogue-item` | `db/catalogue-items` | `catalogue` |
 | `payment` | `db/payments` | `accounts-payable-master` |
 | `support-ticket` | `db/tickets` | `support-desk` |
+| `sourcing-event` | `db/sourcing-events` | `sourcing` |
 
 `payment` is the supplier banking/payment master — a vendor-data **foundation** (not an R1 flow);
 its `iban`/`bic` are sensitive and must be masked when surfaced. Seed-backed today; the `db/payments`
@@ -48,6 +49,12 @@ a queue is worked by several agents at once, so a stale list costs more here. Re
 connector are unscoped (the agent-side view); requester-scoped reads deliberately bypass it and call
 `db/tickets`.`listTickets()` with the caller's name, because entitlement depends on who is asking and
 a port has no notion of a current user.
+
+`sourcing-event` is the RFx register. A 5-minute TTL sits between the support queue's 60s and the
+hour used for reference data: an event's own fields change rarely once published, and what actually
+moves — the response set — is read through `db/sourcing-responses` rather than this port. `requestId`
+is filterable because the link is a column on the event; "which suppliers were invited" is a join, so
+it is deliberately not a field test.
 
 Not yet wired (no own-store read module): `risk-screening`, `category-taxonomy`,
 `form-submission` — add a connector behind the ports when their data lands.

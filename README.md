@@ -129,6 +129,7 @@ npm run test:handoff              # downstream handoff / next-steps model (syste
 npm run test:determination        # contract-type + sourcing-type determination
 npm run test:determination-export # exportable determination (structured Markdown)
 npm run test:second-contract      # second contract check (frameworks/MSAs vs transactable)
+npm run test:sourcing             # sourcing: criteria weights, ranking, award gates, entitlement
 npm run test:sow-narrative        # SOW narrative is synthesised from the service description
 npm run test:tickets              # support tickets — entitlement, internal notes, status lifecycle, references
 npm run test:ticket-sla           # ticket SLA — targets, due dates, breach/at-risk, waiting-on-user pause

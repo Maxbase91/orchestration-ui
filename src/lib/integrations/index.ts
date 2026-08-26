@@ -31,6 +31,7 @@ export { createRiskAssessmentConnector } from './own-store/risk-assessment-conne
 export { createCatalogueItemConnector } from './own-store/catalogue-item-connector';
 export { createPaymentConnector } from './own-store/payment-connector';
 export { createTicketConnector } from './own-store/ticket-connector';
+export { createSourcingEventConnector } from './own-store/sourcing-event-connector';
 export { useSourceObject, useSourceList, useSourceData, useSourceDatum } from './hooks';
 
 import { registerConnector } from './registry';
@@ -43,6 +44,7 @@ import { createRiskAssessmentConnector } from './own-store/risk-assessment-conne
 import { createCatalogueItemConnector } from './own-store/catalogue-item-connector';
 import { createPaymentConnector } from './own-store/payment-connector';
 import { createTicketConnector } from './own-store/ticket-connector';
+import { createSourcingEventConnector } from './own-store/sourcing-event-connector';
 
 let registered = false;
 
@@ -62,5 +64,6 @@ export function registerDefaultConnectors(): void {
   registerConnector(createCatalogueItemConnector());
   registerConnector(createPaymentConnector());
   registerConnector(createTicketConnector());
+  registerConnector(createSourcingEventConnector());
   registered = true;
 }

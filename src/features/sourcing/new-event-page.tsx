@@ -1,6 +1,15 @@
+// New Sourcing Event wizard: event details, supplier invitations, requirements
+// and weighted evaluation criteria, ending in Publish or Save as draft.
+//
+// Everything the wizard collects is persisted. It previously sent only the
+// step-1 fields, silently discarding the supplier selection, the requirements
+// and the criteria — so the supplier picker was decorative and the criteria the
+// user weighted never reached the scoring matrix that needs them.
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCreateSourcingEvent } from '@/lib/db/hooks/use-sourcing-events';
+import { useInviteSuppliers } from '@/lib/db/hooks/use-sourcing-responses';
+import { nextSourcingEventId } from '@/lib/db/sourcing-events';
 import { useAuthStore } from '@/stores/auth-store';
 import {
   Check,
@@ -64,6 +73,7 @@ export function NewEventPage() {
   const navigate = useNavigate();
   const { data: suppliers = [] } = useSuppliers();
   const createEvent = useCreateSourcingEvent();
+  const inviteSuppliers = useInviteSuppliers();
   const { currentUser } = useAuthStore();
   const [step, setStep] = useState(0);
 
@@ -153,21 +163,67 @@ export function NewEventPage() {
 
   const totalWeight = criteria.reduce((sum, c) => sum + c.weight, 0);
 
-  async function handlePublish() {
-    try {
-      await createEvent.mutateAsync({
-        title: title || 'Untitled Event',
-        description,
-        category,
-        type: eventType,
-        status: 'published',
-        budget: budgetMax ? parseFloat(budgetMax) : undefined,
-        deadline: endDate || undefined,
-        publishDate: new Date().toISOString().slice(0, 10),
-        ownerId: currentUser.id,
+  /**
+   * Persist the event and its invitations.
+   *
+   * The id is minted client-side so the caller can navigate straight to the new
+   * event; leaving it to the table's gen_random_uuid() default produces an
+   * unreadable id. Invitations are written after the event so a failure there
+   * leaves a recoverable event rather than orphaned response rows.
+   */
+  async function saveEvent(status: 'published' | 'draft') {
+    const id = await nextSourcingEventId();
+    await createEvent.mutateAsync({
+      id,
+      title: title || (status === 'draft' ? 'Untitled Draft' : 'Untitled Event'),
+      description,
+      category,
+      type: eventType,
+      status,
+      budget: budgetMax ? parseFloat(budgetMax) : undefined,
+      budgetMin: budgetMin ? parseFloat(budgetMin) : undefined,
+      currency: 'EUR',
+      startDate: startDate || undefined,
+      deadline: endDate || undefined,
+      ...(status === 'published' ? { publishDate: new Date().toISOString().slice(0, 10) } : {}),
+      ownerId: currentUser.id,
+      // Only sections with content are worth carrying — an untouched default
+      // heading is scaffolding, not a requirement.
+      requirements: requirements
+        .filter((r) => r.content.trim())
+        .map((r) => `${r.title}: ${r.content.trim()}`),
+      criteria: criteria.map((c) => ({ id: c.id, label: c.name, weight: c.weight })),
+    });
+
+    const invited = suppliers
+      .filter((s) => selectedSuppliers.includes(s.id))
+      .map((s) => ({ id: s.id, name: s.name }));
+    if (invited.length > 0) {
+      await inviteSuppliers.mutateAsync({
+        eventId: id,
+        suppliers: invited,
+        actor: { id: currentUser.id, name: currentUser.name },
       });
-      toast.success('Sourcing event published successfully');
-      navigate('/sourcing');
+    }
+    return { id, invitedCount: invited.length };
+  }
+
+  async function handlePublish() {
+    // Weights drive the weighted score; publishing with a total other than 100
+    // makes every later ranking meaningless, so this is a block rather than the
+    // red hint the wizard used to show.
+    if (totalWeight !== 100) {
+      toast.error(`Evaluation criteria must total 100% — currently ${totalWeight}%`);
+      return;
+    }
+    try {
+      const { id, invitedCount } = await saveEvent('published');
+      toast.success(
+        invitedCount > 0
+          ? `${id} published — ${invitedCount} supplier(s) invited`
+          : `${id} published`,
+      );
+      navigate(`/sourcing/${id}`);
     } catch (e) {
       console.error(e);
       toast.error('Failed to publish event');
@@ -176,18 +232,9 @@ export function NewEventPage() {
 
   async function handleSaveDraft() {
     try {
-      await createEvent.mutateAsync({
-        title: title || 'Untitled Draft',
-        description,
-        category,
-        type: eventType,
-        status: 'draft',
-        budget: budgetMax ? parseFloat(budgetMax) : undefined,
-        deadline: endDate || undefined,
-        ownerId: currentUser.id,
-      });
-      toast.success('Sourcing event saved as draft');
-      navigate('/sourcing');
+      const { id } = await saveEvent('draft');
+      toast.success(`${id} saved as draft`);
+      navigate(`/sourcing/${id}`);
     } catch (e) {
       console.error(e);
       toast.error('Failed to save draft');
