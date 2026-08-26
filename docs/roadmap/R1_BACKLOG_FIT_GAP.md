@@ -286,9 +286,13 @@ threaded responses (internal vs requester-visible), a full status lifecycle and 
 **Queue landed (P2):** `/help/inbox`, agent-role-guarded, with standing views (unassigned / mine /
 open / all), priority + category filters, search, and a read-only detail drawer showing the
 correspondence thread with internal notes marked.
-**Remaining — the working actions (P3) and SLA (P4):** assign, reply, close, forward; then `due_at`,
-breach flags and support KPIs. Until P3 lands a ticket can be raised, routed to a queue and read,
-but not worked — so every ticket stays `open`.
+**Working actions landed (P3):** assign / forward (reassign + handover note), reply vs internal note,
+the full status lifecycle with a required resolution note, and **polymorphic references** — a ticket
+links to requests, POs, suppliers, contracts and invoices via `ticket_links`, so the owner sees the
+context and any of those objects can show its support history. Every action writes an audit entry and
+notifies; internal notes notify nobody.
+**Remaining — SLA (P4):** `due_at` from `sla_targets`, breach + at-risk flags, a Breaching view, and
+support KPIs (open by age, time to first response, time to resolve).
 
 #### AST-X — Conversation Experience — 🟡 Partial
 AST-X-01 multi-conversation UI 🟡 (Web+overlay; **no Teams**) · AST-X-02 history & retention 🟢 ·

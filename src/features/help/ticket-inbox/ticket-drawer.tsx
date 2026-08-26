@@ -1,13 +1,15 @@
-// Read-only ticket detail, opened from the inbox queue.
+// Ticket detail and working actions, opened from the inbox queue.
 //
 // A drawer rather than a route: agents triage in sequence, and a full page
 // navigation per ticket loses the queue's scroll position and filters every
-// time. Working actions (assign, reply, close, forward) land in P3 — this shows
-// what a ticket is and what has been said on it.
+// time.
+//
+// Order matters here. References sit near the top because the first question an
+// agent asks is "what is this about"; the actions sit above the thread because
+// assigning and replying is the work, and the thread is the evidence.
 
 import { formatDistanceToNow, format, parseISO } from 'date-fns';
-import { Link } from 'react-router-dom';
-import { ExternalLink, Lock } from 'lucide-react';
+import { Lock } from 'lucide-react';
 import {
   Sheet,
   SheetContent,
@@ -16,8 +18,11 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { useTicketResponses } from '@/lib/db/hooks/use-tickets';
+import { useAuthStore } from '@/stores/auth-store';
 import type { Ticket } from '@/data/types';
 import { TicketPriorityBadge, TicketStatusBadge } from './ticket-badges';
+import { TicketActions } from './ticket-actions';
+import { TicketLinksPanel } from './ticket-links-panel';
 
 interface TicketDrawerProps {
   ticket: Ticket | null;
@@ -38,8 +43,11 @@ export function TicketDrawer({ ticket, open, onOpenChange }: TicketDrawerProps) 
   // Agent-side view, so internal notes are included. The requester-facing list
   // on Contact Support calls the same hook without this flag.
   const { data: responses = [], isLoading } = useTicketResponses(ticket?.id, true);
+  const currentUser = useAuthStore((s) => s.currentUser);
 
   if (!ticket) return null;
+
+  const actor = { id: currentUser.id, name: currentUser.name };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -75,22 +83,17 @@ export function TicketDrawer({ ticket, open, onOpenChange }: TicketDrawerProps) 
             <Field label="Created">
               {format(parseISO(ticket.createdAt), 'dd MMM yyyy, HH:mm')}
             </Field>
-            {ticket.requestId && (
-              <Field label="Related request">
-                <Link
-                  to={`/requests/${ticket.requestId}`}
-                  className="inline-flex items-center gap-1 text-blue-600 hover:underline"
-                >
-                  {ticket.requestId}
-                  <ExternalLink className="size-3" />
-                </Link>
-              </Field>
-            )}
             {ticket.resolvedAt && (
               <Field label="Resolved">
                 {format(parseISO(ticket.resolvedAt), 'dd MMM yyyy, HH:mm')}
               </Field>
             )}
+          </div>
+
+          <TicketLinksPanel ticketId={ticket.id} actor={actor} />
+
+          <div className="rounded-lg border bg-gray-50/60 p-3">
+            <TicketActions ticket={ticket} actor={actor} />
           </div>
 
           <div>
@@ -120,9 +123,7 @@ export function TicketDrawer({ ticket, open, onOpenChange }: TicketDrawerProps) 
             {isLoading ? (
               <p className="text-sm text-muted-foreground">Loading…</p>
             ) : responses.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No replies yet. Replying arrives with the working actions.
-              </p>
+              <p className="text-sm text-muted-foreground">No replies yet.</p>
             ) : (
               <div className="space-y-3">
                 {responses.map((r) => (

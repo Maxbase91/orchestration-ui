@@ -12,10 +12,19 @@
 // component-level filter would be a display convention, not a boundary.
 
 import { supabase } from '@/lib/supabase-client';
-import type { Ticket, TicketResponse, TicketStatus } from '@/data/types';
+import { createAuditEntry } from './audit-entries';
+import { createNotification } from './notifications';
+import type {
+  Ticket,
+  TicketLink,
+  TicketLinkType,
+  TicketResponse,
+  TicketStatus,
+} from '@/data/types';
 
 const TABLE = 'tickets';
 const RESPONSES_TABLE = 'ticket_responses';
+const LINKS_TABLE = 'ticket_links';
 
 interface TicketRow {
   id: string;
@@ -28,7 +37,6 @@ interface TicketRow {
   priority: string | null;
   owner_id: string | null;
   owner_name: string | null;
-  request_id: string | null;
   source: string | null;
   due_at: string | null;
   updated_at: string | null;
@@ -59,7 +67,6 @@ function mapDbToTicket(row: TicketRow): Ticket {
     ...(row.priority ? { priority: row.priority } : {}),
     ...(row.owner_id ? { ownerId: row.owner_id } : {}),
     ...(row.owner_name ? { ownerName: row.owner_name } : {}),
-    ...(row.request_id ? { requestId: row.request_id } : {}),
     ...(row.source ? { source: row.source } : {}),
     ...(row.due_at ? { dueAt: row.due_at } : {}),
     ...(row.updated_at ? { updatedAt: row.updated_at } : {}),
@@ -100,7 +107,6 @@ export interface CreateTicketInput {
   createdBy: string;
   category?: string;
   priority?: string;
-  requestId?: string;
   source?: 'form' | 'assistant';
 }
 
@@ -117,7 +123,6 @@ export async function createTicket(input: CreateTicketInput): Promise<Ticket> {
       source: input.source ?? 'form',
       ...(input.category ? { category: input.category } : {}),
       ...(input.priority ? { priority: input.priority } : {}),
-      ...(input.requestId ? { request_id: input.requestId } : {}),
     })
     .select('*')
     .single();
@@ -173,15 +178,35 @@ async function patchTicket(id: string, patch: Record<string, unknown>): Promise<
   return mapDbToTicket(data as TicketRow);
 }
 
-/** Assign or reassign. Passing a null owner returns the ticket to the unassigned queue. */
+/**
+ * Assign or reassign. A null owner returns the ticket to the unassigned queue.
+ *
+ * Forwarding is this plus a handover note, not a separate concept — one
+ * ownership model rather than two. The caller writes the note as an internal
+ * response so the reasoning stays on the thread.
+ */
 export async function assignTicket(
   id: string,
   owner: { id: string; name: string } | null,
+  actor?: { id: string; name: string },
 ): Promise<Ticket> {
-  return patchTicket(id, {
+  const ticket = await patchTicket(id, {
     owner_id: owner?.id ?? null,
     owner_name: owner?.name ?? null,
   });
+
+  if (actor) {
+    await recordTicketAudit(
+      id,
+      owner ? 'ticket.assigned' : 'ticket.unassigned',
+      owner ? `Assigned to ${owner.name}` : 'Returned to the unassigned queue',
+      actor,
+    );
+  }
+  if (owner && owner.id !== actor?.id) {
+    await notifyTicket(id, `Ticket ${id} assigned to you`, ticket.summary);
+  }
+  return ticket;
 }
 
 /**
@@ -196,16 +221,27 @@ export async function setTicketStatus(
   id: string,
   status: TicketStatus,
   resolution?: string,
+  actor?: { id: string; name: string },
 ): Promise<Ticket> {
   if (status === 'resolved' && !resolution?.trim()) {
     throw new Error('A resolution note is required to resolve a ticket.');
   }
   const terminal = status === 'resolved' || status === 'cancelled';
-  return patchTicket(id, {
+  const ticket = await patchTicket(id, {
     status,
     resolved_at: terminal ? new Date().toISOString() : null,
     ...(resolution?.trim() ? { resolution: resolution.trim() } : {}),
   });
+
+  if (actor) {
+    await recordTicketAudit(id, 'ticket.status.changed', `Status set to ${status}`, actor);
+  }
+  // The requester cares about terminal states and about being asked for
+  // something; the intermediate agent-side shuffle is noise to them.
+  if (terminal || status === 'waiting-on-user') {
+    await notifyTicket(id, `Ticket ${id} is now ${status.replace(/-/g, ' ')}`, ticket.summary);
+  }
+  return ticket;
 }
 
 /**
@@ -261,5 +297,178 @@ export async function addTicketResponse(input: AddResponseInput): Promise<Ticket
   // Touch the parent so the queue can sort by most-recently-active.
   await patchTicket(input.ticketId, {});
 
+  if (input.authorId && input.authorName) {
+    await recordTicketAudit(
+      input.ticketId,
+      input.isInternal ? 'ticket.note.added' : 'ticket.replied',
+      input.isInternal ? 'Added an internal note' : 'Replied to the requester',
+      { id: input.authorId, name: input.authorName },
+    );
+  }
+  // Only a reply reaches the requester — an internal note must not notify them.
+  if (!input.isInternal) {
+    await notifyTicket(input.ticketId, `New reply on ticket ${input.ticketId}`, input.body.slice(0, 140));
+  }
+
   return mapDbToResponse(data as TicketResponseRow);
+}
+
+// ── Audit + notification ─────────────────────────────────────────────────────
+// Every state-changing action records who did what and tells the people who need
+// to know. Both reuse existing generic tables: audit_entries is keyed by
+// objectType/objectId, notifications by relatedId/actionUrl.
+//
+// Both are deliberately best-effort. A ticket that was assigned but whose audit
+// row failed to write is a reporting gap; refusing the assignment because the
+// audit failed would be worse for the person trying to work the queue.
+
+async function recordTicketAudit(
+  ticketId: string,
+  action: string,
+  detail: string,
+  actor: { id: string; name: string },
+): Promise<void> {
+  try {
+    await createAuditEntry({
+      timestamp: new Date().toISOString(),
+      userId: actor.id,
+      userName: actor.name,
+      action,
+      objectType: 'ticket',
+      objectId: ticketId,
+      detail,
+      type: 'human',
+    });
+  } catch {
+    // Non-fatal — see note above.
+  }
+}
+
+async function notifyTicket(
+  ticketId: string,
+  title: string,
+  description: string,
+): Promise<void> {
+  try {
+    await createNotification({
+      id: `NTF-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      type: 'status-update',
+      title,
+      description,
+      timestamp: new Date().toISOString(),
+      isRead: false,
+      actionUrl: `/help/inbox`,
+      relatedId: ticketId,
+    });
+  } catch {
+    // Non-fatal — see note above.
+  }
+}
+
+// ── References ───────────────────────────────────────────────────────────────
+
+interface TicketLinkRow {
+  id: string;
+  ticket_id: string;
+  object_type: string;
+  object_id: string;
+  label: string | null;
+  created_at: string;
+}
+
+function mapDbToLink(row: TicketLinkRow): TicketLink {
+  return {
+    id: row.id,
+    ticketId: row.ticket_id,
+    objectType: row.object_type as TicketLinkType,
+    objectId: row.object_id,
+    createdAt: row.created_at,
+    ...(row.label ? { label: row.label } : {}),
+  };
+}
+
+export async function listTicketLinks(ticketId: string): Promise<TicketLink[]> {
+  const { data, error } = await supabase
+    .from(LINKS_TABLE)
+    .select('*')
+    .eq('ticket_id', ticketId)
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return (data ?? []).map((r) => mapDbToLink(r as TicketLinkRow));
+}
+
+export interface AddTicketLinkInput {
+  ticketId: string;
+  objectType: TicketLinkType;
+  objectId: string;
+  label?: string;
+  actor?: { id: string; name: string };
+}
+
+export async function addTicketLink(input: AddTicketLinkInput): Promise<TicketLink> {
+  const { data, error } = await supabase
+    .from(LINKS_TABLE)
+    .insert({
+      id: `TLK-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      ticket_id: input.ticketId,
+      object_type: input.objectType,
+      object_id: input.objectId,
+      ...(input.label ? { label: input.label } : {}),
+    })
+    .select('*')
+    .single();
+  // A duplicate link is the same end state the user asked for, so return the
+  // existing row rather than surfacing a unique-constraint error.
+  if (error) {
+    const existing = (await listTicketLinks(input.ticketId)).find(
+      (l) => l.objectType === input.objectType && l.objectId === input.objectId,
+    );
+    if (existing) return existing;
+    throw error;
+  }
+
+  if (input.actor) {
+    await recordTicketAudit(
+      input.ticketId,
+      'ticket.link.added',
+      `Linked ${input.objectType} ${input.objectId}`,
+      input.actor,
+    );
+  }
+  return mapDbToLink(data as TicketLinkRow);
+}
+
+export async function removeTicketLink(
+  linkId: string,
+  ctx?: { ticketId: string; actor: { id: string; name: string }; description: string },
+): Promise<void> {
+  const { error } = await supabase.from(LINKS_TABLE).delete().eq('id', linkId);
+  if (error) throw error;
+  if (ctx) {
+    await recordTicketAudit(ctx.ticketId, 'ticket.link.removed', `Unlinked ${ctx.description}`, ctx.actor);
+  }
+}
+
+/** Tickets referencing a given object — for a "support history" panel on that object. */
+export async function listTicketsForObject(
+  objectType: TicketLinkType,
+  objectId: string,
+): Promise<Ticket[]> {
+  const { data, error } = await supabase
+    .from(LINKS_TABLE)
+    .select('ticket_id')
+    .eq('object_type', objectType)
+    .eq('object_id', objectId);
+  if (error) throw error;
+
+  const ids = (data ?? []).map((r) => (r as { ticket_id: string }).ticket_id);
+  if (ids.length === 0) return [];
+
+  const { data: rows, error: err2 } = await supabase
+    .from(TABLE)
+    .select('*')
+    .in('id', ids)
+    .order('created_at', { ascending: false });
+  if (err2) throw err2;
+  return (rows ?? []).map((r) => mapDbToTicket(r as TicketRow));
 }

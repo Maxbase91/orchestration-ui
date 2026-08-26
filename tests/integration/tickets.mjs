@@ -111,5 +111,45 @@ check('unassigned view has no owners',
 check('mine view', listTickets('', { allTickets: true, ownerId: 'u-2' }).length === 2);
 check('open filter', listTickets('', { allTickets: true, status: 'open' }).length === 2);
 
+// ── mirrors ticket_links + TICKET_LINK_TYPES ────────────────────────────────
+const TICKET_LINK_TYPES = ['purchase-request', 'purchase-order', 'supplier', 'contract', 'invoice'];
+
+const LINKS = [
+  { id: 'l1', ticket_id: 'TKT-0001', object_type: 'purchase-order', object_id: 'PO-006', label: 'Bosch' },
+  { id: 'l2', ticket_id: 'TKT-0001', object_type: 'supplier', object_id: 'SUP-001', label: 'Robert Bosch GmbH' },
+  { id: 'l3', ticket_id: 'TKT-0003', object_type: 'purchase-request', object_id: 'REQ-2025-0107', label: 'Laptops' },
+];
+
+const listTicketLinks = (ticketId) => LINKS.filter((l) => l.ticket_id === ticketId);
+const listTicketsForObject = (type, id) =>
+  LINKS.filter((l) => l.object_type === type && l.object_id === id)
+       .map((l) => TICKETS.find((t) => t.id === l.ticket_id))
+       .filter(Boolean);
+
+console.log('\nReferences');
+check('a ticket carries multiple references', listTicketLinks('TKT-0001').length === 2);
+check('references span object types',
+  new Set(listTicketLinks('TKT-0001').map((l) => l.object_type)).size === 2);
+check('a ticket with no references returns empty', listTicketLinks('TKT-0002').length === 0);
+check('every link type is in the canonical set',
+  LINKS.every((l) => TICKET_LINK_TYPES.includes(l.object_type)));
+check('reverse lookup finds the ticket from a PO',
+  listTicketsForObject('purchase-order', 'PO-006').map((t) => t.id).join() === 'TKT-0001');
+check('reverse lookup finds the ticket from a supplier',
+  listTicketsForObject('supplier', 'SUP-001').map((t) => t.id).join() === 'TKT-0001');
+check('reverse lookup on an unlinked object is empty',
+  listTicketsForObject('supplier', 'SUP-999').length === 0);
+check('the same object linked to a different ticket does not bleed across',
+  listTicketsForObject('purchase-request', 'REQ-2025-0107').map((t) => t.id).join() === 'TKT-0003');
+
+// The unique constraint means re-linking the same object is a no-op, not a
+// duplicate row — the data layer returns the existing link rather than erroring.
+const isDuplicate = (ticketId, type, objectId) =>
+  LINKS.some((l) => l.ticket_id === ticketId && l.object_type === type && l.object_id === objectId);
+check('re-linking the same object is detected as a duplicate',
+  isDuplicate('TKT-0001', 'purchase-order', 'PO-006'));
+check('linking a different object is not a duplicate',
+  !isDuplicate('TKT-0001', 'purchase-order', 'PO-007'));
+
 console.log(failures === 0 ? '\n\x1b[32mAll checks passed\x1b[0m' : `\n\x1b[31m${failures} check(s) failed\x1b[0m`);
 process.exit(failures === 0 ? 0 : 1);

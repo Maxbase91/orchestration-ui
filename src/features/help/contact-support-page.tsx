@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/select';
 import { PageHeader } from '@/components/shared/page-header';
 import { createTicket, listTickets } from '@/lib/db/tickets';
+import { useTicketResponses } from '@/lib/db/hooks/use-tickets';
 import type { Ticket as TicketRecord } from '@/data/types';
 import { TicketPriorityBadge, TicketStatusBadge } from '@/features/help/ticket-inbox/ticket-badges';
 import { useAuthStore } from '@/stores/auth-store';
@@ -74,9 +75,49 @@ function AskAIBanner() {
   );
 }
 
+/**
+ * The agent's reply, as the requester sees it. `useTicketResponses` is called
+ * without `includeInternal`, so internal notes are filtered out in the data
+ * layer — the requester never receives them, rather than receiving them and
+ * having the component decline to render.
+ */
+function RequesterThread({ ticketId, resolution }: { ticketId: string; resolution?: string }) {
+  const { data: responses = [], isLoading } = useTicketResponses(ticketId);
+
+  if (isLoading) return <p className="py-2 text-xs text-muted-foreground">Loading replies…</p>;
+  if (responses.length === 0 && !resolution) {
+    return <p className="py-2 text-xs text-muted-foreground">No replies yet.</p>;
+  }
+
+  return (
+    <div className="space-y-2 py-2">
+      {responses.map((r) => (
+        <div key={r.id} className="rounded border bg-white p-2.5">
+          <div className="mb-0.5 flex items-center gap-2">
+            <span className="text-xs font-medium text-gray-700">{r.authorName ?? 'Support'}</span>
+            <span className="ml-auto text-[11px] text-gray-400">
+              {format(parseISO(r.createdAt), 'dd MMM, HH:mm')}
+            </span>
+          </div>
+          <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-700">{r.body}</p>
+        </div>
+      ))}
+      {resolution && (
+        <div className="rounded border border-green-200 bg-green-50 p-2.5">
+          <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-green-800">
+            Resolution
+          </p>
+          <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-700">{resolution}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MyTickets({ userName, isAdmin }: { userName: string; isAdmin: boolean }) {
   const [tickets, setTickets] = useState<TicketRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState<string | null>(null);
 
   useEffect(() => {
     void (async () => {
@@ -103,7 +144,11 @@ function MyTickets({ userName, isAdmin }: { userName: string; isAdmin: boolean }
   return (
     <div className="divide-y">
       {tickets.map((t) => (
-        <div key={t.id} className="flex items-start gap-3 py-3">
+        <div key={t.id} className="py-3">
+          <button
+            onClick={() => setExpanded((e) => (e === t.id ? null : t.id))}
+            className="flex w-full items-start gap-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+          >
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-0.5 flex-wrap">
               <span className="text-xs font-mono text-gray-400">{t.id}</span>
@@ -119,6 +164,8 @@ function MyTickets({ userName, isAdmin }: { userName: string; isAdmin: boolean }
               )}
             </p>
           </div>
+          </button>
+          {expanded === t.id && <RequesterThread ticketId={t.id} resolution={t.resolution} />}
         </div>
       ))}
     </div>

@@ -20,7 +20,7 @@ An interactive UI prototype that shows what a modern procurement orchestration p
 - **Supplier Portal** — Self-service portal for external suppliers (onboarding, invoices, messaging)
 - **No-Code Admin** — Visual routing rules engine, drag-and-drop workflow designer, AI agent configuration
 - **Analytics** — Spend dashboards, compliance KPIs, pipeline analytics, and a drag-and-drop report builder
-- **Support Ticket Inbox** — agent-side queue for tickets raised from Contact Support or the assistant, with standing views (unassigned / mine / open), filters and a read-only detail drawer
+- **Support Ticket Inbox** — agent-side queue for tickets raised from Contact Support or the assistant: assign, forward, reply, internal notes, resolve, and references to the requests / POs / suppliers a ticket is about
 
 ---
 
@@ -71,7 +71,7 @@ An interactive UI prototype that shows what a modern procurement orchestration p
 | Report Builder | Drag-and-drop report creation with chart type selection |
 | Notifications | Grouped feed with type filtering and notification preferences |
 | AI Assistant | Floating chat overlay + full-page mode with keyword-triggered responses |
-| Ticket Inbox | Agent-only support queue (`/help/inbox`): standing views, priority/category filters, search, detail drawer with the correspondence thread. Read-only — assign/reply/close arrive with the working actions |
+| Ticket Inbox | Agent-only support queue (`/help/inbox`): standing views, priority/category filters, search, and a detail drawer to **assign, forward, reply, add internal notes and resolve**. Tickets link to requests, POs, suppliers, contracts and invoices so the owner sees the context |
 
 ---
 

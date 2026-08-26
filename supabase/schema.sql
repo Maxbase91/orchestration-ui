@@ -899,7 +899,6 @@ CREATE POLICY "allow all" ON tickets FOR ALL USING (true) WITH CHECK (true);
 -- Ownership, lifecycle and SLA fields for the support inbox.
 ALTER TABLE tickets ADD COLUMN IF NOT EXISTS owner_id    TEXT REFERENCES users(id);
 ALTER TABLE tickets ADD COLUMN IF NOT EXISTS owner_name  TEXT;
-ALTER TABLE tickets ADD COLUMN IF NOT EXISTS request_id  TEXT REFERENCES requests(id) ON DELETE SET NULL;
 ALTER TABLE tickets ADD COLUMN IF NOT EXISTS source      TEXT DEFAULT 'form';
 ALTER TABLE tickets ADD COLUMN IF NOT EXISTS due_at      TIMESTAMPTZ;
 ALTER TABLE tickets ADD COLUMN IF NOT EXISTS updated_at  TIMESTAMPTZ DEFAULT now();
@@ -937,3 +936,31 @@ CREATE POLICY "ticket_responses_all" ON ticket_responses FOR ALL USING (true) WI
 
 CREATE INDEX IF NOT EXISTS ticket_responses_ticket_idx ON ticket_responses(ticket_id, created_at);
 CREATE INDEX IF NOT EXISTS tickets_queue_idx ON tickets(status, owner_id, created_at DESC);
+
+-- Polymorphic ticket references, so whoever picks a ticket up can see what it is
+-- about. Many-to-many rather than a column per type: a ticket is routinely about
+-- a PO *and* the supplier behind it, and a column-per-type needs a migration for
+-- every new object kind. Supersedes the short-lived tickets.request_id.
+--
+-- object_type uses the same vocabulary as the connector ports (SourceObject), so
+-- a reference resolves through the integration layer rather than a hardcoded
+-- table lookup per type.
+CREATE TABLE IF NOT EXISTS ticket_links (
+  id          TEXT PRIMARY KEY,
+  ticket_id   TEXT NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
+  object_type TEXT NOT NULL,
+  object_id   TEXT NOT NULL,
+  -- Denormalised display label so the drawer renders a reference without fanning
+  -- out a query per link. Captured at link time, not kept in sync afterwards.
+  label       TEXT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (ticket_id, object_type, object_id)
+);
+ALTER TABLE ticket_links ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "ticket_links_all" ON ticket_links;
+CREATE POLICY "ticket_links_all" ON ticket_links FOR ALL USING (true) WITH CHECK (true);
+
+CREATE INDEX IF NOT EXISTS ticket_links_ticket_idx ON ticket_links(ticket_id);
+CREATE INDEX IF NOT EXISTS ticket_links_object_idx ON ticket_links(object_type, object_id);
+
+ALTER TABLE tickets DROP COLUMN IF EXISTS request_id;

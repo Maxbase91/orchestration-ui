@@ -372,8 +372,6 @@ export interface Ticket {
   /** Assigned agent. Unassigned tickets are the inbox's default triage view. */
   ownerId?: string;
   ownerName?: string;
-  /** Optional link to the request the ticket is about. */
-  requestId?: string;
   /** Which intake path raised it — 'form' or 'assistant'. */
   source?: string;
   dueAt?: string;
@@ -391,6 +389,46 @@ export interface TicketResponse {
   body: string;
   /** Agent-only note. Never returned to a requester — filtered in the data layer. */
   isInternal: boolean;
+  createdAt: string;
+}
+
+/**
+ * Object kinds a ticket can reference. A subset of the connector port vocabulary
+ * (`SourceObject`) — the objects a support query is plausibly *about*. Kept as a
+ * const array so the picker renders from it and cannot drift from the type.
+ */
+export const TICKET_LINK_TYPES = [
+  'purchase-request',
+  'purchase-order',
+  'supplier',
+  'contract',
+  'invoice',
+] as const;
+
+export type TicketLinkType = (typeof TICKET_LINK_TYPES)[number];
+
+/** Human labels + the route each reference deep-links to. */
+export const TICKET_LINK_META: Record<TicketLinkType, { label: string; path: (id: string) => string }> = {
+  'purchase-request': { label: 'Request', path: (id) => `/requests/${id}` },
+  'purchase-order': { label: 'Purchase order', path: (id) => `/purchasing/orders/${id}` },
+  supplier: { label: 'Supplier', path: (id) => `/suppliers/${id}` },
+  contract: { label: 'Contract', path: (id) => `/contracts/${id}` },
+  // The invoice register has no per-id route, so a link lands on the list.
+  invoice: { label: 'Invoice', path: () => '/purchasing/invoices' },
+};
+
+/**
+ * A reference from a ticket to another object, so whoever picks the ticket up
+ * can see what it is about without hunting. Many-to-many: a ticket is routinely
+ * about a PO *and* the supplier behind it.
+ */
+export interface TicketLink {
+  id: string;
+  ticketId: string;
+  objectType: TicketLinkType;
+  objectId: string;
+  /** Display label captured at link time — avoids a query per link when rendering. */
+  label?: string;
   createdAt: string;
 }
 

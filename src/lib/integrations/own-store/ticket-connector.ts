@@ -42,8 +42,8 @@ export function createTicketConnector(
           return value === 'unassigned' ? !t.ownerId : t.ownerId === value;
         case 'createdBy':
           return t.createdBy === value;
-        case 'requestId':
-          return t.requestId === value;
+        // References live in ticket_links, so filtering by linked object is a
+        // join rather than a field test — use listTicketsForObject() instead.
         default:
           return true;
       }
