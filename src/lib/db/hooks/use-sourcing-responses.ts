@@ -7,6 +7,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   inviteSuppliers,
+  listAllResponses,
   listInvitationsForSupplier,
   listResponsesForEvent,
   markResponseViewed,
@@ -33,6 +34,11 @@ function useResponseMutation<TArgs, TResult>(fn: (args: TArgs) => Promise<TResul
       qc.invalidateQueries({ queryKey: ['sourcing-events'] });
     },
   });
+}
+
+/** Every invitation — used by the register to count suppliers per event. */
+export function useAllSourcingResponses() {
+  return useQuery({ queryKey: KEYS.all, queryFn: listAllResponses });
 }
 
 export function useResponsesForEvent(eventId: string | undefined) {

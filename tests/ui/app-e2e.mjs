@@ -36,6 +36,9 @@ const ADMIN_ROUTES = [
 ];
 const SUPPLIER_ROUTES = [
   '/portal', '/portal/onboarding', '/portal/invoices', '/portal/sourcing', '/portal/documents', '/portal/messages', '/portal/profile',
+  // Response page for an event the portal supplier may not be invited to — must
+  // render the "not available to you" state, not crash.
+  '/portal/sourcing/2ed9e6f4-71e1-4c9d-b5c7-13df98c40216',
 ];
 // Detail routes with a real id from each table (lists navigate via onClick, not
 // anchors, so we visit detail pages directly).

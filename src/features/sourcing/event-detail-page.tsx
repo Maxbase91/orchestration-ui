@@ -5,9 +5,9 @@
 // id against an in-file fixture map, so navigating to a real event — the only
 // kind the New Event wizard produces — rendered "Sourcing event not found".
 //
-// Supplier tracking is still empty: nothing writes to sourcing_responses until
-// the invitation work lands. The tab says so rather than showing a fabricated
-// roster, and the Q&A board remains a mock (labelled as such).
+// Supplier tracking reads real invitations from sourcing_responses — the row is
+// both the invitation and the response, so "invited but not viewed" is a state
+// the buyer can actually see. The Q&A board remains a mock (labelled as such).
 //
 // The "Publish Amendment" and "Send Reminder" buttons are gone rather than left
 // inert. A button that does nothing is the same lie as a hardcoded array — it
@@ -23,6 +23,7 @@ import { formatDate, formatCurrency } from '@/lib/format';
 import { Link } from 'react-router-dom';
 import { useSourcingEvent } from '@/lib/db/hooks/use-sourcing-events';
 import { useUserLookup } from '@/lib/db/hooks/use-users';
+import { useResponsesForEvent } from '@/lib/db/hooks/use-sourcing-responses';
 import { QABoard } from './components/qa-board';
 
 /** Renders a value, or an em-dash placeholder when it is not set. */
@@ -35,6 +36,7 @@ export function EventDetailPage() {
   const navigate = useNavigate();
   const lookupUser = useUserLookup();
   const { data: event, isLoading } = useSourcingEvent(id);
+  const { data: responses = [] } = useResponsesForEvent(id);
 
   if (isLoading) {
     return <p className="py-20 text-center text-sm text-muted-foreground">Loading event…</p>;
@@ -53,6 +55,7 @@ export function EventDetailPage() {
   }
 
   const ownerName = lookupUser(event.ownerId)?.name;
+  const respondedCount = responses.filter((r) => r.status === 'responded').length;
 
   return (
     <div className="space-y-5">
@@ -101,9 +104,14 @@ export function EventDetailPage() {
             <Card>
               <CardHeader><CardTitle className="text-sm text-muted-foreground">Supplier Responses</CardTitle></CardHeader>
               <CardContent className="space-y-2 text-sm">
-                <div className="flex justify-between"><span className="text-muted-foreground">Invited</span><span className="font-medium">—</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Responded</span><span className="font-medium">—</span></div>
-                <p className="pt-1 text-xs text-muted-foreground">Invitations are not recorded yet.</p>
+                <div className="flex justify-between"><span className="text-muted-foreground">Invited</span><span className="font-medium">{responses.length}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Responded</span><span className="font-medium text-green-700">{respondedCount}</span></div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Response rate</span>
+                  <span className="font-medium">
+                    {responses.length > 0 ? `${Math.round((respondedCount / responses.length) * 100)}%` : '—'}
+                  </span>
+                </div>
               </CardContent>
             </Card>
 
@@ -136,9 +144,43 @@ export function EventDetailPage() {
           <Card>
             <CardHeader><CardTitle className="text-base">Supplier Tracking</CardTitle></CardHeader>
             <CardContent>
-              <p className="py-6 text-center text-sm text-muted-foreground">
-                No suppliers invited yet.
-              </p>
+              {responses.length === 0 ? (
+                <p className="py-6 text-center text-sm text-muted-foreground">
+                  No suppliers invited yet.
+                </p>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="py-2 text-left font-medium text-muted-foreground">Supplier</th>
+                      <th className="py-2 text-left font-medium text-muted-foreground">Status</th>
+                      <th className="py-2 text-left font-medium text-muted-foreground">Price</th>
+                      <th className="py-2 text-left font-medium text-muted-foreground">Responded</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {responses.map((r) => (
+                      <tr key={r.id} className="border-b last:border-0">
+                        <td className="py-2 font-medium">
+                          {r.supplierName}
+                          {r.awarded && (
+                            <span className="ml-2 rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-medium text-green-800">
+                              Awarded
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-2"><StatusBadge status={r.status} size="sm" /></td>
+                        <td className="py-2 tabular-nums">
+                          {r.price != null ? formatCurrency(r.price) : <span className="text-gray-400">—</span>}
+                        </td>
+                        <td className="py-2 text-muted-foreground">
+                          {r.responseDate ? formatDate(r.responseDate) : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

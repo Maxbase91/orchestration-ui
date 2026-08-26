@@ -168,5 +168,51 @@ check('shown even when sourcingType is unset (every pre-existing request)',
 check('shown even when sourcingType says none — the stage is authoritative',
   canRaiseSourcingEvent({ status: 'sourcing', sourcingType: 'none' }));
 
+// ── mirrors the portal read + response lifecycle ────────────────────────────
+// getSourcingEventForSupplier withholds buyer-side fields at the SELECT and
+// returns null unless an invitation exists. Both are query-level rules — a
+// component that merely declined to render them would still ship them.
+const SUPPLIER_SAFE_FIELDS = ['id', 'title', 'description', 'type', 'status', 'deadline', 'requirements'];
+const BUYER_ONLY_FIELDS = ['criteria', 'budget', 'budgetMin', 'awardedSupplierId', 'requestId', 'ownerId'];
+
+function getEventForSupplier(eventId, supplierId) {
+  const invited = RESPONSES.some((r) => r.eventId === eventId && r.supplierId === supplierId);
+  if (!invited) return null;
+  const full = {
+    id: eventId, title: 'Cleaning services', description: 'd', type: 'RFP',
+    status: 'published', deadline: '2026-12-01', requirements: ['r1'],
+    criteria: CRITERIA, budget: 420000, budgetMin: 300000,
+    awardedSupplierId: null, requestId: 'REQ-2025-0113', ownerId: 'u1',
+  };
+  return Object.fromEntries(SUPPLIER_SAFE_FIELDS.filter((k) => k in full).map((k) => [k, full[k]]));
+}
+
+console.log('\nPortal read — buyer-side data never leaves the query');
+const supplierView = getEventForSupplier('SRC-0002', 'SUP-001');
+check('an invited supplier can read the event', supplierView !== null);
+check('the requirements they must answer are included', supplierView.requirements.length === 1);
+for (const field of BUYER_ONLY_FIELDS) {
+  check(`withholds ${field}`, !(field in supplierView));
+}
+check('an uninvited supplier gets null, not a redacted event',
+  getEventForSupplier('SRC-0002', 'SUP-999') === null);
+check('a non-existent event is indistinguishable from an uninvited one',
+  getEventForSupplier('SRC-9999', 'SUP-001') === null);
+
+console.log('\nResponse lifecycle');
+const markViewed = (r) => (r.status !== 'not-viewed' ? r : { ...r, status: 'viewed' });
+check('opening an invitation moves not-viewed to viewed',
+  markViewed({ status: 'not-viewed' }).status === 'viewed');
+check('opening a submitted response does not regress it',
+  markViewed({ status: 'responded' }).status === 'responded');
+check('opening an already-viewed invitation is a no-op',
+  markViewed({ status: 'viewed' }).status === 'viewed');
+
+const isClosed = (deadline, now) => (deadline ? new Date(deadline).getTime() < now : false);
+const NOW = new Date('2026-08-26T12:00:00Z').getTime();
+check('past the deadline the event is closed', isClosed('2026-01-01', NOW));
+check('before the deadline it is open', !isClosed('2026-12-01', NOW));
+check('no deadline never counts as closed', !isClosed(undefined, NOW));
+
 console.log(failures === 0 ? '\n\x1b[32mAll checks passed\x1b[0m' : `\n\x1b[31m${failures} check(s) failed\x1b[0m`);
 process.exit(failures === 0 ? 0 : 1);

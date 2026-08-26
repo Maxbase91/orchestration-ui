@@ -41,7 +41,7 @@ An interactive UI prototype that shows what a modern procurement orchestration p
 |--------|-------------|
 | Supplier Directory | Card grid and table views with risk ratings, compliance status, spend data |
 | Supplier Profile | 7-tab 360 view (Overview, Contracts, Risk, Spend charts, Performance, Documents, Activity) |
-| Supplier Portal | External self-service: dashboard, onboarding wizard, invoices, sourcing events, documents, messaging |
+| Supplier Portal | External self-service: dashboard, onboarding wizard, invoices, **real sourcing invitations with response submission**, documents, messaging |
 | Supplier Messages | Internal messaging threads with suppliers |
 
 ### Sourcing & Contracts

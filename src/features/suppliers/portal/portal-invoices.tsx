@@ -17,8 +17,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { Invoice } from '@/data/types';
 import { toast } from 'sonner';
+import { PORTAL_SUPPLIER_ID } from './portal-identity';
 
-const PORTAL_SUPPLIER_ID = 'SUP-001';
 const PORTAL_SUPPLIER_NAME = 'Accenture';
 
 type InvoiceRow = Invoice & Record<string, unknown>;

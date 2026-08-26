@@ -18,6 +18,7 @@ import { PortalProfile } from '@/features/suppliers/portal/portal-profile'
 import { PortalOnboarding } from '@/features/suppliers/portal/portal-onboarding'
 import { PortalInvoices } from '@/features/suppliers/portal/portal-invoices'
 import { PortalSourcing } from '@/features/suppliers/portal/portal-sourcing'
+import { PortalSourcingResponse } from '@/features/suppliers/portal/portal-sourcing-response'
 import { PortalDocuments } from '@/features/suppliers/portal/portal-documents'
 import { PortalMessages } from '@/features/suppliers/portal/portal-messages'
 import { SupplierMessagesPage } from '@/features/suppliers/supplier-messages-page'
@@ -198,6 +199,7 @@ export function App() {
             <Route path="/portal/profile" element={<PortalProfile />} />
             <Route path="/portal/onboarding" element={<PortalOnboarding />} />
             <Route path="/portal/sourcing" element={<PortalSourcing />} />
+            <Route path="/portal/sourcing/:eventId" element={<PortalSourcingResponse />} />
             <Route path="/portal/invoices" element={<PortalInvoices />} />
             <Route path="/portal/documents" element={<PortalDocuments />} />
             <Route path="/portal/messages" element={<PortalMessages />} />

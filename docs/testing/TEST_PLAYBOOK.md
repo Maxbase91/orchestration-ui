@@ -174,6 +174,7 @@ not in a component — because RLS is currently `USING (true)`.
 | TC-SRC-09 | Raise an event from a request | On a request in the **sourcing** stage, **Create sourcing event** opens a dialog pre-filled from the request (budget, incumbent); creating it mints an `SRC-nnnn` id, stores `request_id`, seeds the incumbent as the first invitation, and navigates to the event. The button then reads **Open sourcing event** — a second event cannot be raised for the same demand |
 | TC-SRC-10 | Gate is stage-based (`npm run test:sourcing`) | The action shows on `status='sourcing'` **regardless of `sourcing_type`** — including requests created before the column existed (all 101 of them). It is hidden in every other stage |
 | TC-SRC-11 | Two-way surfacing | The request's **Related** tab lists its sourcing events (id, type, deadline, status badge) linking to `/sourcing/:id`; the event's overview shows **Raised from REQ-…** linking back. A request with no event and nothing else related still shows the single "No related items" empty state |
+| TC-SRC-13 | Supplier tracking is real | The event's **Supplier Tracking** tab lists actual invitations (supplier, status, price, response date) and the overview shows Invited / Responded / Response rate. The register's **Suppliers** column counts them |
 | TC-SRC-12 | Sourcing type persists | A request submitted (or saved as draft) through the wizard stores `sourcing_type` + `sourcing_type_reason` and shows **Sourcing Type** on the detail overview. Catalogue fast-track requests correctly store none |
 
 ## Suite SUP — suppliers (internal)
@@ -195,6 +196,10 @@ not in a component — because RLS is currently `USING (true)`.
 | TC-PORT-01 | `/portal` dashboard | Action items, recent payments, announcements; horizontal nav (7 tabs) |
 | TC-PORT-02 | Profile → edit + save | Persists |
 | TC-PORT-03 | Onboarding wizard | 6-step status/flow renders |
+| TC-PORT-08 | Portal invitations are real | As **Supplier**, `/portal/sourcing` lists only events this supplier was invited to, split Open / Closed. Open = live event **and** deadline not passed. The `EVT-*` fixtures are gone — ids read `SRC-nnnn` |
+| TC-PORT-09 | Submit a response | **Respond** opens `/portal/sourcing/:eventId`; opening it flips the buyer's tracking from Invited to **Viewed**. Submitting price / lead time / proposal sets status **Responded**, notifies the event owner, and the buyer's response rate updates. Re-opening shows the submitted values and allows an update |
+| TC-PORT-10 | Portal entitlement (`npm run test:sourcing`) | An **uninvited** supplier opening `/portal/sourcing/:id` sees "not available to you" — identical to a non-existent event, so the page cannot be used to probe which events exist. The payload **withholds** criteria, weights, budget, `awarded_supplier_id`, `request_id` and `owner_id`: they are excluded from the SELECT, not merely unrendered |
+| TC-PORT-11 | Closed events are read-only | Past the deadline the response form is disabled with an explanatory banner; the submitted values stay visible |
 | TC-PORT-04 | Sourcing | Invited events; download/respond |
 | TC-PORT-05 | Invoices → **Submit Invoice** | Dialog opens (Invoice #/dates/amount/PO); submit **persists** |
 | TC-PORT-06 | Documents | Upload/list |

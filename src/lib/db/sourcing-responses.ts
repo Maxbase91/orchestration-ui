@@ -163,6 +163,17 @@ export async function inviteSuppliers(
   return (data ?? []).map((r) => mapRow(r as ResponseRow));
 }
 
+/**
+ * Every invitation across all events — the register's per-event counts.
+ * Buyer-side only; a supplier-scoped caller must use
+ * listInvitationsForSupplier() instead.
+ */
+export async function listAllResponses(): Promise<SourcingResponse[]> {
+  const { data, error } = await supabase.from(TABLE).select('*');
+  if (error) throw error;
+  return (data ?? []).map((r) => mapRow(r as ResponseRow));
+}
+
 /** All responses on an event — the buyer-side view. */
 export async function listResponsesForEvent(eventId: string): Promise<SourcingResponse[]> {
   const { data, error } = await supabase

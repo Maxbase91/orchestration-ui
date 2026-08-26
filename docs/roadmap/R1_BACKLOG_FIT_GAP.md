@@ -103,7 +103,13 @@ needs a server connector variant — WS-E).
 UX-01 component library 🟢; UX-02 journeys 🟡 (confirm from contextual inquiry, POL-10); DEC-7 env/rollback 🟡.
 **UX-04 switchable home designs 🟢** — the home (`/`) ships in 4 selectable designs (default Dashboard + three Apple-style layouts 1a/1b/1c), all **fully functional** (front door + quick actions + live KPIs + live demand pipeline), picked from a top-bar toggle and persisted per user (`features/dashboard/home-designs/`, `test:home-designs`). The dashboard is untouched.
 
-#### PLT — Sourcing/Award/Contract handoff (R2 stub) — out of R1 scope.
+#### PLT — Sourcing/Award/Contract handoff — 🟡 Partial (scope boundary moved, deliberately)
+
+Previously an R2 stub marked *out of R1 scope*. Sourcing execution now runs **inside the platform's
+own store**: an event is raised from a request, suppliers are invited from the directory, and they
+respond in the portal. This is not an upstream write — `sourcing_events`/`sourcing_responses` are
+the system of record — so ground rule 2 is intact, but it does move the "determination screen is the
+endpoint" line in ground rule 3. **Remaining:** evaluation, award and the write-back to the request.
 
 ### Cluster: Front Door
 
@@ -240,7 +246,7 @@ SUP-01 permissible supplier 🟡 (PSL soft-preference now in checks) · SUP-02 c
 | DET-B4 | Recommendation composition API | 🟡 | Partial |
 
 #### RTE — Route & Handoff — 🟡 Partial
-RTE-01 processing scope (PO required) 🟢 · RTE-02 finalise record 🟢 · RTE-03 handoff triggers 🟡 (**structured next-steps with system + status + deep-link** via `handoff.ts`) · RTE-04 supplier-data issue 🟢 (**`supplier-data.ts`** flags an incomplete supplier record — onboarding not completed / expired certifications — and `handoff.ts` adds a **"Resolve supplier master data" remediation step** routed to onboarding) · RTE-05 sourcing handoff (no write) 🟡 · RTE-06 PR refer/change 🟢 (**demand disposition** in `lib/procurement/referral.ts` — proceed / request-change / refer-back, most-blocking-wins from completeness + policy + scope signals; headline banner on the determination + in the export) · **RTE-07 config-driven Routing step 🟢** (the Routing preview is now a **presentation of config**, no hardcoded literals: the **lifecycle** comes from the attached workflow template's stage nodes — `useWorkflowTemplate` — with **conditional Risk assessment / Vendor onboarding steps** overlaid from the determination signals via the pure `lib/workflow/workflow-steps.ts` `composeWorkflowSteps` (`test:workflow-steps`); **approvers** from the value-banded **approval chain** (`selectApprovalChainForValue` + `resolveApprover`); **timeline** from `procurement_categories.timelineDays`; **reviewers** from the user directory. Fixes the old fake "Intake review by system" step) · DEC-6 write-path/idempotency 🔴 · WFL-7 hardening 🟡.
+RTE-01 processing scope (PO required) 🟢 · RTE-02 finalise record 🟢 · RTE-03 handoff triggers 🟡 (**structured next-steps with system + status + deep-link** via `handoff.ts`) · RTE-04 supplier-data issue 🟢 (**`supplier-data.ts`** flags an incomplete supplier record — onboarding not completed / expired certifications — and `handoff.ts` adds a **"Resolve supplier master data" remediation step** routed to onboarding) · RTE-05 sourcing handoff 🟢 (**now a write**: an event is raised from the request carrying `request_id`, suppliers are invited from the directory, and they respond in the portal — all in the own store, see the scope note under PLT) · RTE-06 PR refer/change 🟢 (**demand disposition** in `lib/procurement/referral.ts` — proceed / request-change / refer-back, most-blocking-wins from completeness + policy + scope signals; headline banner on the determination + in the export) · **RTE-07 config-driven Routing step 🟢** (the Routing preview is now a **presentation of config**, no hardcoded literals: the **lifecycle** comes from the attached workflow template's stage nodes — `useWorkflowTemplate` — with **conditional Risk assessment / Vendor onboarding steps** overlaid from the determination signals via the pure `lib/workflow/workflow-steps.ts` `composeWorkflowSteps` (`test:workflow-steps`); **approvers** from the value-banded **approval chain** (`selectApprovalChainForValue` + `resolveApprover`); **timeline** from `procurement_categories.timelineDays`; **reviewers** from the user directory. Fixes the old fake "Intake review by system" step) · DEC-6 write-path/idempotency 🔴 · WFL-7 hardening 🟡.
 
 > **Documented future-config gaps (RTE-07).** The Routing step derives from existing admin config, but a
 > few *selection rules* are not admin-editable yet — derived pragmatically now, recorded here as future

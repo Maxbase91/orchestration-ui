@@ -4,9 +4,8 @@ import { Progress } from '@/components/ui/progress';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { useInvoiceLookup, useInvoices } from '@/lib/db/hooks/use-invoices';
 import { useSupplier } from '@/lib/db/hooks/use-suppliers';
+import { PORTAL_SUPPLIER_ID } from './portal-identity';
 
-// Mock: portal user is supplier SUP-001 (Accenture)
-const PORTAL_SUPPLIER_ID = 'SUP-001';
 
 export function PortalDashboard() {
   const { data: supplier } = useSupplier(PORTAL_SUPPLIER_ID);

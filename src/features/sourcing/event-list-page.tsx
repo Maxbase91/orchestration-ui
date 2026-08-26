@@ -6,10 +6,9 @@
 // a published event was stored and then invisible everywhere in the UI — the
 // register and the writer were looking at different worlds.
 //
-// There is deliberately no "Suppliers" column yet: invitation counts live in
-// sourcing_responses, which nothing writes to until the invitation work lands.
-// A column reading 0 for every event would look like data rather than an
-// unbuilt feature.
+// The Suppliers column counts real invitations from sourcing_responses. It was
+// omitted while nothing wrote to that table — a column reading 0 for every event
+// would have looked like data rather than an unbuilt feature.
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
@@ -21,6 +20,7 @@ import { FilterBar, type FilterConfig } from '@/components/shared/filter-bar';
 import { formatDate } from '@/lib/format';
 import { useSourcingEvents } from '@/lib/db/hooks/use-sourcing-events';
 import { useUserLookup } from '@/lib/db/hooks/use-users';
+import { useAllSourcingResponses } from '@/lib/db/hooks/use-sourcing-responses';
 
 /** Row shape for the table — the DB event plus the resolved owner name. */
 interface EventRow extends Record<string, unknown> {
@@ -31,6 +31,7 @@ interface EventRow extends Record<string, unknown> {
   status: string;
   deadline?: string;
   owner: string;
+  suppliers: number;
 }
 
 const columns: Column<EventRow>[] = [
@@ -65,6 +66,7 @@ const columns: Column<EventRow>[] = [
     render: (item) =>
       item.deadline ? formatDate(item.deadline as string) : <span className="text-gray-400">—</span>,
   },
+  { key: 'suppliers', label: 'Suppliers', sortable: true },
   { key: 'owner', label: 'Owner', sortable: true },
 ];
 
@@ -72,6 +74,9 @@ export function EventListPage() {
   const navigate = useNavigate();
   const lookupUser = useUserLookup();
   const { data: events = [], isLoading } = useSourcingEvents();
+  // One read of every invitation, counted per event in memory — cheaper than a
+  // count query per row, and the register is small.
+  const { data: allResponses = [] } = useAllSourcingResponses();
   const [filters, setFilters] = useState<Record<string, string | string[]>>({});
 
   const rows = useMemo<EventRow[]>(
@@ -84,8 +89,9 @@ export function EventListPage() {
         status: e.status,
         deadline: e.deadline,
         owner: lookupUser(e.ownerId)?.name ?? 'Unassigned',
+        suppliers: allResponses.filter((r) => r.eventId === e.id).length,
       })),
-    [events, lookupUser],
+    [events, lookupUser, allResponses],
   );
 
   // Category options come from the live data, so an event created with a new

@@ -6,6 +6,7 @@ import type { SourcingEvent } from '@/lib/db/sourcing-events';
 import {
   listSourcingEvents,
   listSourcingEventsForRequest,
+  getSourcingEventForSupplier,
   getSourcingEvent,
   createSourcingEvent,
   updateSourcingEvent,
@@ -16,6 +17,8 @@ const KEYS = {
   list: () => ['sourcing-events', 'list'] as const,
   detail: (id: string) => ['sourcing-events', 'detail', id] as const,
   forRequest: (requestId: string) => ['sourcing-events', 'request', requestId] as const,
+  forSupplier: (eventId: string, supplierId: string) =>
+    ['sourcing-events', 'supplier-view', eventId, supplierId] as const,
 };
 
 export function useSourcingEvents() {
@@ -36,6 +39,19 @@ export function useSourcingEventsForRequest(requestId: string | undefined) {
     queryKey: KEYS.forRequest(requestId ?? ''),
     queryFn: () => listSourcingEventsForRequest(requestId!),
     enabled: Boolean(requestId),
+  });
+}
+
+/**
+ * The supplier-facing view of one event. Distinct from useSourcingEvent because
+ * it withholds buyer-side fields at the query, and returns null unless the
+ * caller was invited.
+ */
+export function useSourcingEventForSupplier(eventId: string | undefined, supplierId: string | undefined) {
+  return useQuery({
+    queryKey: KEYS.forSupplier(eventId ?? '', supplierId ?? ''),
+    queryFn: () => getSourcingEventForSupplier(eventId!, supplierId!),
+    enabled: Boolean(eventId) && Boolean(supplierId),
   });
 }
 

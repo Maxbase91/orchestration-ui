@@ -135,6 +135,58 @@ export async function createSourcingEvent(
   return mapRow(data);
 }
 
+/**
+ * The supplier-facing view of an event. Buyer-side fields are excluded from the
+ * SELECT, not merely left unrendered — `criteria`, their weights and `budget`
+ * would otherwise sit in the network payload of a page an external party loads.
+ *
+ * Returns null unless the caller holds an invitation, so an uninvited supplier
+ * cannot read an event by guessing its id. Both rules live here rather than in
+ * the component because RLS is `USING (true)`.
+ */
+export interface SupplierEventView {
+  id: string;
+  title: string;
+  description: string;
+  type: string;
+  status: SourcingEvent['status'];
+  deadline?: string;
+  requirements: string[];
+}
+
+export async function getSourcingEventForSupplier(
+  eventId: string,
+  supplierId: string,
+): Promise<SupplierEventView | null> {
+  const { data: invite, error: inviteError } = await supabase
+    .from('sourcing_responses')
+    .select('id')
+    .eq('event_id', eventId)
+    .eq('supplier_id', supplierId)
+    .maybeSingle();
+  if (inviteError) throw inviteError;
+  if (!invite) return null;
+
+  const { data, error } = await supabase
+    .from(TABLE)
+    .select('id, title, description, type, status, deadline, requirements')
+    .eq('id', eventId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+
+  const row = data as Record<string, unknown>;
+  return {
+    id: row.id as string,
+    title: row.title as string,
+    description: (row.description as string) ?? '',
+    type: (row.type as string) ?? 'RFP',
+    status: (row.status as SourcingEvent['status']) ?? 'draft',
+    requirements: (row.requirements as string[]) ?? [],
+    ...(row.deadline ? { deadline: row.deadline as string } : {}),
+  };
+}
+
 /** Events raised from a given request — powers the request's Related tab. */
 export async function listSourcingEventsForRequest(requestId: string): Promise<SourcingEvent[]> {
   const { data, error } = await supabase
