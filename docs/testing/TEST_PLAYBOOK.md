@@ -104,6 +104,22 @@ there is **no "Generate SOW" button** and no per-section regenerate (verified by
 | TC-SOW-06 | Submit; open request detail | Full SOW persisted + displayed (Overview/Documents) |
 | TC-SOW-07 | Provider modes | Works in `mock` and `groq/gemini`. In both non-LLM modes the narrative still reflects the captured answers (TC-SOW-05b) — a generic summary here means the fallback regressed to boilerplate |
 
+## Suite TKT — support tickets
+
+Ticket intake is live; the **inbox that works them is not yet built** (P2–P4 of the inbox scope).
+These cases cover the data layer and the two entitlement rules, which are enforced in the query —
+not in a component — because RLS is currently `USING (true)`.
+
+| ID | Steps | Expected |
+|----|-------|----------|
+| TC-TKT-01 | Raise from Help → Contact Support | Ticket persists with a sequence-issued `TKT-nnnn` id, `source = 'form'`, and appears immediately under **My tickets** |
+| TC-TKT-02 | Raise via the assistant ("I need to speak to someone"), then **refresh** | Ticket survives the refresh and appears under **My tickets** with `source = 'assistant'`. Regression guard: the mock path used to append to an in-memory array while telling the user to look in Help → Support |
+| TC-TKT-03 | Entitlement (`npm run test:tickets`) | A requester sees only tickets they created; agent roles (`admin`, `procurement-manager`, `operations-lead`) see all. A status or owner filter **cannot widen** the entitlement |
+| TC-TKT-04 | Internal notes (`npm run test:tickets`) | Responses default to public-only; internal notes surface **only** when a caller explicitly opts in. Omitting the option leaks nothing |
+| TC-TKT-05 | Status lifecycle (`npm run test:tickets`) | `resolved` requires a resolution note and stamps `resolved_at`; `cancelled` is terminal without a note; reopening clears `resolved_at`; `waiting-on-user` is **not** terminal (it pauses the SLA clock) |
+| TC-TKT-06 | Connector (`npm run test:connectors`) | `support-ticket` is registered and declared; the drift guard fails if a connector is added without being wired |
+| TC-TKT-07 | Concurrent submission | Two tickets raised at the same moment get distinct ids. Both intake paths draw from `ticket_number_seq`; they previously read the maximum and raced |
+
 ## Suite APR — approvals & tasks
 
 | ID | Steps | Expected |

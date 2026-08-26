@@ -16,7 +16,12 @@ export async function createTicket(
 ): Promise<AssistantTurn[]> {
   let ticket;
   try {
-    ticket = await persistTicket({ summary, context, createdBy: ctx.currentUser.name });
+    ticket = await persistTicket({
+      summary,
+      context,
+      createdBy: ctx.currentUser.name,
+      source: 'assistant',
+    });
   } catch {
     // Never strand the user on a storage failure: say plainly that it did not
     // save, rather than returning a ticket ID that does not exist.

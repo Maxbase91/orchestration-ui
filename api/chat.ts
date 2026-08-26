@@ -382,17 +382,14 @@ async function execCreateTicket(
   userId: string,
   userName: string,
 ): Promise<{ ticketId: string }> {
-  const { data: last } = await supabase
-    .from('tickets')
-    .select('id')
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  const nextNum = last
-    ? parseInt((last.id as string).replace('TKT-', ''), 10) + 1
-    : 1;
-  const ticketId = `TKT-${String(nextNum).padStart(4, '0')}`;
+  // Shares the ticket_number_seq sequence with the browser-side ticket module.
+  // The code can't be shared — that module imports the Vite-aliased Supabase
+  // client — but the sequence must be, or the two intake paths hand out
+  // colliding IDs. Reading the latest row (as this did) also raced with itself.
+  const { data: generated } = await supabase.rpc('next_ticket_id');
+  const ticketId = generated
+    ? String(generated)
+    : `TKT-${Date.now().toString().slice(-8)}`;
 
   await supabase.from('tickets').insert({
     id: ticketId,
@@ -400,6 +397,7 @@ async function execCreateTicket(
     context,
     status: 'open',
     created_by: userName || userId,
+    source: 'assistant',
   });
 
   return { ticketId };

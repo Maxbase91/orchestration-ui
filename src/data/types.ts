@@ -340,13 +340,58 @@ export interface KnowledgeEntry {
   tags: string[];
 }
 
+/**
+ * Support ticket. The platform's own store is the system of record — there is no
+ * upstream service desk in this release.
+ *
+ * `waiting-on-user` exists to stop the SLA clock while the requester, not the
+ * agent, is the blocker; without it every ticket awaiting a reply reads as an
+ * agent-side breach. `cancelled` is the terminal state for tickets raised in
+ * error, kept distinct from `resolved` so it can be excluded from resolution
+ * metrics.
+ */
+export type TicketStatus =
+  | 'open'
+  | 'in-progress'
+  | 'waiting-on-user'
+  | 'resolved'
+  | 'cancelled';
+
+/** Statuses that take a ticket out of the active queue. */
+export const TERMINAL_TICKET_STATUSES: TicketStatus[] = ['resolved', 'cancelled'];
+
 export interface Ticket {
   id: string;
   summary: string;
   context: string;
-  status: 'open' | 'in-progress' | 'resolved';
+  status: TicketStatus;
   createdAt: string;
   createdBy: string;
+  category?: string;
+  priority?: string;
+  /** Assigned agent. Unassigned tickets are the inbox's default triage view. */
+  ownerId?: string;
+  ownerName?: string;
+  /** Optional link to the request the ticket is about. */
+  requestId?: string;
+  /** Which intake path raised it — 'form' or 'assistant'. */
+  source?: string;
+  dueAt?: string;
+  updatedAt?: string;
+  resolvedAt?: string;
+  resolution?: string;
+}
+
+export interface TicketResponse {
+  id: string;
+  ticketId: string;
+  authorId?: string;
+  authorName?: string;
+  authorInitials?: string;
+  body: string;
+  /** Agent-only note. Never returned to a requester — filtered in the data layer. */
+  isInternal: boolean;
+  createdAt: string;
 }
 
 export interface AssistantMessage {

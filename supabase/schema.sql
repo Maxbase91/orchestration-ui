@@ -895,3 +895,45 @@ CREATE TABLE IF NOT EXISTS tickets (
 ALTER TABLE tickets ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "allow all" ON tickets;
 CREATE POLICY "allow all" ON tickets FOR ALL USING (true) WITH CHECK (true);
+
+-- Ownership, lifecycle and SLA fields for the support inbox.
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS owner_id    TEXT REFERENCES users(id);
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS owner_name  TEXT;
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS request_id  TEXT REFERENCES requests(id) ON DELETE SET NULL;
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS source      TEXT DEFAULT 'form';
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS due_at      TIMESTAMPTZ;
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS updated_at  TIMESTAMPTZ DEFAULT now();
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS resolved_at TIMESTAMPTZ;
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS resolution  TEXT;
+
+-- Sequence-backed ticket numbering. Replaces the read-the-maximum generators
+-- that each intake path carried: those raced under concurrent submission (two
+-- callers read the same maximum, the second insert then failed on the primary
+-- key) and mis-ordered past TKT-9999, where lexicographic sorting breaks.
+CREATE SEQUENCE IF NOT EXISTS ticket_number_seq AS bigint START WITH 1;
+SELECT setval('ticket_number_seq', GREATEST((SELECT COALESCE(MAX(NULLIF(regexp_replace(id, '\D', '', 'g'), ''))::bigint, 0) FROM tickets), 1));
+
+CREATE OR REPLACE FUNCTION next_ticket_id() RETURNS TEXT
+LANGUAGE sql VOLATILE SET search_path = public AS
+$$ SELECT 'TKT-' || lpad(nextval('ticket_number_seq')::text, 4, '0') $$;
+
+-- Threaded correspondence. Mirrors the comments table, which cannot be reused:
+-- it is FK-bound to requests(id). is_internal separates agent-only notes from
+-- replies the requester is entitled to see — the filter that keeps internal
+-- discussion away from external supplier-role users.
+CREATE TABLE IF NOT EXISTS ticket_responses (
+  id              TEXT PRIMARY KEY,
+  ticket_id       TEXT NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
+  author_id       TEXT,
+  author_name     TEXT,
+  author_initials TEXT,
+  body            TEXT NOT NULL,
+  is_internal     BOOLEAN NOT NULL DEFAULT false,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE ticket_responses ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "ticket_responses_all" ON ticket_responses;
+CREATE POLICY "ticket_responses_all" ON ticket_responses FOR ALL USING (true) WITH CHECK (true);
+
+CREATE INDEX IF NOT EXISTS ticket_responses_ticket_idx ON ticket_responses(ticket_id, created_at);
+CREATE INDEX IF NOT EXISTS tickets_queue_idx ON tickets(status, owner_id, created_at DESC);

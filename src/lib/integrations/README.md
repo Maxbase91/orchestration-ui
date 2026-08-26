@@ -37,12 +37,19 @@ Nothing here is specific to any organisation or industry. The upstream
 | `risk-assessment` | `db/risk-assessments` | `risk-register` |
 | `catalogue-item` | `db/catalogue-items` | `catalogue` |
 | `payment` | `db/payments` | `accounts-payable-master` |
+| `support-ticket` | `db/tickets` | `support-desk` |
 
 `payment` is the supplier banking/payment master — a vendor-data **foundation** (not an R1 flow);
 its `iban`/`bic` are sensitive and must be masked when surfaced. Seed-backed today; the `db/payments`
 module is the seam to a Supabase table / live AP source later.
 
-Not yet wired (no own-store read module): `support-ticket`, `risk-screening`, `category-taxonomy`,
+`support-ticket` is the support queue. Its TTL is 60s rather than the hour used for reference data:
+a queue is worked by several agents at once, so a stale list costs more here. Reads through the
+connector are unscoped (the agent-side view); requester-scoped reads deliberately bypass it and call
+`db/tickets`.`listTickets()` with the caller's name, because entitlement depends on who is asking and
+a port has no notion of a current user.
+
+Not yet wired (no own-store read module): `risk-screening`, `category-taxonomy`,
 `form-submission` — add a connector behind the ports when their data lands.
 Coverage is guarded by `npm run test:connectors` (drift guard).
 

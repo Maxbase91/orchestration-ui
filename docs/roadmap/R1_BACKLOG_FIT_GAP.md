@@ -94,8 +94,8 @@ ports); covered by `npm run test:connectors` (drift guard pins the object set).
 supplier/contract reads in `step-compliance.tsx` (`useSourceData`), and the **assistant lookups**
 (`src/lib/assistant/capabilities/lookup.ts` now reads suppliers/requests/contracts/POs/invoices/risk
 through `requireConnector(...)` — so the chatbot and front door share one governed source).
-**Remaining:** connectors for objects without an own-store read module yet (support-ticket,
-risk-screening, category-taxonomy, form-submission); routing **risk reuse-matching** through the ports
+**Remaining:** connectors for objects without an own-store read module yet (risk-screening,
+category-taxonomy, form-submission); routing **risk reuse-matching** through the ports
 (needs validity-window query support — WS-C) and the **server-side** assistant path (`api/chat.ts`
 needs a server connector variant — WS-E).
 
@@ -280,6 +280,13 @@ AST-A-B6 action orchestration API 🟡.
 #### AST-S — Support Assistance — 🟡 Partial
 AST-S-01 raise ticket 🟢 · AST-S-02 schedule appointment 🔴 · AST-S-03 route to training 🔴.
 
+**Ticket data layer landed (P0–P1):** both intake paths (Contact Support form, assistant handover)
+now persist to one store through `db/tickets` behind the `support-ticket` connector, with ownership,
+threaded responses (internal vs requester-visible), a full status lifecycle and sequence-issued ids.
+**Remaining — the inbox that works them (P2–P4):** the queue page, assign/reply/close/forward
+actions, and SLA. Until those land a ticket can be raised and read but not worked, so every ticket
+stays `open`.
+
 #### AST-X — Conversation Experience — 🟡 Partial
 AST-X-01 multi-conversation UI 🟡 (Web+overlay; **no Teams**) · AST-X-02 history & retention 🟢 ·
 AST-X-03 eight-language 🔴 · AST-X-04 deep-link to source 🟢.
@@ -292,7 +299,7 @@ AST-X-03 eight-language 🔴 · AST-X-04 deep-link to source 🟢.
 |---|---|---|---|
 | **WS-0** | Unblock platform — ✅ **connector interface built** (`src/lib/integrations`, tested); core tables already present; remaining: architecture decisions, data-shape spikes | S0–S1 | CFG-W0, CFG-D0, CLS-G0, POL-26/27/09 |
 | **WS-A** | Decisioning data & reference plane (taxonomy, PSL, competitive sourcing, reuse criteria, routing table from POL-01); make routing risk/materiality-aware — 🟡 **risk- & materiality-aware routing**, **taxonomy generalised**, **PSL/competitive sourcing checks**, **materiality**, **category-code mapping**, **taxonomy store seeded/live** done; remaining: org-specific code scheme, hard PSL reference list | S1–S3 | CFG-01..06, CLS-02 |
-| **WS-B** | Own data model behind connector ports — 🟢 **8 objects wired** (supplier, contract, request, PO, invoice, risk, catalogue, **payment**); remaining: ticket/screening/taxonomy/form objects + route remaining consumers through ports | S1–S4 | SRC-01..05, CON-01/03 |
+| **WS-B** | Own data model behind connector ports — 🟢 **9 objects wired** (supplier, contract, request, PO, invoice, risk, catalogue, payment, **support-ticket**); remaining: screening/taxonomy/form objects + route remaining consumers through ports | S1–S4 | SRC-01..05, CON-01/03 |
 | **WS-C** | Regulated risk & materiality engine — 🟢 **cascade + non-binary outcome + materiality + mini-IRQ delta + structured reuse model + assessment handoff + preliminary operational risk assessment** done; remaining: risk-matching hardening (RSK-T6) | S3–S5 | RSK-01..09, DET-10 |
 | **WS-D** | Complete front-door determination — 🟢 **done**: contract/sourcing type (incl. amend/change), handoff, two-step split, exportable endpoint, 2nd contract check, approval-to-source gate | S4–S6 | CHK-07, DET-04/05/08/09, RTE |
 | **WS-F** | Staged-Intake Funnel redesign — 🟢 **done**: free-text-primary entry + sequential catalogue→enrich→contract→full-SD funnel (no premature catalogue/contract assertions) + **criteria-triggered stage-5 residual questions** (`residual-questions.ts`) | S4–S6 | **INT-10**, INT-02, CLS-01/03, CHK-01/02/05/06 |

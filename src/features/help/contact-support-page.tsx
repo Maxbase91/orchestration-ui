@@ -16,7 +16,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { PageHeader } from '@/components/shared/page-header';
-import { supabase } from '@/lib/supabase-client';
+import { createTicket, listTickets } from '@/lib/db/tickets';
+import type { Ticket as TicketRecord } from '@/data/types';
 import { useAuthStore } from '@/stores/auth-store';
 import { openAIChatWithPrompt } from '@/features/ai-assistant/ai-chat-overlay';
 
@@ -27,21 +28,12 @@ const faqLinks = [
   { question: 'What are the buying channels?', articleId: 'gs-2' },
 ];
 
-interface SupportTicket {
-  id: string;
-  summary: string;
-  context: string;
-  status: 'open' | 'in-progress' | 'resolved';
-  category: string | null;
-  priority: string | null;
-  created_at: string;
-  created_by: string;
-}
-
 const STATUS_STYLES: Record<string, string> = {
   open: 'bg-amber-100 text-amber-800',
   'in-progress': 'bg-blue-100 text-blue-800',
+  'waiting-on-user': 'bg-purple-100 text-purple-800',
   resolved: 'bg-green-100 text-green-800',
+  cancelled: 'bg-gray-100 text-gray-600',
 };
 
 const PRIORITY_STYLES: Record<string, string> = {
@@ -98,29 +90,20 @@ function AskAIBanner() {
 function TicketStatusBadge({ status }: { status: string }) {
   return (
     <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${STATUS_STYLES[status] ?? 'bg-gray-100 text-gray-600'}`}>
-      {status === 'in-progress' ? 'In Progress' : status.charAt(0).toUpperCase() + status.slice(1)}
+      {status.replace(/-/g, ' ').replace(/^./, (c) => c.toUpperCase())}
     </span>
   );
 }
 
 function MyTickets({ userName, isAdmin }: { userName: string; isAdmin: boolean }) {
-  const [tickets, setTickets] = useState<SupportTicket[]>([]);
+  const [tickets, setTickets] = useState<TicketRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     void (async () => {
-      let query = supabase
-        .from('tickets')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(20);
-
-      if (!isAdmin) {
-        query = query.eq('created_by', userName);
-      }
-
-      const { data } = await query;
-      setTickets((data ?? []) as SupportTicket[]);
+      // Entitlement is applied inside listTickets so it can't be widened here.
+      const rows = await listTickets(userName, { allTickets: isAdmin, limit: 20 }).catch(() => []);
+      setTickets(rows);
       setLoading(false);
     })();
   }, [userName, isAdmin]);
@@ -155,9 +138,9 @@ function MyTickets({ userName, isAdmin }: { userName: string; isAdmin: boolean }
             <p className="text-sm text-gray-800 truncate">{t.summary}</p>
             <p className="text-[11px] text-gray-400 mt-0.5">
               {t.category && <span className="mr-2 capitalize">{t.category.replace('-', ' ')}</span>}
-              {format(parseISO(t.created_at), 'dd MMM yyyy, HH:mm')}
-              {isAdmin && t.created_by !== userName && (
-                <span className="ml-2 text-gray-500">— {t.created_by}</span>
+              {format(parseISO(t.createdAt), 'dd MMM yyyy, HH:mm')}
+              {isAdmin && t.createdBy !== userName && (
+                <span className="ml-2 text-gray-500">— {t.createdBy}</span>
               )}
             </p>
           </div>
@@ -190,34 +173,27 @@ export function ContactSupportPage() {
 
     setSubmitting(true);
     try {
-      // Generate ticket ID
-      const { count } = await supabase
-        .from('tickets')
-        .select('*', { count: 'exact', head: true });
-      const nextNum = (count ?? ticketCount) + 1;
-      const ticketId = `TKT-${String(nextNum).padStart(4, '0')}`;
-
-      const { error } = await supabase.from('tickets').insert({
-        id: ticketId,
+      // ID generation and the insert both live in the ticket module so every
+      // intake path shares one sequence — this page used to count rows, which
+      // reused an ID whenever a ticket had been deleted.
+      const ticket = await createTicket({
         summary: subject,
         context: `Category: ${category}\nPriority: ${priority}\nSubmitted by: ${name} (${email})\n\n${description}`,
-        status: 'open',
+        createdBy: currentUser.name,
         category,
         priority,
-        created_by: currentUser.name,
+        source: 'form',
       });
 
-      if (error) {
-        toast.error('Failed to submit ticket. Please try again.');
-        return;
-      }
-
-      toast.success(`Ticket ${ticketId} submitted — we'll get back to you within 4 hours.`);
+      toast.success(`Ticket ${ticket.id} submitted — we'll get back to you within 4 hours.`);
       setTicketCount((n) => n + 1);
       setCategory('');
       setPriority('');
       setSubject('');
       setDescription('');
+    } catch {
+      // Keep the form populated so the user doesn't retype everything.
+      toast.error('Failed to submit ticket. Please try again.');
     } finally {
       setSubmitting(false);
     }
