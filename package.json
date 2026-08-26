@@ -28,6 +28,7 @@
     "test:determination": "node tests/integration/determination.mjs",
     "test:determination-export": "node tests/integration/determination-export.mjs",
     "test:second-contract": "node tests/integration/second-contract-check.mjs",
+    "test:sow-narrative": "node tests/integration/sow-narrative.mjs",
     "test:approval-to-source": "node tests/integration/approval-to-source.mjs",
     "test:residual-questions": "node tests/integration/residual-questions.mjs",
     "test:demand-conversation": "node tests/integration/demand-conversation.mjs",

@@ -127,6 +127,7 @@ npm run test:handoff              # downstream handoff / next-steps model (syste
 npm run test:determination        # contract-type + sourcing-type determination
 npm run test:determination-export # exportable determination (structured Markdown)
 npm run test:second-contract      # second contract check (frameworks/MSAs vs transactable)
+npm run test:sow-narrative        # SOW narrative is synthesised from the service description
 npm run test:approval-to-source   # approval-to-source gate (light vs full pre-sourcing approvals)
 npm run test:residual-questions   # criteria-triggered stage-5 residual questions (mini-IRQ deltas)
 npm run test:demand-conversation  # dynamic intake — answer-driven next question + carry-forward + branching

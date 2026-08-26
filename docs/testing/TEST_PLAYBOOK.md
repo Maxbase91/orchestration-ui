@@ -100,8 +100,9 @@ there is **no "Generate SOW" button** and no per-section regenerate (verified by
 | TC-SOW-04 | Quality gate | Visible quality score/checklist (auto-populated on completion); weak sections flagged |
 | TC-SOW-04b | No manual generation (`npm run test:ui`) | The chat-intake step shows **no "Generate SOW" button** and no "click Generate SOW" hint; the SOW panel still renders and builds from the conversation |
 | TC-SOW-05 | Narrative summary + copy button | 3–4 paragraph narrative; copy works |
+| TC-SOW-05b | Narrative provenance (`npm run test:sow-narrative` + UI smoke) | The narrative is **synthesised from the captured service description**, never fixed boilerplate: it carries the requester's objective/scope/deliverables, and **two different service descriptions produce two different narratives**. Applies to all three paths — LLM, deterministic mock, and the LLM-failure fallback (which additionally flags itself as unpolished). |
 | TC-SOW-06 | Submit; open request detail | Full SOW persisted + displayed (Overview/Documents) |
-| TC-SOW-07 | Provider modes | Works in `mock` and `groq/gemini` |
+| TC-SOW-07 | Provider modes | Works in `mock` and `groq/gemini`. In both non-LLM modes the narrative still reflects the captured answers (TC-SOW-05b) — a generic summary here means the fallback regressed to boilerplate |
 
 ## Suite APR — approvals & tasks
 

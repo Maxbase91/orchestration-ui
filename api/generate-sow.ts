@@ -115,6 +115,57 @@ function runQualityChecks(
 
 // ── Mock provider ─────────────────────────────────────────────────────────────
 
+/**
+ * Deterministic executive summary, synthesised from the SOW sections.
+ *
+ * Both non-LLM paths previously returned fixed boilerplate that interpolated
+ * only category/title/value, so the "Narrative Summary" panel read identically
+ * for every request and reflected nothing the requester had actually captured —
+ * even though mockGenerate() had already built each section from their answers.
+ * The narrative was the one part of the service description not derived from
+ * the service description.
+ *
+ * Composing from `sections` keeps the fallback honest: without the LLM the
+ * summary loses polish, not provenance. Mirrors the client-side composition in
+ * step-chat-intake.tsx, which joins the same sections when the endpoint is
+ * unreachable — keep the two in step.
+ */
+function composeNarrative(
+  sections: Record<string, string>,
+  meta: { category: string; title: string; value: number; unpolished?: boolean },
+): string {
+  const cat = meta.category || 'services';
+  const val = meta.value ? `€${Number(meta.value).toLocaleString()}` : 'a value still to be confirmed';
+  const paragraphs: string[] = [];
+
+  const opening = meta.title
+    ? `This ${cat} engagement — "${meta.title}" — is valued at ${val}.`
+    : `This ${cat} engagement is valued at ${val}.`;
+  // The objective carries the "why", so it leads; everything after it is the
+  // captured detail in the order a reviewer reads a SOW.
+  paragraphs.push(sections.objective ? `${opening} ${sections.objective}` : opening);
+
+  if (sections.scope) paragraphs.push(sections.scope);
+
+  const delivery = [sections.deliverables, sections.timeline].filter(Boolean).join('\n\n');
+  if (delivery) paragraphs.push(delivery);
+
+  const commercial = [sections.resources, sections.acceptanceCriteria, sections.pricingModel]
+    .filter(Boolean)
+    .join('\n\n');
+  if (commercial) paragraphs.push(commercial);
+
+  // Only the LLM-failure path flags itself. The deterministic mock path is a
+  // deliberate configuration, not a degraded one, so it needs no caveat.
+  if (meta.unpolished) {
+    paragraphs.push(
+      'Drafted directly from the captured intake answers without AI polishing. Review each section before contract signature.',
+    );
+  }
+
+  return paragraphs.join('\n\n');
+}
+
 function mockGenerate(
   category: string,
   title: string,
@@ -174,7 +225,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Mock path (deterministic, no LLM call)
   if (mock || process.env.VITE_ASSISTANT_PROVIDER === 'mock') {
     const sections = mockGenerate(category, title, value, capturedAnswers as Record<string, string>);
-    const narrative = `This ${category} engagement, "${title}", has been structured to deliver clear, measurable outcomes. The scope has been carefully defined to balance ambition with deliverability, with a phased approach ensuring early wins while building toward the full business case.\n\nThe proposed engagement model leverages a structured ${category} methodology, adapted to the specific context of this organisation. Key success factors include strong executive sponsorship, timely access to data and stakeholders, and a clearly defined change management approach alongside the core delivery workstreams.\n\nFinancially, the engagement is structured at ${value ? `€${Number(value).toLocaleString()}` : 'the agreed budget'} with milestone-based payments to align supplier incentives with delivery outcomes. The acceptance criteria are designed to be objective and measurable, ensuring both parties have clarity on what "done" looks like.\n\nThis Statement of Work represents a best-practice framework for engagements of this type. It should be reviewed by all key stakeholders before contract signature and updated to reflect any agreed changes to scope.`;
+    const narrative = composeNarrative(sections, { category, title, value });
     const { checks, score } = runQualityChecks(sections);
     return res.status(200).json({ sections, narrative, qualityScore: score, qualityChecks: checks });
   }
@@ -248,7 +299,7 @@ ${Object.entries(capturedAnswers as Record<string, string>)
     // LLM failed — fall back to mock
     console.warn('[generate-sow] LLM failed, using mock fallback:', e);
     const sections = mockGenerate(category, title, value as number, capturedAnswers as Record<string, string>);
-    const narrative = `This ${category} engagement has been automatically drafted based on the available context. Please review all sections and update as needed before finalising the Statement of Work.`;
+    const narrative = composeNarrative(sections, { category, title, value: value as number, unpolished: true });
     const { checks, score } = runQualityChecks(sections);
     return res.status(200).json({ sections, narrative, qualityScore: score, qualityChecks: checks });
   }
