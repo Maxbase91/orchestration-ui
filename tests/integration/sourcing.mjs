@@ -139,5 +139,34 @@ check('no duplicate invitation exists in the set',
 check('the same supplier can be invited to different events',
   RESPONSES.filter((r) => r.supplierId === 'SUP-001').length === 2);
 
+// ── mirrors the request -> event link and the create-action gate ────────────
+// The gate is stage-based on purpose: sourcing_type only fills for requests
+// created after it was added, so gating the action on it would hide the button
+// on every pre-existing request — including the ones stuck in the stage.
+const EVENTS = [
+  { id: 'SRC-0002', requestId: 'REQ-2024-0015', status: 'published' },
+  { id: 'SRC-0003', requestId: null, status: 'draft' },
+];
+const listEventsForRequest = (requestId) => EVENTS.filter((e) => e.requestId === requestId);
+const canRaiseSourcingEvent = (request) => request.status === 'sourcing';
+
+console.log('\nRequest link');
+check('an event raised from a request resolves back to it',
+  listEventsForRequest('REQ-2024-0015').map((e) => e.id).join() === 'SRC-0002');
+// A standing category event (requestId null) must never surface under a real
+// request. The hook is `enabled: Boolean(requestId)`, so null is never queried.
+check('a standing event never surfaces under a real request',
+  !listEventsForRequest('REQ-2024-0015').some((e) => e.id === 'SRC-0003'));
+check('a request with no event returns empty', listEventsForRequest('REQ-9999').length === 0);
+
+console.log('\nCreate-action gate');
+check('shown in the sourcing stage', canRaiseSourcingEvent({ status: 'sourcing' }));
+check('hidden in the approval stage', !canRaiseSourcingEvent({ status: 'approval' }));
+check('hidden in the po stage', !canRaiseSourcingEvent({ status: 'po' }));
+check('shown even when sourcingType is unset (every pre-existing request)',
+  canRaiseSourcingEvent({ status: 'sourcing', sourcingType: undefined }));
+check('shown even when sourcingType says none — the stage is authoritative',
+  canRaiseSourcingEvent({ status: 'sourcing', sourcingType: 'none' }));
+
 console.log(failures === 0 ? '\n\x1b[32mAll checks passed\x1b[0m' : `\n\x1b[31m${failures} check(s) failed\x1b[0m`);
 process.exit(failures === 0 ? 0 : 1);

@@ -171,6 +171,10 @@ not in a component — because RLS is currently `USING (true)`.
 | TC-SRC-06 | Evaluation Centre | Scoring matrix (weighted), AI scoring narrative, shortlist/eliminate |
 | TC-SRC-07 | Award recommendation | Ranked; **award → creates linked contract/PO** |
 | TC-SRC-08 | Templates page | 5 templates render |
+| TC-SRC-09 | Raise an event from a request | On a request in the **sourcing** stage, **Create sourcing event** opens a dialog pre-filled from the request (budget, incumbent); creating it mints an `SRC-nnnn` id, stores `request_id`, seeds the incumbent as the first invitation, and navigates to the event. The button then reads **Open sourcing event** — a second event cannot be raised for the same demand |
+| TC-SRC-10 | Gate is stage-based (`npm run test:sourcing`) | The action shows on `status='sourcing'` **regardless of `sourcing_type`** — including requests created before the column existed (all 101 of them). It is hidden in every other stage |
+| TC-SRC-11 | Two-way surfacing | The request's **Related** tab lists its sourcing events (id, type, deadline, status badge) linking to `/sourcing/:id`; the event's overview shows **Raised from REQ-…** linking back. A request with no event and nothing else related still shows the single "No related items" empty state |
+| TC-SRC-12 | Sourcing type persists | A request submitted (or saved as draft) through the wizard stores `sourcing_type` + `sourcing_type_reason` and shows **Sourcing Type** on the detail overview. Catalogue fast-track requests correctly store none |
 
 ## Suite SUP — suppliers (internal)
 

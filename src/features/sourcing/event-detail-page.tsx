@@ -20,6 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { formatDate, formatCurrency } from '@/lib/format';
+import { Link } from 'react-router-dom';
 import { useSourcingEvent } from '@/lib/db/hooks/use-sourcing-events';
 import { useUserLookup } from '@/lib/db/hooks/use-users';
 import { QABoard } from './components/qa-board';
@@ -112,6 +113,20 @@ export function EventDetailPage() {
                 <div className="flex justify-between"><span className="text-muted-foreground">Budget</span><span className="font-medium"><OrDash value={event.budget != null ? formatCurrency(event.budget) : null} /></span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">Category</span><span><OrDash value={event.category} /></span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">Owner</span><span><OrDash value={ownerName} /></span></div>
+                {/* The originating demand. An event raised from the sourcing stage
+                    carries requestId; a standing category event has none. */}
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Raised from</span>
+                  <span>
+                    {event.requestId ? (
+                      <Link to={`/requests/${event.requestId}`} className="text-blue-600 hover:underline">
+                        {event.requestId}
+                      </Link>
+                    ) : (
+                      <span className="text-gray-400">—</span>
+                    )}
+                  </span>
+                </div>
               </CardContent>
             </Card>
           </div>

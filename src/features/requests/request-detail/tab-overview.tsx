@@ -29,6 +29,16 @@ const CATEGORY_LABELS: Record<string, string> = {
   'supplier-onboarding': 'Supplier Onboarding',
 };
 
+// The sourcing route determined at intake. Requests created before this was
+// persisted have no value, so the row renders '-' rather than being hidden —
+// consistent with every other DetailRow.
+const SOURCING_TYPE_LABELS: Record<string, string> = {
+  'new-event': 'New Event',
+  renewal: 'Renewal',
+  benchmarking: 'Benchmarking',
+  none: 'None',
+};
+
 interface TabOverviewProps {
   request: ProcurementRequest;
 }
@@ -80,6 +90,14 @@ export function TabOverview({ request }: TabOverviewProps) {
                 <DetailRow label="Supplier" value={supplier?.name} />
                 <DetailRow label="Value" value={formatCurrency(request.value, request.currency)} />
                 <DetailRow label="Buying Channel" value={BUYING_CHANNEL_LABELS[request.buyingChannel] ?? request.buyingChannel} />
+                <DetailRow
+                  label="Sourcing Type"
+                  value={
+                    request.sourcingType
+                      ? SOURCING_TYPE_LABELS[request.sourcingType] ?? request.sourcingType
+                      : undefined
+                  }
+                />
                 <DetailRow label="Commodity Code" value={`${request.commodityCode} - ${request.commodityCodeLabel}`} />
                 <DetailRow label="Cost Centre" value={request.costCentre} />
                 <DetailRow label="Budget Owner" value={request.budgetOwner} />

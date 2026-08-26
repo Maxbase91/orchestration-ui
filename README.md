@@ -47,7 +47,7 @@ An interactive UI prototype that shows what a modern procurement orchestration p
 ### Sourcing & Contracts
 | Screen | Description |
 |--------|-------------|
-| Sourcing Events | Event list, detail with Q&A board, evaluation centre with scoring matrix |
+| Sourcing Events | DB-backed event register and detail, **raised from a request in the sourcing stage** (`request_id` link, incumbent seeded as the first invitation) and surfaced two-way on the request's Related tab. Q&A board and evaluation centre still to be wired |
 | Contract Register | Lifecycle management with renewal alerts, obligation tracking, financial comparison |
 | Purchase Orders | PO management with goods receipt, AI compliance review |
 | Invoice Queue | Invoice management with AI data extraction, three-way match visualizer |

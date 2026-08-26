@@ -3,6 +3,7 @@ import { useSupplierLookup, useSuppliers } from '@/lib/db/hooks/use-suppliers';
 import { useContractLookup, useContracts } from '@/lib/db/hooks/use-contracts';
 import { useRequestLookup, useRequests } from '@/lib/db/hooks/use-requests';
 import { StatusBadge } from '@/components/shared/status-badge';
+import { useSourcingEventsForRequest } from '@/lib/db/hooks/use-sourcing-events';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { Link } from 'react-router-dom';
@@ -33,6 +34,7 @@ export function TabRelated({ request }: TabRelatedProps) {
   const lookupSupplier = useSupplierLookup();
   const { byId: lookupContract, bySupplier: contractsBySupplier } = useContractLookup();
   const { bySupplier: requestsBySupplier } = useRequestLookup();
+  const { data: sourcingEvents = [] } = useSourcingEventsForRequest(request.id);
   const supplier = lookupSupplier(request.supplierId);
   const contract = lookupContract(request.contractId);
 
@@ -85,6 +87,32 @@ export function TabRelated({ request }: TabRelatedProps) {
       )}
 
       {/* Linked PO */}
+      {sourcingEvents.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Sourcing Events ({sourcingEvents.length})</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {sourcingEvents.map((e) => (
+              <Link
+                key={e.id}
+                to={`/sourcing/${e.id}`}
+                className="flex items-center justify-between gap-4 rounded-lg border px-4 py-3 hover:bg-gray-50 transition-colors"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">{e.title}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {e.id} &middot; {e.type}
+                    {e.deadline ? ` · closes ${formatDate(e.deadline)}` : ''}
+                  </p>
+                </div>
+                <StatusBadge status={e.status} size="sm" />
+              </Link>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
       {request.poId && (
         <Card>
           <CardHeader>
@@ -204,7 +232,7 @@ export function TabRelated({ request }: TabRelatedProps) {
         </Card>
       )}
 
-      {!contract && !request.poId && relatedRequests.length === 0 && !supplier && (
+      {!contract && !request.poId && relatedRequests.length === 0 && !supplier && sourcingEvents.length === 0 && (
         <Card>
           <CardContent className="py-8 text-center">
             <p className="text-sm text-muted-foreground">No related items found for this request.</p>

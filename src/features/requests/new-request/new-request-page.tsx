@@ -64,6 +64,11 @@ interface RequestFormData {
   // Step 4 (shifted)
   miniIrq: { privilegedAccess: boolean; criticalService: boolean };
   buyingChannelResult: string;
+  /**
+   * Determination output, lifted wholesale from the compliance step. Stored on
+   * the request as two flat columns — the wizard holds the nested shape.
+   */
+  sourcingType?: { type: string; reason: string };
   sraStatus: string;
   policyChecks: { label: string; passed: boolean; detail: string }[];
   duplicateCheck: string | null;
@@ -372,6 +377,8 @@ export function NewRequestPage() {
           contractId: formData.contractId || undefined,
           workflowTemplateId: formData.workflowTemplateId || undefined,
           buyingChannel: (formData.buyingChannelResult || 'procurement-led') as BuyingChannel,
+          sourcingType: formData.sourcingType?.type,
+          sourcingTypeReason: formData.sourcingType?.reason,
           commodityCode: formData.commodityCode,
           commodityCodeLabel: formData.commodityCodeLabel,
           costCentre: formData.costCentre,
@@ -457,6 +464,8 @@ export function NewRequestPage() {
         contractId: formData.contractId || undefined,
         workflowTemplateId: formData.workflowTemplateId || undefined,
         buyingChannel: (formData.buyingChannelResult || 'procurement-led') as BuyingChannel,
+        sourcingType: formData.sourcingType?.type,
+        sourcingTypeReason: formData.sourcingType?.reason,
         commodityCode: formData.commodityCode,
         commodityCodeLabel: formData.commodityCodeLabel,
         costCentre: formData.costCentre,
