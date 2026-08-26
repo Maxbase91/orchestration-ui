@@ -1,129 +1,47 @@
 // Sourcing event detail page: overview, per-supplier response tracking and the
-// Q&A board for one RFx event. Backed by in-file sample events keyed by id,
-// covering each lifecycle stage (draft, published, in-evaluation, award).
+// Q&A board for one RFx event.
+//
+// Reads the live event through useSourcingEvent(). It previously resolved the
+// id against an in-file fixture map, so navigating to a real event — the only
+// kind the New Event wizard produces — rendered "Sourcing event not found".
+//
+// Supplier tracking is still empty: nothing writes to sourcing_responses until
+// the invitation work lands. The tab says so rather than showing a fabricated
+// roster, and the Q&A board remains a mock (labelled as such).
+//
+// The "Publish Amendment" and "Send Reminder" buttons are gone rather than left
+// inert. A button that does nothing is the same lie as a hardcoded array — it
+// just fails later, in front of someone who trusted it.
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Send, FileEdit } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { formatDate, formatCurrency } from '@/lib/format';
+import { useSourcingEvent } from '@/lib/db/hooks/use-sourcing-events';
+import { useUserLookup } from '@/lib/db/hooks/use-users';
 import { QABoard } from './components/qa-board';
 
-interface SourcingEventDetail {
-  id: string;
-  title: string;
-  category: string;
-  type: string;
-  status: string;
-  deadline: string;
-  publishDate: string | null;
-  evaluationDate: string | null;
-  awardDate: string | null;
-  budget: number;
-  owner: string;
-  description: string;
-  supplierResponses: {
-    name: string;
-    status: 'viewed' | 'responded' | 'not-viewed';
-    responseDate?: string;
-  }[];
+/** Renders a value, or an em-dash placeholder when it is not set. */
+function OrDash({ value }: { value: string | null | undefined }) {
+  return value ? <>{value}</> : <span className="text-gray-400">—</span>;
 }
-
-const mockEvents: Record<string, SourcingEventDetail> = {
-  'SRC-001': {
-    id: 'SRC-001',
-    title: 'IT Consulting Framework 2025-2027',
-    category: 'IT Consulting',
-    type: 'RFP',
-    status: 'in-evaluation',
-    deadline: '2025-03-15',
-    publishDate: '2025-02-01',
-    evaluationDate: '2025-03-20',
-    awardDate: '2025-04-01',
-    budget: 2500000,
-    owner: 'Marcus Johnson',
-    description: 'Multi-year framework agreement for IT consulting services across strategy, implementation, and managed services.',
-    supplierResponses: [
-      { name: 'Accenture', status: 'responded', responseDate: '2025-03-10' },
-      { name: 'Deloitte', status: 'responded', responseDate: '2025-03-12' },
-      { name: 'Capgemini', status: 'responded', responseDate: '2025-03-14' },
-      { name: 'KPMG', status: 'viewed' },
-      { name: 'McKinsey & Company', status: 'viewed' },
-      { name: 'TechBridge Solutions', status: 'not-viewed' },
-    ],
-  },
-  'SRC-002': {
-    id: 'SRC-002',
-    title: 'Cloud Infrastructure Services',
-    category: 'Cloud Services',
-    type: 'RFQ',
-    status: 'published',
-    deadline: '2025-04-01',
-    publishDate: '2025-03-01',
-    evaluationDate: '2025-04-10',
-    awardDate: '2025-04-20',
-    budget: 800000,
-    owner: 'Sarah Chen',
-    description: 'Cloud infrastructure hosting and managed services for production workloads.',
-    supplierResponses: [
-      { name: 'Amazon Web Services (AWS)', status: 'viewed' },
-      { name: 'Microsoft', status: 'viewed' },
-      { name: 'Salesforce', status: 'not-viewed' },
-      { name: 'Databricks', status: 'not-viewed' },
-    ],
-  },
-  'SRC-003': {
-    id: 'SRC-003',
-    title: 'Office Furniture Renewal',
-    category: 'Facilities',
-    type: 'RFQ',
-    status: 'award-pending',
-    deadline: '2025-02-28',
-    publishDate: '2025-01-15',
-    evaluationDate: '2025-03-05',
-    awardDate: '2025-03-15',
-    budget: 200000,
-    owner: 'Anna Muller',
-    description: 'Replacement of office furniture across 3 locations.',
-    supplierResponses: [
-      { name: 'Iron Mountain', status: 'responded', responseDate: '2025-02-20' },
-      { name: 'Cushman & Wakefield', status: 'responded', responseDate: '2025-02-25' },
-      { name: 'Sodexo', status: 'responded', responseDate: '2025-02-27' },
-    ],
-  },
-  'SRC-004': {
-    id: 'SRC-004',
-    title: 'Cybersecurity Assessment Services',
-    category: 'Security',
-    type: 'RFP',
-    status: 'draft',
-    deadline: '2025-05-01',
-    publishDate: null,
-    evaluationDate: null,
-    awardDate: null,
-    budget: 150000,
-    owner: 'Marcus Johnson',
-    description: 'Procurement of external cybersecurity assessment services including penetration testing and compliance audit.',
-    supplierResponses: [],
-  },
-};
-
-const supplierStatusColors: Record<string, string> = {
-  responded: 'bg-green-100 text-green-700',
-  viewed: 'bg-amber-100 text-amber-700',
-  'not-viewed': 'bg-gray-100 text-gray-700',
-};
 
 export function EventDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const event = id ? mockEvents[id] : undefined;
+  const lookupUser = useUserLookup();
+  const { data: event, isLoading } = useSourcingEvent(id);
+
+  if (isLoading) {
+    return <p className="py-20 text-center text-sm text-muted-foreground">Loading event…</p>;
+  }
 
   if (!event) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 gap-4">
+      <div className="flex flex-col items-center justify-center gap-4 py-20">
         <p className="text-sm text-muted-foreground">Sourcing event not found.</p>
         <Button variant="outline" onClick={() => navigate('/sourcing')}>
           <ArrowLeft className="size-4" />
@@ -133,7 +51,7 @@ export function EventDetailPage() {
     );
   }
 
-  const responseRate = event.supplierResponses.filter((s) => s.status === 'responded').length;
+  const ownerName = lookupUser(event.ownerId)?.name;
 
   return (
     <div className="space-y-5">
@@ -149,25 +67,13 @@ export function EventDetailPage() {
 
       <PageHeader
         title={event.title}
-        subtitle={event.description}
+        subtitle={event.description || undefined}
         badge={
           <div className="flex items-center gap-2">
             <StatusBadge status={event.status} />
             <span className="rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
               {event.type}
             </span>
-          </div>
-        }
-        actions={
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm">
-              <FileEdit className="size-3.5" />
-              Publish Amendment
-            </Button>
-            <Button size="sm">
-              <Send className="size-3.5" />
-              Send Reminder
-            </Button>
           </div>
         }
       />
@@ -184,28 +90,28 @@ export function EventDetailPage() {
             <Card>
               <CardHeader><CardTitle className="text-sm text-muted-foreground">Key Dates</CardTitle></CardHeader>
               <CardContent className="space-y-2 text-sm">
-                <div className="flex justify-between"><span className="text-muted-foreground">Published</span><span>{formatDate(event.publishDate)}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Deadline</span><span className="font-medium">{formatDate(event.deadline)}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Evaluation</span><span>{formatDate(event.evaluationDate)}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Award</span><span>{formatDate(event.awardDate)}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Published</span><span><OrDash value={event.publishDate && formatDate(event.publishDate)} /></span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Deadline</span><span className="font-medium"><OrDash value={event.deadline && formatDate(event.deadline)} /></span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Evaluation</span><span><OrDash value={event.evaluationDate && formatDate(event.evaluationDate)} /></span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Award</span><span><OrDash value={event.awardDate && formatDate(event.awardDate)} /></span></div>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader><CardTitle className="text-sm text-muted-foreground">Supplier Responses</CardTitle></CardHeader>
               <CardContent className="space-y-2 text-sm">
-                <div className="flex justify-between"><span className="text-muted-foreground">Invited</span><span className="font-medium">{event.supplierResponses.length}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Responded</span><span className="font-medium text-green-700">{responseRate}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Response Rate</span><span className="font-medium">{event.supplierResponses.length > 0 ? `${Math.round((responseRate / event.supplierResponses.length) * 100)}%` : '—'}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Invited</span><span className="font-medium">—</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Responded</span><span className="font-medium">—</span></div>
+                <p className="pt-1 text-xs text-muted-foreground">Invitations are not recorded yet.</p>
               </CardContent>
             </Card>
 
             <Card>
-              <CardHeader><CardTitle className="text-sm text-muted-foreground">Budget & Details</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="text-sm text-muted-foreground">Budget &amp; Details</CardTitle></CardHeader>
               <CardContent className="space-y-2 text-sm">
-                <div className="flex justify-between"><span className="text-muted-foreground">Budget</span><span className="font-medium">{formatCurrency(event.budget)}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Category</span><span>{event.category}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Owner</span><span>{event.owner}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Budget</span><span className="font-medium"><OrDash value={event.budget != null ? formatCurrency(event.budget) : null} /></span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Category</span><span><OrDash value={event.category} /></span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Owner</span><span><OrDash value={ownerName} /></span></div>
               </CardContent>
             </Card>
           </div>
@@ -215,30 +121,9 @@ export function EventDetailPage() {
           <Card>
             <CardHeader><CardTitle className="text-base">Supplier Tracking</CardTitle></CardHeader>
             <CardContent>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b">
-                    <th className="py-2 text-left font-medium text-muted-foreground">Supplier</th>
-                    <th className="py-2 text-left font-medium text-muted-foreground">Status</th>
-                    <th className="py-2 text-left font-medium text-muted-foreground">Response Date</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {event.supplierResponses.map((s) => (
-                    <tr key={s.name} className="border-b last:border-0">
-                      <td className="py-2 font-medium">{s.name}</td>
-                      <td className="py-2">
-                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${supplierStatusColors[s.status]}`}>
-                          {s.status === 'not-viewed' ? 'Not Viewed' : s.status.charAt(0).toUpperCase() + s.status.slice(1)}
-                        </span>
-                      </td>
-                      <td className="py-2 text-muted-foreground">
-                        {s.responseDate ? formatDate(s.responseDate) : '-'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <p className="py-6 text-center text-sm text-muted-foreground">
+                No suppliers invited yet.
+              </p>
             </CardContent>
           </Card>
         </TabsContent>

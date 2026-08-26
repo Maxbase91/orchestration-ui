@@ -1,6 +1,15 @@
-// Sourcing event list page: register of RFI/RFP/RFQ events with status, type
-// and category filters; rows deep-link into the event detail page. Sample
-// events mirror the ids used by the detail page's fixtures.
+// Sourcing event list page: the register of RFI/RFP/RFQ events, with status,
+// type and category filters; rows deep-link into the event detail page.
+//
+// Reads live events through useSourcingEvents(). It previously rendered a
+// hardcoded `mockEvents` array while the New Event wizard wrote to Postgres, so
+// a published event was stored and then invisible everywhere in the UI — the
+// register and the writer were looking at different worlds.
+//
+// There is deliberately no "Suppliers" column yet: invitation counts live in
+// sourcing_responses, which nothing writes to until the invitation work lands.
+// A column reading 0 for every event would look like data rather than an
+// unbuilt feature.
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
@@ -10,122 +19,29 @@ import { DataTable, type Column } from '@/components/shared/data-table';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { FilterBar, type FilterConfig } from '@/components/shared/filter-bar';
 import { formatDate } from '@/lib/format';
+import { useSourcingEvents } from '@/lib/db/hooks/use-sourcing-events';
+import { useUserLookup } from '@/lib/db/hooks/use-users';
 
-type EventStatus = 'draft' | 'published' | 'in-evaluation' | 'award-pending' | 'completed' | 'cancelled';
-type EventType = 'RFI' | 'RFP' | 'RFQ';
-
-interface SourcingEvent {
+/** Row shape for the table — the DB event plus the resolved owner name. */
+interface EventRow extends Record<string, unknown> {
   id: string;
   title: string;
   category: string;
-  type: EventType;
-  status: EventStatus;
-  supplierCount: number;
-  deadline: string;
+  type: string;
+  status: string;
+  deadline?: string;
   owner: string;
 }
 
-const mockEvents: SourcingEvent[] = [
-  {
-    id: 'SRC-001',
-    title: 'IT Consulting Framework 2025-2027',
-    category: 'IT Consulting',
-    type: 'RFP',
-    status: 'in-evaluation',
-    supplierCount: 6,
-    deadline: '2025-03-15',
-    owner: 'Marcus Johnson',
-  },
-  {
-    id: 'SRC-002',
-    title: 'Cloud Infrastructure Services',
-    category: 'Cloud Services',
-    type: 'RFQ',
-    status: 'published',
-    supplierCount: 4,
-    deadline: '2025-04-01',
-    owner: 'Sarah Chen',
-  },
-  {
-    id: 'SRC-003',
-    title: 'Office Furniture Renewal',
-    category: 'Facilities',
-    type: 'RFQ',
-    status: 'award-pending',
-    supplierCount: 3,
-    deadline: '2025-02-28',
-    owner: 'Anna Muller',
-  },
-  {
-    id: 'SRC-004',
-    title: 'Cybersecurity Assessment Services',
-    category: 'Security',
-    type: 'RFP',
-    status: 'draft',
-    supplierCount: 0,
-    deadline: '2025-05-01',
-    owner: 'Marcus Johnson',
-  },
-  {
-    id: 'SRC-005',
-    title: 'Market Research - AI/ML Landscape',
-    category: 'Research',
-    type: 'RFI',
-    status: 'completed',
-    supplierCount: 8,
-    deadline: '2025-01-31',
-    owner: 'Sarah Chen',
-  },
-  {
-    id: 'SRC-006',
-    title: 'Managed Print Services',
-    category: 'Facilities',
-    type: 'RFP',
-    status: 'cancelled',
-    supplierCount: 2,
-    deadline: '2025-02-15',
-    owner: 'Anna Muller',
-  },
-];
-
-const filterConfigs: FilterConfig[] = [
-  {
-    key: 'status',
-    label: 'Status',
-    type: 'select',
-    options: [
-      { label: 'Draft', value: 'draft' },
-      { label: 'Published', value: 'published' },
-      { label: 'In Evaluation', value: 'in-evaluation' },
-      { label: 'Award Pending', value: 'award-pending' },
-      { label: 'Completed', value: 'completed' },
-      { label: 'Cancelled', value: 'cancelled' },
-    ],
-  },
-  {
-    key: 'type',
-    label: 'Type',
-    type: 'select',
-    options: [
-      { label: 'RFI', value: 'RFI' },
-      { label: 'RFP', value: 'RFP' },
-      { label: 'RFQ', value: 'RFQ' },
-    ],
-  },
+const columns: Column<EventRow>[] = [
+  { key: 'id', label: 'ID', sortable: true },
+  { key: 'title', label: 'Title', sortable: true },
   {
     key: 'category',
     label: 'Category',
-    type: 'select',
-    options: Array.from(new Set(mockEvents.map((e) => e.category)))
-      .sort()
-      .map((c) => ({ label: c, value: c })),
+    sortable: true,
+    render: (item) => (item.category as string) || <span className="text-gray-400">—</span>,
   },
-];
-
-const columns: Column<SourcingEvent & Record<string, unknown>>[] = [
-  { key: 'id', label: 'ID', sortable: true },
-  { key: 'title', label: 'Title', sortable: true },
-  { key: 'category', label: 'Category', sortable: true },
   {
     key: 'type',
     label: 'Type',
@@ -142,50 +58,93 @@ const columns: Column<SourcingEvent & Record<string, unknown>>[] = [
     sortable: true,
     render: (item) => <StatusBadge status={item.status as string} />,
   },
-  { key: 'supplierCount', label: 'Suppliers', sortable: true },
   {
     key: 'deadline',
     label: 'Deadline',
     sortable: true,
-    render: (item) => formatDate(item.deadline as string),
+    render: (item) =>
+      item.deadline ? formatDate(item.deadline as string) : <span className="text-gray-400">—</span>,
   },
   { key: 'owner', label: 'Owner', sortable: true },
 ];
 
 export function EventListPage() {
   const navigate = useNavigate();
+  const lookupUser = useUserLookup();
+  const { data: events = [], isLoading } = useSourcingEvents();
   const [filters, setFilters] = useState<Record<string, string | string[]>>({});
 
+  const rows = useMemo<EventRow[]>(
+    () =>
+      events.map((e) => ({
+        id: e.id,
+        title: e.title,
+        category: e.category,
+        type: e.type,
+        status: e.status,
+        deadline: e.deadline,
+        owner: lookupUser(e.ownerId)?.name ?? 'Unassigned',
+      })),
+    [events, lookupUser],
+  );
+
+  // Category options come from the live data, so an event created with a new
+  // category is filterable without a code change.
+  const filterConfigs: FilterConfig[] = useMemo(
+    () => [
+      {
+        key: 'status',
+        label: 'Status',
+        type: 'select',
+        options: [
+          { label: 'Draft', value: 'draft' },
+          { label: 'Published', value: 'published' },
+          { label: 'In Evaluation', value: 'in-evaluation' },
+          { label: 'Award Pending', value: 'award-pending' },
+          { label: 'Completed', value: 'completed' },
+          { label: 'Cancelled', value: 'cancelled' },
+        ],
+      },
+      {
+        key: 'type',
+        label: 'Type',
+        type: 'select',
+        options: [
+          { label: 'RFI', value: 'RFI' },
+          { label: 'RFP', value: 'RFP' },
+          { label: 'RFQ', value: 'RFQ' },
+        ],
+      },
+      {
+        key: 'category',
+        label: 'Category',
+        type: 'select',
+        options: Array.from(new Set(events.map((e) => e.category).filter(Boolean)))
+          .sort()
+          .map((c) => ({ label: c, value: c })),
+      },
+    ],
+    [events],
+  );
+
   const filtered = useMemo(() => {
-    let result = mockEvents;
-
-    const status = filters.status;
-    if (status && typeof status === 'string') {
-      result = result.filter((e) => e.status === status);
+    let result = rows;
+    for (const key of ['status', 'type', 'category'] as const) {
+      const value = filters[key];
+      if (value && typeof value === 'string') {
+        result = result.filter((e) => e[key] === value);
+      }
     }
-
-    const type = filters.type;
-    if (type && typeof type === 'string') {
-      result = result.filter((e) => e.type === type);
-    }
-
-    const category = filters.category;
-    if (category && typeof category === 'string') {
-      result = result.filter((e) => e.category === category);
-    }
-
     return result;
-  }, [filters]);
-
-  const tableData = filtered.map((e) => ({ ...e } as SourcingEvent & Record<string, unknown>));
+  }, [rows, filters]);
 
   return (
     <div className="space-y-5">
       <PageHeader
         title="Sourcing Events"
-        subtitle={`${filtered.length} events`}
+        subtitle={isLoading ? 'Loading…' : `${filtered.length} events`}
         actions={
-          <Button>
+          <Button onClick={() => navigate('/sourcing/new')}>
             <Plus className="size-4" />
             New Event
           </Button>
@@ -201,11 +160,11 @@ export function EventListPage() {
 
       <DataTable
         columns={columns}
-        data={tableData}
+        data={filtered}
         onRowClick={(item) => navigate(`/sourcing/${item.id}`)}
         searchable
         searchPlaceholder="Search events..."
-        emptyMessage="No sourcing events found."
+        emptyMessage={isLoading ? 'Loading events…' : 'No sourcing events found.'}
       />
     </div>
   );
