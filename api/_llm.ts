@@ -3,6 +3,19 @@
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
+// Single source of truth for the Groq model — it was previously repeated at all
+// three call sites, so a decommissioned ID had to be fixed in three places.
+//
+// Groq retires hosted models on a rolling schedule and the retired ID then
+// returns **404** (not 401) from the chat-completions endpoint, which reads like
+// an outage rather than a config problem. The predecessor here,
+// `llama-3.3-70b-versatile`, was deprecated on 2026-08-16; this replaces it with
+// Groq's own recommended successor. Still the governed Groq provider (CLS-G0) —
+// the `openai/` segment is just the open-weight model's name, the request goes
+// to api.groq.com with GROQ_API_KEY exactly as before. Chosen over
+// `qwen/qwen3.6-27b` because the assistant depends on tool-calling.
+const GROQ_MODEL = 'openai/gpt-oss-120b';
+
 export interface LLMMessage {
   role: 'system' | 'user' | 'assistant' | 'tool';
   content: string;
@@ -52,7 +65,7 @@ export async function callLLMWithTools(
   const timer = setTimeout(() => controller.abort(), 15000);
 
   const body = {
-    model: 'llama-3.3-70b-versatile',
+    model: GROQ_MODEL,
     messages,
     tools,
     tool_choice: 'auto',
@@ -139,7 +152,7 @@ async function callGroq(
   jsonMode: boolean,
 ): Promise<string | null> {
   const body: Record<string, unknown> = {
-    model: 'llama-3.3-70b-versatile',
+    model: GROQ_MODEL,
     messages,
     temperature,
     max_tokens: maxTokens,
@@ -190,7 +203,7 @@ export async function callLLMStreaming(
   if (!groqKey) throw new Error('GROQ_API_KEY not set');
 
   const body: Record<string, unknown> = {
-    model: 'llama-3.3-70b-versatile',
+    model: GROQ_MODEL,
     messages,
     stream: true,
     max_tokens: 1024,

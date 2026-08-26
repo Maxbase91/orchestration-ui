@@ -26,7 +26,7 @@ The AI assistant is a conversational procurement concierge — it answers policy
 ```
 User message
     │
-    ▼ POST /api/chat (Groq llama-3.3-70b-versatile)
+    ▼ POST /api/chat (Groq openai/gpt-oss-120b)
        ┌ Structured tool_calls? ──► execute tool ──► second LLM call (tool_choice:none)
        │
        └ Text-based tool call? (e.g. "search_knowledge: ...")
