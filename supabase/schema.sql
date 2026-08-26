@@ -873,3 +873,25 @@ CREATE TABLE IF NOT EXISTS sourcing_responses (
 );
 ALTER TABLE sourcing_responses ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "sourcing_responses_all" ON sourcing_responses FOR ALL USING (true) WITH CHECK (true);
+
+-- Support tickets — raised from the Contact Support form and from the assistant's
+-- handover capability. The platform's own store is the system of record; there is
+-- no upstream service desk in this release.
+--
+-- Backfilled into this file after the fact: the table was created directly against
+-- the database and never committed, so a fresh environment provisioned from this
+-- schema had no tickets table while the live one did. Columns below mirror the
+-- live table exactly — do not "tidy" them without migrating the deployed database.
+CREATE TABLE IF NOT EXISTS tickets (
+  id         TEXT PRIMARY KEY,
+  summary    TEXT NOT NULL,
+  context    TEXT NOT NULL,
+  status     TEXT DEFAULT 'open',
+  created_at TIMESTAMPTZ DEFAULT now(),
+  created_by TEXT NOT NULL,
+  category   TEXT,
+  priority   TEXT DEFAULT 'medium'
+);
+ALTER TABLE tickets ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "allow all" ON tickets;
+CREATE POLICY "allow all" ON tickets FOR ALL USING (true) WITH CHECK (true);
