@@ -20,7 +20,7 @@ An interactive UI prototype that shows what a modern procurement orchestration p
 - **Supplier Portal** — Self-service portal for external suppliers (onboarding, invoices, messaging)
 - **No-Code Admin** — Visual routing rules engine, drag-and-drop workflow designer, AI agent configuration
 - **Analytics** — Spend dashboards, compliance KPIs, pipeline analytics, and a drag-and-drop report builder
-- **Support Ticket Inbox** — agent-side queue for tickets raised from Contact Support or the assistant: assign, forward, reply, internal notes, resolve, and references to the requests / POs / suppliers a ticket is about
+- **Support Ticket Inbox** — agent-side queue for tickets raised from Contact Support or the assistant: assign, forward, reply, internal notes, resolve, **priority-based SLAs with breach flags**, references to the requests / POs / suppliers a ticket is about, and the full chat transcript for assistant-raised tickets
 
 ---
 
@@ -71,7 +71,7 @@ An interactive UI prototype that shows what a modern procurement orchestration p
 | Report Builder | Drag-and-drop report creation with chart type selection |
 | Notifications | Grouped feed with type filtering and notification preferences |
 | AI Assistant | Floating chat overlay + full-page mode with keyword-triggered responses |
-| Ticket Inbox | Agent-only support queue (`/help/inbox`): standing views, priority/category filters, search, and a detail drawer to **assign, forward, reply, add internal notes and resolve**. Tickets link to requests, POs, suppliers, contracts and invoices so the owner sees the context |
+| Ticket Inbox | Agent-only support queue (`/help/inbox`): standing views incl. **Breaching**, SLA badges, headline metrics, filters and search, plus a drawer to **assign, forward, reply, add internal notes and resolve**. Tickets link to requests, POs, suppliers, contracts and invoices; assistant-raised tickets carry the **full conversation transcript** |
 
 ---
 
@@ -130,7 +130,8 @@ npm run test:determination        # contract-type + sourcing-type determination
 npm run test:determination-export # exportable determination (structured Markdown)
 npm run test:second-contract      # second contract check (frameworks/MSAs vs transactable)
 npm run test:sow-narrative        # SOW narrative is synthesised from the service description
-npm run test:tickets              # support tickets — entitlement, internal notes, status lifecycle
+npm run test:tickets              # support tickets — entitlement, internal notes, status lifecycle, references
+npm run test:ticket-sla           # ticket SLA — targets, due dates, breach/at-risk, waiting-on-user pause
 npm run test:approval-to-source   # approval-to-source gate (light vs full pre-sourcing approvals)
 npm run test:residual-questions   # criteria-triggered stage-5 residual questions (mini-IRQ deltas)
 npm run test:demand-conversation  # dynamic intake — answer-driven next question + carry-forward + branching

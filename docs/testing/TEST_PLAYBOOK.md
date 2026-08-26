@@ -127,6 +127,12 @@ not in a component — because RLS is currently `USING (true)`.
 | TC-TKT-14 | Resolve | Selecting **Resolved** opens a resolution prompt; resolving without a note is refused. On resolve, `resolved_at` is stamped, the requester is notified, and the resolution shows in their thread |
 | TC-TKT-15 | References (`npm run test:tickets`) | A ticket can link to **requests, POs, suppliers, contracts and invoices**, several at once. The picker searches real objects by id/name — no free-text id entry. Each reference deep-links to its object. Re-linking the same object is a no-op, not a duplicate. Removing a link is audited |
 | TC-TKT-16 | Requester thread | On Help → Contact Support a requester expands their own ticket and sees replies and the resolution — and **never** an internal note |
+| TC-TKT-17 | SLA targets (`npm run test:ticket-sla`) | `due_at` set on raise from `sla_targets` (stage `ticket`, channel = priority): high 4h, medium 8h, low 24h. An unknown priority falls back to `default`; with no targets at all a ticket is still bounded, never unlimited |
+| TC-TKT-18 | Breach + at-risk | Rows inside the last hour show **Due soon**; past due show **SLA breached**. The **Breaching** standing view lists both. A ticket with no `due_at` is `none`, **not** on-track — it must not be reported as healthy |
+| TC-TKT-19 | Clock pause | Setting **Waiting on user** clears `due_at`, so the ticket cannot breach while the requester is the blocker; moving back to open/in-progress starts a **fresh** window from now. Resolved and cancelled are also paused |
+| TC-TKT-20 | Queue metrics | Header shows Open / Breached / At risk / Median-to-resolve. Median covers **resolved only** — cancelled tickets are excluded so they cannot flatter it |
+| TC-TKT-21 | Requester references | On Contact Support a requester expands their ticket and can link objects **their role can already see**: every internal role gets requests (their own only); supplier-management roles also get suppliers; core internal roles also get contracts/POs/invoices. The **external supplier role gets no picker at all** |
+| TC-TKT-22 | Chat transcript | A ticket raised through the assistant stores the **verbatim conversation**, not just the model's summary. The drawer shows it under "Assistant conversation" (collapsed). Verify in both `groq` and `mock` provider modes |
 | TC-TKT-07 | Concurrent submission | Two tickets raised at the same moment get distinct ids. Both intake paths draw from `ticket_number_seq`; they previously read the maximum and raced |
 
 ## Suite APR — approvals & tasks

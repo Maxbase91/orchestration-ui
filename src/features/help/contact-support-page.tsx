@@ -18,6 +18,9 @@ import {
 import { PageHeader } from '@/components/shared/page-header';
 import { createTicket, listTickets } from '@/lib/db/tickets';
 import { useTicketResponses } from '@/lib/db/hooks/use-tickets';
+import { TicketLinksPanel } from '@/features/help/ticket-inbox/ticket-links-panel';
+import { ticketLinkTypesForRole } from '@/config/roles';
+import type { TicketLinkType } from '@/data/types';
 import type { Ticket as TicketRecord } from '@/data/types';
 import { TicketPriorityBadge, TicketStatusBadge } from '@/features/help/ticket-inbox/ticket-badges';
 import { useAuthStore } from '@/stores/auth-store';
@@ -81,16 +84,37 @@ function AskAIBanner() {
  * layer — the requester never receives them, rather than receiving them and
  * having the component decline to render.
  */
-function RequesterThread({ ticketId, resolution }: { ticketId: string; resolution?: string }) {
+function RequesterThread({
+  ticketId,
+  resolution,
+  actor,
+  allowedTypes,
+}: {
+  ticketId: string;
+  resolution?: string;
+  actor: { id: string; name: string };
+  allowedTypes: TicketLinkType[];
+}) {
   const { data: responses = [], isLoading } = useTicketResponses(ticketId);
 
   if (isLoading) return <p className="py-2 text-xs text-muted-foreground">Loading replies…</p>;
-  if (responses.length === 0 && !resolution) {
-    return <p className="py-2 text-xs text-muted-foreground">No replies yet.</p>;
-  }
 
   return (
     <div className="space-y-2 py-2">
+      {/* The requester can point support at the request/PO/supplier the ticket
+          is about — the types are scoped to what their role can already see. */}
+      <div className="rounded border bg-gray-50 p-2.5">
+        <TicketLinksPanel
+          ticketId={ticketId}
+          actor={actor}
+          allowedTypes={allowedTypes}
+          ownRequestsOnlyFor={actor.id}
+          readOnly={allowedTypes.length === 0}
+        />
+      </div>
+      {responses.length === 0 && !resolution && (
+        <p className="text-xs text-muted-foreground">No replies yet.</p>
+      )}
       {responses.map((r) => (
         <div key={r.id} className="rounded border bg-white p-2.5">
           <div className="mb-0.5 flex items-center gap-2">
@@ -114,7 +138,17 @@ function RequesterThread({ ticketId, resolution }: { ticketId: string; resolutio
   );
 }
 
-function MyTickets({ userName, isAdmin }: { userName: string; isAdmin: boolean }) {
+function MyTickets({
+  userName,
+  isAdmin,
+  actor,
+  allowedTypes,
+}: {
+  userName: string;
+  isAdmin: boolean;
+  actor: { id: string; name: string };
+  allowedTypes: TicketLinkType[];
+}) {
   const [tickets, setTickets] = useState<TicketRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -165,7 +199,14 @@ function MyTickets({ userName, isAdmin }: { userName: string; isAdmin: boolean }
             </p>
           </div>
           </button>
-          {expanded === t.id && <RequesterThread ticketId={t.id} resolution={t.resolution} />}
+          {expanded === t.id && (
+            <RequesterThread
+              ticketId={t.id}
+              resolution={t.resolution}
+              actor={actor}
+              allowedTypes={allowedTypes}
+            />
+          )}
         </div>
       ))}
     </div>
@@ -319,7 +360,13 @@ export function ContactSupportPage() {
             <p className="mb-4 text-xs text-muted-foreground">
               {isAdmin ? 'All submitted support tickets' : 'Tickets you have submitted'}
             </p>
-            <MyTickets userName={currentUser.name} isAdmin={isAdmin} key={ticketCount} />
+            <MyTickets
+              userName={currentUser.name}
+              isAdmin={isAdmin}
+              actor={{ id: currentUser.id, name: currentUser.name }}
+              allowedTypes={ticketLinkTypesForRole(currentRole) as TicketLinkType[]}
+              key={ticketCount}
+            />
           </Card>
         </div>
 

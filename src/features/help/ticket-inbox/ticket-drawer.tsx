@@ -116,6 +116,19 @@ export function TicketDrawer({ ticket, open, onOpenChange }: TicketDrawerProps) 
             </div>
           )}
 
+          {ticket.transcript && (
+            <details className="rounded border bg-white">
+              <summary className="cursor-pointer px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+                Assistant conversation
+              </summary>
+              {/* Verbatim, not the model's summary — the detail that matters is
+                  usually several turns before the user asked for a human. */}
+              <p className="whitespace-pre-wrap border-t px-3 py-2 text-sm leading-relaxed text-gray-700">
+                {ticket.transcript}
+              </p>
+            </details>
+          )}
+
           <div>
             <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
               Correspondence

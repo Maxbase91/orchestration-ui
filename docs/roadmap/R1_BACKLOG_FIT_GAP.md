@@ -291,8 +291,14 @@ the full status lifecycle with a required resolution note, and **polymorphic ref
 links to requests, POs, suppliers, contracts and invoices via `ticket_links`, so the owner sees the
 context and any of those objects can show its support history. Every action writes an audit entry and
 notifies; internal notes notify nobody.
-**Remaining — SLA (P4):** `due_at` from `sla_targets`, breach + at-risk flags, a Breaching view, and
-support KPIs (open by age, time to first response, time to resolve).
+**SLA landed (P4):** `due_at` computed on raise from `sla_targets` (stage `ticket`, channel =
+priority; hours rather than days), breach + at-risk classification, a **Breaching** standing view,
+row badges and headline metrics. `waiting-on-user` pauses the clock, so a ticket cannot breach while
+the requester is the blocker. Requesters can attach their own references, scoped to the object types
+their role can already see. Assistant-raised tickets carry the **verbatim conversation**, not just the
+model's summary.
+**AST-S-01 raise ticket 🟢 → the ticket lifecycle is now complete end to end.** Remaining in AST-S:
+AST-S-02 schedule appointment 🔴 · AST-S-03 route to training 🔴.
 
 #### AST-X — Conversation Experience — 🟡 Partial
 AST-X-01 multi-conversation UI 🟡 (Web+overlay; **no Teams**) · AST-X-02 history & retention 🟢 ·

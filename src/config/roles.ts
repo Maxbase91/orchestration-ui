@@ -30,3 +30,28 @@ export const ticketAgentRoles: Role[] = ['admin', 'procurement-manager', 'operat
 export function canWorkTickets(role: Role): boolean {
   return ticketAgentRoles.includes(role);
 }
+
+/**
+ * Object kinds each role may reference from a ticket.
+ *
+ * Derived from what the role can already see in the app, not invented: a picker
+ * that lists objects a role has no nav access to would leak ids and names
+ * through the back door. Mirrors the visibility groups in navigation.ts —
+ * requests are visible to every internal role, suppliers to the supplier-
+ * management roles, and contracts / POs / invoices to the core internal roles.
+ *
+ * The external supplier role gets nothing: it must not be able to enumerate
+ * internal objects from a support form.
+ */
+export function ticketLinkTypesForRole(role: Role): string[] {
+  if (role === 'supplier') return [];
+
+  const types = ['purchase-request'];
+  if (['procurement-manager', 'vendor-manager', 'operations-lead', 'admin'].includes(role)) {
+    types.push('supplier');
+  }
+  if (['procurement-manager', 'operations-lead', 'admin'].includes(role)) {
+    types.push('contract', 'purchase-order', 'invoice');
+  }
+  return types;
+}

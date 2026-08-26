@@ -342,7 +342,7 @@ export const mockProvider: AssistantProvider = {
 
       case 'handover': {
         const context = `User requested human assistance. Query: "${input}". Role: ${ctx.role}.`;
-        return await createTicket(`Handover requested: ${input.slice(0, 80)}`, context, ctx);
+        return await createTicket(`Handover requested: ${input.slice(0, 80)}`, context, ctx, messages);
       }
 
       default:

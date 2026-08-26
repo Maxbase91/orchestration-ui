@@ -14,6 +14,7 @@
 import { supabase } from '@/lib/supabase-client';
 import { createAuditEntry } from './audit-entries';
 import { createNotification } from './notifications';
+import { computeDueAt, isSlaPaused, type TicketSlaTarget } from '@/lib/procurement/ticket-sla';
 import type {
   Ticket,
   TicketLink,
@@ -38,6 +39,7 @@ interface TicketRow {
   owner_id: string | null;
   owner_name: string | null;
   source: string | null;
+  transcript: string | null;
   due_at: string | null;
   updated_at: string | null;
   resolved_at: string | null;
@@ -68,6 +70,7 @@ function mapDbToTicket(row: TicketRow): Ticket {
     ...(row.owner_id ? { ownerId: row.owner_id } : {}),
     ...(row.owner_name ? { ownerName: row.owner_name } : {}),
     ...(row.source ? { source: row.source } : {}),
+    ...(row.transcript ? { transcript: row.transcript } : {}),
     ...(row.due_at ? { dueAt: row.due_at } : {}),
     ...(row.updated_at ? { updatedAt: row.updated_at } : {}),
     ...(row.resolved_at ? { resolvedAt: row.resolved_at } : {}),
@@ -108,10 +111,37 @@ export interface CreateTicketInput {
   category?: string;
   priority?: string;
   source?: 'form' | 'assistant';
+  /** Verbatim conversation, when raised from the assistant. */
+  transcript?: string;
+}
+
+/**
+ * SLA targets for tickets, from the shared sla_targets table (stage 'ticket',
+ * channel = priority). Read at create time so a target changed in admin applies
+ * to new tickets without a deploy.
+ */
+async function loadTicketSlaTargets(): Promise<TicketSlaTarget[]> {
+  const { data, error } = await supabase
+    .from('sla_targets')
+    .select('channel, hours, days')
+    .eq('stage', 'ticket');
+  if (error || !data) return [];
+  return data
+    .map((r) => {
+      const row = r as { channel: string; hours: number | null; days: number | null };
+      // `hours` wins where set; `days` is the table's original unit and still
+      // the fallback for a row that predates ticket SLAs.
+      const hours = row.hours ?? (row.days != null ? row.days * 24 : null);
+      return hours != null ? { channel: row.channel, hours } : null;
+    })
+    .filter((t): t is TicketSlaTarget => t !== null);
 }
 
 export async function createTicket(input: CreateTicketInput): Promise<Ticket> {
   const id = await nextTicketId();
+  const targets = await loadTicketSlaTargets();
+  const dueAt = computeDueAt(new Date(), input.priority, targets);
+
   const { data, error } = await supabase
     .from(TABLE)
     .insert({
@@ -121,8 +151,10 @@ export async function createTicket(input: CreateTicketInput): Promise<Ticket> {
       status: 'open',
       created_by: input.createdBy,
       source: input.source ?? 'form',
+      due_at: dueAt,
       ...(input.category ? { category: input.category } : {}),
       ...(input.priority ? { priority: input.priority } : {}),
+      ...(input.transcript ? { transcript: input.transcript } : {}),
     })
     .select('*')
     .single();
@@ -227,9 +259,25 @@ export async function setTicketStatus(
     throw new Error('A resolution note is required to resolve a ticket.');
   }
   const terminal = status === 'resolved' || status === 'cancelled';
+
+  // Stop the clock by clearing due_at, and restart it from now on the way back.
+  // A ticket returning from waiting-on-user deserves a fresh response window;
+  // accumulating paused time would need another column and every transition to
+  // maintain it.
+  let dueAt: string | null | undefined;
+  if (isSlaPaused(status)) {
+    dueAt = null;
+  } else {
+    const current = await getTicket(id);
+    if (!current?.dueAt) {
+      dueAt = computeDueAt(new Date(), current?.priority, await loadTicketSlaTargets());
+    }
+  }
+
   const ticket = await patchTicket(id, {
     status,
     resolved_at: terminal ? new Date().toISOString() : null,
+    ...(dueAt !== undefined ? { due_at: dueAt } : {}),
     ...(resolution?.trim() ? { resolution: resolution.trim() } : {}),
   });
 

@@ -4,7 +4,8 @@
 // inbox must agree on what "in progress" looks like — a user reading a colour on
 // one screen and a different colour on the other has to re-learn the vocabulary.
 
-import type { TicketStatus } from '@/data/types';
+import type { Ticket, TicketStatus } from '@/data/types';
+import { slaState } from '@/lib/procurement/ticket-sla';
 
 const STATUS_STYLES: Record<string, string> = {
   open: 'bg-amber-100 text-amber-800',
@@ -45,6 +46,26 @@ export function TicketPriorityBadge({ priority }: { priority: string }) {
       }`}
     >
       {priority}
+    </span>
+  );
+}
+
+/**
+ * SLA state. Silent when on-track, paused, or when no target was ever set —
+ * a badge on every row would make the two states that need attention invisible.
+ */
+export function TicketSlaBadge({ ticket }: { ticket: Ticket }) {
+  const state = slaState(ticket);
+  if (state !== 'breached' && state !== 'at-risk') return null;
+
+  const breached = state === 'breached';
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${
+        breached ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'
+      }`}
+    >
+      {breached ? 'SLA breached' : 'Due soon'}
     </span>
   );
 }

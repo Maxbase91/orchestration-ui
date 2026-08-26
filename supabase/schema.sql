@@ -964,3 +964,23 @@ CREATE INDEX IF NOT EXISTS ticket_links_ticket_idx ON ticket_links(ticket_id);
 CREATE INDEX IF NOT EXISTS ticket_links_object_idx ON ticket_links(object_type, object_id);
 
 ALTER TABLE tickets DROP COLUMN IF EXISTS request_id;
+
+-- Verbatim assistant conversation captured when a ticket is raised from chat.
+-- Kept separate from `context` (the model's own summary) so the agent reads what
+-- the user actually said: a summary is a paraphrase, and the detail that matters
+-- is usually several turns before the user asked for a human.
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS transcript TEXT;
+
+-- Ticket SLAs are measured in hours ("within 4 hours"), which the table's
+-- original `days` column cannot express. Nullable and additive: existing stage
+-- rows keep using `days`, and a row that sets `hours` takes precedence.
+ALTER TABLE sla_targets ADD COLUMN IF NOT EXISTS hours INT;
+
+-- Ticket first-response targets, keyed (stage, channel) as the table already is:
+-- stage 'ticket', channel = the ticket's priority.
+INSERT INTO sla_targets (stage, channel, days, hours) VALUES
+  ('ticket', 'high',    1, 4),
+  ('ticket', 'medium',  1, 8),
+  ('ticket', 'low',     3, 24),
+  ('ticket', 'default', 1, 8)
+ON CONFLICT (stage, channel) DO UPDATE SET hours = EXCLUDED.hours, days = EXCLUDED.days;

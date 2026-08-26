@@ -1,12 +1,12 @@
-// Agent-side support queue.
-//
-// P2 of the ticket inbox: read and triage only. Assign, reply, close and forward
-// land in P3, so this page deliberately claims nothing it cannot do — there are
-// no disabled action buttons hinting at features that do not exist yet.
+// Agent-side support queue: triage, then work a ticket in the drawer.
 //
 // Route-guarded to the agent roles (see canWorkTickets). The guard is a
 // convenience, not the boundary: the entitlement that matters is applied in
 // listTickets, because RLS is currently permissive.
+//
+// SLA state is computed client-side from due_at rather than stored, so a ticket
+// that crosses its deadline while the queue is open reads as breached without a
+// refresh or a server round-trip.
 
 import { useMemo, useState } from 'react';
 import { formatDistanceToNow, parseISO } from 'date-fns';
@@ -24,21 +24,21 @@ import { PageHeader } from '@/components/shared/page-header';
 import { useTickets } from '@/lib/db/hooks/use-tickets';
 import { useAuthStore } from '@/stores/auth-store';
 import { TERMINAL_TICKET_STATUSES, type Ticket } from '@/data/types';
+import { slaState, ticketSlaMetrics } from '@/lib/procurement/ticket-sla';
 import { TicketDrawer } from './ticket-drawer';
-import { TicketPriorityBadge, TicketStatusBadge } from './ticket-badges';
+import { TicketPriorityBadge, TicketStatusBadge, TicketSlaBadge } from './ticket-badges';
 
 /**
  * Standing views. `unassigned` leads because an unowned ticket is the only state
- * where nobody has picked the work up — that is what a queue is for.
- *
- * A "breaching" view is deliberately absent: due_at is not populated until the
- * SLA work in P4, so the view would render empty for every ticket and read as a
- * bug rather than an unbuilt feature.
+ * where nobody has picked the work up — that is what a queue is for. `breaching`
+ * sits beside it because a breached ticket is the other thing that needs a
+ * person now, whoever owns it.
  */
-type View = 'unassigned' | 'mine' | 'open' | 'all';
+type View = 'unassigned' | 'breaching' | 'mine' | 'open' | 'all';
 
 const VIEWS: { id: View; label: string }[] = [
   { id: 'unassigned', label: 'Unassigned' },
+  { id: 'breaching', label: 'Breaching' },
   { id: 'mine', label: 'Mine' },
   { id: 'open', label: 'All open' },
   { id: 'all', label: 'All' },
@@ -49,6 +49,10 @@ function matchesView(ticket: Ticket, view: View, currentUserId: string): boolean
     case 'unassigned':
       // Terminal tickets without an owner are history, not outstanding work.
       return !ticket.ownerId && !TERMINAL_TICKET_STATUSES.includes(ticket.status);
+    case 'breaching': {
+      const state = slaState(ticket);
+      return state === 'breached' || state === 'at-risk';
+    }
     case 'mine':
       return ticket.ownerId === currentUserId;
     case 'open':
@@ -56,6 +60,25 @@ function matchesView(ticket: Ticket, view: View, currentUserId: string): boolean
     case 'all':
       return true;
   }
+}
+
+function Stat({
+  label,
+  value,
+  tone = 'neutral',
+}: {
+  label: string;
+  value: number | string;
+  tone?: 'neutral' | 'warn' | 'bad';
+}) {
+  const toneClass =
+    tone === 'bad' ? 'text-red-700' : tone === 'warn' ? 'text-amber-700' : 'text-gray-900';
+  return (
+    <div className="rounded-lg border bg-white px-3 py-2">
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">{label}</p>
+      <p className={`text-lg font-semibold tabular-nums ${toneClass}`}>{value}</p>
+    </div>
+  );
 }
 
 export function TicketInboxPage() {
@@ -77,6 +100,8 @@ export function TicketInboxPage() {
     () => [...new Set(tickets.map((t) => t.category).filter(Boolean))].sort() as string[],
     [tickets],
   );
+
+  const metrics = useMemo(() => ticketSlaMetrics(tickets), [tickets]);
 
   const counts = useMemo(() => {
     const out = {} as Record<View, number>;
@@ -105,6 +130,16 @@ export function TicketInboxPage() {
         title="Ticket Inbox"
         subtitle="Support requests raised from Contact Support and the AI assistant"
       />
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <Stat label="Open" value={metrics.open} />
+        <Stat label="Breached" value={metrics.breached} tone={metrics.breached > 0 ? 'bad' : 'neutral'} />
+        <Stat label="At risk" value={metrics.atRisk} tone={metrics.atRisk > 0 ? 'warn' : 'neutral'} />
+        <Stat
+          label="Median to resolve"
+          value={metrics.medianHoursToResolve === null ? '—' : `${metrics.medianHoursToResolve.toFixed(1)}h`}
+        />
+      </div>
 
       <Tabs value={view} onValueChange={(v) => setView(v as View)}>
         <TabsList>
@@ -182,6 +217,7 @@ export function TicketInboxPage() {
                       Unassigned
                     </span>
                   )}
+                  <TicketSlaBadge ticket={t} />
                 </div>
                 <p className="truncate text-sm text-gray-800">{t.summary}</p>
                 <p className="mt-0.5 text-[11px] text-gray-400">

@@ -376,11 +376,28 @@ async function execRememberPreference(
   return JSON.stringify({ remembered: true, key, value });
 }
 
+/**
+ * Render the conversation verbatim for the ticket record.
+ *
+ * The model is asked for a `context` summary, but a summary is a paraphrase and
+ * can drop the detail that matters. Attaching the real turns means the agent
+ * reads what the user actually said. System messages are excluded — they are
+ * prompt scaffolding, not conversation.
+ */
+function renderTranscript(messages: Array<{ role: string; content: string }>): string {
+  return messages
+    .filter((m) => m.role === 'user' || m.role === 'assistant')
+    .filter((m) => typeof m.content === 'string' && m.content.trim())
+    .map((m) => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content.trim()}`)
+    .join('\n\n');
+}
+
 async function execCreateTicket(
   summary: string,
   context: string,
   userId: string,
   userName: string,
+  transcript?: string,
 ): Promise<{ ticketId: string }> {
   // Shares the ticket_number_seq sequence with the browser-side ticket module.
   // The code can't be shared — that module imports the Vite-aliased Supabase
@@ -398,6 +415,7 @@ async function execCreateTicket(
     status: 'open',
     created_by: userName || userId,
     source: 'assistant',
+    ...(transcript ? { transcript } : {}),
   });
 
   return { ticketId };
@@ -759,6 +777,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           (args.context as string) ?? '',
           ctx?.currentUser?.id ?? 'unknown',
           ctx?.currentUser?.name ?? 'Unknown User',
+          renderTranscript(rawMessages),
         );
         ticketCreated = ticketId;
         toolResult = JSON.stringify({ ticketId, created: true });

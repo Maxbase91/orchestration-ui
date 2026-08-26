@@ -6,13 +6,28 @@
 // reads Supabase — so the ticket it promised could never be found there.
 
 import { createTicket as persistTicket } from '@/lib/db/tickets';
-import type { AssistantTurn } from '@/data/types';
+import type { AssistantMessage, AssistantTurn } from '@/data/types';
 import type { ProviderContext } from '../provider';
+
+/**
+ * Render the conversation verbatim for the ticket record.
+ *
+ * A one-line summary loses the detail an agent needs — the user usually
+ * explained the problem several turns before asking for a human. Mirrors
+ * renderTranscript() in api/chat.ts; keep the two in step.
+ */
+function renderTranscript(messages: AssistantMessage[]): string {
+  return messages
+    .filter((m) => typeof m.content === 'string' && m.content.trim())
+    .map((m) => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content.trim()}`)
+    .join('\n\n');
+}
 
 export async function createTicket(
   summary: string,
   context: string,
   ctx: ProviderContext,
+  conversation: AssistantMessage[] = [],
 ): Promise<AssistantTurn[]> {
   let ticket;
   try {
@@ -21,6 +36,7 @@ export async function createTicket(
       context,
       createdBy: ctx.currentUser.name,
       source: 'assistant',
+      transcript: renderTranscript(conversation),
     });
   } catch {
     // Never strand the user on a storage failure: say plainly that it did not

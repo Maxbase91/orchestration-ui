@@ -33,6 +33,16 @@ import { TICKET_LINK_META, TICKET_LINK_TYPES, type TicketLinkType } from '@/data
 interface TicketLinksPanelProps {
   ticketId: string;
   actor: { id: string; name: string };
+  /**
+   * Types this user may link. Defaults to everything (the agent view); the
+   * requester view passes their role's subset so the picker can't be used to
+   * enumerate objects the role has no access to.
+   */
+  allowedTypes?: readonly TicketLinkType[];
+  /** Restrict requests to ones the user raised — the requester view. */
+  ownRequestsOnlyFor?: string;
+  /** Hide the panel entirely when the user may link nothing. */
+  readOnly?: boolean;
 }
 
 interface Candidate {
@@ -40,13 +50,19 @@ interface Candidate {
   label: string;
 }
 
-export function TicketLinksPanel({ ticketId, actor }: TicketLinksPanelProps) {
+export function TicketLinksPanel({
+  ticketId,
+  actor,
+  allowedTypes = TICKET_LINK_TYPES,
+  ownRequestsOnlyFor,
+  readOnly = false,
+}: TicketLinksPanelProps) {
   const { data: links = [] } = useTicketLinks(ticketId);
   const addLink = useAddTicketLink();
   const removeLink = useRemoveTicketLink();
 
   const [adding, setAdding] = useState(false);
-  const [type, setType] = useState<TicketLinkType>('purchase-request');
+  const [type, setType] = useState<TicketLinkType>(allowedTypes[0] ?? 'purchase-request');
   const [search, setSearch] = useState('');
 
   const { data: requests = [] } = useRequests();
@@ -60,7 +76,9 @@ export function TicketLinksPanel({ ticketId, actor }: TicketLinksPanelProps) {
   const candidates = useMemo<Candidate[]>(() => {
     switch (type) {
       case 'purchase-request':
-        return requests.map((r) => ({ id: r.id, label: r.title }));
+        return requests
+          .filter((r) => !ownRequestsOnlyFor || r.requestorId === ownRequestsOnlyFor)
+          .map((r) => ({ id: r.id, label: r.title }));
       case 'purchase-order':
         return orders.map((o) => ({ id: o.id, label: `${o.supplierName} — ${o.status}` }));
       case 'supplier':
@@ -72,7 +90,7 @@ export function TicketLinksPanel({ ticketId, actor }: TicketLinksPanelProps) {
       default:
         return [];
     }
-  }, [type, requests, orders, suppliers, contracts, invoices]);
+  }, [type, requests, orders, suppliers, contracts, invoices, ownRequestsOnlyFor]);
 
   const matches = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -115,15 +133,19 @@ export function TicketLinksPanel({ ticketId, actor }: TicketLinksPanelProps) {
         <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">
           References
         </p>
-        <Button variant="ghost" size="sm" className="h-6 px-2 text-[11px]" onClick={() => setAdding((a) => !a)}>
-          <Plus className="mr-1 size-3" />
-          {adding ? 'Cancel' : 'Link'}
-        </Button>
+        {!readOnly && allowedTypes.length > 0 && (
+          <Button variant="ghost" size="sm" className="h-6 px-2 text-[11px]" onClick={() => setAdding((a) => !a)}>
+            <Plus className="mr-1 size-3" />
+            {adding ? 'Cancel' : 'Link'}
+          </Button>
+        )}
       </div>
 
       {links.length === 0 && !adding && (
         <p className="text-sm text-muted-foreground">
-          Nothing linked yet — add the request, PO or supplier this is about.
+          {readOnly || allowedTypes.length === 0
+            ? 'Nothing linked.'
+            : 'Nothing linked yet — add the request, PO or supplier this is about.'}
         </p>
       )}
 
@@ -144,6 +166,7 @@ export function TicketLinksPanel({ ticketId, actor }: TicketLinksPanelProps) {
                   {l.label && <span className="truncate text-gray-600">— {l.label}</span>}
                   <ExternalLink className="size-3 shrink-0" />
                 </Link>
+                {!readOnly && (
                 <button
                   onClick={() => handleRemove(l.id, `${l.objectType} ${l.objectId}`)}
                   aria-label={`Remove link to ${l.objectId}`}
@@ -151,6 +174,7 @@ export function TicketLinksPanel({ ticketId, actor }: TicketLinksPanelProps) {
                 >
                   <X className="size-3.5" />
                 </button>
+                )}
               </div>
             );
           })}
@@ -165,7 +189,7 @@ export function TicketLinksPanel({ ticketId, actor }: TicketLinksPanelProps) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {TICKET_LINK_TYPES.map((t) => (
+                {allowedTypes.map((t) => (
                   <SelectItem key={t} value={t}>
                     {TICKET_LINK_META[t].label}
                   </SelectItem>

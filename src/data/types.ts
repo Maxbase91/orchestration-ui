@@ -374,6 +374,8 @@ export interface Ticket {
   ownerName?: string;
   /** Which intake path raised it — 'form' or 'assistant'. */
   source?: string;
+  /** Verbatim assistant conversation, when the ticket came from chat. */
+  transcript?: string;
   dueAt?: string;
   updatedAt?: string;
   resolvedAt?: string;
