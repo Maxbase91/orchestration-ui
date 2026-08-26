@@ -24,6 +24,14 @@ function check(name, cond, detail = '') {
   if (cond) console.log(`  \x1b[32m✓\x1b[0m ${name}`);
   else { failures++; console.error(`  \x1b[31m✗\x1b[0m ${name}${detail ? ` — ${detail}` : ''}`); }
 }
+// Allow an explicit Chromium path. Sandboxes and CI images often ship a browser
+// build that doesn't match the revision the pinned Playwright expects; pointing
+// at the installed binary beats reinstalling one per run. Unset locally, where
+// Playwright resolves its own download.
+const LAUNCH_OPTS = process.env.PW_CHROMIUM_PATH
+  ? { executablePath: process.env.PW_CHROMIUM_PATH }
+  : {};
+
 async function waitForServer(t = 40000) {
   const s = Date.now();
   while (Date.now() - s < t) { try { if ((await fetch(BASE)).ok) return; } catch { /* */ } await new Promise(r => setTimeout(r, 500)); }
@@ -41,7 +49,7 @@ const server = spawn('npm', ['run', 'dev'], { stdio: 'ignore' });
 let browser;
 try {
   await waitForServer();
-  browser = await chromium.launch();
+  browser = await chromium.launch(LAUNCH_OPTS);
 
   // Pre-clean any artifacts a prior interrupted run may have left behind, so
   // this test is self-healing and never accumulates test data.

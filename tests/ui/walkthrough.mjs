@@ -16,6 +16,14 @@ mkdirSync(DIR, { recursive: true });
 
 let n = 0;
 const log = (m) => console.log(m);
+// Allow an explicit Chromium path. Sandboxes and CI images often ship a browser
+// build that doesn't match the revision the pinned Playwright expects; pointing
+// at the installed binary beats reinstalling one per run. Unset locally, where
+// Playwright resolves its own download.
+const LAUNCH_OPTS = process.env.PW_CHROMIUM_PATH
+  ? { executablePath: process.env.PW_CHROMIUM_PATH }
+  : {};
+
 async function shot(page, name) {
   const file = `${DIR}/${String(++n).padStart(2, '0')}-${name}.png`;
   await page.screenshot({ path: file, fullPage: true });
@@ -112,7 +120,7 @@ const server = spawn('npm', ['run', 'dev'], { stdio: 'ignore' });
 let browser;
 try {
   await waitForServer();
-  browser = await chromium.launch();
+  browser = await chromium.launch(LAUNCH_OPTS);
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   await context.addInitScript(() => {
     localStorage.setItem('auth', JSON.stringify({ state: { currentRole: 'admin' }, version: 0 }));

@@ -118,6 +118,10 @@ not in a component — because RLS is currently `USING (true)`.
 | TC-TKT-04 | Internal notes (`npm run test:tickets`) | Responses default to public-only; internal notes surface **only** when a caller explicitly opts in. Omitting the option leaks nothing |
 | TC-TKT-05 | Status lifecycle (`npm run test:tickets`) | `resolved` requires a resolution note and stamps `resolved_at`; `cancelled` is terminal without a note; reopening clears `resolved_at`; `waiting-on-user` is **not** terminal (it pauses the SLA clock) |
 | TC-TKT-06 | Connector (`npm run test:connectors`) | `support-ticket` is registered and declared; the drift guard fails if a connector is added without being wired |
+| TC-TKT-08 | Inbox visibility (`npm run test:e2e-ui`) | `/help/inbox` renders for `admin`, `procurement-manager`, `operations-lead` and appears under **Help** in the sidebar. A requester role navigating directly to `/help/inbox` is **redirected Home** and never sees the nav item |
+| TC-TKT-09 | Standing views | **Unassigned** (default) lists only unowned, non-terminal tickets · **Mine** only tickets owned by the current user · **All open** excludes resolved/cancelled · **All** shows everything. Tab counts match the rows listed |
+| TC-TKT-10 | Filters + search | Priority and category narrow the list; category options are derived from the data, not hardcoded. Search matches id, subject, description, requester and owner. Empty result shows "No tickets match these filters", not the zero-tickets message |
+| TC-TKT-11 | Detail drawer | Clicking a row opens a drawer (not a route — queue scroll/filters survive) showing owner, category, source, related request link, description, resolution and the correspondence thread. **Internal notes are visibly marked** and only appear in the agent drawer |
 | TC-TKT-07 | Concurrent submission | Two tickets raised at the same moment get distinct ids. Both intake paths draw from `ticket_number_seq`; they previously read the maximum and raced |
 
 ## Suite APR — approvals & tasks

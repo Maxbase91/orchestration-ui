@@ -4,6 +4,7 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { AppLayout } from '@/components/layout/app-layout'
 import { SupplierPortalLayout } from '@/components/layout/supplier-portal-layout'
 import { RequireRole } from '@/components/layout/require-role'
+import { ticketAgentRoles } from '@/config/roles'
 import { HomeRoute } from '@/features/dashboard/home-route'
 import { NewRequestPage } from '@/features/requests/new-request/new-request-page'
 import { RequestDetailPage } from '@/features/requests/request-detail/request-detail-page'
@@ -57,6 +58,7 @@ import { DatabaseAdminPage } from '@/features/admin/database/database-admin-page
 import { AIAssistantPage } from '@/features/help/ai-assistant-page'
 import { KnowledgeBasePage } from '@/features/help/knowledge-base-page'
 import { ContactSupportPage } from '@/features/help/contact-support-page'
+import { TicketInboxPage } from '@/features/help/ticket-inbox/ticket-inbox-page'
 import { AIAnalyticsPage } from '@/features/admin/ai-analytics-page'
 import { KBAdminPage } from '@/features/admin/kb-admin-page'
 import { PolicyConfigPage } from '@/features/admin/policy-config/policy-config-page'
@@ -183,6 +185,11 @@ export function App() {
             <Route path="/help/assistant" element={<AIAssistantPage />} />
             <Route path="/help/kb" element={<KnowledgeBasePage />} />
             <Route path="/help/support" element={<ContactSupportPage />} />
+
+            {/* Agent-only: the queue is for roles that work tickets, not raise them. */}
+            <Route element={<RequireRole roles={ticketAgentRoles} />}>
+              <Route path="/help/inbox" element={<TicketInboxPage />} />
+            </Route>
           </Route>
 
           {/* Supplier Portal routes */}

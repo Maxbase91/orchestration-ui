@@ -18,6 +18,7 @@ import {
 import { PageHeader } from '@/components/shared/page-header';
 import { createTicket, listTickets } from '@/lib/db/tickets';
 import type { Ticket as TicketRecord } from '@/data/types';
+import { TicketPriorityBadge, TicketStatusBadge } from '@/features/help/ticket-inbox/ticket-badges';
 import { useAuthStore } from '@/stores/auth-store';
 import { openAIChatWithPrompt } from '@/features/ai-assistant/ai-chat-overlay';
 
@@ -27,20 +28,6 @@ const faqLinks = [
   { question: 'How do I onboard a new supplier?', articleId: 'sup-1' },
   { question: 'What are the buying channels?', articleId: 'gs-2' },
 ];
-
-const STATUS_STYLES: Record<string, string> = {
-  open: 'bg-amber-100 text-amber-800',
-  'in-progress': 'bg-blue-100 text-blue-800',
-  'waiting-on-user': 'bg-purple-100 text-purple-800',
-  resolved: 'bg-green-100 text-green-800',
-  cancelled: 'bg-gray-100 text-gray-600',
-};
-
-const PRIORITY_STYLES: Record<string, string> = {
-  low: 'bg-gray-100 text-gray-600',
-  medium: 'bg-orange-100 text-orange-700',
-  high: 'bg-red-100 text-red-700',
-};
 
 function AskAIBanner() {
   const [prompt, setPrompt] = useState('');
@@ -87,14 +74,6 @@ function AskAIBanner() {
   );
 }
 
-function TicketStatusBadge({ status }: { status: string }) {
-  return (
-    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${STATUS_STYLES[status] ?? 'bg-gray-100 text-gray-600'}`}>
-      {status.replace(/-/g, ' ').replace(/^./, (c) => c.toUpperCase())}
-    </span>
-  );
-}
-
 function MyTickets({ userName, isAdmin }: { userName: string; isAdmin: boolean }) {
   const [tickets, setTickets] = useState<TicketRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -129,11 +108,7 @@ function MyTickets({ userName, isAdmin }: { userName: string; isAdmin: boolean }
             <div className="flex items-center gap-2 mb-0.5 flex-wrap">
               <span className="text-xs font-mono text-gray-400">{t.id}</span>
               <TicketStatusBadge status={t.status} />
-              {t.priority && (
-                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${PRIORITY_STYLES[t.priority] ?? 'bg-gray-100 text-gray-600'}`}>
-                  {t.priority}
-                </span>
-              )}
+              {t.priority && <TicketPriorityBadge priority={t.priority} />}
             </div>
             <p className="text-sm text-gray-800 truncate">{t.summary}</p>
             <p className="text-[11px] text-gray-400 mt-0.5">

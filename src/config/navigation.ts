@@ -1,7 +1,7 @@
 // Single source of truth for the sidebar navigation tree. Every group/item
 // carries a `visibleTo` role list — the sidebar filters against the active
 // role, so role-based visibility lives here rather than in the components.
-import type { Role } from './roles';
+import { ticketAgentRoles, type Role } from './roles';
 
 export interface NavItem {
   id: string;
@@ -245,6 +245,8 @@ export const navigation: NavGroup[] = [
       { id: 'ai-assistant', label: 'AI Assistant', icon: 'MessageSquare', path: '/help/assistant', visibleTo: allRoles },
       { id: 'knowledge-base', label: 'Knowledge Base', icon: 'BookOpen', path: '/help/kb', visibleTo: allRoles },
       { id: 'contact-support', label: 'Contact Support', icon: 'HelpCircle', path: '/help/support', visibleTo: allRoles },
+      // Agent-side queue — only the roles that work tickets, not the ones that raise them.
+      { id: 'ticket-inbox', label: 'Ticket Inbox', icon: 'Inbox', path: '/help/inbox', visibleTo: ticketAgentRoles },
     ],
   },
 ];

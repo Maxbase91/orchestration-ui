@@ -32,6 +32,7 @@ const ADMIN_ROUTES = [
   '/admin/categories', '/admin/sla-targets', '/admin/forms', '/admin/policies', '/admin/kb',
   '/admin/users', '/admin/audit', '/admin/health', '/admin/database',
   '/tasks', '/tasks/team', '/notifications', '/settings', '/help/kb', '/help/support', '/help/assistant',
+  '/help/inbox',
 ];
 const SUPPLIER_ROUTES = [
   '/portal', '/portal/onboarding', '/portal/invoices', '/portal/sourcing', '/portal/documents', '/portal/messages', '/portal/profile',
@@ -47,6 +48,14 @@ const DETAIL_ROUTES = [
 ];
 
 const findings = []; // { route, pageErrors:[], consoleErrors:[], whiteScreen:bool }
+
+// Allow an explicit Chromium path. Sandboxes and CI images often ship a browser
+// build that doesn't match the revision the pinned Playwright expects; pointing
+// at the installed binary beats reinstalling one per run. Unset locally, where
+// Playwright resolves its own download.
+const LAUNCH_OPTS = process.env.PW_CHROMIUM_PATH
+  ? { executablePath: process.env.PW_CHROMIUM_PATH }
+  : {};
 
 async function waitForServer(timeoutMs = 40000) {
   const start = Date.now();
@@ -96,7 +105,7 @@ const server = spawn('npm', ['run', 'dev'], { stdio: 'ignore' });
 let browser;
 try {
   await waitForServer();
-  browser = await chromium.launch();
+  browser = await chromium.launch(LAUNCH_OPTS);
   await sweep(browser, 'admin', ADMIN_ROUTES);
   await sweep(browser, 'supplier', SUPPLIER_ROUTES);
 

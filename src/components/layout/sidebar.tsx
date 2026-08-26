@@ -17,6 +17,7 @@ import {
   Shield,
   Bot,
   HelpCircle,
+  Inbox,
   Bell,
   Users,
   Workflow,
@@ -94,6 +95,7 @@ import {
 
 const iconMap: Record<string, LucideIcon> = {
   Home,
+  Inbox,
   SlidersHorizontal,
   FileText,
   CheckSquare,

@@ -283,9 +283,12 @@ AST-S-01 raise ticket 🟢 · AST-S-02 schedule appointment 🔴 · AST-S-03 rou
 **Ticket data layer landed (P0–P1):** both intake paths (Contact Support form, assistant handover)
 now persist to one store through `db/tickets` behind the `support-ticket` connector, with ownership,
 threaded responses (internal vs requester-visible), a full status lifecycle and sequence-issued ids.
-**Remaining — the inbox that works them (P2–P4):** the queue page, assign/reply/close/forward
-actions, and SLA. Until those land a ticket can be raised and read but not worked, so every ticket
-stays `open`.
+**Queue landed (P2):** `/help/inbox`, agent-role-guarded, with standing views (unassigned / mine /
+open / all), priority + category filters, search, and a read-only detail drawer showing the
+correspondence thread with internal notes marked.
+**Remaining — the working actions (P3) and SLA (P4):** assign, reply, close, forward; then `due_at`,
+breach flags and support KPIs. Until P3 lands a ticket can be raised, routed to a queue and read,
+but not worked — so every ticket stays `open`.
 
 #### AST-X — Conversation Experience — 🟡 Partial
 AST-X-01 multi-conversation UI 🟡 (Web+overlay; **no Teams**) · AST-X-02 history & retention 🟢 ·

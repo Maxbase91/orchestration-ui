@@ -22,6 +22,14 @@ function check(name, cond, detail = '') {
   }
 }
 
+// Allow an explicit Chromium path. Sandboxes and CI images often ship a browser
+// build that doesn't match the revision the pinned Playwright expects; pointing
+// at the installed binary beats reinstalling one per run. Unset locally, where
+// Playwright resolves its own download.
+const LAUNCH_OPTS = process.env.PW_CHROMIUM_PATH
+  ? { executablePath: process.env.PW_CHROMIUM_PATH }
+  : {};
+
 async function waitForServer(timeoutMs = 40000) {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
@@ -40,7 +48,7 @@ const server = spawn('npm', ['run', 'dev'], { stdio: 'ignore' });
 let browser;
 try {
   await waitForServer();
-  browser = await chromium.launch();
+  browser = await chromium.launch(LAUNCH_OPTS);
   const page = await browser.newContext().then((c) => c.newPage());
 
   const consoleErrors = [];
