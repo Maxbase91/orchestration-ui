@@ -12,6 +12,7 @@ the result into the steps that come after intake.
 | `service-description-config.ts` | The types and the pure evaluators — `SlotCondition`, `ConfiguredSlot`, `ConfiguredSection`, `ServiceDescriptionTemplate`, `evaluateSlotCondition`, `slotApplies`, `composeNarrativeFromSections` |
 | `service-description-defaults.ts` | The built-in template — the previously hardcoded slot set, sections, narrative composition, system prompt and model params, serialised faithfully |
 | `service-description-seed.ts` | Downstream reuse — sourcing requirements, sourcing criteria, and the `sow.*` values a form pre-populates from |
+| `demand-signals.ts` | The capture-time governance read that steers generation, and `inferDataSensitivity` |
 | `src/lib/db/service-description-templates.ts` | Data access (+ `hooks/use-service-description-templates.ts`) |
 | `api/_sd-template.ts` | The server-side read, with a 60s process-local memo |
 | `src/features/admin/service-description-page.tsx` | `/admin/service-description` |
@@ -59,6 +60,46 @@ rather than an empty clause.
 Sections the requester is **never asked for** (`location` was one) are marked `inferred` in the
 section spec, so the screen does not present model-invented content as captured.
 
+## Generation reflects materiality and sourcing
+
+The description is written at wizard step 3; materiality, inherent risk and
+sourcing type are determined at steps 4–5. So generation used to see only
+`category, title, value, supplier, timeline, capturedAnswers, commodityCode` —
+none of the signals that decide what a description actually has to cover. It
+wrote the same document for a €4k stationery order and a material,
+high-sensitivity, competitively-sourced engagement, because it could not tell
+them apart.
+
+`computeDemandSignals` produces the *provisional* read from what IS known at
+capture time, composing the existing decisioning modules rather than
+reimplementing them. Two properties it holds to, because this is a governance
+artefact and not a hint:
+
+- **It invents nothing.** Every value carries the driver that produced it. A
+  demand with nothing described *says* its sensitivity was defaulted rather than
+  claiming a reading, and sourcing stays `unknown` rather than guessing `none`.
+- **It is preliminary and says so.** `criticalService` and `privilegedAccess`
+  are deliberately not fed to the cascades — both come from the stage-5
+  mini-IRQ, which has not run, and guessing them would inflate materiality on
+  demands that turn out not to qualify.
+
+What a description must cover is config, not prose in a prompt.
+`ConfiguredSection.requiredWhen` uses the same `{field, operator, value}`
+vocabulary as routing rules and form triggers, with `materiality`, `riskTier`,
+`dataSensitivity` and `sourcingType` newly addressable. An **unknown signal makes
+a condition false**, so "we don't know yet" can never manufacture a requirement.
+
+The defaults make mandatory only what a reviewer would refuse to sign without:
+scope and measurable acceptance criteria for a material engagement, deliverables
+for anything competitively sourced (they become the bid evaluation basis), and
+resources and dependencies at high or critical data sensitivity.
+
+`requiredSectionsFor` drives both the prompt's MUST COVER list and the
+determination screen's gap report, so generation and review cannot disagree
+about what "required" means. The determination **reports** gaps rather than
+regenerating: a document that rewrites itself after the requester thought it was
+finished is worse than one that says what is missing.
+
 ## Reuse downstream
 
 - **Sourcing** — `seedRequirementsFromDescription` turns each nominated section into one labelled
@@ -77,3 +118,4 @@ section spec, so the screen does not present model-invented content as captured.
     npm run test:service-description-ui       # /admin/service-description renders (Playwright)
     npm run test:sow-narrative                # narrative is synthesised, never boilerplate
     npm run test:demand-conversation          # the conversation the slots drive
+    npm run test:demand-signals               # the capture-time read + config-driven requirements

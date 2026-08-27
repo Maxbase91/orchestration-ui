@@ -104,6 +104,15 @@ The pre-check makes one explainable decision. These are the cases that broke it.
 | TC-REQ-R8 | AI-001 active, assistant intent disagrees | `api/ai.ts` returns `intent`, which the wizard now reads instead of discarding. It is authoritative **except** that a `catalogue` intent cannot route to an empty catalogue — then the rules decide and the disagreement is shown, not hidden |
 | TC-REQ-R9 | AI-001 disabled / LLM unreachable | Identical routing to the rules-only path. The deterministic layer is the fallback and is gated by its own eval (TC-GOV-02) |
 
+### Supplier is identified once
+
+| ID | Steps | Expected |
+|---|---|---|
+| TC-REQ-S1 | Wizard, any path | Supplier is **selectable in exactly one place** — the determination step, where PSL status, screening, risk tier and master-data completeness are all computed. `step-details` shows it read-only and says where it is confirmed |
+| TC-REQ-S2 | A supplier named in the demand or matched in the chat | Arrives at the determination as a **suggestion to confirm** ("Taken from your request"), not a second decision. The recommender's rows are selectable — previously it listed suppliers with no way to act on them |
+| TC-REQ-S3 | AI-005 disabled or missing | Supplier selection still works. The card no longer returns null when the agent is absent, which would have left the requester unable to pick anyone |
+| TC-REQ-S4 | Chat path — commercial details | Currency, urgency and cost centre are captured. They were only ever on `step-details`, which the chat path never renders, so on that path they were captured **nowhere** |
+
 ## Suite SOW — Service Description (unified, auto-composed; no manual generate)
 
 The SOW and the service description are **one document**, built automatically from the conversation —
@@ -119,6 +128,11 @@ there is **no "Generate SOW" button** and no per-section regenerate (verified by
 | TC-SOW-05 | Narrative summary + copy button | 3–4 paragraph narrative; copy works |
 | TC-SOW-05b | Narrative provenance (`npm run test:sow-narrative` + UI smoke) | The narrative is **synthesised from the captured service description**, never fixed boilerplate: it carries the requester's objective/scope/deliverables, and **two different service descriptions produce two different narratives**. Applies to all three paths — LLM, deterministic mock, and the LLM-failure fallback (which additionally flags itself as unpolished). |
 | TC-SOW-06 | Submit; open request detail | Full SOW persisted + displayed (Overview/Documents) |
+| TC-SOW-09 | Generation is signal-aware (`npm run test:demand-signals`) | The capture-time read — materiality, inherent risk, data sensitivity, sourcing — is computed from what is known at step 3 and passed to `/api/generate-sow`. A material, high-sensitivity, competitively-sourced engagement and a €4k stationery order produce **different required sections**; before this they produced the same document, because generation saw neither |
+| TC-SOW-10 | Required sections come from config | `ConfiguredSection.requiredWhen` (editable at `/admin/service-description`) decides what is mandatory, using the same `{field, operator, value}` vocabulary as routing rules and form triggers. An **unknown signal makes a condition false** — "we don't know yet" must never manufacture a requirement |
+| TC-SOW-11 | The determination reports gaps, it does not regenerate | At step 5 the final read is compared against the draft; a required section left empty is listed on-screen and in the export. The document is **not** rewritten — one that changes after the requester thought it was finished is worse than one that says what is missing |
+| TC-SOW-12 | The quality gate is persisted | `quality_score` / `quality_checks` were computed, rendered and discarded at submit, so the badge `tab-overview.tsx` reads had never appeared. They now survive, alongside the signals and the required list |
+| TC-SOW-13 | The conversation runs off the template | `demand-conversation.ts` takes its slots from the resolved template (`test:service-description-config` asserts all 168 agendas match the built-in order exactly). `api/chat-intake.ts` resolves it server-side and fails open to the built-in |
 | TC-SOW-08 | The document spec is admin-configurable | Which sections exist, which compose the compact narrative, and which are asked vs inferred all come from `/admin/service-description` (Suite ADM TC-ADM-22…27), not from code constants. Changing the config changes the generated document without a redeploy |
 | TC-SOW-07 | Provider modes | Works in `mock` and `groq/gemini`. In both non-LLM modes the narrative still reflects the captured answers (TC-SOW-05b) — a generic summary here means the fallback regressed to boilerplate |
 
@@ -177,6 +191,18 @@ not in a component — because RLS is currently `USING (true)`.
 | TC-WF-06 | `/workflows/bottlenecks` | Stuck/overdue items + escalation actions |
 | TC-WF-07 | `/pipeline/demand` & `/pipeline/sourcing` | Funnel/grouped views render |
 | TC-WF-08 | `/pipeline/sourcing` shows the SAME events as `/sourcing` | Stage counts and rows come from `sourcing_events` with real invitation counts — **no `SE-*` ids anywhere**. Clicking a row opens `/sourcing/:id`. A cancelled event appears in neither the funnel nor the table (it is not a stage of the funnel) |
+
+### Vendor onboarding — two gates (`npm run test:onboarding-stage`)
+
+| ID | Steps | Expected |
+|---|---|---|
+| TC-WF-O1 | Name a supplier the directory does not hold, at the determination step | "Add **&lt;name&gt;** as a new supplier" creates a **prospective** record (`onboarding_status = not-started`, `screening_status = pending`). Until this existed the onboarding trigger — "a new supplier was selected" — was inexpressible, which is why the stage never fired |
+| TC-WF-O2 | Light gate — sourcing | A named supplier who has not cleared screening **cannot** be invited to a sourcing event. A demand with **no** supplier is not blocked — going to market with nobody named is the point of an event |
+| TC-WF-O3 | Light gate — risk completion | The risk stage cannot be completed without a screened supplier record, because the assessment hangs off one. This is why light onboarding happens early rather than at award |
+| TC-WF-O4 | Full gate — contracting | An award to a supplier who is screened but not fully onboarded routes the request to **`onboarding`**, not `contracting`, and continues to contracting once onboarding completes. A fully onboarded winner goes straight through (the R5 award regression) |
+| TC-WF-O5 | Flagged supplier | Screening `flagged` blocks both gates and the reason names screening, not paperwork |
+| TC-WF-O6 | Prospective ≠ onboarding incomplete | An established supplier mid-data-refresh is not prospective. Both need the stage, for different reasons — the old trigger (`!supplierId \|\| !supplierData.complete`) conflated them, fired on nearly every request, and meant nothing |
+| TC-WF-O7 | Stage order and preview | `onboarding` sits after `risk` (it needs the supplier record) and before `sourcing` (it gates the invitation); a catalogue order has no onboarding stage. The Routing preview shows it only when it will actually run — the synthetic always-on step is retired |
 
 ## Suite SRC — sourcing & evaluation
 

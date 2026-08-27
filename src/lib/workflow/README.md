@@ -10,6 +10,7 @@ config plane that is actually read at runtime.
 | `engine.ts` | `initWorkflow` → `advanceInstance` → `executeNode`; edge conditions; compliance report |
 | `open-items.ts` | One rule for "who owns this and what is open", replacing four inline derivations |
 | `risk-stage.ts` | The conditional risk stage — reuse an existing assessment, else raise a draft |
+| `onboarding-stage.ts` | Vendor onboarding: the light gate (sourcing + risk completion) and the full gate (contracting) |
 | `approver-resolution.ts` | Chain role → directory rep |
 | `buying-channel-stages.ts` | Which stages a channel actually has |
 | `workflow-steps.ts` | The template-derived lifecycle preview shown at intake |
@@ -68,6 +69,40 @@ moved at all.
 Now there is no instance. The channel's stage list is the whole fallback, walked by
 `nextStageAfter` + `transitionStage` — the path 93 of 101 live requests already take.
 
+## Vendor onboarding is two gates, not one stage
+
+Onboarding sat where risk sat before R4 — a synthetic step in the intake preview
+with no status, no stage in any channel and no node in any template — and it
+could not even be triggered, because the intake picker only offered the existing
+directory and "a new supplier was selected" was inexpressible.
+
+The same vendor is asked for different things depending on what is about to
+happen to them, so one gate would be wrong in both directions:
+
+| Gate | What it needs | What it blocks |
+|---|---|---|
+| **Light** | The supplier record exists and screening has cleared | **Sourcing** — you cannot invite a supplier that does not exist. **Completing the risk assessment** — it hangs off a supplier record |
+| **Full** | `onboarding_status = 'completed'` | **Contracting**, for the awarded supplier only |
+
+Demanding full onboarding before sourcing blocks every competitive event on
+paperwork for vendors who may not win; demanding only light onboarding before
+contracting signs a contract with a vendor nobody can pay.
+
+`applyAwardToRequest` routes a winner who is not fully onboarded to `onboarding`
+rather than `contracting`. That is where the gate must hold — it is the write
+path that moves a request past sourcing.
+
+**The node is the visible stage; the gates are the guarantee.** WF-001 models
+onboarding behind a conditional edge, but the gates hold on every path including
+ones that edge does not cover. `needsOnboarding` fails *open* on a read error so
+an unreachable supplier table cannot park every request on a stage nobody asked
+for; the gates themselves fail *closed*.
+
+`prospective` is not `onboarding_status <> 'completed'`. An established supplier
+can be mid-data-refresh; a prospective one has never been transacted with. The
+old trigger (`!supplierId || !supplierData.complete`) conflated them, which is
+why it fired on nearly every request and meant nothing.
+
 ## Config that is now read at runtime
 
 A node carries `role`, `slaDays`, `purpose` and `gate`. The designer collected several of these and
@@ -94,6 +129,7 @@ a stage that will not appear.
 
 ## Tests
 
-    npm run test:orchestration   # gates, transitions, resume semantics, owner/SLA, chain banding
+    npm run test:orchestration     # gates, transitions, resume semantics, owner/SLA, chain banding
+    npm run test:onboarding-stage  # the two onboarding gates and the award routing
     npm run test:workflow-steps  # the template-derived lifecycle preview
     npm run test:e2e             # request → approval, end to end (needs Supabase creds)
