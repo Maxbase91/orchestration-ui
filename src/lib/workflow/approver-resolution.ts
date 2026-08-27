@@ -25,6 +25,11 @@ export const CHAIN_ROLE_TO_SYSTEM_ROLE: Record<string, Role> = {
   'New Approver': 'procurement-manager',
   'Supplier Manager': 'vendor-manager',
   'Operations Lead': 'operations-lead',
+  // Owns the risk stage. Third-party risk sits with vendor management here.
+  'Third-party risk': 'vendor-manager',
+  Legal: 'procurement-manager',
+  'Accounts Payable': 'operations-lead',
+  'Procurement Ops': 'operations-lead',
 };
 
 /**

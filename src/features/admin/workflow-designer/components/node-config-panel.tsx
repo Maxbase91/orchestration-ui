@@ -43,16 +43,50 @@ export function NodeConfigPanel({ node, onUpdate, onDelete, onClose }: NodeConfi
   function renderFields() {
     switch (node.type) {
       case 'userTask':
+        // These four are the fields the runtime actually reads (see
+        // lib/workflow/node-config.ts). They were previously named assignee /
+        // instructions / timeout, collected here and discarded on save; they now
+        // persist under the names the engine uses.
         return (
           <>
-            <Field label="Assign to">
-              <Input value={(formData.assignee as string) ?? ''} onChange={(e) => set('assignee', e.target.value)} placeholder="e.g. Line Manager" />
+            <Field label="Owner role">
+              <Input
+                value={(formData.role as string) ?? ''}
+                onChange={(e) => set('role', e.target.value)}
+                placeholder="e.g. Category Manager"
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Must match a role in the approval-chain vocabulary, or the stage is
+                left unassigned rather than given to the wrong person.
+              </p>
             </Field>
-            <Field label="Instructions">
-              <Textarea value={(formData.instructions as string) ?? ''} onChange={(e) => set('instructions', e.target.value)} rows={3} placeholder="Task instructions..." />
+            <Field label="Purpose / exit criteria">
+              <Textarea
+                value={(formData.purpose as string) ?? ''}
+                onChange={(e) => set('purpose', e.target.value)}
+                rows={3}
+                placeholder="What has to be true before this stage can be completed?"
+              />
             </Field>
-            <Field label="Timeout (days)">
-              <Input type="number" value={(formData.timeout as number) ?? ''} onChange={(e) => set('timeout', Number(e.target.value))} min={0} />
+            <Field label="SLA (working days)">
+              <Input
+                type="number"
+                value={(formData.slaDays as number) ?? ''}
+                onChange={(e) => set('slaDays', Number(e.target.value))}
+                min={0}
+              />
+            </Field>
+            <Field label="Leaving this stage">
+              <Select
+                value={(formData.gate as string) ?? 'manual'}
+                onValueChange={(v) => set('gate', v)}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="manual">Needs the owner to complete it</SelectItem>
+                  <SelectItem value="auto">Advances automatically</SelectItem>
+                </SelectContent>
+              </Select>
             </Field>
             <div className="flex items-center justify-between">
               <Label className="text-sm">Escalate on timeout</Label>

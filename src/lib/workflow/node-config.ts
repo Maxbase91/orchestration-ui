@@ -29,16 +29,18 @@ export interface TemplateNode {
 }
 
 /**
- * Stages that wait for a person even when the template says nothing.
+ * Stages that pass straight through when the template says nothing.
  *
- * These are the decision points that always needed a human, and defaulting them
- * to `manual` means the gate model is visible on templates that predate the
- * `gate` field — including the four seeded ones. `validation` is in the list
- * because "is this demand well-formed and correctly routed?" is a judgement,
- * and because a request silently sliding from intake to approval is exactly the
- * behaviour that made the stages indistinguishable.
+ * The default is **manual**, and the list of exceptions is deliberately tiny.
+ * Every stage in this lifecycle names a real thing somebody does — validate the
+ * demand, assess the risk, sign the contract, raise the PO, receive the goods,
+ * pay the invoice — so auto-advancing past one asserts that work happened when
+ * nobody did it. `intake` is the exception because it IS the submission: by the
+ * time the engine runs, intake is already finished.
+ *
+ * A template can override any of this per node via `gate`.
  */
-const DEFAULT_MANUAL_STAGES = new Set(['validation', 'risk', 'contracting']);
+const DEFAULT_AUTO_STAGES = new Set(['intake']);
 
 /** Stage statuses the engine suspends on regardless of node config. */
 export const ALWAYS_SUSPEND_STAGES = new Set(['approval', 'sourcing']);
@@ -52,7 +54,7 @@ export const ALWAYS_SUSPEND_STAGES = new Set(['approval', 'sourcing']);
 export function isGatedStage(node: TemplateNode | undefined, status: string): boolean {
   if (ALWAYS_SUSPEND_STAGES.has(status)) return true;
   if (node?.gate) return node.gate === 'manual';
-  return DEFAULT_MANUAL_STAGES.has(status);
+  return !DEFAULT_AUTO_STAGES.has(status);
 }
 
 /** Human-facing label for the action that leaves a gated stage. */
@@ -60,7 +62,11 @@ export function gateActionLabel(status: string): string {
   switch (status) {
     case 'validation': return 'Complete validation';
     case 'risk': return 'Record risk decision';
-    case 'contracting': return 'Complete contracting';
+    case 'contracting': return 'Contract signed';
+    case 'po': return 'PO issued';
+    case 'receipt': return 'Goods received';
+    case 'invoice': return 'Invoice matched';
+    case 'payment': return 'Payment released';
     default: return 'Complete stage';
   }
 }

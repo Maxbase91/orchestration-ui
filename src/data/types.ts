@@ -278,7 +278,23 @@ export interface WorkflowTemplate {
   name: string;
   description: string;
   type: string;
-  nodes: { id: string; type: string; label: string; x: number; y: number }[];
+  /**
+   * Stage nodes carry their own governance: `role` owns the stage, `slaDays`
+   * sets its deadline, `gate` says whether leaving it needs a human, `purpose`
+   * is the exit criteria shown to that person. All optional so templates saved
+   * before these existed stay valid — see lib/workflow/node-config.ts.
+   */
+  nodes: {
+    id: string;
+    type: string;
+    label: string;
+    x?: number;
+    y?: number;
+    role?: string;
+    slaDays?: number;
+    purpose?: string;
+    gate?: 'auto' | 'manual';
+  }[];
   edges: { source: string; target: string; label?: string }[];
 }
 

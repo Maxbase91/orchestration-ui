@@ -29,13 +29,13 @@ const LABEL_TO_STATUS = {
 const nodeToStatus = (label) =>
   LABEL_TO_STATUS[label.toLowerCase().trim()] ?? label.toLowerCase().trim().replace(/\s+/g, '-');
 
-const DEFAULT_MANUAL_STAGES = new Set(['validation', 'risk', 'contracting']);
+const DEFAULT_AUTO_STAGES = new Set(['intake']);
 const ALWAYS_SUSPEND_STAGES = new Set(['approval', 'sourcing']);
 
 function isGatedStage(node, status) {
   if (ALWAYS_SUSPEND_STAGES.has(status)) return true;
   if (node?.gate) return node.gate === 'manual';
-  return DEFAULT_MANUAL_STAGES.has(status);
+  return !DEFAULT_AUTO_STAGES.has(status);
 }
 
 // ── mirrors the engine traversal ────────────────────────────────────────────
@@ -216,7 +216,10 @@ check('validation is gated by default', isGatedStage(undefined, 'validation'));
 check('approval is always gated', isGatedStage({ gate: 'auto' }, 'approval'));
 check('sourcing is always gated', isGatedStage({ gate: 'auto' }, 'sourcing'));
 check('intake is not gated', !isGatedStage(undefined, 'intake'));
-check('an explicit manual gate overrides the default', isGatedStage({ gate: 'manual' }, 'po'));
+check('every real stage is gated by default — nobody does work by accident',
+  ['validation', 'risk', 'contracting', 'po', 'receipt', 'invoice', 'payment']
+    .every((st) => isGatedStage(undefined, st)));
+check('an explicit auto gate can open any of them', !isGatedStage({ gate: 'auto' }, 'po'));
 check('an explicit auto gate overrides the default', !isGatedStage({ gate: 'auto' }, 'validation'));
 check('WF-004\'s "Sourcing (RFP)" normalises to sourcing', nodeToStatus('Sourcing (RFP)') === 'sourcing');
 check('it never produces the invalid slug', nodeToStatus('Sourcing (RFP)') !== 'sourcing-(rfp)');

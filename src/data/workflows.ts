@@ -1,4 +1,8 @@
-// Seed data only — not read by the runtime app.
+// Seed data only — not read by the runtime app; the engine loads templates from
+// the workflow_templates table. Kept in sync with the live WF-001 node config
+// (role / slaDays / gate / purpose) so a fresh seed reproduces the same
+// governance rather than nodes with no owner.
+//
 // Workflow templates moved to Supabase in Wave 3
 // (UI uses `@/lib/db/hooks/use-workflow-templates`).
 
@@ -12,16 +16,16 @@ export const workflowTemplates: WorkflowTemplate[] = [
     type: 'procurement',
     nodes: [
       { id: 'n1', type: 'start', label: 'Request Submitted', x: 50, y: 200 },
-      { id: 'n2', type: 'stage', label: 'Intake', x: 200, y: 200 },
-      { id: 'n3', type: 'stage', label: 'Validation', x: 350, y: 200 },
+      { id: 'n2', type: 'stage', label: 'Intake', x: 200, y: 200, role: 'Business Requestor', slaDays: 1, gate: 'auto' as const, purpose: 'Demand captured and classified. Completed by submission.' },
+      { id: 'n3', type: 'stage', label: 'Validation', x: 350, y: 200, role: 'Category Manager', slaDays: 3, gate: 'manual' as const, purpose: 'Demand is complete, correctly categorised and routed to the right channel.' },
       { id: 'n4', type: 'decision', label: 'Auto-Route', x: 500, y: 200 },
-      { id: 'n5', type: 'stage', label: 'Approval', x: 650, y: 100 },
-      { id: 'n6', type: 'stage', label: 'Sourcing', x: 650, y: 300 },
-      { id: 'n7', type: 'stage', label: 'Contracting', x: 800, y: 200 },
-      { id: 'n8', type: 'stage', label: 'PO Creation', x: 950, y: 200 },
-      { id: 'n9', type: 'stage', label: 'Receipt', x: 1100, y: 200 },
-      { id: 'n10', type: 'stage', label: 'Invoice', x: 1250, y: 200 },
-      { id: 'n11', type: 'stage', label: 'Payment', x: 1400, y: 200 },
+      { id: 'n5', type: 'stage', label: 'Approval', x: 650, y: 100, role: 'Approver', slaDays: 5, gate: 'manual' as const, purpose: 'All approvers in the value-banded chain have responded.' },
+      { id: 'n6', type: 'stage', label: 'Sourcing', x: 650, y: 300, role: 'Procurement Lead', slaDays: 20, gate: 'manual' as const, purpose: 'A supplier has been selected and the event awarded.' },
+      { id: 'n7', type: 'stage', label: 'Contracting', x: 800, y: 200, role: 'Legal', slaDays: 10, gate: 'manual' as const, purpose: 'Contract agreed and signed by both parties.' },
+      { id: 'n8', type: 'stage', label: 'PO Creation', x: 950, y: 200, role: 'Procurement Ops', slaDays: 2, gate: 'manual' as const, purpose: 'Purchase order raised and issued to the supplier.' },
+      { id: 'n9', type: 'stage', label: 'Receipt', x: 1100, y: 200, role: 'Business Requestor', slaDays: 5, gate: 'manual' as const, purpose: 'Goods or services received and confirmed.' },
+      { id: 'n10', type: 'stage', label: 'Invoice', x: 1250, y: 200, role: 'Accounts Payable', slaDays: 5, gate: 'manual' as const, purpose: 'Invoice received and matched to the PO and receipt.' },
+      { id: 'n11', type: 'stage', label: 'Payment', x: 1400, y: 200, role: 'Finance', slaDays: 3, gate: 'manual' as const, purpose: 'Payment released to the supplier.' },
       { id: 'n12', type: 'end', label: 'Completed', x: 1550, y: 200 },
       { id: 'n13', type: 'error', label: 'Referred Back', x: 500, y: 400 },
     ],

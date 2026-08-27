@@ -9,6 +9,12 @@ import type { Node, Edge } from '@xyflow/react';
 
 // Invert mapTemplateToFlow: take the current canvas Nodes/Edges back
 // into the WorkflowTemplate.nodes/edges shape that the DB stores.
+//
+// This used to persist only id/type/label/x/y, so every field the config panel
+// collected — the owner role, the SLA, the instructions — was written to local
+// state and thrown away on save. An admin could set a stage owner and nothing
+// anywhere would read it. The engine now reads role, slaDays, purpose and gate,
+// so they have to survive the round trip.
 function mapFlowToTemplateGraph(
   nodes: Node[],
   edges: Edge[],
@@ -22,13 +28,29 @@ function mapFlowToTemplateGraph(
     decision: 'decision',
   };
   return {
-    nodes: nodes.map((n) => ({
-      id: n.id,
-      type: reverseType[n.type ?? 'userTask'] ?? 'stage',
-      label: (n.data as { label?: string } | undefined)?.label ?? n.id,
-      x: n.position.x,
-      y: n.position.y,
-    })),
+    nodes: nodes.map((n) => {
+      const data = (n.data ?? {}) as Record<string, unknown>;
+      // The canvas has fewer node types than the template schema: `parallel`
+      // renders as `decision` and `error` as `end`. Without carrying the
+      // original type through, opening and saving a template silently
+      // destroyed WF-001's "Referred Back" error node.
+      const templateType =
+        (data.templateType as string | undefined) ?? reverseType[n.type ?? 'userTask'] ?? 'stage';
+      const slaDays = Number(data.slaDays);
+      return {
+        id: n.id,
+        type: templateType,
+        label: (data.label as string | undefined) ?? n.id,
+        x: n.position.x,
+        y: n.position.y,
+        ...(data.role ? { role: data.role as string } : {}),
+        ...(Number.isFinite(slaDays) && slaDays > 0 ? { slaDays } : {}),
+        ...(data.purpose ? { purpose: data.purpose as string } : {}),
+        ...(data.gate === 'auto' || data.gate === 'manual'
+          ? { gate: data.gate as 'auto' | 'manual' }
+          : {}),
+      };
+    }),
     edges: edges.map((e) => ({
       source: e.source,
       target: e.target,
@@ -56,8 +78,17 @@ function mapTemplateToFlow(template: WorkflowTemplate): { nodes: Node[]; edges: 
   const nodes: Node[] = template.nodes.map((n) => ({
     id: n.id,
     type: typeMapping[n.type] ?? 'userTask',
-    position: { x: n.x, y: n.y },
-    data: { label: n.label },
+    position: { x: n.x ?? 0, y: n.y ?? 0 },
+    // templateType preserves the schema type the canvas cannot represent, so a
+    // round trip through the designer does not collapse parallel/error nodes.
+    data: {
+      label: n.label,
+      templateType: n.type,
+      ...(n.role ? { role: n.role } : {}),
+      ...(n.slaDays != null ? { slaDays: n.slaDays } : {}),
+      ...(n.purpose ? { purpose: n.purpose } : {}),
+      ...(n.gate ? { gate: n.gate } : {}),
+    },
   }));
 
   const edges: Edge[] = template.edges.map((e, i) => ({
