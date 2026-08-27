@@ -56,3 +56,25 @@ export function resolveApprover(chainRole: string | undefined): ResolvedApprover
   const persona = PERSONA_BY_ROLE[systemRole];
   return { systemRole, id: persona.id, name: persona.name };
 }
+
+/**
+ * Strict resolution for a *stage owner*, returning null when the role is not
+ * recognised.
+ *
+ * Deliberately different from resolveApprover above, and the difference is not
+ * pedantry. For an approval, somebody must decide, so defaulting to the
+ * procurement manager beats leaving the request with no approver at all. For a
+ * stage owner, quietly handing the stage to a person the admin never named
+ * hides a config error and makes "who owns this step" a lie — an unassigned
+ * stage is visibly wrong, which is what you want.
+ */
+export function resolveStageOwnerRole(chainRole: string | undefined): ResolvedApprover | null {
+  if (!chainRole) return null;
+  const systemRole = CHAIN_ROLE_TO_SYSTEM_ROLE[chainRole];
+  if (!systemRole) {
+    console.warn(`[workflow] unmapped stage role "${chainRole}" — stage left unassigned`);
+    return null;
+  }
+  const persona = PERSONA_BY_ROLE[systemRole];
+  return { systemRole, id: persona.id, name: persona.name };
+}

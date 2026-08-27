@@ -1056,3 +1056,14 @@ CREATE INDEX IF NOT EXISTS sourcing_responses_supplier_idx ON sourcing_responses
 -- but never stored, so 'new-event' meant nothing once the wizard unmounted.
 ALTER TABLE requests ADD COLUMN IF NOT EXISTS sourcing_type        TEXT;
 ALTER TABLE requests ADD COLUMN IF NOT EXISTS sourcing_type_reason TEXT;
+
+-- ── Orchestration realignment (R0) ───────────────────────────────────────────
+-- The engine has always selected requests.approval_chain, which never existed:
+-- PostgREST errored, the error was swallowed, and every request fell through to
+-- the literal 'chain-1' regardless of value. Adding the column lets a matched
+-- routing rule's chain be persisted; when it is null the engine falls back to
+-- the value band, which is the rule the intake preview already shows the user.
+ALTER TABLE requests ADD COLUMN IF NOT EXISTS approval_chain TEXT
+  REFERENCES approval_chains(id) ON DELETE SET NULL;
+
+CREATE INDEX IF NOT EXISTS requests_approval_chain_idx ON requests(approval_chain);

@@ -57,6 +57,8 @@ export interface ProcurementRequest {
    */
   sourcingType?: string;
   sourcingTypeReason?: string;
+  /** Approval chain fixed by the matched routing rule; null falls back to the value band. */
+  approvalChain?: string;
   commodityCode: string;
   commodityCodeLabel: string;
   costCentre: string;

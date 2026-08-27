@@ -11,45 +11,16 @@ import {
 import type { WorkflowTemplate } from '@/data/types';
 import { getStagesForChannel } from './buying-channel-stages';
 import { resolveApprover } from './approver-resolution';
-
-// ── Label → RequestStatus normalisation ──────────────────────────────────────
-
-const LABEL_TO_STATUS: Record<string, string> = {
-  'intake': 'intake',
-  'validation': 'validation',
-  'approval': 'approval',
-  'sourcing': 'sourcing',
-  // WF-004 labels its sourcing node 'Sourcing (RFP)'. Without this entry
-  // nodeToStatus falls back to slugifying the label and writes the invalid
-  // status 'sourcing-(rfp)' onto the request — which also skips the gate below.
-  'sourcing (rfp)': 'sourcing',
-  'contracting': 'contracting',
-  'po creation': 'po',
-  'po created': 'po',
-  'auto-po': 'po',
-  'manager approval': 'approval',
-  'auto-validate': 'validation',
-  'initial review': 'validation',
-  'due diligence': 'validation',
-  'receipt': 'receipt',
-  'invoice': 'invoice',
-  'payment': 'payment',
-  'completed': 'completed',
-  'complete': 'completed',
-  'referred back': 'referred-back',
-};
-
-function nodeToStatus(label: string): string {
-  const key = label.toLowerCase().trim();
-  return LABEL_TO_STATUS[key] ?? key.replace(/\s+/g, '-');
-}
+import { transitionStage } from './transition';
+import { listApprovalChains } from '@/lib/db/approval-chains';
+import { selectApprovalChainForValue } from './workflow-steps';
+import { isGatedStage, nodeToStatus, type TemplateNode } from './node-config';
 
 // Chain step role → system role + persona resolution lives in
 // `./approver-resolution` (the single source of truth).
 
 // ── Node traversal helpers ────────────────────────────────────────────────────
 
-interface TemplateNode { id: string; type: string; label: string }
 interface TemplateEdge { source: string; target: string; label?: string }
 
 // ── Decision edge condition evaluator ────────────────────────────────────────
@@ -123,6 +94,40 @@ function getNextNodeIds(
 }
 
 // ── Generate approval entries from chain ──────────────────────────────────────
+
+/**
+ * Which approval chain a request gets.
+ *
+ * This used to read `requests.approval_chain` — a column that does not exist.
+ * PostgREST errored, the error was swallowed, and every request in the system
+ * fell through to the literal 'chain-1', so a 5,000 EUR order and a 5,000,000
+ * EUR programme drew the same approvers. Worse, the intake wizard *showed* the
+ * requester a value-banded chain that the engine then ignored.
+ *
+ * Order: an explicit chain persisted from the matched routing rule, otherwise
+ * the value band — the same rule `selectApprovalChainForValue` applies in the
+ * intake preview, so what was promised is what is granted.
+ */
+async function resolveChainForRequest(requestId: string): Promise<string> {
+  const { data: req } = await supabase
+    .from('requests')
+    .select('approval_chain, value')
+    .eq('id', requestId)
+    .maybeSingle();
+
+  const explicit = (req as Record<string, unknown> | null)?.approval_chain as string | undefined;
+  if (explicit) return explicit;
+
+  const value = Number((req as Record<string, unknown> | null)?.value ?? 0);
+  try {
+    const chains = await listApprovalChains();
+    const banded = selectApprovalChainForValue(chains, value);
+    if (banded) return banded.id;
+  } catch (e) {
+    console.warn('[engine] approval chain band lookup failed:', e);
+  }
+  return 'chain-1';
+}
 
 async function generateApprovalEntries(
   requestId: string,
@@ -238,8 +243,9 @@ export async function advanceWorkflow(requestId: string, outcome?: string): Prom
       await updateWorkflowInstance(instance.id, { status: 'running' });
     }
 
+    const wasSuspended = instance.status === 'suspended';
     const fresh = { ...instance, status: 'running' as const };
-    await advanceInstance(fresh, template, outcome);
+    await advanceInstance(fresh, template, outcome, wasSuspended);
   } catch (e) {
     console.error('[engine] advanceWorkflow error:', e);
   }
@@ -249,6 +255,16 @@ async function advanceInstance(
   instance: WorkflowInstance,
   template: WorkflowTemplate,
   outcome: string | undefined,
+  /**
+   * True when the instance was suspended on its current node — i.e. a human has
+   * just satisfied that node's gate.
+   *
+   * The node we are suspended ON has already been executed; that execution is
+   * what suspended us. Re-running it would re-fire the gate and suspend again on
+   * the same node, so a gated request could never leave the stage. It would also
+   * re-generate approval entries for the approval node.
+   */
+  resuming = false,
 ): Promise<void> {
   const nodeMap = new Map(template.nodes.map((n) => [n.id, n]));
 
@@ -265,66 +281,57 @@ async function advanceInstance(
     outcome,
   };
 
-  let currentNodeIds = [...instance.currentNodeIds];
   const instanceId = instance.id;
+  let nodeId: string | undefined = instance.currentNodeIds[0];
 
-  // Process each current node
-  for (const nodeId of currentNodeIds) {
+  // Run until a node gates, the flow completes, or we run out of edges.
+  //
+  // This used to execute at most two nodes and then hard-return, which parked
+  // the pointer ON a node without ever executing it: every wizard-created
+  // request ended up `running` at the Validation node with status still
+  // `intake`, and nothing was scheduled to pick it up. The old look-ahead also
+  // dropped `outcome` when it ran the second node, so a decision edge could not
+  // see the action that caused the advance.
+  //
+  // The step budget is a guard against a template with a cycle (n13 'Referred
+  // Back' loops back to n2), not a business rule — an unbounded loop here would
+  // hang the caller.
+  let steps = 0;
+  while (nodeId && steps < MAX_STEPS_PER_ADVANCE) {
+    steps++;
     const node = nodeMap.get(nodeId);
-    if (!node) continue;
+    if (!node) break;
 
-    const result = await executeNode(node, instance.requestId, template, outcome);
+    // `outcome` applies only to the node the caller resumed; anything the
+    // engine reaches by itself afterwards advances on its own merits.
+    const stepOutcome = steps === 1 ? outcome : undefined;
 
-    if (result === 'suspend') {
-      // Engine waits for external trigger (approvals)
-      await updateWorkflowInstance(instanceId, {
-        currentNodeIds: [nodeId],
-        status: 'suspended',
-      });
-      return;
+    // Skip execution of the node whose gate was just satisfied; advance from it.
+    if (!(resuming && steps === 1)) {
+      const result = await executeNode(node, instance.requestId, template, stepOutcome);
+
+      if (result === 'suspend') {
+        await updateWorkflowInstance(instanceId, { currentNodeIds: [nodeId], status: 'suspended' });
+        return;
+      }
+      if (result === 'complete') {
+        await updateWorkflowInstance(instanceId, { currentNodeIds: [], status: 'completed' });
+        return;
+      }
     }
 
-    if (result === 'complete') {
-      await updateWorkflowInstance(instanceId, { currentNodeIds: [], status: 'completed' });
-      return;
-    }
-
-    // Advance to next nodes using condition-aware edge selection
-    const nextIds = getNextNodeIds(nodeId, template.edges, outcome, edgeCtx);
+    const nextIds = getNextNodeIds(nodeId, template.edges, stepOutcome, edgeCtx);
     if (nextIds.length === 0) {
       await updateWorkflowInstance(instanceId, { currentNodeIds: [], status: 'completed' });
       return;
     }
 
-    currentNodeIds = nextIds;
-    await updateWorkflowInstance(instanceId, { currentNodeIds });
+    await updateWorkflowInstance(instanceId, { currentNodeIds: nextIds });
+    nodeId = nextIds[0];
+  }
 
-    // Immediately execute next node(s) if they're non-blocking
-    for (const nextId of nextIds) {
-      const nextNode = nodeMap.get(nextId);
-      if (!nextNode) continue;
-
-      if (nextNode.type === 'start' || nextNode.type === 'decision') {
-        // Auto-advance through start and decision nodes
-        continue; // handled in next loop iteration
-      }
-
-      const nextResult = await executeNode(nextNode, instance.requestId, template, undefined);
-      if (nextResult === 'suspend') {
-        await updateWorkflowInstance(instanceId, { currentNodeIds: [nextId], status: 'suspended' });
-        return;
-      }
-      if (nextResult === 'complete') {
-        await updateWorkflowInstance(instanceId, { currentNodeIds: [], status: 'completed' });
-        return;
-      }
-      // For other types, advance further
-      const afterIds = getNextNodeIds(nextId, template.edges, undefined);
-      if (afterIds.length > 0) {
-        await updateWorkflowInstance(instanceId, { currentNodeIds: afterIds });
-      }
-    }
-    return; // only process the first current node per advance call
+  if (steps >= MAX_STEPS_PER_ADVANCE) {
+    console.warn(`[engine] step budget exhausted for ${instance.requestId} — check the template for a cycle`);
   }
 }
 
@@ -421,27 +428,38 @@ async function generateComplianceReport(requestId: string): Promise<void> {
 
 type NodeResult = 'continue' | 'suspend' | 'complete';
 
+/** Cycle guard for one advance call — templates may legitimately loop back. */
+const MAX_STEPS_PER_ADVANCE = 50;
+
 async function executeNode(
   node: TemplateNode,
   requestId: string,
   _template: WorkflowTemplate,
-  _outcome: string | undefined,
+  outcome: string | undefined,
 ): Promise<NodeResult> {
   switch (node.type) {
     case 'start':
       return 'continue';
 
     case 'end':
-      await updateRequest(requestId, { status: 'completed' });
+      await transitionStage({ requestId, toStage: 'completed', action: outcome ?? 'completed', node });
       return 'complete';
 
     case 'error':
-      await updateRequest(requestId, { status: 'referred-back' });
+      await transitionStage({ requestId, toStage: 'referred-back', action: 'referred-back', node });
       return 'suspend';
 
     case 'stage': {
       const newStatus = nodeToStatus(node.label);
-      await updateRequest(requestId, { status: newStatus as never });
+      // Every stage change goes through the one primitive, so the stage_history
+      // row that the steppers read is written by the engine too — not only by
+      // api/workflow-action.ts. The owner and sla_deadline come from the node.
+      await transitionStage({
+        requestId,
+        toStage: newStatus,
+        action: outcome ?? 'advanced',
+        node,
+      });
 
       // Validation stage → generate compliance report
       if (newStatus === 'validation') {
@@ -450,26 +468,16 @@ async function executeNode(
 
       // Approval stage → generate entries + suspend
       if (newStatus === 'approval') {
-        const { data: req } = await supabase
-          .from('requests')
-          .select('buying_channel, approval_chain')
-          .eq('id', requestId)
-          .maybeSingle();
-
-        const chainName = (req as Record<string, unknown>)?.approval_chain as string | undefined
-          ?? (req as Record<string, unknown>)?.buying_channel as string | undefined
-          ?? 'chain-1';
-
-        await generateApprovalEntries(requestId, chainName);
+        await generateApprovalEntries(requestId, await resolveChainForRequest(requestId));
         return 'suspend';
       }
 
-      // Sourcing stage → suspend until an award is made.
-      // Symmetric with the approval gate above: the engine cannot know which
-      // supplier won, so awarding calls advanceWorkflow(requestId, 'awarded')
-      // to resume. Without this the engine walks straight through sourcing to
-      // contracting and the sourcing event it just raised is never concluded.
-      if (newStatus === 'sourcing') {
+      // A gated stage waits for its owner to act. `sourcing` and `approval` are
+      // always gated; the rest is the node's `gate` field, falling back to the
+      // defaults in node-config for templates saved before that field existed.
+      // Without this the engine ran intake → approval in one step and the
+      // stages in between were invisible transitions with no owner.
+      if (isGatedStage(node, newStatus)) {
         return 'suspend';
       }
 

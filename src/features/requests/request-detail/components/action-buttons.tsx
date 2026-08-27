@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Check, X, RotateCcw, UserPlus, ArrowUpRight, Ban, ShoppingCart, Loader2, Gavel } from 'lucide-react';
+import { Check, X, RotateCcw, UserPlus, ArrowUpRight, Ban, ShoppingCart, Loader2, Gavel, ArrowRight } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { ProcurementRequest } from '@/data/types';
@@ -26,6 +26,11 @@ import { toast } from 'sonner';
 import { useApprovalLookup, useApprovals, useUpdateApproval } from '@/lib/db/hooks/use-approvals';
 import { useAuthStore } from '@/stores/auth-store';
 import { advanceWorkflow, areAllApprovalsComplete } from '@/lib/workflow/engine';
+import { useWorkflowTemplate } from '@/lib/db/hooks/use-workflow-templates';
+import { getWorkflowInstanceForRequest } from '@/lib/db/workflow-instances';
+import { transitionStage } from '@/lib/workflow/transition';
+import { gateActionLabel, isGatedStage, isTerminalStatus, nodeToStatus, type TemplateNode } from '@/lib/workflow/node-config';
+import { nextStageAfter } from '@/lib/workflow/buying-channel-stages';
 
 interface ActionButtonsProps {
   request: ProcurementRequest;
@@ -57,6 +62,22 @@ export function ActionButtons({ request }: ActionButtonsProps) {
   // second one for the same demand.
   const { data: linkedEvents = [] } = useSourcingEventsForRequest(request.id);
   const existingEvent = linkedEvents[0];
+
+  const [advancing, setAdvancing] = useState(false);
+
+  // The stage gate. `node` is the template node the request is sitting on, which
+  // carries the role that owns it and whether leaving it needs a human.
+  const { data: template } = useWorkflowTemplate(request.workflowTemplateId);
+  const currentNode: TemplateNode | undefined = template?.nodes.find(
+    (n) => (n as TemplateNode).type === 'stage' && nodeToStatus(n.label) === request.status,
+  );
+  // Approval and sourcing have their own dedicated actions below, so the generic
+  // gate action would duplicate them.
+  const showGateAction =
+    !isTerminalStatus(request.status) &&
+    request.status !== 'approval' &&
+    request.status !== 'sourcing' &&
+    isGatedStage(currentNode, request.status);
 
   const isPOStage = request.status === 'po';
   // Gated on the stage, deliberately not on request.sourcingType: that column
@@ -128,6 +149,47 @@ export function ActionButtons({ request }: ActionButtonsProps) {
     }
 
     setConfirmAction(null);
+  }
+
+  /**
+   * Leave a gated stage.
+   *
+   * Two paths, because most requests have no workflow instance: only those
+   * created since the engine started instantiating one do. advanceWorkflow
+   * returns early for the rest, so without the fallback this button would
+   * appear to do nothing on 93 of 101 requests.
+   */
+  async function handleCompleteStage() {
+    setAdvancing(true);
+    try {
+      const instance = await getWorkflowInstanceForRequest(request.id);
+      if (instance) {
+        await advanceWorkflow(request.id, 'completed');
+      } else {
+        const next = nextStageAfter(request.buyingChannel, request.status);
+        if (!next) {
+          toast.error('No next stage is configured for this request.');
+          return;
+        }
+        await transitionStage({
+          requestId: request.id,
+          toStage: next,
+          action: 'advanced',
+          actor: { id: currentUser.id, name: currentUser.name },
+        });
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['requests'] });
+      queryClient.invalidateQueries({ queryKey: ['stage-history'] });
+      queryClient.invalidateQueries({ queryKey: ['approvals'] });
+      queryClient.invalidateQueries({ queryKey: ['workflow-instances'] });
+      queryClient.invalidateQueries({ queryKey: ['compliance-reports'] });
+      toast.success(`${request.id} moved on from ${request.status}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not advance the request');
+    } finally {
+      setAdvancing(false);
+    }
   }
 
   async function handleCreatePO() {
@@ -209,6 +271,17 @@ export function ActionButtons({ request }: ActionButtonsProps) {
   return (
     <>
       <div className="flex items-center gap-2 flex-wrap">
+        {showGateAction && (
+          <Button
+            size="sm"
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+            onClick={handleCompleteStage}
+            disabled={advancing}
+          >
+            {advancing ? <Loader2 className="size-3.5 animate-spin" /> : <ArrowRight className="size-3.5" />}
+            {gateActionLabel(request.status)}
+          </Button>
+        )}
         {isSourcingStage && (
           existingEvent ? (
             <Button size="sm" variant="outline" onClick={() => navigate(`/sourcing/${existingEvent.id}`)}>

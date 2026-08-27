@@ -43,3 +43,22 @@ export function isStageSkippedForChannel(
   const stages = getStagesForChannel(channel);
   return !stages.includes(stage as RequestStatus);
 }
+
+/**
+ * The stage that follows `stage` for this channel, or null at the end.
+ *
+ * Used only when a request has no workflow instance to advance — 93 of 101
+ * requests predate the engine creating one, so this is the common path, not a
+ * rare fallback. The channel's own stage list is the right source: it already
+ * encodes that catalogue skips validation and approval, so the fallback cannot
+ * walk a request through a stage its channel does not have.
+ */
+export function nextStageAfter(
+  channel: string | undefined,
+  stage: string,
+): RequestStatus | null {
+  const stages = getStagesForChannel(channel as BuyingChannel);
+  const idx = stages.indexOf(stage as RequestStatus);
+  if (idx === -1 || idx === stages.length - 1) return null;
+  return stages[idx + 1] ?? null;
+}
