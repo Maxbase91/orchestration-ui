@@ -16,6 +16,7 @@
 
 import { supabase } from '@/lib/supabase-client';
 import { advanceWorkflow } from '@/lib/workflow/engine';
+import { getWorkflowInstanceForRequest } from './workflow-instances';
 import {
   awardWriteBack,
   canAward,
@@ -280,6 +281,16 @@ export async function setShortlisted(id: string, shortlisted: boolean): Promise<
 
 // ── Award ────────────────────────────────────────────────────────────────────
 
+/**
+ * Where a request goes once its sourcing is awarded.
+ *
+ * Both workflow templates that contain a sourcing node route it to contracting
+ * (WF-001 'Contracting', WF-004 'Contract Execution'), so this matches the
+ * engine rather than inventing a stage. Used only when there is no workflow
+ * instance to advance — see applyAwardToRequest.
+ */
+const POST_SOURCING_STATUS = 'contracting';
+
 /** Narrow a response row to the shape the pure award rules work on. */
 export function toAwardCandidate(r: SourcingResponse): AwardCandidate {
   return {
@@ -315,11 +326,18 @@ export async function applyAwardToRequest(
     notes: `Awarded to ${winner.supplierName}`,
     ownerId: actor.id,
   });
-  // Resumes the instance suspended by the sourcing gate in workflow/engine.ts.
-  // advanceWorkflow swallows its own errors and silently no-ops when a request
-  // has no workflow instance, so this can neither fail the award nor be relied
-  // on to have moved the request — the request's own status is the truth.
-  await advanceWorkflow(requestId, 'awarded');
+  // Move the request on from sourcing. Two paths, because most requests have no
+  // workflow instance: only those created since the engine started instantiating
+  // one do. `advanceWorkflow` returns early for the rest, and the engine is what
+  // normally writes the status — so without the fallback an award would close the
+  // event, write the supplier, and still leave the request parked in `sourcing`.
+  const instance = await getWorkflowInstanceForRequest(requestId);
+  if (instance) {
+    // Resumes the instance suspended by the sourcing gate in workflow/engine.ts.
+    await advanceWorkflow(requestId, 'awarded');
+  } else {
+    await updateRequest(requestId, { status: POST_SOURCING_STATUS });
+  }
 }
 
 /**

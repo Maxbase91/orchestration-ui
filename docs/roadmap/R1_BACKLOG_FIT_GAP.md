@@ -119,6 +119,11 @@ rule 2 is intact, but it does move the "determination screen is the endpoint" li
    outcome `'awarded'`. Before this the engine walked straight through to contracting, so an event
    raised at that stage could never be concluded. A request's only exits from `sourcing` are an
    award or a cancellation — there is deliberately no "skip sourcing" action in R1.
+   Note the award moves the request on by **two** paths: it resumes the workflow instance
+   where one exists, and otherwise writes `contracting` directly. The fallback is the
+   common case, not the edge case — only requests created since the engine began
+   instantiating workflows have an instance, so without it an award would close the event,
+   write the supplier, and still leave the request parked in `sourcing`.
 2. **The award write-back is not transactional.** It spans `sourcing_responses`, `sourcing_events`
    and `requests` with no transaction, so it commits the irreversible flag first and keeps the tail
    replayable; a half-applied award is detected on the event page and repaired by **Re-apply award

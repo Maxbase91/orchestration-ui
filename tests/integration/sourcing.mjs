@@ -147,18 +147,31 @@ function awardSequence(event, responses, responseId, store) {
   return { ok: true };
 }
 
+const POST_SOURCING_STATUS = 'contracting';
+
 function applyAwardToRequest(requestId, winner, store) {
   store.request = { ...store.request, id: requestId, ...awardWriteBack(winner) };
   store.stageHistory = [...store.stageHistory, { requestId, stage: 'sourcing', action: 'awarded' }];
-  store.advanced = [...store.advanced, { requestId, outcome: 'awarded' }];
+  // Two paths. advanceWorkflow no-ops without an instance, and the ENGINE is
+  // what writes the status — so without the fallback the award closed the event,
+  // wrote the supplier, and left the request parked in `sourcing`. Found by
+  // awarding SRC-0007 against the live database; 93 of 101 requests have no
+  // instance, so the fallback is the common path, not the edge case.
+  if (store.workflowInstance) {
+    store.advanced = [...store.advanced, { requestId, outcome: 'awarded' }];
+    store.request = { ...store.request, status: 'contracting' }; // engine writes it
+  } else {
+    store.request = { ...store.request, status: POST_SOURCING_STATUS };
+  }
 }
 
-const newStore = () => ({
+const newStore = (workflowInstance = false) => ({
   responses: listResponsesForEvent('SRC-0002').map((r) => ({ ...r, awarded: false })),
   event: null,
   request: { id: 'REQ-2024-0015', supplierId: null, supplierName: null, status: 'sourcing' },
   stageHistory: [],
   advanced: [],
+  workflowInstance,
 });
 
 console.log('\nAward sequence');
@@ -182,7 +195,29 @@ check('the event is closed and stamped', store.event.status === 'completed' && s
 check('award_date is a DATE, not a timestamp', /^\d{4}-\d{2}-\d{2}$/.test(store.event.awardDate));
 check('the request inherits the winning supplier', store.request.supplierId === 'SUP-003');
 check('the stage timeline records the award', store.stageHistory.at(-1).action === 'awarded');
-check('the workflow is resumed with outcome "awarded"', store.advanced.at(-1).outcome === 'awarded');
+check('the request leaves the sourcing stage', store.request.status === 'contracting');
+
+console.log('\nThe award always moves the request on');
+// Regression: awarding SRC-0007 live wrote the supplier and closed the event but
+// left the request in `sourcing`, because advanceWorkflow returns early when
+// there is no instance and the engine is what writes the status.
+const withInstance = newStore(true);
+awardSequence(liveEvent, withInstance.responses, 'r2', withInstance);
+check('with a workflow instance: the engine is asked to advance',
+  withInstance.advanced.at(-1).outcome === 'awarded');
+check('with a workflow instance: the request leaves sourcing',
+  withInstance.request.status === 'contracting');
+
+const noInstance = newStore(false);
+awardSequence(liveEvent, noInstance.responses, 'r2', noInstance);
+check('without an instance: the engine is NOT called',
+  noInstance.advanced.length === 0);
+check('without an instance: the request still leaves sourcing',
+  noInstance.request.status === 'contracting');
+check('an awarded request is never left parked in sourcing',
+  [withInstance, noInstance].every((s) => s.request.status !== 'sourcing'));
+check('either way the supplier is written back',
+  [withInstance, noInstance].every((s) => s.request.supplierId === 'SUP-003'));
 
 // A second award is refused twice over: the award closes the event, so the
 // status check fires first, and awardedSupplierId would refuse it even if the
