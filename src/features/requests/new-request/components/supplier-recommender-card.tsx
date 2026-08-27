@@ -2,13 +2,14 @@ import { useMemo } from 'react';
 import { Sparkles, Star, AlertTriangle, CheckCircle, UserPlus } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAiAgent } from '@/lib/db/hooks/use-ai-agents';
-import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
+import { useSuppliers, useCreateProspectiveSupplier } from '@/lib/db/hooks/use-suppliers';
 import { useContracts } from '@/lib/db/hooks/use-contracts';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/lib/format';
 import { SupplierAutocomplete } from './supplier-autocomplete';
 import { isPreferredSupplier } from '@/lib/procurement/supplier-preference';
+import { isProspective } from '@/lib/workflow/onboarding-stage';
 import type { Supplier } from '@/data/types';
 
 interface Props {
@@ -69,6 +70,7 @@ export function SupplierRecommenderCard({
   supplierProvenance, onSelect,
 }: Props) {
   const { data: agent } = useAiAgent('AI-005');
+  const createProspective = useCreateProspectiveSupplier();
   const { data: suppliers = [] } = useSuppliers();
   const { data: contracts = [] } = useContracts();
   const active = agent?.status === 'active';
@@ -166,7 +168,20 @@ export function SupplierRecommenderCard({
               value={selectedSupplierName ?? ''}
               supplierId={selectedSupplierId ?? ''}
               onSelect={onSelect}
+              onCreateProspective={async (name) => {
+                const created = await createProspective.mutateAsync({ name });
+                onSelect(created);
+              }}
             />
+            {/* A prospective supplier changes what happens next, so it is stated
+                here rather than discovered at the sourcing or contracting gate. */}
+            {selectedSupplier && isProspective(selectedSupplier) && (
+              <p className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-[11px] text-amber-800">
+                New supplier — screening must clear before they can be invited to a
+                sourcing event or the risk assessment completed, and full onboarding is
+                required before contracting.
+              </p>
+            )}
             {selectedSupplierId && supplierProvenance === 'named' && (
               <p className="text-[11px] text-gray-500">
                 Taken from your request — confirm or change it here.

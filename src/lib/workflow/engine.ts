@@ -7,10 +7,11 @@ import {
   updateWorkflowInstance,
   type WorkflowInstance,
 } from '@/lib/db/workflow-instances';
-import type { WorkflowTemplate } from '@/data/types';
+import type { Supplier, WorkflowTemplate } from '@/data/types';
 import { getStagesForChannel } from './buying-channel-stages';
 import { resolveApprover } from './approver-resolution';
 import { transitionStage } from './transition';
+import { onboardingRequired } from './onboarding-stage';
 import { ensureRiskAssessment } from './risk-stage';
 import { getActivePolicyConfig } from '@/lib/procurement/policy-config';
 import { listApprovalChains } from '@/lib/db/approval-chains';
@@ -37,6 +38,44 @@ interface EdgeContext {
   /** Persisted at intake (R3); drives the conditional risk stage. */
   riskRequired?: boolean;
   riskTier?: string;
+  /**
+   * The awarded/named supplier still needs onboarding (S6).
+   *
+   * Note the node is the *visible* stage; the guarantee lives in the gates
+   * (canEnterSourcing / canEnterContracting), which hold on every path including
+   * ones this edge does not cover — a demand that skips risk still cannot invite
+   * or contract with an un-onboarded vendor.
+   */
+  onboardingRequired?: boolean;
+}
+
+/**
+ * Does the named supplier still need onboarding?
+ *
+ * A read failure returns false rather than true: an unreachable supplier table
+ * must not park every request on an onboarding stage nobody asked for. The gates
+ * at sourcing and contracting are the enforcement, and they fail closed.
+ */
+async function needsOnboarding(supplierId: string | null | undefined): Promise<boolean> {
+  if (!supplierId) return false;
+  try {
+    const { data } = await supabase
+      .from('suppliers')
+      .select('id, name, onboarding_status, screening_status, prospective')
+      .eq('id', supplierId)
+      .maybeSingle();
+    if (!data) return false;
+    const r = data as Record<string, unknown>;
+    return onboardingRequired({
+      id: r.id as string,
+      name: (r.name as string) ?? '',
+      onboardingStatus: (r.onboarding_status as Supplier['onboardingStatus']) ?? 'not-started',
+      screeningStatus: (r.screening_status as Supplier['screeningStatus']) ?? 'pending',
+      prospective: r.prospective === true,
+    } as Supplier);
+  } catch {
+    return false;
+  }
 }
 
 function evaluateEdgeCondition(label: string | undefined, ctx: EdgeContext): boolean {
@@ -54,6 +93,8 @@ function evaluateEdgeCondition(label: string | undefined, ctx: EdgeContext): boo
   // comparison because that is what reads sensibly on the designer canvas.
   if (l === 'risk required') return ctx.riskRequired === true;
   if (l === 'no risk assessment' || l === 'skip risk') return ctx.riskRequired !== true;
+  if (l === 'onboarding required') return ctx.onboardingRequired === true;
+  if (l === 'skip onboarding' || l === 'no onboarding') return ctx.onboardingRequired !== true;
 
   // Simple field comparisons: "value > 100000", "category == consulting",
   // "risktier == high"
@@ -282,7 +323,7 @@ async function advanceInstance(
   // Load request context for decision-node condition evaluation
   const { data: reqRow } = await supabase
     .from('requests')
-    .select('value, category, status, risk_assessment_required, inherent_risk_tier')
+    .select('value, category, status, risk_assessment_required, inherent_risk_tier, supplier_id')
     .eq('id', instance.requestId)
     .maybeSingle();
   const row = (reqRow ?? {}) as Record<string, unknown>;
@@ -292,6 +333,7 @@ async function advanceInstance(
     status: row.status as string | undefined,
     riskRequired: row.risk_assessment_required === true,
     riskTier: row.inherent_risk_tier as string | undefined,
+    onboardingRequired: await needsOnboarding(row.supplier_id as string | null),
     outcome,
   };
 

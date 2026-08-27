@@ -17,6 +17,7 @@ const LIFECYCLE_STAGES: { id: RequestStatus; label: string }[] = [
   // Conditional: entered only when the intake triage required an assessment and
   // no reusable one matched. Rendered as skipped otherwise, not omitted.
   { id: 'risk', label: 'Risk Assessment' },
+  { id: 'onboarding', label: 'Vendor Onboarding' },
   { id: 'approval', label: 'Approval' },
   { id: 'sourcing', label: 'Sourcing' },
   { id: 'contracting', label: 'Contracting' },

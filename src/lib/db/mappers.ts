@@ -624,6 +624,8 @@ export function mapDbToSupplier(row: DbRecord): Supplier {
     activeContracts: (row.active_contracts_live ?? row.active_contracts ?? row.activeContracts ?? 0) as number,
     totalSpend12m: (row.total_spend_12m_live ?? row.total_spend_12m ?? row.totalSpend12m ?? 0) as number,
     onboardingStatus: (row.onboarding_status ?? row.onboardingStatus ?? 'not-started') as Supplier['onboardingStatus'],
+    prospective: Boolean(row.prospective ?? row.prospective),
+    ...(row.created_from_request_id ? { createdFromRequestId: row.created_from_request_id as string } : {}),
     sraStatus: (row.sra_status ?? row.sraStatus ?? 'not-assessed') as Supplier['sraStatus'],
     sraExpiryDate: (row.sra_expiry_date ?? row.sraExpiryDate) as string | undefined,
     screeningStatus: (row.screening_status ?? row.screeningStatus ?? 'pending') as Supplier['screeningStatus'],
@@ -650,6 +652,8 @@ export function mapSupplierToDb(s: Partial<Supplier>): DbRecord {
   if (s.activeContracts !== undefined) out.active_contracts = s.activeContracts;
   if (s.totalSpend12m !== undefined) out.total_spend_12m = s.totalSpend12m;
   if (s.onboardingStatus !== undefined) out.onboarding_status = s.onboardingStatus;
+  if (s.prospective !== undefined) out.prospective = s.prospective;
+  if (s.createdFromRequestId !== undefined) out.created_from_request_id = s.createdFromRequestId;
   if (s.sraStatus !== undefined) out.sra_status = s.sraStatus;
   if (s.sraExpiryDate !== undefined) out.sra_expiry_date = s.sraExpiryDate;
   if (s.screeningStatus !== undefined) out.screening_status = s.screeningStatus;

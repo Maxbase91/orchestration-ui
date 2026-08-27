@@ -19,12 +19,12 @@ import type { BuyingChannel, RequestStatus } from '@/data/types';
 const STAGES_BY_CHANNEL: Record<BuyingChannel, RequestStatus[]> = {
   catalogue:            ['intake', 'po', 'receipt', 'invoice', 'payment'],
   'direct-po':          ['intake', 'validation', 'approval', 'po', 'receipt', 'invoice', 'payment'],
-  'business-led':       ['intake', 'validation', 'risk', 'approval', 'po', 'receipt', 'invoice', 'payment'],
-  'framework-call-off': ['intake', 'validation', 'risk', 'approval', 'po', 'receipt', 'invoice', 'payment'],
+  'business-led':       ['intake', 'validation', 'risk', 'onboarding', 'approval', 'po', 'receipt', 'invoice', 'payment'],
+  'framework-call-off': ['intake', 'validation', 'risk', 'onboarding', 'approval', 'po', 'receipt', 'invoice', 'payment'],
   // `risk` sits after validation and is entered only when the intake triage
   // required one — see the conditional edge in WF-001. It appears in the stage
   // list so the stepper can render it as skipped rather than omitting it.
-  'procurement-led':    ['intake', 'validation', 'risk', 'approval', 'sourcing', 'contracting', 'po', 'receipt', 'invoice', 'payment'],
+  'procurement-led':    ['intake', 'validation', 'risk', 'onboarding', 'approval', 'sourcing', 'contracting', 'po', 'receipt', 'invoice', 'payment'],
 };
 
 const FULL_LIFECYCLE: RequestStatus[] = [

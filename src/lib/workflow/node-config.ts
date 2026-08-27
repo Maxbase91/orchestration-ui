@@ -62,6 +62,7 @@ export function gateActionLabel(status: string): string {
   switch (status) {
     case 'validation': return 'Complete validation';
     case 'risk': return 'Record risk decision';
+    case 'onboarding': return 'Complete vendor onboarding';
     case 'contracting': return 'Contract signed';
     case 'po': return 'PO issued';
     case 'receipt': return 'Goods received';
@@ -88,6 +89,9 @@ const LABEL_TO_STATUS: Record<string, string> = {
   'sourcing (rfp)': 'sourcing',
   'risk': 'risk',
   'risk assessment': 'risk',
+  'onboarding': 'onboarding',
+  'vendor onboarding': 'onboarding',
+  'supplier onboarding': 'onboarding',
   'contracting': 'contracting',
   'po creation': 'po',
   'po created': 'po',

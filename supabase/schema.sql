@@ -1131,3 +1131,18 @@ CREATE TABLE IF NOT EXISTS service_description_templates (
 ALTER TABLE service_descriptions
   ADD COLUMN IF NOT EXISTS signals jsonb,
   ADD COLUMN IF NOT EXISTS required_sections text[] NOT NULL DEFAULT '{}';
+
+-- ── Prospective suppliers (S5) ──────────────────────────────────────────────
+-- Vendor onboarding is triggered by "a NEW supplier was selected", and that was
+-- inexpressible: the intake picker only offered the directory, so a requester
+-- naming an unknown vendor had nowhere to put it and onboarding could never
+-- fire. `prospective` is NOT the same as onboarding_status <> 'completed': an
+-- established supplier can be mid-data-refresh, whereas a prospective one has
+-- never been transacted with — which is what the sourcing invitation and the
+-- risk assessment both need to know.
+ALTER TABLE suppliers
+  ADD COLUMN IF NOT EXISTS prospective boolean NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS created_from_request_id text;
+
+CREATE INDEX IF NOT EXISTS suppliers_prospective_idx
+  ON suppliers(prospective, onboarding_status);

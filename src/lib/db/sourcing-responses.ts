@@ -25,6 +25,9 @@ import {
 import { createAuditEntry } from './audit-entries';
 import { createNotification } from './notifications';
 import { updateRequest } from './requests';
+import { getSupplier } from './suppliers';
+import { transitionStage } from '@/lib/workflow/transition';
+import { canEnterContracting } from '@/lib/workflow/onboarding-stage';
 import { updateSourcingEvent, type SourcingEvent } from './sourcing-events';
 import { appendStageHistoryEvent } from './stage-history';
 
@@ -331,12 +334,42 @@ export async function applyAwardToRequest(
   // one do. `advanceWorkflow` returns early for the rest, and the engine is what
   // normally writes the status — so without the fallback an award would close the
   // event, write the supplier, and still leave the request parked in `sourcing`.
+  //
+  // Where it goes depends on the winner. Contracting commits the platform, so
+  // it is gated on the awarded supplier being FULLY onboarded — a vendor nobody
+  // can pay must not reach a signed contract. A winner still mid-onboarding
+  // goes to the onboarding stage instead and continues to contracting from
+  // there. This is the one place the gate must hold, because it is the write
+  // path that moves a request past sourcing.
+  const winnerSupplier = await getSupplier(winner.supplierId).catch(() => null);
+  const gate = canEnterContracting(winnerSupplier);
+  const nextStage = gate.allowed ? POST_SOURCING_STATUS : 'onboarding';
+
+  if (!gate.allowed) {
+    await appendStageHistoryEvent({
+      requestId,
+      stage: 'sourcing',
+      action: 'onboarding-required',
+      notes: gate.reason,
+      ownerId: actor.id,
+    });
+  }
+
   const instance = await getWorkflowInstanceForRequest(requestId);
-  if (instance) {
+  if (instance && gate.allowed) {
     // Resumes the instance suspended by the sourcing gate in workflow/engine.ts.
     await advanceWorkflow(requestId, 'awarded');
   } else {
-    await updateRequest(requestId, { status: POST_SOURCING_STATUS });
+    // No instance, or a winner who cannot go straight to contracting. Both take
+    // the direct path: the engine has no edge that expresses "award, but stop at
+    // onboarding first", and inventing one would put the rule in two places.
+    await transitionStage({
+      requestId,
+      toStage: nextStage,
+      action: 'awarded',
+      actor,
+      notes: gate.allowed ? undefined : gate.reason,
+    });
   }
 }
 

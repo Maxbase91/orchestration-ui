@@ -1,5 +1,5 @@
 // Status + Priority stay as union types (they drive the lifecycle state machine).
-export type RequestStatus = 'draft' | 'intake' | 'validation' | 'approval' | 'risk' | 'sourcing' | 'contracting' | 'po' | 'receipt' | 'invoice' | 'payment' | 'completed' | 'cancelled' | 'referred-back';
+export type RequestStatus = 'draft' | 'intake' | 'validation' | 'approval' | 'risk' | 'onboarding' | 'sourcing' | 'contracting' | 'po' | 'receipt' | 'invoice' | 'payment' | 'completed' | 'cancelled' | 'referred-back';
 export type Priority = 'low' | 'medium' | 'high' | 'urgent';
 
 // Categories and channels are widened to `string` so admin-created values work at runtime.
@@ -165,6 +165,16 @@ export interface Supplier {
   tier: 1 | 2 | 3;
   /** On the preferred-supplier list (PSL). Soft preference, not a hard gate. */
   preferred?: boolean;
+  /**
+   * Created from a demand and never transacted with.
+   *
+   * Distinct from `onboardingStatus !== 'completed'`: an established supplier
+   * can be mid-data-refresh, whereas a prospective one has no history at all.
+   * Sourcing invitations and the risk assessment both need that distinction.
+   */
+  prospective?: boolean;
+  /** The demand that brought this supplier into the system, for audit. */
+  createdFromRequestId?: string;
   duns: string;
   address: string;
   primaryContact: string;

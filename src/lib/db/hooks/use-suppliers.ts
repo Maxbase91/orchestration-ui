@@ -6,6 +6,7 @@ import {
   createSupplier,
   updateSupplier,
   deleteSupplier,
+  createProspectiveSupplier,
 } from '../suppliers';
 
 const KEYS = {
@@ -40,6 +41,18 @@ export function useSupplierLookup() {
     if (!id) return undefined;
     return data?.find((s) => s.id === id);
   };
+}
+
+/** Create a supplier named on a demand but absent from the directory. */
+export function useCreateProspectiveSupplier() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ name, requestId }: { name: string; requestId?: string }) =>
+      createProspectiveSupplier(name, requestId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['suppliers'] });
+    },
+  });
 }
 
 export function useCreateSupplier() {

@@ -70,6 +70,8 @@ const STEP_NODE_TYPES = new Set(['stage']);
 
 /** Does this node's label name the risk stage? */
 const isRiskLabel = (label: string) => /risk|sra|assessment/i.test(label);
+/** Does this node's label name the vendor-onboarding stage? */
+const isOnboardingLabel = (label: string) => /onboard/i.test(label);
 
 /**
  * Compose the lifecycle steps for the Routing preview from a template's nodes
@@ -91,10 +93,14 @@ export function composeWorkflowSteps(
     .filter((n) => STEP_NODE_TYPES.has(n.type))
     // The template's own risk node is conditional at runtime; mirror that here.
     .filter((n) => signals.riskAssessmentRequired || !isRiskLabel(n.label))
+    // Same for onboarding: WF-001 now models it as a real node behind a
+    // conditional edge, so a preview that showed it regardless would promise a
+    // stage the engine is about to skip — the exact fault R4 fixed for risk.
+    .filter((n) => signals.supplierOnboardingRequired || !isOnboardingLabel(n.label))
     .map((n, i) => ({ key: `t${i}-${n.label}`, label: n.label, owner: ownerForStage(n.label) }));
 
   const hasRisk = steps.some((s) => isRiskLabel(s.label));
-  const hasOnboarding = steps.some((s) => /onboard/i.test(s.label));
+  const hasOnboarding = steps.some((s) => isOnboardingLabel(s.label));
 
   const inserts: WorkflowStepView[] = [];
   if (signals.riskAssessmentRequired && !hasRisk) inserts.push(RISK_STEP);

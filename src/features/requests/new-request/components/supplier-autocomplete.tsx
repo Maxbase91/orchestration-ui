@@ -3,7 +3,7 @@
 // (e.g. an expired assessment) before committing to a supplier, not after
 // routing.
 import { useState } from 'react';
-import { ChevronsUpDown, Building2, ShieldCheck, ShieldAlert, ShieldX, AlertTriangle } from 'lucide-react';
+import { ChevronsUpDown, Building2, ShieldCheck, ShieldAlert, ShieldX, AlertTriangle, UserPlus } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +16,15 @@ interface SupplierAutocompleteProps {
   value: string;
   supplierId: string;
   onSelect: (supplier: Supplier) => void;
+  /**
+   * Create a supplier the directory does not hold.
+   *
+   * Vendor onboarding is triggered by "a new supplier was selected", and that
+   * was inexpressible: this picker only ever offered the directory, so a
+   * requester naming an unknown vendor had nowhere to put it and onboarding
+   * could never fire. Omit the handler to keep the picker read-only.
+   */
+  onCreateProspective?: (name: string) => Promise<void> | void;
 }
 
 const riskBadgeStyles: Record<string, string> = {
@@ -32,10 +41,34 @@ const sraLabels: Record<string, string> = {
   'not-assessed': 'Not Assessed',
 };
 
-export function SupplierAutocomplete({ value, supplierId, onSelect }: SupplierAutocompleteProps) {
+export function SupplierAutocomplete({
+  value, supplierId, onSelect, onCreateProspective,
+}: SupplierAutocompleteProps) {
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [creating, setCreating] = useState(false);
   const { data: suppliers = [] } = useSuppliers();
   const selectedSupplier = suppliers.find((s) => s.id === supplierId);
+
+  const trimmed = query.trim();
+  // Offer creation only when the typed name matches nothing. An exact match on
+  // an existing supplier must never offer to create a duplicate of it.
+  const canCreate =
+    Boolean(onCreateProspective) &&
+    trimmed.length > 1 &&
+    !suppliers.some((s) => s.name.toLowerCase() === trimmed.toLowerCase());
+
+  const handleCreate = async () => {
+    if (!onCreateProspective || !trimmed) return;
+    setCreating(true);
+    try {
+      await onCreateProspective(trimmed);
+      setOpen(false);
+      setQuery('');
+    } finally {
+      setCreating(false);
+    }
+  };
 
   return (
     <div className="space-y-2">
@@ -53,9 +86,32 @@ export function SupplierAutocomplete({ value, supplierId, onSelect }: SupplierAu
         </PopoverTrigger>
         <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
           <Command>
-            <CommandInput placeholder="Type supplier name..." />
+            <CommandInput
+              placeholder="Type supplier name..."
+              value={query}
+              onValueChange={setQuery}
+            />
             <CommandList>
-              <CommandEmpty>No supplier found.</CommandEmpty>
+              <CommandEmpty>
+                {canCreate ? (
+                  <button
+                    type="button"
+                    className="flex w-full items-center gap-2 px-2 py-1.5 text-left text-sm hover:bg-gray-50 disabled:opacity-50"
+                    onClick={() => void handleCreate()}
+                    disabled={creating}
+                  >
+                    <UserPlus className="size-4 text-blue-600" />
+                    <span>
+                      Add <strong>{trimmed}</strong> as a new supplier
+                      <span className="block text-xs text-gray-500">
+                        Creates a prospective record — screening and onboarding follow
+                      </span>
+                    </span>
+                  </button>
+                ) : (
+                  'No supplier found.'
+                )}
+              </CommandEmpty>
               <CommandGroup>
                 {suppliers.map((supplier) => (
                   <CommandItem

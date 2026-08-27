@@ -38,6 +38,8 @@ import { transitionStage } from '@/lib/workflow/transition';
 import { gateActionLabel, isGatedStage, isTerminalStatus, nodeToStatus, type TemplateNode } from '@/lib/workflow/node-config';
 import { DEFAULT_TEMPLATE } from '@/lib/procurement/service-description-defaults';
 import { nextStageAfter } from '@/lib/workflow/buying-channel-stages';
+import { canEnterSourcing, supplierReadyForRiskCompletion } from '@/lib/workflow/onboarding-stage';
+import { getSupplier } from '@/lib/db/suppliers';
 
 interface ActionButtonsProps {
   request: ProcurementRequest;
@@ -173,18 +175,41 @@ export function ActionButtons({ request }: ActionButtonsProps) {
   async function handleCompleteStage() {
     setAdvancing(true);
     try {
+      // Two onboarding gates, checked before the stage moves rather than
+      // discovered downstream. Light onboarding (record exists + screened) is
+      // what the risk assessment hangs off and what a sourcing invitation
+      // needs; full onboarding is checked at award, in applyAwardToRequest.
+      const supplier = request.supplierId
+        ? await getSupplier(request.supplierId).catch(() => null)
+        : null;
+
+      if (request.status === 'risk') {
+        const gate = supplierReadyForRiskCompletion(supplier);
+        if (!gate.allowed) {
+          toast.error(gate.reason);
+          return;
+        }
+      }
+      const nextStage = nextStageAfter(request.buyingChannel, request.status);
+      if (nextStage === 'sourcing') {
+        const gate = canEnterSourcing(supplier);
+        if (!gate.allowed) {
+          toast.error(gate.reason);
+          return;
+        }
+      }
+
       const instance = await getWorkflowInstanceForRequest(request.id);
       if (instance) {
         await advanceWorkflow(request.id, 'completed');
       } else {
-        const next = nextStageAfter(request.buyingChannel, request.status);
-        if (!next) {
+        if (!nextStage) {
           toast.error('No next stage is configured for this request.');
           return;
         }
         await transitionStage({
           requestId: request.id,
-          toStage: next,
+          toStage: nextStage,
           action: 'advanced',
           actor: { id: currentUser.id, name: currentUser.name },
         });
