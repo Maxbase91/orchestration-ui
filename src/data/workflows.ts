@@ -18,6 +18,7 @@ export const workflowTemplates: WorkflowTemplate[] = [
       { id: 'n1', type: 'start', label: 'Request Submitted', x: 50, y: 200 },
       { id: 'n2', type: 'stage', label: 'Intake', x: 200, y: 200, role: 'Business Requestor', slaDays: 1, gate: 'auto' as const, purpose: 'Demand captured and classified. Completed by submission.' },
       { id: 'n3', type: 'stage', label: 'Validation', x: 350, y: 200, role: 'Category Manager', slaDays: 3, gate: 'manual' as const, purpose: 'Demand is complete, correctly categorised and routed to the right channel.' },
+      { id: 'n14', type: 'stage', label: 'Risk Assessment', x: 350, y: 330, role: 'Third-party risk', slaDays: 7, gate: 'manual' as const, purpose: 'Third-party risk assessed and a decision recorded, or an existing assessment reused.' },
       { id: 'n4', type: 'decision', label: 'Auto-Route', x: 500, y: 200 },
       { id: 'n5', type: 'stage', label: 'Approval', x: 650, y: 100, role: 'Approver', slaDays: 5, gate: 'manual' as const, purpose: 'All approvers in the value-banded chain have responded.' },
       { id: 'n6', type: 'stage', label: 'Sourcing', x: 650, y: 300, role: 'Procurement Lead', slaDays: 20, gate: 'manual' as const, purpose: 'A supplier has been selected and the event awarded.' },
@@ -32,7 +33,12 @@ export const workflowTemplates: WorkflowTemplate[] = [
     edges: [
       { source: 'n1', target: 'n2' },
       { source: 'n2', target: 'n3' },
-      { source: 'n3', target: 'n4' },
+      // Conditional: the risk stage is entered only when the intake triage said
+      // one was needed. 'Risk required' is listed first so it is evaluated first;
+      // 'Skip risk' is the catch-all for demand that does not need one.
+      { source: 'n3', target: 'n14', label: 'Risk required' },
+      { source: 'n3', target: 'n4', label: 'Skip risk' },
+      { source: 'n14', target: 'n4' },
       { source: 'n4', target: 'n5', label: 'Needs Approval' },
       { source: 'n4', target: 'n6', label: 'Direct to Sourcing' },
       { source: 'n5', target: 'n7', label: 'Approved' },

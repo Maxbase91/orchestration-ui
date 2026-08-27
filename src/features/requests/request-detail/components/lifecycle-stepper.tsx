@@ -14,6 +14,9 @@ import { openItemForRequest } from '@/lib/workflow/open-items';
 const LIFECYCLE_STAGES: { id: RequestStatus; label: string }[] = [
   { id: 'intake', label: 'Intake' },
   { id: 'validation', label: 'Validation' },
+  // Conditional: entered only when the intake triage required an assessment and
+  // no reusable one matched. Rendered as skipped otherwise, not omitted.
+  { id: 'risk', label: 'Risk Assessment' },
   { id: 'approval', label: 'Approval' },
   { id: 'sourcing', label: 'Sourcing' },
   { id: 'contracting', label: 'Contracting' },

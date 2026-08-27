@@ -41,15 +41,24 @@ function isGatedStage(node, status) {
 // ── mirrors the engine traversal ────────────────────────────────────────────
 const MAX_STEPS_PER_ADVANCE = 50;
 
-function getNextNodeIds(nodeId, edges, outcome) {
+// mirrors evaluateEdgeCondition's risk labels + outcome matching
+function edgeMatches(label, outcome, ctx = {}) {
+  if (!label) return true;
+  const l = label.trim().toLowerCase();
+  if (l === 'risk required') return ctx.riskRequired === true;
+  if (l === 'skip risk' || l === 'no risk assessment') return ctx.riskRequired !== true;
+  return outcome != null && l.includes(String(outcome).toLowerCase());
+}
+
+function getNextNodeIds(nodeId, edges, outcome, ctx = {}) {
   const outgoing = edges.filter((e) => e.source === nodeId);
   if (outgoing.length === 0) return [];
-  const matched = outgoing.find((e) => !e.label || e.label === outcome);
+  const matched = outgoing.find((e) => edgeMatches(e.label, outcome, ctx));
   return [(matched ?? outgoing[0]).target];
 }
 
 /** Mirrors executeNode + advanceInstance. `store` records every side effect. */
-function advanceInstance(template, startNodeId, outcome, store, resuming = false) {
+function advanceInstance(template, startNodeId, outcome, store, resuming = false, ctx = {}) {
   const nodeMap = new Map(template.nodes.map((n) => [n.id, n]));
   let nodeId = startNodeId;
   let steps = 0;
@@ -63,7 +72,7 @@ function advanceInstance(template, startNodeId, outcome, store, resuming = false
     // The node we are suspended ON already ran — that run is what suspended us.
     // Re-running it re-fires the gate and suspends on the same node forever.
     if (resuming && steps === 1) {
-      const skipTo = getNextNodeIds(nodeId, template.edges, stepOutcome);
+      const skipTo = getNextNodeIds(nodeId, template.edges, stepOutcome, ctx);
       if (skipTo.length === 0) return { status: 'completed', at: [] };
       nodeId = skipTo[0];
       continue;
@@ -82,10 +91,11 @@ function advanceInstance(template, startNodeId, outcome, store, resuming = false
       transitionStage(store, status, node);
       if (status === 'validation') store.complianceReports++;
       if (status === 'approval') store.approvalChains.push(store.pendingChain);
+      if (status === 'risk') store.riskAssessmentsRaised++;
       if (isGatedStage(node, status)) return { status: 'suspended', at: [nodeId] };
     }
 
-    const nextIds = getNextNodeIds(nodeId, template.edges, stepOutcome);
+    const nextIds = getNextNodeIds(nodeId, template.edges, stepOutcome, ctx);
     if (nextIds.length === 0) return { status: 'completed', at: [] };
     nodeId = nextIds[0];
   }
@@ -148,6 +158,7 @@ const newStore = () => ({
   stageHistory: [],
   complianceReports: 0,
   approvalChains: [],
+  riskAssessmentsRaised: 0,
   pendingChain: 'chain-3',
 });
 
@@ -158,6 +169,7 @@ const WF001 = {
     { id: 'n2', type: 'stage', label: 'Intake', role: 'Category Manager', slaDays: 1, gate: 'auto' },
     { id: 'n3', type: 'stage', label: 'Validation', role: 'Category Manager', slaDays: 3,
       purpose: 'Demand is complete, correctly categorised and routed to the right channel.' },
+    { id: 'n14', type: 'stage', label: 'Risk Assessment', role: 'Third-party risk', slaDays: 7 },
     { id: 'n4', type: 'decision', label: 'Auto-Route' },
     { id: 'n5', type: 'stage', label: 'Approval', role: 'Finance Approver', slaDays: 5 },
     { id: 'n6', type: 'stage', label: 'Sourcing' },
@@ -167,7 +179,9 @@ const WF001 = {
   edges: [
     { source: 'n1', target: 'n2' },
     { source: 'n2', target: 'n3' },
-    { source: 'n3', target: 'n4' },
+    { source: 'n3', target: 'n14', label: 'Risk required' },
+    { source: 'n3', target: 'n4', label: 'Skip risk' },
+    { source: 'n14', target: 'n4' },
     { source: 'n4', target: 'n5', label: 'Needs Approval' },
     { source: 'n4', target: 'n6', label: 'Direct to Sourcing' },
     { source: 'n5', target: 'n7', label: 'Approved' },
@@ -428,6 +442,46 @@ check('competitive sourcing applies at the threshold', sourcingCheck(25000, poli
 // change the report too, or Admin and the report disagree about the same rule.
 check('lowering the configured threshold changes the verdict',
   budgetCheck(300000, { ...policy, delegatedAuthorityThreshold: 250000 }) === 'warning');
+
+console.log('\nRisk is a conditional stage');
+// The intake wizard computed riskAssessmentRequired, showed an amber banner
+// promising "it appears as a step in the workflow", and discarded it. Risk was
+// not a RequestStatus, not in any template, and not in either lifecycle array.
+const riskNeeded = newStore();
+advanceInstance(WF001, 'n1', undefined, riskNeeded, false, { riskRequired: true });
+const rNeed = advanceInstance(WF001, 'n3', 'completed', riskNeeded, true, { riskRequired: true });
+check('a request needing risk lands on the risk stage', riskNeeded.request.status === 'risk',
+  `got ${riskNeeded.request.status}`);
+check('the risk stage gates', rNeed.status === 'suspended' && rNeed.at[0] === 'n14');
+check('entering it raises an assessment', riskNeeded.riskAssessmentsRaised === 1);
+check('the stage is owned by third-party risk', riskNeeded.request.ownerId === 'u4');
+
+const riskSkipped = newStore();
+advanceInstance(WF001, 'n1', undefined, riskSkipped, false, { riskRequired: false });
+advanceInstance(WF001, 'n3', 'completed', riskSkipped, true, { riskRequired: false });
+check('a request not needing risk skips the stage entirely',
+  riskSkipped.request.status === 'approval', `got ${riskSkipped.request.status}`);
+check('no assessment is raised for it', riskSkipped.riskAssessmentsRaised === 0);
+check('and no risk row appears in its history',
+  !riskSkipped.stageHistory.some((h) => h.stage === 'risk'));
+
+// Completing risk continues to approval, and does not raise a second assessment.
+const rAfter = advanceInstance(WF001, 'n14', 'completed', riskNeeded, true, { riskRequired: true });
+check('completing risk moves on to approval', riskNeeded.request.status === 'approval');
+check('the risk row is closed',
+  riskNeeded.stageHistory.find((h) => h.stage === 'risk').completedAt !== null);
+check('approval suspends after risk', rAfter.status === 'suspended');
+check('only one assessment was ever raised', riskNeeded.riskAssessmentsRaised === 1);
+
+console.log('\nRisk edge conditions');
+check('"Risk required" fires only when the flag is set',
+  edgeMatches('Risk required', undefined, { riskRequired: true }) &&
+  !edgeMatches('Risk required', undefined, { riskRequired: false }));
+check('"Skip risk" is the catch-all', edgeMatches('Skip risk', undefined, { riskRequired: false }));
+// An absent flag must not route a request into risk it was never triaged for.
+check('a missing flag skips risk rather than assuming it',
+  !edgeMatches('Risk required', undefined, {}) && edgeMatches('Skip risk', undefined, {}));
+check('"Risk Assessment" normalises to the risk status', nodeToStatus('Risk Assessment') === 'risk');
 
 console.log('\nCycle guard');
 const LOOP = {

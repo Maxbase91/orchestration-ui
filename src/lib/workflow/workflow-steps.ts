@@ -68,12 +68,20 @@ const ONBOARDING_STEP: WorkflowStepView = {
 // are structural canvas nodes and are not shown as steps.
 const STEP_NODE_TYPES = new Set(['stage']);
 
+/** Does this node's label name the risk stage? */
+const isRiskLabel = (label: string) => /risk|sra|assessment/i.test(label);
+
 /**
  * Compose the lifecycle steps for the Routing preview from a template's nodes
- * plus the determination signals. Conditional Risk assessment / Vendor
- * onboarding steps are inserted before the first approval stage (falling back to
- * the first sourcing/contracting/PO stage, then the end) and are never
- * duplicated when the template already models that node.
+ * plus the determination signals.
+ *
+ * Two directions, both driven by the same signal. Where a template does NOT
+ * model a risk or onboarding node, a synthetic step is inserted before the first
+ * approval stage so the preview still tells the requester it is coming. Where a
+ * template DOES model one — WF-001 gained a real Risk Assessment node — the node
+ * is dropped when the signal says it will not run, because the engine's
+ * conditional edge is going to skip it and a preview that shows it anyway
+ * promises a step that never happens.
  */
 export function composeWorkflowSteps(
   nodes: TemplateNode[],
@@ -81,9 +89,11 @@ export function composeWorkflowSteps(
 ): WorkflowStepView[] {
   const steps: WorkflowStepView[] = nodes
     .filter((n) => STEP_NODE_TYPES.has(n.type))
+    // The template's own risk node is conditional at runtime; mirror that here.
+    .filter((n) => signals.riskAssessmentRequired || !isRiskLabel(n.label))
     .map((n, i) => ({ key: `t${i}-${n.label}`, label: n.label, owner: ownerForStage(n.label) }));
 
-  const hasRisk = steps.some((s) => /risk|sra|assessment/i.test(s.label));
+  const hasRisk = steps.some((s) => isRiskLabel(s.label));
   const hasOnboarding = steps.some((s) => /onboard/i.test(s.label));
 
   const inserts: WorkflowStepView[] = [];

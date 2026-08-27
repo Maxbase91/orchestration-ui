@@ -12,6 +12,7 @@ import type { WorkflowTemplate } from '@/data/types';
 import { getStagesForChannel } from './buying-channel-stages';
 import { resolveApprover } from './approver-resolution';
 import { transitionStage } from './transition';
+import { ensureRiskAssessment } from './risk-stage';
 import { getActivePolicyConfig } from '@/lib/procurement/policy-config';
 import { listApprovalChains } from '@/lib/db/approval-chains';
 import { selectApprovalChainForValue } from './workflow-steps';
@@ -34,6 +35,9 @@ interface EdgeContext {
   category?: string;
   status?: string;
   outcome?: string;
+  /** Persisted at intake (R3); drives the conditional risk stage. */
+  riskRequired?: boolean;
+  riskTier?: string;
 }
 
 function evaluateEdgeCondition(label: string | undefined, ctx: EdgeContext): boolean {
@@ -46,11 +50,18 @@ function evaluateEdgeCondition(label: string | undefined, ctx: EdgeContext): boo
     return ctx.outcome?.toLowerCase() === l;
   }
 
-  // Simple field comparisons: "value > 100000", "category == consulting"
-  const compMatch = l.match(/^(value|category|status)\s*(>|<|>=|<=|==|!=)\s*(.+)$/);
+  // Boolean flags carried on the request, e.g. the "risk required" edge that
+  // routes a demand into the risk stage. Written as a bare label rather than a
+  // comparison because that is what reads sensibly on the designer canvas.
+  if (l === 'risk required') return ctx.riskRequired === true;
+  if (l === 'no risk assessment' || l === 'skip risk') return ctx.riskRequired !== true;
+
+  // Simple field comparisons: "value > 100000", "category == consulting",
+  // "risktier == high"
+  const compMatch = l.match(/^(value|category|status|risktier)\s*(>|<|>=|<=|==|!=)\s*(.+)$/);
   if (compMatch) {
     const [, field, op, rhs] = compMatch;
-    const lhsRaw = ctx[field as keyof EdgeContext];
+    const lhsRaw = field === 'risktier' ? ctx.riskTier : ctx[field as keyof EdgeContext];
     const lhsNum = typeof lhsRaw === 'number' ? lhsRaw : parseFloat(String(lhsRaw ?? ''));
     const rhsNum = parseFloat(rhs);
 
@@ -272,13 +283,16 @@ async function advanceInstance(
   // Load request context for decision-node condition evaluation
   const { data: reqRow } = await supabase
     .from('requests')
-    .select('value, category, status')
+    .select('value, category, status, risk_assessment_required, inherent_risk_tier')
     .eq('id', instance.requestId)
     .maybeSingle();
+  const row = (reqRow ?? {}) as Record<string, unknown>;
   const edgeCtx: EdgeContext = {
-    value: (reqRow as Record<string, unknown>)?.value as number | undefined,
-    category: (reqRow as Record<string, unknown>)?.category as string | undefined,
-    status: (reqRow as Record<string, unknown>)?.status as string | undefined,
+    value: row.value as number | undefined,
+    category: row.category as string | undefined,
+    status: row.status as string | undefined,
+    riskRequired: row.risk_assessment_required === true,
+    riskTier: row.inherent_risk_tier as string | undefined,
     outcome,
   };
 
@@ -333,6 +347,44 @@ async function advanceInstance(
 
   if (steps >= MAX_STEPS_PER_ADVANCE) {
     console.warn(`[engine] step budget exhausted for ${instance.requestId} — check the template for a cycle`);
+  }
+}
+
+// ── Risk stage ───────────────────────────────────────────────────────────────
+
+/**
+ * Raise (or reuse) the risk assessment for a request entering the risk stage.
+ *
+ * Best-effort, like the compliance report: a failure here is a gap in the
+ * register, not a reason to strand the request outside a stage it has already
+ * entered. The stage stays gated either way, so nothing advances unchecked.
+ */
+async function raiseRiskAssessment(requestId: string): Promise<void> {
+  try {
+    const { data: row } = await supabase
+      .from('requests')
+      .select('id, title, supplier_id, contract_id, category, inherent_risk_tier, owner_id')
+      .eq('id', requestId)
+      .maybeSingle();
+    if (!row) return;
+
+    const r = row as Record<string, unknown>;
+    const outcome = await ensureRiskAssessment(
+      {
+        id: r.id as string,
+        title: (r.title as string) ?? requestId,
+        supplierId: (r.supplier_id as string | null) ?? undefined,
+        contractId: (r.contract_id as string | null) ?? undefined,
+        category: (r.category as string) ?? '',
+        inherentRiskTier: (r.inherent_risk_tier as string | null) ?? undefined,
+      },
+      { id: (r.owner_id as string) ?? 'system', name: 'Workflow engine' },
+    );
+    if (outcome?.reused) {
+      console.info(`[engine] reused risk assessment ${outcome.assessment.id} for ${requestId}`);
+    }
+  } catch (e) {
+    console.warn('[engine] raiseRiskAssessment failed (non-blocking):', e);
   }
 }
 
@@ -470,6 +522,12 @@ async function executeNode(
       // Validation stage → generate compliance report
       if (newStatus === 'validation') {
         await generateComplianceReport(requestId);
+      }
+
+      // Risk stage → make sure there is an assessment to act on. Reuse wins
+      // where the register already covers the supplier or contract.
+      if (newStatus === 'risk') {
+        await raiseRiskAssessment(requestId);
       }
 
       // Approval stage → generate entries + suspend

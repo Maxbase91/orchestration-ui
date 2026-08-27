@@ -1,5 +1,5 @@
 // Status + Priority stay as union types (they drive the lifecycle state machine).
-export type RequestStatus = 'draft' | 'intake' | 'validation' | 'approval' | 'sourcing' | 'contracting' | 'po' | 'receipt' | 'invoice' | 'payment' | 'completed' | 'cancelled' | 'referred-back';
+export type RequestStatus = 'draft' | 'intake' | 'validation' | 'approval' | 'risk' | 'sourcing' | 'contracting' | 'po' | 'receipt' | 'invoice' | 'payment' | 'completed' | 'cancelled' | 'referred-back';
 export type Priority = 'low' | 'medium' | 'high' | 'urgent';
 
 // Categories and channels are widened to `string` so admin-created values work at runtime.
