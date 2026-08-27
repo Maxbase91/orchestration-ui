@@ -131,10 +131,17 @@ function addBusinessDays(from, days) {
 }
 
 function transitionStage(store, toStage, node, actor) {
-  if (store.request.status === toStage) return; // idempotent on the stage
+  // Idempotent on "already in this stage AND already recorded as being in it".
+  // Status alone is not enough: a request is created at `intake` before anything
+  // opens a row for it, so a status-only guard would decline to record the very
+  // first stage — which is how wizard-created requests had no history at all.
+  const openHere = store.stageHistory.some(
+    (h) => h.stage === toStage && h.completedAt === null,
+  );
+  if (store.request.status === toStage && openHere) return;
   const now = store.now;
 
-  if (store.request.status) {
+  if (store.request.status && store.request.status !== toStage) {
     for (const row of store.stageHistory) {
       if (row.stage === store.request.status && row.completedAt === null) row.completedAt = now;
     }
@@ -274,6 +281,20 @@ check('re-entering a past stage opens a new row',
   s4.stageHistory.filter((h) => h.stage === 'intake').length === 2);
 check('still exactly one row open',
   s4.stageHistory.filter((h) => h.completedAt === null).length === 1);
+
+// The first stage of a request created straight at `intake`. A status-only
+// idempotency guard silently skipped this, so the request existed with no
+// history and every stepper rendered it as never having started.
+const sFirst = newStore();
+sFirst.request = { ...sFirst.request, status: 'intake' };
+transitionStage(sFirst, 'intake', null);
+check('the stage a request is created in is still recorded',
+  sFirst.stageHistory.length === 1 && sFirst.stageHistory[0].stage === 'intake');
+check('and it is left open, not closed on arrival',
+  sFirst.stageHistory[0].completedAt === null);
+transitionStage(sFirst, 'intake', null);
+check('recording it twice still opens only one row', sFirst.stageHistory.length === 1);
+
 
 // ── mirrors open-items.ts ───────────────────────────────────────────────────
 const AT_RISK_HOURS = 24, HOUR_MS = 3600000;
@@ -482,6 +503,28 @@ check('"Skip risk" is the catch-all', edgeMatches('Skip risk', undefined, { risk
 check('a missing flag skips risk rather than assuming it',
   !edgeMatches('Risk required', undefined, {}) && edgeMatches('Skip risk', undefined, {}));
 check('"Risk Assessment" normalises to the risk status', nodeToStatus('Risk Assessment') === 'risk');
+
+// ── the no-template fallback ────────────────────────────────────────────────
+// It used to create an instance with template_id='fallback:<channel>', which
+// getWorkflowTemplate can never resolve. advanceWorkflow returns early on an
+// unresolvable template, and the Complete-stage action only takes its own
+// no-instance path when there is NO instance — so the button found the row,
+// did nothing, and reported success. No instance is strictly better than one
+// that can never move.
+console.log('\nNo-template fallback');
+function initFallbackWorkflow(store, channel) {
+  const stages = getStagesForChannel(channel);
+  transitionStage(store, stages[0] ?? 'intake', undefined);
+  return { instanceCreated: false };
+}
+const s6 = newStore();
+s6.request = { ...s6.request, status: 'intake' };
+const fb = initFallbackWorkflow(s6, 'catalogue');
+check('the fallback creates no workflow instance', fb.instanceCreated === false);
+check('the fallback still records the stage (history, not a bare status write)',
+  s6.stageHistory.length === 1 && s6.stageHistory[0].stage === 'intake');
+check('an unassigned stage stays unassigned rather than defaulting an owner',
+  s6.stageHistory[0].ownerId === 'u9');
 
 console.log('\nCycle guard');
 const LOOP = {

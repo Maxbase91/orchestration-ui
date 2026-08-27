@@ -56,6 +56,18 @@ isGatedStage(node, status)  // node.gate === 'manual' | 'auto' overrides the def
 The default is deliberately restrictive. An earlier cut auto-advanced past PO, receipt, invoice and
 payment — stages that unambiguously need someone to do something.
 
+## No template, no instance
+
+`initFallbackWorkflow` used to create an instance with `template_id = 'fallback:<channel>'`, which
+`getWorkflowTemplate` can never resolve. That was worse than creating nothing: `advanceWorkflow`
+returns early on an unresolvable template, and the Complete-stage action only takes its own
+no-instance path when there is genuinely **no** instance — so the button found the fallback row,
+called `advanceWorkflow`, nothing happened, and it still reported success. The request could not be
+moved at all.
+
+Now there is no instance. The channel's stage list is the whole fallback, walked by
+`nextStageAfter` + `transitionStage` — the path 93 of 101 live requests already take.
+
 ## Config that is now read at runtime
 
 A node carries `role`, `slaDays`, `purpose` and `gate`. The designer collected several of these and

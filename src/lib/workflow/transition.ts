@@ -68,6 +68,12 @@ function resolveStageOwner(
  * Idempotent on the stage: re-entering the stage the request is already in
  * writes nothing, so a double-click or a replayed engine step cannot open a
  * second history row.
+ *
+ * The guard is "already in this stage **and** already recorded as being in it",
+ * not status alone. A request is created with `status: 'intake'` before anything
+ * opens a history row for it, so a status-only guard would decline to record the
+ * very first stage — which is how wizard-created requests came to render as
+ * having entered nothing at all.
  */
 export async function transitionStage(input: TransitionInput): Promise<void> {
   const { requestId, toStage, action, actor, node, notes } = input;
@@ -79,14 +85,25 @@ export async function transitionStage(input: TransitionInput): Promise<void> {
     .maybeSingle();
 
   const fromStage = (existing as Record<string, unknown> | null)?.status as string | undefined;
-  if (fromStage === toStage) return;
+  if (fromStage === toStage) {
+    const { data: open } = await supabase
+      .from(STAGE_HISTORY)
+      .select('id')
+      .eq('request_id', requestId)
+      .eq('stage', toStage)
+      .is('completed_at', null)
+      .limit(1);
+    if (open && open.length > 0) return;
+  }
 
   const now = new Date();
   const nowIso = now.toISOString();
 
   // Close the row the request is leaving. Filtered on completed_at is null so a
   // stage entered more than once (refer-back → resubmit) closes only the open one.
-  if (fromStage) {
+  // Nothing to close when the request is being recorded as entering the stage
+  // it is already in — that is the first-record case above, not a move.
+  if (fromStage && fromStage !== toStage) {
     await supabase
       .from(STAGE_HISTORY)
       .update({ completed_at: nowIso })

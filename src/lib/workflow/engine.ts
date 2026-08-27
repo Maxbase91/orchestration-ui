@@ -1,6 +1,5 @@
 import { supabase } from '@/lib/supabase-client';
 import { getWorkflowTemplate } from '@/lib/db/workflow-templates';
-import { updateRequest } from '@/lib/db/requests';
 import { saveComplianceReport } from '@/lib/db/compliance-reports';
 import {
   createWorkflowInstance,
@@ -566,20 +565,38 @@ async function executeNode(
   }
 }
 
-// ── Fallback engine (no template) ────────────────────────────────────────────
+// ── Fallback (no resolvable template) ────────────────────────────────────────
 
+/**
+ * What happens when a request has no template to run.
+ *
+ * This used to create a synthetic instance with `template_id = 'fallback:<channel>'`,
+ * which `getWorkflowTemplate` can never resolve. That made the row worse than
+ * useless: `advanceWorkflow` returns early when the template does not resolve,
+ * and the Complete-stage action only takes its own no-instance path when there
+ * is genuinely **no** instance — so the button found the fallback row, called
+ * `advanceWorkflow`, nothing happened, and it still reported success. A request
+ * with a fallback instance could not be moved at all.
+ *
+ * So: no instance. The channel's stage list is the whole fallback, and the
+ * action path already walks it via `nextStageAfter` + `transitionStage`. That
+ * is also the state 93 of 101 live requests are in, which is the path that
+ * actually gets exercised.
+ *
+ * The stage is recorded through `transitionStage` rather than a bare status
+ * write, so the request gets stage history, an owner and an SLA deadline like
+ * any other — the omission that left wizard-created requests rendering as
+ * never having entered anything.
+ */
 async function initFallbackWorkflow(requestId: string, buyingChannel: string): Promise<void> {
   const stages = getStagesForChannel(buyingChannel);
   const firstStage = stages[0] ?? 'intake';
 
-  // Create a synthetic instance using stage index as node id
-  await createWorkflowInstance(requestId, `fallback:${buyingChannel}`, [`stage_0`], {
-    stages,
-    stageIndex: 0,
+  await transitionStage({
+    requestId,
+    toStage: firstStage,
+    action: 'submitted',
   });
-
-  // Advance to first stage (usually 'intake', already set by createRequest)
-  await updateRequest(requestId, { status: firstStage as never });
 }
 
 /** Check whether all approval entries for a request are approved. */
