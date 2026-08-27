@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Sparkles, Send, User, CheckCircle, Circle, Loader2, AlertTriangle, FileText, Copy, ShieldCheck, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -6,12 +6,16 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
+import { useServiceDescriptionTemplate } from '@/lib/db/hooks/use-service-description-templates';
+import { composeNarrativeFromSections } from '@/lib/procurement/service-description-config';
+import type { DemandSlot } from '@/lib/procurement/demand-conversation';
 import { getAICommodityCode } from '@/lib/mock-ai';
 import { formatCurrency } from '@/lib/format';
 import {
   determineNextQuestion,
   isConversationComplete,
   requiredSlotsFilled,
+  resolveSlots,
   type DemandConversationContext,
 } from '@/lib/procurement/demand-conversation';
 import type { ServiceDescription } from './new-request-page';
@@ -109,6 +113,8 @@ function localFallbackResponse(
   category: string,
   data: StepChatIntakeProps['data'],
   svcDesc: Partial<ServiceDescription>,
+  slots: DemandSlot[],
+  narrativeSections: string[],
 ): {
   extracted: Record<string, unknown>;
   sow: Partial<ServiceDescription>;
@@ -119,7 +125,7 @@ function localFallbackResponse(
   const sowUpdate: Partial<ServiceDescription> = {};
 
   // Which slot is the user answering right now?
-  const answering = determineNextQuestion(buildContext(category, data, svcDesc))?.slot;
+  const answering = determineNextQuestion(buildContext(category, data, svcDesc), undefined, slots)?.slot;
   if (answering) {
     if (answering.target.kind === 'request') {
       if (answering.target.field === 'estimatedValue') {
@@ -142,21 +148,28 @@ function localFallbackResponse(
   const nextData = { ...data, ...(extracted as Partial<StepChatIntakeProps['data']>) };
   const nextSow = { ...svcDesc, ...sowUpdate };
   const ctx = buildContext(category, nextData, nextSow);
-  const complete = isConversationComplete(ctx);
+  const complete = isConversationComplete(ctx, undefined, slots);
 
   if (complete) {
-    const narrative = [nextSow.objective, nextSow.scope, nextSow.deliverables, nextSow.resources]
-      .filter(Boolean)
-      .join('\n\n');
+    // One composer, driven by the template's section order. This was the third
+    // hand-rolled join in the codebase — the API's took six-plus fields, this
+    // one took four, and a docstring claimed they were in step. `unpolished`
+    // marks it as the offline draft it is, rather than passing it off as the
+    // generated document.
+    const narrative = composeNarrativeFromSections(
+      nextSow as Record<string, string>,
+      narrativeSections,
+      { title: nextData.title, category, value: nextData.estimatedValue, unpolished: true },
+    );
     sowUpdate.narrative = narrative;
     extracted.businessJustification = narrative;
     return { extracted, sow: sowUpdate, nextQuestion: 'All details captured. Click Next to proceed to supplier identification and compliance.', complete: true };
   }
 
-  return { extracted, sow: sowUpdate, nextQuestion: determineNextQuestion(ctx)?.prompt ?? '', complete: false };
+  return { extracted, sow: sowUpdate, nextQuestion: determineNextQuestion(ctx, undefined, slots)?.prompt ?? '', complete: false };
 }
 
-function buildWelcomeMessage(category: string, data: StepChatIntakeProps['data']): string {
+function buildWelcomeMessage(category: string, data: StepChatIntakeProps['data'], slots: DemandSlot[]): string {
   const parts: string[] = [];
 
   // Acknowledge what's already known.
@@ -169,7 +182,7 @@ function buildWelcomeMessage(category: string, data: StepChatIntakeProps['data']
     // of asking "do you want to refine this?".
     parts.push('');
     parts.push(
-      determineNextQuestion(buildContext(category, data, {}))?.prompt ??
+      determineNextQuestion(buildContext(category, data, {}), undefined, slots)?.prompt ??
         (WELCOME_MESSAGES[category] ?? WELCOME_MESSAGES.goods),
     );
   } else {
@@ -181,8 +194,24 @@ function buildWelcomeMessage(category: string, data: StepChatIntakeProps['data']
 
 export function StepChatIntake({ category, categoryDescription, data, onUpdate }: StepChatIntakeProps) {
   const { data: suppliers = [] } = useSuppliers();
+  // Which questions get asked, and which sections compose the compact narrative,
+  // are admin config (/admin/service-description). Resolution is category-first
+  // with a `default` row and the built-in template beneath, so an empty table
+  // behaves exactly as the hardcoded slot set did.
+  const { data: sdTemplate } = useServiceDescriptionTemplate(category);
+  const slots = useMemo(() => resolveSlots(sdTemplate?.slots), [sdTemplate]);
+  // Memoised: `?? []` allocates a fresh array each render, which would make the
+  // send callback's dependency check thrash.
+  const narrativeSections = useMemo(
+    () => sdTemplate?.narrativeSections ?? [],
+    [sdTemplate],
+  );
+  // The welcome message is computed once, at mount, before the template has
+  // resolved — so it uses the built-in set. That is correct rather than a bug:
+  // re-greeting the requester when the template arrives would restart the
+  // conversation under them, and the two sets ask the same first question.
   const [messages, setMessages] = useState<ChatMessage[]>([
-    { role: 'assistant', content: buildWelcomeMessage(category, data) },
+    { role: 'assistant', content: buildWelcomeMessage(category, data, resolveSlots()) },
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -322,7 +351,7 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
       };
       const ctx = buildContext(category, mergedData, mergedSow);
 
-      if (isConversationComplete(ctx) && requiredSlotsFilled(ctx)) {
+      if (isConversationComplete(ctx, undefined, slots) && requiredSlotsFilled(ctx, slots)) {
         setIsComplete(true);
         setSummary(result.summary ?? 'Service description captured. Ready for supplier identification and compliance.');
         setMessages((prev) => [
@@ -330,13 +359,13 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
           { role: 'assistant', content: result.summary ?? 'All details captured. You can proceed to the next step.' },
         ]);
       } else {
-        const prompt = determineNextQuestion(ctx)?.prompt;
+        const prompt = determineNextQuestion(ctx, undefined, slots)?.prompt;
         if (prompt) setMessages((prev) => [...prev, { role: 'assistant', content: prompt }]);
       }
     } catch {
       // LLM unavailable — the engine still drives the same adaptive, carry-
       // forward flow (mandatory SOW preserved) using a lightweight extraction.
-      const fallback = localFallbackResponse(text, category, data, svcDesc);
+      const fallback = localFallbackResponse(text, category, data, svcDesc, slots, narrativeSections);
 
       if (Object.keys(fallback.extracted).length > 0) {
         onUpdate(fallback.extracted);
@@ -354,7 +383,7 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
     } finally {
       setIsTyping(false);
     }
-  }, [inputValue, isTyping, messages, category, data, svcDesc, onUpdate, suppliers]);
+  }, [inputValue, isTyping, messages, category, data, svcDesc, onUpdate, suppliers, slots, narrativeSections]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {

@@ -4,8 +4,10 @@ import {
   determineNextQuestion,
   buildAgenda,
   isConversationComplete,
+  resolveSlots,
   type DemandConversationContext,
 } from '../src/lib/procurement/demand-conversation.js';
+import { getServiceDescriptionTemplate } from './_sd-template.js';
 
 // Base intake assistant rules. The QUESTION ORDER is NOT hard-coded here — it is
 // computed per-turn by the demand-conversation engine and injected below, so the
@@ -62,11 +64,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const { messages, category, extractedSoFar } = req.body;
 
+  // Which questions get asked is admin config, not a code constant. This is the
+  // reason the template is a table: PolicyConfig is localStorage-only, so a
+  // serverless route can never see an admin's overrides through it.
+  // getServiceDescriptionTemplate fails open to the built-in, which serialises
+  // the same slot set the engine defaults to — so an unreachable database
+  // changes nothing about the conversation.
+  const template = await getServiceDescriptionTemplate(category);
+  const slots = resolveSlots(template.slots);
+
   // The engine decides what to ask next from everything captured so far.
   const ctx = contextFrom(category ?? 'goods', (extractedSoFar ?? {}) as Record<string, unknown>);
-  const next = determineNextQuestion(ctx);
-  const complete = isConversationComplete(ctx);
-  const remaining = buildAgenda(ctx).map((s) => s.id).join(', ') || 'none';
+  const next = determineNextQuestion(ctx, undefined, slots);
+  const complete = isConversationComplete(ctx, undefined, slots);
+  const remaining = buildAgenda(ctx, undefined, slots).map((s) => s.id).join(', ') || 'none';
 
   const agendaBlock = next
     ? `## YOUR NEXT MESSAGE\nAsk EXACTLY this one question (rephrase only for tone, keep it a single short question):\n"${next.prompt}"\nThe user's answer fills the "${next.slot.target.kind === 'sow' ? 'serviceDescription.' : ''}${next.slot.target.field}" field.\nStill to capture after this (do NOT ask these yet): ${remaining}.`

@@ -16,6 +16,7 @@
 // for them.
 
 import { getActivePolicyConfig, type PolicyConfig } from './policy-config';
+import { slotApplies, type ConfiguredSlot } from './service-description-config';
 
 export type DemandSlotId =
   | 'title'
@@ -94,7 +95,7 @@ function ex(
  * sequence (title → value → objective → scope → deliverables → resources);
  * the conditional slots enrich it and only appear when their trigger fires.
  */
-const ALL_SLOTS: DemandSlot[] = [
+export const ALL_SLOTS: DemandSlot[] = [
   {
     id: 'title',
     target: { kind: 'request', field: 'title' },
@@ -222,6 +223,51 @@ export const REQUIRED_SLOT_IDS: DemandSlotId[] = [
   'resources',
 ];
 
+/**
+ * Turn an admin-configured slot into the runtime shape.
+ *
+ * The two differ in exactly one way that matters: `appliesWhen` is a closure in
+ * the built-in set and a serialised `{field, operator, value}` condition in the
+ * stored one — because a closure cannot be persisted. `slotApplies` already
+ * evaluates the serialised form (and resolves `policy:<key>` through the
+ * governed thresholds), so this wraps it rather than adding a second evaluator.
+ *
+ * The example is a per-category string map instead of a function, so a template
+ * with no entry for the demand's category simply omits the example rather than
+ * inventing one.
+ */
+export function fromConfiguredSlot(slot: ConfiguredSlot): DemandSlot {
+  return {
+    id: slot.id as DemandSlotId,
+    target:
+      slot.targetKind === 'request'
+        ? ({ kind: 'request', field: slot.targetField } as DemandSlotTarget)
+        : ({ kind: 'sow', field: slot.targetField } as DemandSlotTarget),
+    required: slot.required,
+    prompt: slot.prompt,
+    example: slot.examples
+      ? (ctx) => slot.examples?.[ctx.category] ?? slot.examples?.default ?? ''
+      : undefined,
+    appliesWhen: (ctx, config) =>
+      slotApplies(slot, { category: ctx.category, value: ctx.estimatedValue }, config),
+  };
+}
+
+/**
+ * The slot set a conversation runs on.
+ *
+ * Defaults to the built-in `ALL_SLOTS` so every existing caller — and
+ * `test:demand-conversation` — behaves exactly as before. Passing a template's
+ * slots is what makes *what is asked* configurable; until R6's table has a row,
+ * resolution falls back to the built-in template, which serialises this same
+ * set, so the two agree by construction. `test:service-description-config`
+ * asserts that agreement across every category × value combination.
+ */
+export function resolveSlots(configured?: ConfiguredSlot[]): DemandSlot[] {
+  if (!configured || configured.length === 0) return ALL_SLOTS;
+  return configured.map(fromConfiguredSlot);
+}
+
 function isSlotFilled(slot: DemandSlot, ctx: DemandConversationContext): boolean {
   if (slot.target.kind === 'request') {
     if (slot.target.field === 'estimatedValue') return (ctx.estimatedValue ?? 0) > 0;
@@ -239,8 +285,9 @@ function isSlotFilled(slot: DemandSlot, ctx: DemandConversationContext): boolean
 export function buildAgenda(
   ctx: DemandConversationContext,
   config: PolicyConfig = getActivePolicyConfig(),
+  slots: DemandSlot[] = ALL_SLOTS,
 ): DemandSlot[] {
-  return ALL_SLOTS.filter((slot) => {
+  return slots.filter((slot) => {
     if (isSlotFilled(slot, ctx)) return false;
     if (slot.appliesWhen && !slot.appliesWhen(ctx, config)) return false;
     return true;
@@ -251,8 +298,9 @@ export function buildAgenda(
 export function determineNextQuestion(
   ctx: DemandConversationContext,
   config: PolicyConfig = getActivePolicyConfig(),
+  slots: DemandSlot[] = ALL_SLOTS,
 ): { slot: DemandSlot; prompt: string } | null {
-  const agenda = buildAgenda(ctx, config);
+  const agenda = buildAgenda(ctx, config, slots);
   if (agenda.length === 0) return null;
   const slot = agenda[0];
   const example = slot.example?.(ctx);
@@ -263,8 +311,9 @@ export function determineNextQuestion(
 export function isConversationComplete(
   ctx: DemandConversationContext,
   config: PolicyConfig = getActivePolicyConfig(),
+  slots: DemandSlot[] = ALL_SLOTS,
 ): boolean {
-  return buildAgenda(ctx, config).length === 0;
+  return buildAgenda(ctx, config, slots).length === 0;
 }
 
 /**
@@ -272,8 +321,15 @@ export function isConversationComplete(
  * title + value + the four core SOW elements. Used to stop an LLM from
  * short-circuiting the conversation before the essentials are captured.
  */
-export function requiredSlotsFilled(ctx: DemandConversationContext): boolean {
-  return ALL_SLOTS.filter((s) => REQUIRED_SLOT_IDS.includes(s.id)).every((s) =>
+export function requiredSlotsFilled(
+  ctx: DemandConversationContext,
+  slots: DemandSlot[] = ALL_SLOTS,
+): boolean {
+  // Deliberately NOT "every slot the template marks required": REQUIRED_SLOT_IDS
+  // is the mandatory floor that stops an LLM short-circuiting the conversation,
+  // and a template that forgot to mark a slot required must not be able to lower
+  // it. A template CAN add requirements; it cannot remove these.
+  return slots.filter((s) => REQUIRED_SLOT_IDS.includes(s.id)).every((s) =>
     isSlotFilled(s, ctx),
   );
 }

@@ -119,6 +119,52 @@ for (const category of CATEGORIES) {
 check(`all ${compared} category × value × slot combinations agree`, divergences === 0,
   `${divergences} diverged`);
 
+// Slot-by-slot agreement is necessary but not sufficient: what the requester
+// actually experiences is the ORDERED AGENDA. A template could agree on every
+// individual slot and still ask them in a different order, or drop one, and the
+// check above would pass. So compare the agendas themselves — this is what makes
+// switching the conversation off the hardcoded ALL_SLOTS safe.
+console.log('\nTemplate-driven agenda matches the built-in, in order');
+const isFilled = (slot, ctx) => {
+  if (slot.id === 'value') return (ctx.value ?? 0) > 0;
+  if (slot.id === 'title') return !!ctx.title;
+  if (slot.id === 'deliveryDate') return !!ctx.deliveryDate;
+  return !!(ctx.sow ?? {})[slot.id];
+};
+const agendaFrom = (slots, ctx, applies) =>
+  slots.filter((s) => !isFilled(s, ctx) && applies(s, ctx)).map((s) => s.id);
+
+let agendaDivergences = 0;
+let agendasCompared = 0;
+// Partially-filled contexts too: carry-forward is the behaviour most likely to
+// break when the slot source changes.
+const PARTIALS = [
+  {},
+  { title: 'x' },
+  { title: 'x', sow: { objective: 'o' } },
+  { title: 'x', sow: { objective: 'o', scope: 's', deliverables: 'd', resources: 'r' } },
+];
+for (const category of CATEGORIES) {
+  for (const value of VALUES) {
+    for (const partial of PARTIALS) {
+      const ctx = { category, value, ...partial };
+      agendasCompared++;
+      const fromTemplate = agendaFrom(CONFIGURED_SLOTS, ctx, (s, c) => slotApplies(s, c, POLICY));
+      const fromBuiltIn = agendaFrom(CONFIGURED_SLOTS, ctx, (s, c) => HARDCODED_APPLIES[s.id](c, POLICY));
+      if (fromTemplate.join('>') !== fromBuiltIn.join('>')) {
+        agendaDivergences++;
+        console.error(`      ${category}/${value}: ${fromTemplate.join('>')} vs ${fromBuiltIn.join('>')}`);
+      }
+    }
+  }
+}
+check(`all ${agendasCompared} agendas match the built-in order exactly`, agendaDivergences === 0,
+  `${agendaDivergences} diverged`);
+// The mandatory floor is not the template's to lower.
+const REQUIRED_FLOOR = ['title', 'value', 'objective', 'scope', 'deliverables', 'resources'];
+check('the required floor is present in the configured set',
+  REQUIRED_FLOOR.every((id) => CONFIGURED_SLOTS.some((s) => s.id === id)));
+
 console.log('\nThe branch rules themselves');
 check('timeline is asked for services', slotApplies(CONFIGURED_SLOTS[7], { category: 'services' }, POLICY));
 check('timeline is not asked for goods', !slotApplies(CONFIGURED_SLOTS[7], { category: 'goods' }, POLICY));
