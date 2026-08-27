@@ -1080,3 +1080,38 @@ ALTER TABLE requests ADD COLUMN IF NOT EXISTS referral_disposition TEXT;
 
 CREATE INDEX IF NOT EXISTS requests_risk_idx
   ON requests(risk_assessment_required, inherent_risk_tier);
+
+-- ── Service description configuration (R6) ───────────────────────────────────
+-- The generation prompt, the components asked, and what is generated, made
+-- admin-editable. A table rather than a store because api/generate-sow.ts and
+-- api/chat-intake.ts run serverless: PolicyConfig lives in localStorage, so
+-- those routes can never see an admin's overrides.
+--
+-- Keyed by category with a `default` row; resolution is category-first, then
+-- `default`, then the built-in DEFAULT_TEMPLATE in code. Every column may be
+-- empty — an empty array means "not configured" and falls back — so the table
+-- can be absent entirely and generation behaves exactly as it did before.
+CREATE TABLE IF NOT EXISTS service_description_templates (
+  category                      TEXT PRIMARY KEY,
+  label                         TEXT        NOT NULL DEFAULT '',
+  active                        BOOLEAN     NOT NULL DEFAULT true,
+  system_prompt                 TEXT        NOT NULL DEFAULT '',
+  category_guidance             TEXT        NOT NULL DEFAULT '',
+  temperature                   NUMERIC     NOT NULL DEFAULT 0.5,
+  max_tokens                    INTEGER     NOT NULL DEFAULT 3000,
+  -- The serialised question set (ALL_SLOTS). `appliesWhen` is stored as a
+  -- {field,operator,value} condition — the same vocabulary routing_rules and
+  -- form_templates.trigger_conditions already use — because a closure cannot
+  -- be persisted.
+  slots                         JSONB       NOT NULL DEFAULT '[]'::jsonb,
+  -- The detailed output spec: which sections exist, and whether each is asked
+  -- for or inferred by the model.
+  sections                      JSONB       NOT NULL DEFAULT '[]'::jsonb,
+  -- Which sections compose the compact narrative, in order.
+  narrative_sections            TEXT[]      NOT NULL DEFAULT '{}',
+  -- Downstream reuse: which sections seed a sourcing event's requirements.
+  sourcing_requirement_sections TEXT[]      NOT NULL DEFAULT '{}',
+  default_criteria              JSONB       NOT NULL DEFAULT '[]'::jsonb,
+  updated_at                    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_by                    TEXT
+);

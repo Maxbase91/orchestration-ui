@@ -9,6 +9,12 @@ import { useCreatePurchaseOrder } from '@/lib/db/hooks/use-purchase-orders';
 import { useCreateSourcingEvent, useSourcingEventsForRequest } from '@/lib/db/hooks/use-sourcing-events';
 import { useInviteSuppliers } from '@/lib/db/hooks/use-sourcing-responses';
 import { nextSourcingEventId } from '@/lib/db/sourcing-events';
+import { useServiceDescription } from '@/lib/db/hooks/use-service-descriptions';
+import { useServiceDescriptionTemplate } from '@/lib/db/hooks/use-service-description-templates';
+import {
+  seedCriteriaFromTemplate,
+  seedRequirementsFromDescription,
+} from '@/lib/procurement/service-description-seed';
 import { useSupplierLookup } from '@/lib/db/hooks/use-suppliers';
 import { queryClient } from '@/lib/query-client';
 import { ReferBackDialog } from './refer-back-dialog';
@@ -30,6 +36,7 @@ import { useWorkflowTemplate } from '@/lib/db/hooks/use-workflow-templates';
 import { getWorkflowInstanceForRequest } from '@/lib/db/workflow-instances';
 import { transitionStage } from '@/lib/workflow/transition';
 import { gateActionLabel, isGatedStage, isTerminalStatus, nodeToStatus, type TemplateNode } from '@/lib/workflow/node-config';
+import { DEFAULT_TEMPLATE } from '@/lib/procurement/service-description-defaults';
 import { nextStageAfter } from '@/lib/workflow/buying-channel-stages';
 
 interface ActionButtonsProps {
@@ -61,6 +68,10 @@ export function ActionButtons({ request }: ActionButtonsProps) {
   // When an event already exists the button opens it rather than creating a
   // second one for the same demand.
   const { data: linkedEvents = [] } = useSourcingEventsForRequest(request.id);
+  // The service description this demand already produced, and the admin config
+  // saying which of its sections become sourcing requirements.
+  const { data: serviceDescription } = useServiceDescription(request.id);
+  const { data: sdTemplate } = useServiceDescriptionTemplate(request.category);
   const existingEvent = linkedEvents[0];
 
   const [advancing, setAdvancing] = useState(false);
@@ -227,6 +238,19 @@ export function ActionButtons({ request }: ActionButtonsProps) {
   async function handleCreateSourcingEvent() {
     try {
       const id = await nextSourcingEventId();
+      const template = sdTemplate ?? DEFAULT_TEMPLATE;
+      const seededRequirements = serviceDescription
+        ? seedRequirementsFromDescription(
+            serviceDescription as unknown as Record<string, string | undefined>,
+            template,
+          )
+        : [];
+      const { criteria: seededCriteria, weightsValid } = seedCriteriaFromTemplate(template);
+      if (!weightsValid) {
+        // Publishing is blocked when weights do not total 100, so say so now
+        // rather than letting the user discover it at the end of the wizard.
+        toast.warning('Seeded evaluation criteria do not total 100% — adjust them on the event.');
+      }
       await createEvent.mutateAsync({
         id,
         requestId: request.id,
@@ -242,8 +266,12 @@ export function ActionButtons({ request }: ActionButtonsProps) {
         currency: request.currency,
         deadline: eventDeadline || undefined,
         ownerId: currentUser.id,
-        requirements: [],
-        criteria: [],
+        // Seeded from the service description rather than left empty. The
+        // requester was already asked for scope, deliverables and acceptance
+        // criteria; starting the event from `[]` made the buyer retype them.
+        // Everything stays editable in the event.
+        requirements: seededRequirements,
+        criteria: seededCriteria,
       });
 
       // Seed the incumbent as the first invitation when the request already

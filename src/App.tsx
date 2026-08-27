@@ -52,6 +52,7 @@ import { SourcingTemplatesPage } from '@/features/sourcing/sourcing-templates-pa
 import { PortalAdminPage } from '@/features/suppliers/portal-admin-page'
 import { ApprovalChainsPage } from '@/features/admin/approval-chains-page'
 import { CategoriesPage } from '@/features/admin/categories-page'
+import { ServiceDescriptionPage } from '@/features/admin/service-description-page'
 import { SlaTargetsPage } from '@/features/admin/sla-targets-page'
 import { PolicyManagementPage } from '@/features/admin/policy-management-page'
 import { UserManagementPage } from '@/features/admin/user-management-page'
@@ -168,6 +169,7 @@ export function App() {
               <Route path="/admin/database" element={<DatabaseAdminPage />} />
               <Route path="/admin/rules" element={<RoutingRulesPage />} />
               <Route path="/admin/thresholds" element={<PolicyConfigPage />} />
+              <Route path="/admin/service-description" element={<ServiceDescriptionPage />} />
               <Route path="/admin/forms" element={<FormBuilderPage />} />
               <Route path="/admin/approvals" element={<ApprovalChainsPage />} />
               <Route path="/admin/workflows" element={<WorkflowDesignerPage />} />

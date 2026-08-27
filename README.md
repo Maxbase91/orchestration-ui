@@ -59,6 +59,7 @@ An interactive UI prototype that shows what a modern procurement orchestration p
 |--------|-------------|
 | Routing Rules Engine | 3-panel layout: rule tree, visual IF/THEN editor, test panel |
 | Decisioning Thresholds | Edit the governed decisioning thresholds (approval/materiality/risk/sourcing/contract); Save applies them to the live front door; live simulation previews a sample demand's outcome |
+| Service Description | Configure the service description end to end: the **generation prompt** (guidance, system prompt, temperature, token budget, with a preview of the assembled prompt), the **components asked** at intake (question, example, required, and the condition that shows it), **what is generated** (the detailed sections, which are asked vs inferred, and which compose the compact narrative), and **reuse in later steps** (which sections seed a sourcing event's requirements, plus the default evaluation criteria). Per-category with a `default` fallback; stored in Postgres so the serverless generation and intake routes read the same config |
 | Workflow Designer | React Flow canvas with 10 custom node types, drag-from-palette, node configuration, simulation |
 | AI Agent Configuration | Agent library, type-specific config forms, test panel, performance dashboard |
 | Approval Chains | Visual approval chain editor with threshold configuration |
@@ -133,6 +134,7 @@ npm run test:determination-export # exportable determination (structured Markdow
 npm run test:second-contract      # second contract check (frameworks/MSAs vs transactable)
 npm run test:sourcing             # sourcing: weights, ranking, award write-back, stage gate, entitlement
 npm run test:sow-narrative        # SOW narrative is synthesised from the service description
+npm run test:service-description-config # service description config — serialised slots, narrative composition, sourcing seed
 npm run test:tickets              # support tickets — entitlement, internal notes, status lifecycle, references
 npm run test:ticket-sla           # ticket SLA — targets, due dates, breach/at-risk, waiting-on-user pause
 npm run test:approval-to-source   # approval-to-source gate (light vs full pre-sourcing approvals)
@@ -152,6 +154,7 @@ npm run test:admin-editors        # admin config saves
 npm run walkthrough               # visual QA harness (Playwright) — drives the front door across scenarios + every tab, screenshots to /tmp/fd (no assertions)
 npm run test:ui                   # browser smoke (Playwright) — wizard end-to-end through the determination + config-driven routing steps
 npm run test:e2e-ui               # full-app browser sweep — every route × role, captures console/runtime errors
+npm run test:service-description-ui # browser smoke — /admin/service-description renders all four config areas
 npm run test:interactions-ui      # interaction E2E — wizard submit, admin save, AI assistant (self-cleaning)
 npm run test:home-designs         # alternative home designs (1a/1b/1c) are fully functional + dashboard intact
 # …see package.json "test:*" scripts for the full list
@@ -234,9 +237,9 @@ src/
 ├── lib/             # Utilities, formatters, mock AI engine
 │   ├── db/          # Data-access modules + TanStack Query hooks
 │   ├── integrations/# Standardised source-connector layer (own-store → live swap)
-│   ├── procurement/ # Pure decisioning modules (classify, materiality, risk, determination, …)
+│   ├── procurement/ # Pure decisioning modules (classify, materiality, risk, determination, …) + service description config (SERVICE_DESCRIPTION.md)
 │   ├── routing/     # Routing-rule evaluator
-│   └── workflow/    # Workflow engine
+│   └── workflow/    # Workflow engine, transition primitive, gate model (see its README)
 ├── components/
 │   ├── ui/          # shadcn/ui primitives
 │   ├── layout/      # App shell, sidebar, topbar, portal layout
@@ -248,7 +251,7 @@ src/
     ├── workflows/   # Kanban, table, timeline, monitor
     ├── suppliers/   # Directory, profile, portal
     ├── approvals/   # Approval queue, delegation
-    ├── admin/       # Rules, workflow designer, AI agents
+    ├── admin/       # Rules, workflow designer, AI agents, service description config
     ├── sourcing/    # Events, evaluation centre (picker + per-event scoring and award)
     ├── contracts/   # Register, detail
     ├── purchasing/  # PO, invoice, three-way match

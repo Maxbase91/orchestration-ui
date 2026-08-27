@@ -101,6 +101,17 @@ const PRE_POPULATE_OPTIONS = [
   { value: 'costCentre', label: 'Cost Centre' },
   { value: 'sraStatus', label: 'SRA Status' },
   { value: 'poId', label: 'PO ID' },
+  // Service description sources. A risk or sourcing form triggered on its stage
+  // can start from what the requester was already asked at intake instead of
+  // asking the same thing a second time. Keys match sowPrePopulateValues().
+  { value: 'sow.objective', label: 'Service description — Objective' },
+  { value: 'sow.scope', label: 'Service description — Scope' },
+  { value: 'sow.deliverables', label: 'Service description — Deliverables' },
+  { value: 'sow.timeline', label: 'Service description — Timeline' },
+  { value: 'sow.resources', label: 'Service description — Resources' },
+  { value: 'sow.acceptanceCriteria', label: 'Service description — Acceptance Criteria' },
+  { value: 'sow.dependencies', label: 'Service description — Dependencies' },
+  { value: 'sow.narrative', label: 'Service description — Narrative summary' },
 ];
 
 const statusBadge: Record<string, string> = {

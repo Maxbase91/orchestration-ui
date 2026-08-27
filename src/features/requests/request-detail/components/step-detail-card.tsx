@@ -1,4 +1,4 @@
-import { forwardRef, useState, useCallback } from 'react';
+import { forwardRef, useState, useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
 import type { WorkflowStepDetail } from '@/data/workflow-step-details';
 import type { StageHistoryEntry } from '@/data/types';
@@ -35,6 +35,8 @@ import {
 import type { FormTemplate } from '@/data/form-templates';
 import { FormSubmissionView } from '@/components/shared/form-submission-view';
 import { DynamicForm } from '@/components/shared/dynamic-form';
+import { useServiceDescription } from '@/lib/db/hooks/use-service-descriptions';
+import { sowPrePopulateValues } from '@/lib/procurement/service-description-seed';
 
 interface StepDetailCardProps {
   stage: string;
@@ -478,6 +480,22 @@ function FormsSection({
   const { forStage } = useSubmissionLookup();
   const { byId: lookupTemplate, forStage: templatesForStage } = useFormTemplateLookup();
 
+  // Pre-populate any form field an admin mapped to a service-description
+  // section. DynamicForm has always accepted a prePopulateContext and nothing
+  // ever passed one, so the mapping was inert — a risk form on the risk stage
+  // asked for scope and deliverables the requester had already given at intake.
+  const { data: serviceDescription } = useServiceDescription(requestId);
+  const prePopulateContext = useMemo(
+    () =>
+      serviceDescription
+        ? sowPrePopulateValues(
+            serviceDescription as unknown as Record<string, string | undefined>,
+            serviceDescription.narrative,
+          )
+        : {},
+    [serviceDescription],
+  );
+
   // Get actual form submissions for this stage
   const submissions = forStage(requestId, stage);
 
@@ -570,6 +588,7 @@ function FormsSection({
               <div className="mt-3">
                 <DynamicForm
                   template={form}
+                  prePopulateContext={prePopulateContext}
                   onSubmit={() => handleFormSubmit(form.id)}
                   onCancel={() => setExpandedFormId(null)}
                 />

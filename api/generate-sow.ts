@@ -1,5 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { callLLM } from '../src/lib/llm.js';
+import { getServiceDescriptionTemplate } from './_sd-template.js';
+import { composeNarrativeFromSections } from '../src/lib/procurement/service-description-config.js';
+import { renderSystemPrompt } from '../src/lib/procurement/service-description-defaults.js';
 
 export const config = { maxDuration: 60 };
 
@@ -115,56 +118,6 @@ function runQualityChecks(
 
 // ── Mock provider ─────────────────────────────────────────────────────────────
 
-/**
- * Deterministic executive summary, synthesised from the SOW sections.
- *
- * Both non-LLM paths previously returned fixed boilerplate that interpolated
- * only category/title/value, so the "Narrative Summary" panel read identically
- * for every request and reflected nothing the requester had actually captured —
- * even though mockGenerate() had already built each section from their answers.
- * The narrative was the one part of the service description not derived from
- * the service description.
- *
- * Composing from `sections` keeps the fallback honest: without the LLM the
- * summary loses polish, not provenance. Mirrors the client-side composition in
- * step-chat-intake.tsx, which joins the same sections when the endpoint is
- * unreachable — keep the two in step.
- */
-function composeNarrative(
-  sections: Record<string, string>,
-  meta: { category: string; title: string; value: number; unpolished?: boolean },
-): string {
-  const cat = meta.category || 'services';
-  const val = meta.value ? `€${Number(meta.value).toLocaleString()}` : 'a value still to be confirmed';
-  const paragraphs: string[] = [];
-
-  const opening = meta.title
-    ? `This ${cat} engagement — "${meta.title}" — is valued at ${val}.`
-    : `This ${cat} engagement is valued at ${val}.`;
-  // The objective carries the "why", so it leads; everything after it is the
-  // captured detail in the order a reviewer reads a SOW.
-  paragraphs.push(sections.objective ? `${opening} ${sections.objective}` : opening);
-
-  if (sections.scope) paragraphs.push(sections.scope);
-
-  const delivery = [sections.deliverables, sections.timeline].filter(Boolean).join('\n\n');
-  if (delivery) paragraphs.push(delivery);
-
-  const commercial = [sections.resources, sections.acceptanceCriteria, sections.pricingModel]
-    .filter(Boolean)
-    .join('\n\n');
-  if (commercial) paragraphs.push(commercial);
-
-  // Only the LLM-failure path flags itself. The deterministic mock path is a
-  // deliberate configuration, not a degraded one, so it needs no caveat.
-  if (meta.unpolished) {
-    paragraphs.push(
-      'Drafted directly from the captured intake answers without AI polishing. Review each section before contract signature.',
-    );
-  }
-
-  return paragraphs.join('\n\n');
-}
 
 function mockGenerate(
   category: string,
@@ -220,47 +173,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     mock = false,
   } = req.body ?? {};
 
-  const guidance = CATEGORY_GUIDANCE[category] ?? CATEGORY_GUIDANCE.default;
+  // The admin-configured template wins; CATEGORY_GUIDANCE below is the built-in
+  // fallback, still used when no row has been configured for this category.
+  // Note `contingent-labour` is a live category with no CATEGORY_GUIDANCE entry,
+  // so it has always silently fallen through to `default` — a row fixes that.
+  const template = await getServiceDescriptionTemplate(category);
+  const guidance = template.categoryGuidance || CATEGORY_GUIDANCE[category] || CATEGORY_GUIDANCE.default!;
+  const resolved = { ...template, categoryGuidance: guidance };
 
   // Mock path (deterministic, no LLM call)
   if (mock || process.env.VITE_ASSISTANT_PROVIDER === 'mock') {
     const sections = mockGenerate(category, title, value, capturedAnswers as Record<string, string>);
-    const narrative = composeNarrative(sections, { category, title, value });
+    const narrative = composeNarrativeFromSections(sections, resolved.narrativeSections, {
+      category, title, value,
+    });
     const { checks, score } = runQualityChecks(sections);
     return res.status(200).json({ sections, narrative, qualityScore: score, qualityChecks: checks });
   }
 
-  const systemPrompt = `You are an expert procurement category manager drafting a professional Statement of Work (SOW).
-
-TASK: Generate a complete, detailed, professional SOW JSON for the request described below.
-
-CATEGORY-SPECIFIC GUIDANCE:
-${guidance}
-
-RULES:
-1. Each section must be MULTI-SENTENCE and SPECIFIC — never echo the user's exact words verbatim. Expand, enrich, and make professional.
-2. Infer sensible defaults for any section not explicitly covered in the captured answers — clearly note AI-drafted content.
-3. Write in third person, formal English, present tense.
-4. Deliverables MUST be a numbered list.
-5. Acceptance Criteria MUST include at least 2 measurable conditions (% targets, KPIs, sign-off gates).
-6. Timeline MUST name phases with approximate durations.
-7. Output ONLY valid JSON — no markdown, no commentary outside the JSON.
-
-OUTPUT FORMAT (JSON only):
-{
-  "sections": {
-    "objective": "...",
-    "scope": "...",
-    "deliverables": "1. ...\n2. ...\n3. ...",
-    "timeline": "Phase 1...",
-    "resources": "...",
-    "acceptanceCriteria": "1. ...\n2. ...",
-    "pricingModel": "...",
-    "location": "...",
-    "dependencies": "..."
-  },
-  "narrative": "<3–4 paragraph executive summary synthesising the full SOW>"
-}`;
+  const systemPrompt = renderSystemPrompt(resolved);
 
   const userMessage = `Category: ${category}
 Title: ${title}
@@ -281,8 +212,8 @@ ${Object.entries(capturedAnswers as Record<string, string>)
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userMessage },
       ],
-      temperature: 0.5,
-      maxTokens: 3000,
+      temperature: resolved.temperature,
+      maxTokens: resolved.maxTokens,
       jsonMode: true,
     });
 
@@ -299,7 +230,9 @@ ${Object.entries(capturedAnswers as Record<string, string>)
     // LLM failed — fall back to mock
     console.warn('[generate-sow] LLM failed, using mock fallback:', e);
     const sections = mockGenerate(category, title, value as number, capturedAnswers as Record<string, string>);
-    const narrative = composeNarrative(sections, { category, title, value: value as number, unpolished: true });
+    const narrative = composeNarrativeFromSections(sections, resolved.narrativeSections, {
+      category, title, value: value as number, unpolished: true,
+    });
     const { checks, score } = runQualityChecks(sections);
     return res.status(200).json({ sections, narrative, qualityScore: score, qualityChecks: checks });
   }
