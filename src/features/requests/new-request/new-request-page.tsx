@@ -54,6 +54,15 @@ interface RequestFormData {
    * off or the call failed, in which case the deterministic rules decide.
    */
   llmIntent: string;
+  /**
+   * The quality gate and governance read from generation. Previously computed,
+   * shown, and discarded when the wizard unmounted — leaving `quality_score`
+   * null on every row while tab-overview read it.
+   */
+  sowQualityScore?: number;
+  sowQualityChecks?: { section: string; passed: boolean; issue: string | null }[];
+  sowRequiredSections?: string[];
+  sowSignals?: Record<string, unknown>;
   // Step 3 (shifted)
   title: string;
   supplier: string;
@@ -486,6 +495,10 @@ export function NewRequestPage() {
             location: sow.location ?? '',
             dependencies: sow.dependencies ?? '',
             narrative: sow.narrative ?? '',
+            ...(formData.sowQualityScore != null ? { qualityScore: formData.sowQualityScore } : {}),
+            ...(formData.sowQualityChecks ? { qualityChecks: formData.sowQualityChecks } : {}),
+            ...(formData.sowSignals ? { signals: formData.sowSignals } : {}),
+            ...(formData.sowRequiredSections ? { requiredSections: formData.sowRequiredSections } : {}),
           });
         }
 
@@ -801,6 +814,7 @@ export function NewRequestPage() {
         {(currentStep === 4 || currentStep === 5) && (
           <StepCompliance
             phase={currentStep === 4 ? 'risk' : 'determination'}
+            requiredSections={formData.sowRequiredSections}
             category={formData.category}
             estimatedValue={formData.estimatedValue}
             supplierId={formData.supplierId}

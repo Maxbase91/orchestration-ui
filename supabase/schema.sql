@@ -1120,3 +1120,14 @@ CREATE TABLE IF NOT EXISTS service_description_templates (
   updated_at                    TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_by                    TEXT
 );
+
+-- ── Service description: the governance read it was written against (S2) ────
+-- quality_score and quality_checks already existed and were null on every live
+-- row: the wizard computed them, rendered them, and discarded them at submit,
+-- so the quality badge tab-overview.tsx reads had never once appeared.
+-- `signals` records the capture-time materiality / risk / sourcing read that
+-- steered generation, and `required_sections` what that read made mandatory —
+-- so a reviewer sees not only the document but what it had to cover.
+ALTER TABLE service_descriptions
+  ADD COLUMN IF NOT EXISTS signals jsonb,
+  ADD COLUMN IF NOT EXISTS required_sections text[] NOT NULL DEFAULT '{}';

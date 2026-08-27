@@ -6,6 +6,14 @@ import { ComplianceCheckResult } from './components/compliance-check-result';
 import { formatCurrency } from '@/lib/format';
 import { useSourceData } from '@/lib/integrations';
 import { isPreferredSupplier, competitiveSourcingCheck, preferredSupplierCheck } from '@/lib/procurement/supplier-preference';
+import { inferDataSensitivity, gapsAgainstFinal } from '@/lib/procurement/demand-signals';
+
+/** Display names for the description's sections, for the gap message. */
+const SOW_SECTION_LABELS: Record<string, string> = {
+  objective: 'Objective', scope: 'Scope', deliverables: 'Deliverables',
+  timeline: 'Timeline', resources: 'Resources', acceptanceCriteria: 'Acceptance Criteria',
+  pricingModel: 'Pricing Model', location: 'Location', dependencies: 'Dependencies',
+};
 import { determineMateriality, type MaterialityResult } from '@/lib/procurement/materiality';
 import { determineInherentRisk, type InherentRiskResult } from '@/lib/procurement/risk-segmentation';
 import { selectReuseOutcome, type ReuseEvaluation } from '@/lib/procurement/risk-reuse';
@@ -95,6 +103,14 @@ interface StepComplianceProps {
     resources?: string;
     narrative?: string;
   } | null;
+  /**
+   * Sections the capture-time signals made mandatory (from generation). The
+   * final materiality is computed here and can demand more than the preliminary
+   * read did — those gaps are reported, not silently generated, because a
+   * document that rewrites itself after the requester thought it was finished is
+   * worse than one that says what is missing.
+   */
+  requiredSections?: string[];
   workflowTemplateId?: string;
   requestTitle?: string;
   /** Which half of the split step to render: the risk assessment or the determination. */
@@ -109,23 +125,6 @@ interface StepComplianceProps {
  * risk-triage form can arrive pre-filled. Keyword heuristic — intentionally
  * conservative: unknown sensitive-term = "high" rather than "low".
  */
-function inferDataSensitivity(sow: StepComplianceProps['serviceDescription']): 'none' | 'low' | 'medium' | 'high' | 'critical' {
-  const blob = [sow?.objective, sow?.scope, sow?.deliverables, sow?.resources, sow?.narrative]
-    .filter(Boolean)
-    .join(' ')
-    .toLowerCase();
-  if (!blob) return 'medium';
-  const critical = ['payment data', 'card data', 'pci', 'health data', 'medical records', 'classified', 'state secret'];
-  const high = ['personal data', 'pii', 'gdpr', 'customer data', 'confidential', 'financial records', 'payroll', 'employee data', 'ip address'];
-  const medium = ['internal', 'proprietary', 'commercial', 'contract terms', 'supplier data'];
-  const low = ['public', 'marketing', 'brochure', 'website content'];
-  if (critical.some((k) => blob.includes(k))) return 'critical';
-  if (high.some((k) => blob.includes(k))) return 'high';
-  if (medium.some((k) => blob.includes(k))) return 'medium';
-  if (low.some((k) => blob.includes(k))) return 'low';
-  return 'medium';
-}
-
 function mapSraStatus(status: string | undefined): string {
   switch (status) {
     case 'valid': return 'yes-valid';
@@ -264,6 +263,7 @@ export function StepCompliance({
   supplier,
   isUrgent,
   serviceDescription,
+  requiredSections = [],
   workflowTemplateId,
   requestTitle,
   phase,
@@ -661,6 +661,33 @@ export function StepCompliance({
           <Download className="size-3.5 mr-1.5" /> Export
         </Button>
       </div>
+
+      {/* Sections the governance read requires that the description does not
+          have. Uses the same list generation was given, so the two cannot
+          disagree about what "required" means. */}
+      {(() => {
+        const gaps = gapsAgainstFinal(
+          requiredSections,
+          (serviceDescription ?? {}) as Record<string, string | undefined>,
+        );
+        if (gaps.length === 0) return null;
+        const labelFor = (id: string) =>
+          SOW_SECTION_LABELS[id] ?? id.replace(/([A-Z])/g, ' $1').toLowerCase();
+        return (
+          <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
+            <p className="text-sm font-medium text-amber-900">
+              The service description is missing {gaps.length} required section
+              {gaps.length === 1 ? '' : 's'}
+            </p>
+            <p className="mt-0.5 text-xs text-amber-800">
+              This demand&apos;s materiality, risk and sourcing make {gaps.length === 1 ? 'it' : 'these'}{' '}
+              mandatory: <strong>{gaps.map(labelFor).join(', ')}</strong>. Go back to the service
+              description to add {gaps.length === 1 ? 'it' : 'them'} — the request can still be
+              submitted, but a reviewer will ask.
+            </p>
+          </div>
+        );
+      })()}
 
       <SectionHeader label="Decision" />
       {/* Demand disposition — proceed / request-change / refer-back. The

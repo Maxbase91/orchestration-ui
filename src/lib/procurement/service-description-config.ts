@@ -17,9 +17,24 @@ import type { PolicyConfig } from './policy-config';
 /** Operators a slot condition may use. Matches evaluate-routing-rules. */
 export type SlotConditionOperator = '>=' | '>' | '<=' | '<' | '==' | '!=' | 'in';
 
+/**
+ * The fields a condition can address.
+ *
+ * `category` and `value` are known from the first keystroke. The four governance
+ * fields come from the capture-time read (`demand-signals.ts`) and are what make
+ * "a material engagement must specify exit provisions" expressible as config
+ * rather than a constant buried in the prompt.
+ */
+export type SlotConditionField =
+  | 'category'
+  | 'value'
+  | 'materiality'
+  | 'riskTier'
+  | 'dataSensitivity'
+  | 'sourcingType';
+
 export interface SlotCondition {
-  /** `category` or `value` — the only two the intake context can offer. */
-  field: 'category' | 'value';
+  field: SlotConditionField;
   operator: SlotConditionOperator;
   /**
    * A literal, a comma-separated list for `in`, or `policy:<key>` to defer to a
@@ -46,11 +61,19 @@ export interface ConfiguredSlot {
   examples?: Record<string, string>;
   /** All must hold for the slot to be asked. Empty means always. */
   conditions?: SlotCondition[];
+  /** Conditions under which an answer is mandatory rather than merely asked. */
+  requiredWhen?: SlotCondition[];
 }
 
 export interface ConfiguredSection {
   id: string;
   label: string;
+  /**
+   * Conditions under which this section is MANDATORY, beyond being generated.
+   * All must hold. Empty or absent means the section is optional — generated
+   * when there is something to say, never demanded.
+   */
+  requiredWhen?: SlotCondition[];
   /**
    * False for a section the platform infers rather than asks for.
    *
@@ -99,12 +122,25 @@ function resolveConditionValue(raw: string, config: PolicyConfig): string | numb
  * otherwise — the same coercion `evalCondition` in evaluate-routing-rules.ts
  * applies, so a rule written in one place behaves the same in the other.
  */
+export interface SlotConditionContext {
+  category?: string;
+  value?: number;
+  /** Present only once the capture-time signals have been computed. */
+  materiality?: string;
+  riskTier?: string;
+  dataSensitivity?: string;
+  sourcingType?: string;
+}
+
 export function evaluateSlotCondition(
   condition: SlotCondition,
-  ctx: { category?: string; value?: number },
+  ctx: SlotConditionContext,
   config: PolicyConfig,
 ): boolean {
-  const lhsRaw = condition.field === 'value' ? ctx.value : ctx.category;
+  // An unknown signal makes the condition false rather than throwing or
+  // defaulting to true: a section is required because a signal SAYS so, and
+  // "we don't know yet" is not that signal.
+  const lhsRaw = ctx[condition.field];
   const rhsRaw = resolveConditionValue(condition.value, config);
 
   if (condition.operator === 'in') {
@@ -133,11 +169,29 @@ export function evaluateSlotCondition(
 /** Is this slot asked for this demand? All conditions must hold. */
 export function slotApplies(
   slot: ConfiguredSlot,
-  ctx: { category?: string; value?: number },
+  ctx: SlotConditionContext,
   config: PolicyConfig,
 ): boolean {
   if (!slot.conditions || slot.conditions.length === 0) return true;
   return slot.conditions.every((c) => evaluateSlotCondition(c, ctx, config));
+}
+
+/**
+ * The sections the signals make mandatory for this demand.
+ *
+ * Drives two things that must not disagree: what the generation prompt tells the
+ * model it MUST cover, and what the determination screen reports as missing.
+ * Both read this, so a section cannot be demanded by one and ignored by the
+ * other — the class of drift that produced three different narrative composers.
+ */
+export function requiredSectionsFor(
+  sections: ConfiguredSection[],
+  ctx: SlotConditionContext,
+  config: PolicyConfig,
+): string[] {
+  return sections
+    .filter((s) => s.requiredWhen?.length && s.requiredWhen.every((c) => evaluateSlotCondition(c, ctx, config)))
+    .map((s) => s.id);
 }
 
 /**

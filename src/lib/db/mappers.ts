@@ -580,6 +580,13 @@ export interface ServiceDescriptionRecord {
   location: string;
   dependencies: string;
   narrative: string;
+  /** The quality gate, computed at generation and previously discarded. */
+  qualityScore?: number;
+  qualityChecks?: { section: string; passed: boolean; issue: string | null }[];
+  /** The capture-time governance read the description was written against. */
+  signals?: Record<string, unknown>;
+  /** Sections that read made mandatory — what a reviewer should expect to find. */
+  requiredSections?: string[];
 }
 
 export function mapDbToServiceDescription(row: DbRecord): ServiceDescriptionRecord {
@@ -595,6 +602,10 @@ export function mapDbToServiceDescription(row: DbRecord): ServiceDescriptionReco
     location: (row.location ?? '') as string,
     dependencies: (row.dependencies ?? '') as string,
     narrative: (row.narrative ?? '') as string,
+    ...(row.quality_score != null ? { qualityScore: row.quality_score as number } : {}),
+    ...(row.quality_checks ? { qualityChecks: row.quality_checks as ServiceDescriptionRecord['qualityChecks'] } : {}),
+    ...(row.signals ? { signals: row.signals as Record<string, unknown> } : {}),
+    ...(row.required_sections ? { requiredSections: row.required_sections as string[] } : {}),
   };
 }
 

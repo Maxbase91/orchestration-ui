@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
 import { useServiceDescriptionTemplate } from '@/lib/db/hooks/use-service-description-templates';
 import { composeNarrativeFromSections } from '@/lib/procurement/service-description-config';
+import { computeDemandSignals } from '@/lib/procurement/demand-signals';
 import type { DemandSlot } from '@/lib/procurement/demand-conversation';
 import { getAICommodityCode } from '@/lib/mock-ai';
 import { formatCurrency } from '@/lib/format';
@@ -399,6 +400,14 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
   // conversation has already composed a working narrative) and shows no error.
   const generateServiceDescription = useCallback(async () => {
     setGenerating(true);
+    // Computed once and both sent and stored, so the description records the
+    // exact read it was generated against rather than one recomputed later.
+    const signals = computeDemandSignals({
+      category,
+      value: data.estimatedValue,
+      supplier: suppliers.find((sup) => sup.id === data.supplierId) ?? null,
+      sow: svcDesc,
+    });
     try {
       const res = await fetch('/api/generate-sow', {
         method: 'POST',
@@ -409,6 +418,10 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
           value: data.estimatedValue,
           supplier: data.supplier,
           timeline: data.deliveryDate,
+          // The capture-time governance read. Without it the generator could not
+          // tell a material, competitively-sourced engagement from a stationery
+          // order, and wrote the same document for both.
+          signals,
           capturedAnswers: Object.fromEntries(
             Object.entries(svcDesc).filter(([, v]) => v?.trim()),
           ),
@@ -421,6 +434,7 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
         sections: Partial<ServiceDescription>;
         narrative: string;
         qualityScore: number;
+        requiredSections?: string[];
         qualityChecks: { section: string; passed: boolean; issue: string | null }[];
       };
 
@@ -428,6 +442,15 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
       setSvcDesc(merged as Partial<ServiceDescription>);
       onUpdate({ serviceDescription: merged });
       setQualityScore(result.qualityScore);
+      // Persisted at submit. These columns have existed since R6 and were null
+      // on every live row, so the quality badge tab-overview renders had never
+      // once appeared.
+      onUpdate({
+        sowQualityScore: result.qualityScore,
+        sowQualityChecks: result.qualityChecks,
+        sowRequiredSections: result.requiredSections ?? [],
+        sowSignals: signals,
+      });
       setQualityChecks(result.qualityChecks);
       setShowQuality(true);
     } catch (e) {
@@ -436,7 +459,7 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
     } finally {
       setGenerating(false);
     }
-  }, [category, data, svcDesc, onUpdate]);
+  }, [category, data, svcDesc, onUpdate, suppliers]);
 
   // Auto-compose the service description the moment the conversation is complete
   // (all components captured). Runs once; no button required.

@@ -21,16 +21,46 @@ import type {
  * it is inferred by the model and then displayed next to captured answers with
  * nothing distinguishing the two. Marking it is the minimum honest fix.
  */
+/**
+ * `requiredWhen` encodes what governance actually demands of a description, as
+ * config rather than as rules buried in a prompt string. All conditions on a
+ * section must hold for it to be mandatory; a section with none is generated
+ * when there is something to say and never demanded.
+ *
+ * These defaults are deliberately conservative — they make mandatory only what a
+ * procurement reviewer would refuse to sign without:
+ *   • a material engagement must state measurable acceptance criteria and what
+ *     is in scope, because that is what the approval is actually against;
+ *   • anything competitively sourced must state deliverables and acceptance
+ *     criteria, because those become the evaluation basis for bidders;
+ *   • high or critical data sensitivity must state resources and dependencies —
+ *     who touches the data and what it connects to.
+ */
 export const DEFAULT_SECTIONS: ConfiguredSection[] = [
   { id: 'objective', label: 'Objective', asked: true },
-  { id: 'scope', label: 'Scope', asked: true },
-  { id: 'deliverables', label: 'Deliverables', asked: true },
+  {
+    id: 'scope', label: 'Scope', asked: true,
+    requiredWhen: [{ field: 'materiality', operator: 'in', value: 'important,critical' }],
+  },
+  {
+    id: 'deliverables', label: 'Deliverables', asked: true,
+    requiredWhen: [{ field: 'sourcingType', operator: '==', value: 'competitive' }],
+  },
   { id: 'timeline', label: 'Timeline', asked: true },
-  { id: 'resources', label: 'Resources', asked: true },
-  { id: 'acceptanceCriteria', label: 'Acceptance Criteria', asked: true },
+  {
+    id: 'resources', label: 'Resources', asked: true,
+    requiredWhen: [{ field: 'dataSensitivity', operator: 'in', value: 'high,critical' }],
+  },
+  {
+    id: 'acceptanceCriteria', label: 'Acceptance Criteria', asked: true,
+    requiredWhen: [{ field: 'materiality', operator: 'in', value: 'important,critical' }],
+  },
   { id: 'pricingModel', label: 'Pricing Model', asked: true },
   { id: 'location', label: 'Location', asked: false },
-  { id: 'dependencies', label: 'Dependencies', asked: true },
+  {
+    id: 'dependencies', label: 'Dependencies', asked: true,
+    requiredWhen: [{ field: 'dataSensitivity', operator: 'in', value: 'high,critical' }],
+  },
 ];
 
 /** Categories that get a timeline question — mirrors TIME_BASED_CATEGORIES. */
@@ -141,6 +171,9 @@ TASK: Generate a complete, detailed, professional SOW JSON for the request descr
 CATEGORY-SPECIFIC GUIDANCE:
 {{guidance}}
 
+GOVERNANCE CONTEXT FOR THIS DEMAND:
+{{signals}}
+
 RULES:
 1. Each section must be MULTI-SENTENCE and SPECIFIC — never echo the user's exact words verbatim. Expand, enrich, and make professional.
 2. Infer sensible defaults for any section not explicitly covered in the captured answers — clearly note AI-drafted content.
@@ -148,7 +181,8 @@ RULES:
 4. Deliverables MUST be a numbered list.
 5. Acceptance Criteria MUST include at least 2 measurable conditions (% targets, KPIs, sign-off gates).
 6. Timeline MUST name phases with approximate durations.
-7. Output ONLY valid JSON — no markdown, no commentary outside the JSON.
+7. Any section listed as MUST COVER above is mandatory and must be substantive — this demand cannot be approved or put out to market without it.
+8. Output ONLY valid JSON — no markdown, no commentary outside the JSON.
 
 OUTPUT FORMAT (JSON only):
 {{outputFormat}}`;
@@ -179,8 +213,15 @@ export function buildOutputFormat(sections: ConfiguredSection[]): string {
 }
 
 /** Interpolate the guidance and output format into a template's system prompt. */
-export function renderSystemPrompt(template: ServiceDescriptionTemplate): string {
+export function renderSystemPrompt(
+  template: ServiceDescriptionTemplate,
+  signalsBlock = '',
+): string {
   return template.systemPrompt
     .replace('{{guidance}}', template.categoryGuidance || '(no category-specific guidance configured)')
+    // Empty when the caller has no signals — an admin template that omits the
+    // placeholder still renders, and a template that includes it never shows a
+    // raw `{{signals}}` to the model.
+    .replace('{{signals}}', signalsBlock || '(not yet determined)')
     .replace('{{outputFormat}}', buildOutputFormat(template.sections));
 }

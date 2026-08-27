@@ -178,8 +178,11 @@ export function TabOverview({ request }: TabOverviewProps) {
               {/* Structured Sections */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {Object.entries(SOW_LABELS).map(([key, label]) => {
+                  // SOW_LABELS names only the text sections; the record also
+                  // carries the quality gate and the signals, which are not
+                  // section bodies and must not be rendered as one.
                   const value = svcDesc[key as keyof typeof svcDesc];
-                  if (!value || key === 'narrative') return null;
+                  if (typeof value !== 'string' || !value || key === 'narrative') return null;
                   return (
                     <div key={key} className="space-y-1">
                       <div className="flex items-center gap-1.5">

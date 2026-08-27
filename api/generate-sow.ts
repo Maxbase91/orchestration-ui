@@ -1,7 +1,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { callLLM } from '../src/lib/llm.js';
 import { getServiceDescriptionTemplate } from './_sd-template.js';
-import { composeNarrativeFromSections } from '../src/lib/procurement/service-description-config.js';
+import {
+  composeNarrativeFromSections,
+  requiredSectionsFor,
+} from '../src/lib/procurement/service-description-config.js';
+import { DEFAULT_POLICY_CONFIG } from '../src/lib/procurement/policy-config.js';
 import { renderSystemPrompt } from '../src/lib/procurement/service-description-defaults.js';
 
 export const config = { maxDuration: 60 };
@@ -170,6 +174,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     timeline = '',
     capturedAnswers = {},
     commodityCode = '',
+    signals = null,
     mock = false,
   } = req.body ?? {};
 
@@ -181,6 +186,42 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const guidance = template.categoryGuidance || CATEGORY_GUIDANCE[category] || CATEGORY_GUIDANCE.default!;
   const resolved = { ...template, categoryGuidance: guidance };
 
+  // Which sections this demand's governance read makes mandatory. Config, not a
+  // constant: the conditions live on the template and are editable at
+  // /admin/service-description. With no signals the list is empty and behaviour
+  // is exactly what it was before this existed.
+  const sig = (signals ?? {}) as Record<string, unknown>;
+  const conditionCtx = {
+    category,
+    value: value as number,
+    materiality: sig.materiality as string | undefined,
+    riskTier: sig.inherentRiskTier as string | undefined,
+    dataSensitivity: sig.dataSensitivity as string | undefined,
+    sourcingType: sig.sourcingTypeHint as string | undefined,
+  };
+  const required = signals
+    ? requiredSectionsFor(resolved.sections, conditionCtx, DEFAULT_POLICY_CONFIG)
+    : [];
+  const requiredLabels = required.map(
+    (id) => resolved.sections.find((x) => x.id === id)?.label ?? id,
+  );
+
+  // Rendered into the prompt so the model is told what this specific demand has
+  // to cover, and reported back to the client so the determination screen can
+  // check the same list rather than a second one of its own.
+  const signalsBlock = signals
+    ? [
+        `Materiality: ${sig.materiality ?? 'unknown'}`,
+        `Inherent risk: ${sig.inherentRiskTier ?? 'unknown'}`,
+        `Data sensitivity: ${sig.dataSensitivity ?? 'unknown'}`,
+        `Sourcing: ${sig.sourcingTypeHint ?? 'unknown'}`,
+        requiredLabels.length
+          ? `MUST COVER (mandatory for this demand): ${requiredLabels.join(', ')}`
+          : 'No section is mandatory beyond the standard set for this demand.',
+        'These are a preliminary read taken at capture time; write to them, do not restate them.',
+      ].join('\n')
+    : '';
+
   // Mock path (deterministic, no LLM call)
   if (mock || process.env.VITE_ASSISTANT_PROVIDER === 'mock') {
     const sections = mockGenerate(category, title, value, capturedAnswers as Record<string, string>);
@@ -188,10 +229,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       category, title, value,
     });
     const { checks, score } = runQualityChecks(sections);
-    return res.status(200).json({ sections, narrative, qualityScore: score, qualityChecks: checks });
+    return res.status(200).json({
+      sections, narrative, qualityScore: score, qualityChecks: checks, requiredSections: required,
+    });
   }
 
-  const systemPrompt = renderSystemPrompt(resolved);
+  const systemPrompt = renderSystemPrompt(resolved, signalsBlock);
 
   const userMessage = `Category: ${category}
 Title: ${title}
@@ -225,6 +268,7 @@ ${Object.entries(capturedAnswers as Record<string, string>)
       narrative: parsed.narrative,
       qualityScore: score,
       qualityChecks: checks,
+      requiredSections: required,
     });
   } catch (e) {
     // LLM failed — fall back to mock
@@ -234,6 +278,8 @@ ${Object.entries(capturedAnswers as Record<string, string>)
       category, title, value: value as number, unpolished: true,
     });
     const { checks, score } = runQualityChecks(sections);
-    return res.status(200).json({ sections, narrative, qualityScore: score, qualityChecks: checks });
+    return res.status(200).json({
+      sections, narrative, qualityScore: score, qualityChecks: checks, requiredSections: required,
+    });
   }
 }

@@ -33,6 +33,13 @@ export async function saveServiceDescription(
     location: sow.location,
     dependencies: sow.dependencies,
     narrative: sow.narrative,
+    // Undefined fields are omitted rather than written as null: a save from a
+    // path that never generated (e.g. a contract call-off) must not blank the
+    // quality gate on an existing row.
+    ...(sow.qualityScore != null ? { quality_score: sow.qualityScore } : {}),
+    ...(sow.qualityChecks ? { quality_checks: sow.qualityChecks } : {}),
+    ...(sow.signals ? { signals: sow.signals } : {}),
+    ...(sow.requiredSections ? { required_sections: sow.requiredSections } : {}),
   };
   const { data, error } = await supabase
     .from(TABLE)
