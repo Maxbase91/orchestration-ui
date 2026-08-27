@@ -1,10 +1,33 @@
+// Staged-intake funnel (INT-10) — the screen where a demand is recognised as a
+// catalogue order, a call-off against an existing contract, or new demand.
+//
+// This is now a *presenter*. The decision itself lives in
+// `lib/procurement/intake-routing.ts`, which is pure and benchmarked; the
+// scoring used to be three `useMemo`s in here, which meant no test could reach
+// it and nothing could explain a route.
+//
+// Two behaviours changed for a reason worth recording, because both look like
+// polish and are not:
+//
+//  * When the catalogue cannot serve the demand's category, its stage is
+//    **skipped and the reason shown**, rather than rendered empty. The funnel
+//    previously offered a consulting demand a box of business cards, and the
+//    silence afterwards was as unhelpful as the wrong suggestion.
+//  * **All three destinations are reachable from every stage.** Before, a
+//    catalogue match hid the enrichment block and offered no route to "this is
+//    new demand" at all, so a wrong match didn't just mislead — it hid the
+//    correct path behind a large green button pointing the other way.
+
 import { useMemo, useState } from 'react';
-import { ShoppingCart, FileText, ArrowRight, ArrowLeft, Check, Loader2 } from 'lucide-react';
+import { ShoppingCart, FileText, ArrowRight, ArrowLeft, Check, Loader2, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { formatCurrency } from '@/lib/format';
 import { useSourceData } from '@/lib/integrations';
+import { useProcurementCategories } from '@/lib/db/hooks/use-procurement-categories';
+import { DEFAULT_CATEGORY_TAXONOMY } from '@/data/category-taxonomy';
+import { decideIntakeRoute } from '@/lib/procurement/intake-routing';
 import type { CatalogueItem } from '@/data/catalogue-items';
 import type { Contract, Supplier } from '@/data/types';
 
@@ -15,6 +38,8 @@ interface StepPreCheckProps {
   category: string;
   estimatedValue: number;
   supplierId: string;
+  /** api/ai.ts `intent` from step 1 — authoritative when it can be honoured. */
+  llmIntent?: string;
   onChooseCatalogue: (items: CatalogueItem[]) => void;
   onChooseContract: (contract: Contract, supplier: Supplier | undefined) => void;
   onProceedToFullRequest: () => void;
@@ -22,115 +47,6 @@ interface StepPreCheckProps {
   onEnrich?: (text: string) => void;
 }
 
-const STOP_WORDS = new Set([
-  'i', 'a', 'an', 'the', 'of', 'for', 'to', 'we', 'us', 'our', 'my',
-  'need', 'want', 'would', 'like', 'please', 'can', 'new', 'some',
-]);
-
-function tokenize(text: string): string[] {
-  return text
-    .toLowerCase()
-    .split(/\s+/)
-    .map((w) => w.replace(/[^a-z0-9-]/g, ''))
-    .filter((w) => w.length > 2 && !STOP_WORDS.has(w));
-}
-
-function tokenMatches(haystack: string, token: string): boolean {
-  if (haystack.includes(token)) return true;
-  // plural → singular fallback so "laptops" matches "laptop" in the seed
-  if (token.endsWith('s') && token.length > 3 && haystack.includes(token.slice(0, -1))) return true;
-  return false;
-}
-
-function matchCatalogueItem(item: CatalogueItem, tokens: string[]): number {
-  if (tokens.length === 0) return 0;
-  const name = item.name.toLowerCase();
-  const haystack = `${item.description} ${item.catalogueName}`.toLowerCase();
-  let score = 0;
-  for (const t of tokens) {
-    // Name hits are strongest, but a description/catalogue hit counts on its own
-    // — a plain product word ("laptops") must surface items named by model
-    // ("ThinkPad T14 Gen 5", whose description reads "…business laptop…").
-    // RAW SUM, deliberately NOT divided by the query length: a verbose ask
-    // ("a few laptops for a new starter") must match as well as "laptops" — the
-    // old length-normalisation halved single-word hits below the threshold and
-    // diluted them further with every extra word, so catalogue items only ever
-    // matched when the user typed the product's exact name.
-    if (tokenMatches(name, t)) score += 1.0;
-    else if (tokenMatches(haystack, t)) score += 0.5;
-  }
-  return score;
-}
-
-function matchContract(contract: Contract, ctx: {
-  tokens: string[];
-  category: string;
-  estimatedValue: number;
-  supplierId: string;
-}): { score: number; reasons: string[] } | null {
-  if (contract.status !== 'active' && contract.status !== 'expiring') return null;
-  let score = 0;
-  const reasons: string[] = [];
-  let hasPrimarySignal = false; // supplier or category match required
-
-  if (ctx.supplierId && contract.supplierId === ctx.supplierId) {
-    score += 0.5;
-    hasPrimarySignal = true;
-    reasons.push(`matches selected supplier ${contract.supplierName}`);
-  }
-
-  const catLower = contract.category.toLowerCase();
-  if (catLower.includes(ctx.category) && ctx.category) {
-    score += 0.3;
-    hasPrimarySignal = true;
-    reasons.push(`contract category is ${contract.category}`);
-  }
-
-  // ALWAYS score the (title + enrichment) keywords against the contract's title
-  // + category — not only when the category fails to match. Otherwise every
-  // contract in a matching category (e.g. all "Consulting" contracts) ties on
-  // the +0.3 alone and the enrichment the user adds changes nothing. Scoring the
-  // keywords here makes the detail refine the ranking so the best-fit contract
-  // surfaces first.
-  const haystack = `${contract.title} ${contract.category}`.toLowerCase();
-  let kwHits = 0;
-  for (const t of ctx.tokens) {
-    if (haystack.includes(t)) {
-      kwHits += 1;
-      if (!reasons.some((r) => r.includes(t))) reasons.push(`matches "${t}"`);
-    }
-  }
-  score += kwHits * 0.15;
-  // Two or more keyword hits count as a primary signal on their own.
-  if (kwHits >= 2) hasPrimarySignal = true;
-
-  // Without a primary signal (supplier / category / >=2 keywords), reject
-  // early so incidental one-word overlaps don't trigger a false match.
-  if (!hasPrimarySignal) return null;
-
-  // Remaining budget heuristic: 100 - utilisation%. If contract is
-  // essentially maxed out (>=95% utilised), exclude it.
-  const remainingPct = Math.max(0, 100 - (contract.utilisationPercentage ?? 0));
-  if (remainingPct < 5) return null;
-  if (ctx.estimatedValue > 0 && contract.value > 0) {
-    const remaining = contract.value * (remainingPct / 100);
-    if (remaining >= ctx.estimatedValue) {
-      score += 0.2;
-      reasons.push(`has ~${formatCurrency(remaining)} remaining capacity`);
-    }
-  }
-
-  return score >= 0.3 ? { score, reasons } : null;
-}
-
-/**
- * Staged-intake funnel (INT-10). The check is sequential, not parallel:
- *   1. Catalogue derivation — try to fulfil from the catalogue first.
- *   2. Contract derivation — only after catalogue is ruled out and the user has
- *      added enrichment detail; we never assert a covering contract before
- *      enough is known to justify it.
- *   3. Full request — only when neither early exit fires.
- */
 type Stage = 'catalogue' | 'contract';
 
 // Category-specific guidance so "Tell us a bit more" asks for the detail that
@@ -146,59 +62,97 @@ const ENRICH_GUIDANCE: Record<string, string> = {
 const enrichGuidance = (category: string) =>
   ENRICH_GUIDANCE[category] ?? 'e.g. the scope, region, duration, and approximate size';
 
+/** The always-available escape to a full request, on every stage. */
+function ProceedPanel({ lead, onProceed }: { lead: string; onProceed: () => void }) {
+  return (
+    <div className="rounded-lg border border-gray-200 bg-white p-4">
+      <p className="text-sm text-gray-700">
+        {lead} You&apos;ll need a full procurement request — we&apos;ll collect a service
+        description, identify suppliers, and assess risk before routing.
+      </p>
+      <Button variant="outline" className="mt-3" onClick={onProceed}>
+        Proceed to full request
+        <ArrowRight className="size-4" />
+      </Button>
+    </div>
+  );
+}
+
 export function StepPreCheck({
-  title, category, estimatedValue, supplierId,
+  title, category, estimatedValue, supplierId, llmIntent,
   onChooseCatalogue, onChooseContract, onProceedToFullRequest, onEnrich,
 }: StepPreCheckProps) {
   // Reads go through the standardised source-connector layer (own store today,
   // live source later) rather than directly to the data layer.
-  const { data: catalogueItems = [], isLoading: catLoading } =
+  const { data: catalogueItems = [], isLoading: catLoading, isError: catError } =
     useSourceData<CatalogueItem>('catalogue-item');
-  const { data: contracts = [], isLoading: conLoading } = useSourceData<Contract>('contract');
+  const { data: contracts = [], isLoading: conLoading, isError: conError } =
+    useSourceData<Contract>('contract');
   const { data: suppliers = [] } = useSourceData<Supplier>('supplier');
+  const { data: dbCategories = [] } = useProcurementCategories();
 
-  const [stage, setStage] = useState<Stage>('catalogue');
   const [enrich, setEnrich] = useState('');
+  /** Set when the user overrides the recommendation to look anyway. */
+  const [forcedStage, setForcedStage] = useState<Stage | null>(null);
 
-  // Catalogue matches on the captured text alone (stage 1).
-  const catalogueTokens = useMemo(() => tokenize(title), [title]);
-  // Contract matching benefits from the enrichment the user adds in stage 1.
-  const contractTokens = useMemo(() => tokenize(`${title} ${enrich}`), [title, enrich]);
+  // Which categories the catalogue can actually fulfil — admin config, falling
+  // back to the canonical taxonomy so an empty store behaves identically.
+  const eligibleCategories = useMemo(() => {
+    const src = dbCategories.length > 0 ? dbCategories : DEFAULT_CATEGORY_TAXONOMY;
+    return src.filter((c) => c.catalogueEligible).map((c) => c.id);
+  }, [dbCategories]);
 
-  const catalogueMatches = useMemo(() => {
-    if (!title) return [];
-    return catalogueItems
-      .map((item) => ({ item, score: matchCatalogueItem(item, catalogueTokens) }))
-      .filter((r) => r.score >= 0.5) // at least one name- or description-level hit
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 6)
-      .map((r) => r.item);
-  }, [catalogueItems, catalogueTokens, title]);
-
-  const contractMatches = useMemo(() => {
-    // Gate: only compute (and only ever render) contracts in the contract stage.
-    if (stage !== 'contract') return [];
-    if (!title && !supplierId) return [];
-    const out: { contract: Contract; score: number; reasons: string[] }[] = [];
-    for (const c of contracts) {
-      const m = matchContract(c, { tokens: contractTokens, category, estimatedValue, supplierId });
-      if (m) out.push({ contract: c, ...m });
-    }
-    return out.sort((a, b) => b.score - a.score).slice(0, 4);
-  }, [stage, contracts, contractTokens, category, estimatedValue, supplierId, title]);
+  // The enrichment sharpens the contract match, so it is part of the demand.
+  const decision = useMemo(
+    () =>
+      decideIntakeRoute(
+        { text: `${title} ${enrich}`.trim(), category, estimatedValue, supplierId, llmIntent },
+        { catalogueItems, contracts, catalogueEligibleCategories: eligibleCategories },
+        undefined,
+        formatCurrency,
+      ),
+    [title, enrich, category, estimatedValue, supplierId, llmIntent,
+     catalogueItems, contracts, eligibleCategories],
+  );
 
   const supplierById = useMemo(() => new Map(suppliers.map((s) => [s.id, s])), [suppliers]);
 
-  const isLoading = catLoading || conLoading;
+  const catalogueMatches = decision.catalogueMatches.map((m) => m.item);
   const hasCatalogue = catalogueMatches.length > 0;
-  const hasContract = contractMatches.length > 0;
+  const hasContract = decision.contractMatches.length > 0;
+
+  // Open on the catalogue only when it is genuinely in play. A ruled-out
+  // catalogue is stated once and stepped over, not rendered as an empty card
+  // the user has to dismiss.
+  const catalogueApplies = hasCatalogue || !decision.ruledOut.catalogue;
+  const stage: Stage = forcedStage ?? (catalogueApplies ? 'catalogue' : 'contract');
 
   const goToContractStage = () => {
     if (enrich.trim() && onEnrich) onEnrich(enrich.trim());
-    setStage('contract');
+    setForcedStage('contract');
   };
 
-  if (isLoading) {
+  // An unreachable source is not a reason to spin forever. With no catalogue and
+  // no contract register loaded there is nothing true to say about either, so
+  // say that and offer the one route that is still valid — rather than leaving
+  // the requester on a spinner, or worse, implying "no match" when nothing was
+  // actually checked.
+  if (catError || conError) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-base font-semibold text-gray-900">Pre-check unavailable</h2>
+          <p className="mt-0.5 text-sm text-gray-500">
+            The catalogue and contract register could not be reached, so neither could be
+            checked. Nothing has been ruled in or out.
+          </p>
+        </div>
+        <ProceedPanel lead="Continue without the pre-check?" onProceed={onProceedToFullRequest} />
+      </div>
+    );
+  }
+
+  if (catLoading || conLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-gray-500">
         <Loader2 className="size-8 animate-spin text-blue-500" />
@@ -219,6 +173,12 @@ export function StepPreCheck({
           </p>
         </div>
 
+        {decision.llmOverruled && (
+          <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            {decision.llmOverruled}
+          </p>
+        )}
+
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm flex items-center gap-2">
@@ -232,7 +192,7 @@ export function StepPreCheck({
           <CardContent>
             {hasCatalogue ? (
               <div className="space-y-2">
-                {catalogueMatches.map((item) => (
+                {decision.catalogueMatches.map(({ item, matched }) => (
                   <div
                     key={item.id}
                     className="flex items-center justify-between rounded-md border border-gray-200 bg-gray-50 p-3"
@@ -242,6 +202,13 @@ export function StepPreCheck({
                       <p className="text-xs text-gray-500 truncate">
                         {item.description} &middot; {item.supplierName} &middot; {item.leadTime}
                       </p>
+                      {/* Show WHICH words matched. A suggestion the user can
+                          check is a suggestion they can reject. */}
+                      {matched.length > 0 && (
+                        <p className="mt-0.5 text-[11px] text-gray-400">
+                          matched on {matched.map((w) => `“${w}”`).join(', ')}
+                        </p>
+                      )}
                     </div>
                     <div className="ml-3 text-sm font-semibold text-gray-900">
                       {formatCurrency(item.unitPrice)} / {item.unit}
@@ -264,35 +231,39 @@ export function StepPreCheck({
               </div>
             ) : (
               <p className="text-sm text-gray-500">
-                No catalogue item matches your description so far.
+                {decision.ruledOut.catalogue ?? 'No catalogue item matches your description so far.'}
               </p>
             )}
           </CardContent>
         </Card>
 
-        {/* No premature contract display. When the catalogue doesn't fit, we
-            ask for a little more detail before looking for a contract. */}
-        {!hasCatalogue && (
-          <div className="rounded-lg border border-gray-200 bg-white p-4">
-            <p className="text-sm font-medium text-gray-900">Tell us a bit more</p>
-            <p className="mt-0.5 text-xs text-gray-500">
-              Add the specifics that distinguish this from a generic{' '}
-              {category ? `${category} ` : ''}need — it sharpens the contract match.{' '}
-              {enrichGuidance(category)}.
-            </p>
-            <Textarea
-              className="mt-3"
-              rows={3}
-              placeholder={enrichGuidance(category)}
-              value={enrich}
-              onChange={(e) => setEnrich(e.target.value)}
-            />
-            <Button className="mt-3" onClick={goToContractStage} disabled={!enrich.trim()}>
-              Check for a covering contract
-              <ArrowRight className="size-4" />
-            </Button>
-          </div>
-        )}
+        {/* The enrichment prompt is shown whether or not a catalogue item
+            matched. Hiding it behind `!hasCatalogue` meant a wrong match closed
+            off the only route that carries detail into the contract check. */}
+        <div className="rounded-lg border border-gray-200 bg-white p-4">
+          <p className="text-sm font-medium text-gray-900">Tell us a bit more</p>
+          <p className="mt-0.5 text-xs text-gray-500">
+            Add the specifics that distinguish this from a generic{' '}
+            {category ? `${category} ` : ''}need — it sharpens the contract match.{' '}
+            {enrichGuidance(category)}.
+          </p>
+          <Textarea
+            className="mt-3"
+            rows={3}
+            placeholder={enrichGuidance(category)}
+            value={enrich}
+            onChange={(e) => setEnrich(e.target.value)}
+          />
+          <Button className="mt-3" onClick={goToContractStage} disabled={!enrich.trim() && !hasCatalogue}>
+            Check for a covering contract
+            <ArrowRight className="size-4" />
+          </Button>
+        </div>
+
+        <ProceedPanel
+          lead={hasCatalogue ? 'None of these fit?' : 'Not a catalogue item?'}
+          onProceed={onProceedToFullRequest}
+        />
       </div>
     );
   }
@@ -304,14 +275,29 @@ export function StepPreCheck({
         <div>
           <h2 className="text-base font-semibold text-gray-900">Contract check</h2>
           <p className="mt-0.5 text-sm text-gray-500">
-            No catalogue item fit. Next we look for an active contract that can already cover this.
+            Next we look for an active contract that can already cover this.
           </p>
         </div>
-        <Button variant="ghost" size="sm" onClick={() => setStage('catalogue')}>
+        {/* Reachable even when the catalogue was ruled out — the decision is
+            visible and reversible, not imposed. */}
+        <Button variant="ghost" size="sm" onClick={() => setForcedStage('catalogue')}>
           <ArrowLeft className="size-3.5" />
-          Catalogue
+          {catalogueApplies ? 'Catalogue' : 'Browse the catalogue anyway'}
         </Button>
       </div>
+
+      {!catalogueApplies && decision.ruledOut.catalogue && (
+        <p className="flex items-start gap-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600">
+          <Info className="mt-px size-3.5 shrink-0 text-gray-400" />
+          <span>Catalogue check skipped — {decision.ruledOut.catalogue}</span>
+        </p>
+      )}
+
+      {decision.llmOverruled && (
+        <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          {decision.llmOverruled}
+        </p>
+      )}
 
       <Card>
         <CardHeader className="pb-3">
@@ -319,18 +305,18 @@ export function StepPreCheck({
             <FileText className="size-4 text-blue-600" />
             Active contracts that can cover this
             <span className="text-[11px] font-normal text-gray-400">
-              {hasContract ? `${contractMatches.length} candidate${contractMatches.length === 1 ? '' : 's'}` : 'no match'}
+              {hasContract ? `${decision.contractMatches.length} candidate${decision.contractMatches.length === 1 ? '' : 's'}` : 'no match'}
             </span>
           </CardTitle>
         </CardHeader>
         <CardContent>
           {!hasContract ? (
             <p className="text-sm text-gray-500">
-              No active contract appears to cover this request.
+              {decision.ruledOut.contract ?? 'No active contract appears to cover this request.'}
             </p>
           ) : (
             <ul className="space-y-2">
-              {contractMatches.map(({ contract, reasons, score }) => (
+              {decision.contractMatches.map(({ contract, reasons, score }) => (
                 <li
                   key={contract.id}
                   className="rounded-md border border-blue-100 bg-blue-50/40 p-3"
@@ -363,20 +349,10 @@ export function StepPreCheck({
         </CardContent>
       </Card>
 
-      {/* Proceed — only reachable once catalogue and contract are both ruled out. */}
-      <div className="rounded-lg border border-gray-200 bg-white p-4">
-        <p className="text-sm text-gray-700">
-          {hasContract
-            ? 'None of these fit? '
-            : 'No catalogue item or contract covers this. '}
-          You&apos;ll need a full procurement request — we&apos;ll collect a service description,
-          identify suppliers, and assess risk before routing.
-        </p>
-        <Button variant="outline" className="mt-3" onClick={onProceedToFullRequest}>
-          Proceed to full request
-          <ArrowRight className="size-4" />
-        </Button>
-      </div>
+      <ProceedPanel
+        lead={hasContract ? 'None of these fit?' : 'No catalogue item or contract covers this.'}
+        onProceed={onProceedToFullRequest}
+      />
     </div>
   );
 }

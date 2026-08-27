@@ -88,6 +88,22 @@
 | TC-REQ-19 | Save as Draft mid-wizard | Draft saved + retrievable |
 | TC-REQ-20 | Submit each remaining category (Services, Software, Contingent Labour, Contract Renewal, Supplier Onboarding) | Each routes/submits correctly |
 
+### Intake routing — catalogue vs contract vs new demand (INT-10)
+
+The pre-check makes one explainable decision. These are the cases that broke it.
+
+| ID | Steps | Expected |
+|---|---|---|
+| TC-REQ-R1 | "I want to buy business consulting" → step 2 | **Never** offers a catalogue item. The reported defect matched **Business Cards 500** (the word "business" hit the item name and carried the whole match) and the ThinkPad ("business laptop" in its description), while "consulting" matched nothing and cost nothing. The catalogue stage is **skipped with the reason stated** — "consulting demand isn't fulfilled from the catalogue" — not rendered empty |
+| TC-REQ-R2 | Same demand, check the escape routes | "Browse the catalogue anyway" and "Proceed to full request" are both present. A skipped stage is a visible, reversible recommendation, not a decision imposed on the requester |
+| TC-REQ-R3 | "a few laptops for a new starter" (goods) | Still matches the ThinkPad. This is the verbose-ask regression an earlier length-normalised matcher caused, and that a coverage-*fraction* rule would cause again — one naming word among five is a match, because circumstantial detail must not count against it |
+| TC-REQ-R4 | "business cards for the sales team" (goods) | Still matches Business Cards 500. "business" is not banned — it just cannot carry a route on its own |
+| TC-REQ-R5 | A matched catalogue item | Shows **which words it matched on**. A suggestion the requester can check is one they can reject |
+| TC-REQ-R6 | Admin → Categories → toggle "Fulfilled from the catalogue" | Turning it on for a category makes the catalogue stage run for that category's demand; off skips it. A new or unmapped category defaults to **off** — a missed suggestion costs a click, a false one is TC-REQ-R1 |
+| TC-REQ-R7 | Catalogue/contract sources unreachable | "Pre-check unavailable — neither could be checked. Nothing has been ruled in or out", with a route to a full request. Never an endless spinner, and never "no match" for a check that never ran |
+| TC-REQ-R8 | AI-001 active, assistant intent disagrees | `api/ai.ts` returns `intent`, which the wizard now reads instead of discarding. It is authoritative **except** that a `catalogue` intent cannot route to an empty catalogue — then the rules decide and the disagreement is shown, not hidden |
+| TC-REQ-R9 | AI-001 disabled / LLM unreachable | Identical routing to the rules-only path. The deterministic layer is the fallback and is gated by its own eval (TC-GOV-02) |
+
 ## Suite SOW — Service Description (unified, auto-composed; no manual generate)
 
 The SOW and the service description are **one document**, built automatically from the conversation —
@@ -340,6 +356,7 @@ six groups:
 | TC-CFG-01 | Central policy config (`npm run test:policy-config`) | `DEFAULT_POLICY_CONFIG` pins every decisioning threshold (approval/materiality/risk-band/competitive-sourcing/contract); all decisioning modules source their constants from it (values unchanged — dependent suites stay green); `resolvePolicyConfig` merges a partial override without mutating defaults; an override changes the decision (200k → light at default, → full at a 150k threshold). |
 | TC-CFG-02 | Decisioning Thresholds admin page (`/admin/thresholds`, route sweep `npm run test:e2e-ui`) | Admin edits a threshold; the **live simulation** recomputes a sample demand's materiality / inherent risk / approval gate under the edited values; **Save** persists + applies to the active config (drives the live front door, survives reload); Reset restores defaults. Page renders clean in the route sweep. |
 | TC-GOV-01 | Classification eval harness (`npm run test:classification-eval`) | Labelled benchmark over the deterministic classifier (`classify.ts`); reports overall accuracy + per-category breakdown + misclassifications; **gates at ≥85% accuracy** (currently 95.8%) and asserts every category is reachable. Prevents silent regressions when keyword rules change (CLS-G1). |
+| TC-GOV-02 | Intake routing eval harness (`npm run test:intake-routing-eval`) | Labelled benchmark of free-text demands → expected route (catalogue / contract / new-demand), with a per-route breakdown and an **accuracy floor that fails the build** (currently 90% against an 85% baseline). Also asserts outright that no service-category demand can ever route to the catalogue. Gates the **deterministic** layer: the LLM's intent is authoritative at runtime but is not reproducible from the text, so it is covered by a contract test (TC-REQ-R8/R9) rather than an accuracy floor. Two known misses are recorded in the harness rather than relabelled away — a catering and a translation demand match a Services contract on its *category* alone, which is the contract-side analogue of the same fault |
 | TC-RSK-01 | Risk segmentation (`npm run test:risk-segmentation`) | Inherent-risk cascade highest-attribute-wins (critical data/access/service → critical; high risk or value≥250k → high; value≥50k → medium); outcome: no reusable → new, within band → reuse, one tier above → amend, more → change. Surfaced on the determination screen + drives routing. |
 | TC-RSK-02 | Structured reuse model (`npm run test:risk-reuse`) | Per-assessment decision by supplier/scope/data-class/inherent-tier/validity; not-reusable/not-completed/different-supplier → no-match; expired → new; worst dimension wins; `selectReuseOutcome` picks the most favourable candidate across the register. Drives the determination outcome. |
 | TC-RSK-03 | Preliminary operational risk (`npm run test:operational-risk` + UI smoke) | Per-dimension screen — business continuity (critical-service/material spend), data handling (sensitivity), concentration (incumbent + material), regulatory (materiality), access (privileged); **worst-dimension-wins** overall. "Preliminary operational risk" panel renders on the risk step and appears in the export. |

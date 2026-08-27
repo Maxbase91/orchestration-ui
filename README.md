@@ -31,7 +31,7 @@ An interactive UI prototype that shows what a modern procurement orchestration p
 |--------|-------------|
 | Role-Based Dashboards | 5 tailored dashboards (Service Owner, Procurement Manager, Vendor Manager, Operations Lead, Admin) |
 | Switchable home designs | The home (`/`) ships in 4 selectable designs — the default Dashboard plus three Apple-style layouts (1a Cupertino · 1b Bento · 1c Editorial), all fully functional (front door, quick actions, live KPIs + demand pipeline). Picked from a top-bar toggle next to the role-switcher; persisted per user |
-| New Request Wizard | 7-step intake with a **staged-intake funnel**: free-text entry (no category selection — the path is derived), then a sequential **catalogue → enrich → contract** pre-check (no premature contract assertion), service description, **risk & assessment**, **determination**, routing, confirmation. The service-description capture is a **dynamic, answer-driven conversation** (next question depends on prior answers, nothing is re-asked — `demand-conversation.ts`). **Requester context** is established up front: the requester's **country is auto-derived from their profile** (read-only) and the **beneficiary defaults to self** with a type-ahead to buy on behalf of someone else |
+| New Request Wizard | 7-step intake with a **staged-intake funnel**: free-text entry (no category selection — the path is derived), then a sequential **catalogue → enrich → contract** pre-check (no premature contract assertion). The pre-check makes **one explainable routing decision** (`lib/procurement/intake-routing.ts`) — catalogue order, call-off against an existing contract, or new demand — and says *why*, including why the other routes were ruled out. A category the catalogue cannot fulfil (consulting, services, …) **skips the catalogue stage with the reason shown** rather than being offered unrelated items; all three destinations stay reachable from every stage. Then service description, **risk & assessment**, **determination**, routing, confirmation. The service-description capture is a **dynamic, answer-driven conversation** (next question depends on prior answers, nothing is re-asked — `demand-conversation.ts`). **Requester context** is established up front: the requester's **country is auto-derived from their profile** (read-only) and the **beneficiary defaults to self** with a type-ahead to buy on behalf of someone else |
 | Request Detail | Full lifecycle tracker with 7 tabs (Overview, Workflow, Comments, Approvals, Documents, Related, Audit) |
 | Active Workflows | Kanban board (drag-and-drop), sortable table, Gantt timeline — with system integration badges |
 | Workflow Monitor | Bottleneck dashboard, stuck requests, SLA tracker, heatmap, AI bottleneck analysis |
@@ -62,6 +62,7 @@ An interactive UI prototype that shows what a modern procurement orchestration p
 | Service Description | Configure the service description end to end: the **generation prompt** (guidance, system prompt, temperature, token budget, with a preview of the assembled prompt), the **components asked** at intake (question, example, required, and the condition that shows it), **what is generated** (the detailed sections, which are asked vs inferred, and which compose the compact narrative), and **reuse in later steps** (which sections seed a sourcing event's requirements, plus the default evaluation criteria). Per-category with a `default` fallback; stored in Postgres so the serverless generation and intake routes read the same config |
 | Workflow Designer | React Flow canvas with 10 custom node types, drag-from-palette, node configuration, simulation |
 | AI Agent Configuration | Agent library, type-specific config forms, test panel, performance dashboard |
+| Categories | The demand taxonomy: label, description, icon, timeline, active — and **whether the category can be fulfilled from the catalogue**, which gates the intake funnel's catalogue check |
 | Approval Chains | Visual approval chain editor with threshold configuration |
 | Policy Management | Procurement policy library with expandable full-text preview |
 
@@ -143,6 +144,8 @@ npm run test:demand-conversation  # dynamic intake — answer-driven next questi
 npm run test:assistant-intents    # assistant routes procurement demands to intake, not a support ticket
 npm run test:operational-risk     # preliminary operational risk assessment (per-dimension screen)
 npm run test:classification-eval  # classification eval harness + accuracy baseline (CLS-G1)
+npm run test:intake-routing       # catalogue vs contract vs new demand — category gate, naming-word rule, LLM intent
+npm run test:intake-routing-eval  # intake routing eval harness + accuracy baseline
 npm run test:referral             # demand disposition — proceed / request-change / refer-back (RTE-06)
 npm run test:knowledge            # grounded policy-Q&A retrieval (ranking, citations, low-confidence)
 npm run test:policy-config        # central decisioning thresholds (defaults pinned + override resolver)

@@ -48,6 +48,12 @@ interface RequestFormData {
   // Step 1
   category: string;
   categoryDescription: string;
+  /**
+   * The assistant's read of what kind of demand this is (api/ai.ts `intent`),
+   * carried from step 1 into the step-2 routing decision. Empty when AI-001 is
+   * off or the call failed, in which case the deterministic rules decide.
+   */
+  llmIntent: string;
   // Step 3 (shifted)
   title: string;
   supplier: string;
@@ -110,6 +116,7 @@ interface RequestFormData {
 const INITIAL_DATA: RequestFormData = {
   category: '',
   categoryDescription: '',
+  llmIntent: '',
   title: '',
   supplier: '',
   supplierId: '',
@@ -667,6 +674,7 @@ export function NewRequestPage() {
             category={formData.category}
             estimatedValue={formData.estimatedValue}
             supplierId={formData.supplierId}
+            llmIntent={formData.llmIntent}
             onChooseCatalogue={(items: CatalogueItem[]) => {
               const cartItems = items.slice(0, 3).map((i) => ({
                 itemId: i.id,

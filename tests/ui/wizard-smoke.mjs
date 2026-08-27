@@ -95,6 +95,31 @@ try {
     && (await page.getByRole('button', { name: /Order from catalogue/ }).count()) > 0);
   check('contract check is NOT shown before catalogue is ruled out',
     (await page.getByText('Contract check', { exact: true }).count()) === 0);
+  // The route must be explainable: which words matched is shown, so a wrong
+  // suggestion is one the requester can see through rather than trust.
+  check('a catalogue match shows the words it matched on',
+    (await page.getByText(/matched on/).count()) > 0);
+
+  // 3b. THE REPORTED DEFECT. "business consulting" used to match the catalogue
+  //     item "Business Cards 500" — the word "business" hit the item name and
+  //     carried the whole match, while "consulting" matched nothing and cost
+  //     nothing. A consulting demand must never be offered a catalogue item.
+  await page.goto(`${BASE}/requests/new`, { waitUntil: 'networkidle' });
+  await page.locator('#need-input').fill('I want to buy business consulting');
+  await page.locator('#need-input').press('Enter');
+  await page.getByRole('button', { name: /Accept & continue/ }).click();
+  await page.getByText('Contract check', { exact: true }).waitFor({ timeout: 15000 });
+  check('a consulting demand skips the catalogue stage entirely', true);
+  check('NO catalogue order CTA for a consulting demand',
+    (await page.getByRole('button', { name: /Order from catalogue/ }).count()) === 0);
+  check('"Business Cards" is never offered for a consulting demand',
+    (await page.getByText(/Business Cards/).count()) === 0);
+  check('the skip states its reason rather than silently omitting the stage',
+    (await page.getByText(/Catalogue check skipped/).count()) > 0);
+  check('the catalogue stays reachable if the requester disagrees',
+    (await page.getByRole('button', { name: /Browse the catalogue anyway/ }).count()) > 0);
+  check('a full request is reachable from the contract stage',
+    (await page.getByRole('button', { name: /Proceed to full request/ }).count()) > 0);
 
   // 4. Full staged funnel via free text: classify → catalogue (no match) →
   //    enrich → contract (no match) → proceed to full request → risk step.
@@ -102,11 +127,11 @@ try {
   await page.locator('#need-input').fill('renew our existing vendor contract for another year');
   await page.locator('#need-input').press('Enter');
   await page.getByRole('button', { name: /Accept & continue/ }).click();
-  await page.getByText('Catalogue check', { exact: true }).waitFor({ timeout: 15000 });
-  await page.locator('textarea').first().fill('annual renewal of an existing vendor engagement, EMEA region');
-  await page.getByRole('button', { name: /Check for a covering contract/ }).click();
+  // contract-renewal is not a catalogue-fulfilled category, so the funnel opens
+  // on the contract stage rather than making the requester dismiss an empty
+  // catalogue card first.
   await page.getByText('Contract check', { exact: true }).waitFor({ timeout: 15000 });
-  check('pre-check stage 2 (contract) reached only after enrichment', true);
+  check('a renewal demand opens on the contract stage', true);
   await page.getByRole('button', { name: /Proceed to full request/ }).click();
   await page.locator('#title').fill('Renewal smoke test');
   await page.locator('#value').fill('150000');  // ≥ critical-service threshold so that residual question triggers
@@ -216,9 +241,7 @@ try {
   await page.locator('#need-input').fill('management consulting to design a target operating model');
   await page.locator('#need-input').press('Enter');
   await page.getByRole('button', { name: /Accept & continue/ }).click();
-  await page.getByText('Catalogue check', { exact: true }).waitFor({ timeout: 15000 });
-  await page.locator('textarea').first().fill('operating model design, 3 months, two consultants');
-  await page.getByRole('button', { name: /Check for a covering contract/ }).click();
+  await page.getByText('Contract check', { exact: true }).waitFor({ timeout: 15000 });
   await page.getByRole('button', { name: /Proceed to full request/ }).click();
   await page.getByText('Service description components', { exact: true }).waitFor({ timeout: 15000 });
   check('service-description capture renders (components panel)', true);

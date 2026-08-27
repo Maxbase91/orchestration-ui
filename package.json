@@ -32,6 +32,8 @@
     "test:orchestration": "node tests/integration/orchestration.mjs",
     "test:sow-narrative": "node tests/integration/sow-narrative.mjs",
     "test:service-description-config": "node tests/integration/service-description-config.mjs",
+    "test:intake-routing": "node tests/integration/intake-routing.mjs",
+    "test:intake-routing-eval": "node tests/integration/intake-routing-eval.mjs",
     "test:tickets": "node tests/integration/tickets.mjs",
     "test:ticket-sla": "node tests/integration/ticket-sla.mjs",
     "test:approval-to-source": "node tests/integration/approval-to-source.mjs",

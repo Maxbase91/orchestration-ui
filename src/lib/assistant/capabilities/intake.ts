@@ -1,30 +1,12 @@
 import type { AssistantTurn } from '@/data/types';
-import type { RequestCategory } from '@/data/types';
+import { classifyDemandCategory } from '@/lib/procurement/classify';
 
-const categoryKeywords: Record<RequestCategory, string[]> = {
-  software: ['software', 'saas', 'app', 'tool', 'platform', 'licence', 'license', 'subscription', 'cloud'],
-  services: ['service', 'consultant', 'advisory', 'professional services', 'managed service'],
-  consulting: ['consulting', 'advisory', 'strategy', 'audit', 'assessment'],
-  goods: ['goods', 'hardware', 'equipment', 'furniture', 'device', 'laptop', 'machine'],
-  'contingent-labour': ['contractor', 'temp', 'interim', 'freelance', 'staff aug', 'resource'],
-  'contract-renewal': ['renew', 'renewal', 'extend', 'extension'],
-  'supplier-onboarding': ['onboard', 'new supplier', 'register'],
-  catalogue: ['office', 'stationery', 'supplies', 'pen', 'paper', 'printer', 'toner'],
-};
-
-function guessCategory(input: string): RequestCategory {
-  const t = input.toLowerCase();
-  let best: RequestCategory = 'services';
-  let bestScore = 0;
-  for (const [cat, keywords] of Object.entries(categoryKeywords) as [RequestCategory, string[]][]) {
-    const score = keywords.filter((k) => t.includes(k)).length;
-    if (score > bestScore) {
-      bestScore = score;
-      best = cat;
-    }
-  }
-  return best;
-}
+// Category comes from the shared deterministic classifier, not a private
+// keyword table. This module used to carry its own — with `consulting` and
+// `services` both claiming "advisory", and everything unmatched defaulting to
+// `services` — so the assistant and the wizard could disagree about the same
+// sentence. `classify.ts` is ordered, benchmarked (CLS-G1, currently 95.8%) and
+// gated by an eval; one classifier means one thing to tune.
 
 function extractValue(input: string): number | undefined {
   const match = input.match(/[€$£]?\s*(\d[\d,]*(?:\.\d+)?)\s*[kK]?/);
@@ -40,7 +22,7 @@ function extractSupplier(input: string): string | undefined {
 }
 
 export function startDemand(input: string): AssistantTurn[] {
-  const category = guessCategory(input);
+  const category = classifyDemandCategory(input);
   const value = extractValue(input);
   const supplier = extractSupplier(input);
 

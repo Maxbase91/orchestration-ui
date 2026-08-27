@@ -13,14 +13,21 @@
 
 import type { ProcurementCategory } from '@/lib/db/procurement-categories';
 
-/** Canonical default taxonomy, in display order. */
+/**
+ * Canonical default taxonomy, in display order.
+ *
+ * `catalogueEligible` says whether demand in the category can be fulfilled from
+ * the catalogue — only `catalogue` and `goods` can. It gates the intake funnel's
+ * catalogue stage, so a consulting or services demand is never offered a
+ * catalogue item (see `lib/procurement/intake-routing.ts`).
+ */
 export const DEFAULT_CATEGORY_TAXONOMY: ProcurementCategory[] = [
-  { id: 'catalogue', label: 'Catalogue Purchase', description: 'Order from pre-approved catalogues — fast track, no sourcing needed', icon: 'ShoppingBag', timelineDays: 2, sortOrder: 1, active: true },
-  { id: 'goods', label: 'Goods', description: 'Physical products, hardware, equipment, furniture', icon: 'Package', timelineDays: 5, sortOrder: 2, active: true },
-  { id: 'services', label: 'Services', description: 'Facilities, catering, cleaning, travel management', icon: 'Wrench', timelineDays: 10, sortOrder: 3, active: true },
-  { id: 'software', label: 'Software / IT', description: 'Licences, SaaS platforms, cloud services, subscriptions', icon: 'Monitor', timelineDays: 8, sortOrder: 4, active: true },
-  { id: 'consulting', label: 'Consulting', description: 'Strategy advisory, audits, assessments, transformation', icon: 'BrainCircuit', timelineDays: 15, sortOrder: 5, active: true },
-  { id: 'contingent-labour', label: 'Contingent Labour', description: 'Temporary staff, contractors, IT staffing, augmentation', icon: 'Users', timelineDays: 7, sortOrder: 6, active: true },
-  { id: 'contract-renewal', label: 'Contract Renewal', description: 'Extend or renew an existing supplier contract', icon: 'RefreshCw', timelineDays: 12, sortOrder: 7, active: true },
-  { id: 'supplier-onboarding', label: 'Supplier Onboarding', description: 'Register and onboard a new vendor to the platform', icon: 'UserPlus', timelineDays: 20, sortOrder: 8, active: true },
+  { id: 'catalogue', label: 'Catalogue Purchase', description: 'Order from pre-approved catalogues — fast track, no sourcing needed', icon: 'ShoppingBag', timelineDays: 2, sortOrder: 1, active: true, catalogueEligible: true },
+  { id: 'goods', label: 'Goods', description: 'Physical products, hardware, equipment, furniture', icon: 'Package', timelineDays: 5, sortOrder: 2, active: true, catalogueEligible: true },
+  { id: 'services', label: 'Services', description: 'Facilities, catering, cleaning, travel management', icon: 'Wrench', timelineDays: 10, sortOrder: 3, active: true, catalogueEligible: false },
+  { id: 'software', label: 'Software / IT', description: 'Licences, SaaS platforms, cloud services, subscriptions', icon: 'Monitor', timelineDays: 8, sortOrder: 4, active: true, catalogueEligible: false },
+  { id: 'consulting', label: 'Consulting', description: 'Strategy advisory, audits, assessments, transformation', icon: 'BrainCircuit', timelineDays: 15, sortOrder: 5, active: true, catalogueEligible: false },
+  { id: 'contingent-labour', label: 'Contingent Labour', description: 'Temporary staff, contractors, IT staffing, augmentation', icon: 'Users', timelineDays: 7, sortOrder: 6, active: true, catalogueEligible: false },
+  { id: 'contract-renewal', label: 'Contract Renewal', description: 'Extend or renew an existing supplier contract', icon: 'RefreshCw', timelineDays: 12, sortOrder: 7, active: true, catalogueEligible: false },
+  { id: 'supplier-onboarding', label: 'Supplier Onboarding', description: 'Register and onboard a new vendor to the platform', icon: 'UserPlus', timelineDays: 20, sortOrder: 8, active: true, catalogueEligible: false },
 ];

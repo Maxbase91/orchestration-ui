@@ -821,7 +821,12 @@ CREATE TABLE IF NOT EXISTS procurement_categories (
   icon          text,
   timeline_days int NOT NULL DEFAULT 5,
   sort_order    int NOT NULL DEFAULT 0,
-  active        boolean NOT NULL DEFAULT true
+  active        boolean NOT NULL DEFAULT true,
+  -- Whether demand in this category can be fulfilled from the catalogue.
+  -- Defaults FALSE on purpose: an unmapped or newly added category is not
+  -- catalogue-eligible until an admin says so. A missed catalogue suggestion
+  -- costs one click; a false one routed a consulting demand to business cards.
+  catalogue_eligible boolean NOT NULL DEFAULT false
 );
 ALTER TABLE procurement_categories ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "categories_all" ON procurement_categories FOR ALL USING (true) WITH CHECK (true);

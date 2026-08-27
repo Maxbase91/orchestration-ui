@@ -34,6 +34,19 @@ export interface PolicyConfig {
   contractExpiryBufferDays: number;
   /** Value above which a demand exceeds normal delegated budget authority. */
   delegatedAuthorityThreshold: number;
+  /**
+   * Intake funnel — minimum score for a catalogue item to be offered.
+   * Was a literal 0.5 in the pre-check component, which one weak word cleared.
+   */
+  catalogueMatchThreshold: number;
+  /**
+   * Intake funnel — how many of the demand's *naming* words a catalogue match
+   * must hit. Words that only qualify a thing ("business", "premium", "office")
+   * do not count, which is the guard against a match carried by an adjective
+   * while the thing actually being bought goes unmatched. Raise to 2 to demand
+   * stronger evidence before offering an item.
+   */
+  catalogueMinContentMatches: number;
 }
 
 export const DEFAULT_POLICY_CONFIG: PolicyConfig = {
@@ -51,6 +64,11 @@ export const DEFAULT_POLICY_CONFIG: PolicyConfig = {
   // Preserves the literal the compliance report used before this was
   // configurable; it is not derived from the approval gate, which is separate.
   delegatedAuthorityThreshold: 500_000,
+  // 0.5 = one description-level hit. Deliberately the value the funnel always
+  // used: the mis-routing was never about the floor being too low, it was about
+  // *which* words could clear it. See catalogueMinContentMatches.
+  catalogueMatchThreshold: 0.5,
+  catalogueMinContentMatches: 1,
 };
 
 /**

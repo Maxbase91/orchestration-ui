@@ -34,6 +34,8 @@ const FIELDS: FieldMeta[] = [
   { key: 'preferredMinPerformance', label: 'Preferred-supplier performance bar', help: 'Min performance score to qualify as preferred', unit: '/100' },
   { key: 'contractUtilisationHeadroom', label: 'Contract utilisation headroom', help: 'Below this %, an active contract is transactable', unit: '%' },
   { key: 'contractExpiryBufferDays', label: 'Contract expiry buffer', help: 'Days-to-expiry that flag a contract as expiring', unit: 'days' },
+  { key: 'catalogueMatchThreshold', label: 'Catalogue match threshold', help: 'Minimum score for a catalogue item to be offered at intake', unit: '' },
+  { key: 'catalogueMinContentMatches', label: 'Catalogue naming-word matches', help: 'Naming words (not adjectives) a catalogue match must hit', unit: '' },
 ];
 
 const RISK_TIERS: RiskTier[] = ['low', 'medium', 'high', 'critical'];

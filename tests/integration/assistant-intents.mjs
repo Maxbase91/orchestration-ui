@@ -79,6 +79,42 @@ check('procure/hire intent is explicitly a start_demand, never a ticket',
 check('create_ticket restricted to explicit human-help (not a fallback)',
   chatSrc.includes('create_ticket ONLY when the user EXPLICITLY asks for human help'));
 
+console.log('One classifier, not two');
+// The assistant used to carry a private `guessCategory` keyword table whose
+// `consulting` and `services` entries both claimed "advisory" and which
+// defaulted everything unmatched to `services` — so the assistant and the
+// wizard could hand back different categories for the same sentence. Both now
+// call classifyDemandCategory. This asserts the duplicate is gone and stays gone.
+const intakeSrc = readFileSync(new URL('../../src/lib/assistant/capabilities/intake.ts', import.meta.url), 'utf8');
+check('the assistant has no private category keyword table',
+  !intakeSrc.includes('categoryKeywords') && !intakeSrc.includes('guessCategory'));
+check('the assistant classifies through the shared classifier',
+  intakeSrc.includes('classifyDemandCategory'));
+
+// Mirrors src/lib/procurement/classify.ts — kept in step with classification-eval.mjs.
+const CATEGORY_RULES = [
+  { category: 'consulting', pattern: /consult|advisory|strategy|audit|transformation|business consult|operating model|tom\b|organisational|organizational|change management|programme management|program management|due diligence|feasibility|business case|maturity assessment|roadmap|target state/ },
+  { category: 'services', pattern: /\bservice\b|cleaning|catering|maintenance|travel|translation|managed print|managed service|facilities|security guard|payroll|hr admin|helpdesk/ },
+  { category: 'software', pattern: /software|saas|license|cloud|platform|subscription|app/ },
+  { category: 'contingent-labour', pattern: /temp|contractor|staff|developer|freelance|hire|interim/ },
+  { category: 'contract-renewal', pattern: /renew|extend|renewal|expir/ },
+  { category: 'supplier-onboarding', pattern: /onboard|new supplier|new vendor|register/ },
+  { category: 'catalogue', pattern: /paper|pen|toner|cable|headset|mouse|keyboard|office supplies/ },
+];
+const classifyDemandCategory = (text) => {
+  const q = text.toLowerCase();
+  for (const r of CATEGORY_RULES) if (r.pattern.test(q)) return r.category;
+  return 'goods';
+};
+// The reported case: the old table returned `consulting` here too, but only by
+// luck — "advisory" alone tipped either way depending on key order.
+check('"I want to buy business consulting" classifies as consulting',
+  classifyDemandCategory('I want to buy business consulting') === 'consulting');
+check('an advisory demand no longer depends on key order',
+  classifyDemandCategory('advisory support for the finance team') === 'consulting');
+check('an unmatched demand is goods, not a silent "services" default',
+  classifyDemandCategory('twelve reams of A5 card stock') === 'goods');
+
 console.log('');
 if (failures) { console.error(`FAILED: ${failures} check(s)`); process.exitCode = 1; }
 else console.log('All assistant-intents checks passed.');

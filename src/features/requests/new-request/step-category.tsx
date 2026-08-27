@@ -33,6 +33,8 @@ interface StepCategoryProps {
     commodityCodeLabel?: string;
     estimatedValue?: number;
     businessJustification?: string;
+    /** The assistant's read of what kind of demand this is — see api/ai.ts. */
+    llmIntent?: string;
   }) => void;
   onAutoAdvance?: () => void;
   /** Jump straight to the catalogue — the one explicit alternative entry point. */
@@ -45,11 +47,25 @@ interface AIClassification {
   supplier: string;
   estimatedValue: number;
   description: string;
-  confidence: number;
+  /**
+   * Which layer produced this. Replaces a hardcoded `confidence: 0.9` that was
+   * rendered to the user as a model confidence — the LLM returns no confidence,
+   * so the number was invented. Provenance is a fact we actually have.
+   */
+  source: 'llm' | 'rules';
+  /**
+   * `intent` from api/ai.ts, whose prompt already distinguishes a catalogue
+   * order from new demand ("buy consulting" = new-request). The wizard used to
+   * discard it and re-derive a worse answer locally.
+   */
+  intent?: string;
   /** Derived UNSPSC-style commodity code — the specific classification. */
   commodityCode?: string;
   commodityCodeLabel?: string;
 }
+
+/** The intent vocabulary api/ai.ts documents in its own prompt. */
+const ALLOWED_INTENTS = ['catalogue', 'new-request', 'navigation', 'general'];
 
 async function classifyWithAI(input: string): Promise<AIClassification | null> {
   try {
@@ -60,13 +76,18 @@ async function classifyWithAI(input: string): Promise<AIClassification | null> {
     });
     if (!res.ok) return null;
     const data = await res.json();
+    // Only the four documented intents are honoured. Anything else — a
+    // hallucinated string, a renamed field — is dropped so routing degrades to
+    // the deterministic rules rather than keying on a value nobody validated.
+    const intent = ALLOWED_INTENTS.includes(data.intent) ? (data.intent as string) : undefined;
     return {
       category: data.category ?? 'goods',
       title: data.extractedTitle ?? '',
       supplier: data.extractedSupplier ?? '',
       estimatedValue: data.extractedValue ?? 0,
       description: data.generatedDescription ?? data.message ?? '',
-      confidence: 0.9,
+      source: 'llm',
+      intent,
     };
   } catch {
     return null;
@@ -94,7 +115,7 @@ function localClassify(input: string): AIClassification {
     // A fuller business justification (not a one-liner): restate the full need
     // and its intended outcome so the Justification field is substantive.
     description: `Business need: ${input.trim()}. This procurement supports business operations and is raised via the front door for classification, risk assessment and routing to the appropriate buying channel.`,
-    confidence: 0.7,
+    source: 'rules',
   };
 }
 
@@ -143,9 +164,16 @@ export function StepCategory({ prefill, onUpdate, onAutoAdvance, onBrowseCatalog
 
     setLoading(false);
 
-    // Validate category exists
+    // Validate the category against the configured taxonomy. An unrecognised
+    // value falls back to the deterministic classifier, NOT to a literal
+    // 'goods': goods is catalogue-eligible, so silently defaulting there could
+    // offer a consulting demand a catalogue item — the fault this whole change
+    // exists to fix, re-entered through the back door.
     const validCat = activeCategories.find((c) => c.id === result.category);
-    result.category = validCat ? validCat.id : 'goods';
+    if (!validCat) {
+      const fallback = classifyDemandCategory(text);
+      result.category = activeCategories.some((c) => c.id === fallback) ? fallback : 'goods';
+    }
 
     // Derive the commodity code — the specific, meaningful classification (the
     // high-level category only drives the fulfilment routing).
@@ -212,6 +240,10 @@ export function StepCategory({ prefill, onUpdate, onAutoAdvance, onBrowseCatalog
       updates.businessJustification = aiResult.description;
     }
 
+    // The routing decision in step 2 reads this; without it the wizard would
+    // re-derive the answer the assistant has already given.
+    if (aiResult.intent) updates.llmIntent = aiResult.intent;
+
     onUpdate(updates as Parameters<typeof onUpdate>[0]);
     setAccepted(true);
 
@@ -266,8 +298,10 @@ export function StepCategory({ prefill, onUpdate, onAutoAdvance, onBrowseCatalog
             <div className="flex-1 space-y-3">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs font-medium text-[#2D5F8A]">AI Classification</span>
+                {/* Provenance, not a confidence score: the model returns no
+                    confidence, so any percentage here would be invented. */}
                 <Badge variant="outline" className="text-[10px] border-blue-200 text-blue-600">
-                  {Math.round(aiResult.confidence * 100)}% confidence
+                  {aiResult.source === 'llm' ? 'AI classified' : 'Keyword match'}
                 </Badge>
               </div>
 

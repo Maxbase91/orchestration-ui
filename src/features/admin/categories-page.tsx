@@ -27,7 +27,9 @@ import { CATEGORY_ICON_NAMES, resolveCategoryIcon } from '@/data/category-icons'
 
 type EditForm = Omit<ProcurementCategory, 'sortOrder'>;
 
-const EMPTY_FORM: EditForm = { id: '', label: '', description: '', icon: 'Package', timelineDays: 5, active: true };
+// A new category is NOT catalogue-eligible until an admin says so — see the
+// column comment in schema.sql for why the safe default points this way.
+const EMPTY_FORM: EditForm = { id: '', label: '', description: '', icon: 'Package', timelineDays: 5, active: true, catalogueEligible: false };
 
 export function CategoriesPage() {
   const { data: categories = [], isLoading } = useProcurementCategories();
@@ -45,7 +47,7 @@ export function CategoriesPage() {
   }
 
   function openEdit(cat: ProcurementCategory) {
-    setForm({ id: cat.id, label: cat.label, description: cat.description, icon: cat.icon ?? 'Package', timelineDays: cat.timelineDays, active: cat.active });
+    setForm({ id: cat.id, label: cat.label, description: cat.description, icon: cat.icon ?? 'Package', timelineDays: cat.timelineDays, active: cat.active, catalogueEligible: cat.catalogueEligible });
     setIsNew(false);
     setDialogOpen(true);
   }
@@ -90,6 +92,14 @@ export function CategoriesPage() {
       render: (r) => (
         <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${r.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
           {r.active ? 'Active' : 'Inactive'}
+        </span>
+      ),
+    },
+    {
+      key: 'catalogueEligible', label: 'Catalogue',
+      render: (r) => (
+        <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${r.catalogueEligible ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>
+          {r.catalogueEligible ? 'Can fulfil' : 'Not fulfilled'}
         </span>
       ),
     },
@@ -166,6 +176,22 @@ export function CategoriesPage() {
             <div className="flex items-center justify-between">
               <Label>Active</Label>
               <Switch checked={form.active} onCheckedChange={(v) => setForm((p) => ({ ...p, active: v }))} />
+            </div>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <Label>Fulfilled from the catalogue</Label>
+                {/* This is the gate that stops a consulting demand being offered
+                    business cards: when off, the intake funnel skips the
+                    catalogue stage for this category and says why. */}
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  When off, intake skips the catalogue check for this category and goes
+                  straight to the contract check.
+                </p>
+              </div>
+              <Switch
+                checked={form.catalogueEligible}
+                onCheckedChange={(v) => setForm((p) => ({ ...p, catalogueEligible: v }))}
+              />
             </div>
           </div>
           <DialogFooter>
