@@ -7,6 +7,8 @@ import { useWorkflowStepDetailsForRequest } from '@/lib/db/hooks/use-workflow-st
 import { useWorkflowTemplate } from '@/lib/db/hooks/use-workflow-templates';
 import { useApprovalLookup } from '@/lib/db/hooks/use-approvals';
 import { isStageSkippedForChannel } from '@/lib/workflow/buying-channel-stages';
+import { openItemForRequest, type OpenSlaState } from '@/lib/workflow/open-items';
+import { isGatedStage, nodeToStatus, type TemplateNode } from '@/lib/workflow/node-config';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { RotateCcw, UserPlus } from 'lucide-react';
@@ -47,6 +49,25 @@ function getDaysInStep(entry: StageHistoryEntry): number | undefined {
   return Math.round((end - start) / (1000 * 60 * 60 * 24));
 }
 
+/** Compact SLA state for the open stage. `none` renders nothing — an absent
+ *  target is not the same as being on track, so it must not look reassuring. */
+function SlaPill({ state }: { state: OpenSlaState }) {
+  if (state === 'none') return <span className="text-muted-foreground">No SLA set</span>;
+  const styles: Record<Exclude<OpenSlaState, 'none'>, string> = {
+    'on-track': 'bg-green-100 text-green-700',
+    'at-risk': 'bg-amber-100 text-amber-700',
+    breached: 'bg-red-100 text-red-700',
+  };
+  const labels: Record<Exclude<OpenSlaState, 'none'>, string> = {
+    'on-track': 'On track',
+    'at-risk': 'Due soon',
+    breached: 'Overdue',
+  };
+  return (
+    <span className={`rounded-full px-2 py-0.5 font-medium ${styles[state]}`}>{labels[state]}</span>
+  );
+}
+
 export function TabWorkflow({ request, focusStageId }: TabWorkflowProps) {
   useUsers();
   const lookupUser = useUserLookup();
@@ -58,6 +79,7 @@ export function TabWorkflow({ request, focusStageId }: TabWorkflowProps) {
   const { data: allComments = [] } = useCommentsByRequest(request.id);
   const { data: integrations = [] } = useIntegrationsByRequest(request.id);
   const owner = lookupUser(request.ownerId);
+
 
   const [referBackOpen, setReferBackOpen] = useState(false);
   const [reassignOpen, setReassignOpen] = useState(false);
@@ -90,6 +112,19 @@ export function TabWorkflow({ request, focusStageId }: TabWorkflowProps) {
     }
     stageEntries.set(entry.stage, entry);
   }
+
+  // The template node the request is sitting on carries the stage's owner role,
+  // its SLA and its exit criteria — the things this tab could never show.
+  const currentNode: TemplateNode | undefined = workflowTemplate?.nodes.find(
+    (n) => n.type === 'stage' && nodeToStatus(n.label) === request.status,
+  );
+  const currentEntry = stageEntries.get(request.status);
+  const openItem = openItemForRequest(
+    request,
+    currentNode,
+    approvals,
+    currentEntry?.enteredAt,
+  );
 
   const isCancelled = request.status === 'cancelled';
   const isCompleted = request.status === 'completed';
@@ -280,8 +315,9 @@ export function TabWorkflow({ request, focusStageId }: TabWorkflowProps) {
         </CardContent>
       </Card>
 
-      {/* Attached workflow template — reference-only until per-category
-          template-driven runtime ships. */}
+      {/* The attached template, showing each stage's configured owner, SLA and
+          gate. It used to render flat grey pills of node labels only, which is
+          all a node carried; the runtime now reads all three from here. */}
       {workflowTemplate && (
         <Card>
           <CardHeader>
@@ -292,15 +328,45 @@ export function TabWorkflow({ request, focusStageId }: TabWorkflowProps) {
               {workflowTemplate.description || 'Admin-configured workflow template attached to this request.'}
               {' '}Type: <code>{workflowTemplate.type || 'default'}</code>.
             </p>
-            <div className="flex flex-wrap gap-2">
-              {workflowTemplate.nodes.map((n) => (
-                <span
-                  key={n.id}
-                  className="inline-flex items-center rounded-md border border-gray-200 bg-gray-50 px-2 py-0.5 text-[11px] text-gray-700"
-                >
-                  {n.label}
-                </span>
-              ))}
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b text-left text-muted-foreground">
+                    <th className="py-1.5 pr-3 font-medium">Stage</th>
+                    <th className="py-1.5 pr-3 font-medium">Owner role</th>
+                    <th className="py-1.5 pr-3 font-medium">SLA</th>
+                    <th className="py-1.5 font-medium">Leaving the stage</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {workflowTemplate.nodes
+                    .filter((n) => n.type === 'stage')
+                    .map((n) => {
+                      const isCurrent = nodeToStatus(n.label) === request.status;
+                      return (
+                        <tr key={n.id} className={isCurrent ? 'bg-blue-50/60' : ''}>
+                          <td className="py-1.5 pr-3 font-medium text-gray-900">
+                            {n.label}
+                            {isCurrent && <span className="ml-1.5 text-[10px] text-blue-700">current</span>}
+                          </td>
+                          <td className="py-1.5 pr-3">
+                            {n.role ?? <span className="text-gray-400">not set</span>}
+                          </td>
+                          <td className="py-1.5 pr-3">
+                            {n.slaDays != null
+                              ? `${n.slaDays}d`
+                              : <span className="text-gray-400">—</span>}
+                          </td>
+                          <td className="py-1.5 text-muted-foreground">
+                            {isGatedStage(n, nodeToStatus(n.label))
+                              ? (n.purpose ?? 'Needs the owner to complete it')
+                              : 'Advances automatically'}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
             </div>
           </CardContent>
         </Card>
@@ -376,12 +442,37 @@ export function TabWorkflow({ request, focusStageId }: TabWorkflowProps) {
         <div className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Current Action Owner</CardTitle>
+              <CardTitle className="text-base">What is open</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
-              <p className="text-sm font-medium text-gray-900">{owner?.name ?? 'Unassigned'}</p>
-              <p className="text-sm text-muted-foreground">{owner?.role}</p>
-              <p className="text-sm text-muted-foreground">{request.daysInStage} day(s) held</p>
+            {/* Previously this showed only a name and a day count, which said
+                nothing about what the request was actually waiting for. The open
+                item names the stage, the action, and the criteria for taking it. */}
+            <CardContent className="space-y-3">
+              {openItem ? (
+                <>
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">{openItem.action}</p>
+                    {openItem.exitCriteria && (
+                      <p className="mt-1 text-xs text-muted-foreground">{openItem.exitCriteria}</p>
+                    )}
+                  </div>
+                  <div className="border-t pt-2">
+                    <p className="text-xs text-muted-foreground">Owner</p>
+                    <p className="text-sm font-medium text-gray-900">
+                      {owner?.name ?? (openItem.ownerRole ? `Unassigned (${openItem.ownerRole})` : 'Unassigned')}
+                    </p>
+                    {owner?.role && <p className="text-xs text-muted-foreground">{owner.role}</p>}
+                  </div>
+                  <div className="flex items-center justify-between border-t pt-2 text-xs">
+                    <span className="text-muted-foreground">{request.daysInStage} day(s) held</span>
+                    <SlaPill state={openItem.slaState} />
+                  </div>
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Nothing outstanding — this request is {request.status}.
+                </p>
+              )}
             </CardContent>
           </Card>
           <div className="flex flex-col gap-2">

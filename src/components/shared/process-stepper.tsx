@@ -11,6 +11,8 @@ interface Step {
   date?: string;
   owner?: string;
   daysInStep?: number;
+  /** For the current step only: what it is waiting for. */
+  openAction?: string;
   systemIntegration?: {
     system: string;
     systemLabel: string;
@@ -110,6 +112,19 @@ export function ProcessStepper({ steps, onStepClick }: ProcessStepperProps) {
               )}
               {step.daysInStep !== undefined && (
                 <p className="text-[10px] text-muted-foreground">{step.daysInStep}d</p>
+              )}
+              {/* `owner` has been on the Step type since this component was
+                  written and was never rendered, so "who owns this stage" was
+                  invisible even when the data was there. */}
+              {step.owner && (
+                <p className="mt-0.5 max-w-[90px] truncate text-center text-[10px] text-muted-foreground" title={step.owner}>
+                  {step.owner}
+                </p>
+              )}
+              {step.openAction && (
+                <p className="mt-0.5 max-w-[90px] text-center text-[10px] font-medium leading-tight text-amber-700">
+                  {step.openAction}
+                </p>
               )}
               {step.systemIntegration && (
                 <div className={cn('mt-1 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium', step.systemIntegration.colorClass)}>

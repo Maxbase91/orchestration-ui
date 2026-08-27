@@ -3,6 +3,7 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRequests } from '@/lib/db/hooks/use-requests';
+import { useAuthStore } from '@/stores/auth-store';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { formatCurrency } from '@/lib/format';
 
@@ -15,14 +16,25 @@ const activeStatuses = new Set([
 export function WidgetMyRequests() {
   const navigate = useNavigate();
   const { data: requests = [] } = useRequests();
+  const currentUser = useAuthStore((s) => s.currentUser);
 
+  // Scoped to the current user. The widget is titled "My Active Requests" and
+  // filtered by no user at all, so every role saw the whole organisation's
+  // pipeline under a personal heading.
   const activeRequests = useMemo(
-    () => requests.filter((r) => activeStatuses.has(r.status)).slice(0, 8),
-    [requests],
+    () =>
+      requests
+        .filter(
+          (r) =>
+            activeStatuses.has(r.status) &&
+            (r.ownerId === currentUser.id || r.requestorId === currentUser.id),
+        )
+        .slice(0, 8),
+    [requests, currentUser.id],
   );
 
   if (activeRequests.length === 0) {
-    return <p className="text-sm text-muted-foreground">No active requests.</p>;
+    return <p className="text-sm text-muted-foreground">You have no active requests.</p>;
   }
 
   return (

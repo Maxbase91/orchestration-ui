@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useRequests } from '@/lib/db/hooks/use-requests';
+import { useAuthStore } from '@/stores/auth-store';
 import { useUserLookup, useUsers } from '@/lib/db/hooks/use-users';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { PriorityIndicator } from '@/components/shared/priority-indicator';
@@ -33,10 +34,14 @@ export function RequestListPage({ title, filterMine = false }: RequestListPagePr
   useUsers();
   const lookupUser = useUserLookup();
   const { data: requests = [], isLoading: loading } = useRequests();
+  const currentUser = useAuthStore((s) => s.currentUser);
 
-  // For "My Requests" we show a subset; for demo we just show all
+  // Scoped to whoever is signed in. This was pinned to the literal 'u1', so
+  // "My Requests" showed Anna's requests to every role.
   const displayRequests = filterMine
-    ? requests.filter((r) => r.ownerId === 'u1' || r.requestorId === 'u1')
+    ? requests.filter(
+        (r) => r.ownerId === currentUser.id || r.requestorId === currentUser.id,
+      )
     : requests;
 
   return (

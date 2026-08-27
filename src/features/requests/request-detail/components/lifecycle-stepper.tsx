@@ -7,6 +7,9 @@ import { useIntegrationsByRequest } from '@/lib/db/hooks/use-system-integrations
 import { systemLabels, systemColors } from '@/data/system-integrations';
 import { useApprovalLookup } from '@/lib/db/hooks/use-approvals';
 import { isStageSkippedForChannel } from '@/lib/workflow/buying-channel-stages';
+import { useWorkflowTemplate } from '@/lib/db/hooks/use-workflow-templates';
+import { nodeToStatus } from '@/lib/workflow/node-config';
+import { openItemForRequest } from '@/lib/workflow/open-items';
 
 const LIFECYCLE_STAGES: { id: RequestStatus; label: string }[] = [
   { id: 'intake', label: 'Intake' },
@@ -39,6 +42,7 @@ export function LifecycleStepper({ request, onStepClick }: LifecycleStepperProps
   const { data: integrations = [] } = useIntegrationsByRequest(request.id);
   const { byRequest: approvalsByRequest } = useApprovalLookup();
   const approvals = approvalsByRequest(request.id);
+  const { data: template } = useWorkflowTemplate(request.workflowTemplateId);
 
   const completedStages = new Set<string>();
   const stageEntries = new Map<string, StageHistoryEntry>();
@@ -82,7 +86,14 @@ export function LifecycleStepper({ request, onStepClick }: LifecycleStepperProps
       status = 'future';
     }
 
-    const owner = entry ? lookupUser(entry.ownerId) : undefined;
+    // Owner: the person who actually held the stage, else the role the template
+    // says owns it. Without the fallback every un-started stage showed nothing,
+    // which is what made the lifecycle look ownerless.
+    const node = template?.nodes.find(
+      (n) => n.type === 'stage' && nodeToStatus(n.label) === stage.id,
+    );
+    const historicalOwner = entry ? lookupUser(entry.ownerId)?.name : undefined;
+    const owner = historicalOwner ?? node?.role;
     const daysInStep = entry ? getDaysInStep(entry) : undefined;
 
     // Derive stage-level event markers from live data:
@@ -112,7 +123,12 @@ export function LifecycleStepper({ request, onStepClick }: LifecycleStepperProps
       label: stage.label,
       status,
       date: entry ? formatDate(entry.enteredAt) : undefined,
-      owner: owner?.name,
+      owner,
+      // Only the current step says what it is waiting for; on any other step an
+      // action label would describe work that is already done or not yet due.
+      ...(status === 'current' || status === 'blocked'
+        ? { openAction: openItemForRequest(request, node, approvals, entry?.enteredAt)?.action }
+        : {}),
       daysInStep,
       events: events.length > 0 ? events : undefined,
     };

@@ -6,6 +6,7 @@ import { ViewToggle } from '@/components/shared/view-toggle';
 import { FilterBar, type FilterConfig } from '@/components/shared/filter-bar';
 import { Button } from '@/components/ui/button';
 import { useRequests } from '@/lib/db/hooks/use-requests';
+import { useAuthStore } from '@/stores/auth-store';
 import { useSlaTargets } from '@/lib/db/hooks/use-sla-targets';
 import { resolveSla } from '@/lib/db/sla-targets';
 import { KanbanView } from './kanban-view';
@@ -76,10 +77,12 @@ const ACTIVE_STATUSES = new Set([
   'payment',
 ]);
 
-const CURRENT_USER_ID = 'u1'; // Anna Muller — simulate logged-in user
 
 export function ActiveWorkflowsPage() {
   const [activeView, setActiveView] = useState('kanban');
+  // The "My Action" filter was pinned to the literal 'u1', so it showed Anna's
+  // queue whichever role was signed in.
+  const currentUser = useAuthStore((s) => s.currentUser);
   const [activeFilters, setActiveFilters] = useState<Record<string, string | string[]>>({});
   const [quickFilter, setQuickFilter] = useState<string | null>(null);
   const { data: requests = [] } = useRequests();
@@ -99,7 +102,7 @@ export function ActiveWorkflowsPage() {
   // Quick filter counts
   const stuckCount = activeRequests.filter(isOverSla).length;
   const myActionCount = activeRequests.filter(
-    (r) => r.ownerId === CURRENT_USER_ID,
+    (r) => r.ownerId === currentUser.id,
   ).length;
   const highValueCount = activeRequests.filter(
     (r) => r.value >= 500000,
@@ -116,7 +119,7 @@ export function ActiveWorkflowsPage() {
     if (quickFilter === 'stuck') {
       result = result.filter(isOverSla);
     } else if (quickFilter === 'my-action') {
-      result = result.filter((r) => r.ownerId === CURRENT_USER_ID);
+      result = result.filter((r) => r.ownerId === currentUser.id);
     } else if (quickFilter === 'high-value') {
       result = result.filter((r) => r.value >= 500000);
     } else if (quickFilter === 'escalated') {

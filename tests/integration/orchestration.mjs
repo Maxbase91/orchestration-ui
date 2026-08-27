@@ -156,7 +156,8 @@ const WF001 = {
   nodes: [
     { id: 'n1', type: 'start', label: 'Request Submitted' },
     { id: 'n2', type: 'stage', label: 'Intake', role: 'Category Manager', slaDays: 1, gate: 'auto' },
-    { id: 'n3', type: 'stage', label: 'Validation', role: 'Category Manager', slaDays: 3 },
+    { id: 'n3', type: 'stage', label: 'Validation', role: 'Category Manager', slaDays: 3,
+      purpose: 'Demand is complete, correctly categorised and routed to the right channel.' },
     { id: 'n4', type: 'decision', label: 'Auto-Route' },
     { id: 'n5', type: 'stage', label: 'Approval', role: 'Finance Approver', slaDays: 5 },
     { id: 'n6', type: 'stage', label: 'Sourcing' },
@@ -259,6 +260,89 @@ check('re-entering a past stage opens a new row',
   s4.stageHistory.filter((h) => h.stage === 'intake').length === 2);
 check('still exactly one row open',
   s4.stageHistory.filter((h) => h.completedAt === null).length === 1);
+
+// ── mirrors open-items.ts ───────────────────────────────────────────────────
+const AT_RISK_HOURS = 24, HOUR_MS = 3600000;
+function openSlaState(slaDeadline, now) {
+  if (!slaDeadline) return 'none';
+  const remaining = new Date(slaDeadline).getTime() - now.getTime();
+  if (remaining <= 0) return 'breached';
+  if (remaining <= AT_RISK_HOURS * HOUR_MS) return 'at-risk';
+  return 'on-track';
+}
+const TERMINAL = new Set(['completed', 'cancelled']);
+function actionForStage(status, pendingCount) {
+  if (status === 'approval') {
+    return pendingCount > 0
+      ? `Awaiting ${pendingCount} approval${pendingCount === 1 ? '' : 's'}`
+      : 'Awaiting approval';
+  }
+  if (status === 'sourcing') return 'Award the sourcing event';
+  if (status === 'referred-back') return 'Requester to resubmit';
+  return gateActionLabel(status);
+}
+function gateActionLabel(status) {
+  return { validation: 'Complete validation', risk: 'Record risk decision',
+    contracting: 'Contract signed', po: 'PO issued', receipt: 'Goods received',
+    invoice: 'Invoice matched', payment: 'Payment released' }[status] ?? 'Complete stage';
+}
+function openItemForRequest(request, node, approvals = [], enteredAt, now = new Date()) {
+  if (TERMINAL.has(request.status)) return null;
+  const pending = request.status === 'approval'
+    ? approvals.filter((a) => a.status === 'pending').map((a) => a.approverId) : [];
+  return {
+    stage: request.status,
+    ownerId: request.ownerId ?? null,
+    ownerRole: node?.role,
+    action: actionForStage(request.status, pending.length),
+    exitCriteria: node?.purpose,
+    waitingSince: enteredAt,
+    slaState: openSlaState(request.slaDeadline, now),
+    pendingApprovers: pending,
+  };
+}
+
+console.log('\nWhat is open');
+const NOW = new Date('2026-08-27T12:00:00Z');
+const ahead = (h) => new Date(NOW.getTime() + h * HOUR_MS).toISOString();
+const ago = (h) => new Date(NOW.getTime() - h * HOUR_MS).toISOString();
+
+const oi = openItemForRequest(
+  { id: 'R', status: 'validation', ownerId: 'u1', slaDeadline: ahead(48) },
+  WF001.nodes[2], [], '2026-08-26T09:00:00Z', NOW);
+check('the open item names the stage', oi.stage === 'validation');
+check('it names the action', oi.action === 'Complete validation');
+check('it carries the exit criteria from the node', typeof oi.exitCriteria === 'string');
+check('it names the owning role', oi.ownerRole === 'Category Manager');
+check('a terminal request has nothing open',
+  openItemForRequest({ id: 'R', status: 'completed' }, undefined) === null);
+check('a cancelled request has nothing open',
+  openItemForRequest({ id: 'R', status: 'cancelled' }, undefined) === null);
+
+console.log('\nOpen-stage SLA');
+check('comfortably ahead is on-track', openSlaState(ahead(48), NOW) === 'on-track');
+check('inside 24h is at-risk', openSlaState(ahead(6), NOW) === 'at-risk');
+check('past due is breached', openSlaState(ago(1), NOW) === 'breached');
+// Absence of a target is not compliance — the same rule ticket-sla.ts applies.
+check('no deadline is "none", never on-track', openSlaState(undefined, NOW) === 'none');
+
+console.log('\nStage-specific actions');
+// Approval and sourcing do not clear because "the owner says so", so a generic
+// "Complete approval" would misdescribe what is actually being waited on.
+const appr = openItemForRequest({ id: 'R', status: 'approval', ownerId: 'u1' }, undefined,
+  [{ approverId: 'u3', status: 'pending' }, { approverId: 'u4', status: 'approved' }], undefined, NOW);
+check('approval counts the outstanding approvers', appr.action === 'Awaiting 1 approval');
+check('it lists who they are', appr.pendingApprovers.join() === 'u3');
+check('two pending pluralises',
+  openItemForRequest({ id: 'R', status: 'approval' }, undefined,
+    [{ approverId: 'a', status: 'pending' }, { approverId: 'b', status: 'pending' }], undefined, NOW)
+    .action === 'Awaiting 2 approvals');
+check('sourcing waits on the award',
+  openItemForRequest({ id: 'R', status: 'sourcing' }, undefined, [], undefined, NOW)
+    .action === 'Award the sourcing event');
+check('referred-back waits on the requester',
+  openItemForRequest({ id: 'R', status: 'referred-back' }, undefined, [], undefined, NOW)
+    .action === 'Requester to resubmit');
 
 console.log('\nCycle guard');
 const LOOP = {
