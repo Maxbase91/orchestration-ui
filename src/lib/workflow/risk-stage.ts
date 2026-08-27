@@ -12,6 +12,10 @@ import {
   updateRiskAssessment,
 } from '@/lib/db/risk-assessments';
 import type { ProcurementRequest, RiskAssessment, RiskRating } from '@/data/types';
+import {
+  inferDataSensitivity,
+  type SensitivitySource,
+} from '@/lib/procurement/demand-signals';
 
 /** How long a newly raised assessment stays valid, in days. */
 const VALIDITY_DAYS = 365;
@@ -50,6 +54,8 @@ export async function ensureRiskAssessment(
     'id' | 'title' | 'supplierId' | 'contractId' | 'category' | 'inherentRiskTier'
   >,
   actor: { id: string; name: string },
+  /** The request's service description, when it has one. */
+  sow?: SensitivitySource | null,
 ): Promise<RiskStageOutcome | null> {
   if (!request.supplierId && !request.contractId) return null;
 
@@ -89,13 +95,42 @@ export async function ensureRiskAssessment(
     assessorName: actor.name,
     assessedAt: now.toISOString(),
     validUntil: validUntil.toISOString().slice(0, 10),
-    summary: `Raised automatically when ${request.id} entered the risk stage; inherent tier ${request.inherentRiskTier ?? 'unknown'}.`,
+    // Seeded from the service description rather than left empty. The assessor
+    // previously opened a record containing only a tier and had to go and read
+    // the request to find out what was being assessed — while the platform
+    // already held a scope and a data classification derived from it.
+    summary: buildAssessmentSummary(request, sow),
     mitigations: [],
     reusable: true,
     linkedRequestIds: [request.id],
   });
 
   return { assessment: created, reused: false };
+}
+
+/**
+ * What the assessor sees when the record opens.
+ *
+ * States the data classification the description implies and quotes the scope,
+ * both attributed. The provenance matters: an assessor must be able to tell a
+ * derived classification from one a human asserted, so the wording says where it
+ * came from rather than presenting it as an established fact.
+ */
+function buildAssessmentSummary(
+  request: { id: string; inherentRiskTier?: string },
+  sow?: SensitivitySource | null,
+): string {
+  const parts = [
+    `Raised automatically when ${request.id} entered the risk stage; inherent tier ${request.inherentRiskTier ?? 'unknown'}.`,
+  ];
+  if (sow && Object.values(sow).some((v) => (v as string | undefined)?.trim())) {
+    parts.push(`Data classification inferred from the service description: ${inferDataSensitivity(sow)}.`);
+    const scope = sow.scope?.trim() || sow.objective?.trim();
+    if (scope) parts.push(`Scope (from the service description): ${scope.slice(0, 500)}`);
+  } else {
+    parts.push('No service description was captured, so scope and data classification are unassessed.');
+  }
+  return parts.join(' ');
 }
 
 /** Terminal statuses — the stage can be completed once the assessment reaches one. */

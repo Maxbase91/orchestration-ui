@@ -111,6 +111,8 @@ interface StepComplianceProps {
    * worse than one that says what is missing.
    */
   requiredSections?: string[];
+  /** From generation — carried into the export so the gate travels with it. */
+  qualityScore?: number;
   workflowTemplateId?: string;
   requestTitle?: string;
   /** Which half of the split step to render: the risk assessment or the determination. */
@@ -264,6 +266,7 @@ export function StepCompliance({
   isUrgent,
   serviceDescription,
   requiredSections = [],
+  qualityScore,
   workflowTemplateId,
   requestTitle,
   phase,
@@ -547,6 +550,17 @@ export function StepCompliance({
       approvalToSource: result.approvalToSource,
       handoffSteps: result.handoffSteps,
       policyChecks: result.policyChecks,
+      serviceDescription: serviceDescription
+        ? {
+            narrative: serviceDescription.narrative,
+            qualityScore,
+            sections: Object.entries(SOW_SECTION_LABELS).map(([id, label]) => ({
+              label,
+              body: (serviceDescription as Record<string, string | undefined>)[id] ?? '',
+              required: requiredSections.includes(id),
+            })),
+          }
+        : undefined,
       generatedAt: new Date().toISOString().slice(0, 10),
     });
     const blob = new Blob([markdown], { type: 'text/markdown' });

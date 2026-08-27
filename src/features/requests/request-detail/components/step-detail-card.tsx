@@ -342,6 +342,11 @@ export const StepDetailCard = forwardRef<HTMLDivElement, StepDetailCardProps>(
                 </div>
               )}
 
+              {/* What is actually being validated or approved. The description
+                  was written at intake and then read nowhere in the lifecycle —
+                  a validator and an approver acted on a title and a number. */}
+              <ServiceDescriptionSummary stage={stage} requestId={requestId} />
+
               {/* Forms Completed - Enhanced with FormSubmission data */}
               <FormsSection
                 stage={stage}
@@ -459,6 +464,59 @@ export const StepDetailCard = forwardRef<HTMLDivElement, StepDetailCardProps>(
 );
 
 // ── Forms Section ───────────────────────────────────────────────────
+
+/** Stages where a reader is deciding about the demand itself. */
+const DESCRIPTION_STAGES = new Set(['validation', 'risk', 'approval', 'sourcing', 'contracting']);
+
+/**
+ * The compact narrative and the quality gate, on the stages where somebody is
+ * deciding something about this demand.
+ *
+ * Deliberately the narrative and not the nine sections: the point is to give a
+ * validator or an approver the substance of what they are signing without
+ * turning the timeline into a document viewer. The full text is on the Overview
+ * tab, which is one click away and already renders it.
+ */
+function ServiceDescriptionSummary({ stage, requestId }: { stage: string; requestId?: string }) {
+  const { data: sd } = useServiceDescription(requestId);
+  if (!requestId || !DESCRIPTION_STAGES.has(stage)) return null;
+  const narrative = sd?.narrative?.trim();
+  if (!narrative) return null;
+
+  const score = sd?.qualityScore;
+  const required = sd?.requiredSections ?? [];
+  const missing = required.filter(
+    (id) => !((sd as unknown as Record<string, string | undefined>)[id] ?? '').trim(),
+  );
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+        <FileText className="size-3.5" />
+        Service description
+        {typeof score === 'number' && (
+          <span
+            className={cn(
+              'rounded-full px-1.5 py-0.5 text-[10px] font-semibold',
+              score >= 80 ? 'bg-green-100 text-green-700'
+                : score >= 60 ? 'bg-amber-100 text-amber-700'
+                : 'bg-red-100 text-red-700',
+            )}
+          >
+            {score}/100
+          </span>
+        )}
+      </div>
+      <p className="pl-5 text-sm leading-relaxed text-gray-700 whitespace-pre-line">{narrative}</p>
+      {missing.length > 0 && (
+        <p className="pl-5 text-xs text-amber-700">
+          Missing {missing.length} section{missing.length === 1 ? '' : 's'} this demand&apos;s
+          materiality and sourcing require: {missing.join(', ')}
+        </p>
+      )}
+    </div>
+  );
+}
 
 function FormsSection({
   stage,

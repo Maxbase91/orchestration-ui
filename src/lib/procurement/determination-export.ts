@@ -23,6 +23,19 @@ export interface DeterminationExportInput {
   approvalToSource?: { tier: string; rationale: string; gates: { label: string; reason: string }[] };
   handoffSteps?: { label: string; system: string; status: string; deepLink?: string }[];
   policyChecks?: { label: string; passed: boolean; detail: string }[];
+  /**
+   * The service description the determination was made about.
+   *
+   * Omitted entirely until now: the export carried every decision the platform
+   * made and nothing about the demand those decisions were about, so a reader
+   * could see that an engagement was material and competitively sourced without
+   * being able to see what it was for.
+   */
+  serviceDescription?: {
+    narrative?: string;
+    sections?: { label: string; body: string; required: boolean }[];
+    qualityScore?: number;
+  };
   /** ISO date stamp, supplied by the caller (kept out of the pure function). */
   generatedAt?: string;
 }
@@ -64,6 +77,35 @@ export function buildDeterminationExport(input: DeterminationExportInput): { mar
     }
   }
   lines.push('');
+
+  if (input.serviceDescription) {
+    const sd = input.serviceDescription;
+    lines.push('## Service description');
+    if (typeof sd.qualityScore === 'number') {
+      lines.push(`- Quality score: **${sd.qualityScore}/100**`);
+      lines.push('');
+    }
+    if (sd.narrative?.trim()) {
+      lines.push(sd.narrative.trim());
+      lines.push('');
+    }
+    for (const sec of sd.sections ?? []) {
+      if (!sec.body?.trim()) continue;
+      // Mandatory sections are marked, because which ones were required is
+      // itself part of the determination — it is what the demand's materiality,
+      // risk and sourcing read demanded be covered.
+      lines.push(`### ${sec.label}${sec.required ? ' *(required for this demand)*' : ''}`);
+      lines.push(sec.body.trim());
+      lines.push('');
+    }
+    // A required section with nothing in it is the single most useful thing this
+    // export can tell a reviewer, so it is stated rather than left as an absence.
+    const missing = (sd.sections ?? []).filter((x) => x.required && !x.body?.trim());
+    if (missing.length > 0) {
+      lines.push(`> **Missing required sections:** ${missing.map((x) => x.label).join(', ')}`);
+      lines.push('');
+    }
+  }
 
   if (input.inherentRisk || input.operationalRisk || input.riskOutcome) {
     lines.push('## Risk');

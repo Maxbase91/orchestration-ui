@@ -815,6 +815,7 @@ export function NewRequestPage() {
           <StepCompliance
             phase={currentStep === 4 ? 'risk' : 'determination'}
             requiredSections={formData.sowRequiredSections}
+            qualityScore={formData.sowQualityScore}
             category={formData.category}
             estimatedValue={formData.estimatedValue}
             supplierId={formData.supplierId}

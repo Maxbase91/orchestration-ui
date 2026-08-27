@@ -33,6 +33,23 @@ function buildDeterminationExport(input) {
   }
   if (input.materiality) lines.push(`- Materiality: **${input.materiality.material ? `Material — ${input.materiality.criticality}` : 'Not material'}**${input.materiality.material ? ` (${input.materiality.reasons.join('; ')})` : ''}`);
   lines.push('');
+  if (input.serviceDescription) {
+    const sd = input.serviceDescription;
+    lines.push('## Service description');
+    if (typeof sd.qualityScore === 'number') { lines.push(`- Quality score: **${sd.qualityScore}/100**`); lines.push(''); }
+    if (sd.narrative?.trim()) { lines.push(sd.narrative.trim()); lines.push(''); }
+    for (const sec of sd.sections ?? []) {
+      if (!sec.body?.trim()) continue;
+      lines.push(`### ${sec.label}${sec.required ? ' *(required for this demand)*' : ''}`);
+      lines.push(sec.body.trim());
+      lines.push('');
+    }
+    const missing = (sd.sections ?? []).filter((x) => x.required && !x.body?.trim());
+    if (missing.length > 0) {
+      lines.push(`> **Missing required sections:** ${missing.map((x) => x.label).join(', ')}`);
+      lines.push('');
+    }
+  }
   if (input.inherentRisk || input.riskOutcome) {
     lines.push('## Risk');
     if (input.inherentRisk) lines.push(`- Inherent risk: **${input.inherentRisk.tier}** (${input.inherentRisk.drivers.join('; ')})`);
@@ -82,6 +99,48 @@ const minimal = buildDeterminationExport({ buyingChannel: 'catalogue' });
 check('handles missing fields gracefully', minimal.markdown.includes('Supplier: Not selected') && minimal.markdown.includes('Estimated value: —'));
 check('falls back to a default filename', minimal.filename === 'determination-request.md');
 check('omits risk/next-steps/policy sections when absent', !minimal.markdown.includes('## Risk') && !minimal.markdown.includes('## Next steps'));
+
+// The export carried every decision the platform made and nothing about the
+// demand those decisions were about — a reader could see an engagement was
+// material and competitively sourced without seeing what it was for.
+console.log('\nService description travels with the determination');
+const withSow = buildDeterminationExport({
+  buyingChannel: 'procurement-led',
+  requestTitle: 'Cloud migration',
+  serviceDescription: {
+    narrative: 'A programme to migrate core workloads to a managed cloud platform.',
+    qualityScore: 82,
+    sections: [
+      { label: 'Scope', body: 'Migration of 40 workloads across two regions.', required: true },
+      { label: 'Deliverables', body: 'Runbooks, cutover plan, post-migration report.', required: true },
+      { label: 'Location', body: '', required: false },
+      { label: 'Acceptance Criteria', body: '', required: true },
+    ],
+  },
+});
+check('a service description section is emitted', withSow.markdown.includes('## Service description'));
+check('the narrative is included', withSow.markdown.includes('migrate core workloads'));
+check('the quality score travels with it', withSow.markdown.includes('Quality score: **82/100**'));
+check('sections are rendered with their labels', withSow.markdown.includes('### Scope'));
+check('a required section is marked as required',
+  withSow.markdown.includes('### Deliverables *(required for this demand)*'));
+check('an optional section is NOT marked required',
+  !withSow.markdown.includes('### Location *(required'));
+check('an empty section is skipped rather than left as a blank heading',
+  !withSow.markdown.includes('### Location'));
+// The most useful line in the whole export for a reviewer.
+check('a required-but-empty section is called out, not silently absent',
+  withSow.markdown.includes('**Missing required sections:** Acceptance Criteria'));
+check('a fully covered description reports nothing missing',
+  !buildDeterminationExport({
+    buyingChannel: 'catalogue',
+    serviceDescription: {
+      narrative: 'n',
+      sections: [{ label: 'Scope', body: 'x', required: true }],
+    },
+  }).markdown.includes('Missing required sections'));
+check('the section is omitted entirely when there is no description',
+  !minimal.markdown.includes('## Service description'));
 
 console.log('');
 if (failures) { console.error(`FAILED: ${failures} check(s) failed`); process.exit(1); }

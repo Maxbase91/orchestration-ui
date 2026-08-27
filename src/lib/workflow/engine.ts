@@ -368,6 +368,17 @@ async function raiseRiskAssessment(requestId: string): Promise<void> {
     if (!row) return;
 
     const r = row as Record<string, unknown>;
+
+    // The service description is what the assessment is actually about. A
+    // failed read is not a reason to skip raising the record — the assessor gets
+    // an unassessed-scope note instead of nothing at all.
+    const { data: sowRow } = await supabase
+      .from('service_descriptions')
+      .select('objective, scope, deliverables, resources, narrative')
+      .eq('request_id', requestId)
+      .maybeSingle();
+    const sow = (sowRow as Record<string, string | null> | null) ?? null;
+
     const outcome = await ensureRiskAssessment(
       {
         id: r.id as string,
@@ -378,6 +389,7 @@ async function raiseRiskAssessment(requestId: string): Promise<void> {
         inherentRiskTier: (r.inherent_risk_tier as string | null) ?? undefined,
       },
       { id: (r.owner_id as string) ?? 'system', name: 'Workflow engine' },
+      sow,
     );
     if (outcome?.reused) {
       console.info(`[engine] reused risk assessment ${outcome.assessment.id} for ${requestId}`);
