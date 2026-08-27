@@ -18,20 +18,58 @@ export function TabCompliance({ request }: TabComplianceProps) {
   const { data: report } = useComplianceReport(request.id);
   const { data: intake } = useIntakeCompliance(request.id);
 
-  const hasContent = report || intake;
+  // The determination now lives on the request itself, so there is something to
+  // show even before the intake record or the post-validation report exist.
+  const determination: { label: string; value: string }[] = [
+    { label: 'Inherent risk', value: request.inherentRiskTier ?? '' },
+    { label: 'Materiality', value: request.materialityTier ?? '' },
+    { label: 'Screening', value: request.screeningOutcome ?? '' },
+    { label: 'Demand disposition', value: request.referralDisposition ?? '' },
+    { label: 'Sourcing type', value: request.sourcingType ?? '' },
+    {
+      label: 'Risk assessment',
+      value: request.riskAssessmentRequired ? 'Required' : '',
+    },
+  ].filter((d) => d.value);
+
+  const hasContent = report || intake || determination.length > 0;
 
   if (!hasContent) {
     return (
       <div className="flex flex-col items-center justify-center py-16 gap-2 text-muted-foreground">
         <ShieldCheck className="size-10 opacity-30" />
-        <p className="text-sm">No compliance report available for this request yet.</p>
-        <p className="text-xs">Reports are generated after the Validation stage.</p>
+        <p className="text-sm">No compliance record for this request.</p>
+        <p className="text-xs">
+          Requests submitted through the intake wizard carry their determination from
+          submission; this one predates that.
+        </p>
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
+      {determination.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <ShieldCheck className="size-4 text-blue-500" />
+              Front-door determination
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm md:grid-cols-3">
+              {determination.map((d) => (
+                <div key={d.label}>
+                  <dt className="text-xs text-muted-foreground">{d.label}</dt>
+                  <dd className="font-medium capitalize text-gray-900">{d.value}</dd>
+                </div>
+              ))}
+            </dl>
+          </CardContent>
+        </Card>
+      )}
+
       {intake && (
         <Card>
           <CardHeader className="pb-3">

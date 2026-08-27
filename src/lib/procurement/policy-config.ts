@@ -32,6 +32,8 @@ export interface PolicyConfig {
   contractUtilisationHeadroom: number;
   /** Second contract check: days-to-expiry buffer that flags a contract expiring. */
   contractExpiryBufferDays: number;
+  /** Value above which a demand exceeds normal delegated budget authority. */
+  delegatedAuthorityThreshold: number;
 }
 
 export const DEFAULT_POLICY_CONFIG: PolicyConfig = {
@@ -46,6 +48,9 @@ export const DEFAULT_POLICY_CONFIG: PolicyConfig = {
   preferredMinPerformance: 75,
   contractUtilisationHeadroom: 95,
   contractExpiryBufferDays: 60,
+  // Preserves the literal the compliance report used before this was
+  // configurable; it is not derived from the approval gate, which is separate.
+  delegatedAuthorityThreshold: 500_000,
 };
 
 /**

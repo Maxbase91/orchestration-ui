@@ -12,6 +12,7 @@ import type { WorkflowTemplate } from '@/data/types';
 import { getStagesForChannel } from './buying-channel-stages';
 import { resolveApprover } from './approver-resolution';
 import { transitionStage } from './transition';
+import { getActivePolicyConfig } from '@/lib/procurement/policy-config';
 import { listApprovalChains } from '@/lib/db/approval-chains';
 import { selectApprovalChainForValue } from './workflow-steps';
 import { isGatedStage, nodeToStatus, type TemplateNode } from './node-config';
@@ -357,11 +358,16 @@ async function generateComplianceReport(requestId: string): Promise<void> {
     const value = (req as Record<string, unknown>).value as number ?? 0;
     const category = (req as Record<string, unknown>).category as string ?? 'goods';
 
+    // Thresholds come from the governed policy config rather than literals in
+    // the engine — the same source the eight decisioning modules already read,
+    // so a threshold change in Admin cannot leave the compliance report behind.
+    const policy = getActivePolicyConfig();
+
     const checks = [
       {
         id: `${requestId}-CHK-1`, category: 'Budget', check: 'Budget authority',
-        status: value > 500000 ? 'warning' : 'pass',
-        detail: value > 500000
+        status: value > policy.delegatedAuthorityThreshold ? 'warning' : 'pass',
+        detail: value > policy.delegatedAuthorityThreshold
           ? `Value €${value.toLocaleString()} requires CFO/Board approval.`
           : `Value €${value.toLocaleString()} within standard approval limits.`,
         severity: 'critical',
@@ -380,8 +386,8 @@ async function generateComplianceReport(requestId: string): Promise<void> {
       },
       {
         id: `${requestId}-CHK-4`, category: 'Policy', check: 'Competitive sourcing',
-        status: value >= 25000 ? 'pass' : 'info',
-        detail: value >= 25000
+        status: value >= policy.competitiveSourcingThreshold ? 'pass' : 'info',
+        detail: value >= policy.competitiveSourcingThreshold
           ? 'Value above €25k threshold — competitive quotes required.'
           : 'Value below competitive quote threshold.',
         severity: 'high',

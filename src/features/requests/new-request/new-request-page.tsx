@@ -10,9 +10,15 @@ import { useAuthStore } from '@/stores/auth-store';
 import { createRequest } from '@/lib/db/requests';
 import { parseDeliveryDate } from '@/lib/parse-delivery-date';
 import { saveServiceDescription } from '@/lib/db/service-descriptions';
+import { saveIntakeCompliance } from '@/lib/db/intake-compliance';
 import { initWorkflow } from '@/lib/workflow/engine';
 import { queryClient } from '@/lib/query-client';
 import type { RequestCategory, BuyingChannel } from '@/data/types';
+import type { MaterialityResult } from '@/lib/procurement/materiality';
+import type { InherentRiskResult } from '@/lib/procurement/risk-segmentation';
+import type { ScreeningResult } from '@/lib/procurement/screening';
+import type { ReferralResult } from '@/lib/procurement/referral';
+import type { MatchingRiskAssessmentSummary } from './step-compliance';
 import { StepCategory } from './step-category';
 import { StepDetails } from './step-details';
 import { StepChatIntake } from './step-chat-intake';
@@ -72,6 +78,19 @@ interface RequestFormData {
   sraStatus: string;
   policyChecks: { label: string; passed: boolean; detail: string }[];
   duplicateCheck: string | null;
+  /**
+   * Determination output that is persisted rather than displayed and dropped.
+   * The wizard lifts the whole result via onUpdate; these are the parts the
+   * request and its compliance record keep.
+   */
+  buyingChannelSlug?: string;
+  approvalChain?: string;
+  matchedRuleName?: string;
+  materiality?: MaterialityResult;
+  inherentRisk?: InherentRiskResult;
+  screening?: ScreeningResult;
+  referral?: ReferralResult;
+  matchingRiskAssessments?: MatchingRiskAssessmentSummary[];
   // Determination signals that overlay conditional lifecycle steps (item 7+11).
   riskAssessmentRequired: boolean;
   supplierOnboardingRequired: boolean;
@@ -113,6 +132,8 @@ const INITIAL_DATA: RequestFormData = {
   sraStatus: '',
   policyChecks: [],
   duplicateCheck: null,
+  buyingChannelSlug: undefined,
+  approvalChain: undefined,
   riskAssessmentRequired: false,
   supplierOnboardingRequired: false,
   additionalReviewers: [],
@@ -376,9 +397,18 @@ export function NewRequestPage() {
           supplierId: formData.supplierId,
           contractId: formData.contractId || undefined,
           workflowTemplateId: formData.workflowTemplateId || undefined,
-          buyingChannel: (formData.buyingChannelResult || 'procurement-led') as BuyingChannel,
+          // The slug, not the display label. Every consumer of buying_channel
+          // keys on the slug; writing the label made getStagesForChannel miss.
+          buyingChannel: (formData.buyingChannelSlug || 'procurement-led') as BuyingChannel,
+          approvalChain: formData.approvalChain,
           sourcingType: formData.sourcingType?.type,
           sourcingTypeReason: formData.sourcingType?.reason,
+          // The determination the front door made, kept with the request.
+          inherentRiskTier: formData.inherentRisk?.tier,
+          materialityTier: formData.materiality?.criticality,
+          riskAssessmentRequired: formData.riskAssessmentRequired,
+          screeningOutcome: formData.screening?.status,
+          referralDisposition: formData.referral?.outcome,
           commodityCode: formData.commodityCode,
           commodityCodeLabel: formData.commodityCodeLabel,
           costCentre: formData.costCentre,
@@ -398,6 +428,44 @@ export function NewRequestPage() {
           beneficiaryCountry: formData.beneficiaryCountry || undefined,
           beneficiaryCountryCode: formData.beneficiaryCountryCode || undefined,
         });
+
+        // Persist the intake determination so the Compliance tab has content
+        // from t=0. saveIntakeCompliance has existed, correctly shaped, with
+        // zero call sites — intake_compliance_records was written only by the
+        // demo seeder, which is why every app-created request showed the empty
+        // state while seeded ones looked fine. Best-effort: a failed compliance
+        // record is a reporting gap, not a reason to lose the request.
+        try {
+          await saveIntakeCompliance({
+            requestId: id,
+            determinedAt: new Date().toISOString(),
+            buyingChannel: {
+              channel: formData.buyingChannelSlug || 'procurement-led',
+              label: formData.buyingChannelResult || 'Procurement-Led Sourcing',
+              reasoning: formData.matchedRuleName
+                ? `Matched routing rule "${formData.matchedRuleName}".`
+                : 'No routing rule matched; the value-band fallback applied.',
+            },
+            sraCheck: {
+              status: formData.sraStatus.includes('expired') ? 'warning' : 'pass',
+              detail: formData.sraStatus || 'Will be initiated upon submission',
+            },
+            policyChecks: formData.policyChecks,
+            duplicateCheck: {
+              found: false,
+              detail: formData.duplicateCheck ?? 'No duplicate demand detected at intake.',
+            },
+            riskFlags: [
+              ...(formData.materiality?.material ? ['material'] : []),
+              ...(formData.inherentRisk?.tier ? [`inherent-risk:${formData.inherentRisk.tier}`] : []),
+              ...(formData.riskAssessmentRequired ? ['risk-assessment-required'] : []),
+              ...(formData.supplierOnboardingRequired ? ['supplier-onboarding-required'] : []),
+            ],
+            matchingRiskAssessmentIds: (formData.matchingRiskAssessments ?? []).map((r) => r.id),
+          });
+        } catch (e) {
+          console.warn('[intake] compliance record not saved (non-blocking):', e);
+        }
 
         if (sow) {
           await saveServiceDescription(id, {

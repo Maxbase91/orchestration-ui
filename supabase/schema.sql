@@ -1067,3 +1067,16 @@ ALTER TABLE requests ADD COLUMN IF NOT EXISTS approval_chain TEXT
   REFERENCES approval_chains(id) ON DELETE SET NULL;
 
 CREATE INDEX IF NOT EXISTS requests_approval_chain_idx ON requests(approval_chain);
+
+-- ── Persist the intake determination (R3) ────────────────────────────────────
+-- The wizard computed materiality, inherent risk, screening and referral from
+-- the pure rules modules and discarded all of it at submit; the request carried
+-- no record of the decisions the platform made about it.
+ALTER TABLE requests ADD COLUMN IF NOT EXISTS inherent_risk_tier TEXT;
+ALTER TABLE requests ADD COLUMN IF NOT EXISTS materiality_tier TEXT;
+ALTER TABLE requests ADD COLUMN IF NOT EXISTS risk_assessment_required BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE requests ADD COLUMN IF NOT EXISTS screening_outcome TEXT;
+ALTER TABLE requests ADD COLUMN IF NOT EXISTS referral_disposition TEXT;
+
+CREATE INDEX IF NOT EXISTS requests_risk_idx
+  ON requests(risk_assessment_required, inherent_risk_tier);

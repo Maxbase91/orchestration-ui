@@ -59,6 +59,16 @@ export interface ProcurementRequest {
   sourcingTypeReason?: string;
   /** Approval chain fixed by the matched routing rule; null falls back to the value band. */
   approvalChain?: string;
+  /**
+   * The determination the front door made at intake. Persisted so the request
+   * carries its own governance record — these used to live only in wizard state
+   * and were discarded when it unmounted.
+   */
+  inherentRiskTier?: string;
+  materialityTier?: string;
+  riskAssessmentRequired?: boolean;
+  screeningOutcome?: string;
+  referralDisposition?: string;
   commodityCode: string;
   commodityCodeLabel: string;
   costCentre: string;

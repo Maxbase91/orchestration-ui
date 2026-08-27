@@ -344,6 +344,91 @@ check('referred-back waits on the requester',
   openItemForRequest({ id: 'R', status: 'referred-back' }, undefined, [], undefined, NOW)
     .action === 'Requester to resubmit');
 
+console.log('\nThe intake determination is persisted');
+// saveIntakeCompliance existed, correctly shaped, with zero call sites: the
+// table was written only by the demo seeder, so seeded requests showed
+// compliance data and every app-created one showed the empty state.
+function buildIntakeRecord(form, id, now) {
+  return {
+    requestId: id,
+    determinedAt: now,
+    buyingChannel: {
+      channel: form.buyingChannelSlug || 'procurement-led',
+      label: form.buyingChannelResult || 'Procurement-Led Sourcing',
+      reasoning: form.matchedRuleName
+        ? `Matched routing rule "${form.matchedRuleName}".`
+        : 'No routing rule matched; the value-band fallback applied.',
+    },
+    sraCheck: { status: form.sraStatus?.includes('expired') ? 'warning' : 'pass', detail: form.sraStatus },
+    policyChecks: form.policyChecks ?? [],
+    duplicateCheck: { found: false, detail: form.duplicateCheck ?? 'No duplicate demand detected at intake.' },
+    riskFlags: [
+      ...(form.materiality?.material ? ['material'] : []),
+      ...(form.inherentRisk?.tier ? [`inherent-risk:${form.inherentRisk.tier}`] : []),
+      ...(form.riskAssessmentRequired ? ['risk-assessment-required'] : []),
+      ...(form.supplierOnboardingRequired ? ['supplier-onboarding-required'] : []),
+    ],
+    matchingRiskAssessmentIds: (form.matchingRiskAssessments ?? []).map((r) => r.id),
+  };
+}
+
+const FORM = {
+  buyingChannelSlug: 'procurement-led',
+  buyingChannelResult: 'Procurement-Led Sourcing',
+  matchedRuleName: 'High-value consulting',
+  sraStatus: 'Acme: expired (expires 2026-01-01)',
+  policyChecks: [{ label: 'Competitive sourcing', passed: true, detail: '' }],
+  duplicateCheck: null,
+  materiality: { material: true, criticality: 'important' },
+  inherentRisk: { tier: 'high' },
+  riskAssessmentRequired: true,
+  supplierOnboardingRequired: false,
+  matchingRiskAssessments: [{ id: 'RA-7' }],
+};
+const rec = buildIntakeRecord(FORM, 'REQ-X', '2026-08-27T09:00:00Z');
+check('the record carries the channel SLUG, not the label',
+  rec.buyingChannel.channel === 'procurement-led');
+check('the label is kept separately for display',
+  rec.buyingChannel.label === 'Procurement-Led Sourcing');
+check('the matched rule is the stated reasoning', rec.buyingChannel.reasoning.includes('High-value consulting'));
+check('an expired SRA is a warning, not a pass', rec.sraCheck.status === 'warning');
+check('risk flags carry materiality and the inherent tier',
+  rec.riskFlags.includes('material') && rec.riskFlags.includes('inherent-risk:high'));
+check('a required risk assessment is flagged', rec.riskFlags.includes('risk-assessment-required'));
+check('reusable assessments are linked', rec.matchingRiskAssessmentIds.join() === 'RA-7');
+check('no rule matched says so rather than naming one',
+  buildIntakeRecord({ ...FORM, matchedRuleName: undefined }, 'R', 'n')
+    .buyingChannel.reasoning.includes('value-band fallback'));
+
+console.log('\nThe channel is stored as a slug');
+// requests.buying_channel was written as the display label, so
+// getStagesForChannel — which keys on slugs — always missed and returned the
+// full lifecycle, meaning no stage was ever marked skipped for the channel.
+const STAGES_BY_CHANNEL = {
+  catalogue: ['intake', 'po', 'receipt', 'invoice', 'payment'],
+  'procurement-led': ['intake','validation','approval','sourcing','contracting','po','receipt','invoice','payment'],
+};
+const FULL = STAGES_BY_CHANNEL['procurement-led'];
+const getStagesForChannel = (c) => STAGES_BY_CHANNEL[c] ?? FULL;
+check('the slug resolves the channel\'s real stage list',
+  getStagesForChannel('catalogue').length === 5);
+check('the display label does not resolve — the old bug',
+  getStagesForChannel('Procurement-Led Sourcing') === FULL);
+check('catalogue correctly skips validation',
+  !getStagesForChannel('catalogue').includes('validation'));
+
+console.log('\nCompliance thresholds come from the policy config');
+const policy = { delegatedAuthorityThreshold: 500000, competitiveSourcingThreshold: 25000 };
+const budgetCheck = (v, p) => (v > p.delegatedAuthorityThreshold ? 'warning' : 'pass');
+const sourcingCheck = (v, p) => (v >= p.competitiveSourcingThreshold ? 'pass' : 'info');
+check('above delegated authority warns', budgetCheck(600000, policy) === 'warning');
+check('at the threshold does not warn', budgetCheck(500000, policy) === 'pass');
+check('competitive sourcing applies at the threshold', sourcingCheck(25000, policy) === 'pass');
+// The point of moving these off literals: an admin lowering the threshold must
+// change the report too, or Admin and the report disagree about the same rule.
+check('lowering the configured threshold changes the verdict',
+  budgetCheck(300000, { ...policy, delegatedAuthorityThreshold: 250000 }) === 'warning');
+
 console.log('\nCycle guard');
 const LOOP = {
   nodes: [{ id: 'a', type: 'stage', label: 'PO Creation', gate: 'auto' }],

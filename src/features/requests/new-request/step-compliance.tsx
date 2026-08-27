@@ -45,7 +45,7 @@ const EMPTY_MATCHES: RiskAssessment[] = [];
 const EMPTY_RULES: RoutingRule[] = [];
 const EMPTY_TEMPLATES: WorkflowTemplate[] = [];
 
-interface MatchingRiskAssessmentSummary {
+export interface MatchingRiskAssessmentSummary {
   id: string;
   title: string;
   riskLevel: RiskAssessment['riskLevel'];
@@ -454,6 +454,12 @@ export function StepCompliance({
 
     return {
       buyingChannelResult: label,
+      // The slug alongside the label. `buyingChannelResult` is the display form
+      // ("Procurement-Led Sourcing") and was being written straight into
+      // requests.buying_channel, where every consumer keys on the slug — so
+      // getStagesForChannel always missed and fell back to the full lifecycle.
+      buyingChannelSlug: routing.channel,
+      approvalChain: routing.approvalChain || undefined,
       matchedRuleName: routing.matchedRule?.name,
       materiality,
       inherentRisk,
