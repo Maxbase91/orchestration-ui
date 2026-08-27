@@ -3,6 +3,9 @@ import type { ProcurementRequest, Invoice, StageHistoryEntry } from '@/data/type
 import { useRequests } from '@/lib/db/hooks/use-requests';
 import { useInvoices } from '@/lib/db/hooks/use-invoices';
 import { useStageHistory } from '@/lib/db/hooks/use-stage-history';
+import { useSourcingEvents } from '@/lib/db/hooks/use-sourcing-events';
+import type { SourcingEvent } from '@/lib/db/sourcing-events';
+import { EVALUATABLE_EVENT_STATUSES } from '@/lib/procurement/sourcing-award';
 
 const MONTHS_BACK = 6;
 
@@ -141,12 +144,16 @@ const OPEN_STATUSES = new Set(['intake', 'validation', 'approval', 'sourcing', '
 function computePipeline(
   requests: ProcurementRequest[],
   stageHistory: StageHistoryEntry[],
+  events: SourcingEvent[],
 ): LivePipelineKpis {
   const year = currentYear();
   const months = lastNMonths(MONTHS_BACK);
 
   const openDemand = requests.filter((r) => OPEN_STATUSES.has(r.status)).length;
-  const activeSourcing = requests.filter((r) => r.status === 'sourcing').length;
+  // Live sourcing events, not requests parked in the stage — see the same
+  // correction in features/dashboard/use-live-kpis.ts. A request waiting in
+  // `sourcing` with no event raised is demand, not sourcing activity.
+  const activeSourcing = events.filter((e) => EVALUATABLE_EVENT_STATUSES.includes(e.status)).length;
   const completedYTD = requests.filter(
     (r) => r.status === 'completed' && monthKey(r.updatedAt ?? r.createdAt).startsWith(year),
   ).length;
@@ -168,7 +175,11 @@ function computePipeline(
 export function useLivePipelineKpis(): LivePipelineKpis {
   const { data: requests = [] } = useRequests();
   const { data: stageHistory = [] } = useStageHistory();
-  return useMemo(() => computePipeline(requests, stageHistory), [requests, stageHistory]);
+  const { data: events = [] } = useSourcingEvents();
+  return useMemo(
+    () => computePipeline(requests, stageHistory, events),
+    [requests, stageHistory, events],
+  );
 }
 
 // ── Compliance ─────────────────────────────────────────────────────

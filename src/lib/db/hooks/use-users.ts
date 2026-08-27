@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { User } from '@/data/types';
 import {
@@ -32,13 +33,20 @@ export function useUser(id: string | undefined) {
 /**
  * Synchronous lookup over the cached user list. Pair with `useUsers()` in the
  * same component so the cache is primed.
+ *
+ * Wrapped in useCallback because callers put it in useMemo dependency arrays
+ * (event-list-page, sourcing-pipeline-page): an unstable identity here made
+ * those memos recompute on every render, silently doing nothing.
  */
 export function useUserLookup() {
   const { data } = useUsers();
-  return (id: string | undefined): User | undefined => {
-    if (!id) return undefined;
-    return data?.find((u) => u.id === id);
-  };
+  return useCallback(
+    (id: string | undefined): User | undefined => {
+      if (!id) return undefined;
+      return data?.find((u) => u.id === id);
+    },
+    [data],
+  );
 }
 
 export function useCreateUser() {

@@ -8,6 +8,7 @@ import { invoicesConfig } from './invoices.config';
 import { requestsConfig } from './requests.config';
 import { approvalsConfig } from './approvals.config';
 import { workflowsConfig } from './workflows.config';
+import { sourcingEventsConfig } from './sourcing-events.config';
 
 export const entityConfigs = {
   supplier: suppliersConfig,
@@ -18,6 +19,7 @@ export const entityConfigs = {
   request: requestsConfig,
   approval: approvalsConfig,
   workflow: workflowsConfig,
+  sourcingEvent: sourcingEventsConfig,
 } satisfies { [K in EntityKey]: EntityConfig<K> };
 
 export function getDisplayLabel<K extends EntityKey>(

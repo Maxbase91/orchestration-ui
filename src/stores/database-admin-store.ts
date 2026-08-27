@@ -48,6 +48,12 @@ import {
   deleteRequest as dbDeleteRequest,
 } from '@/lib/db/requests';
 import { createAuditEntry as dbCreateAuditEntry } from '@/lib/db/audit-entries';
+import {
+  createSourcingEvent as dbCreateSourcingEvent,
+  updateSourcingEvent as dbUpdateSourcingEvent,
+  deleteSourcingEvent as dbDeleteSourcingEvent,
+  type SourcingEvent,
+} from '@/lib/db/sourcing-events';
 
 /**
  * Which entities are backed by Supabase (edits persist across sessions and
@@ -63,6 +69,7 @@ const LIVE_ENTITIES = new Set<string>([
   'approval',
   'request',
   'workflow',
+  'sourcingEvent',
 ]);
 
 export function isLiveEntity(key: string): boolean {
@@ -77,7 +84,8 @@ export type EntityKey =
   | 'invoice'
   | 'request'
   | 'approval'
-  | 'workflow';
+  | 'workflow'
+  | 'sourcingEvent';
 
 export interface EntityRecordMap {
   supplier: Supplier;
@@ -88,6 +96,7 @@ export interface EntityRecordMap {
   request: ProcurementRequest;
   approval: ApprovalEntry;
   workflow: WorkflowTemplate;
+  sourcingEvent: SourcingEvent;
 }
 
 interface DatabaseAdminState {
@@ -99,6 +108,7 @@ interface DatabaseAdminState {
   request: ProcurementRequest[];
   approval: ApprovalEntry[];
   workflow: WorkflowTemplate[];
+  sourcingEvent: SourcingEvent[];
   audit: AuditEntry[];
   /** Replace an entity's cached list — used by the sync hook to mirror Supabase data into the store. */
   syncList: <K extends EntityKey>(key: K, list: EntityRecordMap[K][]) => void;
@@ -173,6 +183,7 @@ export const useDatabaseAdminStore = create<DatabaseAdminState>((set, get) => ({
   request: [],
   approval: [],
   workflow: [],
+  sourcingEvent: [],
   audit: [],
   syncList: (key, list) =>
     set((state) => ({ ...state, [key]: list } as DatabaseAdminState)),
@@ -251,6 +262,18 @@ export const useDatabaseAdminStore = create<DatabaseAdminState>((set, get) => ({
       });
       return;
     }
+    if (key === 'sourcingEvent') {
+      const saved = await dbUpdateSourcingEvent(id, patch as Partial<SourcingEvent>);
+      await queryClient.invalidateQueries({ queryKey: ['sourcing-events'] });
+      set((state) => {
+        const list = state.sourcingEvent;
+        const idx = list.findIndex((e) => e.id === id);
+        const next = idx >= 0 ? [...list.slice(0, idx), saved, ...list.slice(idx + 1)] : [saved, ...list];
+        const audit = makeAuditEntry('record.update', 'sourcingEvent', id, detail);
+        return { ...state, sourcingEvent: next, audit: [audit, ...state.audit] };
+      });
+      return;
+    }
     if (key === 'request') {
       const saved = await dbUpdateRequest(id, patch as Partial<ProcurementRequest>);
       await queryClient.invalidateQueries({ queryKey: ['requests'] });
@@ -319,6 +342,15 @@ export const useDatabaseAdminStore = create<DatabaseAdminState>((set, get) => ({
       set((state) => {
         const audit = makeAuditEntry('record.create', 'approval', saved.id, detail);
         return { ...state, approval: [saved, ...state.approval], audit: [audit, ...state.audit] };
+      });
+      return;
+    }
+    if (key === 'sourcingEvent') {
+      const saved = await dbCreateSourcingEvent(record as SourcingEvent);
+      await queryClient.invalidateQueries({ queryKey: ['sourcing-events'] });
+      set((state) => {
+        const audit = makeAuditEntry('record.create', 'sourcingEvent', saved.id, detail);
+        return { ...state, sourcingEvent: [saved, ...state.sourcingEvent], audit: [audit, ...state.audit] };
       });
       return;
     }
@@ -397,6 +429,17 @@ export const useDatabaseAdminStore = create<DatabaseAdminState>((set, get) => ({
       });
       return;
     }
+    if (key === 'sourcingEvent') {
+      // Cascades to sourcing_responses — see deleteSourcingEvent's comment.
+      await dbDeleteSourcingEvent(id);
+      await queryClient.invalidateQueries({ queryKey: ['sourcing-events'] });
+      await queryClient.invalidateQueries({ queryKey: ['sourcing-responses'] });
+      set((state) => {
+        const audit = makeAuditEntry('record.delete', 'sourcingEvent', id, detail);
+        return { ...state, sourcingEvent: state.sourcingEvent.filter((e) => e.id !== id), audit: [audit, ...state.audit] };
+      });
+      return;
+    }
     if (key === 'request') {
       await dbDeleteRequest(id);
       await queryClient.invalidateQueries({ queryKey: ['requests'] });
@@ -428,6 +471,7 @@ export const useDatabaseAdminStore = create<DatabaseAdminState>((set, get) => ({
     queryClient.invalidateQueries({ queryKey: ['invoices'] });
     queryClient.invalidateQueries({ queryKey: ['approvals'] });
     queryClient.invalidateQueries({ queryKey: ['requests'] });
+    queryClient.invalidateQueries({ queryKey: ['sourcing-events'] });
   },
 }));
 
@@ -440,4 +484,5 @@ export const entityLabels: Record<EntityKey, { singular: string; plural: string;
   request: { singular: 'Request', plural: 'Requests', route: '/requests' },
   approval: { singular: 'Approval', plural: 'Approvals', route: '/approvals' },
   workflow: { singular: 'Workflow', plural: 'Workflows', route: '/admin/workflows' },
+  sourcingEvent: { singular: 'Sourcing Event', plural: 'Sourcing Events', route: '/sourcing' },
 };

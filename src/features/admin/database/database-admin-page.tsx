@@ -18,6 +18,7 @@ const TAB_ORDER: { key: EntityKey; label: string }[] = [
   { key: 'request', label: 'Requests' },
   { key: 'approval', label: 'Approvals' },
   { key: 'workflow', label: 'Workflows' },
+  { key: 'sourcingEvent', label: 'Sourcing Events' },
 ];
 
 const DEFAULT_TAB: EntityKey = 'supplier';

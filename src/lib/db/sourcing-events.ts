@@ -208,3 +208,18 @@ export async function updateSourcingEvent(id: string, patch: Partial<SourcingEve
   if (error) throw error;
   return mapRow(data);
 }
+
+/**
+ * Hard-delete an event. Exists only for the Admin → Database browser.
+ *
+ * No application flow calls this — an event is closed, awarded or cancelled,
+ * never removed, which is why there is no delete hook beside the others. The
+ * admin browser is the one place a genuinely bad row has to be removable, and
+ * a delete that only removed the local copy would be worse than none. Note the
+ * FK on sourcing_responses cascades: deleting an event deletes its invitations
+ * and their submitted bids with it.
+ */
+export async function deleteSourcingEvent(id: string): Promise<void> {
+  const { error } = await supabase.from(TABLE).delete().eq('id', id);
+  if (error) throw error;
+}

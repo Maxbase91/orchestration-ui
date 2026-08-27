@@ -124,8 +124,22 @@ rule 2 is intact, but it does move the "determination screen is the endpoint" li
    replayable; a half-applied award is detected on the event page and repaired by **Re-apply award
    to request**. A serverless action beside `api/workflow-action` is the real fix and stays open.
 
+**Reporting now matches reality.** "Active Sourcing" on the manager dashboard and the pipeline
+analytics page counted *requests* with `status='sourcing'` while `sourcing_events` fed no metric at
+all — so the tile reported demand waiting to be sourced and labelled it sourcing activity. Both now
+count live events. The `/pipeline/sourcing` page likewise read a hardcoded `SE-*` array, the third
+mock id universe for one concept; it reads the same events as the register.
+
+**Backfill (run once, 2026-08-27, recorded in `supabase/backfills/`).** Six requests had entered the
+sourcing stage before an event could be raised from one. Each now has a linked draft event seeded
+from the request, with the incumbent supplier invited where named. Criteria and requirements were
+deliberately left empty rather than invented — fabricating them would fabricate the basis of a future
+award. The one pre-launch orphan event was **cancelled, not deleted**: it had no request, criteria or
+invitations, and would otherwise have shown in the Evaluation Centre as open with nothing in it.
+
 **Still out of scope:** no contract or PO is auto-created on award (the existing PO action covers
-the next step), and no outbound email — invitations are in-app plus a notification row.
+the next step), and no outbound email — invitations are in-app plus a notification row. The Q&A
+board on the event page remains a labelled mock.
 
 ### Cluster: Front Door
 
@@ -334,7 +348,7 @@ AST-X-03 eight-language 🔴 · AST-X-04 deep-link to source 🟢.
 |---|---|---|---|
 | **WS-0** | Unblock platform — ✅ **connector interface built** (`src/lib/integrations`, tested); core tables already present; remaining: architecture decisions, data-shape spikes | S0–S1 | CFG-W0, CFG-D0, CLS-G0, POL-26/27/09 |
 | **WS-A** | Decisioning data & reference plane (taxonomy, PSL, competitive sourcing, reuse criteria, routing table from POL-01); make routing risk/materiality-aware — 🟡 **risk- & materiality-aware routing**, **taxonomy generalised**, **PSL/competitive sourcing checks**, **materiality**, **category-code mapping**, **taxonomy store seeded/live** done; remaining: org-specific code scheme, hard PSL reference list | S1–S3 | CFG-01..06, CLS-02 |
-| **WS-B** | Own data model behind connector ports — 🟢 **9 objects wired** (supplier, contract, request, PO, invoice, risk, catalogue, payment, **support-ticket**); remaining: screening/taxonomy/form objects + route remaining consumers through ports | S1–S4 | SRC-01..05, CON-01/03 |
+| **WS-B** | Own data model behind connector ports — 🟢 **10 objects wired** (supplier, contract, request, PO, invoice, risk, catalogue, payment, support-ticket, **sourcing-event**); remaining: screening/taxonomy/form objects + route remaining consumers through ports | S1–S4 | SRC-01..05, CON-01/03 |
 | **WS-C** | Regulated risk & materiality engine — 🟢 **cascade + non-binary outcome + materiality + mini-IRQ delta + structured reuse model + assessment handoff + preliminary operational risk assessment** done; remaining: risk-matching hardening (RSK-T6) | S3–S5 | RSK-01..09, DET-10 |
 | **WS-D** | Complete front-door determination — 🟢 **done**: contract/sourcing type (incl. amend/change), handoff, two-step split, exportable endpoint, 2nd contract check, approval-to-source gate | S4–S6 | CHK-07, DET-04/05/08/09, RTE |
 | **WS-F** | Staged-Intake Funnel redesign — 🟢 **done**: free-text-primary entry + sequential catalogue→enrich→contract→full-SD funnel (no premature catalogue/contract assertions) + **criteria-triggered stage-5 residual questions** (`residual-questions.ts`) | S4–S6 | **INT-10**, INT-02, CLS-01/03, CHK-01/02/05/06 |

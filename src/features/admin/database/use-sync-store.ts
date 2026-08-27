@@ -7,6 +7,7 @@ import { useInvoices } from '@/lib/db/hooks/use-invoices';
 import { useApprovals } from '@/lib/db/hooks/use-approvals';
 import { useRequests } from '@/lib/db/hooks/use-requests';
 import { useWorkflowTemplates } from '@/lib/db/hooks/use-workflow-templates';
+import { useSourcingEvents } from '@/lib/db/hooks/use-sourcing-events';
 import { useDatabaseAdminStore } from '@/stores/database-admin-store';
 
 /**
@@ -24,6 +25,7 @@ export function useSyncAdminStore() {
   const { data: approvals, isSuccess: approvalsLoaded } = useApprovals();
   const { data: requests, isSuccess: requestsLoaded } = useRequests();
   const { data: workflowTemplates, isSuccess: workflowsLoaded } = useWorkflowTemplates();
+  const { data: sourcingEvents, isSuccess: sourcingEventsLoaded } = useSourcingEvents();
   const syncList = useDatabaseAdminStore((s) => s.syncList);
 
   useEffect(() => {
@@ -73,4 +75,10 @@ export function useSyncAdminStore() {
       syncList('workflow', workflowTemplates);
     }
   }, [workflowsLoaded, workflowTemplates, syncList]);
+
+  useEffect(() => {
+    if (sourcingEventsLoaded && sourcingEvents) {
+      syncList('sourcingEvent', sourcingEvents);
+    }
+  }, [sourcingEventsLoaded, sourcingEvents, syncList]);
 }

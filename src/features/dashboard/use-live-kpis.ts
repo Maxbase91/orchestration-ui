@@ -1,6 +1,9 @@
 import { useMemo } from 'react';
 import type { ProcurementRequest } from '@/data/types';
 import { useRequests } from '@/lib/db/hooks/use-requests';
+import { useSourcingEvents } from '@/lib/db/hooks/use-sourcing-events';
+import type { SourcingEvent } from '@/lib/db/sourcing-events';
+import { EVALUATABLE_EVENT_STATUSES } from '@/lib/procurement/sourcing-award';
 
 const OPEN_STATUSES = new Set(['intake', 'validation', 'approval', 'sourcing', 'referred-back']);
 const MONTHS_BACK = 6;
@@ -18,6 +21,11 @@ function lastNMonths(n: number, from: Date = new Date()): string[] {
   return keys;
 }
 
+
+/** A live event: published through award-pending. Drafts and closed events are not activity. */
+function isActiveSourcing(e: SourcingEvent): boolean {
+  return EVALUATABLE_EVENT_STATUSES.includes(e.status);
+}
 
 function trend(series: number[]): { direction: 'up' | 'down' | 'flat'; percentage: number } {
   if (series.length < 2) return { direction: 'flat', percentage: 0 };
@@ -50,10 +58,11 @@ export interface LiveKpis {
 
 export function useLiveKpis(): LiveKpis {
   const { data: requests = [] } = useRequests();
-  return useMemo(() => compute(requests), [requests]);
+  const { data: events = [] } = useSourcingEvents();
+  return useMemo(() => compute(requests, events), [requests, events]);
 }
 
-function compute(requests: ProcurementRequest[]): LiveKpis {
+function compute(requests: ProcurementRequest[], events: SourcingEvent[]): LiveKpis {
   const months = lastNMonths(MONTHS_BACK);
 
   // ── compliance: % of completed requests in each month with refer_back_count === 0
@@ -89,16 +98,15 @@ function compute(requests: ProcurementRequest[]): LiveKpis {
     : 0;
   const cycleTimeTrend = trend(cycleTimeSeries);
 
-  // ── active sourcing: requests currently in sourcing (current month cross-section
-  // for the sparkline uses requests whose createdAt month matches, but since status
-  // is a "now" value, the only honest sparkline is end-of-month-in-sourcing counts;
-  // approximate with per-month new sourcing entries)
-  const sourcingSeries = months.map((m) => {
-    return requests.filter(
-      (r) => r.status === 'sourcing' && monthKey(r.createdAt) === m,
-    ).length;
-  });
-  const activeSourcing = requests.filter((r) => r.status === 'sourcing').length;
+  // ── active sourcing: live sourcing EVENTS, not requests parked in the stage.
+  // This counted requests with status='sourcing' while sourcing_events fed no
+  // metric at all — so the tile reported demand waiting to be sourced and called
+  // it sourcing activity. A request sitting in the stage with no event raised is
+  // precisely the thing this number should not be counting.
+  const sourcingSeries = months.map(
+    (m) => events.filter((e) => isActiveSourcing(e) && monthKey(e.createdAt) === m).length,
+  );
+  const activeSourcing = events.filter(isActiveSourcing).length;
   const sourcingTrend = trend(sourcingSeries);
 
   // ── open demand: count + total value of open-stage requests per month (by creation)

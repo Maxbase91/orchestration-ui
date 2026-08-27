@@ -56,6 +56,12 @@ moves — the response set — is read through `db/sourcing-responses` rather th
 is filterable because the link is a column on the event; "which suppliers were invited" is a join, so
 it is deliberately not a field test.
 
+Note that `awardedSupplierId` and `status` move on award, so a consumer reading a *just-awarded*
+event through this port can see a stale row for up to the TTL. That is acceptable for the register
+and the connector's reporting consumers; anything acting on an award — the evaluation screen, the
+re-apply repair — reads through `db/sourcing-events` directly instead, where there is no cache
+between it and the decision.
+
 Not yet wired (no own-store read module): `risk-screening`, `category-taxonomy`,
 `form-submission` — add a connector behind the ports when their data lands.
 Coverage is guarded by `npm run test:connectors` (drift guard).

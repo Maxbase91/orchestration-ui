@@ -50,6 +50,7 @@
 | ID | Role | Steps | Expected |
 |---|---|---|---|
 | TC-DASH-01 | Proc Mgr | Open Home | KPI cards (Open Demand, Active Sourcing, **Avg Cycle Time**, **Compliance Rate**), Demand Pipeline chart render with **non-zero, plausible** values |
+| TC-DASH-01b | Proc Mgr | "Active Sourcing" counts **events**, not requests | The tile counts `sourcing_events` in published / in-evaluation / award-pending. Cross-check against `/sourcing`: a request sitting in the sourcing stage whose event is still a **draft** must NOT be counted, and neither must a completed or cancelled event. The same figure appears on the pipeline analytics page |
 | TC-DASH-02 | Requestor | Open Home | Monthly Summary (Submitted/Approved/Completed) **non-zero where expected**; My Active Requests list populates |
 | TC-DASH-03 | Vendor Mgr | Open Home | Validation Queue widget with AI pre-validation flags |
 | TC-DASH-04 | Ops Lead | Open Home | Workflow Health, SLA Tracker, Attention Required with correct days-in-stage |
@@ -158,6 +159,7 @@ not in a component — because RLS is currently `USING (true)`.
 | TC-WF-05 | `/workflows/monitor` | Bottleneck bar chart vs SLA, heatmap, AI analysis, stuck table |
 | TC-WF-06 | `/workflows/bottlenecks` | Stuck/overdue items + escalation actions |
 | TC-WF-07 | `/pipeline/demand` & `/pipeline/sourcing` | Funnel/grouped views render |
+| TC-WF-08 | `/pipeline/sourcing` shows the SAME events as `/sourcing` | Stage counts and rows come from `sourcing_events` with real invitation counts — **no `SE-*` ids anywhere**. Clicking a row opens `/sourcing/:id`. A cancelled event appears in neither the funnel nor the table (it is not a stage of the funnel) |
 
 ## Suite SRC — sourcing & evaluation
 
@@ -266,6 +268,8 @@ not in a component — because RLS is currently `USING (true)`.
 | TC-ADM-17 | `/admin/kb` KB Management | Add entry persists; assistant uses it |
 | TC-ADM-18 | `/admin/ai-analytics` | Conversation/answer-quality charts |
 | TC-ADM-19 | `/admin/database` | Entity tabs; edit a row persists; reflects on feature pages |
+| TC-ADM-20 | `/admin/database` → **Sourcing Events** | The tab lists live events (id, title, type, status, category, budget, deadline, request, awarded supplier). Editing status/dates persists and shows on `/sourcing/:id`. Requirements and evaluation criteria render **read-only** with the criteria weight total — the wizard owns them, because it is the only place weights are validated. **Related Items** resolves the originating request and the awarded supplier both ways |
+| TC-ADM-21 | Deleting a sourcing event really deletes | Removing an event from the admin browser deletes the Postgres row **and cascades to its invitations and submitted bids** — reload and confirm it is gone from `/sourcing`, not just from the current session |
 
 ## Suite AI — assistant chatbot (5 capabilities + guardrails)
 

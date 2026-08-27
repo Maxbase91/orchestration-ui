@@ -49,6 +49,7 @@ An interactive UI prototype that shows what a modern procurement orchestration p
 |--------|-------------|
 | Sourcing Events | DB-backed event register and detail, **raised from a request in the sourcing stage** (`request_id` link, incumbent seeded as the first invitation) and surfaced two-way on the request's Related tab. Q&A board remains a labelled mock |
 | Evaluation & Award | Weighted scoring of real supplier responses against the event's criteria, persisted as they are edited; ranking and award gates come from one shared rule so the recommendation and the award cannot disagree. **The award writes the winning supplier back onto the request, closes the event and resumes the workflow** — a half-applied write-back is detected and repairable |
+| Sourcing Pipeline | The same live events as the register, arranged by stage (Draft → Published → In Evaluation → Award Pending → Completed) with real invitation counts; rows deep-link into the event |
 | Contract Register | Lifecycle management with renewal alerts, obligation tracking, financial comparison |
 | Purchase Orders | PO management with goods receipt, AI compliance review |
 | Invoice Queue | Invoice management with AI data extraction, three-way match visualizer |
@@ -68,7 +69,7 @@ An interactive UI prototype that shows what a modern procurement orchestration p
 |--------|-------------|
 | Spend Overview | Bar charts, treemap, top suppliers, managed vs unmanaged, contract coverage |
 | Compliance KPIs | Policy breaches, first-time-right rate, classification accuracy, SRA coverage |
-| Pipeline & Cycle Time | Funnel visualization, cycle time distribution, throughput, ageing analysis |
+| Pipeline & Cycle Time | Funnel visualization, cycle time distribution, throughput, ageing analysis. **"Active Sourcing" counts live sourcing events**, not requests parked in the stage |
 | Report Builder | Drag-and-drop report creation with chart type selection |
 | Notifications | Grouped feed with type filtering and notification preferences |
 | AI Assistant | Floating chat overlay + full-page mode with keyword-triggered responses |

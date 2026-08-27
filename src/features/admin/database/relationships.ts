@@ -32,6 +32,7 @@ export const relationships: Record<EntityKey, EntityRelationships> = {
       { from: 'invoice', via: 'supplierId', label: 'Invoices from this supplier' },
       { from: 'riskAssessment', via: 'supplierId', label: 'Risk assessments' },
       { from: 'request', via: 'supplierId', label: 'Requests using this supplier' },
+      { from: 'sourcingEvent', via: 'awardedSupplierId', label: 'Sourcing events awarded to this supplier' },
     ],
   },
   contract: {
@@ -70,7 +71,10 @@ export const relationships: Record<EntityKey, EntityRelationships> = {
       { to: 'contract', via: 'contractId', label: 'Contract' },
       { to: 'purchaseOrder', via: 'poId', label: 'Purchase order' },
     ],
-    incoming: [{ from: 'approval', via: 'requestId', label: 'Approval entries' }],
+    incoming: [
+      { from: 'approval', via: 'requestId', label: 'Approval entries' },
+      { from: 'sourcingEvent', via: 'requestId', label: 'Sourcing events raised from this request' },
+    ],
   },
   approval: {
     outgoing: [{ to: 'request', via: 'requestId', label: 'Request' }],
@@ -78,6 +82,15 @@ export const relationships: Record<EntityKey, EntityRelationships> = {
   },
   workflow: {
     outgoing: [],
+    incoming: [],
+  },
+  sourcingEvent: {
+    outgoing: [
+      { to: 'request', via: 'requestId', label: 'Originating request' },
+      { to: 'supplier', via: 'awardedSupplierId', label: 'Awarded supplier' },
+    ],
+    // sourcing_responses is not an admin entity — its rows are invitations, not
+    // records an admin edits, and the event page already shows them per event.
     incoming: [],
   },
 };

@@ -261,6 +261,78 @@ check('an event with no criteria stores a zero total, not NaN',
 check('a non-responder is never rankable however well scored',
   !rankResponses([{ id: 'r4', supplierId: 'SUP-007', supplierName: 'Echo', status: 'not-viewed', shortlisted: true, weightedTotal: 5 }]).length);
 
+// ── mirrors the "Active Sourcing" KPI and the pipeline page's stage mapping ─
+// Both used to count/render something other than sourcing events: the KPI
+// counted requests parked in the stage, the pipeline page a hardcoded SE-* array.
+const isActiveSourcing = (e) => AWARDABLE_EVENT_STATUSES.includes(e.status);
+const STATUS_TO_STAGE = {
+  draft: 'Draft', published: 'Published', 'in-evaluation': 'In Evaluation',
+  'award-pending': 'Award Pending', completed: 'Completed',
+};
+
+const KPI_EVENTS = [
+  { id: 'SRC-0003', status: 'draft' },
+  { id: 'SRC-0004', status: 'published' },
+  { id: 'SRC-0005', status: 'in-evaluation' },
+  { id: 'SRC-0006', status: 'award-pending' },
+  { id: 'SRC-0007', status: 'completed' },
+  { id: 'SRC-0008', status: 'cancelled' },
+];
+
+console.log('\nActive Sourcing counts events, not requests');
+check('counts only live events', KPI_EVENTS.filter(isActiveSourcing).length === 3);
+check('a draft event is not sourcing activity', !isActiveSourcing({ status: 'draft' }));
+check('a completed event is not sourcing activity', !isActiveSourcing({ status: 'completed' }));
+check('a cancelled event is not sourcing activity', !isActiveSourcing({ status: 'cancelled' }));
+// The bug this replaced: six requests sat in status='sourcing' against one
+// unrelated event, and the tile reported six.
+const REQUESTS_IN_STAGE = 6;
+check('the count is decoupled from requests parked in the stage',
+  KPI_EVENTS.filter(isActiveSourcing).length !== REQUESTS_IN_STAGE);
+
+console.log('\nPipeline stage mapping');
+check('every funnel stage maps from exactly one status',
+  new Set(Object.values(STATUS_TO_STAGE)).size === Object.keys(STATUS_TO_STAGE).length);
+check('cancelled has no stage — it is not part of the funnel',
+  STATUS_TO_STAGE['cancelled'] === undefined);
+check('a cancelled event is dropped, not filed under Draft',
+  KPI_EVENTS.filter((e) => STATUS_TO_STAGE[e.status]).length === KPI_EVENTS.length - 1);
+
+console.log('\nBackfill (idempotent, seeded from the request)');
+// Mirrors supabase/backfills/2026-08-27-sourcing-events.sql.
+const backfill = (requests, events) =>
+  requests
+    .filter((r) => r.status === 'sourcing' && !events.some((e) => e.requestId === r.id))
+    .map((r, i) => ({
+      id: `SRC-BF-${i}`,
+      requestId: r.id,
+      status: 'draft',
+      budget: r.value,
+      type: r.value >= 250000 ? 'RFP' : 'RFQ',
+      criteria: [],
+    }));
+
+const STRANDED = [
+  { id: 'REQ-A', status: 'sourcing', value: 290000, supplierId: 'SUP-012' },
+  { id: 'REQ-B', status: 'sourcing', value: 160000, supplierId: null },
+  { id: 'REQ-C', status: 'approval', value: 500000, supplierId: null },
+];
+const created = backfill(STRANDED, []);
+check('one event per stranded request', created.length === 2);
+check('a request outside the sourcing stage is left alone',
+  !created.some((e) => e.requestId === 'REQ-C'));
+check('high value goes out as an RFP', created.find((e) => e.requestId === 'REQ-A').type === 'RFP');
+check('lower value goes out as an RFQ', created.find((e) => e.requestId === 'REQ-B').type === 'RFQ');
+check('backfilled events start as drafts, not published',
+  created.every((e) => e.status === 'draft'));
+// Criteria are left empty on purpose: inventing them would fabricate the basis
+// of a future award, and an event with none cannot be scored.
+check('no criteria are invented', created.every((e) => e.criteria.length === 0));
+check('a backfilled event cannot be awarded until it is published and scored',
+  canAward({ status: 'draft' }, [], created[0].id).blocker === 'event-not-live');
+check('re-running the backfill creates nothing',
+  backfill(STRANDED, created).length === 0);
+
 console.log('\nInvitation idempotency (UNIQUE event_id, supplier_id)');
 const key = (r) => `${r.eventId}:${r.supplierId}`;
 check('no duplicate invitation exists in the set',

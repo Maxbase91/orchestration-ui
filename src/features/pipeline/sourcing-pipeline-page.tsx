@@ -1,12 +1,23 @@
-import { useState } from 'react';
+// Sourcing pipeline page: the same events as /sourcing, arranged by stage.
+//
+// Reads live events and their real invitation counts. It previously rendered an
+// `SE-*` array of its own — the third mock universe for one concept, alongside
+// the feature's `SRC-*` and the portal's `EVT-*` — so the pipeline, the register
+// and the portal each described a different set of sourcing events.
+import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/shared/page-header';
 import { DataTable, type Column } from '@/components/shared/data-table';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { useSourcingEvents } from '@/lib/db/hooks/use-sourcing-events';
+import { useAllSourcingResponses } from '@/lib/db/hooks/use-sourcing-responses';
+import { useUserLookup } from '@/lib/db/hooks/use-users';
 
 type SourcingStage = 'Draft' | 'Published' | 'In Evaluation' | 'Award Pending' | 'Completed';
 
-interface SourcingEvent extends Record<string, unknown> {
+/** Row shape for the table — the DB event flattened for display. */
+interface SourcingEventRow extends Record<string, unknown> {
   id: string;
   title: string;
   category: string;
@@ -16,6 +27,19 @@ interface SourcingEvent extends Record<string, unknown> {
   deadline: string;
   owner: string;
 }
+
+/**
+ * DB status → the pipeline's display stage. `cancelled` deliberately has no
+ * column: a cancelled event is not a stage of the funnel, so those rows are
+ * dropped rather than silently filed under Draft.
+ */
+const STATUS_TO_STAGE: Record<string, SourcingStage> = {
+  draft: 'Draft',
+  published: 'Published',
+  'in-evaluation': 'In Evaluation',
+  'award-pending': 'Award Pending',
+  completed: 'Completed',
+};
 
 const STAGES: SourcingStage[] = ['Draft', 'Published', 'In Evaluation', 'Award Pending', 'Completed'];
 
@@ -27,71 +51,29 @@ const STAGE_COLORS: Record<SourcingStage, string> = {
   Completed: 'bg-green-500',
 };
 
-const sourcingEvents: SourcingEvent[] = [
-  {
-    id: 'SE-001',
-    title: 'Cloud Data Platform RFP',
-    category: 'IT Services',
-    stage: 'In Evaluation',
-    value: 350000,
-    suppliers: 4,
-    deadline: '2025-02-15',
-    owner: 'Sarah Chen',
-  },
-  {
-    id: 'SE-002',
-    title: 'Office Cleaning Services Tender',
-    category: 'Facilities',
-    stage: 'Published',
-    value: 180000,
-    suppliers: 6,
-    deadline: '2025-02-28',
-    owner: 'Anna Muller',
-  },
-  {
-    id: 'SE-003',
-    title: 'Cybersecurity Consulting Framework',
-    category: 'Professional Services',
-    stage: 'Award Pending',
-    value: 500000,
-    suppliers: 3,
-    deadline: '2025-01-31',
-    owner: 'Marcus Johnson',
-  },
-  {
-    id: 'SE-004',
-    title: 'Fleet Management RFQ',
-    category: 'Logistics',
-    stage: 'Draft',
-    value: 220000,
-    suppliers: 0,
-    deadline: '2025-03-15',
-    owner: 'Anna Muller',
-  },
-  {
-    id: 'SE-005',
-    title: 'Employee Benefits Platform',
-    category: 'HR Services',
-    stage: 'Completed',
-    value: 150000,
-    suppliers: 5,
-    deadline: '2024-12-31',
-    owner: 'Marcus Johnson',
-  },
-  {
-    id: 'SE-006',
-    title: 'Network Equipment Refresh',
-    category: 'IT Hardware',
-    stage: 'Published',
-    value: 280000,
-    suppliers: 4,
-    deadline: '2025-02-20',
-    owner: 'Sarah Chen',
-  },
-];
-
 export function SourcingPipelinePage() {
   const [selectedStage, setSelectedStage] = useState<SourcingStage | 'All'>('All');
+  const navigate = useNavigate();
+  const { data: events = [], isLoading } = useSourcingEvents();
+  const { data: responses = [] } = useAllSourcingResponses();
+  const lookupUser = useUserLookup();
+
+  const sourcingEvents: SourcingEventRow[] = useMemo(
+    () =>
+      events
+        .filter((e) => STATUS_TO_STAGE[e.status])
+        .map((e) => ({
+          id: e.id,
+          title: e.title,
+          category: e.category,
+          stage: STATUS_TO_STAGE[e.status]!,
+          value: e.budget ?? 0,
+          suppliers: responses.filter((r) => r.eventId === e.id).length,
+          deadline: e.deadline ?? '',
+          owner: lookupUser(e.ownerId)?.name ?? '—',
+        })),
+    [events, responses, lookupUser],
+  );
 
   const filteredEvents = selectedStage === 'All'
     ? sourcingEvents
@@ -102,7 +84,7 @@ export function SourcingPipelinePage() {
     count: sourcingEvents.filter((e) => e.stage === stage).length,
   }));
 
-  const columns: Column<SourcingEvent>[] = [
+  const columns: Column<SourcingEventRow>[] = [
     {
       key: 'id',
       label: 'ID',
@@ -152,7 +134,11 @@ export function SourcingPipelinePage() {
       key: 'deadline',
       label: 'Deadline',
       sortable: true,
-      render: (row) => <span className="text-sm">{formatDate(row.deadline as string)}</span>,
+      render: (row) => (
+        <span className="text-sm">
+          {row.deadline ? formatDate(row.deadline as string) : <span className="text-gray-400">—</span>}
+        </span>
+      ),
     },
     {
       key: 'owner',
@@ -212,7 +198,8 @@ export function SourcingPipelinePage() {
         data={filteredEvents}
         searchable
         searchPlaceholder="Search sourcing events..."
-        emptyMessage="No sourcing events found."
+        emptyMessage={isLoading ? 'Loading sourcing events…' : 'No sourcing events found.'}
+        onRowClick={(row) => navigate(`/sourcing/${row.id}`)}
       />
     </div>
   );
