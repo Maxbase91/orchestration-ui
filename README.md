@@ -47,7 +47,8 @@ An interactive UI prototype that shows what a modern procurement orchestration p
 ### Sourcing & Contracts
 | Screen | Description |
 |--------|-------------|
-| Sourcing Events | DB-backed event register and detail, **raised from a request in the sourcing stage** (`request_id` link, incumbent seeded as the first invitation) and surfaced two-way on the request's Related tab. Q&A board and evaluation centre still to be wired |
+| Sourcing Events | DB-backed event register and detail, **raised from a request in the sourcing stage** (`request_id` link, incumbent seeded as the first invitation) and surfaced two-way on the request's Related tab. Q&A board remains a labelled mock |
+| Evaluation & Award | Weighted scoring of real supplier responses against the event's criteria, persisted as they are edited; ranking and award gates come from one shared rule so the recommendation and the award cannot disagree. **The award writes the winning supplier back onto the request, closes the event and resumes the workflow** — a half-applied write-back is detected and repairable |
 | Contract Register | Lifecycle management with renewal alerts, obligation tracking, financial comparison |
 | Purchase Orders | PO management with goods receipt, AI compliance review |
 | Invoice Queue | Invoice management with AI data extraction, three-way match visualizer |
@@ -129,7 +130,7 @@ npm run test:handoff              # downstream handoff / next-steps model (syste
 npm run test:determination        # contract-type + sourcing-type determination
 npm run test:determination-export # exportable determination (structured Markdown)
 npm run test:second-contract      # second contract check (frameworks/MSAs vs transactable)
-npm run test:sourcing             # sourcing: criteria weights, ranking, award gates, entitlement
+npm run test:sourcing             # sourcing: weights, ranking, award write-back, stage gate, entitlement
 npm run test:sow-narrative        # SOW narrative is synthesised from the service description
 npm run test:tickets              # support tickets — entitlement, internal notes, status lifecycle, references
 npm run test:ticket-sla           # ticket SLA — targets, due dates, breach/at-risk, waiting-on-user pause
@@ -247,7 +248,7 @@ src/
     ├── suppliers/   # Directory, profile, portal
     ├── approvals/   # Approval queue, delegation
     ├── admin/       # Rules, workflow designer, AI agents
-    ├── sourcing/    # Events, evaluation centre
+    ├── sourcing/    # Events, evaluation centre (picker + per-event scoring and award)
     ├── contracts/   # Register, detail
     ├── purchasing/  # PO, invoice, three-way match
     ├── analytics/   # Dashboards, report builder

@@ -1,142 +1,70 @@
-// Evaluation centre page (sourcing): weighted bid scoring for one sourcing
-// event, driving a live award recommendation. The recommendation only ranks
-// shortlisted suppliers — the human decides who stays on the shortlist.
-import { useState, useCallback } from 'react';
+// Evaluation Centre picker: the nav-level entry point to bid evaluation, which
+// has no event in scope. It lists the events that can still be evaluated and
+// hands off to /sourcing/:id/evaluation, where the scoring and award live.
+//
+// This page previously *was* the evaluation screen, scoring a hardcoded trio of
+// suppliers against hardcoded criteria under a hardcoded event id, with a
+// "Proceed to Award" button that had no handler. It kept its route because the
+// route is in navigation.ts and the assistant deep-links it.
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Award } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ChevronRight } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
 import { PageHeader } from '@/components/shared/page-header';
-import { AISuggestionCard } from '@/components/shared/ai-suggestion-card';
-import { ScoringMatrix, type Criterion, type SupplierScore } from './components/scoring-matrix';
-
-const criteria: Criterion[] = [
-  { id: 'technical', label: 'Technical Capability', weight: 35 },
-  { id: 'price', label: 'Price Competitiveness', weight: 30 },
-  { id: 'experience', label: 'Experience', weight: 20 },
-  { id: 'risk', label: 'Risk Profile', weight: 15 },
-];
-
-const initialSuppliers: SupplierScore[] = [
-  {
-    supplierId: 'SUP-001',
-    supplierName: 'Accenture',
-    scores: { technical: 4, price: 3, experience: 5, risk: 4 },
-    shortlisted: true,
-  },
-  {
-    supplierId: 'SUP-003',
-    supplierName: 'Deloitte',
-    scores: { technical: 4, price: 4, experience: 4, risk: 4 },
-    shortlisted: true,
-  },
-  {
-    supplierId: 'SUP-005',
-    supplierName: 'Capgemini',
-    scores: { technical: 3, price: 5, experience: 3, risk: 3 },
-    shortlisted: false,
-  },
-];
+import { StatusBadge } from '@/components/shared/status-badge';
+import { formatDate } from '@/lib/format';
+import { useSourcingEvents } from '@/lib/db/hooks/use-sourcing-events';
+import { useAllSourcingResponses } from '@/lib/db/hooks/use-sourcing-responses';
+import { EVALUATABLE_EVENT_STATUSES } from '@/lib/procurement/sourcing-award';
 
 export function EvaluationCentrePage() {
   const navigate = useNavigate();
-  const [suppliers, setSuppliers] = useState(initialSuppliers);
-  const [showAI, setShowAI] = useState(true);
+  const { data: events = [], isLoading } = useSourcingEvents();
+  const { data: responses = [] } = useAllSourcingResponses();
 
-  const handleScoreChange = useCallback((supplierId: string, criterionId: string, score: number) => {
-    setSuppliers((prev) =>
-      prev.map((s) =>
-        s.supplierId === supplierId
-          ? { ...s, scores: { ...s.scores, [criterionId]: score } }
-          : s
-      )
-    );
-  }, []);
-
-  const handleShortlistToggle = useCallback((supplierId: string) => {
-    setSuppliers((prev) =>
-      prev.map((s) =>
-        s.supplierId === supplierId ? { ...s, shortlisted: !s.shortlisted } : s
-      )
-    );
-  }, []);
+  const open = events.filter((e) => EVALUATABLE_EVENT_STATUSES.includes(e.status));
 
   return (
     <div className="space-y-5">
-      <Button
-        variant="ghost"
-        size="sm"
-        className="text-muted-foreground"
-        onClick={() => navigate('/sourcing')}
-      >
-        <ArrowLeft className="size-3.5" />
-        Back to Events
-      </Button>
-
       <PageHeader
         title="Evaluation Centre"
-        subtitle="SRC-001: IT Consulting Framework 2025-2027"
+        subtitle="Score submitted bids and award an event"
       />
 
-      {showAI && (
-        <AISuggestionCard
-          title="AI-Assisted Scoring Analysis"
-          onDismiss={() => setShowAI(false)}
-          showExplanation
-          explanation="Analysis based on submitted RFP responses, past performance data, and compliance documentation."
-        >
-          <p>
-            Based on submitted responses, <strong>Accenture</strong> meets 8 of 10 technical requirements
-            and has the strongest track record. <strong>Deloitte</strong> provides the best balance of
-            price and capability. <strong>Capgemini</strong> offers the most competitive pricing but has
-            gaps in cloud migration experience.
-          </p>
-        </AISuggestionCard>
+      {isLoading ? (
+        <p className="text-sm text-muted-foreground">Loading events…</p>
+      ) : open.length === 0 ? (
+        <Card>
+          <CardContent className="py-8 text-center text-sm text-muted-foreground">
+            No events are open for evaluation. An event becomes evaluable once it is published.
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-2">
+          {open.map((e) => {
+            const forEvent = responses.filter((r) => r.eventId === e.id);
+            const responded = forEvent.filter((r) => r.status === 'responded').length;
+            return (
+              <Card
+                key={e.id}
+                className="cursor-pointer transition-colors hover:bg-gray-50"
+                onClick={() => navigate(`/sourcing/${e.id}/evaluation`)}
+              >
+                <CardContent className="flex items-center gap-4 py-4">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium">{e.title}</p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {e.id} · {e.type} · {responded} of {forEvent.length} responded
+                      {e.deadline && ` · closes ${formatDate(e.deadline)}`}
+                    </p>
+                  </div>
+                  <StatusBadge status={e.status} size="sm" />
+                  <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
       )}
-
-      <ScoringMatrix
-        criteria={criteria}
-        suppliers={suppliers}
-        onScoreChange={handleScoreChange}
-        onShortlistToggle={handleShortlistToggle}
-      />
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Award className="size-4" />
-            Award Recommendation
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            <p className="text-sm text-gray-700">
-              Based on weighted scoring, the recommended award is to{' '}
-              <strong>
-                {/* Highest weighted total among shortlisted suppliers wins;
-                    eliminated suppliers can never be recommended. */}
-                {[...suppliers]
-                  .filter((s) => s.shortlisted)
-                  .sort((a, b) => {
-                    const aTotal = criteria.reduce((sum, c) => sum + (a.scores[c.id] ?? 0) * c.weight, 0);
-                    const bTotal = criteria.reduce((sum, c) => sum + (b.scores[c.id] ?? 0) * c.weight, 0);
-                    return bTotal - aTotal;
-                  })[0]?.supplierName ?? 'N/A'}
-              </strong>{' '}
-              as the primary supplier, with the second-ranked shortlisted supplier as backup.
-            </p>
-            <div className="flex gap-2">
-              <Button size="sm">
-                <Award className="size-3.5" />
-                Proceed to Award
-              </Button>
-              <Button variant="outline" size="sm">
-                Request Additional Information
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }

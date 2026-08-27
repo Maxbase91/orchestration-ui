@@ -19,6 +19,10 @@ const LABEL_TO_STATUS: Record<string, string> = {
   'validation': 'validation',
   'approval': 'approval',
   'sourcing': 'sourcing',
+  // WF-004 labels its sourcing node 'Sourcing (RFP)'. Without this entry
+  // nodeToStatus falls back to slugifying the label and writes the invalid
+  // status 'sourcing-(rfp)' onto the request — which also skips the gate below.
+  'sourcing (rfp)': 'sourcing',
   'contracting': 'contracting',
   'po creation': 'po',
   'po created': 'po',
@@ -457,6 +461,15 @@ async function executeNode(
           ?? 'chain-1';
 
         await generateApprovalEntries(requestId, chainName);
+        return 'suspend';
+      }
+
+      // Sourcing stage → suspend until an award is made.
+      // Symmetric with the approval gate above: the engine cannot know which
+      // supplier won, so awarding calls advanceWorkflow(requestId, 'awarded')
+      // to resume. Without this the engine walks straight through sourcing to
+      // contracting and the sourcing event it just raised is never concluded.
+      if (newStatus === 'sourcing') {
         return 'suspend';
       }
 

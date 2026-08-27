@@ -15,8 +15,17 @@
 // one-award-per-event structural.
 
 import { supabase } from '@/lib/supabase-client';
+import { advanceWorkflow } from '@/lib/workflow/engine';
+import {
+  awardWriteBack,
+  canAward,
+  type AwardCandidate,
+} from '@/lib/procurement/sourcing-award';
 import { createAuditEntry } from './audit-entries';
 import { createNotification } from './notifications';
+import { updateRequest } from './requests';
+import { updateSourcingEvent, type SourcingEvent } from './sourcing-events';
+import { appendStageHistoryEvent } from './stage-history';
 
 const TABLE = 'sourcing_responses';
 
@@ -267,4 +276,115 @@ export async function saveResponseScores(
 
 export async function setShortlisted(id: string, shortlisted: boolean): Promise<SourcingResponse> {
   return patch(id, { shortlisted });
+}
+
+// ── Award ────────────────────────────────────────────────────────────────────
+
+/** Narrow a response row to the shape the pure award rules work on. */
+export function toAwardCandidate(r: SourcingResponse): AwardCandidate {
+  return {
+    id: r.id,
+    supplierId: r.supplierId,
+    supplierName: r.supplierName,
+    status: r.status,
+    shortlisted: r.shortlisted,
+    ...(r.weightedTotal != null ? { weightedTotal: r.weightedTotal } : {}),
+    ...(r.price != null ? { price: r.price } : {}),
+  };
+}
+
+/**
+ * Apply an existing award to the originating request.
+ *
+ * Split out from awardResponse() because it is the *idempotent tail* of a write
+ * that spans three tables with no transaction behind it. If any step here fails,
+ * the award itself still stands and re-running this repairs the request without
+ * touching the award — which is exactly what the "Re-apply award to request"
+ * action on the event page calls.
+ */
+export async function applyAwardToRequest(
+  requestId: string,
+  winner: AwardCandidate,
+  actor: { id: string; name: string },
+): Promise<void> {
+  await updateRequest(requestId, awardWriteBack(winner));
+  await appendStageHistoryEvent({
+    requestId,
+    stage: 'sourcing',
+    action: 'awarded',
+    notes: `Awarded to ${winner.supplierName}`,
+    ownerId: actor.id,
+  });
+  // Resumes the instance suspended by the sourcing gate in workflow/engine.ts.
+  // advanceWorkflow swallows its own errors and silently no-ops when a request
+  // has no workflow instance, so this can neither fail the award nor be relied
+  // on to have moved the request — the request's own status is the truth.
+  await advanceWorkflow(requestId, 'awarded');
+}
+
+/**
+ * Award an event to one response.
+ *
+ * The write order is deliberate: the irreversible decision (`awarded`) commits
+ * first, then the event, then the request. There is no transaction across the
+ * three tables, so the only safe ordering is the one where everything after the
+ * first write can be replayed by applyAwardToRequest().
+ */
+export async function awardResponse(
+  event: Pick<SourcingEvent, 'id' | 'status' | 'requestId' | 'awardedSupplierId'>,
+  responses: SourcingResponse[],
+  responseId: string,
+  actor: { id: string; name: string },
+): Promise<SourcingResponse> {
+  const candidates = responses.map(toAwardCandidate);
+  const check = canAward(event, candidates, responseId);
+  if (!check.allowed) throw new Error(check.reason ?? 'This event cannot be awarded');
+
+  const winner = candidates.find((c) => c.id === responseId);
+  if (!winner) throw new Error('That response does not belong to this event');
+
+  let awarded: SourcingResponse;
+  try {
+    awarded = await patch(responseId, { awarded: true });
+  } catch (err) {
+    // The partial unique index on (event_id) WHERE awarded is the real guard:
+    // canAward() reads a snapshot, so a concurrent award lands here instead.
+    if ((err as { code?: string }).code === '23505') {
+      throw new Error('This event has already been awarded');
+    }
+    throw err;
+  }
+
+  await updateSourcingEvent(event.id, {
+    status: 'completed',
+    // award_date is a DATE column — a full ISO timestamp is rejected.
+    awardDate: new Date().toISOString().slice(0, 10),
+    awardedSupplierId: winner.supplierId,
+  });
+
+  if (event.requestId) {
+    // A failure here leaves the award standing but the request un-updated. Say
+    // so precisely: reporting a plain "award failed" would send the user to
+    // re-award an event that is already awarded, instead of to the repair.
+    try {
+      await applyAwardToRequest(event.requestId, winner, actor);
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      throw new Error(
+        `Awarded to ${winner.supplierName}, but ${event.requestId} could not be updated ` +
+        `(${detail}). Use "Re-apply award to request" on the event to finish it.`,
+      );
+    }
+  }
+
+  await auditEvent(event.id, 'sourcing.awarded', `Awarded to ${winner.supplierName}`, actor);
+  await notify(
+    event.id,
+    `${event.id} awarded to ${winner.supplierName}`,
+    event.requestId
+      ? `The supplier has been written back to ${event.requestId}.`
+      : 'The event is closed. It is not linked to a request.',
+    `/sourcing/${event.id}`,
+  );
+  return awarded;
 }

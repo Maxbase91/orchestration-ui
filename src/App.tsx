@@ -31,6 +31,7 @@ import { WorkflowDesignerPage } from '@/features/admin/workflow-designer/workflo
 import { EventListPage } from '@/features/sourcing/event-list-page'
 import { EventDetailPage } from '@/features/sourcing/event-detail-page'
 import { EvaluationCentrePage } from '@/features/sourcing/evaluation-centre-page'
+import { EventEvaluationPage } from '@/features/sourcing/event-evaluation-page'
 import { ContractRegisterPage } from '@/features/contracts/contract-register-page'
 import { ContractDetailPage } from '@/features/contracts/contract-detail-page'
 import { POListPage } from '@/features/purchasing/po-list-page'
@@ -118,6 +119,7 @@ export function App() {
               <Route path="/sourcing/templates" element={<SourcingTemplatesPage />} />
               <Route path="/sourcing/evaluation" element={<EvaluationCentrePage />} />
               <Route path="/sourcing/:id" element={<EventDetailPage />} />
+              <Route path="/sourcing/:id/evaluation" element={<EventEvaluationPage />} />
             </Route>
 
             {/* Suppliers — procurement-manager, vendor-manager, operations-lead, admin */}

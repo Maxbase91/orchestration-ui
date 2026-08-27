@@ -6,6 +6,8 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  applyAwardToRequest,
+  awardResponse,
   inviteSuppliers,
   listAllResponses,
   listInvitationsForSupplier,
@@ -17,6 +19,8 @@ import {
   type SourcingResponse,
   type SubmitResponseInput,
 } from '../sourcing-responses';
+import type { AwardCandidate } from '@/lib/procurement/sourcing-award';
+import type { SourcingEvent } from '../sourcing-events';
 
 const KEYS = {
   all: ['sourcing-responses'] as const,
@@ -32,6 +36,30 @@ function useResponseMutation<TArgs, TResult>(fn: (args: TArgs) => Promise<TResul
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.all });
       qc.invalidateQueries({ queryKey: ['sourcing-events'] });
+    },
+  });
+}
+
+/**
+ * An award reaches past sourcing into the request, its stage timeline and the
+ * workflow instance, so it needs a wider invalidation than useResponseMutation
+ * gives — without these three the request header and lifecycle stepper keep
+ * showing the pre-award state until a reload.
+ */
+function useAwardMutation<TArgs>(fn: (args: TArgs) => Promise<unknown>) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: () => {
+      for (const key of [
+        KEYS.all,
+        ['sourcing-events'],
+        ['requests'],
+        ['stage-history'],
+        ['workflow-instances'],
+      ]) {
+        qc.invalidateQueries({ queryKey: key });
+      }
     },
   });
 }
@@ -89,5 +117,27 @@ export function useSaveResponseScores() {
 export function useSetShortlisted() {
   return useResponseMutation(
     ({ id, shortlisted }: { id: string; shortlisted: boolean }) => setShortlisted(id, shortlisted),
+  );
+}
+
+export function useAwardResponse() {
+  return useAwardMutation(
+    ({ event, responses, responseId, actor }: {
+      event: Pick<SourcingEvent, 'id' | 'status' | 'requestId' | 'awardedSupplierId'>;
+      responses: SourcingResponse[];
+      responseId: string;
+      actor: { id: string; name: string };
+    }) => awardResponse(event, responses, responseId, actor),
+  );
+}
+
+/** Repair action for a half-applied award — see applyAwardToRequest's comment. */
+export function useApplyAwardToRequest() {
+  return useAwardMutation(
+    ({ requestId, winner, actor }: {
+      requestId: string;
+      winner: AwardCandidate;
+      actor: { id: string; name: string };
+    }) => applyAwardToRequest(requestId, winner, actor),
   );
 }

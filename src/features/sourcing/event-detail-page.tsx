@@ -13,7 +13,8 @@
 // inert. A button that does nothing is the same lie as a hardcoded array — it
 // just fails later, in front of someone who trusted it.
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Award, RotateCcw } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -23,7 +24,14 @@ import { formatDate, formatCurrency } from '@/lib/format';
 import { Link } from 'react-router-dom';
 import { useSourcingEvent } from '@/lib/db/hooks/use-sourcing-events';
 import { useUserLookup } from '@/lib/db/hooks/use-users';
-import { useResponsesForEvent } from '@/lib/db/hooks/use-sourcing-responses';
+import {
+  useApplyAwardToRequest,
+  useResponsesForEvent,
+} from '@/lib/db/hooks/use-sourcing-responses';
+import { toAwardCandidate } from '@/lib/db/sourcing-responses';
+import { useRequest } from '@/lib/db/hooks/use-requests';
+import { EVALUATABLE_EVENT_STATUSES } from '@/lib/procurement/sourcing-award';
+import { useAuthStore } from '@/stores/auth-store';
 import { QABoard } from './components/qa-board';
 
 /** Renders a value, or an em-dash placeholder when it is not set. */
@@ -37,6 +45,9 @@ export function EventDetailPage() {
   const lookupUser = useUserLookup();
   const { data: event, isLoading } = useSourcingEvent(id);
   const { data: responses = [] } = useResponsesForEvent(id);
+  const { data: linkedRequest } = useRequest(event?.requestId);
+  const currentUser = useAuthStore((s) => s.currentUser);
+  const applyAward = useApplyAwardToRequest();
 
   if (isLoading) {
     return <p className="py-20 text-center text-sm text-muted-foreground">Loading event…</p>;
@@ -56,6 +67,31 @@ export function EventDetailPage() {
 
   const ownerName = lookupUser(event.ownerId)?.name;
   const respondedCount = responses.filter((r) => r.status === 'responded').length;
+  const canEvaluate = EVALUATABLE_EVENT_STATUSES.includes(event.status) && respondedCount > 0;
+
+  // The award write-back spans three tables with no transaction, so it can land
+  // half-applied. When the event says it was awarded but the request disagrees,
+  // offer the repair rather than leaving the two silently out of step.
+  const awardedResponse = responses.find((r) => r.awarded);
+  const needsReapply = Boolean(
+    event.awardedSupplierId &&
+    linkedRequest &&
+    linkedRequest.supplierId !== event.awardedSupplierId,
+  );
+
+  async function handleReapply() {
+    if (!event?.requestId || !awardedResponse) return;
+    try {
+      await applyAward.mutateAsync({
+        requestId: event.requestId,
+        winner: toAwardCandidate(awardedResponse),
+        actor: { id: currentUser.id, name: currentUser.name },
+      });
+      toast.success(`Award re-applied to ${event.requestId}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not re-apply the award');
+    }
+  }
 
   return (
     <div className="space-y-5">
@@ -78,6 +114,28 @@ export function EventDetailPage() {
             <span className="rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
               {event.type}
             </span>
+          </div>
+        }
+        actions={
+          <div className="flex items-center gap-2">
+            {canEvaluate && (
+              <Button size="sm" onClick={() => navigate(`/sourcing/${event.id}/evaluation`)}>
+                <Award className="size-3.5" />
+                Evaluate &amp; award
+              </Button>
+            )}
+            {needsReapply && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-amber-300 text-amber-700 hover:bg-amber-50"
+                onClick={handleReapply}
+                disabled={applyAward.isPending}
+              >
+                <RotateCcw className="size-3.5" />
+                Re-apply award to request
+              </Button>
+            )}
           </div>
         }
       />

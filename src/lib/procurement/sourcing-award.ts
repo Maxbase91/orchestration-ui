@@ -78,8 +78,17 @@ export interface AwardCheck {
   reason?: string;
 }
 
-/** Event statuses from which an award is legitimate. */
-const AWARDABLE_EVENT_STATUSES = ['published', 'in-evaluation', 'award-pending'];
+/**
+ * Event statuses from which an award is legitimate — and therefore also the
+ * statuses worth showing in the Evaluation Centre, which is why this is
+ * exported rather than kept module-private: the picker and the award gate must
+ * not be able to disagree about which events are still live.
+ */
+export const EVALUATABLE_EVENT_STATUSES: readonly string[] = [
+  'published',
+  'in-evaluation',
+  'award-pending',
+];
 
 /**
  * Whether a specific response can be awarded on a specific event.
@@ -93,7 +102,7 @@ export function canAward(
   candidates: AwardCandidate[],
   responseId: string,
 ): AwardCheck {
-  if (!AWARDABLE_EVENT_STATUSES.includes(event.status)) {
+  if (!EVALUATABLE_EVENT_STATUSES.includes(event.status)) {
     return { allowed: false, blocker: 'event-not-live', reason: `Event is ${event.status}` };
   }
   if (event.awardedSupplierId) {

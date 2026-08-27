@@ -132,6 +132,135 @@ check('request inherits the winning supplier id', patch.supplierId === 'SUP-003'
 check('request inherits the winning supplier name', patch.supplierName === 'Bravo');
 check('write-back is idempotent', JSON.stringify(patch) === JSON.stringify(awardWriteBack(ranked[0])));
 
+// ── mirrors the award write sequence in sourcing-responses.awardResponse ────
+// Three tables, no transaction. The order matters: the irreversible flag lands
+// first, and everything after it must be replayable — which is what makes the
+// "Re-apply award to request" repair safe.
+function awardSequence(event, responses, responseId, store) {
+  const check = canAward(event, responses, responseId);
+  if (!check.allowed) return { ok: false, blocker: check.blocker };
+  const winner = responses.find((r) => r.id === responseId);
+
+  store.responses = store.responses.map((r) => (r.id === responseId ? { ...r, awarded: true } : r));
+  store.event = { ...event, status: 'completed', awardDate: '2026-08-27', awardedSupplierId: winner.supplierId };
+  if (event.requestId) applyAwardToRequest(event.requestId, winner, store);
+  return { ok: true };
+}
+
+function applyAwardToRequest(requestId, winner, store) {
+  store.request = { ...store.request, id: requestId, ...awardWriteBack(winner) };
+  store.stageHistory = [...store.stageHistory, { requestId, stage: 'sourcing', action: 'awarded' }];
+  store.advanced = [...store.advanced, { requestId, outcome: 'awarded' }];
+}
+
+const newStore = () => ({
+  responses: listResponsesForEvent('SRC-0002').map((r) => ({ ...r, awarded: false })),
+  event: null,
+  request: { id: 'REQ-2024-0015', supplierId: null, supplierName: null, status: 'sourcing' },
+  stageHistory: [],
+  advanced: [],
+});
+
+console.log('\nAward sequence');
+const liveEvent = { id: 'SRC-0002', status: 'published', requestId: 'REQ-2024-0015' };
+
+const blocked = newStore();
+const blockedResult = awardSequence(liveEvent, blocked.responses, 'r3', blocked);
+check('a blocked award writes nothing at all',
+  !blockedResult.ok &&
+  blocked.responses.every((r) => !r.awarded) &&
+  blocked.event === null &&
+  blocked.request.supplierId === null &&
+  blocked.stageHistory.length === 0);
+
+const store = newStore();
+check('awarding the ranked leader is allowed', awardSequence(liveEvent, store.responses, 'r2', store).ok);
+check('exactly one response is flagged awarded',
+  store.responses.filter((r) => r.awarded).length === 1);
+check('the flagged response is the winner', store.responses.find((r) => r.awarded).id === 'r2');
+check('the event is closed and stamped', store.event.status === 'completed' && store.event.awardedSupplierId === 'SUP-003');
+check('award_date is a DATE, not a timestamp', /^\d{4}-\d{2}-\d{2}$/.test(store.event.awardDate));
+check('the request inherits the winning supplier', store.request.supplierId === 'SUP-003');
+check('the stage timeline records the award', store.stageHistory.at(-1).action === 'awarded');
+check('the workflow is resumed with outcome "awarded"', store.advanced.at(-1).outcome === 'awarded');
+
+// A second award is refused twice over: the award closes the event, so the
+// status check fires first, and awardedSupplierId would refuse it even if the
+// event were somehow reopened. Both land before the partial unique index does.
+check('a second award on the same event is refused',
+  !canAward(store.event, store.responses, 'r1').allowed);
+check('the closed event is what refuses it first',
+  canAward(store.event, store.responses, 'r1').blocker === 'event-not-live');
+check('a reopened but already-awarded event is still refused',
+  canAward({ ...store.event, status: 'published' }, store.responses, 'r1').blocker === 'already-awarded');
+
+console.log('\nRe-apply repair (the write-back tail is idempotent)');
+const repaired = newStore();
+awardSequence(liveEvent, repaired.responses, 'r2', repaired);
+const afterFirst = JSON.stringify(repaired.request);
+applyAwardToRequest('REQ-2024-0015', repaired.responses.find((r) => r.awarded), repaired);
+check('re-applying leaves the same request patch', JSON.stringify(repaired.request) === afterFirst);
+check('re-applying does not re-flag or un-flag the award',
+  repaired.responses.filter((r) => r.awarded).length === 1);
+// A half-applied award is exactly the state the repair action detects.
+const halfApplied = { event: { awardedSupplierId: 'SUP-003' }, request: { supplierId: null } };
+const needsReapply = (e, r) => Boolean(e.awardedSupplierId && r && r.supplierId !== e.awardedSupplierId);
+check('a half-applied award is detected', needsReapply(halfApplied.event, halfApplied.request));
+check('a fully applied award is not flagged for repair',
+  !needsReapply({ awardedSupplierId: 'SUP-003' }, { supplierId: 'SUP-003' }));
+
+// ── mirrors nodeToStatus + the 'stage' branch of engine.executeNode ─────────
+// validation/approval/sourcing are NOT node types — they are stage nodes
+// discriminated by their label, which is why the label map matters as much as
+// the branch does.
+const LABEL_TO_STATUS = {
+  'intake': 'intake', 'validation': 'validation', 'approval': 'approval',
+  'sourcing': 'sourcing', 'sourcing (rfp)': 'sourcing', 'contracting': 'contracting',
+};
+const nodeToStatus = (label) => LABEL_TO_STATUS[label.toLowerCase().trim()] ?? label.toLowerCase().trim().replace(/\s+/g, '-');
+const executeStageNode = (label) => {
+  const status = nodeToStatus(label);
+  if (status === 'approval') return 'suspend';
+  if (status === 'sourcing') return 'suspend';
+  return 'continue';
+};
+
+console.log('\nSourcing stage gate');
+check('WF-001 "Sourcing" normalises to the sourcing status', nodeToStatus('Sourcing') === 'sourcing');
+check('WF-004 "Sourcing (RFP)" normalises to the same status',
+  nodeToStatus('Sourcing (RFP)') === 'sourcing');
+// Without the label-map entry this slugified to 'sourcing-(rfp)' — an invalid
+// request status that also slipped past the gate.
+check('the RFP label never produces a slugified status',
+  nodeToStatus('Sourcing (RFP)') !== 'sourcing-(rfp)');
+check('entering sourcing suspends the engine', executeStageNode('Sourcing') === 'suspend');
+check('entering sourcing (rfp) suspends the engine', executeStageNode('Sourcing (RFP)') === 'suspend');
+check('approval still suspends', executeStageNode('Approval') === 'suspend');
+check('validation still continues', executeStageNode('Validation') === 'continue');
+check('contracting still continues', executeStageNode('Contracting') === 'continue');
+// getNextNodeIds falls back to outgoing[0] when no edge label matches, and both
+// sourcing nodes have a single unlabelled outgoing edge — so 'awarded' resumes.
+const getNextNodeIds = (edges, outcome) => {
+  const outgoing = edges;
+  if (outgoing.length === 0) return [];
+  const matched = outgoing.find((e) => !e.label || e.label === outcome);
+  return [(matched ?? outgoing[0]).target];
+};
+check('an unlabelled sourcing edge resumes on the "awarded" outcome',
+  getNextNodeIds([{ source: 'n6', target: 'n7' }], 'awarded')[0] === 'n7');
+
+console.log('\nEvaluation persistence');
+// The stored weighted total is recomputed from the event's criteria rather than
+// trusted from the grid, so the two can never disagree.
+const saveScores = (scores, criteria) => ({ scores, weighted_total: calcWeightedTotal(scores, criteria) });
+const saved = saveScores({ c1: 5, c2: 3, c3: 4 }, CRITERIA);
+check('the saved total is derived from the criteria', saved.weighted_total === calcWeightedTotal(saved.scores, CRITERIA));
+check('a client-supplied total cannot override it', saveScores({ c1: 1, c2: 1, c3: 1 }, CRITERIA).weighted_total === 1);
+check('an event with no criteria stores a zero total, not NaN',
+  saveScores({ c1: 5 }, []).weighted_total === 0);
+check('a non-responder is never rankable however well scored',
+  !rankResponses([{ id: 'r4', supplierId: 'SUP-007', supplierName: 'Echo', status: 'not-viewed', shortlisted: true, weightedTotal: 5 }]).length);
+
 console.log('\nInvitation idempotency (UNIQUE event_id, supplier_id)');
 const key = (r) => `${r.eventId}:${r.supplierId}`;
 check('no duplicate invitation exists in the set',

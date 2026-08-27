@@ -48,6 +48,9 @@ const DETAIL_ROUTES = [
   '/contracts/CON-002',
   '/purchasing/orders/PO-006',
   '/sourcing/2ed9e6f4-71e1-4c9d-b5c7-13df98c40216',
+  // Event-scoped evaluation. The orphan event has no criteria and no responses,
+  // so this also covers the two empty states rather than only the happy path.
+  '/sourcing/2ed9e6f4-71e1-4c9d-b5c7-13df98c40216/evaluation',
 ];
 
 const findings = []; // { route, pageErrors:[], consoleErrors:[], whiteScreen:bool }

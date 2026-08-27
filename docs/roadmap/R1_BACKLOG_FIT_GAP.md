@@ -103,13 +103,29 @@ needs a server connector variant — WS-E).
 UX-01 component library 🟢; UX-02 journeys 🟡 (confirm from contextual inquiry, POL-10); DEC-7 env/rollback 🟡.
 **UX-04 switchable home designs 🟢** — the home (`/`) ships in 4 selectable designs (default Dashboard + three Apple-style layouts 1a/1b/1c), all **fully functional** (front door + quick actions + live KPIs + live demand pipeline), picked from a top-bar toggle and persisted per user (`features/dashboard/home-designs/`, `test:home-designs`). The dashboard is untouched.
 
-#### PLT — Sourcing/Award/Contract handoff — 🟡 Partial (scope boundary moved, deliberately)
+#### PLT — Sourcing/Award/Contract handoff — 🟢 Built (scope boundary moved, deliberately)
 
-Previously an R2 stub marked *out of R1 scope*. Sourcing execution now runs **inside the platform's
-own store**: an event is raised from a request, suppliers are invited from the directory, and they
-respond in the portal. This is not an upstream write — `sourcing_events`/`sourcing_responses` are
-the system of record — so ground rule 2 is intact, but it does move the "determination screen is the
-endpoint" line in ground rule 3. **Remaining:** evaluation, award and the write-back to the request.
+Previously an R2 stub marked *out of R1 scope*. Sourcing execution now runs end to end **inside the
+platform's own store**: an event is raised from a request, suppliers are invited from the directory,
+they respond in the portal, the buyer scores the responses against the event's weighted criteria,
+and the **award writes the winning supplier back onto the request** and closes the event. This is
+not an upstream write — `sourcing_events`/`sourcing_responses` are the system of record — so ground
+rule 2 is intact, but it does move the "determination screen is the endpoint" line in ground rule 3.
+
+**Two consequences worth recording explicitly**, because they change behaviour beyond one screen:
+
+1. **The sourcing stage now gates the workflow.** `workflow/engine.ts` suspends the instance on
+   entering `sourcing` (symmetric with the existing approval gate) and the award resumes it with
+   outcome `'awarded'`. Before this the engine walked straight through to contracting, so an event
+   raised at that stage could never be concluded. A request's only exits from `sourcing` are an
+   award or a cancellation — there is deliberately no "skip sourcing" action in R1.
+2. **The award write-back is not transactional.** It spans `sourcing_responses`, `sourcing_events`
+   and `requests` with no transaction, so it commits the irreversible flag first and keeps the tail
+   replayable; a half-applied award is detected on the event page and repaired by **Re-apply award
+   to request**. A serverless action beside `api/workflow-action` is the real fix and stays open.
+
+**Still out of scope:** no contract or PO is auto-created on award (the existing PO action covers
+the next step), and no outbound email — invitations are in-app plus a notification row.
 
 ### Cluster: Front Door
 
