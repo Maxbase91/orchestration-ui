@@ -35,6 +35,7 @@ interface StepCategoryProps {
     businessJustification?: string;
     /** The assistant's read of what kind of demand this is — see api/ai.ts. */
     llmIntent?: string;
+    supplierProvenance?: 'named' | 'chosen';
   }) => void;
   onAutoAdvance?: () => void;
   /** Jump straight to the catalogue — the one explicit alternative entry point. */
@@ -227,6 +228,9 @@ export function StepCategory({ prefill, onUpdate, onAutoAdvance, onBrowseCatalog
       if (matched) {
         updates.supplierId = matched.id;
         updates.supplier = matched.name;
+        // Extracted from the demand text, not chosen — the determination step
+        // presents it as a suggestion to confirm.
+        updates.supplierProvenance = 'named';
       }
     }
 

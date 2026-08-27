@@ -4,7 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAiAgent } from '@/lib/db/hooks/use-ai-agents';
 import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
 import { useContracts } from '@/lib/db/hooks/use-contracts';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/lib/format';
+import { SupplierAutocomplete } from './supplier-autocomplete';
 import { isPreferredSupplier } from '@/lib/procurement/supplier-preference';
 import type { Supplier } from '@/data/types';
 
@@ -12,6 +15,23 @@ interface Props {
   category: string;
   estimatedValue: number;
   selectedSupplierId?: string;
+  /** The supplier's name as captured, for the provenance line. */
+  selectedSupplierName?: string;
+  /**
+   * Where the current supplier came from — a name in the demand or the chat is a
+   * suggestion to confirm, not a decision the requester made.
+   */
+  supplierProvenance?: 'named' | 'chosen';
+  /**
+   * THE single place a supplier is chosen.
+   *
+   * Selection used to live in step-details while this card only *listed*
+   * recommendations with no way to act on them — so the requester picked in one
+   * place, was advised in another, and could not accept the advice. Choosing
+   * here is right because everything that should inform the choice (PSL status,
+   * screening, risk tier, master-data completeness) is computed on this step.
+   */
+  onSelect?: (supplier: Supplier) => void;
 }
 
 type SupplierOutcome = 'preferred' | 'recommend-existing' | 'onboard-new';
@@ -44,7 +64,10 @@ const RISK_WEIGHT: Record<string, number> = {
   low: 1.0, medium: 0.8, high: 0.5, critical: 0.0,
 };
 
-export function SupplierRecommenderCard({ category, estimatedValue, selectedSupplierId }: Props) {
+export function SupplierRecommenderCard({
+  category, estimatedValue, selectedSupplierId, selectedSupplierName,
+  supplierProvenance, onSelect,
+}: Props) {
   const { data: agent } = useAiAgent('AI-005');
   const { data: suppliers = [] } = useSuppliers();
   const { data: contracts = [] } = useContracts();
@@ -110,22 +133,53 @@ export function SupplierRecommenderCard({ category, estimatedValue, selectedSupp
     },
   };
 
-  if (!agent) return null;
+  // Do NOT bail when the agent is missing. This card is now the single place a
+  // supplier is chosen, so returning null on a missing or disabled AI-005 would
+  // leave the requester with no way to pick one at all. The recommendations are
+  // the part that depends on the agent; the selection is not.
+  if (!agent && !onSelect) return null;
 
   return (
     <Card>
       <CardHeader className="pb-3 flex flex-row items-center justify-between">
         <CardTitle className="text-sm flex items-center gap-2">
           <Sparkles className="size-4 text-[#2D5F8A]" />
-          Recommended Suppliers
+          Supplier
         </CardTitle>
         <span className="text-[11px] text-gray-400">
-          {active
-            ? `${agent.name} (AI-005) · accuracy ${agent.accuracy}%`
-            : `${agent.name} is ${agent.status}`}
+          {!agent
+            ? 'Recommender unavailable'
+            : active
+              ? `${agent.name} (AI-005) · accuracy ${agent.accuracy}%`
+              : `${agent.name} is ${agent.status}`}
         </span>
       </CardHeader>
       <CardContent>
+        {/* The single selection point. Earlier steps pre-fill it; a supplier
+            named in the demand or matched in the chat arrives here as a
+            suggestion to confirm, with its provenance stated, rather than as a
+            second decision the requester has already made somewhere else. */}
+        {onSelect && (
+          <div className="mb-4 space-y-1.5">
+            <p className="text-xs font-medium text-gray-700">Selected supplier</p>
+            <SupplierAutocomplete
+              value={selectedSupplierName ?? ''}
+              supplierId={selectedSupplierId ?? ''}
+              onSelect={onSelect}
+            />
+            {selectedSupplierId && supplierProvenance === 'named' && (
+              <p className="text-[11px] text-gray-500">
+                Taken from your request — confirm or change it here.
+              </p>
+            )}
+            {!selectedSupplierId && (
+              <p className="text-[11px] text-gray-500">
+                No supplier selected yet. Pick one, or leave it open to go out to market.
+              </p>
+            )}
+          </div>
+        )}
+
         {active && (() => {
           const cfg = outcomeCopy[outcome];
           const Icon = cfg.icon;
@@ -141,8 +195,9 @@ export function SupplierRecommenderCard({ category, estimatedValue, selectedSupp
         })()}
         {!active ? (
           <p className="text-sm text-gray-500">
-            Supplier recommender is {agent.status}. Enable it in Admin → AI Agents to see ranked
-            supplier suggestions for {category || 'the selected category'}.
+            {agent
+              ? `Supplier recommender is ${agent.status}. Enable it in Admin → AI Agents to see ranked supplier suggestions for ${category || 'the selected category'}.`
+              : 'Supplier recommender is not configured, so no ranked suggestions are shown. You can still select a supplier above.'}
           </p>
         ) : recommendations.length === 0 ? (
           <p className="text-sm text-gray-500">
@@ -153,7 +208,15 @@ export function SupplierRecommenderCard({ category, estimatedValue, selectedSupp
         ) : (
           <ul className="space-y-2">
             {recommendations.map(({ supplier, score }) => (
-              <li key={supplier.id} className="flex items-center justify-between rounded-md border border-gray-200 p-3">
+              <li
+                key={supplier.id}
+                className={cn(
+                  'flex items-center justify-between rounded-md border p-3',
+                  supplier.id === selectedSupplierId
+                    ? 'border-blue-300 bg-blue-50/50'
+                    : 'border-gray-200',
+                )}
+              >
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-gray-900 truncate">{supplier.name}</p>
                   <p className="text-xs text-gray-500">
@@ -176,6 +239,20 @@ export function SupplierRecommenderCard({ category, estimatedValue, selectedSupp
                   <span className="text-[11px] text-gray-400">
                     fit {(score * 100).toFixed(0)}%
                   </span>
+                  {/* A recommendation you cannot act on is not a recommendation.
+                      This card previously listed suppliers with no way to pick
+                      one, while selection lived two steps earlier. */}
+                  {onSelect && (
+                    supplier.id === selectedSupplierId ? (
+                      <span className="flex items-center gap-1 text-xs font-medium text-blue-700">
+                        <CheckCircle className="size-3.5" /> Selected
+                      </span>
+                    ) : (
+                      <Button size="sm" variant="outline" onClick={() => onSelect(supplier)}>
+                        Select
+                      </Button>
+                    )
+                  )}
                 </div>
               </li>
             ))}

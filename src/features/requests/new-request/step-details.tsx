@@ -5,9 +5,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AISuggestionCard } from '@/components/shared/ai-suggestion-card';
-import { SupplierAutocomplete } from './components/supplier-autocomplete';
 import { getAICommodityCode } from '@/lib/mock-ai';
-import type { Supplier } from '@/data/types';
 
 const COST_CENTRES = [
   { value: 'CC-1001', label: 'CC-1001 Marketing' },
@@ -79,10 +77,6 @@ export function StepDetails({ category, data, onUpdate }: StepDetailsProps) {
     return () => clearTimeout(timer);
   }, [commodityInput, commodityAccepted, category]);
 
-  const handleSupplierSelect = (supplier: Supplier) => {
-    onUpdate({ supplier: supplier.name, supplierId: supplier.id });
-  };
-
   const handleCommodityAccept = () => {
     if (commoditySuggestion) {
       onUpdate({
@@ -113,14 +107,23 @@ export function StepDetails({ category, data, onUpdate }: StepDetailsProps) {
         />
       </div>
 
-      {/* Supplier */}
+      {/* Supplier is NOT chosen here. It is chosen once, on the determination
+          step, where PSL status, screening, risk tier and master-data
+          completeness are all computed — this screen offered a bare directory
+          picker and the determination then showed recommendations the requester
+          could not act on. What is shown here is what has been captured so far. */}
       <div className="space-y-1.5">
         <Label>Supplier</Label>
-        <SupplierAutocomplete
-          value={data.supplier}
-          supplierId={data.supplierId}
-          onSelect={handleSupplierSelect}
-        />
+        <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2">
+          <p className="text-sm text-gray-800">
+            {data.supplier || 'Not identified yet'}
+          </p>
+          <p className="mt-0.5 text-xs text-gray-500">
+            {data.supplier
+              ? 'Confirm or change this at the determination step, where risk and screening are shown.'
+              : 'Suppliers are identified at the determination step, alongside risk and screening.'}
+          </p>
+        </div>
       </div>
 
       {/* Value + Currency */}

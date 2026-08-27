@@ -4,6 +4,9 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
 import { useServiceDescriptionTemplate } from '@/lib/db/hooks/use-service-description-templates';
@@ -44,6 +47,15 @@ interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
 }
+
+/** Mirrors the list on step-details, which this path never renders. */
+const COST_CENTRES = [
+  { value: 'CC-1001', label: 'CC-1001 Marketing' },
+  { value: 'CC-2001', label: 'CC-2001 IT' },
+  { value: 'CC-3001', label: 'CC-3001 Operations' },
+  { value: 'CC-4001', label: 'CC-4001 Finance' },
+  { value: 'CC-5001', label: 'CC-5001 HR' },
+];
 
 const WELCOME_MESSAGES: Record<string, string> = {
   goods: "I'll help you set up your purchase request. What do you need to buy? Please describe the items or equipment.",
@@ -313,6 +325,7 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
           if (matched) {
             updates.supplierId = matched.id;
             updates.supplier = matched.name;
+            updates.supplierProvenance = 'named';
           }
         }
         // Auto-derive commodity code from title/description
@@ -726,6 +739,52 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
                 <p className="text-xs text-gray-400 text-center py-4">Answer the assistant&apos;s questions — your service description builds automatically as the details come together.</p>
               )}
             </div>
+          {/* Currency, urgency and cost centre are commercial facts, not part of
+              the service description — so the conversation does not ask for
+              them. They were only ever collected on step-details, which this
+              path never renders, so on the chat path they were captured
+              nowhere at all. Three controls, shown once the description is
+              complete so they do not interrupt the conversation. */}
+          {isComplete && (
+            <div className="mt-3 space-y-3 rounded-md border border-gray-200 bg-white p-3">
+              <p className="text-xs font-semibold text-gray-700">Commercial details</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-[11px]">Currency</Label>
+                  <Select value={data.currency} onValueChange={(v) => onUpdate({ currency: v })}>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="EUR">EUR</SelectItem>
+                      <SelectItem value="USD">USD</SelectItem>
+                      <SelectItem value="GBP">GBP</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[11px]">Cost centre</Label>
+                  <Select value={data.costCentre} onValueChange={(v) => onUpdate({ costCentre: v })}>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select…" /></SelectTrigger>
+                    <SelectContent>
+                      {COST_CENTRES.map((c) => (
+                        <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="chat-urgent"
+                  checked={data.isUrgent}
+                  onCheckedChange={(v) => onUpdate({ isUrgent: v })}
+                />
+                <Label htmlFor="chat-urgent" className="cursor-pointer text-xs">
+                  Mark as urgent
+                </Label>
+              </div>
+            </div>
+          )}
+
           {isComplete && (
             <div className="rounded-md bg-green-50 border border-green-200 p-2 text-center mt-3">
               <CheckCircle className="size-4 text-green-600 mx-auto mb-0.5" />

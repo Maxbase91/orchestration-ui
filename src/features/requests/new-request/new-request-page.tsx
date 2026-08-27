@@ -63,6 +63,12 @@ interface RequestFormData {
   sowQualityChecks?: { section: string; passed: boolean; issue: string | null }[];
   sowRequiredSections?: string[];
   sowSignals?: Record<string, unknown>;
+  /**
+   * Whether the supplier was named upstream (extraction, chat match, contract
+   * call-off) or explicitly chosen at the determination. Drives whether the
+   * determination presents it as a suggestion to confirm or a settled choice.
+   */
+  supplierProvenance?: 'named' | 'chosen';
   // Step 3 (shifted)
   title: string;
   supplier: string;
@@ -716,6 +722,7 @@ export function NewRequestPage() {
                 contractTitle: contract.title,
                 supplier: contract.supplierName,
                 supplierId: contract.supplierId,
+                supplierProvenance: 'named',
                 category: formData.category || contract.category.toLowerCase(),
                 buyingChannelResult: 'framework-call-off',
               });
@@ -816,6 +823,14 @@ export function NewRequestPage() {
             phase={currentStep === 4 ? 'risk' : 'determination'}
             requiredSections={formData.sowRequiredSections}
             qualityScore={formData.sowQualityScore}
+            supplierProvenance={formData.supplierProvenance}
+            onSelectSupplier={(sup) =>
+              updateFormData({
+                supplier: sup.name,
+                supplierId: sup.id,
+                supplierProvenance: 'chosen',
+              })
+            }
             category={formData.category}
             estimatedValue={formData.estimatedValue}
             supplierId={formData.supplierId}

@@ -113,6 +113,10 @@ interface StepComplianceProps {
   requiredSections?: string[];
   /** From generation — carried into the export so the gate travels with it. */
   qualityScore?: number;
+  /** How the current supplier got here — a named one is a suggestion to confirm. */
+  supplierProvenance?: 'named' | 'chosen';
+  /** Choosing a supplier. This step is the only place it happens. */
+  onSelectSupplier?: (supplier: Supplier) => void;
   workflowTemplateId?: string;
   requestTitle?: string;
   /** Which half of the split step to render: the risk assessment or the determination. */
@@ -267,6 +271,8 @@ export function StepCompliance({
   serviceDescription,
   requiredSections = [],
   qualityScore,
+  supplierProvenance,
+  onSelectSupplier,
   workflowTemplateId,
   requestTitle,
   phase,
@@ -1025,12 +1031,18 @@ export function StepCompliance({
 
       </>)}
       {phase === 'determination' && (<>
-      <SectionHeader label="Recommended suppliers" />
-      {/* AI-005 Supplier Recommender */}
+      <SectionHeader label="Supplier" />
+      {/* THE single supplier surface. Selection used to live in step-details
+          while this card only listed recommendations with no way to act on
+          them. Everything that should inform the choice — PSL status, screening,
+          risk tier, master-data completeness — is computed on this step. */}
       <SupplierRecommenderCard
         category={category}
         estimatedValue={estimatedValue}
         selectedSupplierId={supplierId}
+        selectedSupplierName={supplier}
+        supplierProvenance={supplierProvenance}
+        onSelect={onSelectSupplier}
       />
 
       {/* The workflow is PRE-DEFINED from the input (derived by category in the
