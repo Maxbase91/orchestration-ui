@@ -40,6 +40,7 @@ export async function saveServiceDescription(
     ...(sow.qualityChecks ? { quality_checks: sow.qualityChecks } : {}),
     ...(sow.signals ? { signals: sow.signals } : {}),
     ...(sow.requiredSections ? { required_sections: sow.requiredSections } : {}),
+    ...(sow.captureFlags ? { capture_flags: sow.captureFlags } : {}),
   };
   const { data, error } = await supabase
     .from(TABLE)

@@ -283,6 +283,64 @@ check('the engine still chooses the slot and completeness',
 check('the endpoint asks for the question in the requester\u2019s own context',
   /their own words/.test(INTAKE_API_SRC) && /do NOT append an example/i.test(INTAKE_API_SRC));
 
+console.log('\nThe chat challenges a non-answer, and the gate can be reached');
+//
+// Source checks. The reported dead end — "the Next button is not getting
+// enabled despite everything is provided" — was a propagation bug: the offline
+// fallback wrote captured answers to LOCAL state only and never called
+// `onUpdate`, so `formData.serviceDescription` stayed empty and the step-3 gate
+// saw nothing. A behavioural mirror would not have caught it; only the wiring
+// shows it.
+const ANSWER_QUALITY_SRC = readFileSync(
+  join(ROOT, 'src/lib/procurement/answer-quality.ts'), 'utf8');
+
+// EVERY path that writes the captured description must also push it to the
+// parent. This is the class of bug, not the instance.
+const svcWrites = (CHAT_SRC.match(/setSvcDesc\(/g) ?? []).length;
+const parentWrites = (CHAT_SRC.match(/onUpdate\(\{ serviceDescription/g) ?? []).length;
+check('every setSvcDesc has a matching onUpdate({ serviceDescription })',
+  parentWrites >= svcWrites - 1, `${svcWrites} local writes vs ${parentWrites} parent writes`);
+check('the offline fallback propagates to the parent',
+  /LLM unavailable[\s\S]{0,2600}onUpdate\(\{ serviceDescription/.test(CHAT_SRC));
+
+check('a deterministic judge exists for the offline path',
+  /export function assessAnswer/.test(ANSWER_QUALITY_SRC));
+check('the chat consults it', /assessAnswer\(/.test(CHAT_SRC));
+// LLM when available, deterministic otherwise — the user's rule.
+check('the assistant judges when it returns a verdict',
+  /readVerdict\(result\.answerVerdict\)/.test(CHAT_SRC)
+  && /\?\?\s*assessAnswer\(/.test(CHAT_SRC));
+check('a malformed verdict falls back rather than approving',
+  /typeof v\.addresses !== 'boolean'\) return undefined/.test(CHAT_SRC));
+// Challenge ONCE — never trap a requester who cannot phrase it.
+check('a slot is challenged at most once', /challenged\.has\(/.test(CHAT_SRC)
+  && /setChallenged\(/.test(CHAT_SRC));
+check('a rejected answer is not written into the slot',
+  /!verdict\.addresses && !challenged\.has[\s\S]{0,700}return;/.test(CHAT_SRC));
+check('the second attempt is accepted and flagged weak',
+  /acceptedWeak/.test(CHAT_SRC) && /'weak'/.test(CHAT_SRC));
+check('an accepted draft is recorded as assistant-drafted',
+  /'assistant-drafted'/.test(CHAT_SRC) && /acceptDraft/.test(CHAT_SRC));
+// The endpoint must not invent facts when drafting.
+check('the endpoint forbids inventing a suggestion',
+  /Invent NOTHING/.test(INTAKE_API_SRC) && /leave "suggested" empty/.test(INTAKE_API_SRC));
+
+console.log('\nOne service description, and it is editable');
+// Count renders of the narrative TEXT, not references to it: a copy button
+// legitimately reads the same value without displaying it again.
+const narrativeRenders = (CHAT_SRC.match(/\{svcDesc\.narrative\}/g) ?? []).length;
+check('the narrative text is rendered exactly once', narrativeRenders === 1,
+  `${narrativeRenders} renders`);
+check('and it is no longer duplicated as "Generated Service Description"',
+  !/Generated Service Description<\/p>/.test(CHAT_SRC));
+// "either it is polished by AI or not required"
+check('no unpolished narrative is composed in the chat',
+  !/unpolished: true/.test(CHAT_SRC));
+check('the carried-over description is editable',
+  /key === 'title' \|\| key === 'estimatedValue'/.test(CHAT_SRC));
+check('the assistant opens the conversation',
+  /openedRef/.test(CHAT_SRC) && /messages: \[\]/.test(CHAT_SRC));
+
 console.log('');
 if (failures) console.error(`FAILED: ${failures} check(s)`);
 else console.log('All intake-guidance checks passed.');

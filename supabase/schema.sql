@@ -1132,6 +1132,18 @@ ALTER TABLE service_descriptions
   ADD COLUMN IF NOT EXISTS signals jsonb,
   ADD COLUMN IF NOT EXISTS required_sections text[] NOT NULL DEFAULT '{}';
 
+-- ── How each section was captured ───────────────────────────────────────────
+-- The intake chat had no validation: whatever the requester typed went into the
+-- slot, so "bla" could become the objective of a EUR 500k engagement and the
+-- risk assessment, the sourcing event and the contract request all read it.
+-- The assistant now challenges a non-answer once and offers a drafted
+-- alternative; `capture_flags` records, per section, whether the requester
+-- wrote it (`answered`), accepted the assistant's draft (`assistant-drafted`),
+-- or answered thinly and was let through anyway (`weak`). Never a hard block —
+-- but never invisible either.
+ALTER TABLE service_descriptions
+  ADD COLUMN IF NOT EXISTS capture_flags jsonb;
+
 -- ── Prospective suppliers (S5) ──────────────────────────────────────────────
 -- Vendor onboarding is triggered by "a NEW supplier was selected", and that was
 -- inexpressible: the intake picker only offered the directory, so a requester

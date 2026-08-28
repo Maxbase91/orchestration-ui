@@ -45,6 +45,7 @@
     "test:residual-questions": "node tests/integration/residual-questions.mjs",
     "test:demand-conversation": "node tests/integration/demand-conversation.mjs",
     "test:intake-guidance": "node tests/integration/intake-guidance.mjs",
+    "test:answer-quality": "node tests/integration/answer-quality.mjs",
     "test:assistant-intents": "node tests/integration/assistant-intents.mjs",
     "test:operational-risk": "node tests/integration/operational-risk.mjs",
     "test:classification-eval": "node tests/integration/classification-eval.mjs",

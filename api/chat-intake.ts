@@ -36,10 +36,26 @@ Respond with ONLY JSON:
   "extracted": { "title": "...", "supplier": "...", "estimatedValue": 0, "deliveryDate": "...", "businessJustification": "...", "isUrgent": false },
   "serviceDescription": { "objective": "...", "scope": "...", "deliverables": "...", "timeline": "...", "resources": "...", "acceptanceCriteria": "...", "pricingModel": "...", "location": "...", "dependencies": "...", "narrative": "..." },
   "nextQuestion": "Your phrasing of the single next question below",
+  "answerVerdict": { "addresses": true, "reason": "", "suggested": "" },
   "complete": false,
   "summary": "One-line summary"
 }
-Only include fields you have actually extracted.`;
+Only include fields you have actually extracted.
+
+## JUDGING THE ANSWER
+"answerVerdict" is about the user's LAST message, against the question you asked before it.
+- addresses=true when it is a genuine attempt at that question, however brief or imperfect. Do not
+  demand polish. Only their content matters, not their grammar.
+- addresses=false when it is placeholder or filler ("bla", "tbd", "asdf"), unreadable, a repeat of
+  the question, or fluent text about something other than what was asked.
+- When addresses=false, and ONLY then, put a drafted answer in "suggested" — one or two sentences
+  the user can accept as their answer, written in their voice, in the third person.
+  "suggested" MUST be derivable from what they have actually told you: the category, the title, the
+  value, and their earlier answers. Invent NOTHING — no supplier, no date, no number, no scope they
+  never mentioned. If you cannot draft something grounded in what they said, leave "suggested" empty.
+- "reason" is one short clause naming what is missing, addressed to the user.
+- When the user has NOT yet answered anything (your first message), set addresses=true.
+- Do NOT put the extracted value of a rejected answer into "serviceDescription" or "extracted".`;
 
 /** Build the engine context from the running "data collected so far". */
 function contextFrom(category: string, soFar: Record<string, unknown>): DemandConversationContext {

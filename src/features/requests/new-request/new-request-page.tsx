@@ -40,6 +40,18 @@ import { RequesterContextBlock } from './components/requester-context-block';
 import type { Contract } from '@/data/types';
 import type { CatalogueItem } from '@/data/catalogue-items';
 
+/**
+ * How a section came to be filled.
+ *
+ * `answered` — the requester wrote it and it addressed the question.
+ * `assistant-drafted` — they accepted a draft the assistant proposed after a
+ *   challenge, so the words are the assistant's and they approved them.
+ * `weak` — challenged once, answered again with something thin, and accepted
+ *   anyway. Never a hard block, but never invisible either: a reviewer sees
+ *   which parts of a description nobody really wrote.
+ */
+export type SectionCapture = 'answered' | 'assistant-drafted' | 'weak';
+
 export interface ServiceDescription {
   objective: string;
   scope: string;
@@ -51,7 +63,12 @@ export interface ServiceDescription {
   location: string;
   dependencies: string;
   narrative: string; // Full narrative summary
+  /** Per-section provenance — see SectionCapture. Absent for older records. */
+  captureFlags?: Partial<Record<string, SectionCapture>>;
 }
+
+/** The text-bearing members — everything except the provenance map. */
+export type ServiceDescriptionSectionKey = Exclude<keyof ServiceDescription, 'captureFlags'>;
 
 interface RequestFormData {
   // Step 1

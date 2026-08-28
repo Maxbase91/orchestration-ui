@@ -10,11 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { cn } from '@/lib/utils';
 import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
 import { useServiceDescriptionTemplate } from '@/lib/db/hooks/use-service-description-templates';
-import { composeNarrativeFromSections } from '@/lib/procurement/service-description-config';
 import { computeDemandSignals } from '@/lib/procurement/demand-signals';
 import type { DemandSlot } from '@/lib/procurement/demand-conversation';
 import { getAICommodityCode } from '@/lib/mock-ai';
 import { formatCurrency } from '@/lib/format';
+import { assessAnswer, type AnswerVerdict } from '@/lib/procurement/answer-quality';
 import {
   applicableSlots,
   conversationProgress,
@@ -26,7 +26,11 @@ import {
 } from '@/lib/procurement/demand-conversation';
 import { DEFAULT_SECTIONS } from '@/lib/procurement/service-description-defaults';
 import { UrgencyChannelNote } from './components/urgency-channel-note';
-import type { ServiceDescription } from './new-request-page';
+import type {
+  ServiceDescription,
+  ServiceDescriptionSectionKey,
+  SectionCapture,
+} from './new-request-page';
 
 interface StepChatIntakeProps {
   category: string;
@@ -66,6 +70,12 @@ interface ChatMessage {
    * described, a generic example adds nothing and is left off.
    */
   example?: string;
+  /**
+   * A drafted answer offered after a challenge, which the requester can accept
+   * as their own. Present only on a challenge message, and only when the
+   * assistant could ground a draft in what they had already said.
+   */
+  draft?: { slotId: string; text: string };
 }
 
 /** Mirrors the list on step-details, which this path never renders. */
@@ -138,7 +148,6 @@ function localFallbackResponse(
   data: StepChatIntakeProps['data'],
   svcDesc: Partial<ServiceDescription>,
   slots: DemandSlot[],
-  narrativeSections: string[],
 ): {
   extracted: Record<string, unknown>;
   sow: Partial<ServiceDescription>;
@@ -179,18 +188,17 @@ function localFallbackResponse(
   const complete = isConversationComplete(ctx, undefined, slots);
 
   if (complete) {
-    // One composer, driven by the template's section order. This was the third
-    // hand-rolled join in the codebase — the API's took six-plus fields, this
-    // one took four, and a docstring claimed they were in step. `unpolished`
-    // marks it as the offline draft it is, rather than passing it off as the
-    // generated document.
-    const narrative = composeNarrativeFromSections(
-      nextSow as Record<string, string>,
-      narrativeSections,
-      { title: nextData.title, category, value: nextData.estimatedValue, unpolished: true },
-    );
-    sowUpdate.narrative = narrative;
-    extracted.businessJustification = narrative;
+    // NO narrative offline.
+    //
+    // This used to join the raw answers with a "drafted without AI polishing"
+    // disclaimer and present the result as the service description — which,
+    // when the answers were short, rendered as a bare list of them. A service
+    // description is either written by the assistant or it does not exist yet;
+    // an unpolished join is not a third thing worth showing.
+    //
+    // The captured sections are the real content and are all displayed. The
+    // narrative and the business justification are written when generation
+    // runs, which is also where the quality score comes from.
     return { extracted, sow: sowUpdate, nextQuestion: buildCompletionMessage(ctx, slots), complete: true };
   }
 
@@ -231,6 +239,37 @@ function buildCompletionMessage(
     '',
     'Your service description is written from these answers and carried forward: the risk assessment, the determination and any sourcing event all read it, so you will not be asked for this again. Click Next to continue.',
   ].join('\n');
+}
+
+/**
+ * The assistant's verdict on the last answer, when it returned a usable one.
+ *
+ * Returns undefined — meaning "no verdict, fall back to the deterministic
+ * judge" — for anything malformed, so a model that omits the field or returns
+ * the wrong shape degrades to the offline behaviour instead of silently
+ * approving everything.
+ */
+function readVerdict(raw: unknown): AnswerVerdict | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const v = raw as { addresses?: unknown; reason?: unknown };
+  if (typeof v.addresses !== 'boolean') return undefined;
+  return {
+    addresses: v.addresses,
+    reason: typeof v.reason === 'string' && v.reason.trim() ? v.reason.trim() : undefined,
+  };
+}
+
+/**
+ * What the assistant says when it pushes back.
+ *
+ * Names the gap, then either offers the draft or re-asks. Deliberately short
+ * and non-scolding: the requester is doing their job, not taking a test.
+ */
+function buildChallenge(reason: string | undefined, slot: DemandSlot, suggested: string): string {
+  const gap = reason ?? 'that does not tell me enough';
+  return suggested
+    ? `Sorry — ${gap}. Based on what you've told me so far, I'd put it like this:\n\n“${suggested}”\n\nUse that, or write your own?`
+    : `Sorry — ${gap}. ${slot.prompt}`;
 }
 
 /**
@@ -283,12 +322,6 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
   // behaves exactly as the hardcoded slot set did.
   const { data: sdTemplate } = useServiceDescriptionTemplate(category);
   const slots = useMemo(() => resolveSlots(sdTemplate?.slots), [sdTemplate]);
-  // Memoised: `?? []` allocates a fresh array each render, which would make the
-  // send callback's dependency check thrash.
-  const narrativeSections = useMemo(
-    () => sdTemplate?.narrativeSections ?? [],
-    [sdTemplate],
-  );
   // The welcome message is computed once, at mount, before the template has
   // resolved — so it uses the built-in set. That is correct rather than a bug:
   // re-greeting the requester when the template arrives would restart the
@@ -302,6 +335,16 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
   const [summary, setSummary] = useState('');
   const [error, setError] = useState(false);
   const [svcDesc, setSvcDesc] = useState<Partial<ServiceDescription>>({});
+  /**
+   * Slots already challenged once.
+   *
+   * The rule the user asked for: push back ONCE, offer a drafted answer, and
+   * then take what you are given. A requester who cannot articulate a scope
+   * must never be trapped in a loop arguing with a validator — the second
+   * answer is accepted and flagged instead, so the thinness is visible
+   * downstream rather than blocking the request.
+   */
+  const [challenged, setChallenged] = useState<Set<string>>(() => new Set());
   const [generating, setGenerating] = useState(false);
   const [qualityScore, setQualityScore] = useState<number | null>(null);
   const [qualityChecks, setQualityChecks] = useState<{ section: string; passed: boolean; issue: string | null }[]>([]);
@@ -317,6 +360,61 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
   // Focus input on mount
   useEffect(() => {
     inputRef.current?.focus();
+  }, []);
+
+  /**
+   * Let the assistant open the conversation.
+   *
+   * The greeting above is composed deterministically at mount so the panel is
+   * never blank — but it is a template, which is what made the chat feel
+   * scripted from the very first line. This replaces it, once, with an opening
+   * written against what step 1 actually captured.
+   *
+   * Runs at most once (`openedRef`), never re-greets when the template resolves
+   * later, and silently keeps the deterministic greeting if the call fails —
+   * which is what happens with no LLM configured.
+   */
+  const openedRef = useRef(false);
+  useEffect(() => {
+    if (openedRef.current) return;
+    openedRef.current = true;
+    let cancelled = false;
+
+    (async () => {
+      setIsTyping(true);
+      try {
+        const res = await fetch('/api/chat-intake', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: [],
+            category,
+            extractedSoFar: {
+              title: data.title || undefined,
+              supplier: data.supplier || undefined,
+              estimatedValue: data.estimatedValue || undefined,
+              deliveryDate: data.deliveryDate || undefined,
+            },
+          }),
+        });
+        if (!res.ok) throw new Error('API error');
+        const result = await res.json();
+        const opening = usableQuestion(result.nextQuestion);
+        // Only replace the greeting if the requester has not already started
+        // typing into the conversation.
+        if (opening && !cancelled) {
+          setMessages((prev) => (prev.length === 1 ? [{ role: 'assistant', content: opening }] : prev));
+        }
+      } catch {
+        // Keep the deterministic greeting — see the docstring.
+      } finally {
+        if (!cancelled) setIsTyping(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
+    // Mount-only: re-running would restart the conversation under the requester.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Progress against the questions THIS demand is actually asked.
@@ -384,6 +482,43 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
 
       const result = await response.json();
 
+      // ── Does the answer address the question? ────────────────────────────
+      //
+      // The assistant judges when it is available — it is the only thing that
+      // can tell a fluent but off-topic reply from a real one. Offline the
+      // deterministic floor judges instead, so the offline path is not a free
+      // pass for "bla".
+      //
+      // A failing answer is NOT written into the slot: the engine still has
+      // that slot on the agenda, so the requester is asked again rather than
+      // moved on with junk recorded. But only once — see `challenged`.
+      const askedSlot = determineNextQuestion(
+        buildContext(category, data, svcDesc), undefined, slots,
+      )?.slot;
+      const verdict = readVerdict(result.answerVerdict)
+        ?? assessAnswer(text, askedSlot);
+
+      if (askedSlot && !verdict.addresses && !challenged.has(askedSlot.id)) {
+        setChallenged((prev) => new Set(prev).add(askedSlot.id));
+        const suggested = typeof result.answerVerdict?.suggested === 'string'
+          ? result.answerVerdict.suggested.trim()
+          : '';
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'assistant',
+            content: buildChallenge(verdict.reason, askedSlot, suggested),
+            ...(suggested ? { draft: { slotId: askedSlot.id, text: suggested } } : {}),
+          },
+        ]);
+        setIsTyping(false);
+        return;
+      }
+
+      // Second time round: take what was given, and record that it is thin so a
+      // reviewer can see it. Never a hard block.
+      const acceptedWeak = Boolean(askedSlot && !verdict.addresses);
+
       // Merge extracted request fields (LLM does the extraction).
       const updates: Record<string, unknown> = {};
       if (result.extracted) {
@@ -420,9 +555,15 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
       if (result.serviceDescription) {
         const merged: Partial<ServiceDescription> = { ...svcDesc };
         for (const [key, value] of Object.entries(result.serviceDescription)) {
+          // `captureFlags` is provenance this component owns; a model returning
+          // that key must not be able to overwrite it with prose.
+          if (key === 'captureFlags') continue;
           if (value && typeof value === 'string' && value.trim()) {
-            merged[key as keyof ServiceDescription] = value as string;
+            merged[key as ServiceDescriptionSectionKey] = value;
           }
+        }
+        if (acceptedWeak && askedSlot?.target.kind === 'sow') {
+          merged.captureFlags = { ...merged.captureFlags, [askedSlot.target.field]: 'weak' };
         }
         mergedSow = merged;
         setSvcDesc(merged);
@@ -480,13 +621,47 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
     } catch {
       // LLM unavailable — the engine still drives the same adaptive, carry-
       // forward flow (mandatory SOW preserved) using a lightweight extraction.
-      const fallback = localFallbackResponse(text, category, data, svcDesc, slots, narrativeSections);
+      //
+      // The deterministic judge applies here too, with the same challenge-once
+      // rule. There is no drafted recommendation offline: a suggestion has to be
+      // grounded in what the requester said, and nothing here can write one, so
+      // the challenge names the gap and re-asks instead of inventing prose.
+      const offlineSlot = determineNextQuestion(
+        buildContext(category, data, svcDesc), undefined, slots,
+      )?.slot;
+      const offlineVerdict = assessAnswer(text, offlineSlot);
+      if (offlineSlot && !offlineVerdict.addresses && !challenged.has(offlineSlot.id)) {
+        setChallenged((prev) => new Set(prev).add(offlineSlot.id));
+        setMessages((prev) => [
+          ...prev,
+          { role: 'assistant', content: buildChallenge(offlineVerdict.reason, offlineSlot, '') },
+        ]);
+        setIsTyping(false);
+        return;
+      }
+      const offlineWeak = Boolean(offlineSlot && !offlineVerdict.addresses);
+
+      const fallback = localFallbackResponse(text, category, data, svcDesc, slots);
 
       if (Object.keys(fallback.extracted).length > 0) {
         onUpdate(fallback.extracted);
       }
       if (Object.keys(fallback.sow).length > 0) {
-        setSvcDesc((prev) => ({ ...prev, ...fallback.sow }));
+        // BOTH, always: local state renders the panel, `onUpdate` is what the
+        // step-3 gate reads. This branch used to set only the local copy, so on
+        // the offline path every answer showed in the panel while
+        // `formData.serviceDescription` stayed empty — the gate saw nothing
+        // captured and **Next could never enable**. The LLM path and
+        // `handleSowEdit` had always done both; this one was the odd one out.
+        const merged: Partial<ServiceDescription> = { ...svcDesc, ...fallback.sow };
+        if (offlineWeak && offlineSlot?.target.kind === 'sow') {
+          merged.captureFlags = {
+            ...merged.captureFlags,
+            [offlineSlot.target.field]: 'weak' as SectionCapture,
+          };
+        }
+        setSvcDesc(merged);
+        onUpdate({ serviceDescription: merged });
       }
 
       setMessages((prev) => [
@@ -506,7 +681,7 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
     } finally {
       setIsTyping(false);
     }
-  }, [inputValue, isTyping, messages, category, data, svcDesc, onUpdate, suppliers, slots, narrativeSections]);
+  }, [inputValue, isTyping, messages, category, data, svcDesc, onUpdate, suppliers, slots, challenged]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -544,8 +719,13 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
           // tell a material, competitively-sourced engagement from a stationery
           // order, and wrote the same document for both.
           signals,
+          // Only the captured text — `captureFlags` is provenance, not an answer,
+          // and must not be sent to the generator as if it were one.
           capturedAnswers: Object.fromEntries(
-            Object.entries(svcDesc).filter(([, v]) => v?.trim()),
+            Object.entries(svcDesc).filter(
+              (entry): entry is [string, string] =>
+                typeof entry[1] === 'string' && entry[1].trim().length > 0,
+            ),
           ),
           commodityCode: data.commodityCode,
         }),
@@ -598,6 +778,47 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
     }
   }, [isComplete, generateServiceDescription]);
 
+  /**
+   * Accept a drafted answer as the requester's own.
+   *
+   * The words are the assistant's and the requester approved them, so the
+   * section is flagged `assistant-drafted` — not passed off as something they
+   * wrote. Fills the slot and lets the engine move on to the next question.
+   */
+  const acceptDraft = useCallback((slotId: string, textValue: string) => {
+    const slot = slots.find((s) => s.id === slotId);
+    if (!slot) return;
+
+    if (slot.target.kind === 'sow') {
+      const merged: Partial<ServiceDescription> = {
+        ...svcDesc,
+        [slot.target.field]: textValue,
+        captureFlags: { ...svcDesc.captureFlags, [slot.target.field]: 'assistant-drafted' as SectionCapture },
+      };
+      setSvcDesc(merged);
+      onUpdate({ serviceDescription: merged });
+    } else {
+      onUpdate({ [slot.target.field]: textValue });
+    }
+
+    const nextCtx = buildContext(
+      category,
+      slot.target.kind === 'request'
+        ? { ...data, [slot.target.field]: textValue }
+        : data,
+      slot.target.kind === 'sow' ? { ...svcDesc, [slot.target.field]: textValue } : svcDesc,
+    );
+    const next = determineNextQuestion(nextCtx, undefined, slots);
+    setMessages((prev) => [
+      ...prev,
+      { role: 'user', content: textValue },
+      ...(next
+        ? [{ role: 'assistant' as const, content: next.prompt, why: next.slot.why, example: next.example }]
+        : [{ role: 'assistant' as const, content: buildCompletionMessage(nextCtx, slots) }]),
+    ]);
+    if (!next) setIsComplete(true);
+  }, [slots, svcDesc, onUpdate, category, data]);
+
   const handleSowEdit = useCallback((key: string, value: string) => {
     const updated = { ...svcDesc, [key]: value };
     setSvcDesc(updated);
@@ -648,6 +869,28 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
                     {msg.example}
                   </p>
                 )}
+                {/* A drafted answer the requester can adopt. Accepting records
+                    it as assistant-drafted rather than as something they
+                    wrote; "I'll write it" just returns them to the input. */}
+                {msg.draft && (
+                  <div className="mt-2 flex gap-2">
+                    <Button
+                      size="sm"
+                      className="h-7 text-[11px]"
+                      onClick={() => acceptDraft(msg.draft!.slotId, msg.draft!.text)}
+                    >
+                      Use this
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 text-[11px]"
+                      onClick={() => inputRef.current?.focus()}
+                    >
+                      I&apos;ll write it
+                    </Button>
+                  </div>
+                )}
                 {/* Present only on conditional questions — the ones that appear
                     for some demands and not others, and so read as arbitrary
                     without a reason. The mandatory six carry none. */}
@@ -688,21 +931,11 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
                 </div>
               </div>
 
-              {/* Show generated narrative if available */}
-              {svcDesc.narrative && (
-                <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-4 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <FileText className="size-4 text-[#2D5F8A]" />
-                      <p className="text-xs font-semibold text-gray-700">Generated Service Description</p>
-                    </div>
-                    <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={() => { navigator.clipboard.writeText(svcDesc.narrative ?? ''); toast.success('Copied to clipboard'); }}>
-                      <Copy className="size-3" />Copy
-                    </Button>
-                  </div>
-                  <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{svcDesc.narrative}</p>
-                </div>
-              )}
+              {/* The narrative itself is NOT repeated here. It used to be
+                  rendered twice from the same `svcDesc.narrative` — "Generated
+                  Service Description" in this column and "Narrative Summary" in
+                  the panel — the same text under two names. It lives in the
+                  panel, beside the sections it is composed from. */}
             </div>
           )}
 
@@ -756,12 +989,32 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
                 {FIELD_LABELS.map(({ key, label }) => {
                   const value = getFieldValue(key);
                   const filled = !!value;
+                  // The description and the value carried over from step 1 are
+                  // EDITABLE here. They used to be rendered read-only, so the
+                  // one-line demand the requester typed at step 1 became a fixed
+                  // header they could not correct without going back — the
+                  // sections beside them have always been editable.
+                  const editable = key === 'title' || key === 'estimatedValue';
                   return (
                     <div key={key} className="flex items-start gap-2">
                       {filled ? <CheckCircle className="size-3.5 text-green-500 mt-0.5 shrink-0" /> : <Circle className="size-3.5 text-gray-300 mt-0.5 shrink-0" />}
                       <div className="min-w-0 flex-1">
                         <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wider">{label}</p>
-                        <p className={cn('text-xs truncate', filled ? 'text-gray-900' : 'text-gray-300 italic')}>{filled ? value : 'Pending...'}</p>
+                        {editable ? (
+                          <input
+                            className="w-full rounded border border-transparent bg-transparent px-1 py-0.5 text-xs text-gray-900 transition-colors hover:border-gray-200 focus:border-[#2D5F8A] focus:bg-white focus:outline-none"
+                            value={key === 'estimatedValue' ? (data.estimatedValue || '') : data.title}
+                            placeholder={key === 'estimatedValue' ? 'Estimated value' : 'Describe what you need'}
+                            inputMode={key === 'estimatedValue' ? 'numeric' : undefined}
+                            onChange={(e) => onUpdate(
+                              key === 'estimatedValue'
+                                ? { estimatedValue: Number(e.target.value.replace(/[^\d.]/g, '')) || 0 }
+                                : { title: e.target.value },
+                            )}
+                          />
+                        ) : (
+                          <p className={cn('text-xs truncate', filled ? 'text-gray-900' : 'text-gray-300 italic')}>{filled ? value : 'Pending...'}</p>
+                        )}
                       </div>
                     </div>
                   );
@@ -842,7 +1095,11 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
                   the model writes it — so it is shown as such rather than as an
                   outstanding item the requester is waiting to be asked about. */}
               {sections.map(({ id, label, asked }) => {
-                const value = svcDesc[id as keyof ServiceDescription];
+                // Section values are strings; `captureFlags` is the one non-string
+                // member of the type, and is never a section id.
+                const raw = svcDesc[id as keyof ServiceDescription];
+                const value = typeof raw === 'string' ? raw : '';
+                const capture = svcDesc.captureFlags?.[id];
                 return (
                   <div key={id}>
                     <div className="flex items-center gap-1.5">
@@ -852,6 +1109,14 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">{label}</p>
                       {!asked && (
                         <span className="text-[9px] uppercase tracking-wider text-blue-400">inferred</span>
+                      )}
+                      {/* Provenance, so a reviewer can see which parts of the
+                          description the requester did not really write. */}
+                      {capture === 'assistant-drafted' && (
+                        <span className="text-[9px] uppercase tracking-wider text-blue-400">drafted for you</span>
+                      )}
+                      {capture === 'weak' && (
+                        <span className="text-[9px] uppercase tracking-wider text-amber-500">needs detail</span>
                       )}
                     </div>
                     {value ? (
@@ -870,10 +1135,13 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
                 );
               })}
 
-              {/* Narrative Summary */}
+              {/* The service description. One surface, here, beside the sections
+                  it composes. Present only when it has actually been written —
+                  offline nothing composes it, and a join of the raw answers is
+                  not a service description. */}
               {svcDesc.narrative && (
                 <div className="mt-3 pt-3 border-t border-gray-100">
-                  <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">Narrative Summary</p>
+                  <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">Service description</p>
                   <div className="rounded-md bg-gray-50 border border-gray-200 p-3">
                     <p className="text-[11px] text-gray-700 leading-relaxed whitespace-pre-wrap">{svcDesc.narrative}</p>
                   </div>
