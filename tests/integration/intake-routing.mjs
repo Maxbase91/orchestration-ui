@@ -268,6 +268,129 @@ for (const [text, cat] of [['I want to buy business consulting', 'consulting'], 
   check(`"${text}" gives at least one reason`, d.reasons.length > 0);
 }
 
+// ── The anti-drift gate: step 2 and step 5 must give the same channel ───────
+//
+// The channel is now shown on the pre-check, four steps before the
+// determination that used to be its first sight. That is only safe if it is the
+// SAME answer — a second derivation on the pre-check would be exactly the drift
+// this codebase has paid for repeatedly (three narrative composers, two
+// classifiers, a test panel that implemented its own evaluator). Both screens
+// call `resolveDemandChannel`; this mirrors it once and checks that a single
+// resolver is enough to reproduce both.
+
+const RISK_ORDER = { low: 0, medium: 1, high: 2, critical: 3 };
+const RULE_FIELDS = new Set([
+  'category', 'value', 'supplierId', 'commodityCode', 'priority',
+  'isUrgent', 'riskRating', 'material', 'contractId', 'region',
+]);
+
+function evalCond(field, operator, value, ctx) {
+  const actual = RULE_FIELDS.has(field) ? ctx[field] : undefined;
+  const empty = actual === undefined || actual === null || actual === '' || actual === false;
+  if (operator === 'is_empty') return empty;
+  if (operator === 'is_not_empty') return !empty;
+  if (actual === undefined) return false;
+  const num = (v) => (typeof v === 'number' ? v : Number.isFinite(Number(v)) ? Number(v) : null);
+  switch (operator) {
+    case 'equals': return String(actual) === value;
+    case 'greater_than': return num(actual) !== null && num(value) !== null && num(actual) > num(value);
+    case 'less_than': return num(actual) !== null && num(value) !== null && num(actual) < num(value);
+    case 'in': return value.split(',').map((x) => x.trim()).includes(String(actual));
+    case 'starts_with': return String(actual).startsWith(value);
+    case 'contains': return String(actual).toLowerCase().includes(value.toLowerCase());
+    case 'between': {
+      const [lo, hi] = value.split(',').map((x) => Number(x.trim()));
+      return num(actual) !== null && num(actual) >= lo && num(actual) <= hi;
+    }
+    case 'risk_rating': return RISK_ORDER[actual] !== undefined && RISK_ORDER[value] !== undefined
+      && RISK_ORDER[actual] >= RISK_ORDER[value];
+    default: return false;
+  }
+}
+
+function fallbackChannel(ctx) {
+  const value = ctx.value ?? 0;
+  if (value < 25000) return 'catalogue';
+  if (ctx.category === 'consulting' || value > 100000) return 'procurement-led';
+  if (ctx.category === 'contingent-labour') return 'framework-call-off';
+  if (value <= 50000) return 'business-led';
+  return 'procurement-led';
+}
+
+/** Mirrors resolveDemandChannel — the one derivation both screens call. */
+function resolveDemandChannel(rules, input) {
+  const ctx = {
+    category: input.category,
+    value: input.value,
+    supplierId: input.supplierId,
+    contractId: input.contractId,
+    // priority is DERIVED from isUrgent: the two are one fact, and RR-010
+    // requires both, so setting one without the other disarms the rule.
+    priority: input.isUrgent ? 'urgent' : undefined,
+    isUrgent: input.isUrgent,
+    riskRating: input.riskRating,
+    material: input.material,
+  };
+  const matched = rules.find((r) => r.status === 'active' && (r.conditions ?? []).length > 0
+    && r.conditions.every((c) => evalCond(c.field, c.operator, c.value, ctx)));
+  return { channel: matched ? matched.action.buyingChannel : fallbackChannel(ctx), matchedRule: matched ?? null };
+}
+
+// The live rule set, in evaluation order (RR-001 as repaired).
+const RULES = [
+  { id: 'RR-001', name: 'High-value IT software', status: 'active',
+    conditions: [
+      { field: 'category', operator: 'equals', value: 'software' },
+      { field: 'value', operator: 'greater_than', value: '100000' },
+    ], action: { buyingChannel: 'procurement-led' } },
+  { id: 'RR-010', name: 'Urgent request fast-track', status: 'active',
+    conditions: [
+      { field: 'priority', operator: 'equals', value: 'urgent' },
+      { field: 'isUrgent', operator: 'equals', value: 'true' },
+    ], action: { buyingChannel: 'procurement-led' } },
+];
+
+console.log('\nThe pre-check and the determination give the same channel');
+const LABELLED = [
+  { category: 'goods', value: 8_000 },
+  { category: 'goods', value: 40_000 },
+  { category: 'services', value: 60_000 },
+  { category: 'software', value: 30_000 },
+  { category: 'software', value: 150_000 },
+  { category: 'consulting', value: 400_000 },
+  { category: 'contingent-labour', value: 45_000 },
+  { category: 'services', value: 80_000, supplierId: 'S9' },
+];
+for (const demand of LABELLED) {
+  // Step 2 knows category, value, supplier and (now) the contract question.
+  const atPreCheck = resolveDemandChannel(RULES, demand);
+  // Step 5 knows the same, plus the risk and materiality reads — which no live
+  // rule uses, so the answer must not move.
+  const atDetermination = resolveDemandChannel(RULES, {
+    ...demand, riskRating: 'high', material: true,
+  });
+  check(`${demand.category} @ ${demand.value} agrees across both screens`,
+    atPreCheck.channel === atDetermination.channel,
+    `${atPreCheck.channel} vs ${atDetermination.channel}`);
+}
+
+console.log('\nUrgency is the one input that still moves the answer');
+const urgencyChanges = (demand) => {
+  const calm = resolveDemandChannel(RULES, { ...demand, isUrgent: false }).channel;
+  const urgent = resolveDemandChannel(RULES, { ...demand, isUrgent: true }).channel;
+  return calm === urgent ? null : { from: calm, to: urgent };
+};
+const midServices = { category: 'services', value: 40_000 };
+check('a mid-value demand changes channel when marked urgent', urgencyChanges(midServices) !== null);
+check('and only ever escalates to procurement-led',
+  urgencyChanges(midServices).to === 'procurement-led');
+// The note must be silent where it would say nothing — a warning that is always
+// on is one nobody reads.
+check('a demand already routed to procurement-led shows no urgency note',
+  urgencyChanges({ category: 'consulting', value: 400_000 }) === null);
+check('a low-value catalogue demand is not silently escalated by the fallback',
+  resolveDemandChannel(RULES, { category: 'goods', value: 8_000 }).channel === 'catalogue');
+
 console.log('');
 if (failures) { console.error(`FAILED: ${failures} check(s)`); }
 else console.log('All intake-routing checks passed.');

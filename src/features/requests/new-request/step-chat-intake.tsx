@@ -25,6 +25,7 @@ import {
   type DemandConversationContext,
 } from '@/lib/procurement/demand-conversation';
 import { DEFAULT_SECTIONS } from '@/lib/procurement/service-description-defaults';
+import { UrgencyChannelNote } from './components/urgency-channel-note';
 import type { ServiceDescription } from './new-request-page';
 
 interface StepChatIntakeProps {
@@ -837,15 +838,25 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
                   </Select>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Switch
-                  id="chat-urgent"
-                  checked={data.isUrgent}
-                  onCheckedChange={(v) => onUpdate({ isUrgent: v })}
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="chat-urgent"
+                    checked={data.isUrgent}
+                    onCheckedChange={(v) => onUpdate({ isUrgent: v })}
+                  />
+                  <Label htmlFor="chat-urgent" className="cursor-pointer text-xs">
+                    Mark as urgent
+                  </Label>
+                </div>
+                {/* The channel was shown on the pre-check and is settled except
+                    for this. Say so, here, as it is ticked. */}
+                <UrgencyChannelNote
+                  category={category}
+                  estimatedValue={data.estimatedValue}
+                  supplierId={data.supplierId}
+                  isUrgent={data.isUrgent}
                 />
-                <Label htmlFor="chat-urgent" className="cursor-pointer text-xs">
-                  Mark as urgent
-                </Label>
               </div>
             </div>
           )}

@@ -17,9 +17,17 @@
 //    catalogue match hid the enrichment block and offered no route to "this is
 //    new demand" at all, so a wrong match didn't just mislead — it hid the
 //    correct path behind a large green button pointing the other way.
+//
+// It now also shows the BUYING CHANNEL. That decision — a two-day catalogue
+// order versus a multi-week procurement-led exercise — was first visible on
+// step 5, four steps after it became knowable: by the end of this screen nine
+// of the ten live routing rules are fully determined, and the pre-check settles
+// the contract question that is the tenth input. The channel is resolved by
+// `resolveDemandChannel`, the same function the determination calls, so the two
+// screens cannot disagree.
 
 import { useMemo, useState } from 'react';
-import { ShoppingCart, FileText, ArrowRight, ArrowLeft, Check, Loader2, Info } from 'lucide-react';
+import { ShoppingCart, FileText, ArrowRight, ArrowLeft, Check, Loader2, Info, Route } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
@@ -28,6 +36,10 @@ import { useSourceData } from '@/lib/integrations';
 import { useProcurementCategories } from '@/lib/db/hooks/use-procurement-categories';
 import { DEFAULT_CATEGORY_TAXONOMY } from '@/data/category-taxonomy';
 import { decideIntakeRoute } from '@/lib/procurement/intake-routing';
+import { useRoutingRules } from '@/lib/db/hooks/use-routing-rules';
+import { buyingChannelLabel } from '@/lib/routing/evaluate-routing-rules';
+import { resolveDemandChannel } from '@/lib/routing/demand-channel';
+import { computeDemandSignals } from '@/lib/procurement/demand-signals';
 import type { CatalogueItem } from '@/data/catalogue-items';
 import type { Contract, Supplier } from '@/data/types';
 
@@ -62,6 +74,48 @@ const ENRICH_GUIDANCE: Record<string, string> = {
 const enrichGuidance = (category: string) =>
   ENRICH_GUIDANCE[category] ?? 'e.g. the scope, region, duration, and approximate size';
 
+/**
+ * What this demand is heading for, and how long that takes.
+ *
+ * Shown on both stages. The channel is whatever the route currently settled on
+ * implies: a catalogue order and a call-off are channels in their own right, so
+ * they are stated directly; new demand is resolved through the routing rules,
+ * with `contractId` now known — which is what makes it worth resolving here
+ * rather than guessing at step 1.
+ */
+function ChannelPanel({
+  channelLabel, timelineDays, decidedBy, note,
+}: {
+  channelLabel: string;
+  timelineDays?: number;
+  /** The rule that decided it, or how it was decided when no rule matched. */
+  decidedBy: string;
+  note?: string;
+}) {
+  return (
+    <div className="rounded-lg border border-blue-100 bg-blue-50/40 p-4">
+      <div className="flex items-start gap-2.5">
+        <Route className="mt-0.5 size-4 shrink-0 text-[#2D5F8A]" />
+        <div className="flex-1">
+          <p className="text-[10px] font-medium uppercase tracking-wider text-gray-500">
+            Buying channel
+          </p>
+          <p className="text-sm font-semibold text-gray-900">
+            {channelLabel}
+            {timelineDays !== undefined && (
+              <span className="ml-2 text-xs font-normal text-gray-500">
+                typically ~{timelineDays} days
+              </span>
+            )}
+          </p>
+          <p className="mt-0.5 text-[11px] text-gray-500">Decided by {decidedBy}.</p>
+          {note && <p className="mt-1 text-[11px] text-gray-500">{note}</p>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /** The always-available escape to a full request, on every stage. */
 function ProceedPanel({ lead, onProceed }: { lead: string; onProceed: () => void }) {
   return (
@@ -90,6 +144,7 @@ export function StepPreCheck({
     useSourceData<Contract>('contract');
   const { data: suppliers = [] } = useSourceData<Supplier>('supplier');
   const { data: dbCategories = [] } = useProcurementCategories();
+  const { data: routingRules = [] } = useRoutingRules();
 
   const [enrich, setEnrich] = useState('');
   /** Set when the user overrides the recommendation to look anyway. */
@@ -116,6 +171,73 @@ export function StepPreCheck({
   );
 
   const supplierById = useMemo(() => new Map(suppliers.map((s) => [s.id, s])), [suppliers]);
+
+  // ── The buying channel, as far as it can be known here ───────────────────
+  //
+  // `computeDemandSignals` supplies the risk and materiality inputs rather than
+  // this screen inventing them: it is the same capture-time read the service
+  // description is generated against, and it marks itself preliminary. Two of
+  // the ten live rules read those fields, so omitting them would silently
+  // change the answer relative to the determination.
+  const signals = useMemo(
+    () => computeDemandSignals({
+      category,
+      value: estimatedValue,
+      sow: { objective: `${title} ${enrich}`.trim() },
+      contractCovered: decision.contractMatches.length > 0,
+    }),
+    [category, estimatedValue, title, enrich, decision.contractMatches.length],
+  );
+
+  const routing = useMemo(
+    () => resolveDemandChannel(routingRules, {
+      category,
+      value: estimatedValue,
+      supplierId,
+      // The pre-check is where the contract question is settled, and it is the
+      // one routing input step 1 could not have.
+      contractId: decision.contractMatches[0]?.contract.id,
+      riskRating: signals.inherentRiskTier,
+      material: signals.material,
+    }),
+    [routingRules, category, estimatedValue, supplierId, decision.contractMatches, signals],
+  );
+
+  const timelineByCategory = useMemo(() => {
+    const src = dbCategories.length > 0 ? dbCategories : DEFAULT_CATEGORY_TAXONOMY;
+    return new Map(src.map((c) => [c.id, c.timelineDays]));
+  }, [dbCategories]);
+
+  /**
+   * The channel for the route this screen has settled on.
+   *
+   * A catalogue order and a contract call-off ARE channels — stating them as
+   * such is not a second derivation, it is naming the route the requester is
+   * about to take. Only the new-demand path goes through the rules.
+   */
+  const channelFor = (route: 'catalogue' | 'contract' | 'new-demand') => {
+    if (route === 'catalogue') {
+      return {
+        label: buyingChannelLabel('catalogue'),
+        days: timelineByCategory.get('catalogue'),
+        decidedBy: 'the catalogue match — pre-approved items are ordered directly',
+      };
+    }
+    if (route === 'contract') {
+      return {
+        label: buyingChannelLabel('framework-call-off'),
+        days: timelineByCategory.get(category),
+        decidedBy: 'the covering contract — a call-off does not need a new sourcing exercise',
+      };
+    }
+    return {
+      label: buyingChannelLabel(routing.channel),
+      days: timelineByCategory.get(category),
+      decidedBy: routing.matchedRule
+        ? `routing rule ${routing.matchedRule.id} “${routing.matchedRule.name}”`
+        : 'the default fallback — no admin routing rule matched this demand',
+    };
+  };
 
   const catalogueMatches = decision.catalogueMatches.map((m) => m.item);
   const hasCatalogue = catalogueMatches.length > 0;
@@ -178,6 +300,23 @@ export function StepPreCheck({
             {decision.llmOverruled}
           </p>
         )}
+
+        {/* The consequence, stated before the choice rather than four steps
+            after it. A catalogue match means a catalogue order; if none fits,
+            the panel below the contract check shows where the demand goes. */}
+        {(() => {
+          const c = channelFor(hasCatalogue ? 'catalogue' : 'new-demand');
+          return (
+            <ChannelPanel
+              channelLabel={c.label}
+              timelineDays={c.days}
+              decidedBy={c.decidedBy}
+              note={hasCatalogue
+                ? 'If none of these items fit, the channel changes — the contract check comes next.'
+                : 'This is where the demand goes if no catalogue item or contract covers it.'}
+            />
+          );
+        })()}
 
         <Card>
           <CardHeader className="pb-3">
@@ -298,6 +437,20 @@ export function StepPreCheck({
           {decision.llmOverruled}
         </p>
       )}
+
+      {(() => {
+        const c = channelFor(hasContract ? 'contract' : 'new-demand');
+        return (
+          <ChannelPanel
+            channelLabel={c.label}
+            timelineDays={c.days}
+            decidedBy={c.decidedBy}
+            note={hasContract
+              ? 'Calling off an existing contract. Proceeding to a full request instead changes the channel.'
+              : undefined}
+          />
+        );
+      })()}
 
       <Card>
         <CardHeader className="pb-3">

@@ -35,7 +35,8 @@ import { useFormTemplate } from '@/lib/db/hooks/use-form-templates';
 import { useRoutingRules } from '@/lib/db/hooks/use-routing-rules';
 import { useAiAgent } from '@/lib/db/hooks/use-ai-agents';
 import { useWorkflowTemplates } from '@/lib/db/hooks/use-workflow-templates';
-import { resolveRouting, buyingChannelLabel } from '@/lib/routing/evaluate-routing-rules';
+import { buyingChannelLabel } from '@/lib/routing/evaluate-routing-rules';
+import { resolveDemandChannel } from '@/lib/routing/demand-channel';
 import { selectWorkflowTemplateForCategory } from '@/lib/workflow/workflow-steps';
 import { DynamicForm } from '@/components/shared/dynamic-form';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -351,11 +352,12 @@ export function StepCompliance({
       },
       matches,
     );
-    const routing = resolveRouting(routingRules, {
+    // The same resolver the pre-check calls, so the channel shown on step 2 and
+    // the one determined here cannot drift apart.
+    const routing = resolveDemandChannel(routingRules, {
       category,
       value: estimatedValue,
       supplierId,
-      priority: isUrgent ? 'urgent' : undefined,
       isUrgent,
       riskRating: inherentRisk.tier,
       material: materiality.material,

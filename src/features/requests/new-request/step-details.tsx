@@ -6,6 +6,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AISuggestionCard } from '@/components/shared/ai-suggestion-card';
 import { getAICommodityCode } from '@/lib/mock-ai';
+import { UrgencyChannelNote } from './components/urgency-channel-note';
 
 const COST_CENTRES = [
   { value: 'CC-1001', label: 'CC-1001 Marketing' },
@@ -177,15 +178,25 @@ export function StepDetails({ category, data, onUpdate }: StepDetailsProps) {
             onChange={(e) => onUpdate({ deliveryDate: e.target.value })}
           />
         </div>
-        <div className="flex items-end gap-3 pb-1">
-          <Switch
-            id="urgent"
-            checked={data.isUrgent}
-            onCheckedChange={(checked) => onUpdate({ isUrgent: checked })}
+        <div className="space-y-1.5 pb-1">
+          <div className="flex items-end gap-3">
+            <Switch
+              id="urgent"
+              checked={data.isUrgent}
+              onCheckedChange={(checked) => onUpdate({ isUrgent: checked })}
+            />
+            <Label htmlFor="urgent" className="cursor-pointer text-sm">
+              Mark as urgent
+            </Label>
+          </div>
+          {/* Same note as the chat path — urgency is the one input that can
+              still move the channel after the pre-check has shown it. */}
+          <UrgencyChannelNote
+            category={category}
+            estimatedValue={data.estimatedValue}
+            supplierId={data.supplierId}
+            isUrgent={data.isUrgent}
           />
-          <Label htmlFor="urgent" className="cursor-pointer text-sm">
-            Mark as urgent
-          </Label>
         </div>
       </div>
 
