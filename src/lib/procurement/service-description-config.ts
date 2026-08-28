@@ -61,6 +61,15 @@ export interface ConfiguredSlot {
   examples?: Record<string, string>;
   /** All must hold for the slot to be asked. Empty means always. */
   conditions?: SlotCondition[];
+  /**
+   * Why this demand is being asked this question, shown beneath the prompt.
+   *
+   * Only worth setting on a CONDITIONAL slot: a question that appears for some
+   * demands and not others is the one that reads as arbitrary. Empty or absent
+   * means no rationale line — an admin can reword or remove it here, in the
+   * same template the prompts already live in.
+   */
+  why?: string;
   /** Conditions under which an answer is mandatory rather than merely asked. */
   requiredWhen?: SlotCondition[];
 }

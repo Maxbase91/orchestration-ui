@@ -23,10 +23,10 @@ const ALL_SLOTS = [
   { id: 'scope', kind: 'sow', field: 'scope', required: true },
   { id: 'deliverables', kind: 'sow', field: 'deliverables', required: true },
   { id: 'resources', kind: 'sow', field: 'resources', required: true },
-  { id: 'timeline', kind: 'sow', field: 'timeline', required: false, appliesWhen: (c) => TIME_BASED.has(c.category) },
-  { id: 'acceptanceCriteria', kind: 'sow', field: 'acceptanceCriteria', required: false, appliesWhen: (c) => OUTCOME.has(c.category) },
-  { id: 'pricingModel', kind: 'sow', field: 'pricingModel', required: false, appliesWhen: (c, cfg) => (c.estimatedValue ?? 0) >= cfg.criticalServiceThreshold },
-  { id: 'dependencies', kind: 'sow', field: 'dependencies', required: false, appliesWhen: (c, cfg) => (c.estimatedValue ?? 0) >= cfg.continuityThreshold },
+  { id: 'timeline', kind: 'sow', field: 'timeline', required: false, why: 'Asked because work in this category is delivered over time…', appliesWhen: (c) => TIME_BASED.has(c.category) },
+  { id: 'acceptanceCriteria', kind: 'sow', field: 'acceptanceCriteria', required: false, why: 'Asked because this category is bought on an outcome…', appliesWhen: (c) => OUTCOME.has(c.category) },
+  { id: 'pricingModel', kind: 'sow', field: 'pricingModel', required: false, why: 'Asked because this demand is above the value where the commercial model is agreed up front…', appliesWhen: (c, cfg) => (c.estimatedValue ?? 0) >= cfg.criticalServiceThreshold },
+  { id: 'dependencies', kind: 'sow', field: 'dependencies', required: false, why: 'Asked because at this value what the engagement relies on has to be visible…', appliesWhen: (c, cfg) => (c.estimatedValue ?? 0) >= cfg.continuityThreshold },
 ];
 const REQUIRED = ['title', 'value', 'objective', 'scope', 'deliverables', 'resources'];
 
@@ -99,6 +99,20 @@ check('lowering criticalServiceThreshold pulls pricing model in for a mid-value 
   const after = agendaIds(ctx, { criticalServiceThreshold: 10_000, continuityThreshold: 250_000 }).includes('pricingModel');
   return !before && after;
 })());
+
+console.log('A conditional question says why it is being asked');
+// A question that appears for some demands and not others is the one that reads
+// as arbitrary. The mandatory six are asked of everyone and need no rationale —
+// a justification line on every question is one the requester learns to skip.
+for (const slot of ALL_SLOTS.filter((s) => s.appliesWhen)) {
+  check(`conditional slot "${slot.id}" carries a rationale`, !!slot.why && slot.why.length > 20);
+}
+for (const slot of ALL_SLOTS.filter((s) => REQUIRED.includes(s.id))) {
+  check(`mandatory slot "${slot.id}" carries none`, slot.why === undefined);
+}
+// deliveryDate is optional but unconditional — asked of everyone, so no reason.
+check('an unconditional optional slot carries none',
+  ALL_SLOTS.find((s) => s.id === 'deliveryDate').why === undefined);
 
 console.log('');
 if (failures) { console.error(`FAILED: ${failures} check(s)`); process.exitCode = 1; }

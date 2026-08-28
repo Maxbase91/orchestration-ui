@@ -74,6 +74,16 @@ export interface DemandSlot {
   example?: (ctx: DemandConversationContext) => string;
   /** Slot is part of the agenda only when this returns true (absent ⇒ always). */
   appliesWhen?: (ctx: DemandConversationContext, config: PolicyConfig) => boolean;
+  /**
+   * Why this demand is being asked this question, shown to the requester.
+   *
+   * Only meaningful on CONDITIONAL slots: a question that appears for some
+   * demands and not others is the one that reads as arbitrary, so it has to
+   * justify itself. The six mandatory slots need no rationale — everything is
+   * asked them — and carrying an unused string on each would invite copy that
+   * says nothing.
+   */
+  why?: string;
 }
 
 /** Categories whose work is time-phased enough that a timeline is worth asking. */
@@ -177,6 +187,7 @@ export const ALL_SLOTS: DemandSlot[] = [
       consulting: 'a 2-day event in September, prep 3 weeks before',
       'contingent-labour': '6-month engagement starting October',
     }, '12 weeks, kickoff in September, readout at week 8'),
+    why: 'Asked because work in this category is delivered over time — the milestones have to be in the description before anyone can hold a supplier to them.',
     appliesWhen: (ctx) => TIME_BASED_CATEGORIES.has(ctx.category),
   },
   {
@@ -188,6 +199,7 @@ export const ALL_SLOTS: DemandSlot[] = [
       consulting: '40 staff trained, >80% satisfaction, 3 prototypes built',
       software: 'UAT passed, <2% error rate, go-live sign-off',
     }, 'sign-off criteria / how success is measured'),
+    why: 'Asked because this category is bought on an outcome — what counts as done has to be written down now, not argued about at sign-off.',
     appliesWhen: (ctx) => OUTCOME_CATEGORIES.has(ctx.category),
   },
   {
@@ -199,6 +211,7 @@ export const ALL_SLOTS: DemandSlot[] = [
       software: 'per-user annual subscription',
       'contingent-labour': 'day rate per resource',
     }, 'fixed price, time & materials, or milestone-based'),
+    why: 'Asked because this demand is above the value where the commercial model is agreed up front rather than at contract.',
     // High-value demands warrant capturing the commercial model up front.
     appliesWhen: (ctx, config) => (ctx.estimatedValue ?? 0) >= config.criticalServiceThreshold,
   },
@@ -208,6 +221,7 @@ export const ALL_SLOTS: DemandSlot[] = [
     required: false,
     prompt: 'Are there key dependencies or systems this relies on?',
     example: () => '(e.g. systems, data, venues or teams this relies on)',
+    why: 'Asked because at this value what the engagement relies on has to be visible — a dependency nobody recorded is a continuity risk nobody can plan for.',
     // Large engagements carry continuity-relevant dependencies worth surfacing.
     appliesWhen: (ctx, config) => (ctx.estimatedValue ?? 0) >= config.continuityThreshold,
   },
@@ -248,6 +262,9 @@ export function fromConfiguredSlot(slot: ConfiguredSlot): DemandSlot {
     example: slot.examples
       ? (ctx) => slot.examples?.[ctx.category] ?? slot.examples?.default ?? ''
       : undefined,
+    // Empty config string means "no rationale" — an admin blanking the field
+    // removes the line rather than rendering an empty one.
+    why: slot.why?.trim() || undefined,
     appliesWhen: (ctx, config) =>
       slotApplies(slot, { category: ctx.category, value: ctx.estimatedValue }, config),
   };
@@ -287,11 +304,49 @@ export function buildAgenda(
   config: PolicyConfig = getActivePolicyConfig(),
   slots: DemandSlot[] = ALL_SLOTS,
 ): DemandSlot[] {
-  return slots.filter((slot) => {
-    if (isSlotFilled(slot, ctx)) return false;
-    if (slot.appliesWhen && !slot.appliesWhen(ctx, config)) return false;
-    return true;
-  });
+  return applicableSlots(ctx, config, slots).filter((slot) => !isSlotFilled(slot, ctx));
+}
+
+/**
+ * Every slot this demand will be asked, whether answered yet or not.
+ *
+ * The agenda's denominator. It is deliberately recomputed from the current
+ * context rather than fixed at the start: two of the conditional slots branch
+ * on value, so answering "€400k" genuinely adds questions. A denominator frozen
+ * before the value was known would be a different lie from the fixed 14 it
+ * replaces, not a fix for it.
+ */
+export function applicableSlots(
+  ctx: DemandConversationContext,
+  config: PolicyConfig = getActivePolicyConfig(),
+  slots: DemandSlot[] = ALL_SLOTS,
+): DemandSlot[] {
+  return slots.filter((slot) => !slot.appliesWhen || slot.appliesWhen(ctx, config));
+}
+
+/**
+ * How far through the conversation this demand is.
+ *
+ * Measured against the questions THIS demand is asked, so a requester who has
+ * answered everything reads 100%. The previous denominator was a fixed 14 (five
+ * key facts plus nine hardcoded sections) while the conversation asks between
+ * six and ten slots, so a finished conversation topped out between 57% and 86%
+ * and left items showing as outstanding that were never going to be asked.
+ *
+ * Lives here rather than in the component so the panel and the engine cannot
+ * disagree about what "done" means.
+ */
+export function conversationProgress(
+  ctx: DemandConversationContext,
+  config: PolicyConfig = getActivePolicyConfig(),
+  slots: DemandSlot[] = ALL_SLOTS,
+): { total: number; captured: number; pct: number } {
+  const total = applicableSlots(ctx, config, slots).length;
+  const remaining = buildAgenda(ctx, config, slots).length;
+  const captured = total - remaining;
+  // A demand with no applicable slots is complete, not undefined — guard the
+  // divide rather than rendering NaN%.
+  return { total, captured, pct: total === 0 ? 100 : Math.round((captured / total) * 100) };
 }
 
 /** The single next slot to ask plus its resolved prompt, or null when complete. */
@@ -321,6 +376,22 @@ export function isConversationComplete(
  * title + value + the four core SOW elements. Used to stop an LLM from
  * short-circuiting the conversation before the essentials are captured.
  */
+/**
+ * Which mandatory slots are still empty.
+ *
+ * The gate has to be able to SAY what is outstanding, not merely refuse. Same
+ * floor as `requiredSlotsFilled` — that function is this one being empty — so
+ * the two cannot drift into disagreeing about what is required.
+ */
+export function outstandingRequiredSlots(
+  ctx: DemandConversationContext,
+  slots: DemandSlot[] = ALL_SLOTS,
+): DemandSlot[] {
+  return slots
+    .filter((s) => REQUIRED_SLOT_IDS.includes(s.id))
+    .filter((s) => !isSlotFilled(s, ctx));
+}
+
 export function requiredSlotsFilled(
   ctx: DemandConversationContext,
   slots: DemandSlot[] = ALL_SLOTS,
@@ -329,7 +400,5 @@ export function requiredSlotsFilled(
   // is the mandatory floor that stops an LLM short-circuiting the conversation,
   // and a template that forgot to mark a slot required must not be able to lower
   // it. A template CAN add requirements; it cannot remove these.
-  return slots.filter((s) => REQUIRED_SLOT_IDS.includes(s.id)).every((s) =>
-    isSlotFilled(s, ctx),
-  );
+  return outstandingRequiredSlots(ctx, slots).length === 0;
 }

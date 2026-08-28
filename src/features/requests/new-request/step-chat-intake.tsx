@@ -16,12 +16,15 @@ import type { DemandSlot } from '@/lib/procurement/demand-conversation';
 import { getAICommodityCode } from '@/lib/mock-ai';
 import { formatCurrency } from '@/lib/format';
 import {
+  applicableSlots,
+  conversationProgress,
   determineNextQuestion,
   isConversationComplete,
   requiredSlotsFilled,
   resolveSlots,
   type DemandConversationContext,
 } from '@/lib/procurement/demand-conversation';
+import { DEFAULT_SECTIONS } from '@/lib/procurement/service-description-defaults';
 import type { ServiceDescription } from './new-request-page';
 
 interface StepChatIntakeProps {
@@ -46,6 +49,12 @@ interface StepChatIntakeProps {
 interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
+  /**
+   * The "asked because…" line for a conditional question, kept ON the message
+   * rather than in a single piece of state so it stays attached to the question
+   * it explains when the requester scrolls back.
+   */
+  why?: string;
 }
 
 /** Mirrors the list on step-details, which this path never renders. */
@@ -78,20 +87,11 @@ const FIELD_LABELS: { key: string; label: string }[] = [
   { key: 'businessJustification', label: 'Justification' },
 ];
 
-// The service-description components. Examples/guidance live in the chat (the
-// assistant asks with a category-specific example) — this panel just tracks
-// what's been captured.
-const SOW_SECTIONS: { key: string; label: string }[] = [
-  { key: 'objective', label: 'Objective' },
-  { key: 'scope', label: 'Scope of Work' },
-  { key: 'deliverables', label: 'Deliverables' },
-  { key: 'timeline', label: 'Timeline' },
-  { key: 'resources', label: 'Resources' },
-  { key: 'acceptanceCriteria', label: 'Acceptance Criteria' },
-  { key: 'pricingModel', label: 'Pricing Model' },
-  { key: 'location', label: 'Location' },
-  { key: 'dependencies', label: 'Dependencies' },
-];
+// The service-description components come from the resolved template, not from
+// a list in this file. A hardcoded nine was a second source of truth: since the
+// conversation began running off the configured template, the panel and the
+// conversation could disagree about which sections exist — the same drift as
+// the three narrative composers and the duplicate classifier.
 
 
 // Build the dynamic-conversation engine context from the request data + the SOW
@@ -132,6 +132,8 @@ function localFallbackResponse(
   extracted: Record<string, unknown>;
   sow: Partial<ServiceDescription>;
   nextQuestion: string;
+  /** The rationale for `nextQuestion`, when it is a conditional slot. */
+  why?: string;
   complete: boolean;
 } {
   const extracted: Record<string, unknown> = {};
@@ -176,10 +178,38 @@ function localFallbackResponse(
     );
     sowUpdate.narrative = narrative;
     extracted.businessJustification = narrative;
-    return { extracted, sow: sowUpdate, nextQuestion: 'All details captured. Click Next to proceed to supplier identification and compliance.', complete: true };
+    return { extracted, sow: sowUpdate, nextQuestion: buildCompletionMessage(ctx, slots), complete: true };
   }
 
-  return { extracted, sow: sowUpdate, nextQuestion: determineNextQuestion(ctx, undefined, slots)?.prompt ?? '', complete: false };
+  const next = determineNextQuestion(ctx, undefined, slots);
+  return { extracted, sow: sowUpdate, nextQuestion: next?.prompt ?? '', why: next?.slot.why, complete: false };
+}
+
+/**
+ * What the assistant says when the agenda empties.
+ *
+ * The conversation used to end on a green chip and, in the offline path, a
+ * one-line "click Next". Nothing told the requester what had actually been
+ * captured or what would be done with it — so the step that produces the
+ * document reused by risk, sourcing and contracting ended more quietly than a
+ * form submission.
+ */
+function buildCompletionMessage(
+  ctx: DemandConversationContext,
+  slots: DemandSlot[],
+): string {
+  const asked = applicableSlots(ctx, undefined, slots);
+  const captured = asked
+    // Human-readable: `acceptanceCriteria` -> `acceptance criteria`.
+    .map((slot) => slot.target.field.replace(/([A-Z])/g, ' $1').toLowerCase())
+    .join(', ');
+  return [
+    `That's everything I need — ${asked.length} of ${asked.length} answered.`,
+    '',
+    `Captured: ${captured}.`,
+    '',
+    'Your service description is written from these answers and carried forward: the risk assessment, the determination and any sourcing event all read it, so you will not be asked for this again. Click Next to continue.',
+  ].join('\n');
 }
 
 function buildWelcomeMessage(category: string, data: StepChatIntakeProps['data'], slots: DemandSlot[]): string {
@@ -249,19 +279,25 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
     inputRef.current?.focus();
   }, []);
 
-  // Count filled fields
-  const filledCount = FIELD_LABELS.filter(({ key }) => {
-    if (key === 'category') return true;
-    if (key === 'estimatedValue') return data.estimatedValue > 0;
-    return !!(data as Record<string, unknown>)[key];
-  }).length;
+  // Progress against the questions THIS demand is actually asked.
+  //
+  // The denominator was a fixed 14 — five key facts plus nine hardcoded
+  // sections — while the conversation asks between six and ten slots depending
+  // on category and value. A requester who had answered everything was told
+  // they were 57% done and shown five items that were never going to be asked.
+  const progressCtx = useMemo(
+    () => buildContext(category, data, svcDesc),
+    [category, data, svcDesc],
+  );
+  const { total: unifiedTotal, captured: unifiedDone, pct: unifiedPct } = useMemo(
+    () => conversationProgress(progressCtx, undefined, slots),
+    [progressCtx, slots],
+  );
 
-  // Unified completeness across the request key facts AND the SOW elements —
-  // the service description is one document, not a summary plus a separate SOW.
-  const sowFilledCount = SOW_SECTIONS.filter((s) => svcDesc[s.key as keyof ServiceDescription]).length;
-  const unifiedTotal = FIELD_LABELS.length + SOW_SECTIONS.length;
-  const unifiedDone = filledCount + sowFilledCount;
-  const unifiedPct = Math.round((unifiedDone / unifiedTotal) * 100);
+  // The sections the panel lists, from the resolved template. `asked: false`
+  // sections (today, `location`) are GENERATED, never captured — listing them
+  // as outstanding was the progress bar's biggest lie.
+  const sections = sdTemplate?.sections ?? DEFAULT_SECTIONS;
 
   const getFieldValue = (key: string): string => {
     // The "Commodity Code" key-fact shows the specific UNSPSC code + label (the
@@ -368,13 +404,21 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
       if (isConversationComplete(ctx, undefined, slots) && requiredSlotsFilled(ctx, slots)) {
         setIsComplete(true);
         setSummary(result.summary ?? 'Service description captured. Ready for supplier identification and compliance.');
+        // The deterministic close, not the model's — what was captured and what
+        // is done with it are facts the engine holds, so they are stated the
+        // same way whether or not the LLM is up.
         setMessages((prev) => [
           ...prev,
-          { role: 'assistant', content: result.summary ?? 'All details captured. You can proceed to the next step.' },
+          { role: 'assistant', content: buildCompletionMessage(ctx, slots) },
         ]);
       } else {
-        const prompt = determineNextQuestion(ctx, undefined, slots)?.prompt;
-        if (prompt) setMessages((prev) => [...prev, { role: 'assistant', content: prompt }]);
+        const next = determineNextQuestion(ctx, undefined, slots);
+        if (next) {
+          setMessages((prev) => [
+            ...prev,
+            { role: 'assistant', content: next.prompt, why: next.slot.why },
+          ]);
+        }
       }
     } catch {
       // LLM unavailable — the engine still drives the same adaptive, carry-
@@ -388,7 +432,10 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
         setSvcDesc((prev) => ({ ...prev, ...fallback.sow }));
       }
 
-      setMessages((prev) => [...prev, { role: 'assistant', content: fallback.nextQuestion }]);
+      setMessages((prev) => [
+        ...prev,
+        { role: 'assistant', content: fallback.nextQuestion, why: fallback.why },
+      ]);
 
       if (fallback.complete) {
         setIsComplete(true);
@@ -521,6 +568,14 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
                 msg.role === 'user' ? 'bg-[#1B2A4A] text-white' : 'bg-blue-50 text-gray-900'
               )}>
                 <p className="whitespace-pre-wrap">{msg.content}</p>
+                {/* Present only on conditional questions — the ones that appear
+                    for some demands and not others, and so read as arbitrary
+                    without a reason. The mandatory six carry none. */}
+                {msg.why && (
+                  <p className="mt-1.5 border-t border-blue-100 pt-1.5 text-[11px] italic text-gray-500">
+                    Asked because {msg.why.replace(/^Asked because /i, '')}
+                  </p>
+                )}
               </div>
             </div>
           ))}
@@ -608,7 +663,7 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
                   title is the step heading ("Service description") above. */}
               <div>
                 <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-                  <span>{unifiedDone} of {unifiedTotal} captured</span>
+                  <span>{unifiedDone} of {unifiedTotal} questions answered</span>
                   <span>{unifiedPct}%</span>
                 </div>
                 <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden">
@@ -702,24 +757,34 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
                 </div>
               )}
 
-              {/* SOW Sections — captured through the conversation, editable */}
-              {SOW_SECTIONS.map(({ key, label }) => {
-                const value = svcDesc[key as keyof ServiceDescription];
+              {/* Sections, from the resolved template. A section the template
+                  marks `asked: false` is INFERRED — no slot ever asks for it,
+                  the model writes it — so it is shown as such rather than as an
+                  outstanding item the requester is waiting to be asked about. */}
+              {sections.map(({ id, label, asked }) => {
+                const value = svcDesc[id as keyof ServiceDescription];
                 return (
-                  <div key={key}>
+                  <div key={id}>
                     <div className="flex items-center gap-1.5">
-                      {value ? <CheckCircle className="size-3 text-green-500 shrink-0" /> : <Circle className="size-3 text-gray-300 shrink-0" />}
-                      <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">{label}</p>
+                      {value
+                        ? <CheckCircle className="size-3 shrink-0 text-green-500" />
+                        : <Circle className={cn('size-3 shrink-0', asked ? 'text-gray-300' : 'text-blue-200')} />}
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">{label}</p>
+                      {!asked && (
+                        <span className="text-[9px] uppercase tracking-wider text-blue-400">inferred</span>
+                      )}
                     </div>
                     {value ? (
                       <textarea
                         className="mt-0.5 w-full text-[11px] text-gray-700 leading-relaxed bg-transparent border border-transparent hover:border-gray-200 focus:border-[#2D5F8A] focus:bg-white focus:outline-none rounded px-1.5 py-1 resize-none transition-colors"
                         rows={Math.max(2, Math.ceil(value.length / 80))}
                         value={value}
-                        onChange={(e) => handleSowEdit(key, e.target.value)}
+                        onChange={(e) => handleSowEdit(id, e.target.value)}
                       />
                     ) : (
-                      <p className="text-[11px] text-gray-300 italic mt-0.5 pl-[18px]">Pending — captured as you answer.</p>
+                      <p className="mt-0.5 pl-[18px] text-[11px] italic text-gray-300">
+                        {asked ? 'Pending — captured as you answer.' : 'Written for you when the description is composed.'}
+                      </p>
                     )}
                   </div>
                 );

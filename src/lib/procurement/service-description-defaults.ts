@@ -117,16 +117,19 @@ export const DEFAULT_SLOTS: ConfiguredSlot[] = [
   {
     id: 'timeline', targetKind: 'sow', targetField: 'timeline', required: false,
     prompt: 'What is the timeline or key milestones?',
+    why: 'Asked because work in this category is delivered over time — the milestones have to be in the description before anyone can hold a supplier to them.',
     conditions: [{ field: 'category', operator: 'in', value: TIME_BASED }],
   },
   {
     id: 'acceptanceCriteria', targetKind: 'sow', targetField: 'acceptanceCriteria', required: false,
     prompt: 'How will success be measured — what are the acceptance criteria?',
+    why: 'Asked because this category is bought on an outcome — what counts as done has to be written down now, not argued about at sign-off.',
     conditions: [{ field: 'category', operator: 'in', value: OUTCOME_BASED }],
   },
   {
     id: 'pricingModel', targetKind: 'sow', targetField: 'pricingModel', required: false,
     prompt: 'What pricing or commercial model applies?',
+    why: 'Asked because this demand is above the value where the commercial model is agreed up front rather than at contract.',
     // Deferred to the governed threshold rather than pinned to €100k, so
     // /admin/thresholds still moves it.
     conditions: [{ field: 'value', operator: '>=', value: 'policy:criticalServiceThreshold' }],
@@ -134,6 +137,7 @@ export const DEFAULT_SLOTS: ConfiguredSlot[] = [
   {
     id: 'dependencies', targetKind: 'sow', targetField: 'dependencies', required: false,
     prompt: 'Are there key dependencies or systems this relies on?',
+    why: 'Asked because at this value what the engagement relies on has to be visible — a dependency nobody recorded is a continuity risk nobody can plan for.',
     conditions: [{ field: 'value', operator: '>=', value: 'policy:continuityThreshold' }],
   },
 ];

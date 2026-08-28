@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, Component, type ReactNode, type ErrorInfo } from 'react';
+import { useState, useCallback, useEffect, useMemo, Component, type ReactNode, type ErrorInfo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Save, Send, AlertTriangle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -29,6 +29,12 @@ import { StepRoutingPreview } from './step-routing-preview';
 import { StepConfirmation } from './step-confirmation';
 import { StepHeaderPanel } from './components/step-header-panel';
 import { stepGuidance } from './step-guidance';
+import { useServiceDescriptionTemplate } from '@/lib/db/hooks/use-service-description-templates';
+import {
+  outstandingRequiredSlots,
+  requiredSlotsFilled,
+  resolveSlots,
+} from '@/lib/procurement/demand-conversation';
 import { RequesterContextBlock } from './components/requester-context-block';
 import type { Contract } from '@/data/types';
 import type { CatalogueItem } from '@/data/catalogue-items';
@@ -310,6 +316,29 @@ export function NewRequestPage() {
   // Catalogue fast track — drives the reduced stepper and the Step-3 "Create
   // order" action that skips risk/determination/routing.
   const isCatalogue = formData.preCheckOutcome === 'catalogue' || formData.category === 'catalogue';
+
+  // Step 3's floor. The chat path is the only one that captures the service
+  // description through the conversation; the catalogue, contract and
+  // form-based paths have their own completeness rules below.
+  const { data: sdTemplate } = useServiceDescriptionTemplate(formData.category);
+  const conversationSlots = useMemo(() => resolveSlots(sdTemplate?.slots), [sdTemplate]);
+  const isChatIntakePath =
+    formData.preCheckOutcome === 'full-request' &&
+    !['catalogue', 'contract-renewal', 'supplier-onboarding'].includes(formData.category);
+  const conversationCtx = useMemo(
+    () => ({
+      category: formData.category,
+      title: formData.title || undefined,
+      estimatedValue: formData.estimatedValue || undefined,
+      deliveryDate: formData.deliveryDate || undefined,
+      sow: (formData.serviceDescription ?? {}) as Record<string, string | undefined>,
+    }),
+    [formData.category, formData.title, formData.estimatedValue, formData.deliveryDate, formData.serviceDescription],
+  );
+  const outstanding = useMemo(
+    () => (isChatIntakePath ? outstandingRequiredSlots(conversationCtx, conversationSlots) : []),
+    [isChatIntakePath, conversationCtx, conversationSlots],
+  );
   const wizardSteps = isCatalogue ? CATALOGUE_STEPS : STEPS;
   const lastStepNumber = wizardSteps[wizardSteps.length - 1].number;
   const currentStepMeta =
@@ -330,7 +359,18 @@ export function NewRequestPage() {
         if (formData.preCheckOutcome === 'contract') {
           return !!formData.contractId;
         }
-        return !!formData.title && formData.estimatedValue > 0;
+        // The mandatory floor, not `title && value`. `requiredSlotsFilled` —
+        // the guarantee the conversation engine defines to stop an LLM
+        // short-circuiting the conversation — was computed inside the chat step
+        // and never consulted at the gate, so a requester could leave step 3
+        // with two fields and no service description at all.
+        //
+        // Only on the chat path. The contract-renewal and supplier-onboarding
+        // paths render step-details, which never captures the SOW sections at
+        // all, so holding them to the same floor would block them permanently.
+        return isChatIntakePath
+          ? requiredSlotsFilled(conversationCtx, conversationSlots)
+          : !!formData.title && formData.estimatedValue > 0;
       case 4:
         // Risk & assessment — always allow proceeding to the determination.
         return true;
@@ -902,6 +942,17 @@ export function NewRequestPage() {
             Back
           </Button>
           <div className="flex items-center gap-2">
+            {/* A disabled Next that does not say why is a dead end. Name what is
+                still outstanding, in the requester's terms. */}
+            {currentStep === 3 && outstanding.length > 0 && (
+              <p className="mr-1 max-w-md text-right text-xs text-gray-500">
+                Still needed:{' '}
+                {outstanding
+                  .map((slot) => slot.target.field.replace(/([A-Z])/g, ' $1').toLowerCase())
+                  .join(', ')}
+                {' — '}keep answering the assistant.
+              </p>
+            )}
             {(currentStep === 5 || currentStep === 6) && (
               <Button variant="ghost" onClick={handleSaveDraft} disabled={isSubmitting}>
                 <Save className="size-4" />

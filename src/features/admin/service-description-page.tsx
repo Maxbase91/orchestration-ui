@@ -245,6 +245,19 @@ export function ServiceDescriptionPage() {
                     <td className="py-2 pr-3">
                       <Textarea rows={2} className="text-xs" value={slot.prompt}
                         onChange={(e) => patchSlot(i, { prompt: e.target.value })} />
+                      {/* The rationale is offered only for a CONDITIONAL slot:
+                          a question every demand is asked does not need to
+                          justify itself, and an "asked because" line on one
+                          would be noise the requester learns to skip. */}
+                      {(slot.conditions?.length ?? 0) > 0 && (
+                        <div className="mt-1.5">
+                          <Label className="text-[10px] text-muted-foreground">
+                            Asked because… (shown to the requester; empty hides the line)
+                          </Label>
+                          <Textarea rows={2} className="mt-0.5 text-[11px]" value={slot.why ?? ''}
+                            onChange={(e) => patchSlot(i, { why: e.target.value })} />
+                        </div>
+                      )}
                     </td>
                     <td className="py-2 pr-3">
                       <Switch checked={slot.required}
