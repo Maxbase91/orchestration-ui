@@ -5,7 +5,7 @@
 // Result is memoised for 60 seconds to avoid hitting the DB on every
 // invocation; the cache is process-local and resets on Vercel cold-start.
 
-import { supabaseAdmin } from './_supabase-admin.js';
+import { getSupabaseAdmin } from './_supabase-admin.js';
 
 export interface AgentRecord {
   id: string;
@@ -30,7 +30,7 @@ export async function getAgent(id: string): Promise<AgentRecord | null> {
   const now = Date.now();
   if (hit && hit.expiresAt > now) return hit.value;
 
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await getSupabaseAdmin()
     .from('ai_agents')
     .select('id,name,type,status,description,accuracy,last_updated')
     .eq('id', id)

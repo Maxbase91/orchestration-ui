@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { callLLM } from '../src/lib/llm.js';
 import { getAgent, isAgentActive } from './_ai-agents.js';
+import { ServerConfigurationError } from './_supabase-admin.js';
 
 const CLASSIFIER_AGENT_ID = 'AI-001';
 
@@ -55,26 +56,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Missing query parameter' });
   }
 
-  // Load the classifier agent from Supabase so admins can toggle/tune it
-  // without a code change. When the agent is disabled, return a stub
-  // response instead of calling the LLM.
-  const agent = await getAgent(CLASSIFIER_AGENT_ID);
-  if (!isAgentActive(agent)) {
-    return res.status(200).json({
-      intent: 'general',
-      message: agent
-        ? `${agent.name} is currently ${agent.status}. Enable it in Admin → AI Agents to get smart classification.`
-        : 'AI classifier is not configured. Enable AI-001 (Category Classifier) in Admin → AI Agents.',
-      links: [{ label: 'Create New Request', path: '/requests/new' }],
-      _agent: { id: agent?.id ?? CLASSIFIER_AGENT_ID, status: agent?.status ?? 'missing' },
-    });
-  }
-
-  // Augment the system prompt with the admin-editable agent description so
-  // tweaking the description in the UI influences classifier behaviour.
-  const systemPrompt = `${BASE_SYSTEM_PROMPT}\n\n## AGENT CONTEXT (admin-configured)\n${agent!.description}`;
-
   try {
+    // Load the classifier agent from Supabase so admins can toggle/tune it
+    // without a code change. When the agent is disabled, return a stub
+    // response instead of calling the LLM.
+    const agent = await getAgent(CLASSIFIER_AGENT_ID);
+    if (!isAgentActive(agent)) {
+      return res.status(200).json({
+        intent: 'general',
+        message: agent
+          ? `${agent.name} is currently ${agent.status}. Enable it in Admin → AI Agents to get smart classification.`
+          : 'AI classifier is not configured. Enable AI-001 (Category Classifier) in Admin → AI Agents.',
+        links: [{ label: 'Create New Request', path: '/requests/new' }],
+        _agent: { id: agent?.id ?? CLASSIFIER_AGENT_ID, status: agent?.status ?? 'missing' },
+      });
+    }
+
+    // Augment the system prompt with the admin-editable agent description so
+    // tweaking the description in the UI influences classifier behaviour.
+    const systemPrompt = `${BASE_SYSTEM_PROMPT}\n\n## AGENT CONTEXT (admin-configured)\n${agent.description}`;
     const content = await callLLM({
       messages: [
         { role: 'system', content: systemPrompt },
@@ -86,15 +86,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const parsed = JSON.parse(content);
     parsed._agent = {
-      id: agent!.id,
-      name: agent!.name,
-      status: agent!.status,
-      accuracy: agent!.accuracy,
+      id: agent.id,
+      name: agent.name,
+      status: agent.status,
+      accuracy: agent.accuracy,
     };
     return res.status(200).json(parsed);
   } catch (error) {
+    if (error instanceof ServerConfigurationError) {
+      console.error('AI handler configuration error:', error.message);
+      return res.status(503).json({
+        error: 'AI service is temporarily unavailable.',
+        code: 'service_unavailable',
+      });
+    }
     const msg = error instanceof Error ? error.message : 'Unknown error';
     console.error('AI handler error:', msg);
-    return res.status(502).json({ error: msg });
+    return res.status(502).json({
+      error: 'AI service could not complete the request.',
+      code: 'provider_failure',
+    });
   }
 }

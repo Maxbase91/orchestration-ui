@@ -114,7 +114,10 @@ countdown and the bottleneck views tell the truth.
 An **unknown role resolves to nobody** and leaves the stage unassigned, rather than silently
 resolving to one particular user. An unassigned stage you can see beats a wrong owner you cannot.
 
-Approval chains resolve explicit chain → value band → `'chain-1'`. Previously the engine selected a
+Approval chains resolve explicit chain → value band → `'chain-1'`. The intake wizard persists the
+selected `approval_chains.id` — never a routing rule's human-readable role label — because the
+request column is a foreign key. `npm run test:approval-chain-persistence` verifies the chosen key
+round-trips through the real database. Previously the engine selected a
 `requests.approval_chain` column that **did not exist**: PostgREST errored, the error was discarded,
 and every request in the system got the Standard chain regardless of value.
 
@@ -132,4 +135,5 @@ a stage that will not appear.
     npm run test:orchestration     # gates, transitions, resume semantics, owner/SLA, chain banding
     npm run test:onboarding-stage  # the two onboarding gates and the award routing
     npm run test:workflow-steps  # the template-derived lifecycle preview
+    npm run test:approval-chain-persistence # selected chain foreign-key persistence
     npm run test:e2e             # request → approval, end to end (needs Supabase creds)

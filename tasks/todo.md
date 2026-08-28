@@ -1,4 +1,12 @@
 # Intake / determination / workflow bug tracker — fix one by one
+
+## Release-blocker remediation — 2026-08-28
+- [x] Confirm the production AI function's required environment-key names without exposing values; Vercel access is required to set them.
+- [x] Persist the actual `approval_chains.id` selected for the request value and prove foreign-key persistence with a self-cleaning test.
+- [x] Make the AI endpoint return a controlled service error when its configuration is unavailable; add regression coverage.
+- [x] Correct the deployed-test URL/configuration and stale renewal assertion.
+- [x] Update the root README, testing playbook, roadmap, and relevant module documentation; run typecheck, lint, build, and focused tests.
+
 Reference demand: "I need consultants for a promptathon"
 
 | # | Area | Issue | Status |

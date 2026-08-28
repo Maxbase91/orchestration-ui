@@ -12,7 +12,10 @@ import { readFileSync } from 'node:fs';
 import { chromium } from 'playwright';
 import { createClient } from '@supabase/supabase-js';
 
-const BASE = 'http://localhost:5173';
+// A deployed base exercises Vercel functions as well as the SPA. Without it,
+// this suite starts Vite for fast UI-only development feedback.
+const BASE = process.env.E2E_UI_BASE ?? 'http://localhost:5173';
+const USE_DEPLOYED_APP = Boolean(process.env.E2E_UI_BASE);
 const ADMIN = { id: 'u11', name: 'Christine Dupont', email: 'christine.dupont@company.com', role: 'admin', department: 'Global Procurement', initials: 'CD' };
 
 const raw = readFileSync(new URL('../../.env.local', import.meta.url), 'utf8');
@@ -45,10 +48,10 @@ async function deleteRequest(reqId) {
   try { await sb.from('requests').delete().eq('id', reqId); } catch { /* ignore */ }
 }
 
-const server = spawn('npm', ['run', 'dev'], { stdio: 'ignore' });
+const server = USE_DEPLOYED_APP ? null : spawn('npm', ['run', 'dev'], { stdio: 'ignore' });
 let browser;
 try {
-  await waitForServer();
+  if (!USE_DEPLOYED_APP) await waitForServer();
   browser = await chromium.launch(LAUNCH_OPTS);
 
   // Pre-clean any artifacts a prior interrupted run may have left behind, so
@@ -73,10 +76,9 @@ try {
     await page.locator('#need-input').fill('renew our existing vendor contract for another year');
     await page.locator('#need-input').press('Enter');
     await page.getByRole('button', { name: /Accept & continue/ }).click();
-    // Staged funnel: catalogue (no match) → enrich → contract (no match) → proceed.
-    await page.getByText('Catalogue check', { exact: true }).waitFor({ timeout: 15000 });
-    await page.locator('textarea').first().fill('annual renewal of an existing vendor engagement');
-    await page.getByRole('button', { name: /Check for a covering contract/ }).click();
+    // Contract renewals are not catalogue-fulfilled, so the staged funnel opens
+    // directly on contract coverage before the full-request escape route.
+    await page.getByText('Contract check', { exact: true }).waitFor({ timeout: 15000 });
     await page.getByRole('button', { name: /Proceed to full request/ }).click();
     await page.locator('#title').fill('E2E submit test');
     await page.locator('#value').fill('60000');
@@ -207,9 +209,7 @@ try {
     await page.locator('#need-input').fill('renew our existing vendor contract for another year');
     await page.locator('#need-input').press('Enter');
     await page.getByRole('button', { name: /Accept & continue/ }).click();
-    await page.getByText('Catalogue check', { exact: true }).waitFor({ timeout: 15000 });
-    await page.locator('textarea').first().fill('annual renewal of an existing vendor engagement');
-    await page.getByRole('button', { name: /Check for a covering contract/ }).click();
+    await page.getByText('Contract check', { exact: true }).waitFor({ timeout: 15000 });
     await page.getByRole('button', { name: /Proceed to full request/ }).click();
     await page.locator('#title').fill('Config wiring test');
     await page.locator('#value').fill('50000');
@@ -326,5 +326,5 @@ try {
   process.exitCode = 1;
 } finally {
   if (browser) await browser.close();
-  server.kill('SIGTERM');
+  server?.kill('SIGTERM');
 }

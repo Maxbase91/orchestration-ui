@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { supabaseAdmin, requireAdminSecret } from '../_supabase-admin.js';
+import { getSupabaseAdmin, requireAdminSecret } from '../_supabase-admin.js';
 
 type DbRow = Record<string, unknown>;
 
@@ -13,7 +13,7 @@ async function upsert(table: string, rows: DbRow[], conflict?: string): Promise<
   if (rows.length === 0) return 0;
   let total = 0;
   for (const batch of chunks(rows)) {
-    const q = supabaseAdmin.from(table).upsert(batch, conflict ? { onConflict: conflict } : undefined);
+    const q = getSupabaseAdmin().from(table).upsert(batch, conflict ? { onConflict: conflict } : undefined);
     const { error, count } = await q.select('*', { count: 'exact', head: true });
     if (error) throw new Error(`${table}: ${error.message}`);
     total += count ?? batch.length;

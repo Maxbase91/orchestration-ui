@@ -53,6 +53,7 @@ export function DashboardWidgetCard({ id, title, size, onRemove, children }: Das
           {/* Drag listeners sit on the grip only, so buttons/links inside the widget stay clickable. */}
           <button
             type="button"
+            aria-label={`Drag ${title} widget`}
             className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none"
             {...listeners}
           >
@@ -62,6 +63,7 @@ export function DashboardWidgetCard({ id, title, size, onRemove, children }: Das
         </div>
         <button
           type="button"
+          aria-label={`Remove ${title} widget`}
           onClick={onRemove}
           className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
         >

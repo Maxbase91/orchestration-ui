@@ -1,14 +1,14 @@
-# Procurement Orchestration Platform — UI Prototype
+# Procurement Orchestration Platform
 
-A full-featured procurement orchestration platform prototype built for stakeholder design workshops. Demonstrates end-to-end procurement workflows, AI-assisted decision making, and system integration handovers across 40+ interactive screens.
+A procurement orchestration platform foundation with a React SPA, Supabase own-store, and Vercel API functions. It demonstrates end-to-end workflows, AI-assisted decision making, and system-integration handovers across 40+ interactive screens.
 
-**Live demo:** [orchestration-ui-khaki.vercel.app](https://orchestration-ui-khaki.vercel.app)
+**Live demo:** [orchestration-ui.vercel.app](https://orchestration-ui.vercel.app)
 
 ---
 
 ## What This Is
 
-An interactive UI prototype that shows what a modern procurement orchestration platform looks and feels like. All data is mocked client-side — no backend required. Built to let stakeholders react to something tangible before committing to implementation.
+An R1 foundation with a browser UI backed by the platform's own Supabase store. It has no live upstream connections: the source-connector layer supplies the seam for later integrations without changing application call sites.
 
 ### Key Capabilities Demonstrated
 
@@ -169,6 +169,8 @@ npm run test:screening            # supplier screening — clear / pending / fla
 npm run test:supplier-data        # supplier master-data completeness → remediation handoff (RTE-04)
 npm run test:approver-resolution  # approval step role → switchable directory rep (one identity namespace)
 npm run test:workflow-steps       # config-driven Routing — template lifecycle + risk/onboarding steps + approval-chain banding
+npm run test:approval-chain-persistence # self-cleaning DB check — a value-banded approval-chain key persists on a request
+npm run test:ai-api-config        # API regression — missing Supabase server config returns a controlled 503, not a function crash
 npm run test:admin-editors        # admin config saves
 npm run walkthrough               # visual QA harness (Playwright) — drives the front door across scenarios + every tab, screenshots to /tmp/fd (no assertions)
 npm run test:ui                   # browser smoke (Playwright) — wizard end-to-end through the determination + config-driven routing steps
@@ -182,6 +184,8 @@ npm run test:home-designs         # alternative home designs (1a/1b/1c) are full
 
 `test:ui` uses Playwright. First-time setup: `npm install` then `npx playwright install chromium`.
 It boots the dev server itself and needs `.env.local` (Supabase creds).
+Set `E2E_API_BASE=https://orchestration-ui.vercel.app` for deployed API tests and
+`E2E_UI_BASE=https://orchestration-ui.vercel.app` for the interaction suite against a deployed build.
 
 Per the repo's Definition of Done (see `CLAUDE.md`), every change ships with updated tests and docs.
 
@@ -218,7 +222,7 @@ The prototype is pre-loaded with realistic mock data:
 | Comments | 60 |
 | KPI Data | 12 months |
 
-AI features use keyword-triggered responses (~50 patterns) to simulate intelligent behavior without requiring an API connection.
+AI classification uses the governed Groq → Gemini server-side fallback with deterministic client routing when the classifier is unavailable. The AI agent configuration is held in the platform store and read by the Vercel handlers.
 
 ---
 
@@ -285,7 +289,7 @@ src/
 
 ## Deployment
 
-Deployed as a static SPA on Vercel. The `vercel.json` handles client-side routing:
+Deployed as a Vite SPA with Vercel serverless functions. The `vercel.json` preserves `/api/*` before its SPA fallback:
 
 ```json
 { "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }] }
@@ -304,10 +308,10 @@ Full descriptions live in `.env.example`.
 | `VITE_SUPABASE_ANON_KEY` | Browser | Yes | Legacy **anon JWT** — see the key note below |
 | `SUPABASE_URL` | Serverless (`api/`) | Yes | Same URL, without the `VITE_` prefix |
 | `SUPABASE_ANON_KEY` | Serverless (`api/`) | Yes | Same anon JWT |
-| `SUPABASE_SERVICE_ROLE_KEY` | Serverless (`api/`) | Only for seeding | Bypasses RLS. Never prefix with `VITE_` |
+| `SUPABASE_SERVICE_ROLE_KEY` | Serverless (`api/`) | Yes for AI agent configuration and controlled administration | Bypasses RLS. Never prefix with `VITE_` |
 | `ADMIN_SEED_SECRET` | Serverless (`api/`) | Only for seeding | Shared secret for `api/admin/seed.ts` |
 | `VITE_ASSISTANT_PROVIDER` | Browser | No | `groq` (default) or `mock` for a fully offline assistant |
-| `GROQ_API_KEY` / `GEMINI_API_KEY` | Serverless (`api/`) | For the assistant | Server-side only, used by `api/chat.ts` |
+| `GROQ_API_KEY` / `GEMINI_API_KEY` | Serverless (`api/`) | For AI classification and assistant | Server-side only, used by `api/ai.ts`, `api/chat.ts`, and `api/chat-intake.ts` |
 
 Two things that reliably break a deploy:
 
@@ -321,6 +325,9 @@ Two things that reliably break a deploy:
 
 If the Supabase project was provisioned through the Vercel integration, it injects `SUPABASE_URL`
 and `SUPABASE_ANON_KEY` automatically but **not** the `VITE_`-prefixed pair — add those by hand.
+`SUPABASE_SERVICE_ROLE_KEY` is also not injected automatically; configure it in the **Production**
+environment before deploying AI-agent-dependent functions. If it is absent, `/api/ai` now responds
+with a controlled `503 { code: "service_unavailable" }` rather than crashing the function.
 
 > Supabase free-tier projects pause after a period of inactivity, which surfaces in the app as
 > connection timeouts. Restore the project from the Supabase dashboard to bring it back.

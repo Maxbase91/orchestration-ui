@@ -31,7 +31,7 @@ loadEnv();
 
 const SUPABASE_URL = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const API_BASE = process.env.E2E_API_BASE ?? 'https://orchestration-ui-khaki.vercel.app';
+const API_BASE = process.env.E2E_API_BASE ?? 'https://orchestration-ui.vercel.app';
 
 if (!SUPABASE_URL || !SERVICE_KEY) {
   console.error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in .env.local');

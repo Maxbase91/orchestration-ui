@@ -24,7 +24,7 @@ const sb = createClient(
   { auth: { persistSession: false } },
 );
 
-const API_BASE = process.env.E2E_API_BASE ?? 'https://orchestration-ui-khaki.vercel.app';
+const API_BASE = process.env.E2E_API_BASE ?? 'https://orchestration-ui.vercel.app';
 
 const results = [];
 const pass = (n, d = '') => results.push({ n, o: 'PASS', d });

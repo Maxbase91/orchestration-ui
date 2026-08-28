@@ -12,7 +12,7 @@
 // all return the built-in template, so generation keeps working and an admin
 // mistake cannot take the intake wizard down.
 
-import { supabaseAdmin } from './_supabase-admin.js';
+import { getSupabaseAdmin } from './_supabase-admin.js';
 import type { ServiceDescriptionTemplate } from '../src/lib/procurement/service-description-config.js';
 import { DEFAULT_TEMPLATE } from '../src/lib/procurement/service-description-defaults.js';
 
@@ -53,7 +53,7 @@ export async function getServiceDescriptionTemplate(
 
   let value = DEFAULT_TEMPLATE;
   try {
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await getSupabaseAdmin()
       .from('service_description_templates')
       .select('*')
       .in('category', [key, 'default'])

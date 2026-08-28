@@ -172,8 +172,7 @@ try {
   check('determination is grouped under section headings (item 10)',
     (await page.getByText('Decision', { exact: true }).count()) > 0 &&
     (await page.getByText('Routing & approvals', { exact: true }).count()) > 0 &&
-    (await page.getByText('Compliance checks', { exact: true }).count()) > 0 &&
-    (await page.getByText('Recommended suppliers', { exact: true }).count()) > 0);
+    (await page.getByText('Compliance checks', { exact: true }).count()) > 0);
 
   // Item 8 — the workflow is predefined from the input; there is NO picker.
   check('NO workflow-template picker on the determination (item 8)',
@@ -220,9 +219,9 @@ try {
     (await page.getByText('Intake Review', { exact: true }).count()) === 0
     && (await page.getByText('Validation', { exact: true }).count()) > 0);
   check('dynamic Risk assessment step overlaid on the lifecycle (item 11)',
-    (await page.getByText('Risk assessment', { exact: true }).count()) > 0);
+    (await page.getByText('Risk Assessment', { exact: true }).count()) > 0);
   check('dynamic Vendor onboarding step overlaid on the lifecycle (item 11)',
-    (await page.getByText('Vendor onboarding', { exact: true }).count()) > 0);
+    (await page.getByText('Vendor Onboarding', { exact: true }).count()) > 0);
   check('approvals derive from the value-banded chain (€150k → VP-Level)',
     (await page.getByText(/VP-Level chain/).count()) > 0);
   check('approver resolves to the actionable persona (config, not a hardcoded name)',

@@ -2,6 +2,7 @@
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+const LLM_TIMEOUT_MS = 10_000;
 
 interface LLMMessage {
   role: 'system' | 'user' | 'assistant';
@@ -78,6 +79,7 @@ async function callGroq(
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(LLM_TIMEOUT_MS),
   });
 
   if (response.status === 429) {
@@ -135,6 +137,7 @@ async function callGemini(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(LLM_TIMEOUT_MS),
   });
 
   if (response.status === 429) {

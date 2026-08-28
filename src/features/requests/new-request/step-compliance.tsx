@@ -35,10 +35,12 @@ import { useFormTemplate } from '@/lib/db/hooks/use-form-templates';
 import { useRoutingRules } from '@/lib/db/hooks/use-routing-rules';
 import { useAiAgent } from '@/lib/db/hooks/use-ai-agents';
 import { useWorkflowTemplates } from '@/lib/db/hooks/use-workflow-templates';
+import { useApprovalChains } from '@/lib/db/hooks/use-approval-chains';
+import type { ApprovalChain } from '@/lib/db/approval-chains';
 import { buyingChannelLabel } from '@/lib/routing/evaluate-routing-rules';
 import { resolveDemandChannel } from '@/lib/routing/demand-channel';
 import { isTriageRequired } from '@/lib/procurement/risk-triage';
-import { selectWorkflowTemplateForCategory } from '@/lib/workflow/workflow-steps';
+import { selectApprovalChainForValue, selectWorkflowTemplateForCategory } from '@/lib/workflow/workflow-steps';
 import { DynamicForm } from '@/components/shared/dynamic-form';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -54,6 +56,7 @@ const EMPTY_CONTRACTS: Contract[] = [];
 const EMPTY_MATCHES: RiskAssessment[] = [];
 const EMPTY_RULES: RoutingRule[] = [];
 const EMPTY_TEMPLATES: WorkflowTemplate[] = [];
+const EMPTY_APPROVAL_CHAINS: ApprovalChain[] = [];
 
 export interface MatchingRiskAssessmentSummary {
   id: string;
@@ -219,6 +222,7 @@ export function StepCompliance({
   const { data: routingRules = EMPTY_RULES } = useRoutingRules();
   const { data: validatorAgent } = useAiAgent('AI-002');
   const { data: workflowTemplates = EMPTY_TEMPLATES } = useWorkflowTemplates();
+  const { data: approvalChains = EMPTY_APPROVAL_CHAINS } = useApprovalChains();
 
   // Mini-IRQ (delta only) — lifted to the parent so the answers captured on the
   // risk step still drive the determination step.
@@ -294,6 +298,11 @@ export function StepCompliance({
       riskRating: inherentRisk.tier,
       material: materiality.material,
     });
+    // `requests.approval_chain` is an FK to approval_chains.id. Routing rules
+    // use human-readable role vocabularies, so persist the actual configured
+    // chain selected by the same value band shown in the routing preview.
+    const configuredChain = approvalChains.find((chain) => chain.id === routing.approvalChain);
+    const valueBandedChain = selectApprovalChainForValue(approvalChains, estimatedValue);
     const label = buyingChannelLabel(routing.channel);
     const supplierData = evaluateSupplierData(supplierRec);
     const handoffSteps = buildHandoffSteps({
@@ -402,7 +411,7 @@ export function StepCompliance({
       // requests.buying_channel, where every consumer keys on the slug — so
       // getStagesForChannel always missed and fell back to the full lifecycle.
       buyingChannelSlug: routing.channel,
-      approvalChain: routing.approvalChain || undefined,
+      approvalChain: configuredChain?.id ?? valueBandedChain?.id,
       matchedRuleName: routing.matchedRule?.name,
       materiality,
       inherentRisk,
@@ -427,7 +436,7 @@ export function StepCompliance({
       riskAssessmentRequired,
       supplierOnboardingRequired,
     };
-  }, [loading, category, estimatedValue, supplierId, isUrgent, serviceDescription, miniIrq, suppliers, allContracts, matches, routingRules, validatorAgent, requestTitle]);
+  }, [loading, category, estimatedValue, supplierId, isUrgent, serviceDescription, miniIrq, suppliers, allContracts, matches, routingRules, validatorAgent, requestTitle, approvalChains]);
 
   // Push the composed result up to the parent whenever the data changes.
   // We intentionally exclude `onUpdate` from the deps: it's a new arrow
