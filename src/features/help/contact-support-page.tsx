@@ -24,7 +24,7 @@ import type { TicketLinkType } from '@/data/types';
 import type { Ticket as TicketRecord } from '@/data/types';
 import { TicketPriorityBadge, TicketStatusBadge } from '@/features/help/ticket-inbox/ticket-badges';
 import { useAuthStore } from '@/stores/auth-store';
-import { openAIChatWithPrompt } from '@/features/ai-assistant/ai-chat-overlay';
+import { openAIChatWithPrompt } from '@/features/ai-assistant/ai-chat-controls';
 
 const faqLinks = [
   { question: 'How do I submit a procurement request?', articleId: 'gs-1' },

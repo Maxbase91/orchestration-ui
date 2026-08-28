@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PageHeader } from '@/components/shared/page-header';
 import { useSupplier } from '@/lib/db/hooks/use-suppliers';
-import { riskColors, countryFlags } from './components/supplier-card';
+import { riskColors, countryFlags } from './supplier-display';
 import { ProfileOverviewTab } from './components/profile-overview-tab';
 import { ProfileContractsTab } from './components/profile-contracts-tab';
 import { ProfileRiskTab } from './components/profile-risk-tab';

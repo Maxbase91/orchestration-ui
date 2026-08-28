@@ -2,30 +2,12 @@
 // numbers and a compliance traffic-light row, with shortcuts to the profile
 // and to raising a request pre-filled with this supplier.
 import { useNavigate } from 'react-router-dom';
+import { countryFlags, riskColors } from '../supplier-display';
 import { Eye, Plus, Check, X } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/format';
 import type { Supplier } from '@/data/types';
-
-const countryFlags: Record<string, string> = {
-  DE: '\u{1F1E9}\u{1F1EA}',
-  GB: '\u{1F1EC}\u{1F1E7}',
-  US: '\u{1F1FA}\u{1F1F8}',
-  IN: '\u{1F1EE}\u{1F1F3}',
-  NL: '\u{1F1F3}\u{1F1F1}',
-  FR: '\u{1F1EB}\u{1F1F7}',
-  IE: '\u{1F1EE}\u{1F1EA}',
-  JP: '\u{1F1EF}\u{1F1F5}',
-  CH: '\u{1F1E8}\u{1F1ED}',
-};
-
-const riskColors: Record<string, string> = {
-  low: 'bg-green-100 text-green-700',
-  medium: 'bg-amber-100 text-amber-700',
-  high: 'bg-red-100 text-red-700',
-  critical: 'bg-red-200 text-red-900',
-};
 
 function ComplianceCheck({ label, pass }: { label: string; pass: boolean }) {
   return (
@@ -121,4 +103,3 @@ export function SupplierCard({ supplier }: SupplierCardProps) {
   );
 }
 
-export { countryFlags, riskColors };

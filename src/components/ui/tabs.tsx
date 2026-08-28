@@ -88,4 +88,5 @@ function TabsContent({
   )
 }
 
-export { Tabs, TabsList, TabsTrigger, TabsContent, tabsListVariants }
+// `tabsListVariants` is intentionally not exported — see the note in badge.tsx.
+export { Tabs, TabsList, TabsTrigger, TabsContent }

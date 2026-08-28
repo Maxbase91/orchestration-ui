@@ -45,4 +45,6 @@ function Badge({
   )
 }
 
-export { Badge, badgeVariants }
+// `badgeVariants` is intentionally not exported: nothing outside this file
+// uses it, and a non-component export here breaks Fast Refresh for the module.
+export { Badge }

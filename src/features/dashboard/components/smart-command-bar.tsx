@@ -29,7 +29,7 @@ import { useAuthStore } from '@/stores/auth-store';
 import { parseDeliveryDate } from '@/lib/parse-delivery-date';
 import { queryClient } from '@/lib/query-client';
 import type { RequestCategory, BuyingChannel } from '@/data/types';
-import { openAIChat, openAIChatWithPrompt } from '@/features/ai-assistant/ai-chat-overlay';
+import { openAIChat, openAIChatWithPrompt } from '@/features/ai-assistant/ai-chat-controls';
 import { formatCurrency } from '@/lib/format';
 import { decideIntakeRoute } from '@/lib/procurement/intake-routing';
 import { classifyDemandCategory } from '@/lib/procurement/classify';

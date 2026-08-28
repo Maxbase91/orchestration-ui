@@ -61,4 +61,5 @@ function Button({
   )
 }
 
-export { Button, buttonVariants }
+// `buttonVariants` is intentionally not exported — see the note in badge.tsx.
+export { Button }

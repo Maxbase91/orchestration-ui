@@ -6,7 +6,7 @@ import { DataTable, type Column } from '@/components/shared/data-table';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { formatCurrency } from '@/lib/format';
 import type { Supplier } from '@/data/types';
-import { countryFlags, riskColors } from './supplier-card';
+import { countryFlags, riskColors } from '../supplier-display';
 
 type SupplierRow = Supplier & Record<string, unknown>;
 

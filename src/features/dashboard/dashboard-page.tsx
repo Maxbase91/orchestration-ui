@@ -29,7 +29,7 @@ import { widgetComponents } from './widgets';
 import { DashboardWidgetCard } from './components/dashboard-widget-card';
 import { QuickActionsEditor } from './components/quick-actions-editor';
 import { AddWidgetDialog } from './components/add-widget-dialog';
-import { openAIChat } from '@/features/ai-assistant/ai-chat-overlay';
+import { openAIChat } from '@/features/ai-assistant/ai-chat-controls';
 import { SmartCommandBar } from './components/smart-command-bar';
 
 const qaIconMap: Record<string, LucideIcon> = {

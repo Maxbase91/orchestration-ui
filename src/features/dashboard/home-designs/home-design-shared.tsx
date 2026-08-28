@@ -8,7 +8,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth-store';
 import { useDashboardStore } from '@/stores/dashboard-store';
-import { openAIChat } from '@/features/ai-assistant/ai-chat-overlay';
+import { openAIChat } from '@/features/ai-assistant/ai-chat-controls';
 import { allQuickActions, widgetRegistry } from '../widget-registry';
 import { widgetComponents } from '../widgets';
 

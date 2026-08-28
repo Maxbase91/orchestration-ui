@@ -36,14 +36,6 @@ const WELCOME_MESSAGE: ChatMessageData = {
   ],
 };
 
-export function openAIChat() {
-  window.dispatchEvent(new CustomEvent('open-ai-chat'));
-}
-
-export function openAIChatWithPrompt(prompt: string) {
-  window.dispatchEvent(new CustomEvent('open-ai-chat-with-prompt', { detail: prompt }));
-}
-
 function ConversationDropdown({
   activeTitle,
   conversations,

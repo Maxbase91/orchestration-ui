@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { openAIChat } from '@/features/ai-assistant/ai-chat-overlay';
+import { openAIChat } from '@/features/ai-assistant/ai-chat-controls';
 
 const suggestedPrompts = [
   'Summarise my open requests',

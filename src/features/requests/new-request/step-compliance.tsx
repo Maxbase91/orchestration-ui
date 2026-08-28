@@ -37,6 +37,7 @@ import { useAiAgent } from '@/lib/db/hooks/use-ai-agents';
 import { useWorkflowTemplates } from '@/lib/db/hooks/use-workflow-templates';
 import { buyingChannelLabel } from '@/lib/routing/evaluate-routing-rules';
 import { resolveDemandChannel } from '@/lib/routing/demand-channel';
+import { isTriageRequired } from '@/lib/procurement/risk-triage';
 import { selectWorkflowTemplateForCategory } from '@/lib/workflow/workflow-steps';
 import { DynamicForm } from '@/components/shared/dynamic-form';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -143,75 +144,6 @@ function mapSraStatus(status: string | undefined): string {
   }
 }
 
-/**
- * Decide whether the full risk-triage questionnaire needs to render.
- *
- * Triage is REQUIRED when at least one of these is true:
- *   - supplier has no valid SRA on file (not-assessed / expired / unknown)
- *   - no reusable risk assessment already covers this supplier AND
- *     data sensitivity is high/critical, OR the supplier is new, OR the
- *     supplier's own risk rating is high/critical.
- *
- * When triage is NOT required we render a short confirmation card
- * instead, citing which reusable SRA covers the case.
- */
-export function isTriageRequired(params: {
-  supplierSraStatus?: string;
-  supplierRiskRating?: string;
-  supplierRegistered: boolean;
-  matchingReusableSraCount: number;
-  inferredDataSensitivity: 'none' | 'low' | 'medium' | 'high' | 'critical';
-}): { required: boolean; reason: string } {
-  const {
-    supplierSraStatus,
-    supplierRiskRating,
-    supplierRegistered,
-    matchingReusableSraCount,
-    inferredDataSensitivity,
-  } = params;
-
-  // No supplier selected yet → always require triage; we don't know who
-  // we'll be engaging.
-  if (!supplierRegistered) {
-    return { required: true, reason: 'new or unselected supplier' };
-  }
-
-  // Missing / expired SRA → triage must run regardless of sensitivity.
-  if (
-    supplierSraStatus === 'not-assessed' ||
-    supplierSraStatus === 'expired' ||
-    !supplierSraStatus
-  ) {
-    return { required: true, reason: `supplier SRA status is ${supplierSraStatus ?? 'unknown'}` };
-  }
-
-  // High-risk supplier on record — always triage.
-  if (supplierRiskRating === 'high' || supplierRiskRating === 'critical') {
-    return { required: true, reason: `supplier risk rating is ${supplierRiskRating}` };
-  }
-
-  // Reusable SRA covers it AND SOW doesn't suggest sensitive data →
-  // triage can be skipped.
-  if (matchingReusableSraCount > 0) {
-    if (inferredDataSensitivity === 'high' || inferredDataSensitivity === 'critical') {
-      return { required: true, reason: `data sensitivity is ${inferredDataSensitivity}` };
-    }
-    return {
-      required: false,
-      reason: `${matchingReusableSraCount} reusable risk assessment${matchingReusableSraCount === 1 ? '' : 's'} cover${matchingReusableSraCount === 1 ? 's' : ''} this supplier`,
-    };
-  }
-
-  // No reusable SRA + sensitive SOW → triage.
-  if (inferredDataSensitivity === 'high' || inferredDataSensitivity === 'critical') {
-    return { required: true, reason: `data sensitivity is ${inferredDataSensitivity}` };
-  }
-
-  // Supplier has valid SRA, low risk, low data sensitivity, no reusable
-  // SRA but also no red flags — still run triage as the safer default
-  // unless we can point to a reusable SRA above.
-  return { required: true, reason: 'no reusable SRA on file' };
-}
 
 
 function generatePolicyChecks(
@@ -495,7 +427,7 @@ export function StepCompliance({
       riskAssessmentRequired,
       supplierOnboardingRequired,
     };
-  }, [loading, category, estimatedValue, supplierId, isUrgent, serviceDescription, miniIrq, suppliers, allContracts, matches, routingRules, validatorAgent]);
+  }, [loading, category, estimatedValue, supplierId, isUrgent, serviceDescription, miniIrq, suppliers, allContracts, matches, routingRules, validatorAgent, requestTitle]);
 
   // Push the composed result up to the parent whenever the data changes.
   // We intentionally exclude `onUpdate` from the deps: it's a new arrow
