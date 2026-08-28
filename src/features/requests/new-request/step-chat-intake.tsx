@@ -501,7 +501,12 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
 
       const merged = { ...result.sections, narrative: result.narrative };
       setSvcDesc(merged as Partial<ServiceDescription>);
-      onUpdate({ serviceDescription: merged });
+      // The business need IS the service description — so the narrative becomes
+      // the request's justification, on this path as well as the offline one.
+      // Only the offline fallback did this, so on the LLM path the justification
+      // stayed whatever step 1 had seeded and never reflected what the
+      // requester actually described.
+      onUpdate({ serviceDescription: merged, businessJustification: result.narrative });
       setQualityScore(result.qualityScore);
       // Persisted at submit. These columns have existed since R6 and were null
       // on every live row, so the quality badge tab-overview renders had never

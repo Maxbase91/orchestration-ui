@@ -90,6 +90,10 @@ try {
     !(await page.content()).includes('Details pre-filled. Moving to next step'));
   check('the false "routes the request" sub-label is gone',
     !(await page.content()).includes('routes the request'));
+  // Step 1 classifies. It does not author the request's justification — the
+  // business need is captured in the service description at step 3.
+  check('no generated business justification on step 1',
+    !(await page.content()).includes('Business justification'));
 
   console.log('\nThe wizard cannot be walked past its gates');
   const next = page.getByRole('button', { name: /^Next$/ });

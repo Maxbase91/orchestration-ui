@@ -51,7 +51,6 @@ interface AIClassification {
   title: string;
   supplier: string;
   estimatedValue: number;
-  description: string;
   /**
    * Which layer produced this. Replaces a hardcoded `confidence: 0.9` that was
    * rendered to the user as a model confidence — the LLM returns no confidence,
@@ -77,7 +76,7 @@ async function classifyWithAI(input: string): Promise<AIClassification | null> {
     const res = await fetch('/api/ai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: `CLASSIFY THIS PROCUREMENT REQUEST. Return the category, extracted details, and a professional description.\n\nUser input: "${input}"\n\nIMPORTANT: Respond with JSON containing: {"intent":"new-request","message":"...","catalogueItems":[],"links":[],"category":"goods|services|software|consulting|contingent-labour|contract-renewal|supplier-onboarding","extractedTitle":"professional title","extractedSupplier":"supplier name or empty","extractedValue":0,"generatedDescription":"a 3-4 sentence business justification: what is needed, the intended outcome, and why it is required — this becomes the request's justification, so make it substantive"}` }),
+      body: JSON.stringify({ query: `CLASSIFY THIS PROCUREMENT REQUEST. Return the category and the details you can extract.\n\nUser input: "${input}"\n\nIMPORTANT: Respond with JSON containing: {"intent":"new-request","message":"...","catalogueItems":[],"links":[],"category":"goods|services|software|consulting|contingent-labour|contract-renewal|supplier-onboarding","extractedTitle":"professional title","extractedSupplier":"supplier name or empty","extractedValue":0}` }),
     });
     if (!res.ok) return null;
     const data = await res.json();
@@ -90,7 +89,6 @@ async function classifyWithAI(input: string): Promise<AIClassification | null> {
       title: data.extractedTitle ?? '',
       supplier: data.extractedSupplier ?? '',
       estimatedValue: data.extractedValue ?? 0,
-      description: data.generatedDescription ?? data.message ?? '',
       source: 'llm',
       intent,
     };
@@ -119,9 +117,6 @@ function localClassify(input: string): AIClassification {
     title: input,
     supplier,
     estimatedValue: 0,
-    // A fuller business justification (not a one-liner): restate the full need
-    // and its intended outcome so the Justification field is substantive.
-    description: `Business need: ${input.trim()}. This procurement supports business operations and is raised via the front door for classification, risk assessment and routing to the appropriate buying channel.`,
     source: 'rules',
   };
 }
@@ -261,11 +256,6 @@ export function StepCategory({ prefill, onUpdate, onAutoAdvance, onBrowseCatalog
       updates.estimatedValue = aiResult.estimatedValue;
     }
 
-    // Pre-fill description as business justification
-    if (aiResult.description) {
-      updates.businessJustification = aiResult.description;
-    }
-
     // The routing decision in step 2 reads this; without it the wizard would
     // re-derive the answer the assistant has already given.
     if (aiResult.intent) updates.llmIntent = aiResult.intent;
@@ -387,17 +377,6 @@ export function StepCategory({ prefill, onUpdate, onAutoAdvance, onBrowseCatalog
                       <p className="text-[11px] text-gray-400">refine at any point</p>
                     </div>
                   )}
-                </div>
-              )}
-
-              {/* The one genuinely new piece of content on this screen — it
-                  becomes the request's business justification. */}
-              {aiResult.description && (
-                <div className="rounded-md border border-gray-200 bg-white px-3 py-2">
-                  <p className="text-[10px] font-medium uppercase tracking-wider text-gray-400">
-                    Business justification · generated
-                  </p>
-                  <p className="mt-1 text-sm text-gray-700">{aiResult.description}</p>
                 </div>
               )}
 
