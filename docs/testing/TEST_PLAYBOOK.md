@@ -138,8 +138,23 @@ These are the cases where the wizard could not.
 | TC-REQ-G10 | Step 3, try to advance with only a title and a value | **Next is disabled** and names what is still outstanding. The gate calls `requiredSlotsFilled` — the mandatory-SOW floor the engine defines — which had been computed in the chat component and never consulted. Conditional enrichment never holds the gate |
 | TC-REQ-G11 | Step 3, contract-renewal or supplier-onboarding path | Unaffected by the floor. Those paths render `step-details`, which never captures SOW sections, and holding them to it would block them permanently |
 | TC-REQ-G12 | Step 3, the conversation ends | The assistant says **what was captured** and that the description is carried into risk, the determination and any sourcing. The same close whether or not the LLM is up |
-| TC-REQ-G13 | Open a request, click through **every** workflow step | No screen throws. The step detail pre-populates risk forms from the service description; it used to cast the whole stored record — which carries a quality score, two arrays and two objects beside its nine text sections — to a map of strings and trim every value, so the first non-string member crashed the page with `r?.trim is not a function`. `sectionValuesOf()` narrows at the boundary; `test:intake-guidance` scans `src/` for both the cast and the unguarded walk |
+| TC-REQ-G13 | Open a request, click through **every** workflow step | No screen throws. The step detail pre-populates risk forms from the service description; it used to cast the whole stored record — which carries a quality score, two arrays and two objects beside its nine text sections — to a map of strings and trim every value, so the first non-string member crashed the page with `r?.trim is not a function`. `sectionValuesOf()` narrows at the boundary; `test:intake-guidance` scans `src/` for both the cast and the unguarded walk, and `test:request-detail-ui` drives the real screen against fixtures — it white-screens on the pre-fix code |
 | TC-REQ-G14 | Raise a sourcing event from a request that has a description | Requirements seed from the **text sections only**. Same cast, same crash class, second call site |
+
+### The request detail, driven offline (`npm run test:request-detail-ui`)
+
+Every other browser suite needs a reachable Supabase project, so none of them run in a sandbox or in
+CI — which is why a render crash on the request detail was found by a user rather than a test. This
+suite stubs Supabase's REST API inside the page (`tests/ui/postgrest-stub.mjs`) and drives the real
+screen against fixtures: no credentials, no network.
+
+| ID | Steps | Expected |
+|---|---|---|
+| TC-REQ-D1 | Open `/requests/REQ-TEST-0001`, Workflow tab | The page renders. A throw during render leaves `#root` empty, so a white screen is reported as such with the error attached, not as a locator timeout |
+| TC-REQ-D2 | The current stage's card | Opens by default, showing the description summary and its quality score. The crash happened here on **render** — before any click |
+| TC-REQ-D3 | "Fill Out Form" on the risk stage | The mapped field carries the description's scope. Asserting only "nothing threw" would pass against a form that pre-populated nothing |
+| TC-REQ-D4 | Collapse and reopen every step card | No uncaught error, and specifically no `trim is not a function` — named, so a returning regression says which one |
+| TC-REQ-D5 | The stub's own report | No filter was silently dropped. A filter the stub does not understand would answer the app with rows it never asked for, and the assertions above would be meaningless |
 
 ### Supplier is identified once
 

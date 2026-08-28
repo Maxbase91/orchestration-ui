@@ -179,6 +179,8 @@ npm run test:ui                   # browser smoke (Playwright) — wizard end-to
 npm run test:e2e-ui               # full-app browser sweep — every route × role, captures console/runtime errors
 npm run test:service-description-ui # browser smoke — /admin/service-description renders all four config areas
 npm run test:intake-guidance-ui   # browser smoke — step-1 single classification block, per-step header panels, the step gate
+npm run test:request-detail-ui    # browser check on fixtures (no credentials, no network) — the request detail renders, every
+                                  # workflow step opens, and the risk form pre-populates from the service description
 npm run test:interactions-ui      # interaction E2E — wizard submit, admin save, AI assistant (self-cleaning)
 npm run test:home-designs         # alternative home designs (1a/1b/1c) are fully functional + dashboard intact
 # …see package.json "test:*" scripts for the full list
@@ -186,6 +188,12 @@ npm run test:home-designs         # alternative home designs (1a/1b/1c) are full
 
 `test:ui` uses Playwright. First-time setup: `npm install` then `npx playwright install chromium`.
 It boots the dev server itself and needs `.env.local` (Supabase creds).
+
+`test:request-detail-ui` is the exception: it stubs Supabase's REST API inside the browser
+(`tests/ui/postgrest-stub.mjs`) and runs with **no credentials and no network**. Use that harness for
+any screen worth checking where the project is unreachable — a suite that can only run against a live
+database does not run in CI or in a sandbox, which is how a render crash on the request detail
+reached production unnoticed.
 Set `E2E_API_BASE=https://orchestration-ui.vercel.app` for deployed API tests and
 `E2E_UI_BASE=https://orchestration-ui.vercel.app` for the interaction suite against a deployed build.
 
