@@ -31,7 +31,7 @@ An interactive UI prototype that shows what a modern procurement orchestration p
 |--------|-------------|
 | Role-Based Dashboards | 5 tailored dashboards (Service Owner, Procurement Manager, Vendor Manager, Operations Lead, Admin) |
 | Switchable home designs | The home (`/`) ships in 4 selectable designs — the default Dashboard plus three Apple-style layouts (1a Cupertino · 1b Bento · 1c Editorial), all fully functional (front door, quick actions, live KPIs + demand pipeline). Picked from a top-bar toggle next to the role-switcher; persisted per user |
-| New Request Wizard | 7-step intake with a **staged-intake funnel**: free-text entry (no category selection — the path is derived), then a sequential **catalogue → enrich → contract** pre-check (no premature contract assertion). The pre-check makes **one explainable routing decision** (`lib/procurement/intake-routing.ts`) — catalogue order, call-off against an existing contract, or new demand — and says *why*, including why the other routes were ruled out. A category the catalogue cannot fulfil (consulting, services, …) **skips the catalogue stage with the reason shown** rather than being offered unrelated items; all three destinations stay reachable from every stage. Then service description, **risk & assessment**, **determination**, routing, confirmation. The service-description capture is a **dynamic, answer-driven conversation** (next question depends on prior answers, nothing is re-asked — `demand-conversation.ts`). **Requester context** is established up front: the requester's **country is auto-derived from their profile** (read-only) and the **beneficiary defaults to self** with a type-ahead to buy on behalf of someone else |
+| New Request Wizard | 7-step intake with a **staged-intake funnel**: free-text entry (no category selection — the path is derived), then a sequential **catalogue → enrich → contract** pre-check (no premature contract assertion). The pre-check makes **one explainable routing decision** (`lib/procurement/intake-routing.ts`) — catalogue order, call-off against an existing contract, or new demand — and says *why*, including why the other routes were ruled out. A category the catalogue cannot fulfil (consulting, services, …) **skips the catalogue stage with the reason shown** rather than being offered unrelated items; all three destinations stay reachable from every stage. Then service description, **risk & assessment**, **determination**, routing, confirmation. The service-description capture is a **dynamic, answer-driven conversation** (next question depends on prior answers, nothing is re-asked — `demand-conversation.ts`). **Requester context** is established up front: the requester's **country is auto-derived from their profile** (read-only) and the **beneficiary defaults to self** with a type-ahead to buy on behalf of someone else. **The wizard explains itself**: every step carries a header panel — what it is for, what it needs from you, what happens after (`step-guidance.ts`) — and the stepper renders each step's description. **Step 1 shows one classification block** (category as the headline, commodity code beneath as the derived specific code; supplier and value labelled *extracted*), not the demand three times over. **The buying channel is shown on the pre-check**, four steps earlier than before, with its indicative timeline and the rule that decided it — resolved by `lib/routing/demand-channel.ts`, the same function the determination calls, so the two cannot drift. Urgency is the one input that can still move it, and the toggle says so as it is ticked. **The conversation finishes**: progress is measured against the questions this demand is actually asked (so it reaches 100%), sections the template marks inferred are shown as such rather than outstanding, conditional questions state why they are being asked, and step 3 will not release until the mandatory service-description floor is met |
 | Request Detail | Full lifecycle tracker with 7 tabs (Overview, Workflow, Comments, Approvals, Documents, Related, Audit). Validation, risk, approval, sourcing and contracting show the **service description** and its quality score, so a reviewer sees what they are approving |
 | Vendor onboarding | A real conditional stage, not a preview label. **Light onboarding** (supplier record exists and screening has cleared) gates **sourcing** — you cannot invite a supplier that does not exist — and gates **completing the risk assessment**, which hangs off a supplier record. **Full onboarding** gates **contracting** for the awarded supplier only, so paperwork is not demanded up front from vendors who may not win. A supplier named at intake but absent from the directory can be created as a **prospective** record from the wizard |
 | Active Workflows | Kanban board (drag-and-drop), sortable table, Gantt timeline — with system integration badges |
@@ -58,7 +58,7 @@ An interactive UI prototype that shows what a modern procurement orchestration p
 ### Admin & Configuration
 | Screen | Description |
 |--------|-------------|
-| Routing Rules Engine | 3-panel layout: rule tree, visual IF/THEN editor, test panel |
+| Routing Rules Engine | 3-panel layout: rule tree, visual IF/THEN editor, test panel. The **editor, the test panel and the runtime share one vocabulary** — every field and operator the editor offers is evaluated in production, and the test panel calls the production evaluator rather than reimplementing it. An **active rule that cannot fire is diagnosed** at the top of the page (unknown field, unsupported operator, malformed `between`, no conditions) instead of silently never matching |
 | Decisioning Thresholds | Edit the governed decisioning thresholds (approval/materiality/risk/sourcing/contract); Save applies them to the live front door; live simulation previews a sample demand's outcome |
 | Service Description | Configure the service description end to end: the **generation prompt** (guidance, system prompt, temperature, token budget, with a preview of the assembled prompt), the **components asked** at intake (question, example, required, and the condition that shows it), **what is generated** (the detailed sections, which are asked vs inferred, and which compose the compact narrative), and **reuse in later steps** (which sections seed a sourcing event's requirements, plus the default evaluation criteria). Per-category with a `default` fallback; stored in Postgres so the serverless generation and intake routes read the same config Generation is **signal-aware**: the capture-time materiality, inherent risk, data sensitivity and sourcing read (`demand-signals.ts`) is passed to the model, and the template's `requiredWhen` conditions say which sections that read makes mandatory — so a material, competitively-sourced engagement is required to cover scope, deliverables and measurable acceptance criteria while a small order is not. The determination reports any required section still missing rather than regenerating the document behind the requester. |
 | Workflow Designer | React Flow canvas with 10 custom node types, drag-from-palette, node configuration, simulation |
@@ -123,6 +123,7 @@ Integration tests run as standalone Node scripts under `tests/integration/`:
 ```bash
 npm run test:e2e                  # end-to-end request → approval workflow
 npm run test:routing              # routing-rule evaluator
+npm run test:routing-rule-integrity # editor ↔ runtime ↔ test-panel parity — every offered field/operator is evaluated, a broken rule is diagnosed
 npm run test:intake               # intake sequence
 npm run test:connectors           # source-connector layer (registry, query, live-swap seam)
 npm run test:preference           # preferred-supplier (PSL) + competitive-sourcing controls
@@ -141,7 +142,8 @@ npm run test:tickets              # support tickets — entitlement, internal no
 npm run test:ticket-sla           # ticket SLA — targets, due dates, breach/at-risk, waiting-on-user pause
 npm run test:approval-to-source   # approval-to-source gate (light vs full pre-sourcing approvals)
 npm run test:residual-questions   # criteria-triggered stage-5 residual questions (mini-IRQ deltas)
-npm run test:demand-conversation  # dynamic intake — answer-driven next question + carry-forward + branching
+npm run test:demand-conversation  # dynamic intake — answer-driven next question + carry-forward + branching + conditional rationale
+npm run test:intake-guidance      # progress reaches 100%, inferred sections are not outstanding, step-3 floor, per-step guidance copy
 npm run test:assistant-intents    # assistant routes procurement demands to intake, not a support ticket
 npm run test:operational-risk     # preliminary operational risk assessment (per-dimension screen)
 npm run test:classification-eval  # classification eval harness + accuracy baseline (CLS-G1)
@@ -161,6 +163,7 @@ npm run walkthrough               # visual QA harness (Playwright) — drives th
 npm run test:ui                   # browser smoke (Playwright) — wizard end-to-end through the determination + config-driven routing steps
 npm run test:e2e-ui               # full-app browser sweep — every route × role, captures console/runtime errors
 npm run test:service-description-ui # browser smoke — /admin/service-description renders all four config areas
+npm run test:intake-guidance-ui   # browser smoke — step-1 single classification block, per-step header panels, the step gate
 npm run test:interactions-ui      # interaction E2E — wizard submit, admin save, AI assistant (self-cleaning)
 npm run test:home-designs         # alternative home designs (1a/1b/1c) are fully functional + dashboard intact
 # …see package.json "test:*" scripts for the full list
@@ -244,7 +247,7 @@ src/
 │   ├── db/          # Data-access modules + TanStack Query hooks
 │   ├── integrations/# Standardised source-connector layer (own-store → live swap)
 │   ├── procurement/ # Pure decisioning modules (classify, materiality, risk, determination, …) + service description config (SERVICE_DESCRIPTION.md)
-│   ├── routing/     # Routing-rule evaluator
+│   ├── routing/     # Routing-rule evaluator + diagnostics, and the one buying-channel resolver both the pre-check and the determination call
 │   └── workflow/    # Workflow engine, transition primitive, gate model (see its README)
 ├── components/
 │   ├── ui/          # shadcn/ui primitives
@@ -253,7 +256,7 @@ src/
 │   └── charts/      # Recharts wrappers
 └── features/        # Feature modules
     ├── dashboard/   # Role-based dashboards + home-designs/ (alternative Apple-style homes)
-    ├── requests/    # New request wizard, request detail
+    ├── requests/    # New request wizard (per-step guidance map + header panel), request detail
     ├── workflows/   # Kanban, table, timeline, monitor
     ├── suppliers/   # Directory, profile, portal
     ├── approvals/   # Approval queue, delegation

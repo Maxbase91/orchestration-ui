@@ -104,6 +104,26 @@ The pre-check makes one explainable decision. These are the cases that broke it.
 | TC-REQ-R8 | AI-001 active, assistant intent disagrees | `api/ai.ts` returns `intent`, which the wizard now reads instead of discarding. It is authoritative **except** that a `catalogue` intent cannot route to an empty catalogue — then the rules decide and the disagreement is shown, not hidden |
 | TC-REQ-R9 | AI-001 disabled / LLM unreachable | Identical routing to the rules-only path. The deterministic layer is the fallback and is gated by its own eval (TC-GOV-02) |
 
+### The wizard explains itself, and finishes (`npm run test:intake-guidance`, `npm run test:intake-guidance-ui`)
+
+A requester should be able to tell, from any screen, what the step is for and what it will cost them.
+These are the cases where the wizard could not.
+
+| ID | Steps | Expected |
+|---|---|---|
+| TC-REQ-G1 | Any step | A header panel states **what the step is for**, **what we need from you**, and **what happens next**. The stepper renders each step's description under its label — that copy was defined on every step and drawn nowhere |
+| TC-REQ-G2 | Step 1, after classification | **One** classification block: category as the headline with the commodity code beneath it as the derived specific code. The title is the block's heading, not a card of its own. Supplier and value are labelled **extracted** (they are confirmed at the determination). No "routes the request" sub-label — the channel routes it, and it is not decided here |
+| TC-REQ-G3 | Step 1, click Accept | No accepted banner. The old one repeated the category and supplier from the card above it, then auto-advanced after **600 ms** — nobody could read it. The block stays on screen with its controls locked through the hand-off |
+| TC-REQ-G4 | Step 2, any demand | The **buying channel** is shown, with its indicative timeline and the rule that decided it. This was first visible on step 5, four steps after it became knowable |
+| TC-REQ-G5 | Step 2 → step 5, same demand | The channel shown on the pre-check **equals** the one the determination computes. Both call `resolveDemandChannel`; a second derivation would be the drift this codebase keeps paying for |
+| TC-REQ-G6 | Step 3, tick "Mark as urgent" | The toggle states inline that the request now goes to Procurement-Led Sourcing instead of its current channel. Derived from the live rule set, and **silent** when urgency would change nothing |
+| TC-REQ-G7 | Step 3 progress bar, answer every question | Reads **100%**. The denominator is the questions this demand is actually asked, not a fixed 14 — which topped out at 57% (goods €8k), 64% (software €30k), 71% (services €60k) and 86% (consulting €400k) |
+| TC-REQ-G8 | Step 3 panel, section list | Comes from the resolved template, not a hardcoded nine. A section the template marks `asked: false` (today, `location`) shows as **inferred**, not "Pending" — it is generated, never captured |
+| TC-REQ-G9 | Step 3, a conditional question | Carries an **"Asked because…"** line explaining why *this* demand gets it. The six mandatory questions carry none — a justification on every question is one the requester learns to skip. The copy is per-slot config, editable in the admin slot table |
+| TC-REQ-G10 | Step 3, try to advance with only a title and a value | **Next is disabled** and names what is still outstanding. The gate calls `requiredSlotsFilled` — the mandatory-SOW floor the engine defines — which had been computed in the chat component and never consulted. Conditional enrichment never holds the gate |
+| TC-REQ-G11 | Step 3, contract-renewal or supplier-onboarding path | Unaffected by the floor. Those paths render `step-details`, which never captures SOW sections, and holding them to it would block them permanently |
+| TC-REQ-G12 | Step 3, the conversation ends | The assistant says **what was captured** and that the description is carried into risk, the determination and any sourcing. The same close whether or not the LLM is up |
+
 ### Supplier is identified once
 
 | ID | Steps | Expected |
@@ -295,6 +315,9 @@ not in a component — because RLS is currently `USING (true)`.
 | TC-ADM-01 | `/admin/rules` Routing Rules | 3-panel; edit rule; **Test panel** returns a match; Save persists |
 | TC-ADM-02 | Rule change affects intake | New matching request shows the configured channel/chain |
 | TC-ADM-02b | Risk-aware routing (`npm run test:routing`) | A `risk_rating`-keyed rule fires when the supplier risk tier is at/above the threshold; supplier risk tier flows into the determination |
+| TC-ADM-02c | Editor ↔ runtime ↔ test panel parity (`npm run test:routing-rule-integrity`) | Every field and operator the editor **offers** is evaluated in production, in both directions. The editor used to offer `contractId`, `riskLevel` and `region` and the operators `contains`, `is_empty`, `is_not_empty`, none of which the evaluator implemented — an unrecognised condition returned `false`, and because a rule requires `conditions.every(...)`, one killed the whole rule. `riskLevel` vs `riskRating` meant the obvious "route on risk" rule was dead on a name mismatch |
+| TC-ADM-02d | The test panel tests what runs | The panel calls the production evaluator. It used to implement its own — including `contractId` and `is_empty`, which production ignored — so it could **confirm a rule that never fired**. Set a priority and a commodity code in the panel; both are now inputs |
+| TC-ADM-02e | A rule that cannot fire looks broken | `/admin/rules` shows a banner listing active rules with an unknown field, an unsupported operator, a malformed `between` (one bound), or no conditions. Each is clickable to the rule. **Live proof this was needed:** RR-001 "High-value IT software" was active, first in evaluation order, described as routing software over €100k to procurement-led, and carried `match_count: 42`. All three of its conditions evaluated false — it had never matched once. Repaired in `supabase/backfills/2026-08-28-rr001-repair.sql`, with `match_count` reset to 0 rather than carrying a history it never had |
 | TC-ADM-03 | `/admin/forms` Form Builder | Add/configure/reorder fields; live preview; Save persists |
 | TC-ADM-04 | `/admin/workflows` Designer | All 4 templates render node graphs; add node; Simulate; Save persists |
 | TC-ADM-05 | Designer drives runtime (target) | Editing a template changes how a new request progresses |
@@ -320,6 +343,7 @@ not in a component — because RLS is currently `USING (true)`.
 | TC-ADM-26 | Components asked are config-driven (`npm run test:service-description-config`) | The serialised slot set produces **the same questions in the same order** as the built-in `ALL_SLOTS` across every category × value combination — the equivalence that makes the migration safe. Conditions use the `{field, operator, value}` vocabulary shared with routing rules and form triggers; thresholds referenced as `policy:<key>` still move with `/admin/thresholds` |
 | TC-ADM-27 | What is generated is config-driven | The **compact narrative** composes from `narrative_sections`, in order, in one place (the API, the mock and the offline fallback no longer drift). Sections the requester is never asked for are labelled **inferred**, so generated content is not presented as captured |
 | TC-ADM-28 | Reuse in Sourcing | Raise a sourcing event from a request with a service description: `requirements` are **seeded from the configured sections** (labelled, empty sections skipped) and `criteria` from the template's defaults instead of arriving empty. The evaluator can still edit everything; weights must still total 100, and the admin screen shows the running total where they are edited |
+| TC-ADM-30 | A conditional question's rationale is editable | In **Components asked at intake**, a slot with conditions offers an "Asked because…" field, shown to the requester beneath that question at step 3. Unconditional slots do not offer it — everyone is asked those, so a rationale would be noise. Blanking the field removes the line |
 | TC-ADM-29 | Reuse in Risk / forms | The Form Builder's pre-populate list offers `sow.*` sources (objective, scope, deliverables, resources, narrative, …). A form triggered on the risk stage pre-fills from the service description rather than re-asking |
 | TC-ADM-21 | Deleting a sourcing event really deletes | Removing an event from the admin browser deletes the Postgres row **and cascades to its invitations and submitted bids** — reload and confirm it is gone from `/sourcing`, not just from the current session |
 

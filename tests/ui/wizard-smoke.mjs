@@ -72,7 +72,9 @@ try {
   //    category tiles (the fulfilment path is derived, not chosen). "Browse the
   //    catalogue" is the one explicit alternative entry point.
   await page.goto(`${BASE}/requests/new`, { waitUntil: 'networkidle' });
-  await page.getByText('Describe what you need').waitFor({ timeout: 15000 });
+  // exact: the step-1 guidance panel opens with "Describe what you need in
+  // plain language…", so a loose match now resolves to two elements.
+  await page.getByText('Describe what you need', { exact: true }).waitFor({ timeout: 15000 });
   check('wizard category step renders free-text entry', true);
   check('NO commodity-category tiles (Goods/Contingent Labour are not a choice)',
     (await page.getByText('Goods', { exact: true }).count()) === 0
