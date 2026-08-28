@@ -10,7 +10,8 @@ import { spawn } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import { chromium } from 'playwright';
 
-const BASE = 'http://localhost:5173';
+const BASE = process.env.E2E_UI_BASE ?? 'http://localhost:5173';
+const USE_DEPLOYED_APP = Boolean(process.env.E2E_UI_BASE);
 const DIR = '/tmp/fd';
 mkdirSync(DIR, { recursive: true });
 
@@ -41,6 +42,7 @@ async function waitForServer(timeoutMs = 60000) {
 }
 
 const errors = [];
+let failures = 0;
 function attachErrorCapture(page, tag) {
   page.on('console', (m) => {
     if (m.type() !== 'error') return;
@@ -57,10 +59,17 @@ async function toFullRequest(page, demand, enrichment) {
   await page.locator('#need-input').fill(demand);
   await page.locator('#need-input').press('Enter');
   await page.getByRole('button', { name: /Accept & continue/ }).click();
-  await page.getByText('Catalogue check', { exact: true }).waitFor({ timeout: 15000 });
-  await page.locator('textarea').first().fill(enrichment);
-  await page.getByRole('button', { name: /Check for a covering contract/ }).click();
-  await page.getByText('Contract check', { exact: true }).waitFor({ timeout: 15000 }).catch(() => {});
+  // Catalogue-fulfillable goods show catalogue first; services, consulting,
+  // and renewals legitimately skip it and open directly on contract coverage.
+  // Accept either valid funnel shape instead of treating the configured skip
+  // as a timeout.
+  await page.getByText(/^(Catalogue check|Contract check)$/, { exact: true }).first()
+    .waitFor({ timeout: 15000 });
+  if (await page.getByText('Catalogue check', { exact: true }).count()) {
+    await page.locator('textarea').first().fill(enrichment);
+    await page.getByRole('button', { name: /Check for a covering contract/ }).click();
+    await page.getByText('Contract check', { exact: true }).waitFor({ timeout: 15000 }).catch(() => {});
+  }
   const proceed = page.getByRole('button', { name: /Proceed to full request/ });
   await proceed.first().waitFor({ timeout: 8000 });
   await proceed.first().click();
@@ -111,15 +120,16 @@ async function fullScenario(page, { key, demand, enrichment, answers, toggleCrit
     await shot(page, `${key}-4-routing`);
     log(`  ✓ ${key} reached routing`);
   } catch (e) {
+    failures++;
     log(`  ✗ ${key} failed: ${e.message}`);
     await shot(page, `${key}-ERROR`);
   }
 }
 
-const server = spawn('npm', ['run', 'dev'], { stdio: 'ignore' });
+const server = USE_DEPLOYED_APP ? null : spawn('npm', ['run', 'dev'], { stdio: 'ignore' });
 let browser;
 try {
-  await waitForServer();
+  if (!USE_DEPLOYED_APP) await waitForServer();
   browser = await chromium.launch(LAUNCH_OPTS);
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   await context.addInitScript(() => {
@@ -143,7 +153,7 @@ try {
     await page.getByText('Request Submitted Successfully').waitFor({ timeout: 15000 });
     await shot(page, 'A-3-confirmation');
     log('  ✓ A placed a catalogue order in one click');
-  } catch (e) { log(`  ✗ A failed: ${e.message}`); await shot(page, 'A-ERROR'); }
+  } catch (e) { failures++; log(`  ✗ A failed: ${e.message}`); await shot(page, 'A-ERROR'); }
 
   // Scenario B: full request — consulting "promptathon", mid value (VP-Level band),
   // no supplier → dynamic Risk + Vendor onboarding steps on the routing lifecycle.
@@ -188,14 +198,17 @@ try {
     await page.locator('#need-input').fill('renew our existing vendor contract for another year');
     await page.locator('#need-input').press('Enter');
     await page.getByRole('button', { name: /Accept & continue/ }).click();
-    await page.getByText('Catalogue check', { exact: true }).waitFor({ timeout: 15000 });
+    await page.getByText(/^(Catalogue check|Contract check)$/, { exact: true }).first()
+      .waitFor({ timeout: 15000 });
     await shot(page, 'E-1-catalogue-check');
-    await page.locator('textarea').first().fill('annual renewal of an existing vendor engagement, EMEA');
-    await page.getByRole('button', { name: /Check for a covering contract/ }).click();
-    await page.getByText('Contract check', { exact: true }).waitFor({ timeout: 15000 }).catch(() => {});
+    if (await page.getByText('Catalogue check', { exact: true }).count()) {
+      await page.locator('textarea').first().fill('annual renewal of an existing vendor engagement, EMEA');
+      await page.getByRole('button', { name: /Check for a covering contract/ }).click();
+      await page.getByText('Contract check', { exact: true }).waitFor({ timeout: 15000 }).catch(() => {});
+    }
     await shot(page, 'E-2-contract-check');
     log('  ✓ E captured the staged pre-check');
-  } catch (e) { log(`  ✗ E failed: ${e.message}`); await shot(page, 'E-ERROR'); }
+  } catch (e) { failures++; log(`  ✗ E failed: ${e.message}`); await shot(page, 'E-ERROR'); }
 
   // ── OTHER TABS (admin role) ─────────────────────────────────────────────────
   const TABS = [
@@ -226,7 +239,7 @@ try {
       await page.locator('#root *').first().waitFor({ timeout: 10000 });
       await new Promise((r) => setTimeout(r, 800)); // settle async data
       await shot(page, `tab-${name}`);
-    } catch (e) { log(`  ✗ ${name} failed: ${e.message}`); }
+    } catch (e) { failures++; log(`  ✗ ${name} failed: ${e.message}`); }
   }
 
   log('\n────────────────────────────────────');
@@ -237,10 +250,11 @@ try {
   } else {
     log('\n✓ No console/page errors during the walkthrough.');
   }
+  if (failures) process.exitCode = 1;
 } catch (err) {
   console.error('Walkthrough errored:', err.message);
   process.exitCode = 1;
 } finally {
   if (browser) await browser.close();
-  server.kill('SIGTERM');
+  server?.kill('SIGTERM');
 }

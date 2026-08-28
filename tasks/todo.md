@@ -44,3 +44,21 @@ NOTE for item 5: the current risk step asks only the mini-IRQ deltas
 questions, not an SRA question. Confirm where the "does the supplier have an
 SRA" prompt appeared, or I'll reframe the whole step to the need/have-assessment
 decision (system-derived) which supersedes it.
+## Full UI E2E verification — 2026-08-28
+
+- [x] Run the latest-code full route sweep (73 local routes; 30 representative deployed mobile routes).
+- [x] Run all available browser/UI interaction suites against the latest code.
+- [x] Exercise navigation, submenu visibility, route availability, and key user journeys.
+- [x] Submit temporary requests through the UI and verify explicit cleanup.
+- [x] Record passed, failed, skipped, and unavailable checks with evidence.
+
+UI closeout notes: route sweep and focused UI suites passed. The deployed
+interaction suite reproduced an assistant supplier-lookup reliability failure
+once per run; direct sequential reproduction showed an intermittent fallback
+message after a successful lookup. The mobile pass found horizontal overflow on
+`/help/support` (407px document width at a 375px viewport). The walkthrough
+harness was updated to accept valid catalogue-skipping paths and now correctly
+returns non-zero on scenario failures; its high-value critical scenario still
+needs answer-by-question handling because positional answers can populate the
+wrong dynamic slots. Temporary catalogue requests created by these runs were
+removed explicitly.
