@@ -115,6 +115,42 @@ check('an advisory demand no longer depends on key order',
 check('an unmatched demand is goods, not a silent "services" default',
   classifyDemandCategory('twelve reams of A5 card stock') === 'goods');
 
+// ── The command bar is a second door into the catalogue ─────────────────────
+//
+// The reported defect — "I want to buy business consulting" opening Business
+// Cards 500 — was fixed in the wizard's pre-check (`intake-routing.ts`) and
+// came back, because the home page's command bar is a SEPARATE entry point that
+// never called that decision. It had its own matcher: strip stop words, score
+// an item on any word appearing anywhere in its name, description or catalogue
+// name, return everything above zero — and it ran FIRST, before any intent or
+// category reasoning, with no category gate. "business" hit "Business Cards
+// 500" and the ThinkPad ("business laptop" in its description), while
+// "consulting" matched nothing and cost nothing.
+//
+// So this checks the SOURCE, not a mirror: a mirror of the shared decision
+// would have passed the whole time the command bar was ignoring it.
+
+const BAR_SRC = readFileSync(
+  new URL('../../src/features/dashboard/components/smart-command-bar.tsx', import.meta.url),
+  'utf8',
+);
+
+console.log('\nThe command bar routes through the shared decision');
+check('it calls decideIntakeRoute', /decideIntakeRoute\(/.test(BAR_SRC));
+check('it gates on the admin catalogue-eligibility config',
+  /catalogueEligibleCategories/.test(BAR_SRC) && /catalogueEligible/.test(BAR_SRC));
+// The private matcher and its stop-word list must be gone, not merely unused.
+check('the private catalogue matcher is gone',
+  !/function searchCatalogueItems/.test(BAR_SRC));
+check('its stop-word list is gone', !/CATALOGUE_STOP_WORDS/.test(BAR_SRC));
+check('the catalogue branch cannot be entered without a catalogue route',
+  /route === 'catalogue'/.test(BAR_SRC));
+// The fifth copy of the category decision: a regex cascade in localClassify
+// that could disagree with the wizard about the same sentence.
+check('it uses the one classifier', /classifyDemandCategory\(/.test(BAR_SRC));
+check('and no longer carries its own category regex cascade',
+  !/consult\|advisory\|strategy\|audit\|transformation/.test(BAR_SRC));
+
 console.log('');
 if (failures) { console.error(`FAILED: ${failures} check(s)`); process.exitCode = 1; }
 else console.log('All assistant-intents checks passed.');

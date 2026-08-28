@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Sparkles,
@@ -31,6 +31,10 @@ import { queryClient } from '@/lib/query-client';
 import type { RequestCategory, BuyingChannel } from '@/data/types';
 import { openAIChat, openAIChatWithPrompt } from '@/features/ai-assistant/ai-chat-overlay';
 import { formatCurrency } from '@/lib/format';
+import { decideIntakeRoute } from '@/lib/procurement/intake-routing';
+import { classifyDemandCategory } from '@/lib/procurement/classify';
+import { useProcurementCategories } from '@/lib/db/hooks/use-procurement-categories';
+import { DEFAULT_CATEGORY_TAXONOMY } from '@/data/category-taxonomy';
 
 // --- Types ---
 
@@ -100,57 +104,76 @@ const SUPPLIER_ROUTES: Record<string, string> = {
   microsoft: '/suppliers/SUP-007', siemens: '/suppliers/SUP-008', bosch: '/suppliers/SUP-009',
 };
 
-const CATALOGUE_STOP_WORDS = new Set([
-  'i', 'want', 'to', 'buy', 'buying', 'purchase', 'purchasing', 'order',
-  'ordering', 'need', 'get', 'some', 'a', 'an', 'the', 'for', 'of',
-  'my', 'me', 'please', 'can', 'could', 'would', 'like', 'new',
-]);
-
-function searchCatalogueItems(query: string, items: CatalogueItem[]): CatalogueItem[] {
-  const words = query
-    .toLowerCase()
-    .split(/\s+/)
-    .filter((w) => w.length > 1 && !CATALOGUE_STOP_WORDS.has(w));
-  if (words.length === 0) return [];
-  return items
-    .map((item) => {
-      const haystack = `${item.name} ${item.description} ${item.catalogueName}`.toLowerCase();
-      let score = 0;
-      for (const word of words) {
-        if (haystack.includes(word)) score += 1;
-      }
-      return { item, score };
-    })
-    .filter((r) => r.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .map((r) => r.item);
+/**
+ * Does the catalogue actually serve this demand?
+ *
+ * This used to be a private matcher in this file: strip stop words, score an
+ * item on ANY word appearing anywhere in its name, description or catalogue
+ * name, and return everything scoring above zero. It was checked FIRST, before
+ * any intent or category reasoning, with no category gate — so
+ * "I want to buy business consulting" matched **Business Cards 500** (and the
+ * ThinkPad, on "business laptop" in its description) and the command bar opened
+ * the catalogue. That is the reported defect, and it survived the fix to the
+ * wizard's pre-check because this is a separate entry point that never called
+ * the shared decision.
+ *
+ * It now calls `decideIntakeRoute` — the same category-gated, naming-word
+ * decision the wizard's step 2 makes, benchmarked by the routing eval. One
+ * decision, both doors.
+ *
+ * Contracts are deliberately not loaded here. The command bar decides one
+ * thing: order inline from the catalogue, or hand the demand to intake. The
+ * transactable-contract check belongs to the wizard's staged funnel, which has
+ * the enrichment step that makes it worth running.
+ */
+function catalogueRoute(
+  query: string,
+  items: CatalogueItem[],
+  eligibleCategories: string[],
+  llmIntent?: string,
+) {
+  return decideIntakeRoute(
+    {
+      text: query,
+      category: classifyDemandCategory(query),
+      estimatedValue: 0,
+      supplierId: '',
+      llmIntent,
+    },
+    { catalogueItems: items, contracts: [], catalogueEligibleCategories: eligibleCategories },
+    undefined,
+    formatCurrency,
+  );
 }
 
-function localClassify(query: string, catalogueItems: CatalogueItem[]): AIResult {
+function localClassify(
+  query: string,
+  catalogueItems: CatalogueItem[],
+  eligibleCategories: string[],
+): AIResult {
   const q = query.toLowerCase();
 
-  // Check catalogue items first
-  const catItems = searchCatalogueItems(query, catalogueItems);
-  if (catItems.length > 0) {
-    return { intent: 'catalogue', message: `Found ${catItems.length} matching catalogue items.`, links: [] };
+  // The catalogue is offered only when the shared decision says the catalogue
+  // actually serves this demand — category-gated, and on a word that NAMES what
+  // is being bought rather than one that merely describes it.
+  const decision = catalogueRoute(query, catalogueItems, eligibleCategories);
+  if (decision.route === 'catalogue') {
+    const n = decision.catalogueMatches.length;
+    return { intent: 'catalogue', message: `Found ${n} matching catalogue item${n === 1 ? '' : 's'}.`, links: [] };
   }
 
   // Buy intent — check if it's a procurement request
   const buyWords = ['buy', 'buying', 'purchase', 'purchasing', 'need', 'want', 'order', 'procure', 'hire', 'engage'];
   if (buyWords.some((w) => q.includes(w))) {
-    // Determine category
-    let category = 'goods';
-    if (/consult|advisory|strategy|audit|transformation/.test(q)) category = 'consulting';
-    else if (/service|cleaning|catering|maintenance|travel|training/.test(q)) category = 'services';
-    else if (/software|saas|license|cloud|platform|app/.test(q)) category = 'software';
-    else if (/temp|contractor|staff|developer|freelance|hire/.test(q)) category = 'contingent-labour';
-    else if (/renew|extend|renewal/.test(q)) category = 'contract-renewal';
-    else if (/onboard|new supplier|new vendor/.test(q)) category = 'supplier-onboarding';
+    // One classifier. This branch used to carry its own regex cascade — a
+    // fifth copy of the category decision, which could disagree with the
+    // wizard about the same sentence.
+    const category = classifyDemandCategory(query);
 
     const labels: Record<string, string> = { goods: 'Goods', services: 'Services', software: 'Software / IT', consulting: 'Consulting', 'contingent-labour': 'Contingent Labour', 'contract-renewal': 'Contract Renewal', 'supplier-onboarding': 'Supplier Onboarding' };
     return {
       intent: 'new-request', message: `This is a ${labels[category] ?? category} request.`,
-      category, extractedTitle: query, links: [{ label: `Start ${labels[category]} Request`, path: '/requests/new' }],
+      category, extractedTitle: query, links: [{ label: `Start ${labels[category] ?? category} Request`, path: '/requests/new' }],
     };
   }
 
@@ -181,6 +204,16 @@ export function SmartCommandBar() {
   const [proposal, setProposal] = useState<ProposalState | null>(null);
 
   const { data: catalogueItems = [] } = useCatalogueItems();
+  const { data: dbCategories = [] } = useProcurementCategories();
+
+  // Which categories the catalogue can actually fulfil — admin config
+  // (`procurement_categories.catalogue_eligible`), falling back to the
+  // canonical taxonomy so an empty store behaves identically. Same source the
+  // wizard's pre-check reads, so both doors gate on the same setting.
+  const eligibleCategories = useMemo(() => {
+    const src = dbCategories.length > 0 ? dbCategories : DEFAULT_CATEGORY_TAXONOMY;
+    return src.filter((c) => c.catalogueEligible).map((c) => c.id);
+  }, [dbCategories]);
 
   // Catalogue state
   const [showCatalogue, setShowCatalogue] = useState(false);
@@ -196,7 +229,7 @@ export function SmartCommandBar() {
     if (!query) return;
 
     // Fast local check: if not a catalogue match, send to AI overlay immediately
-    const localResult = localClassify(query, catalogueItems);
+    const localResult = localClassify(query, catalogueItems, eligibleCategories);
     if (localResult.intent !== 'catalogue') {
       openAIChatWithPrompt(query);
       setInput('');
@@ -216,11 +249,15 @@ export function SmartCommandBar() {
       setLoading(false);
       processResult(localResult, query);
     }
-  }, [input, catalogueItems]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [input, catalogueItems, eligibleCategories]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // --- Process an AI result (from LLM or local fallback) ---
   const processResult = useCallback((aiResult: AIResult, query: string) => {
     let intent = aiResult.intent ?? 'general';
+    // Locals rather than mutating the argument: the catalogue branch below can
+    // overrule the model, and the new-request branch has to read what it landed on.
+    let message = aiResult.message;
+    let category = aiResult.category;
 
     // Safety: buying words should never route to navigation
     const buyWords = ['buy', 'buying', 'purchase', 'purchasing', 'procure', 'acquire', 'engage', 'hire', 'contract for'];
@@ -230,25 +267,40 @@ export function SmartCommandBar() {
 
     const agent = aiResult._agent;
 
-    // CATALOGUE
+    // CATALOGUE — but only if the catalogue genuinely serves this demand.
+    //
+    // The LLM's intent is honoured except that a `catalogue` intent cannot open
+    // an empty or ineligible catalogue. `decideIntakeRoute` applies that guard
+    // itself, so a model that answers "catalogue" to "buy business consulting"
+    // is overruled here exactly as it is in the wizard, and the demand falls
+    // through to intake instead of being shown unrelated items.
     if (intent === 'catalogue') {
-      const localMatches = searchCatalogueItems(query, catalogueItems);
-      if (localMatches.length > 0) setCatalogueResults(localMatches.slice(0, 9));
-      setShowCatalogue(true);
-      setProposal({
-        type: 'catalogue',
-        message: aiResult.message || 'Found matching catalogue items. Order directly — no approval needed.',
-        catalogueItems: [], links: [],
-        agent,
-      });
-      return;
+      const decision = catalogueRoute(query, catalogueItems, eligibleCategories, 'catalogue');
+      if (decision.route === 'catalogue') {
+        setCatalogueResults(decision.catalogueMatches.map((m) => m.item).slice(0, 9));
+        setShowCatalogue(true);
+        setProposal({
+          type: 'catalogue',
+            message: message || 'Found matching catalogue items. Order directly — no approval needed.',
+          catalogueItems: [], links: [],
+          agent,
+        });
+        return;
+      }
+      // Overruled — treat it as the demand it is, and say why the catalogue was
+      // ruled out rather than silently showing a different screen.
+      intent = 'new-request';
+      category = category ?? classifyDemandCategory(query);
+      if (decision.ruledOut.catalogue) {
+        message = `${decision.ruledOut.catalogue} Let's raise this as a request.`;
+      }
     }
 
     // NEW-REQUEST
     if (intent === 'new-request') {
       const params = new URLSearchParams();
       params.set('step', '2');
-      const cat = aiResult.category ?? 'goods';
+      const cat = category ?? 'goods';
       params.set('category', cat);
       if (aiResult.extractedTitle) params.set('title', aiResult.extractedTitle);
       if (aiResult.extractedSupplier) params.set('supplier', aiResult.extractedSupplier);
@@ -260,7 +312,7 @@ export function SmartCommandBar() {
 
       setProposal({
         type: 'action',
-        message: aiResult.message || `This is a ${catLabel} request.`,
+        message: message || `This is a ${catLabel} request.`,
         catalogueItems: [],
         links: [
           { label: `Start ${catLabel} Request`, path: `/requests/new?${params.toString()}` },
@@ -273,19 +325,19 @@ export function SmartCommandBar() {
 
     // NAVIGATION
     if (intent === 'navigation' && aiResult.links?.length) {
-      setProposal({ type: 'options', message: aiResult.message || 'Here is what I found:', catalogueItems: [], links: aiResult.links.slice(0, 4), agent });
+      setProposal({ type: 'options', message: message || 'Here is what I found:', catalogueItems: [], links: aiResult.links.slice(0, 4), agent });
       return;
     }
 
     // GENERAL
     setProposal({
       type: 'options',
-      message: aiResult.message || 'How can I help?',
+      message: message || 'How can I help?',
       catalogueItems: [],
       links: [...(aiResult.links?.slice(0, 3) ?? []), { label: 'Create New Request', path: '/requests/new' }, { label: 'Open AI Assistant', path: '__ai_chat__' }],
       agent,
     });
-  }, [catalogueItems]);
+  }, [catalogueItems, eligibleCategories]);
 
   // --- Handle link click from proposal ---
   const handleLinkClick = (path: string) => {
