@@ -66,30 +66,16 @@ export const catalogueItems: CatalogueItem[] = [
   { id: 'PS-005', name: 'Laminating Pouches A4 100pk', description: 'Glossy laminating pouches, 125 micron', unitPrice: 15, unit: 'pack', catalogueId: 'print-stationery', catalogueName: 'Print & Stationery', supplierName: 'Staples', supplierId: 'SUP-CAT-007', leadTime: '2-3 days' },
 ];
 
-const STOP_WORDS = new Set([
-  'i', 'want', 'to', 'buy', 'buying', 'purchase', 'purchasing', 'order',
-  'ordering', 'need', 'get', 'some', 'a', 'an', 'the', 'for', 'of',
-  'my', 'me', 'please', 'can', 'could', 'would', 'like', 'new',
-]);
-
-export function searchCatalogueItems(query: string): CatalogueItem[] {
-  const words = query
-    .toLowerCase()
-    .split(/\s+/)
-    .filter((w) => w.length > 1 && !STOP_WORDS.has(w));
-
-  if (words.length === 0) return [];
-
-  return catalogueItems
-    .map((item) => {
-      const haystack = `${item.name} ${item.description} ${item.catalogueName}`.toLowerCase();
-      let score = 0;
-      for (const word of words) {
-        if (haystack.includes(word)) score += 1;
-      }
-      return { item, score };
-    })
-    .filter((r) => r.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .map((r) => r.item);
-}
+// No search helper lives here any more.
+//
+// This file used to export `searchCatalogueItems` — strip stop words, score an
+// item on ANY word appearing anywhere in its name, description or catalogue
+// name, return everything above zero. That matcher, copied into the home page's
+// command bar, is why "I want to buy business consulting" opened Business Cards
+// 500: "business" hit the item name and carried the match while "consulting"
+// matched nothing and cost nothing.
+//
+// Catalogue matching is a routing decision, and it lives with the other routing
+// decisions in `src/lib/procurement/intake-routing.ts` — category-gated,
+// naming-word-based, and benchmarked by the intake routing eval. Call
+// `decideIntakeRoute`; do not reintroduce a matcher here.

@@ -29,6 +29,7 @@ import { StepRoutingPreview } from './step-routing-preview';
 import { StepConfirmation } from './step-confirmation';
 import { StepHeaderPanel } from './components/step-header-panel';
 import { stepGuidance } from './step-guidance';
+import { classifyCommodityCategory, ROUTE_LIKE_CATEGORY } from '@/lib/procurement/classify';
 import { useServiceDescriptionTemplate } from '@/lib/db/hooks/use-service-description-templates';
 import {
   outstandingRequiredSlots,
@@ -270,6 +271,14 @@ export function NewRequestPage() {
     const category = searchParams.get('category');
 
     if (step === '2' && category) {
+      // Same rule as step 1: a ROUTE is not a category. The command bar builds
+      // this link from the deterministic classifier, which can answer
+      // `catalogue` for a paper-and-toner demand — and `isCatalogue` below keys
+      // the entire wizard off the category, so accepting it here would skip the
+      // funnel exactly as the classifier door did. The pre-check decides the
+      // route; this only fixes what is being bought.
+      const commodityCategory =
+        category === ROUTE_LIKE_CATEGORY ? classifyCommodityCategory(searchParams.get('title') ?? '') : category;
       const title = searchParams.get('title') ?? '';
       const supplierName = searchParams.get('supplier') ?? '';
       const description = searchParams.get('description') ?? '';
@@ -291,8 +300,8 @@ export function NewRequestPage() {
 
       setFormData((prev) => ({
         ...prev,
-        category,
-        categoryDescription: CATEGORY_LABELS[category] ?? category,
+        category: commodityCategory,
+        categoryDescription: CATEGORY_LABELS[commodityCategory] ?? commodityCategory,
         title,
         supplier: resolvedSupplier,
         supplierId,

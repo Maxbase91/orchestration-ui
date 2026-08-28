@@ -14,7 +14,11 @@ import { useAiAgent } from '@/lib/db/hooks/use-ai-agents';
 import { useProcurementCategories } from '@/lib/db/hooks/use-procurement-categories';
 import { DEFAULT_CATEGORY_TAXONOMY } from '@/data/category-taxonomy';
 import { resolveCategoryIcon } from '@/data/category-icons';
-import { classifyDemandCategory } from '@/lib/procurement/classify';
+import {
+  classifyDemandCategory,
+  classifyCommodityCategory,
+  ROUTE_LIKE_CATEGORY,
+} from '@/lib/procurement/classify';
 import { resolveCategoryCode } from '@/lib/procurement/category-code';
 import type { RequestCategory } from '@/data/types';
 
@@ -73,7 +77,7 @@ async function classifyWithAI(input: string): Promise<AIClassification | null> {
     const res = await fetch('/api/ai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: `CLASSIFY THIS PROCUREMENT REQUEST. Return the category, extracted details, and a professional description.\n\nUser input: "${input}"\n\nIMPORTANT: Respond with JSON containing: {"intent":"new-request","message":"...","catalogueItems":[],"links":[],"category":"goods|services|software|consulting|contingent-labour|contract-renewal|supplier-onboarding|catalogue","extractedTitle":"professional title","extractedSupplier":"supplier name or empty","extractedValue":0,"generatedDescription":"a 3-4 sentence business justification: what is needed, the intended outcome, and why it is required — this becomes the request's justification, so make it substantive"}` }),
+      body: JSON.stringify({ query: `CLASSIFY THIS PROCUREMENT REQUEST. Return the category, extracted details, and a professional description.\n\nUser input: "${input}"\n\nIMPORTANT: Respond with JSON containing: {"intent":"new-request","message":"...","catalogueItems":[],"links":[],"category":"goods|services|software|consulting|contingent-labour|contract-renewal|supplier-onboarding","extractedTitle":"professional title","extractedSupplier":"supplier name or empty","extractedValue":0,"generatedDescription":"a 3-4 sentence business justification: what is needed, the intended outcome, and why it is required — this becomes the request's justification, so make it substantive"}` }),
     });
     if (!res.ok) return null;
     const data = await res.json();
@@ -97,8 +101,10 @@ async function classifyWithAI(input: string): Promise<AIClassification | null> {
 
 function localClassify(input: string): AIClassification {
   const q = input.toLowerCase();
-  // Category via the shared deterministic classifier (single source of truth,
-  // benchmarked by the classification eval harness).
+  // The route-aware classifier on purpose: a demand for paper or toner comes
+  // back as `catalogue`, and that signal is worth keeping. The guard in
+  // `runClassification` turns it into an intent and a real commodity category,
+  // so the offline path and the LLM path are corrected in exactly one place.
   const category = classifyDemandCategory(input);
 
   // Extract supplier name if mentioned
@@ -165,6 +171,22 @@ export function StepCategory({ prefill, onUpdate, onAutoAdvance, onBrowseCatalog
 
     setLoading(false);
 
+    // `catalogue` is a fulfilment ROUTE, not a commodity category, and
+    // classification does not get to choose the route. The wizard keys its
+    // whole journey off the category (`isCatalogue` in new-request-page), so a
+    // classifier answering "catalogue" silently turned the entire flow into a
+    // catalogue order and skipped the funnel — the third door into the fault
+    // this work exists to close, after the pre-check and the command bar.
+    //
+    // The signal is not thrown away: a model that says "catalogue" is telling
+    // us its INTENT, which is carried separately below and which the pre-check
+    // already honours *and* guards (an intent cannot open an ineligible or
+    // empty catalogue). Only the category is corrected.
+    if (result.category === ROUTE_LIKE_CATEGORY) {
+      if (!result.intent) result.intent = 'catalogue';
+      result.category = classifyCommodityCategory(text);
+    }
+
     // Validate the category against the configured taxonomy. An unrecognised
     // value falls back to the deterministic classifier, NOT to a literal
     // 'goods': goods is catalogue-eligible, so silently defaulting there could
@@ -172,7 +194,7 @@ export function StepCategory({ prefill, onUpdate, onAutoAdvance, onBrowseCatalog
     // exists to fix, re-entered through the back door.
     const validCat = activeCategories.find((c) => c.id === result.category);
     if (!validCat) {
-      const fallback = classifyDemandCategory(text);
+      const fallback = classifyCommodityCategory(text);
       result.category = activeCategories.some((c) => c.id === fallback) ? fallback : 'goods';
     }
 

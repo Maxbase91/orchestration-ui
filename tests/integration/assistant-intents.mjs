@@ -151,6 +151,45 @@ check('it uses the one classifier', /classifyDemandCategory\(/.test(BAR_SRC));
 check('and no longer carries its own category regex cascade',
   !/consult\|advisory\|strategy\|audit\|transformation/.test(BAR_SRC));
 
+// ── The third door: classification choosing the route ───────────────────────
+//
+// The wizard keys its ENTIRE journey off the category — `isCatalogue` in
+// new-request-page turns on for `category === 'catalogue'` and swaps the step
+// list, the step-3 screen and the gates. So a classifier answering "catalogue"
+// silently reconfigured the whole flow and skipped `decideIntakeRoute`
+// altogether. Two ways in: step 1's own classification prompt, which listed
+// `catalogue` among the categories (api/ai.ts never did), and the `?category=`
+// link the command bar builds from the deterministic classifier.
+//
+// Source checks again, for the same reason as the command bar above: a mirror
+// of the decision would pass while the wizard ignored it.
+
+const STEP1_SRC = readFileSync(
+  new URL('../../src/features/requests/new-request/step-category.tsx', import.meta.url), 'utf8');
+const WIZARD_SRC = readFileSync(
+  new URL('../../src/features/requests/new-request/new-request-page.tsx', import.meta.url), 'utf8');
+const ITEMS_SRC = readFileSync(
+  new URL('../../src/data/catalogue-items.ts', import.meta.url), 'utf8');
+
+console.log('\nClassification does not get to choose the route');
+// The wizard's prompt widened api/ai.ts's category list with a route.
+check('step 1 no longer offers `catalogue` as a category to the model',
+  !/supplier-onboarding\|catalogue/.test(STEP1_SRC));
+check('step 1 guards a route-shaped classification',
+  /ROUTE_LIKE_CATEGORY/.test(STEP1_SRC) && /classifyCommodityCategory\(/.test(STEP1_SRC));
+// The signal is corrected, not discarded: "catalogue" becomes an intent, which
+// the pre-check already honours AND guards.
+check('a route-shaped answer is kept as an intent', /intent = 'catalogue'/.test(STEP1_SRC));
+check('the wizard guards the ?category= link too',
+  /ROUTE_LIKE_CATEGORY/.test(WIZARD_SRC) && /classifyCommodityCategory\(/.test(WIZARD_SRC));
+
+console.log('\nThe naive matcher is gone for good');
+check('no search helper is left in the catalogue data file',
+  !/export function searchCatalogueItems/.test(ITEMS_SRC));
+check('and its stop-word list went with it', !/STOP_WORDS/.test(ITEMS_SRC));
+check('the file says where catalogue matching lives instead',
+  /intake-routing/.test(ITEMS_SRC));
+
 console.log('');
 if (failures) { console.error(`FAILED: ${failures} check(s)`); process.exitCode = 1; }
 else console.log('All assistant-intents checks passed.');
