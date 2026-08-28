@@ -242,6 +242,22 @@ function buildCompletionMessage(
 }
 
 /**
+ * The text sections of a service description, without the provenance map.
+ *
+ * `captureFlags` is an object living alongside string sections, so anything
+ * that walks the values — the signal read, the generator payload, the risk
+ * summary — has to be handed the text only. One helper, used at every such
+ * boundary, rather than each caller remembering.
+ */
+function sectionsOnly(sd: Partial<ServiceDescription>): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(sd).filter(
+      (entry): entry is [string, string] => typeof entry[1] === 'string',
+    ),
+  );
+}
+
+/**
  * The assistant's verdict on the last answer, when it returned a usable one.
  *
  * Returns undefined — meaning "no verdict, fall back to the deterministic
@@ -703,7 +719,11 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
       category,
       value: data.estimatedValue,
       supplier: suppliers.find((sup) => sup.id === data.supplierId) ?? null,
-      sow: svcDesc,
+      // Only the captured text. `captureFlags` is provenance, not content, and
+      // feeding it to the signal read is what produced "v?.trim is not a
+      // function" — the classification is about what was described, not about
+      // how it came to be recorded.
+      sow: sectionsOnly(svcDesc),
     });
     try {
       const res = await fetch('/api/generate-sow', {
@@ -721,12 +741,7 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
           signals,
           // Only the captured text — `captureFlags` is provenance, not an answer,
           // and must not be sent to the generator as if it were one.
-          capturedAnswers: Object.fromEntries(
-            Object.entries(svcDesc).filter(
-              (entry): entry is [string, string] =>
-                typeof entry[1] === 'string' && entry[1].trim().length > 0,
-            ),
-          ),
+          capturedAnswers: sectionsOnly(svcDesc),
           commodityCode: data.commodityCode,
         }),
       });

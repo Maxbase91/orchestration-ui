@@ -36,7 +36,7 @@ import type { FormTemplate } from '@/data/form-templates';
 import { FormSubmissionView } from '@/components/shared/form-submission-view';
 import { DynamicForm } from '@/components/shared/dynamic-form';
 import { useServiceDescription } from '@/lib/db/hooks/use-service-descriptions';
-import { sowPrePopulateValues } from '@/lib/procurement/service-description-seed';
+import { sectionValuesOf, sowPrePopulateValues } from '@/lib/procurement/service-description-seed';
 
 interface StepDetailCardProps {
   stage: string;
@@ -486,7 +486,7 @@ function ServiceDescriptionSummary({ stage, requestId }: { stage: string; reques
   const score = sd?.qualityScore;
   const required = sd?.requiredSections ?? [];
   const missing = required.filter(
-    (id) => !((sd as unknown as Record<string, string | undefined>)[id] ?? '').trim(),
+    (id) => !(sectionValuesOf(sd)[id] ?? '').trim(),
   );
 
   return (
@@ -546,10 +546,9 @@ function FormsSection({
   const prePopulateContext = useMemo(
     () =>
       serviceDescription
-        ? sowPrePopulateValues(
-            serviceDescription as unknown as Record<string, string | undefined>,
-            serviceDescription.narrative,
-          )
+        ? // Narrowed, not cast: the record also carries a quality score, arrays
+          // and objects, and walking those as strings threw at runtime.
+          sowPrePopulateValues(sectionValuesOf(serviceDescription), serviceDescription.narrative)
         : {},
     [serviceDescription],
   );

@@ -222,6 +222,31 @@ check('a fully covered description reports no gap',
 check('nothing required means nothing to report',
   gapsAgainstFinal([], {}).length === 0);
 
+console.log('\nA service description carries non-string members');
+//
+// Reported live as: "r?.trim is not a function. (In 'r?.trim()', 'r?.trim' is
+// undefined)". `Object.values(sow).some((v) => v?.trim())` assumed every value
+// was a string, but a service-description record also carries a quality score
+// (number), quality checks (array), signals and capture flags (objects). One of
+// those reaching the signal read took the screen down.
+const hasText = (sow) => Object.values(sow).some((v) => typeof v === 'string' && v.trim());
+
+check('a description with text is detected', hasText({ objective: 'a target operating model' }));
+check('an empty description is not', hasText({ objective: '', scope: '   ' }) === false);
+// The values that caused the crash.
+for (const [label, extra] of [
+  ['a quality score (number)', { qualityScore: 82 }],
+  ['quality checks (array)', { qualityChecks: [{ section: 'scope', passed: true, issue: null }] }],
+  ['signals (object)', { signals: { materiality: 'important' } }],
+  ['capture flags (object)', { captureFlags: { objective: 'assistant-drafted' } }],
+]) {
+  let threw = false;
+  try { hasText({ objective: 'a real objective', ...extra }); } catch { threw = true; }
+  check(`${label} does not throw`, threw === false);
+  check(`${label} alone is not mistaken for text`,
+    hasText({ objective: '', ...extra }) === false);
+}
+
 console.log('');
 if (failures) console.error(`FAILED: ${failures} check(s)`);
 else console.log('All demand-signals checks passed.');

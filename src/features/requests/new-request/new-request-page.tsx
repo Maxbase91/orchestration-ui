@@ -30,6 +30,7 @@ import { StepConfirmation } from './step-confirmation';
 import { StepHeaderPanel } from './components/step-header-panel';
 import { stepGuidance } from './step-guidance';
 import { classifyCommodityCategory, ROUTE_LIKE_CATEGORY } from '@/lib/procurement/classify';
+import { sectionValuesOf } from '@/lib/procurement/service-description-seed';
 import { useServiceDescriptionTemplate } from '@/lib/db/hooks/use-service-description-templates';
 import {
   outstandingRequiredSlots,
@@ -357,7 +358,9 @@ export function NewRequestPage() {
       title: formData.title || undefined,
       estimatedValue: formData.estimatedValue || undefined,
       deliveryDate: formData.deliveryDate || undefined,
-      sow: (formData.serviceDescription ?? {}) as Record<string, string | undefined>,
+      // Text sections only: the description also carries capture flags, which
+      // are not answers and must not be walked as if they were.
+      sow: sectionValuesOf(formData.serviceDescription),
     }),
     [formData.category, formData.title, formData.estimatedValue, formData.deliveryDate, formData.serviceDescription],
   );
@@ -474,7 +477,7 @@ export function NewRequestPage() {
       const id = generateRequestId();
       setIsSubmitting(true);
       try {
-        const sow = formData.serviceDescription as unknown as Record<string, string> | null;
+        const sow = formData.serviceDescription ?? null;
         await createRequest({
           id,
           title: formData.title,
@@ -573,6 +576,9 @@ export function NewRequestPage() {
             ...(formData.sowQualityChecks ? { qualityChecks: formData.sowQualityChecks } : {}),
             ...(formData.sowSignals ? { signals: formData.sowSignals } : {}),
             ...(formData.sowRequiredSections ? { requiredSections: formData.sowRequiredSections } : {}),
+            // Provenance of each section — answered, assistant-drafted or weak —
+            // so the determination can show which parts of the description are thin.
+            ...(sow.captureFlags ? { captureFlags: sow.captureFlags } : {}),
           });
         }
 

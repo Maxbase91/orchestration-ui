@@ -154,7 +154,8 @@ npm run test:ticket-sla           # ticket SLA — targets, due dates, breach/at
 npm run test:approval-to-source   # approval-to-source gate (light vs full pre-sourcing approvals)
 npm run test:residual-questions   # criteria-triggered stage-5 residual questions (mini-IRQ deltas)
 npm run test:demand-conversation  # dynamic intake — answer-driven next question + carry-forward + branching + conditional rationale
-npm run test:intake-guidance      # progress reaches 100%, inferred sections are not outstanding, step-3 floor, per-step guidance copy
+npm run test:intake-guidance      # progress reaches 100%, inferred sections are not outstanding, step-3 floor, per-step guidance copy,
+                                  # and a source scan: no service-description record cast to a map of strings, no unguarded .trim() over its values
 npm run test:answer-quality       # the deterministic answer judge — placeholder/filler rejected, real answers accepted, slot-aware floor
 npm run test:assistant-intents    # assistant routes procurement demands to intake, not a support ticket
 npm run test:operational-risk     # preliminary operational risk assessment (per-dimension screen)

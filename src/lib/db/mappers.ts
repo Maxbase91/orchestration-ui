@@ -593,7 +593,7 @@ export interface ServiceDescriptionRecord {
    * answered thinly, accepted anyway). Lets a reviewer see which parts of a
    * description nobody really wrote.
    */
-  captureFlags?: Record<string, string>;
+  captureFlags?: Partial<Record<string, string>>;
 }
 
 export function mapDbToServiceDescription(row: DbRecord): ServiceDescriptionRecord {
@@ -613,7 +613,7 @@ export function mapDbToServiceDescription(row: DbRecord): ServiceDescriptionReco
     ...(row.quality_checks ? { qualityChecks: row.quality_checks as ServiceDescriptionRecord['qualityChecks'] } : {}),
     ...(row.signals ? { signals: row.signals as Record<string, unknown> } : {}),
     ...(row.required_sections ? { requiredSections: row.required_sections as string[] } : {}),
-    ...(row.capture_flags ? { captureFlags: row.capture_flags as Record<string, string> } : {}),
+    ...(row.capture_flags ? { captureFlags: row.capture_flags as Partial<Record<string, string>> } : {}),
   };
 }
 

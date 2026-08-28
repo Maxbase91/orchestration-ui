@@ -14,6 +14,7 @@ import { useServiceDescriptionTemplate } from '@/lib/db/hooks/use-service-descri
 import {
   seedCriteriaFromTemplate,
   seedRequirementsFromDescription,
+  sectionValuesOf,
 } from '@/lib/procurement/service-description-seed';
 import { useSupplierLookup } from '@/lib/db/hooks/use-suppliers';
 import { queryClient } from '@/lib/query-client';
@@ -265,10 +266,9 @@ export function ActionButtons({ request }: ActionButtonsProps) {
       const id = await nextSourcingEventId();
       const template = sdTemplate ?? DEFAULT_TEMPLATE;
       const seededRequirements = serviceDescription
-        ? seedRequirementsFromDescription(
-            serviceDescription as unknown as Record<string, string | undefined>,
-            template,
-          )
+        ? // Narrowed rather than cast: the record also carries non-string
+          // members (score, checks, signals, capture flags).
+          seedRequirementsFromDescription(sectionValuesOf(serviceDescription), template)
         : [];
       const { criteria: seededCriteria, weightsValid } = seedCriteriaFromTemplate(template);
       if (!weightsValid) {

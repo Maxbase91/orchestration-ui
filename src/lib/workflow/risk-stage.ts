@@ -123,7 +123,9 @@ function buildAssessmentSummary(
   const parts = [
     `Raised automatically when ${request.id} entered the risk stage; inherent tier ${request.inherentRiskTier ?? 'unknown'}.`,
   ];
-  if (sow && Object.values(sow).some((v) => (v as string | undefined)?.trim())) {
+  // Same rule as demand-signals: check the type, do not cast and hope. A caller
+  // passing a full service-description record would otherwise throw here.
+  if (sow && Object.values(sow).some((v) => typeof v === 'string' && v.trim())) {
     parts.push(`Data classification inferred from the service description: ${inferDataSensitivity(sow)}.`);
     const scope = sow.scope?.trim() || sow.objective?.trim();
     if (scope) parts.push(`Scope (from the service description): ${scope.slice(0, 500)}`);

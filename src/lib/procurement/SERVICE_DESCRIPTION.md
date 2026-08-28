@@ -111,6 +111,14 @@ finished is worse than one that says what is missing.
   the description instead of re-asking. This reuses the whole existing mechanism: `trigger_stages`
   already targets a stage, `FormsSection` already renders per-stage forms, `DynamicForm` already
   pre-populates — it just had no SoW sources to offer, and nothing had ever passed it a context.
+- **Both take `SectionValues`, and callers must narrow with `sectionValuesOf()`.** A stored record is
+  not a map of strings: beside the nine text sections it carries a quality score (number), quality
+  checks and required sections (arrays), and signals and capture flags (objects). Call sites used to
+  cast the whole record — `as unknown as Record<string, string | undefined>` — which TypeScript
+  accepts and the runtime does not: the walker hit `value?.trim()` on a number and threw
+  *"trim is not a function"*, taking down the request detail whenever a workflow step with a
+  pre-populated form was opened. `sectionValuesOf()` filters to string members at the boundary, and
+  `test:intake-guidance` scans `src/` so the cast cannot come back.
 
 ## Tests
 

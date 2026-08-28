@@ -138,6 +138,8 @@ These are the cases where the wizard could not.
 | TC-REQ-G10 | Step 3, try to advance with only a title and a value | **Next is disabled** and names what is still outstanding. The gate calls `requiredSlotsFilled` — the mandatory-SOW floor the engine defines — which had been computed in the chat component and never consulted. Conditional enrichment never holds the gate |
 | TC-REQ-G11 | Step 3, contract-renewal or supplier-onboarding path | Unaffected by the floor. Those paths render `step-details`, which never captures SOW sections, and holding them to it would block them permanently |
 | TC-REQ-G12 | Step 3, the conversation ends | The assistant says **what was captured** and that the description is carried into risk, the determination and any sourcing. The same close whether or not the LLM is up |
+| TC-REQ-G13 | Open a request, click through **every** workflow step | No screen throws. The step detail pre-populates risk forms from the service description; it used to cast the whole stored record — which carries a quality score, two arrays and two objects beside its nine text sections — to a map of strings and trim every value, so the first non-string member crashed the page with `r?.trim is not a function`. `sectionValuesOf()` narrows at the boundary; `test:intake-guidance` scans `src/` for both the cast and the unguarded walk |
+| TC-REQ-G14 | Raise a sourcing event from a request that has a description | Requirements seed from the **text sections only**. Same cast, same crash class, second call site |
 
 ### Supplier is identified once
 

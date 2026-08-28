@@ -341,6 +341,65 @@ check('the carried-over description is editable',
 check('the assistant opens the conversation',
   /openedRef/.test(CHAT_SRC) && /messages: \[\]/.test(CHAT_SRC));
 
+console.log('\nNothing calls .trim() on a value it has not proved is a string');
+//
+// The live crash: "r?.trim is not a function". A service-description record
+// carries a number, two arrays and two objects alongside its text sections, so
+// `Object.values(sow).some((v) => v?.trim())` throws the moment one of them is
+// present. A behavioural mirror cannot catch this — it would mirror the fixed
+// logic — so scan the source for the pattern itself.
+import { readdirSync, statSync } from 'node:fs';
+
+function walk(dir) {
+  const out = [];
+  for (const e of readdirSync(dir)) {
+    const full = join(dir, e);
+    if (statSync(full).isDirectory()) out.push(...walk(full));
+    else if (/\.(ts|tsx)$/.test(e)) out.push(full);
+  }
+  return out;
+}
+
+// `.some(v => v?.trim())` / `.filter(([, v]) => v?.trim())` over an object's
+// values, with no type check in sight.
+const UNGUARDED = /Object\.(values|entries)\([^)]*\)[\s\S]{0,40}?\?\.trim\(\)/;
+const offenders = walk(join(ROOT, 'src'))
+  .filter((f) => UNGUARDED.test(readFileSync(f, 'utf8')))
+  .map((f) => f.split('/orchestration-ui/')[1] ?? f);
+check('no unguarded .trim() over an object\u2019s values in src/',
+  offenders.length === 0, offenders.join(', '));
+
+// The root of the crash class: a service-description record cast to a map of
+// strings. TypeScript accepts `as unknown as Record<string, string | undefined>`
+// and then stops helping; the walker downstream trims a number. Narrow with
+// sectionValuesOf() instead — a cast anywhere in src/ reopens the hole.
+const CAST = /as unknown as Record<string, string/;
+const casters = walk(join(ROOT, 'src'))
+  .filter((f) => CAST.test(readFileSync(f, 'utf8')))
+  .map((f) => f.split('/orchestration-ui/')[1] ?? f);
+check('no service-description record is cast to a map of strings',
+  casters.length === 0, casters.join(', '));
+// Both seed call sites narrow instead.
+for (const [label, file] of [
+  ['the risk form pre-populates from narrowed sections',
+    'src/features/requests/request-detail/components/step-detail-card.tsx'],
+  ['the sourcing event seeds from narrowed sections',
+    'src/features/requests/request-detail/components/action-buttons.tsx'],
+]) {
+  check(label, /sectionValuesOf\(serviceDescription\)/.test(readFileSync(join(ROOT, file), 'utf8')));
+}
+
+// And the two that actually crashed, specifically.
+const SIGNALS_SRC = readFileSync(join(ROOT, 'src/lib/procurement/demand-signals.ts'), 'utf8');
+const RISK_SRC = readFileSync(join(ROOT, 'src/lib/workflow/risk-stage.ts'), 'utf8');
+check('demand-signals checks the type before trimming',
+  /typeof v === 'string' && v\.trim\(\)/.test(SIGNALS_SRC));
+check('risk-stage checks the type before trimming',
+  /typeof v === 'string' && v\.trim\(\)/.test(RISK_SRC));
+// The call site hands over text only.
+check('the chat passes only text sections to the signal read',
+  /sow: sectionsOnly\(svcDesc\)/.test(CHAT_SRC) && /function sectionsOnly/.test(CHAT_SRC));
+
 console.log('');
 if (failures) console.error(`FAILED: ${failures} check(s)`);
 else console.log('All intake-guidance checks passed.');

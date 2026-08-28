@@ -112,7 +112,11 @@ export function computeDemandSignals(
 ): DemandSignals {
   const drivers: string[] = [];
   const dataSensitivity = inferDataSensitivity(input.sow);
-  if (input.sow && Object.values(input.sow).some((v) => v?.trim())) {
+  // `typeof v === 'string'`, not `v?.trim()`: callers pass the whole service
+  // description, which carries non-string members (quality checks, signals,
+  // capture flags). Calling `.trim()` on one of those threw
+  // "v?.trim is not a function" and took the screen down.
+  if (input.sow && Object.values(input.sow).some((v) => typeof v === 'string' && v.trim())) {
     drivers.push(`Data sensitivity read as ${dataSensitivity} from the description`);
   } else {
     drivers.push('Data sensitivity defaulted to medium — nothing described yet');

@@ -18,6 +18,31 @@ import type {
 export type SectionValues = Record<string, string | undefined>;
 
 /**
+ * Narrow a stored service-description record to its TEXT sections.
+ *
+ * A record carries more than prose: a quality score (number), quality checks
+ * and required sections (arrays), signals and capture flags (objects). Callers
+ * used to cast the whole record to `SectionValues` and walk it — a cast that
+ * TypeScript accepts and the runtime does not. The first non-string value hit
+ * `value?.trim()` and threw "trim is not a function", taking down the request
+ * detail whenever a workflow step with a pre-populated form was opened.
+ *
+ * Use this at the boundary instead of casting.
+ */
+export function sectionValuesOf(record: object | null | undefined): SectionValues {
+  // `object` rather than `Record<string, unknown>`: an interface without an
+  // index signature is not assignable to the latter, and these callers all pass
+  // one. Nothing here needs the index signature — Object.entries works on any
+  // object, and every value is type-checked on the way out.
+  if (!record) return {};
+  return Object.fromEntries(
+    Object.entries(record).filter(
+      (entry): entry is [string, string] => typeof entry[1] === 'string',
+    ),
+  );
+}
+
+/**
  * Seed a sourcing event's requirements from the description.
  *
  * Each nominated section becomes one labelled requirement, which is the shape
@@ -71,8 +96,10 @@ export function sowPrePopulateValues(
 ): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [id, value] of Object.entries(sections)) {
-    if (value?.trim()) out[`sow.${id}`] = value.trim();
+    // Type-checked rather than trusted: `SectionValues` promises strings, but
+    // this is exported and callers have passed wider objects.
+    if (typeof value === 'string' && value.trim()) out[`sow.${id}`] = value.trim();
   }
-  if (narrative?.trim()) out['sow.narrative'] = narrative.trim();
+  if (typeof narrative === 'string' && narrative.trim()) out['sow.narrative'] = narrative.trim();
   return out;
 }
