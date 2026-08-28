@@ -37,8 +37,8 @@ async function setAgentStatus(id, status) {
 }
 
 async function callAi(query) {
-  // The /api/ai caches agent status for 60s; test needs fresh reads so we
-  // run against the serverless cold cache by varying the query.
+  // The endpoint caches agent configuration process-locally for 60 seconds;
+  // varying the query does not invalidate that cache.
   const res = await fetch(`${API_BASE}/api/ai`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -58,11 +58,14 @@ async function scenarioAi001Classifier() {
   try {
     // ── Ensure active first — expect real classification
     await setAgentStatus('AI-001', 'active');
-    // Cache TTL is 60s in the handler; we might get a stale miss for one
-    // request, so give it two tries with distinct queries.
-    let active = await callAi('buy 10 laptops');
-    if (active.status !== 200 || active.body._agent?.status !== 'active') {
-      active = await callAi('buy 20 laptops'); // defeat any stale cache
+    // A warm serverless process can still have the previous draft status.
+    // Poll through the documented cache window instead of treating query text
+    // as a cache buster, which only made the test produce false failures.
+    let active;
+    for (let i = 0; i < 7; i++) {
+      active = await callAi(`buy ${10 + i} laptops ${Date.now()}-${i}`);
+      if (active.status === 200 && active.body._agent?.status === 'active') break;
+      await new Promise((r) => setTimeout(r, 10_000));
     }
     assert(active.status === 200, 'ai-001: API responds 200 when active');
     assert(

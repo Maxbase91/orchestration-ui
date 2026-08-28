@@ -4,6 +4,11 @@ const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 const LLM_TIMEOUT_MS = 10_000;
 
+// Groq retired llama-3.1-8b-instant on 2026-08-16. This is its documented
+// replacement; an env override keeps future provider migrations deploy-free.
+export const DEFAULT_GROQ_MODEL = 'openai/gpt-oss-20b';
+const GROQ_MODEL = process.env.GROQ_MODEL ?? DEFAULT_GROQ_MODEL;
+
 interface LLMMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
@@ -63,7 +68,7 @@ async function callGroq(
   jsonMode: boolean,
 ): Promise<string | null> {
   const body: Record<string, unknown> = {
-    model: 'llama-3.1-8b-instant',
+    model: GROQ_MODEL,
     messages,
     temperature,
     max_tokens: maxTokens,

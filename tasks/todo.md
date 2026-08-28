@@ -7,6 +7,9 @@
 - [x] Correct the deployed-test URL/configuration and stale renewal assertion.
 - [x] Update the root README, testing playbook, roadmap, and relevant module documentation; run typecheck, lint, build, and focused tests.
 
+## Production AI verification — 2026-08-28
+- [ ] Correct the AI-agent integration test's false cache-buster assumption, replace the retired Groq model, and verify the active classifier path after cache expiry.
+
 Reference demand: "I need consultants for a promptathon"
 
 | # | Area | Issue | Status |

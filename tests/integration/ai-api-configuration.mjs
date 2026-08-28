@@ -2,6 +2,8 @@
 // Verifies that the AI endpoint reports missing server configuration as a
 // controlled 503 response instead of failing during Vercel function loading.
 
+import { readFileSync } from 'node:fs';
+
 const keys = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'];
 const previous = new Map(keys.map((key) => [key, process.env[key]]));
 for (const key of keys) delete process.env[key];
@@ -30,4 +32,9 @@ if (!ok) {
   console.error(`Expected controlled 503, got status=${statusCode} body=${JSON.stringify(responseBody)}`);
   process.exit(1);
 }
-console.log('AI missing-configuration response is a controlled 503.');
+const llmSource = readFileSync(new URL('../../src/lib/llm.ts', import.meta.url), 'utf8');
+if (!llmSource.includes("DEFAULT_GROQ_MODEL = 'openai/gpt-oss-20b'")) {
+  console.error('Expected the current Groq replacement model to be configured.');
+  process.exit(1);
+}
+console.log('AI missing-configuration response is a controlled 503 and uses the current Groq model.');

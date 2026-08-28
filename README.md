@@ -312,6 +312,7 @@ Full descriptions live in `.env.example`.
 | `ADMIN_SEED_SECRET` | Serverless (`api/`) | Only for seeding | Shared secret for `api/admin/seed.ts` |
 | `VITE_ASSISTANT_PROVIDER` | Browser | No | `groq` (default) or `mock` for a fully offline assistant |
 | `GROQ_API_KEY` / `GEMINI_API_KEY` | Serverless (`api/`) | For AI classification and assistant | Server-side only, used by `api/ai.ts`, `api/chat.ts`, and `api/chat-intake.ts` |
+| `GROQ_MODEL` | Serverless (`api/`) | No | Groq model override for classifier routes; defaults to `openai/gpt-oss-20b` |
 
 Two things that reliably break a deploy:
 

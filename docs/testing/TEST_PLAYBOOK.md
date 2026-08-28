@@ -73,6 +73,7 @@
 | TC-REQ-06 | Workflow tab | Lifecycle stepper + expandable step cards (handler/role/duration/dates) |
 | TC-REQ-07 | Workflow actions: Refer Back / Reassign / Escalate / Cancel | Each fires, persists, writes audit entry |
 | **TC-REQ-08** | **New Request — AI describe (consulting):** type "management consulting firm to design a target operating model…" | **Classified as Consulting** (not Goods); title/value/description extracted |
+| **TC-REQ-08a** | **Classifier provider migration** (`npm run test:ai-api-config`) | Missing server configuration yields the controlled 503; the Groq classifier default is the supported `openai/gpt-oss-20b` replacement, overridable through the server-only `GROQ_MODEL` variable |
 | TC-REQ-09 | Step 1: AI misreads the need → click **Try again** and re-describe | New classification **propagates** to Step 3 header, Summary, and the submitted record. (There is no category grid — categories are derived, not chosen.) |
 | TC-REQ-10 | Step 2 Pre-check (**staged funnel**, INT-10) | Stage 1 = catalogue check only; when nothing fits, an enrichment box appears and the **contract check is NOT shown** until the user enriches. Stage 2 = ranked contract candidates with fit% + keyword reasons. Proceed-to-full-request only after both are ruled out |
 | TC-REQ-11 | Step 3 chat intake | Captures value/timeline/commodity; **Service Description** builds (see Suite SOW) |
@@ -335,7 +336,7 @@ not in a component — because RLS is currently `USING (true)`.
 | TC-ADM-07 | Chain change affects a new request | Generated approvers reflect the edited chain; OOO→delegate |
 | TC-ADM-08 | `/admin/agents` AI Agents | 6 agents; open one (config + perf dashboard); **toggle status + Save persists** |
 | TC-ADM-09 | Enable Supplier Recommender (AI-005) | Wizard Step 4 shows ranked suppliers |
-| TC-ADM-10 | Enable/disable Category Classifier (AI-001) | Wizard Step 1 switches LLM↔local behaviour |
+| TC-ADM-10 | Enable/disable Category Classifier (AI-001) | Wizard Step 1 switches LLM↔local behaviour. Serverless agent configuration is process-cached for up to 60 seconds, so verify the changed status after that window; `npm run test:ai-agents` polls it in both directions and restores the original status. |
 | TC-ADM-11 | Categories admin | `procurement_categories` **seeded** from the canonical taxonomy (8 rows); add/edit category **persists** and appears in intake; **Icon picker** sets the tile icon shown at intake |
 | TC-ADM-12 | SLA targets admin | Edit per-stage SLA **persists** (requires `sla_targets` table); reflects in SLA tracker |
 | TC-ADM-13 | `/admin/policies` | Policies versioned; view full text |
