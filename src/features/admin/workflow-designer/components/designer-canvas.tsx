@@ -190,7 +190,7 @@ export function DesignerCanvas({
         return updated;
       });
     },
-    [setNodes, setNodes, onNodesChange, setEdges, onEdgesChange],
+    [setNodes, onNodesChange, setEdges, onEdgesChange],
   );
 
   // Expose update/delete via ref-like pattern through parent

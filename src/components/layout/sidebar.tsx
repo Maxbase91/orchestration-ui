@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { createElement, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Home,
@@ -195,7 +195,12 @@ function SidebarItem({
 
   if (!item.visibleTo.includes(currentRole)) return null;
 
-  const Icon = getIcon(item.icon);
+  // `createElement` rather than `const Icon = …` + `<Icon />`: a capitalised
+  // local bound during render reads to the compiler as a component created
+  // during render, which would reset its state on every render. `getIcon` only
+  // looks the component up in a module-level map, so nothing is created — but
+  // saying so directly is clearer than asking the reader to prove it.
+  const icon = getIcon(item.icon);
   const hasChildren = item.children && item.children.length > 0;
   const isActive = item.path
     ? location.pathname === item.path
@@ -231,7 +236,7 @@ function SidebarItem({
           : 'text-navy-200 hover:bg-white/8 hover:text-white',
       )}
     >
-      <Icon className={cn('shrink-0', collapsed ? 'h-5 w-5' : 'h-4 w-4')} />
+      {createElement(icon, { className: cn('shrink-0', collapsed ? 'h-5 w-5' : 'h-4 w-4') })}
       {!collapsed && (
         <>
           <span className="flex-1 text-left truncate">{item.label}</span>

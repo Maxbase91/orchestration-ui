@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, useEffect, useCallback } from 'react';
+import { useMemo, useRef, useState, useCallback } from 'react';
 import type { KeyboardEvent } from 'react';
 import { Send, AtSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -85,10 +85,6 @@ export function StageCommentComposer({ requestId, stage, stageLabel }: StageComm
       .slice(0, 6);
   }, [showMentionPicker, mentionQuery, users, currentUser.id]);
 
-  useEffect(() => {
-    setHighlightIndex(0);
-  }, [mentionQuery]);
-
   const handleInput = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       const value = e.target.value;
@@ -99,6 +95,9 @@ export function StageCommentComposer({ requestId, stage, stageLabel }: StageComm
         setShowMentionPicker(true);
         setMentionQuery(active.token);
         setMentionStart(active.start);
+        // Reset the highlight here, with the query that caused it, rather than
+        // in an effect reacting to the query afterwards.
+        setHighlightIndex(0);
       } else {
         setShowMentionPicker(false);
       }
@@ -123,8 +122,38 @@ export function StageCommentComposer({ requestId, stage, stageLabel }: StageComm
     [content, mentionStart, mentionQuery],
   );
 
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent<HTMLTextAreaElement>) => {
+  // Declared before `handleKeyDown`, which calls it. It relied on function
+  // hoisting before, which reads as a forward reference the compiler cannot
+  // track through the memoized callback.
+  async function submit() {
+    const text = content.trim();
+    if (!text) return;
+    const mentions = extractMentions(text, users);
+    try {
+      await addComment.mutateAsync({
+        requestId,
+        authorId: currentUser.id,
+        authorName: currentUser.name,
+        authorInitials: currentUser.initials,
+        content: text,
+        isInternal,
+        stage,
+        mentions,
+      });
+      setContent('');
+      if (mentions.length > 0) {
+        toast.success(`Comment posted on ${stageLabel} · @mentioned ${mentions.length}`);
+      } else {
+        toast.success(`Comment posted on ${stageLabel}`);
+      }
+    } catch (err) {
+      toast.error(`Post failed: ${err instanceof Error ? err.message : 'unknown'}`);
+    }
+  }
+
+  // Plain function: it is only passed as an onKeyDown prop, nothing depends on
+  // a stable reference, and the compiler could not preserve the manual memo.
+  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
       if (showMentionPicker && suggestions.length > 0) {
         if (e.key === 'ArrowDown') {
           e.preventDefault();
@@ -151,35 +180,8 @@ export function StageCommentComposer({ requestId, stage, stageLabel }: StageComm
         e.preventDefault();
         void submit();
       }
-    },
-    [showMentionPicker, suggestions, highlightIndex, insertMention], // eslint-disable-line react-hooks/exhaustive-deps
-  );
+  };
 
-  async function submit() {
-    const text = content.trim();
-    if (!text) return;
-    const mentions = extractMentions(text, users);
-    try {
-      await addComment.mutateAsync({
-        requestId,
-        authorId: currentUser.id,
-        authorName: currentUser.name,
-        authorInitials: currentUser.initials,
-        content: text,
-        isInternal,
-        stage,
-        mentions,
-      });
-      setContent('');
-      if (mentions.length > 0) {
-        toast.success(`Comment posted on ${stageLabel} · @mentioned ${mentions.length}`);
-      } else {
-        toast.success(`Comment posted on ${stageLabel}`);
-      }
-    } catch (err) {
-      toast.error(`Post failed: ${err instanceof Error ? err.message : 'unknown'}`);
-    }
-  }
 
   return (
     <div className="relative rounded-md border border-gray-200 bg-gray-50 p-3">

@@ -112,7 +112,9 @@ export function ActiveWorkflowsPage() {
   ).length;
 
   // Apply filters
-  const filteredRequests = useMemo(() => {
+  // Plain derivation — see the note in my-tasks-page. Nothing depends on a
+  // stable reference here; the result is only rendered.
+  const filteredRequests = (() => {
     let result = activeRequests;
 
     // Quick filter
@@ -141,7 +143,7 @@ export function ActiveWorkflowsPage() {
     }
 
     return result;
-  }, [activeRequests, activeFilters, quickFilter]);
+  })();
 
   function handleFilterChange(key: string, value: string | string[]) {
     setActiveFilters((prev) => ({ ...prev, [key]: value }));

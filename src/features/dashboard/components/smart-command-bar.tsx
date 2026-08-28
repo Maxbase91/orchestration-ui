@@ -222,37 +222,13 @@ export function SmartCommandBar() {
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [orderSuccess, setOrderSuccess] = useState<string | null>(null);
 
-  // --- Submit ---
-  const handleSubmit = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault();
-    const query = input.trim();
-    if (!query) return;
-
-    // Fast local check: if not a catalogue match, send to AI overlay immediately
-    const localResult = localClassify(query, catalogueItems, eligibleCategories);
-    if (localResult.intent !== 'catalogue') {
-      openAIChatWithPrompt(query);
-      setInput('');
-      return;
-    }
-
-    // Catalogue query — show inline catalogue UI
-    setProposal(null);
-    setShowCatalogue(false);
-    setLoading(true);
-
-    try {
-      const aiResult = await queryGroq(query);
-      setLoading(false);
-      processResult(aiResult ?? localResult, query);
-    } catch {
-      setLoading(false);
-      processResult(localResult, query);
-    }
-  }, [input, catalogueItems, eligibleCategories]); // eslint-disable-line react-hooks/exhaustive-deps
-
+  // Declared before `handleSubmit`, which calls it — the reverse order relied
+  // on hoisting through a memoized callback, which the compiler cannot track.
   // --- Process an AI result (from LLM or local fallback) ---
-  const processResult = useCallback((aiResult: AIResult, query: string) => {
+  // Plain functions, not useCallback: both are handlers, neither is an effect
+  // dependency, and the manual memos could not be preserved — which made the
+  // compiler skip optimizing this component to keep memos buying nothing.
+  const processResult = (aiResult: AIResult, query: string) => {
     let intent = aiResult.intent ?? 'general';
     // Locals rather than mutating the argument: the catalogue branch below can
     // overrule the model, and the new-request branch has to read what it landed on.
@@ -337,7 +313,36 @@ export function SmartCommandBar() {
       links: [...(aiResult.links?.slice(0, 3) ?? []), { label: 'Create New Request', path: '/requests/new' }, { label: 'Open AI Assistant', path: '__ai_chat__' }],
       agent,
     });
-  }, [catalogueItems, eligibleCategories]);
+  };
+
+  // --- Submit ---
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const query = input.trim();
+    if (!query) return;
+
+    // Fast local check: if not a catalogue match, send to AI overlay immediately
+    const localResult = localClassify(query, catalogueItems, eligibleCategories);
+    if (localResult.intent !== 'catalogue') {
+      openAIChatWithPrompt(query);
+      setInput('');
+      return;
+    }
+
+    // Catalogue query — show inline catalogue UI
+    setProposal(null);
+    setShowCatalogue(false);
+    setLoading(true);
+
+    try {
+      const aiResult = await queryGroq(query);
+      setLoading(false);
+      processResult(aiResult ?? localResult, query);
+    } catch {
+      setLoading(false);
+      processResult(localResult, query);
+    }
+  };
 
   // --- Handle link click from proposal ---
   const handleLinkClick = (path: string) => {

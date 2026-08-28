@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -42,20 +42,23 @@ export function NotificationPreferences() {
   const { data: remotePrefs } = useUserPreferences(currentUser.id);
   const updatePrefs = useUpdateUserPreferences(currentUser.id);
 
-  const [prefs, setPrefs] = useState<NotifPrefs>(DEFAULT_PREFS);
-  const hydrated = useRef(false);
+  // Local edits, `null` until the user changes something. What is displayed is
+  // the remote preferences over the defaults; from the first edit onwards the
+  // local copy owns it.
+  //
+  // This replaces a hydrate-once effect guarded by a `hydrated` ref. The guard
+  // existed to stop the debounced save firing on hydration — with edits the
+  // only thing that writes local state, every save is now a deliberate user
+  // action and there is nothing to guard against.
+  const [editedPrefs, setEditedPrefs] = useState<NotifPrefs | null>(null);
+  const prefs: NotifPrefs = editedPrefs ?? {
+    ...DEFAULT_PREFS,
+    ...((remotePrefs?.notifications as Partial<NotifPrefs> | undefined) ?? {}),
+  };
 
-  // Hydrate from remote prefs once loaded
-  useEffect(() => {
-    if (hydrated.current || !remotePrefs?.notifications) return;
-    hydrated.current = true;
-    setPrefs((prev) => ({ ...prev, ...(remotePrefs.notifications as Partial<NotifPrefs>) }));
-  }, [remotePrefs]);
-
-  // Persist whenever prefs change (after initial hydration)
+  // Persist whenever prefs change
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   function scheduleRemoteSave(updated: NotifPrefs) {
-    if (!hydrated.current) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
       updatePrefs.mutate({ notifications: updated as unknown as Record<string, unknown> });
@@ -63,11 +66,11 @@ export function NotificationPreferences() {
   }
 
   function update(patch: Partial<NotifPrefs>) {
-    setPrefs((prev) => {
-      const next = { ...prev, ...patch };
-      scheduleRemoteSave(next);
-      return next;
-    });
+    // `prefs` is what is on screen — the remote values until the first edit,
+    // the local copy after it — so an edit always builds on what was shown.
+    const next = { ...prefs, ...patch };
+    setEditedPrefs(next);
+    scheduleRemoteSave(next);
   }
 
   function toggleChannel(index: number, channel: 'inApp' | 'email' | 'push') {

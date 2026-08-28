@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import type { ProcurementRequest, RequestStatus, StageHistoryEntry } from '@/data/types';
 import { useStageHistoryByRequest } from '@/lib/db/hooks/use-stage-history';
 import { useUserLookup, useUsers } from '@/lib/db/hooks/use-users';
@@ -134,7 +134,11 @@ export function TabWorkflow({ request, focusStageId }: TabWorkflowProps) {
   const isCompleted = request.status === 'completed';
 
   // Build stepper steps
-  const steps: Step[] = useMemo(() => {
+  // Plain derivation — the compiler memoizes it. The manual useMemo could
+  // not be preserved (its dependencies are objects it cannot prove
+  // unmutated), which cost optimization of the whole component, and its
+  // dependency list had drifted from what the body actually reads.
+  const steps: Step[] = (() => {
     return LIFECYCLE_STAGES.map((stage) => {
       const entry = stageEntries.get(stage.id);
       const isStageCompleted = completedStages.has(stage.id);
@@ -183,7 +187,7 @@ export function TabWorkflow({ request, focusStageId }: TabWorkflowProps) {
 
       return step;
     });
-  }, [request, history, integrations]);
+  })();
 
   // Handle stepper click
   const handleStepClick = useCallback(

@@ -2,21 +2,19 @@
 // table; entries here override/supplement the built-in KB and are the first
 // source the AI assistant grounds its answers in.
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Plus, Pencil, Trash2, X, Save, BookOpen, ChevronDown, ChevronUp } from 'lucide-react';
-import { supabase } from '@/lib/supabase-client';
+import type { KBEntry } from '@/lib/db/knowledge-base';
+import {
+  useKnowledgeBase,
+  useSaveKnowledgeBaseEntry,
+  useDeleteKnowledgeBaseEntry,
+} from '@/lib/db/hooks/use-knowledge-base';
 import { PageHeader } from '@/components/shared/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 
-interface KBEntry {
-  id: string;
-  title: string;
-  body: string;
-  source: string;
-  tags: string[];
-}
 
 function generateId(): string {
   return `KB-${String(Math.floor(Math.random() * 9000) + 1000)}`;
@@ -158,39 +156,27 @@ function EntryRow({
 }
 
 export function KBAdminPage() {
-  const [entries, setEntries] = useState<KBEntry[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Data access goes through the entity hooks like every other screen, rather
+  // than a hand-rolled useEffect + useState fetch: the query owns loading and
+  // refetching, and the mutations invalidate it, so there is no effect here at
+  // all and no manual `load()` to remember to call.
+  const { data: entries = [], isLoading: loading } = useKnowledgeBase();
+  const saveEntry = useSaveKnowledgeBaseEntry();
+  const deleteEntry = useDeleteKnowledgeBaseEntry();
+
   const [showForm, setShowForm] = useState(false);
   const [editingEntry, setEditingEntry] = useState<KBEntry | null>(null);
   const [search, setSearch] = useState('');
 
-  async function load() {
-    setLoading(true);
-    const { data } = await supabase
-      .from('knowledge_base')
-      .select('id, title, body, source, tags')
-      .order('id', { ascending: true });
-    setEntries((data ?? []) as KBEntry[]);
-    setLoading(false);
-  }
-
-  useEffect(() => { void load(); }, []);
-
   async function handleSave(entry: KBEntry) {
-    // Upsert on id so saving an edited entry with an unchanged id updates it
-    // rather than failing on the primary key.
-    await supabase
-      .from('knowledge_base')
-      .upsert({ ...entry, updated_at: new Date().toISOString() }, { onConflict: 'id' });
+    await saveEntry.mutateAsync(entry);
     setShowForm(false);
     setEditingEntry(null);
-    await load();
   }
 
   async function handleDelete(id: string) {
     if (!confirm(`Delete entry ${id}?`)) return;
-    await supabase.from('knowledge_base').delete().eq('id', id);
-    await load();
+    await deleteEntry.mutateAsync(id);
   }
 
   const filtered = entries.filter(

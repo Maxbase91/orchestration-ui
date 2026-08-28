@@ -1,4 +1,3 @@
-import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/shared/page-header';
 import { DataTable, type Column } from '@/components/shared/data-table';
@@ -52,7 +51,10 @@ export function MyTasksPage() {
   const { data: approvalEntries = [] } = useApprovals();
   const { data: requests = [] } = useRequests();
 
-  const tasks = useMemo<TaskRow[]>(() => {
+  // Plain derivation — the React compiler memoizes it. The manual useMemo
+  // depended on query arrays it cannot prove unmutated, so keeping it made the
+  // compiler skip optimizing this whole page.
+  const tasks: TaskRow[] = (() => {
     const result: TaskRow[] = [];
 
     // Requests owned by current user in active stages
@@ -104,7 +106,7 @@ export function MyTasksPage() {
     });
 
     return result;
-  }, [currentUser.id, approvalEntries, requests]);
+  })();
 
   const columns: Column<TaskRow>[] = [
     {

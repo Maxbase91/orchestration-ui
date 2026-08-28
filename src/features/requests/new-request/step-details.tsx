@@ -48,10 +48,16 @@ interface StepDetailsProps {
 }
 
 export function StepDetails({ category, data, onUpdate }: StepDetailsProps) {
+  // The suggestion is stored WITH the input it was computed for, so "is this
+  // still relevant?" is answered by comparing it to what is typed now rather
+  // than by clearing state from inside the debounce effect. That clear was a
+  // synchronous setState in an effect body, and it also left a window where a
+  // suggestion for older text was shown against newer text.
   const [commoditySuggestion, setCommoditySuggestion] = useState<{
     code: string;
     label: string;
     confidence: number;
+    forInput: string;
   } | null>(null);
   const [commodityInput, setCommodityInput] = useState(data.commodityCodeLabel);
   const [commodityAccepted, setCommodityAccepted] = useState(!!data.commodityCode);
@@ -63,28 +69,32 @@ export function StepDetails({ category, data, onUpdate }: StepDetailsProps) {
     }
   }, [category]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Search commodity code as user types
+  // Search commodity code as the user types. The effect only ever PRODUCES a
+  // suggestion; whether one is still applicable is derived below.
   useEffect(() => {
-    if (commodityInput.length < 3) {
-      setCommoditySuggestion(null);
-      return;
-    }
+    if (commodityInput.length < 3) return;
     const timer = setTimeout(() => {
       const result = getAICommodityCode(commodityInput, category);
       if (result && !commodityAccepted) {
-        setCommoditySuggestion(result);
+        setCommoditySuggestion({ ...result, forInput: commodityInput });
       }
     }, 400);
     return () => clearTimeout(timer);
   }, [commodityInput, commodityAccepted, category]);
 
+  // Shown only while it still matches what is typed.
+  const activeSuggestion =
+    commoditySuggestion && commoditySuggestion.forInput === commodityInput
+      ? commoditySuggestion
+      : null;
+
   const handleCommodityAccept = () => {
-    if (commoditySuggestion) {
+    if (activeSuggestion) {
       onUpdate({
-        commodityCode: commoditySuggestion.code,
-        commodityCodeLabel: commoditySuggestion.label,
+        commodityCode: activeSuggestion.code,
+        commodityCodeLabel: activeSuggestion.label,
       });
-      setCommodityInput(commoditySuggestion.label);
+      setCommodityInput(activeSuggestion.label);
       setCommodityAccepted(true);
       setCommoditySuggestion(null);
     }
@@ -230,16 +240,16 @@ export function StepDetails({ category, data, onUpdate }: StepDetailsProps) {
           }}
           placeholder="Start typing to search (e.g. cloud, laptop, consulting)..."
         />
-        {commoditySuggestion && (
+        {activeSuggestion && (
           <AISuggestionCard
-            confidence={Math.round(commoditySuggestion.confidence * 100)}
+            confidence={Math.round(activeSuggestion.confidence * 100)}
             onAccept={handleCommodityAccept}
             onDismiss={handleCommodityDismiss}
           >
             <p>
               We think this is{' '}
               <span className="font-semibold">
-                {commoditySuggestion.label} &mdash; {commoditySuggestion.code}
+                {activeSuggestion.label} &mdash; {activeSuggestion.code}
               </span>
               . Is this correct?
             </p>
