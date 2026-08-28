@@ -294,8 +294,10 @@ export function StepCategory({ prefill, onUpdate, onAutoAdvance, onBrowseCatalog
         </div>
       )}
 
-      {/* AI Result */}
-      {aiResult && !accepted && !loading && (
+      {/* AI Result. Stays on screen through the hand-off to step 2 — the
+          controls lock rather than the block vanishing, so the requester is not
+          shown an empty screen while the wizard advances. */}
+      {aiResult && !loading && (
         <div className="rounded-lg border-l-2 border-[#2D5F8A] bg-blue-50/50 p-4 space-y-3">
           <div className="flex items-start gap-2">
             <Sparkles className="size-4 text-[#2D5F8A] mt-0.5 shrink-0" />
@@ -309,73 +311,91 @@ export function StepCategory({ prefill, onUpdate, onAutoAdvance, onBrowseCatalog
                 </Badge>
               </div>
 
-              {/* Extracted info */}
-              <div className="grid grid-cols-2 gap-2">
+              {/* The demand, restated once. The extracted title is the block's
+                  heading rather than a card of its own: it and the raw input
+                  above are the same sentence, and showing it three times (title
+                  card, description, input box) read as three separate facts. */}
+              <h3 className="text-base font-semibold leading-snug text-gray-900">
+                {aiResult.title || inputValue}
+              </h3>
+
+              {/* One classification block. The commodity code is DERIVED from
+                  the category (resolveCategoryCode takes it as input), so it
+                  sits beneath it as the specific code rather than beside it as
+                  an independent fact. No "routes the request" sub-label: the
+                  buying channel routes it, and that is settled on step 2. */}
+              <div className="rounded-md border border-gray-200 bg-white px-3 py-2">
+                <p className="text-[10px] font-medium uppercase tracking-wider text-gray-400">
+                  Classification
+                </p>
+                <p className="text-sm font-semibold text-gray-900">
+                  {categoryLabel(aiResult.category)}
+                </p>
                 {aiResult.commodityCode && (
-                  <div className="rounded-md bg-white border border-gray-200 px-3 py-2">
-                    <p className="text-[10px] font-medium uppercase tracking-wider text-gray-400">Commodity Code</p>
-                    <p className="text-sm font-semibold text-gray-900">{aiResult.commodityCode}</p>
-                    <p className="text-[11px] text-gray-500 truncate">{aiResult.commodityCodeLabel}</p>
-                  </div>
-                )}
-                <div className="rounded-md bg-white border border-gray-200 px-3 py-2">
-                  <p className="text-[10px] font-medium uppercase tracking-wider text-gray-400">Category</p>
-                  <p className="text-sm font-semibold text-gray-900">{categoryLabel(aiResult.category)}</p>
-                  <p className="text-[11px] text-gray-400">routes the request</p>
-                </div>
-                {aiResult.title && (
-                  <div className="rounded-md bg-white border border-gray-200 px-3 py-2">
-                    <p className="text-[10px] font-medium uppercase tracking-wider text-gray-400">Title</p>
-                    <p className="text-sm font-medium text-gray-900 truncate">{aiResult.title}</p>
-                  </div>
-                )}
-                {aiResult.supplier && (
-                  <div className="rounded-md bg-white border border-gray-200 px-3 py-2">
-                    <p className="text-[10px] font-medium uppercase tracking-wider text-gray-400">Supplier</p>
-                    <p className="text-sm font-medium text-gray-900">{aiResult.supplier}</p>
-                  </div>
-                )}
-                {aiResult.estimatedValue > 0 && (
-                  <div className="rounded-md bg-white border border-gray-200 px-3 py-2">
-                    <p className="text-[10px] font-medium uppercase tracking-wider text-gray-400">Est. Value</p>
-                    <p className="text-sm font-medium text-gray-900">€{aiResult.estimatedValue.toLocaleString()}</p>
-                  </div>
+                  <p className="mt-0.5 text-[11px] text-gray-500">
+                    <span className="font-medium text-gray-600">{aiResult.commodityCode}</span>
+                    {aiResult.commodityCodeLabel ? ` · ${aiResult.commodityCodeLabel}` : ''}
+                  </p>
                 )}
               </div>
 
-              {/* Generated description */}
+              {/* Supplier and value are labelled EXTRACTED, matching the
+                  named / chosen provenance the determination step already uses.
+                  Neither is a decision taken here — the supplier is chosen once,
+                  on the determination. */}
+              {(aiResult.supplier || aiResult.estimatedValue > 0) && (
+                <div className="grid grid-cols-2 gap-2">
+                  {aiResult.supplier && (
+                    <div className="rounded-md border border-gray-200 bg-white px-3 py-2">
+                      <p className="text-[10px] font-medium uppercase tracking-wider text-gray-400">
+                        Supplier · extracted
+                      </p>
+                      <p className="truncate text-sm font-medium text-gray-900">{aiResult.supplier}</p>
+                      <p className="text-[11px] text-gray-400">confirm on the determination</p>
+                    </div>
+                  )}
+                  {aiResult.estimatedValue > 0 && (
+                    <div className="rounded-md border border-gray-200 bg-white px-3 py-2">
+                      <p className="text-[10px] font-medium uppercase tracking-wider text-gray-400">
+                        Est. value · extracted
+                      </p>
+                      <p className="text-sm font-medium text-gray-900">
+                        €{aiResult.estimatedValue.toLocaleString()}
+                      </p>
+                      <p className="text-[11px] text-gray-400">refine at any point</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* The one genuinely new piece of content on this screen — it
+                  becomes the request's business justification. */}
               {aiResult.description && (
-                <div className="rounded-md bg-white border border-gray-200 px-3 py-2">
-                  <p className="text-[10px] font-medium uppercase tracking-wider text-gray-400">Generated Description</p>
-                  <p className="text-sm text-gray-700 mt-1">{aiResult.description}</p>
+                <div className="rounded-md border border-gray-200 bg-white px-3 py-2">
+                  <p className="text-[10px] font-medium uppercase tracking-wider text-gray-400">
+                    Business justification · generated
+                  </p>
+                  <p className="mt-1 text-sm text-gray-700">{aiResult.description}</p>
                 </div>
               )}
 
               {/* Accept */}
               <div className="flex items-center gap-2">
-                <Button size="sm" onClick={handleAccept}>
+                <Button size="sm" onClick={handleAccept} disabled={accepted}>
                   <CheckCircle className="size-3.5" />
-                  Accept & continue
+                  {accepted ? 'Continuing…' : 'Accept & continue'}
                   <ArrowRight className="size-3.5" />
                 </Button>
-                <Button size="sm" variant="ghost" onClick={() => setAiResult(null)}>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setAiResult(null)}
+                  disabled={accepted}
+                >
                   Try again
                 </Button>
               </div>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Accepted state */}
-      {accepted && aiResult && (
-        <div className="rounded-md border border-green-200 bg-green-50/50 p-3 flex items-center gap-3">
-          <CheckCircle className="size-5 text-green-600 shrink-0" />
-          <div className="flex-1">
-            <p className="text-sm font-medium text-green-800">
-              {categoryLabel(aiResult.category)}{aiResult.supplier ? ` — ${aiResult.supplier}` : ''}
-            </p>
-            <p className="text-xs text-green-600 mt-0.5">Details pre-filled. Moving to next step...</p>
           </div>
         </div>
       )}
