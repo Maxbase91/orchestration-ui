@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { Save, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -74,28 +74,30 @@ interface RuleEditorPanelProps {
   rule: RoutingRule | null;
 }
 
+/**
+ * The editor form for one rule.
+ *
+ * State is initialised from the rule and NOT resynced by an effect. The caller
+ * gives this a `key` of the rule id, so selecting a different rule remounts the
+ * panel with fresh state — React's documented answer to "reset all state when a
+ * prop changes", and the reason the effect that copied eight fields on every
+ * `rule` change can go. That effect also silently discarded unsaved edits
+ * whenever the rules array was replaced, since a new array identity re-ran it
+ * even for the same rule.
+ */
 export function RuleEditorPanel({ rule }: RuleEditorPanelProps) {
-  const [name, setName] = useState('');
-  const [status, setStatus] = useState<'active' | 'draft' | 'disabled'>('draft');
-  const [conditions, setConditions] = useState<{ field: string; operator: string; value: string }[]>([]);
+  const [name, setName] = useState(rule?.name ?? '');
+  const [status, setStatus] = useState<'active' | 'draft' | 'disabled'>(rule?.status ?? 'draft');
+  const [conditions, setConditions] = useState<{ field: string; operator: string; value: string }[]>(
+    rule ? [...rule.conditions] : [],
+  );
   const [logicMode, setLogicMode] = useState<'AND' | 'OR'>('AND');
-  const [buyingChannel, setBuyingChannel] = useState<BuyingChannel>('procurement-led');
-  const [approvalChain, setApprovalChain] = useState('line-manager');
+  const [buyingChannel, setBuyingChannel] = useState<BuyingChannel>(
+    rule?.action.buyingChannel ?? 'procurement-led',
+  );
+  const [approvalChain, setApprovalChain] = useState(rule?.action.approvalChain ?? 'line-manager');
   const [triggerNotification, setTriggerNotification] = useState(false);
   const [flagForReview, setFlagForReview] = useState(false);
-
-  useEffect(() => {
-    if (rule) {
-      setName(rule.name);
-      setStatus(rule.status);
-      setConditions([...rule.conditions]);
-      setBuyingChannel(rule.action.buyingChannel);
-      setApprovalChain(rule.action.approvalChain);
-      setLogicMode('AND');
-      setTriggerNotification(false);
-      setFlagForReview(false);
-    }
-  }, [rule]);
 
   const plainEnglish = useMemo(() => {
     if (conditions.length === 0) return 'No conditions defined.';

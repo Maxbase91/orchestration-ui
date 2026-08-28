@@ -109,6 +109,18 @@ export function WorkflowDesignerPage() {
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showSimulation, setShowSimulation] = useState(false);
+  /**
+   * The graph the simulation runs against, snapshotted when it is opened.
+   *
+   * The refs below track the live canvas without re-rendering this page on
+   * every drag — that is worth keeping. But reading `nodesRef.current` during
+   * render to pass as props meant the simulation's input was untracked: it
+   * happened to be correct only because opening the panel also set state, and
+   * nothing would have re-rendered it if the canvas changed underneath.
+   * Snapshotting on open says what is actually meant — simulate the canvas as
+   * it stands now — and keeps render pure.
+   */
+  const [simulationGraph, setSimulationGraph] = useState<{ nodes: Node[]; edges: Edge[] } | null>(null);
   const [highlightedNodeId, setHighlightedNodeId] = useState<string | null>(null);
   const [canvasKey, setCanvasKey] = useState(0);
 
@@ -116,13 +128,14 @@ export function WorkflowDesignerPage() {
   const edgesRef = useRef<Edge[]>([]);
   const canvasWrapperRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!selectedTemplateId && workflowTemplates.length > 0) {
-      setSelectedTemplateId(workflowTemplates[0].id);
-    }
-  }, [selectedTemplateId, workflowTemplates]);
+  // The effective selection, derived rather than mirrored into state by an
+  // effect: an explicit choice wins, otherwise the first template. The effect
+  // that used to copy the default into state existed only so the Select had a
+  // value to show — line below already fell back the same way — and it cost a
+  // second render every time the templates loaded.
+  const effectiveTemplateId = selectedTemplateId || workflowTemplates[0]?.id || '';
 
-  const template = workflowTemplates.find((t) => t.id === selectedTemplateId) ?? workflowTemplates[0];
+  const template = workflowTemplates.find((t) => t.id === effectiveTemplateId) ?? workflowTemplates[0];
   const { nodes: initialNodes, edges: initialEdges } = template
     ? mapTemplateToFlow(template)
     : { nodes: [] as Node[], edges: [] as Edge[] };
@@ -211,7 +224,7 @@ export function WorkflowDesignerPage() {
       <div className="flex items-center justify-between border-b border-gray-200 bg-white px-4 py-2.5">
         <div className="flex items-center gap-3">
           <h1 className="text-base font-semibold text-gray-900">Workflow Designer</h1>
-          <Select value={selectedTemplateId} onValueChange={handleTemplateChange}>
+          <Select value={effectiveTemplateId} onValueChange={handleTemplateChange}>
             <SelectTrigger className="w-52 h-8 text-sm">
               <SelectValue />
             </SelectTrigger>
@@ -224,7 +237,22 @@ export function WorkflowDesignerPage() {
           <TemplateLibrary onSelect={handleTemplateChange} />
         </div>
         <div className="flex items-center gap-2">
-          <Button size="sm" variant="outline" onClick={() => setShowSimulation((v) => !v)}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setShowSimulation((v) => {
+                const next = !v;
+                setSimulationGraph(next
+                  ? {
+                      nodes: nodesRef.current.length > 0 ? nodesRef.current : initialNodes,
+                      edges: edgesRef.current.length > 0 ? edgesRef.current : initialEdges,
+                    }
+                  : null);
+                return next;
+              });
+            }}
+          >
             <Play className="h-3.5 w-3.5 mr-1.5" />
             {showSimulation ? 'Hide Simulation' : 'Simulate'}
           </Button>
@@ -258,13 +286,14 @@ export function WorkflowDesignerPage() {
             onEdgesChange={(e) => { edgesRef.current = e; }}
           />
 
-          {showSimulation && (
+          {showSimulation && simulationGraph && (
             <SimulationRunner
-              nodes={nodesRef.current.length > 0 ? nodesRef.current : initialNodes}
-              edges={edgesRef.current.length > 0 ? edgesRef.current : initialEdges}
+              nodes={simulationGraph.nodes}
+              edges={simulationGraph.edges}
               onHighlightNode={setHighlightedNodeId}
               onClose={() => {
                 setShowSimulation(false);
+                setSimulationGraph(null);
                 setHighlightedNodeId(null);
               }}
             />
@@ -273,6 +302,7 @@ export function WorkflowDesignerPage() {
 
         {selectedNode && (
           <NodeConfigPanel
+            key={selectedNode.id}
             node={selectedNode}
             onUpdate={handleNodeUpdate}
             onDelete={handleNodeDelete}

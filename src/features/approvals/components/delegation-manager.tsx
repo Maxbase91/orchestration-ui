@@ -49,7 +49,9 @@ export function DelegationManager() {
     if (!delegate || !fromDate || !toDate) return;
 
     const newDelegation: Delegation = {
-      id: `del-${Date.now()}`,
+      // Derived, not clock-based: `Date.now()` is impure and collides for two
+      // delegations created in the same millisecond.
+      id: `del-${Math.max(0, ...delegations.map((d) => Number(d.id.replace(/\D/g, '')) || 0)) + 1}`,
       delegateId,
       delegateName: delegate.name,
       fromDate,

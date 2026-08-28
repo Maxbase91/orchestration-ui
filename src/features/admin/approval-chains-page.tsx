@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   ChevronDown,
   ChevronRight,
@@ -28,23 +28,22 @@ export function ApprovalChainsPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  // Clear edit buffer for chains that no longer exist (e.g. after delete)
-  useEffect(() => {
-    if (!serverChains.length) return;
-    const ids = new Set(serverChains.map((c) => c.id));
-    setEditBuffer((prev) => {
-      const next = { ...prev };
-      let changed = false;
-      for (const k of Object.keys(next)) {
-        if (!ids.has(k)) { delete next[k]; changed = true; }
-      }
-      return changed ? next : prev;
-    });
-  }, [serverChains]);
+  // Chains created here and not yet saved.
+  //
+  // This replaces an effect that pruned the edit buffer of every entry whose id
+  // was absent from the server list. It could not tell "deleted on the server"
+  // from "created locally, not saved yet" — and a new chain is exactly the
+  // second case, so adding one and letting the query refetch silently destroyed
+  // it before it could be saved. Tracking the ids we minted answers the
+  // question the effect was guessing at.
+  //
+  // Nothing prunes the buffer now: an entry for a server-deleted chain is in
+  // neither list below, so it is simply never read.
+  const [localChainIds, setLocalChainIds] = useState<Set<string>>(() => new Set());
 
   // Merge: server chains + local new chains + edit overrides
   const newChains = Object.values(editBuffer).filter(
-    (c) => !serverChains.some((s) => s.id === c.id),
+    (c) => localChainIds.has(c.id) && !serverChains.some((s) => s.id === c.id),
   );
   const chains: ApprovalChain[] = [
     ...serverChains.map((c) => editBuffer[c.id] ?? c),
@@ -69,8 +68,11 @@ export function ApprovalChainsPage() {
 
   function addStep(chainId: string) {
     const chain = getEditable(chains.find((c) => c.id === chainId)!);
+    // Derived from the chain rather than `Date.now()`: the clock is impure, and
+    // two steps added inside the same millisecond would have collided on it.
+    const nextId = `s${Math.max(0, ...chain.steps.map((s) => Number(s.id.replace(/\D/g, '')) || 0)) + 1}`;
     patchEdit(chainId, {
-      steps: [...chain.steps, { id: `s${Date.now()}`, role: 'New Approver' }],
+      steps: [...chain.steps, { id: nextId, role: 'New Approver' }],
     });
   }
 
@@ -101,6 +103,7 @@ export function ApprovalChainsPage() {
       referencedBy: [],
     };
     setEditBuffer((prev) => ({ ...prev, [id]: newChain }));
+    setLocalChainIds((prev) => new Set(prev).add(id));
     setExpandedId(id);
     setEditingId(id);
   }
@@ -113,6 +116,13 @@ export function ApprovalChainsPage() {
       setEditBuffer((prev) => {
         const next = { ...prev };
         delete next[chainId];
+        return next;
+      });
+      // No longer a local-only chain: it exists on the server now.
+      setLocalChainIds((prev) => {
+        if (!prev.has(chainId)) return prev;
+        const next = new Set(prev);
+        next.delete(chainId);
         return next;
       });
       setEditingId(null);

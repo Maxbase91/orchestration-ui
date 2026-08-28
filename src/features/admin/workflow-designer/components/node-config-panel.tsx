@@ -2,7 +2,7 @@
 // type-specific settings form for the selected canvas node; edits are staged
 // in local form state and only written back to the graph on Save.
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,13 +23,14 @@ interface NodeConfigPanelProps {
 
 export function NodeConfigPanel({ node, onUpdate, onDelete, onClose }: NodeConfigPanelProps) {
   const { data: aiAgents = [] } = useAiAgents();
+  // Staged edits, initialised from the node. The caller keys this panel on the
+  // node id, so selecting a different node remounts it with fresh state — which
+  // is what the effect that used to copy `node.data` into state was for.
+  //
+  // Keying on the id is also stricter than that effect was: it also listed
+  // `node.data`, so any change to that object's identity threw away whatever
+  // the user had typed but not yet saved, for the node they were still editing.
   const [formData, setFormData] = useState<Record<string, unknown>>({ ...node.data });
-
-  // Reset the staged form whenever a different node is selected, so unsaved
-  // edits from the previous node don't leak into the new one.
-  useEffect(() => {
-    setFormData({ ...node.data });
-  }, [node.id, node.data]);
 
   function handleSave() {
     onUpdate(node.id, formData);

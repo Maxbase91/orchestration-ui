@@ -2,7 +2,7 @@
 // agents (classification, extraction, etc.) whose settings drive the automated
 // decisions made in the front door's intake and determination steps.
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/shared/page-header';
@@ -15,12 +15,16 @@ import { AgentPerformance } from './components/agent-performance';
 
 export function AIAgentsPage() {
   const { data: serverAgents = [] } = useAiAgents();
-  const [agents, setAgents] = useState<AIAgent[]>([]);
-  // Seed local state from the server exactly once — later refetches must not
-  // clobber in-session additions (draft agents live only in local state).
-  useEffect(() => {
-    if (agents.length === 0 && serverAgents.length > 0) setAgents(serverAgents);
-  }, [agents.length, serverAgents]);
+  // `null` until the page owns an edited copy. Before the first edit the server
+  // list is shown live; from the first edit onwards local state owns it, so a
+  // later refetch cannot clobber in-session additions (draft agents live only
+  // in local state).
+  //
+  // This replaces a seed-once effect. Deriving it says the same thing without
+  // the extra render, and without the flash of an empty list while the copy
+  // was pending.
+  const [editedAgents, setEditedAgents] = useState<AIAgent[] | null>(null);
+  const agents = editedAgents ?? serverAgents;
   const [selectedAgent, setSelectedAgent] = useState<AIAgent | null>(null);
 
   const handleAddAgent = useCallback(() => {
@@ -34,9 +38,10 @@ export function AIAgentsPage() {
       lastUpdated: new Date().toISOString(),
       description: 'Configure this new agent.',
     };
-    setAgents((prev) => [...prev, newAgent]);
+    // `prev` is null until the first edit — fall back to what is on screen.
+    setEditedAgents((prev) => [...(prev ?? serverAgents), newAgent]);
     setSelectedAgent(newAgent);
-  }, [agents.length]);
+  }, [agents.length, serverAgents]);
 
   if (selectedAgent) {
     return (

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState } from 'react';
 import {
   Plus,
   GripVertical,
@@ -131,48 +131,51 @@ const categoryBadge: Record<string, string> = {
 
 export function FormBuilderPage() {
   const { data: serverForms = [] } = useFormTemplates();
-  const [forms, setForms] = useState<FormTemplate[]>([]);
-  const [selectedFormId, setSelectedFormId] = useState<string | null>(null);
+  // `null` until this page owns an edited copy — the same pattern as the
+  // routing-rules admin. Before the first edit the server list shows live;
+  // afterwards local state owns it so a refetch cannot discard in-session work.
+  const [editedForms, setEditedForms] = useState<FormTemplate[] | null>(null);
+  const forms = editedForms ?? serverForms;
+  // Every edit starts from what is on screen — the server list until the first
+  // change, the edited copy after it. Keeps the call sites below unchanged.
+  const setForms = (updater: (prev: FormTemplate[]) => FormTemplate[]) =>
+    setEditedForms((prev) => updater(prev ?? serverForms));
+  const [pickedFormId, setPickedFormId] = useState<string | null>(null);
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
   const [addFieldOpen, setAddFieldOpen] = useState(false);
   const saveFormTemplate = useSaveFormTemplate();
 
-  // Initialise local edit state from the server list on first load.
-  useEffect(() => {
-    if (forms.length === 0 && serverForms.length > 0) {
-      setForms(serverForms);
-      setSelectedFormId((prev) => prev ?? serverForms[0]?.id ?? null);
-    }
-  }, [forms.length, serverForms]);
-
+  // An explicit pick wins, otherwise the first form — derived rather than
+  // written into state once the templates arrive.
+  const selectedFormId = pickedFormId ?? forms[0]?.id ?? null;
   const selectedForm = forms.find((f) => f.id === selectedFormId) ?? null;
   const selectedField = selectedForm?.fields.find((f) => f.id === selectedFieldId) ?? null;
 
-  // Group forms by category
-  const grouped = useMemo(() => {
-    const groups: Record<string, FormTemplate[]> = {};
-    for (const cat of CATEGORIES) {
-      groups[cat] = forms.filter((f) => f.category === cat);
-    }
-    return groups;
-  }, [forms]);
+  // Group forms by category. Plain derivation — the compiler memoizes it, and
+  // the manual useMemo could not be preserved (its dependency is a derived
+  // array), which cost optimization of the whole component.
+  const grouped: Record<string, FormTemplate[]> = {};
+  for (const cat of CATEGORIES) {
+    grouped[cat] = forms.filter((f) => f.category === cat);
+  }
 
   // ── Form mutations ──────────────────────────────────────────
+  //
+  // Plain functions, not useCallback. The React compiler memoizes them; the
+  // manual versions depended on values it cannot prove unmutated, so it skipped
+  // optimizing this component entirely in order to preserve memos that were
+  // buying nothing.
 
-  const updateForm = useCallback(
-    (updates: Partial<FormTemplate>) => {
+  const updateForm = (updates: Partial<FormTemplate>) => {
       if (!selectedFormId) return;
       setForms((prev) =>
         prev.map((f) =>
           f.id === selectedFormId ? { ...f, ...updates, lastModified: new Date().toISOString() } : f,
         ),
       );
-    },
-    [selectedFormId],
-  );
+    };
 
-  const updateField = useCallback(
-    (fieldId: string, updates: Partial<FormField>) => {
+  const updateField = (fieldId: string, updates: Partial<FormField>) => {
       if (!selectedFormId) return;
       setForms((prev) =>
         prev.map((f) => {
@@ -186,15 +189,18 @@ export function FormBuilderPage() {
           };
         }),
       );
-    },
-    [selectedFormId],
-  );
+    };
 
-  const addField = useCallback(
-    (fieldType: FormFieldType) => {
+  const addField = (fieldType: FormFieldType) => {
       if (!selectedFormId) return;
+      // Derived from the fields already on this form rather than the clock:
+      // `Date.now()` is impure, and two fields added in the same millisecond
+      // would have shared an id.
+      const nextFieldId = `f-${
+        Math.max(0, ...(selectedForm?.fields ?? []).map((f) => Number(f.id.replace(/\D/g, '')) || 0)) + 1
+      }`;
       const newField: FormField = {
-        id: `f-${Date.now()}`,
+        id: nextFieldId,
         fieldType,
         label: fieldType === 'separator' ? 'New Section' : fieldType === 'info-text' ? '' : 'New Field',
         required: false,
@@ -213,12 +219,9 @@ export function FormBuilderPage() {
       );
       setSelectedFieldId(newField.id);
       setAddFieldOpen(false);
-    },
-    [selectedFormId],
-  );
+    };
 
-  const removeField = useCallback(
-    (fieldId: string) => {
+  const removeField = (fieldId: string) => {
       if (!selectedFormId) return;
       if (selectedFieldId === fieldId) setSelectedFieldId(null);
       setForms((prev) =>
@@ -228,22 +231,17 @@ export function FormBuilderPage() {
             : f,
         ),
       );
-    },
-    [selectedFormId, selectedFieldId],
-  );
+    };
 
-  const toggleStage = useCallback(
-    (stage: string) => {
+  const toggleStage = (stage: string) => {
       if (!selectedForm) return;
       const stages = selectedForm.triggerStages.includes(stage)
         ? selectedForm.triggerStages.filter((s) => s !== stage)
         : [...selectedForm.triggerStages, stage];
       updateForm({ triggerStages: stages });
-    },
-    [selectedForm, updateForm],
-  );
+    };
 
-  const handleSaveForm = useCallback(async () => {
+  const handleSaveForm = async () => {
     if (!selectedForm) return;
     try {
       await saveFormTemplate.mutateAsync(selectedForm);
@@ -252,9 +250,9 @@ export function FormBuilderPage() {
       const msg = err instanceof Error ? err.message : 'unknown';
       toast.error(`Save failed: ${msg}`);
     }
-  }, [selectedForm, saveFormTemplate]);
+  };
 
-  const addNewForm = useCallback(() => {
+  const addNewForm = () => {
     const newForm: FormTemplate = {
       id: `FORM-${String(forms.length + 1).padStart(3, '0')}`,
       name: 'New Form',
@@ -268,13 +266,14 @@ export function FormBuilderPage() {
       createdBy: 'u1',
     };
     setForms((prev) => [...prev, newForm]);
-    setSelectedFormId(newForm.id);
+    setPickedFormId(newForm.id);
     setSelectedFieldId(null);
-  }, [forms.length]);
+  };
 
   // ── Trigger description ─────────────────────────────────────
 
-  const triggerDescription = useMemo(() => {
+  // Plain derivation, same reasoning as `grouped` above.
+  const triggerDescription = ((): string => {
     if (!selectedForm) return '';
     const stages = selectedForm.triggerStages.map((s) => STAGE_LABELS[s] ?? s).join(', ');
     if (!stages) return 'No stages configured.';
@@ -284,7 +283,7 @@ export function FormBuilderPage() {
       return `This form triggers during ${stages} when ${conds}.`;
     }
     return `This form triggers during ${stages} for all requests.`;
-  }, [selectedForm]);
+  })();
 
   return (
     <div className="flex h-full flex-col">
@@ -319,7 +318,7 @@ export function FormBuilderPage() {
                         key={form.id}
                         type="button"
                         onClick={() => {
-                          setSelectedFormId(form.id);
+                          setPickedFormId(form.id);
                           setSelectedFieldId(null);
                         }}
                         className={cn(

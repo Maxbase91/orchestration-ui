@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { toast } from 'sonner';
 import {
   Sheet,
@@ -47,16 +47,16 @@ export function EntityEditSheet<K extends EntityKey>({
   const create = useDatabaseAdminStore((s) => s.create);
   const remove = useDatabaseAdminStore((s) => s.remove);
 
-  const [draft, setDraft] = useState<Partial<EntityRecordMap[K]>>({});
-
-  useEffect(() => {
-    if (!open) return;
-    if (mode === 'edit' && record) {
-      setDraft(structuredClone(record) as Partial<EntityRecordMap[K]>);
-    } else if (mode === 'create') {
-      setDraft(config.defaultNew());
-    }
-  }, [open, mode, record, config]);
+  // The draft, initialised from whatever the sheet was opened on. The caller
+  // keys this component on mode + record id, so each open — and each different
+  // record — gets a fresh draft. That is what the effect here used to do, at
+  // the cost of a second render and a window in which the form showed the
+  // PREVIOUS record's values before the copy landed.
+  const [draft, setDraft] = useState<Partial<EntityRecordMap[K]>>(() =>
+    mode === 'edit' && record
+      ? (structuredClone(record) as Partial<EntityRecordMap[K]>)
+      : config.defaultNew(),
+  );
 
   function handleFieldChange(key: string, value: unknown) {
     setDraft((d) => ({ ...d, [key]: value }) as Partial<EntityRecordMap[K]>);

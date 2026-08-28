@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { callLLMWithTools, callLLMStreaming, callLLM, type LLMMessage, type GroqTool } from './_llm.js';
+import { callLLMWithTools, callLLM, type LLMMessage, type GroqTool } from './_llm.js';
 import { createClient } from '@supabase/supabase-js';
 import { knowledgeBase } from '../src/data/knowledgeBase.js';
 

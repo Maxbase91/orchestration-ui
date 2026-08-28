@@ -19,5 +19,18 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      // Honour the `_`-prefix convention already used across the codebase for
+      // deliberately unused bindings — a callback parameter kept for signature
+      // shape, or a field destructured only to drop it. Without this, the only
+      // way to express "intentionally unused" is to delete code that has to
+      // stay. `ignoreRestSiblings` covers `const { id: _id, ...rest } = row`.
+      '@typescript-eslint/no-unused-vars': ['error', {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_',
+        ignoreRestSiblings: true,
+      }],
+    },
   },
 ])

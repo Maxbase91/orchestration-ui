@@ -12,12 +12,15 @@ const COLUMNS: { key: Supplier['onboardingStatus']; label: string; color: string
   { key: 'completed', label: 'Completed', color: 'border-t-green-500' },
 ];
 
+// No "days in stage" on this card.
+//
+// It used to be `Math.floor(Math.random() * 30 + 10)` — computed during render,
+// so it changed on every re-render, and presented with red/amber severity
+// colouring as though it meant something. `Supplier` carries no timestamp of
+// any kind, so there is nothing to derive a real figure from: a stable version
+// (seeded from the supplier id, say) would only make the invention harder to
+// spot. It returns when the data does.
 function SupplierCard({ supplier, onClick }: { supplier: Supplier; onClick: () => void }) {
-  // Simulate days in stage based on onboarding status
-  const daysInStage = supplier.onboardingStatus === 'completed' ? 0
-    : supplier.onboardingStatus === 'in-progress' ? Math.floor(Math.random() * 30 + 10)
-    : Math.floor(Math.random() * 15 + 1);
-
   return (
     <div
       className={cn(
@@ -43,14 +46,6 @@ function SupplierCard({ supplier, onClick }: { supplier: Supplier; onClick: () =
           <span className="text-[10px] text-muted-foreground">+{supplier.categories.length - 2}</span>
         )}
       </div>
-      {daysInStage > 0 && (
-        <p className={cn(
-          'mt-2 text-xs font-medium',
-          daysInStage > 20 ? 'text-red-600' : daysInStage > 10 ? 'text-amber-600' : 'text-gray-500',
-        )}>
-          {daysInStage} days in stage
-        </p>
-      )}
     </div>
   );
 }

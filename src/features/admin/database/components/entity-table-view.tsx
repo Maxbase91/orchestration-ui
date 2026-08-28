@@ -130,7 +130,10 @@ export function EntityTableView<K extends EntityKey>({
         />
       </Card>
 
+      {/* Keyed on what the sheet is editing: a new mode or a different record
+          remounts it with a fresh draft, rather than an effect resetting one. */}
       <EntityEditSheet
+        key={`${sheetMode ?? 'closed'}-${(activeRecord as { id?: string } | null)?.id ?? 'new'}`}
         open={sheetMode !== null}
         onOpenChange={(open) => {
           if (!open) {
