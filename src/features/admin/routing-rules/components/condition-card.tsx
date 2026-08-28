@@ -14,12 +14,17 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
+// Every entry here MUST exist in SUPPORTED_FIELDS in evaluate-routing-rules.ts.
+// `riskLevel` used to sit in this list while the evaluator read `riskRating`,
+// so the obvious rule a procurement admin would write — route on risk — was
+// dead on a name mismatch, silently.
 const FIELD_OPTIONS = [
   { value: 'value', label: 'Value' },
   { value: 'category', label: 'Category' },
   { value: 'supplierId', label: 'Supplier Status' },
   { value: 'contractId', label: 'Contract Exists' },
-  { value: 'riskLevel', label: 'Risk Level' },
+  { value: 'riskRating', label: 'Risk Rating' },
+  { value: 'material', label: 'Material / Regulatory Flag' },
   { value: 'region', label: 'Region' },
   { value: 'commodityCode', label: 'Commodity Code' },
   { value: 'priority', label: 'Priority' },
@@ -78,7 +83,7 @@ export function ConditionCard({ condition, onChange, onRemove }: ConditionCardPr
       );
     }
 
-    if (condition.field === 'riskLevel' || condition.operator === 'risk_rating') {
+    if (condition.field === 'riskRating' || condition.operator === 'risk_rating') {
       return (
         <Select
           value={condition.value}

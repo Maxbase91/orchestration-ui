@@ -12,6 +12,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import type { RoutingRule } from '@/data/types';
+import {
+  evaluateRoutingRules,
+  diagnoseRule,
+  type RoutingContext,
+} from '@/lib/routing/evaluate-routing-rules';
 
 const CHANNEL_LABELS: Record<string, string> = {
   'procurement-led': 'Procurement-Led Sourcing',
@@ -44,50 +49,38 @@ export function RuleTestPanel({ rules }: RuleTestPanelProps) {
   const [testSupplierStatus, setTestSupplierStatus] = useState('');
   const [testContractExists, setTestContractExists] = useState(false);
   const [testRiskLevel, setTestRiskLevel] = useState('');
+  // Previously unrepresented in the tester, so any rule keyed on them was
+  // reported dead regardless of the inputs.
+  const [testPriority, setTestPriority] = useState('');
+  const [testCommodityCode, setTestCommodityCode] = useState('');
   const [result, setResult] = useState<TestResult | null>(null);
   const [coverage, setCoverage] = useState<CoverageResult | null>(null);
 
-  function evaluateRule(rule: RoutingRule): boolean {
-    if (rule.status !== 'active') return false;
+  /**
+   * The test context, evaluated by the SAME function production uses.
+   *
+   * This panel used to carry its own condition evaluator with branches marked
+   * "simplified" that returned false for priority, isUrgent and commodityCode —
+   * and it implemented `contractId is_empty`, which the runtime did not. So the
+   * tester confirmed rules that never fired, which is how RR-001 came to sit
+   * active and dead with a match count implying otherwise. A tester that does
+   * not test what runs is worse than no tester.
+   */
+  function testContext(): RoutingContext {
+    const val = Number(testValue);
+    return {
+      ...(Number.isFinite(val) && testValue !== '' ? { value: val } : {}),
+      ...(testCategory ? { category: testCategory } : {}),
+      ...(testSupplierStatus ? { supplierId: testSupplierStatus } : {}),
+      ...(testContractExists ? { contractId: 'CON-TEST' } : {}),
+      ...(testRiskLevel ? { riskRating: testRiskLevel as RoutingContext['riskRating'] } : {}),
+      ...(testPriority ? { priority: testPriority, isUrgent: testPriority === 'urgent' } : {}),
+      ...(testCommodityCode ? { commodityCode: testCommodityCode } : {}),
+    };
+  }
 
-    return rule.conditions.every((cond) => {
-      switch (cond.field) {
-        case 'value': {
-          const val = Number(testValue);
-          if (isNaN(val)) return false;
-          if (cond.operator === 'greater_than') return val > Number(cond.value);
-          if (cond.operator === 'less_than') return val < Number(cond.value);
-          if (cond.operator === 'equals') return val === Number(cond.value);
-          if (cond.operator === 'between') {
-            const [lo, hi] = cond.value.split(',').map(Number);
-            return val >= lo && val <= hi;
-          }
-          return false;
-        }
-        case 'category':
-          if (cond.operator === 'equals') return testCategory === cond.value;
-          return false;
-        case 'supplierId':
-          if (cond.operator === 'risk_rating') {
-            const allowed = cond.value.split(',');
-            return allowed.includes(testRiskLevel);
-          }
-          return testSupplierStatus !== '';
-        case 'contractId':
-          if (cond.operator === 'is_empty') return !testContractExists;
-          if (cond.operator === 'is_not_empty') return testContractExists;
-          return true;
-        case 'priority':
-          if (cond.operator === 'equals') return false; // simplified
-          return false;
-        case 'isUrgent':
-          return false; // simplified for test
-        case 'commodityCode':
-          return false; // simplified
-        default:
-          return false;
-      }
-    });
+  function evaluateRule(rule: RoutingRule): boolean {
+    return evaluateRoutingRules([rule], testContext()) !== null;
   }
 
   function handleTest() {
@@ -114,7 +107,9 @@ export function RuleTestPanel({ rules }: RuleTestPanelProps) {
       if (evaluateRule(rule)) {
         fired.push(rule.id);
       } else {
-        dead.push(rule.id);
+        // "Did not match these inputs" and "can never match anything" are very
+        // different findings; a broken rule is flagged as broken.
+        dead.push(diagnoseRule(rule).length > 0 ? `${rule.id} (broken)` : rule.id);
       }
     }
 
@@ -183,7 +178,7 @@ export function RuleTestPanel({ rules }: RuleTestPanelProps) {
         </div>
 
         <div>
-          <Label className="text-xs text-gray-500">Risk Level</Label>
+          <Label className="text-xs text-gray-500">Risk Rating</Label>
           <Select value={testRiskLevel} onValueChange={setTestRiskLevel}>
             <SelectTrigger className="mt-1">
               <SelectValue placeholder="Select risk" />
@@ -195,6 +190,34 @@ export function RuleTestPanel({ rules }: RuleTestPanelProps) {
               <SelectItem value="critical">Critical</SelectItem>
             </SelectContent>
           </Select>
+        </div>
+
+        {/* Both were unrepresented here, so any rule keyed on them — including
+            the live "Urgent request fast-track" — was reported dead whatever
+            the inputs. */}
+        <div>
+          <Label className="text-xs text-gray-500">Priority</Label>
+          <Select value={testPriority} onValueChange={setTestPriority}>
+            <SelectTrigger className="mt-1">
+              <SelectValue placeholder="Select priority" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="low">Low</SelectItem>
+              <SelectItem value="medium">Medium</SelectItem>
+              <SelectItem value="high">High</SelectItem>
+              <SelectItem value="urgent">Urgent</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div>
+          <Label className="text-xs text-gray-500">Commodity Code</Label>
+          <Input
+            className="mt-1"
+            placeholder="e.g. 43211500"
+            value={testCommodityCode}
+            onChange={(e) => setTestCommodityCode(e.target.value)}
+          />
         </div>
 
         <div className="flex gap-2">

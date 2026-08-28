@@ -5,6 +5,8 @@ import type { RoutingRule } from '@/data/types';
 import { RuleListPanel } from './components/rule-list-panel';
 import { RuleEditorPanel } from './components/rule-editor-panel';
 import { RuleTestPanel } from './components/rule-test-panel';
+import { diagnoseRules } from '@/lib/routing/evaluate-routing-rules';
+import { AlertTriangle } from 'lucide-react';
 
 export function RoutingRulesPage() {
   const { data: serverRules = [] } = useRoutingRules();
@@ -18,6 +20,12 @@ export function RoutingRulesPage() {
   }, [rules.length, serverRules]);
 
   const selectedRule = rules.find((r) => r.id === selectedRuleId) ?? null;
+
+  // Active rules that can never fire. Surfaced at the top of the page because
+  // the failure is otherwise invisible: an unrecognised field or operator used
+  // to return false and silently kill the whole rule, so a broken rule looked
+  // exactly like one that merely had not matched yet.
+  const broken = diagnoseRules(rules);
 
   const handleAddRule = useCallback(() => {
     const newRule: RoutingRule = {
@@ -43,6 +51,28 @@ export function RoutingRulesPage() {
           subtitle="Define and test rules that automatically route procurement requests to the correct buying channel."
         />
       </div>
+      {broken.length > 0 && (
+        <div className="mx-6 mb-4 rounded-md border border-red-200 bg-red-50 p-3">
+          <p className="flex items-center gap-2 text-sm font-medium text-red-900">
+            <AlertTriangle className="size-4 shrink-0" />
+            {broken.length} active rule{broken.length === 1 ? '' : 's'} cannot fire
+          </p>
+          <ul className="mt-1.5 space-y-1 pl-6 text-xs text-red-800">
+            {broken.map((d) => (
+              <li key={d.ruleId}>
+                <button
+                  type="button"
+                  className="font-medium underline underline-offset-2"
+                  onClick={() => setSelectedRuleId(d.ruleId)}
+                >
+                  {d.ruleId} {d.ruleName}
+                </button>
+                {' — '}{d.problems.join(' ')}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <div className="flex flex-1 overflow-hidden border-t border-gray-200">
         {/* Left panel - 25% */}
         <div className="w-1/4 min-w-[240px]">

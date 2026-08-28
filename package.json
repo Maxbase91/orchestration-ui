@@ -11,6 +11,7 @@
     "test:e2e": "node tests/integration/workflow-e2e.mjs",
     "test:kpis": "node tests/integration/dashboard-kpis.mjs",
     "test:routing": "node tests/integration/routing-rules.mjs",
+    "test:routing-rule-integrity": "node tests/integration/routing-rule-integrity.mjs",
     "test:ai-agents": "node tests/integration/ai-agents.mjs",
     "test:intake": "node tests/integration/intake-sequence.mjs",
     "test:audit": "node tests/integration/audit-trail.mjs",
