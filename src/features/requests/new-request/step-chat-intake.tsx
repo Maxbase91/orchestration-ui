@@ -56,6 +56,16 @@ interface ChatMessage {
    * it explains when the requester scrolls back.
    */
   why?: string;
+  /**
+   * A worked example for the question, rendered as a distinct hint rather than
+   * glued onto the sentence — appended, it read as the assistant answering its
+   * own question with an unrelated project.
+   *
+   * Only carried when the question is the ENGINE's canned wording. When the
+   * assistant has phrased the question against what the requester actually
+   * described, a generic example adds nothing and is left off.
+   */
+  example?: string;
 }
 
 /** Mirrors the list on step-details, which this path never renders. */
@@ -135,6 +145,8 @@ function localFallbackResponse(
   nextQuestion: string;
   /** The rationale for `nextQuestion`, when it is a conditional slot. */
   why?: string;
+  /** A worked example for `nextQuestion`, shown as a hint beneath it. */
+  example?: string;
   complete: boolean;
 } {
   const extracted: Record<string, unknown> = {};
@@ -183,7 +195,15 @@ function localFallbackResponse(
   }
 
   const next = determineNextQuestion(ctx, undefined, slots);
-  return { extracted, sow: sowUpdate, nextQuestion: next?.prompt ?? '', why: next?.slot.why, complete: false };
+  return {
+    extracted,
+    sow: sowUpdate,
+    nextQuestion: next?.prompt ?? '',
+    why: next?.slot.why,
+    // Offline the wording is always the engine's, so the example earns its place.
+    example: next?.example,
+    complete: false,
+  };
 }
 
 /**
@@ -213,8 +233,30 @@ function buildCompletionMessage(
   ].join('\n');
 }
 
-function buildWelcomeMessage(category: string, data: StepChatIntakeProps['data'], slots: DemandSlot[]): string {
+/**
+ * Is the model's phrasing usable as the next question?
+ *
+ * The endpoint instructs it to ask exactly the engine's question, rephrased
+ * only for tone. This checks it came back looking like that — one short
+ * question — rather than trusting it blindly: a model that returns a paragraph,
+ * an empty string, or a statement would otherwise replace a question the
+ * requester has to answer.
+ */
+function usableQuestion(text: unknown): string | undefined {
+  if (typeof text !== 'string') return undefined;
+  const t = text.trim();
+  if (t.length < 8 || t.length > 320) return undefined;
+  if (!t.includes('?')) return undefined;
+  return t;
+}
+
+function buildWelcomeMessage(
+  category: string,
+  data: StepChatIntakeProps['data'],
+  slots: DemandSlot[],
+): { content: string; example?: string } {
   const parts: string[] = [];
+  const next = determineNextQuestion(buildContext(category, data, {}), undefined, slots);
 
   // Acknowledge what's already known.
   if (data.title || data.supplier || data.estimatedValue > 0) {
@@ -225,15 +267,12 @@ function buildWelcomeMessage(category: string, data: StepChatIntakeProps['data']
     // Go straight to the next unanswered question the engine selects instead
     // of asking "do you want to refine this?".
     parts.push('');
-    parts.push(
-      determineNextQuestion(buildContext(category, data, {}), undefined, slots)?.prompt ??
-        (WELCOME_MESSAGES[category] ?? WELCOME_MESSAGES.goods),
-    );
+    parts.push(next?.prompt ?? (WELCOME_MESSAGES[category] ?? WELCOME_MESSAGES.goods));
   } else {
     parts.push(WELCOME_MESSAGES[category] ?? WELCOME_MESSAGES.goods);
   }
 
-  return parts.join('\n');
+  return { content: parts.join('\n'), example: next?.example };
 }
 
 export function StepChatIntake({ category, categoryDescription, data, onUpdate }: StepChatIntakeProps) {
@@ -255,7 +294,7 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
   // re-greeting the requester when the template arrives would restart the
   // conversation under them, and the two sets ask the same first question.
   const [messages, setMessages] = useState<ChatMessage[]>([
-    { role: 'assistant', content: buildWelcomeMessage(category, data, resolveSlots()) },
+    { role: 'assistant', ...buildWelcomeMessage(category, data, resolveSlots()) },
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -415,9 +454,26 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
       } else {
         const next = determineNextQuestion(ctx, undefined, slots);
         if (next) {
+          // The ENGINE chooses WHICH slot is asked and when the conversation is
+          // done. The assistant chooses the WORDS. Both halves matter: the
+          // guarantees are the engine's, but the endpoint already asks the model
+          // to put the engine's question in the context of what the requester
+          // described, and that phrasing used to be generated and then thrown
+          // away — which is why every question read the same canned way even
+          // with the LLM up.
+          //
+          // Guarded: the model's line is used only if it is a plausible single
+          // question. Anything else falls back to the canned wording.
+          const phrased = usableQuestion(result.nextQuestion);
           setMessages((prev) => [
             ...prev,
-            { role: 'assistant', content: next.prompt, why: next.slot.why },
+            {
+              role: 'assistant',
+              content: phrased ?? next.prompt,
+              why: next.slot.why,
+              // A generic example only helps when the wording is generic too.
+              example: phrased ? undefined : next.example,
+            },
           ]);
         }
       }
@@ -435,7 +491,12 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
 
       setMessages((prev) => [
         ...prev,
-        { role: 'assistant', content: fallback.nextQuestion, why: fallback.why },
+        {
+          role: 'assistant',
+          content: fallback.nextQuestion,
+          why: fallback.why,
+          example: fallback.example,
+        },
       ]);
 
       if (fallback.complete) {
@@ -574,6 +635,19 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
                 msg.role === 'user' ? 'bg-[#1B2A4A] text-white' : 'bg-blue-50 text-gray-900'
               )}>
                 <p className="whitespace-pre-wrap">{msg.content}</p>
+                {/* A worked example, shown as a hint UNDER the question and
+                    visibly labelled. Appended to the sentence it read as an
+                    answer — "What's the primary objective of this engagement?
+                    run a promptathon to upskill 40 staff on AI tooling" — with
+                    a topic belonging to somebody else's project. */}
+                {msg.example && (
+                  <p className="mt-1.5 text-[11px] text-gray-500">
+                    <span className="font-medium uppercase tracking-wider text-gray-400">
+                      Example
+                    </span>{' '}
+                    {msg.example}
+                  </p>
+                )}
                 {/* Present only on conditional questions — the ones that appear
                     for some demands and not others, and so read as arbitrary
                     without a reason. The mandatory six carry none. */}

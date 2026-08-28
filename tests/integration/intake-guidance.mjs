@@ -251,6 +251,38 @@ check("the stepper renders each step's description", /\{step\.description\}/.tes
 check('the gate calls the engine, not its own title-and-value test',
   /requiredSlotsFilled\(/.test(WIZARD_SRC) && !/return !!formData\.title && formData\.estimatedValue > 0;\n {6}case 4/.test(WIZARD_SRC));
 
+console.log('\nThe chat is not canned');
+//
+// Source checks, not mirrors — a mirror of the intended shape would have passed
+// the whole time the real code was concatenating the example onto the question
+// and discarding the model's phrasing.
+const CONV_SRC = readFileSync(
+  join(ROOT, 'src/lib/procurement/demand-conversation.ts'), 'utf8');
+const CHAT_SRC = readFileSync(
+  join(ROOT, 'src/features/requests/new-request/step-chat-intake.tsx'), 'utf8');
+const INTAKE_API_SRC = readFileSync(join(ROOT, 'api/chat-intake.ts'), 'utf8');
+
+// The concatenation that produced "…engagement? run a promptathon to upskill 40
+// staff on AI tooling" for a business-consulting demand.
+check('the question is no longer built by appending the example',
+  !/\$\{slot\.prompt\} \$\{example\}/.test(CONV_SRC));
+check('the example is returned as its own field',
+  /example: slot\.example\?\.\(ctx\)/.test(CONV_SRC));
+// The wrapper lived in one path only, so configured slots rendered bare and
+// built-in ones wrapped — two styles in one conversation.
+check('no "(e.g. …)" wrapper is baked into the data', !/\(e\.g\. \$\{/.test(CONV_SRC));
+check('the chat renders the example as its own element', /msg\.example &&/.test(CHAT_SRC));
+// The endpoint generated a contextual phrasing that the client threw away.
+check("the assistant's phrasing is used, not discarded",
+  /usableQuestion\(result\.nextQuestion\)/.test(CHAT_SRC));
+check('and it is guarded rather than trusted blindly',
+  /function usableQuestion/.test(CHAT_SRC) && /includes\('\?'\)/.test(CHAT_SRC));
+check('the engine still chooses the slot and completeness',
+  /determineNextQuestion\(ctx, undefined, slots\)/.test(CHAT_SRC)
+  && /isConversationComplete\(ctx, undefined, slots\)/.test(CHAT_SRC));
+check('the endpoint asks for the question in the requester\u2019s own context',
+  /their own words/.test(INTAKE_API_SRC) && /do NOT append an example/i.test(INTAKE_API_SRC));
+
 console.log('');
 if (failures) console.error(`FAILED: ${failures} check(s)`);
 else console.log('All intake-guidance checks passed.');

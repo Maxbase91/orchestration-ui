@@ -100,6 +100,45 @@ check('lowering criticalServiceThreshold pulls pricing model in for a mid-value 
   return !before && after;
 })());
 
+// ── The question and its example are separate things ────────────────────────
+//
+// The reported defect: the chat read
+//
+//   "What's the primary objective of this engagement? run a promptathon to
+//    upskill 40 staff on AI tooling"
+//
+// for a demand that was "I want to buy business consulting". The example was
+// concatenated onto the question, so it read as the assistant answering itself
+// with somebody else's project — and only ONE of the two slot sources wrapped
+// it in "(e.g. …)", so the same conversation mixed both styles.
+//
+// Mirrors the shape `determineNextQuestion` returns.
+const nextQuestion = (ctx, cfg = DEFAULT_CONFIG) => {
+  const a = agenda(ctx, cfg);
+  if (a.length === 0) return null;
+  const slot = a[0];
+  return { slot, prompt: slot.prompt, example: slot.example };
+};
+
+console.log('\nThe question and the example are returned separately');
+// Mirror slot wording for the two the screenshot showed.
+ALL_SLOTS.find((s) => s.id === 'value').prompt = "What's the estimated budget for this?";
+ALL_SLOTS.find((s) => s.id === 'value').example = '€50,000 or 150k';
+ALL_SLOTS.find((s) => s.id === 'objective').prompt = "What's the primary objective of this engagement?";
+ALL_SLOTS.find((s) => s.id === 'objective').example = 'run a promptathon to upskill 40 staff on AI tooling';
+
+const q = nextQuestion(ctxOf({ category: 'consulting', title: 'business consulting' }));
+check('the prompt is the question alone', q.prompt === "What's the estimated budget for this?", q.prompt);
+check('the example is not concatenated onto it', !q.prompt.includes(q.example));
+check('the example carries no "(e.g. …)" wrapper of its own',
+  !/^\(e\.g\./.test(q.example), q.example);
+// The wrapper belonged to one code path only, which is how the two styles
+// appeared side by side in a single conversation.
+for (const slot of ALL_SLOTS.filter((s) => s.example)) {
+  check(`"${slot.id}" example is plain text`, !/^\(e\.g\./.test(slot.example), slot.example);
+  check(`"${slot.id}" prompt ends as a question`, slot.prompt === undefined || slot.prompt.trim().endsWith('?'));
+}
+
 console.log('A conditional question says why it is being asked');
 // A question that appears for some demands and not others is the one that reads
 // as arbitrary. The mandatory six are asked of everyone and need no rationale —

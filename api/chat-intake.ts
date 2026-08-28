@@ -80,7 +80,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const remaining = buildAgenda(ctx, undefined, slots).map((s) => s.id).join(', ') || 'none';
 
   const agendaBlock = next
-    ? `## YOUR NEXT MESSAGE\nAsk EXACTLY this one question (rephrase only for tone, keep it a single short question):\n"${next.prompt}"\nThe user's answer fills the "${next.slot.target.kind === 'sow' ? 'serviceDescription.' : ''}${next.slot.target.field}" field.\nStill to capture after this (do NOT ask these yet): ${remaining}.`
+    ? `## YOUR NEXT MESSAGE\nAsk EXACTLY this one thing, and nothing else:\n"${next.prompt}"\n\nPut it in the context of what THIS requester has actually described — refer to their own words for what they are buying. Keep it a single short question, one sentence, ending in a question mark. Do NOT answer it yourself, do NOT append an example, and do NOT mention any project other than theirs.\nThe user's answer fills the "${next.slot.target.kind === 'sow' ? 'serviceDescription.' : ''}${next.slot.target.field}" field.\nStill to capture after this (do NOT ask these yet): ${remaining}.`
     : `## YOUR NEXT MESSAGE\nAll required details are captured. Do NOT ask anything else. Set complete=true, generate "narrative" (a professional 2-3 paragraph SOW summary), set businessJustification to it, and return a short closing like "Thanks — all details captured, you can proceed to the next step."`;
 
   const systemMessage = `${BASE_PROMPT}\n\n${agendaBlock}\n\nRequest category: ${category}\nConversation complete: ${complete}\nData collected so far: ${JSON.stringify(extractedSoFar ?? {})}`;

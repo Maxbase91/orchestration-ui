@@ -97,7 +97,7 @@ function ex(
   byCategory: Partial<Record<string, string>>,
   fallback: string,
 ): string {
-  return `(e.g. ${byCategory[ctx.category] ?? fallback})`;
+  return byCategory[ctx.category] ?? fallback;
 }
 
 /**
@@ -114,7 +114,7 @@ export const ALL_SLOTS: DemandSlot[] = [
     example: (ctx) => ex(ctx, {
       'contingent-labour': '3 senior Java developers for 6 months',
       software: '200 CRM licences with a service module',
-      consulting: 'consultants to run a 2-day promptathon',
+      consulting: 'consultants to design a target operating model',
       goods: '50 height-adjustable desks for the new office',
     }, 'market-research study for APAC expansion'),
   },
@@ -123,14 +123,14 @@ export const ALL_SLOTS: DemandSlot[] = [
     target: { kind: 'request', field: 'estimatedValue' },
     required: true,
     prompt: "What's the estimated budget for this?",
-    example: () => '(e.g. €50,000 or 150k)',
+    example: () => '€50,000 or 150k',
   },
   {
     id: 'deliveryDate',
     target: { kind: 'request', field: 'deliveryDate' },
     required: false,
     prompt: 'When do you need this delivered or started by?',
-    example: () => '(e.g. by end of Q3, or a specific date)',
+    example: () => 'by end of Q3, or a specific date',
   },
   {
     id: 'objective',
@@ -138,7 +138,7 @@ export const ALL_SLOTS: DemandSlot[] = [
     required: true,
     prompt: "What's the primary objective of this engagement?",
     example: (ctx) => ex(ctx, {
-      consulting: 'run a promptathon to upskill 40 staff on AI tooling',
+      consulting: 'define a target operating model for the finance function',
       software: 'roll out a new CRM to 200 sales users',
       services: 'stand up a managed support service for EMEA',
       'contingent-labour': 'augment the platform team to hit the Q3 release',
@@ -151,7 +151,7 @@ export const ALL_SLOTS: DemandSlot[] = [
     required: true,
     prompt: 'What should be in scope — and anything explicitly out of scope?',
     example: (ctx) => ex(ctx, {
-      consulting: 'in: facilitation, materials & coaching; out: tooling licences',
+      consulting: 'in: current-state assessment, design and roadmap; out: implementation',
       software: 'in: Sales & Service modules + migration; out: custom reports',
     }, "what's included — and anything explicitly out of scope"),
   },
@@ -161,7 +161,7 @@ export const ALL_SLOTS: DemandSlot[] = [
     required: true,
     prompt: 'What are the key deliverables?',
     example: (ctx) => ex(ctx, {
-      consulting: 'agenda, run-of-show, facilitated sessions, write-up',
+      consulting: 'assessment report, target-state design and an implementation roadmap',
       software: 'the configured modules, migrated data and trained users',
       goods: 'the items delivered and installed',
     }, 'the reports, milestones or outputs expected'),
@@ -173,7 +173,7 @@ export const ALL_SLOTS: DemandSlot[] = [
     prompt: 'What resources, skills or team size does this need?',
     example: (ctx) => ex(ctx, {
       'contingent-labour': 'role, seniority and headcount',
-      consulting: 'a lead facilitator and 2 AI specialists',
+      consulting: 'an engagement lead and two senior consultants',
       software: 'an implementation lead and a data engineer',
     }, 'the skills or roles required'),
   },
@@ -184,7 +184,7 @@ export const ALL_SLOTS: DemandSlot[] = [
     required: false,
     prompt: 'What is the timeline or key milestones?',
     example: (ctx) => ex(ctx, {
-      consulting: 'a 2-day event in September, prep 3 weeks before',
+      consulting: 'a 10-week engagement with a readout at week 6',
       'contingent-labour': '6-month engagement starting October',
     }, '12 weeks, kickoff in September, readout at week 8'),
     why: 'Asked because work in this category is delivered over time — the milestones have to be in the description before anyone can hold a supplier to them.',
@@ -196,7 +196,7 @@ export const ALL_SLOTS: DemandSlot[] = [
     required: false,
     prompt: 'How will success be measured — what are the acceptance criteria?',
     example: (ctx) => ex(ctx, {
-      consulting: '40 staff trained, >80% satisfaction, 3 prototypes built',
+      consulting: 'design signed off by the steering group; roadmap accepted',
       software: 'UAT passed, <2% error rate, go-live sign-off',
     }, 'sign-off criteria / how success is measured'),
     why: 'Asked because this category is bought on an outcome — what counts as done has to be written down now, not argued about at sign-off.',
@@ -220,7 +220,7 @@ export const ALL_SLOTS: DemandSlot[] = [
     target: { kind: 'sow', field: 'dependencies' },
     required: false,
     prompt: 'Are there key dependencies or systems this relies on?',
-    example: () => '(e.g. systems, data, venues or teams this relies on)',
+    example: () => 'systems, data, venues or teams this relies on',
     why: 'Asked because at this value what the engagement relies on has to be visible — a dependency nobody recorded is a continuity risk nobody can plan for.',
     // Large engagements carry continuity-relevant dependencies worth surfacing.
     appliesWhen: (ctx, config) => (ctx.estimatedValue ?? 0) >= config.continuityThreshold,
@@ -259,6 +259,9 @@ export function fromConfiguredSlot(slot: ConfiguredSlot): DemandSlot {
         : ({ kind: 'sow', field: slot.targetField } as DemandSlotTarget),
     required: slot.required,
     prompt: slot.prompt,
+    // Plain text, like the built-in set: the "(e.g. …)" wrapper lived only in
+    // `ex()`, so configured slots rendered bare and built-in ones wrapped —
+    // visibly inconsistent within one conversation.
     example: slot.examples
       ? (ctx) => slot.examples?.[ctx.category] ?? slot.examples?.default ?? ''
       : undefined,
@@ -349,17 +352,32 @@ export function conversationProgress(
   return { total, captured, pct: total === 0 ? 100 : Math.round((captured / total) * 100) };
 }
 
-/** The single next slot to ask plus its resolved prompt, or null when complete. */
+/**
+ * The single next slot to ask, its question, and any worked example — or null
+ * when the conversation is complete.
+ *
+ * The example is returned SEPARATELY from the question and carries no "(e.g. …)"
+ * wrapper. It used to be concatenated onto the prompt, which produced
+ *
+ *     "What's the primary objective of this engagement? run a promptathon to
+ *      upskill 40 staff on AI tooling"
+ *
+ * — reading as if the assistant had answered its own question, with a topic
+ * belonging to some other project. Worse, only ONE of the two slot sources
+ * added the wrapper: the built-in set did, and `fromConfiguredSlot` — the path
+ * that actually runs — did not, so the same conversation mixed both styles.
+ * Keeping the example as plain data and letting the UI present it removes both
+ * problems at the source.
+ */
 export function determineNextQuestion(
   ctx: DemandConversationContext,
   config: PolicyConfig = getActivePolicyConfig(),
   slots: DemandSlot[] = ALL_SLOTS,
-): { slot: DemandSlot; prompt: string } | null {
+): { slot: DemandSlot; prompt: string; example?: string } | null {
   const agenda = buildAgenda(ctx, config, slots);
   if (agenda.length === 0) return null;
   const slot = agenda[0];
-  const example = slot.example?.(ctx);
-  return { slot, prompt: example ? `${slot.prompt} ${example}` : slot.prompt };
+  return { slot, prompt: slot.prompt, example: slot.example?.(ctx)?.trim() || undefined };
 }
 
 /** Complete when nothing applicable is left to ask (required + triggered). */

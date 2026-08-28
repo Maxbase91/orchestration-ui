@@ -75,7 +75,7 @@ export const DEFAULT_SLOTS: ConfiguredSlot[] = [
     examples: {
       'contingent-labour': '3 senior Java developers for 6 months',
       software: '200 CRM licences with a service module',
-      consulting: 'consultants to run a 2-day promptathon',
+      consulting: 'consultants to design a target operating model',
       goods: '50 height-adjustable desks for the new office',
       default: 'market-research study for APAC expansion',
     },
@@ -94,7 +94,7 @@ export const DEFAULT_SLOTS: ConfiguredSlot[] = [
     id: 'objective', targetKind: 'sow', targetField: 'objective', required: true,
     prompt: "What's the primary objective of this engagement?",
     examples: {
-      consulting: 'run a promptathon to upskill 40 staff on AI tooling',
+      consulting: 'define a target operating model for the finance function',
       software: 'roll out a new CRM to 200 sales users',
       services: 'stand up a managed support service for EMEA',
       'contingent-labour': 'augment the platform team to hit the Q3 release',
