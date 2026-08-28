@@ -111,9 +111,19 @@ npm run dev
 # Build for production
 npm run build
 
+# Lint — clean, and expected to stay that way
+npm run lint
+
 # Preview production build
 npm run preview
 ```
+
+`npm run lint` exits 0 on `main`. It runs the React Compiler rules, which catch
+more than style: impure render, refs read during render, state mirrored from
+server data by an effect, and manual memoization the compiler cannot preserve
+(which silently disables optimization for the whole component). Note that the
+compiler stops analysing a file after a bailout, so fixing one finding often
+reveals others in the same file — a falling count is progress, not regression.
 
 Open [http://localhost:5173](http://localhost:5173) in your browser.
 

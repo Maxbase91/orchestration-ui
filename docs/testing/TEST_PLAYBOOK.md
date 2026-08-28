@@ -444,6 +444,24 @@ six groups:
 
 ---
 
+## Lint as a gate
+
+`npm run lint` is clean and is part of the Definition of Done. The React
+Compiler rules it runs are behavioural, not cosmetic — these are the classes
+that were found and fixed when the debt was cleared, and the ones to watch for:
+
+| Rule | What it catches | Why it matters here |
+|---|---|---|
+| `react-hooks/purity` | `Math.random()` / `Date.now()` during render | The supplier onboarding pipeline showed a **random** "days in stage" with severity colouring; it changed on every re-render. Clock-based ids also collided within a millisecond |
+| `react-hooks/refs` | A ref read during render | The workflow designer fed `nodesRef.current` to the simulation as props — untracked input that happened to work only because opening the panel set state |
+| `react-hooks/set-state-in-effect` | Server data mirrored into local state; form state resynced by effect | Cost an extra render and a flash of empty content. On approval chains it also **destroyed an unsaved new chain** on any refetch, because the pruning effect could not tell "deleted upstream" from "created here" |
+| `react-hooks/exhaustive-deps` | A stale dependency | `step-compliance` computed `missingMandatory` from `requestTitle` without listing it, so editing the title left the flag stale |
+| `react-hooks/preserve-manual-memoization` | A `useMemo`/`useCallback` the compiler cannot preserve | Keeping it makes the compiler **skip optimizing the entire component**. Remove it unless something needs a stable reference — `step-compliance` keeps one, because the effect pushing its result to the parent would otherwise loop |
+| `react-refresh/only-export-components` | A module exporting both a component and other things | Breaks Fast Refresh for that module |
+
+Note: the compiler stops analysing a file after a bailout, so fixing one
+finding routinely reveals more in the same file. Re-run to convergence.
+
 ## Regression hot-list (items that have broken before — always re-check)
 1. New Request submit persistence + free-text date parsing (TC-REQ-14).
 2. **Catalogue Order Now date error** (TC-REQ-17) — *currently failing.*
