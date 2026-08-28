@@ -27,6 +27,8 @@ import { StepPreCheck } from './step-pre-check';
 import { StepCompliance } from './step-compliance';
 import { StepRoutingPreview } from './step-routing-preview';
 import { StepConfirmation } from './step-confirmation';
+import { StepHeaderPanel } from './components/step-header-panel';
+import { stepGuidance } from './step-guidance';
 import { RequesterContextBlock } from './components/requester-context-block';
 import type { Contract } from '@/data/types';
 import type { CatalogueItem } from '@/data/catalogue-items';
@@ -650,6 +652,12 @@ export function NewRequestPage() {
               >
                 {step.title}
               </span>
+              {/* `description` has been defined on every STEPS entry since the
+                  wizard was written and was rendered nowhere — the stepper drew
+                  the number and the title only. */}
+              <span className="hidden text-center text-[10px] leading-tight text-gray-400 sm:block">
+                {step.description}
+              </span>
             </div>
           ))}
         </div>
@@ -666,6 +674,10 @@ export function NewRequestPage() {
 
       {/* Step Content */}
       <div className="rounded-lg border border-gray-200 bg-white p-6">
+        {/* What this step is for, what it needs, and what follows from it. The
+            confirmation step carries its own version of this and is excluded in
+            the guidance map. */}
+        <StepHeaderPanel guidance={stepGuidance(currentStep, isCatalogue)} />
         <StepErrorBoundary onReset={handleReset}>
         {currentStep === 1 && (
           <StepCategory
