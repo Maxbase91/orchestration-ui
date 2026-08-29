@@ -15,8 +15,10 @@ import { determineInherentRisk, type RiskTier } from '@/lib/procurement/risk-seg
 import { determineApprovalToSource } from '@/lib/procurement/approval-to-source';
 import { formatCurrency } from '@/lib/format';
 
+type NumericPolicyKey = Exclude<keyof PolicyConfig, 'pCardEnabled' | 'pCardEligibleCategories' | 'pCardExcludedCategories'>;
+
 interface FieldMeta {
-  key: keyof PolicyConfig;
+  key: NumericPolicyKey;
   label: string;
   help: string;
   unit?: '€' | '%' | '/100' | 'days' | '';
@@ -36,6 +38,7 @@ const FIELDS: FieldMeta[] = [
   { key: 'contractExpiryBufferDays', label: 'Contract expiry buffer', help: 'Days-to-expiry that flag a contract as expiring', unit: 'days' },
   { key: 'catalogueMatchThreshold', label: 'Catalogue match threshold', help: 'Minimum score for a catalogue item to be offered at intake', unit: '' },
   { key: 'catalogueMinContentMatches', label: 'Catalogue naming-word matches', help: 'Naming words (not adjectives) a catalogue match must hit', unit: '' },
+  { key: 'pCardMaxValue', label: 'P-card maximum value', help: 'Maximum demand value that may use the governed P-card route', unit: '€' },
 ];
 
 const RISK_TIERS: RiskTier[] = ['low', 'medium', 'high', 'critical'];
@@ -46,15 +49,25 @@ export function PolicyConfigPage() {
   const [sim, setSim] = useState({ value: 300_000, riskRating: 'medium' as RiskTier, criticalService: false });
 
   const dirty = useMemo(
-    () => FIELDS.some((f) => draft[f.key] !== resolvePolicyConfig(overrides)[f.key]),
+    () => FIELDS.some((f) => draft[f.key] !== resolvePolicyConfig(overrides)[f.key])
+      || draft.pCardEnabled !== resolvePolicyConfig(overrides).pCardEnabled
+      || JSON.stringify(draft.pCardEligibleCategories) !== JSON.stringify(resolvePolicyConfig(overrides).pCardEligibleCategories)
+      || JSON.stringify(draft.pCardExcludedCategories) !== JSON.stringify(resolvePolicyConfig(overrides).pCardExcludedCategories),
     [draft, overrides],
   );
-  const changedFromDefault = (key: keyof PolicyConfig) => draft[key] !== DEFAULT_POLICY_CONFIG[key];
+  const changedFromDefault = (key: NumericPolicyKey) => draft[key] !== DEFAULT_POLICY_CONFIG[key];
 
   const handleSave = () => {
     const next: Partial<PolicyConfig> = {};
     for (const f of FIELDS) {
       if (draft[f.key] !== DEFAULT_POLICY_CONFIG[f.key]) next[f.key] = draft[f.key];
+    }
+    if (draft.pCardEnabled !== DEFAULT_POLICY_CONFIG.pCardEnabled) next.pCardEnabled = draft.pCardEnabled;
+    if (JSON.stringify(draft.pCardEligibleCategories) !== JSON.stringify(DEFAULT_POLICY_CONFIG.pCardEligibleCategories)) {
+      next.pCardEligibleCategories = draft.pCardEligibleCategories;
+    }
+    if (JSON.stringify(draft.pCardExcludedCategories) !== JSON.stringify(DEFAULT_POLICY_CONFIG.pCardExcludedCategories)) {
+      next.pCardExcludedCategories = draft.pCardExcludedCategories;
     }
     setOverrides(next);
     toast.success('Decisioning thresholds saved — applied to the live front door.');
@@ -127,6 +140,55 @@ export function PolicyConfigPage() {
                 </div>
               </div>
             ))}
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-3">
+          <CardHeader>
+            <CardTitle className="text-sm">P-card route policy</CardTitle>
+            <p className="text-xs text-gray-500">
+              Controls whether eligible low-value demands may be routed to the approved P-card process.
+              This setting never charges a card or writes to an upstream system.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label htmlFor="cfg-pCardEnabled" className="text-sm text-gray-800">Enable P-card route</Label>
+                <p className="text-xs text-gray-400">When disabled, no routing rule can offer P-card.</p>
+              </div>
+              <Switch
+                id="cfg-pCardEnabled"
+                checked={draft.pCardEnabled}
+                onCheckedChange={(value) => setDraft((d) => ({ ...d, pCardEnabled: value }))}
+              />
+            </div>
+            <div>
+              <Label htmlFor="cfg-pCardEligibleCategories" className="text-sm text-gray-800">Eligible categories</Label>
+              <p className="text-xs text-gray-400">Comma-separated category IDs permitted for P-card.</p>
+              <Input
+                id="cfg-pCardEligibleCategories"
+                className="mt-1"
+                value={draft.pCardEligibleCategories.join(', ')}
+                onChange={(e) => setDraft((d) => ({
+                  ...d,
+                  pCardEligibleCategories: e.target.value.split(',').map((v) => v.trim().toLowerCase()).filter(Boolean),
+                }))}
+              />
+            </div>
+            <div>
+              <Label htmlFor="cfg-pCardExcludedCategories" className="text-sm text-gray-800">Excluded categories</Label>
+              <p className="text-xs text-gray-400">Comma-separated category IDs always blocked from P-card.</p>
+              <Input
+                id="cfg-pCardExcludedCategories"
+                className="mt-1"
+                value={draft.pCardExcludedCategories.join(', ')}
+                onChange={(e) => setDraft((d) => ({
+                  ...d,
+                  pCardExcludedCategories: e.target.value.split(',').map((v) => v.trim().toLowerCase()).filter(Boolean),
+                }))}
+              />
+            </div>
           </CardContent>
         </Card>
 

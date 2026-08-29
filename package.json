@@ -56,6 +56,7 @@
     "test:approver-resolution": "node tests/integration/approver-resolution.mjs",
     "test:workflow-steps": "node tests/integration/workflow-steps.mjs",
     "test:policy-config": "node tests/integration/policy-config.mjs",
+    "test:p-card": "node --import tsx/esm tests/integration/p-card.mjs",
     "test:knowledge": "node tests/integration/knowledge-retrieval.mjs",
     "test:ui": "node tests/ui/wizard-smoke.mjs",
     "test:e2e-ui": "node tests/ui/app-e2e.mjs",

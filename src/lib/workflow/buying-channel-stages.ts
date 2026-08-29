@@ -14,6 +14,8 @@ import type { BuyingChannel, RequestStatus } from '@/data/types';
  *                         with single-level approval)
  *   - framework-call-off: skip sourcing + contracting (contract already
  *                         executed as a framework, just a call-off)
+ *   - p-card:             route to the approved P-card process after review;
+ *                         this platform does not execute payment
  *   - procurement-led:    full 9-stage flow (intake → payment)
  */
 const STAGES_BY_CHANNEL: Record<BuyingChannel, RequestStatus[]> = {
@@ -21,6 +23,7 @@ const STAGES_BY_CHANNEL: Record<BuyingChannel, RequestStatus[]> = {
   'direct-po':          ['intake', 'validation', 'approval', 'po', 'receipt', 'invoice', 'payment'],
   'business-led':       ['intake', 'validation', 'risk', 'onboarding', 'approval', 'po', 'receipt', 'invoice', 'payment'],
   'framework-call-off': ['intake', 'validation', 'risk', 'onboarding', 'approval', 'po', 'receipt', 'invoice', 'payment'],
+  'p-card':             ['intake', 'validation', 'approval'],
   // `risk` sits after validation and is entered only when the intake triage
   // required one — see the conditional edge in WF-001. It appears in the stage
   // list so the stepper can render it as skipped rather than omitting it.

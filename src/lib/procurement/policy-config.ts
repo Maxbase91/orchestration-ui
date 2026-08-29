@@ -47,6 +47,14 @@ export interface PolicyConfig {
    * stronger evidence before offering an item.
    */
   catalogueMinContentMatches: number;
+  /** Whether the governed P-card route may be offered by intake. */
+  pCardEnabled: boolean;
+  /** Maximum demand value eligible for the P-card route. */
+  pCardMaxValue: number;
+  /** Categories the P-card route is permitted to handle. */
+  pCardEligibleCategories: string[];
+  /** Categories explicitly excluded even if an eligible category list changes. */
+  pCardExcludedCategories: string[];
 }
 
 export const DEFAULT_POLICY_CONFIG: PolicyConfig = {
@@ -69,6 +77,10 @@ export const DEFAULT_POLICY_CONFIG: PolicyConfig = {
   // *which* words could clear it. See catalogueMinContentMatches.
   catalogueMatchThreshold: 0.5,
   catalogueMinContentMatches: 1,
+  pCardEnabled: true,
+  pCardMaxValue: 5_000,
+  pCardEligibleCategories: ['goods', 'services'],
+  pCardExcludedCategories: ['software', 'consulting', 'contingent-labour', 'contract-renewal', 'supplier-onboarding'],
 };
 
 /**

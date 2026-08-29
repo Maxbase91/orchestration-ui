@@ -22,6 +22,7 @@ const BUYING_CHANNEL_OPTIONS: { value: BuyingChannel; label: string }[] = [
   { value: 'direct-po', label: 'Direct PO' },
   { value: 'framework-call-off', label: 'Framework Call-Off' },
   { value: 'catalogue', label: 'Catalogue' },
+  { value: 'p-card', label: 'P-card route (eligible demands only)' },
 ];
 
 const APPROVAL_CHAIN_OPTIONS = [

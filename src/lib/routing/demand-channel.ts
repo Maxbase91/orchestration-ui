@@ -28,6 +28,8 @@ export interface DemandChannelInput {
   /** The materiality / regulatory flag, when it has been determined. */
   material?: boolean;
   region?: string;
+  /** Eligibility must be proven by evaluatePCardEligibility before routing. */
+  pCardEligible?: boolean;
 }
 
 /**
@@ -51,6 +53,7 @@ export function resolveDemandChannel(
     riskRating: input.riskRating,
     material: input.material,
     region: input.region,
+    pCardEligible: input.pCardEligible,
   });
 }
 

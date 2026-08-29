@@ -167,6 +167,7 @@ npm run test:intake-routing-eval  # intake routing eval harness + accuracy basel
 npm run test:referral             # demand disposition — proceed / request-change / refer-back (RTE-06)
 npm run test:knowledge            # grounded policy-Q&A retrieval (ranking, citations, low-confidence)
 npm run test:policy-config        # central decisioning thresholds (defaults pinned + override resolver)
+npm run test:p-card               # governed P-card eligibility and route-only safety guard
 npm run test:screening            # supplier screening — clear / pending / flagged / unknown + blocking
 npm run test:supplier-data        # supplier master-data completeness → remediation handoff (RTE-04)
 npm run test:approver-resolution  # approval step role → switchable directory rep (one identity namespace)

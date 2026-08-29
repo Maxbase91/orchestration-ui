@@ -18,6 +18,7 @@ const BUYING_CHANNEL_LABELS: Record<string, string> = {
   'direct-po': 'Direct PO',
   'framework-call-off': 'Framework Call-Off',
   'catalogue': 'Catalogue',
+  'p-card': 'P-card route',
 };
 
 const CATEGORY_LABELS: Record<string, string> = {

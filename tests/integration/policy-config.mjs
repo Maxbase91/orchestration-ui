@@ -24,6 +24,10 @@ const DEFAULT_POLICY_CONFIG = {
   preferredMinPerformance: 75,
   contractUtilisationHeadroom: 95,
   contractExpiryBufferDays: 60,
+  pCardEnabled: true,
+  pCardMaxValue: 5_000,
+  pCardEligibleCategories: ['goods', 'services'],
+  pCardExcludedCategories: ['software', 'consulting', 'contingent-labour', 'contract-renewal', 'supplier-onboarding'],
 };
 function resolvePolicyConfig(overrides) {
   return { ...DEFAULT_POLICY_CONFIG, ...(overrides ?? {}) };
@@ -33,6 +37,7 @@ const EXPECTED_KEYS = [
   'approvalFullThreshold', 'materialityValueThreshold', 'criticalServiceThreshold',
   'continuityThreshold', 'riskHighValue', 'riskMediumValue', 'competitiveSourcingThreshold',
   'minCompetitiveQuotes', 'preferredMinPerformance', 'contractUtilisationHeadroom', 'contractExpiryBufferDays',
+  'pCardEnabled', 'pCardMaxValue', 'pCardEligibleCategories', 'pCardExcludedCategories',
 ];
 
 console.log('Defaults (pinned)');
@@ -43,7 +48,13 @@ check('critical-service threshold = 100k', DEFAULT_POLICY_CONFIG.criticalService
 check('risk bands = 250k / 50k', DEFAULT_POLICY_CONFIG.riskHighValue === 250_000 && DEFAULT_POLICY_CONFIG.riskMediumValue === 50_000);
 check('competitive sourcing = 25k, min quotes = 3', DEFAULT_POLICY_CONFIG.competitiveSourcingThreshold === 25_000 && DEFAULT_POLICY_CONFIG.minCompetitiveQuotes === 3);
 check('contract headroom = 95%, expiry buffer = 60d', DEFAULT_POLICY_CONFIG.contractUtilisationHeadroom === 95 && DEFAULT_POLICY_CONFIG.contractExpiryBufferDays === 60);
-check('all values positive numbers', EXPECTED_KEYS.every((k) => typeof DEFAULT_POLICY_CONFIG[k] === 'number' && DEFAULT_POLICY_CONFIG[k] > 0));
+check('numeric values positive', EXPECTED_KEYS
+  .filter((k) => !['pCardEnabled', 'pCardEligibleCategories', 'pCardExcludedCategories'].includes(k))
+  .every((k) => typeof DEFAULT_POLICY_CONFIG[k] === 'number' && DEFAULT_POLICY_CONFIG[k] > 0));
+check('P-card defaults are governed', DEFAULT_POLICY_CONFIG.pCardEnabled
+  && DEFAULT_POLICY_CONFIG.pCardMaxValue === 5_000
+  && DEFAULT_POLICY_CONFIG.pCardEligibleCategories.includes('goods')
+  && DEFAULT_POLICY_CONFIG.pCardExcludedCategories.includes('software'));
 
 console.log('Resolver (override seam)');
 check('no overrides → defaults unchanged', JSON.stringify(resolvePolicyConfig()) === JSON.stringify(DEFAULT_POLICY_CONFIG));

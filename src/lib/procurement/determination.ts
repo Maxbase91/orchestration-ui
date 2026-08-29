@@ -42,8 +42,8 @@ export interface SourcingTypeInput {
  * new master agreement is needed.
  */
 export function determineContractType(input: ContractTypeInput): { type: ContractType; reason: string } {
-  if (input.channel === 'catalogue' || input.channel === 'direct-po') {
-    return { type: 'none', reason: 'Catalogue / direct PO — no contract required' };
+  if (input.channel === 'catalogue' || input.channel === 'direct-po' || input.channel === 'p-card') {
+    return { type: 'none', reason: 'Catalogue / direct PO / P-card route — no contract required' };
   }
   if (input.category === 'contract-renewal') {
     return { type: 'renew', reason: 'Renewal of an existing contract' };
@@ -73,8 +73,8 @@ export function determineContractType(input: ContractTypeInput): { type: Contrac
  * benchmarked against the market; otherwise it's a new event.
  */
 export function determineSourcingType(input: SourcingTypeInput): { type: SourcingType; reason: string } {
-  if (input.channel === 'catalogue' || input.channel === 'direct-po' || input.channel === 'framework-call-off') {
-    return { type: 'none', reason: 'Deflected to catalogue / contract — no sourcing event' };
+  if (input.channel === 'catalogue' || input.channel === 'direct-po' || input.channel === 'framework-call-off' || input.channel === 'p-card') {
+    return { type: 'none', reason: 'Deflected to catalogue / contract / P-card process — no sourcing event' };
   }
   if (input.category === 'contract-renewal') {
     return { type: 'renewal', reason: 'Renewal of the incumbent engagement' };
