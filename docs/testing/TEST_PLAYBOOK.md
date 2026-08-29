@@ -110,6 +110,8 @@ and the existing `user_preferences.prefs.requestExperienceMode` JSON key.
 | TC-REQ-19 | Save as Draft mid-wizard | Draft saved + retrievable |
 | TC-REQ-20 | Submit each remaining category (Services, Software, Contingent Labour, Contract Renewal, Supplier Onboarding) | Each routes/submits correctly |
 | TC-REQ-21 | P-card route policy (`npm run test:p-card`) | Low-value eligible goods/services may be routed only when policy allows it; missing/over-limit/material/urgent/high-risk or excluded demands are withheld with reasons; the route remains read/route-only and does not initiate payment |
+| TC-REQ-22 | Catalogue item detail + governed checkout (`npm run test:catalogue-ui`, `npm run test:governed-checkout`) | Catalogue entry points open the selected item; checkout captures fulfilment context; supplier/contract/risk/capacity gates and configurable whole-request auto-approval are enforced |
+| TC-REQ-23 | Catalogue item route in full UI sweep (`npm run test:e2e-ui`) | `/catalogue/items/:id` renders through the app shell without a white screen or uncaught page error |
 
 ### Intake routing — catalogue vs contract vs new demand (INT-10)
 

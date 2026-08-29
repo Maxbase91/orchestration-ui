@@ -574,7 +574,14 @@ export function SmartCommandBar() {
                   return (
                     <div key={item.id} className="rounded-lg border border-gray-200 bg-white p-3 space-y-2">
                       <div>
-                        <p className="text-sm font-medium text-gray-900">{item.name}</p>
+                        <button
+                          type="button"
+                          className="text-left text-sm font-medium text-gray-900 hover:text-[#2D5F8A] hover:underline"
+                          onClick={() => { navigate(`/catalogue/items/${encodeURIComponent(item.id)}`); setProposal(null); setShowCatalogue(false); }}
+                        >
+                          {item.name}
+                          <span className="sr-only"> View item details</span>
+                        </button>
                         <p className="text-xs text-gray-500 mt-0.5">{item.supplierName} &middot; {item.leadTime}</p>
                       </div>
                       <div className="flex items-center justify-between">

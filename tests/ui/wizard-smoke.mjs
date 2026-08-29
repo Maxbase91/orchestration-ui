@@ -288,8 +288,7 @@ try {
   check('SOW sections build from the conversation (no generate hint)',
     (await page.getByText(/click Generate SOW/i).count()) === 0);
 
-  // 5b. Catalogue fast track: pre-approved items skip risk / determination /
-  //     routing and place the order in a single click from the cart.
+  // 5b. Catalogue entry: item selection leads to an explicit review action.
   await page.goto(`${BASE}/requests/new`, { waitUntil: 'networkidle' });
   await page.getByRole('button', { name: /Browse the catalogue/ }).click();
   await page.getByText('Browse Catalogues').waitFor({ timeout: 10000 });
@@ -300,8 +299,8 @@ try {
     (await page.getByText(/Fast catalogue order/i).count()) > 0);
   await page.getByRole('button', { name: /IT Equipment/ }).first().click();
   await page.getByRole('button', { name: /^Add$/ }).first().click();
-  const placeBtn = page.getByRole('button', { name: /Place Order/ });
-  check('catalogue cart shows a single-click Place Order', (await placeBtn.count()) > 0);
+  const placeBtn = page.getByRole('button', { name: /Review order/ });
+  check('catalogue cart shows a Review order action', (await placeBtn.count()) > 0);
   await placeBtn.first().click();
   await page.getByText('Request Submitted Successfully').waitFor({ timeout: 15000 });
   check('catalogue order placed → confirmation reached without the full wizard', true);

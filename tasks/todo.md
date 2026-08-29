@@ -156,3 +156,11 @@ removed explicitly.
       green. Live-verified in the browser: all three links navigate to the correct profile; a
       request with no supplier renders plain "-" text, no broken link.
 - [ ] Not committed/pushed yet.
+# Governed catalogue and contract-order checkout
+
+- [x] Map current catalogue, request, contract, PO, and policy seams
+- [x] Implement governed domain model and persistence (PR, request lines, profile defaults)
+- [x] Implement catalogue item detail and shared checkout UX
+- [x] Wire lifecycle: request -> PR -> conditional PO with governance gates
+- [x] Add integration/browser tests and update documentation/ADR
+- [x] Run typecheck, lint, build, targeted tests, and UI smoke (browser smoke unavailable without valid local Supabase env)

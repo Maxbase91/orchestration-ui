@@ -10,6 +10,8 @@
 // merged values, with no change to the modules.
 
 export interface PolicyConfig {
+  /** Total order value at/above which a governed catalogue/call-off order needs approval. */
+  catalogueAutoApprovalThreshold: number;
   /** Value at/above which the full approval-to-source gate applies. */
   approvalFullThreshold: number;
   /** Value at/above which a demand is material on value alone. */
@@ -58,6 +60,7 @@ export interface PolicyConfig {
 }
 
 export const DEFAULT_POLICY_CONFIG: PolicyConfig = {
+  catalogueAutoApprovalThreshold: 1_000,
   approvalFullThreshold: 250_000,
   materialityValueThreshold: 1_000_000,
   criticalServiceThreshold: 100_000,

@@ -48,6 +48,12 @@ export interface ProcurementRequest {
   supplierId?: string;
   contractId?: string;
   poId?: string;
+  /** Durable requisition created from the request before a PO is released. */
+  requisitionId?: string;
+  /** Risk evidence selected during governed checkout. */
+  riskAssessmentId?: string;
+  /** Resolved fulfilment/governance outcome, e.g. auto-approved or approval. */
+  fulfilmentStatus?: PurchaseRequisitionStatus;
   buyingChannel: BuyingChannel;
   /**
    * The determined sourcing route ('new-event' | 'renewal' | 'benchmarking' |
@@ -214,7 +220,85 @@ export interface PurchaseOrder {
   deliveryDate: string;
   contractId?: string;
   requestId?: string;
+  requisitionId?: string;
+  riskAssessmentId?: string;
+  costCentre?: string;
+  budgetOwner?: string;
+  accountType?: string;
+  shipToLocationId?: string;
+  beneficiaryId?: string;
   lineItems: { description: string; quantity: number; unitPrice: number; received: number }[];
+}
+
+/** Lifecycle of the internal requisition that precedes PO creation. */
+export type PurchaseRequisitionStatus =
+  | 'draft'
+  | 'submitted'
+  | 'pending-approval'
+  | 'risk-review'
+  | 'contract-amendment-required'
+  | 'approved'
+  | 'po-created'
+  | 'cancelled';
+
+export type PurchaseRequisitionRoute = 'catalogue' | 'contract-call-off';
+
+/** A durable line copied from a catalogue item or a contract call-off. */
+export interface RequestLine {
+  id: string;
+  requestId: string;
+  requisitionId?: string;
+  description: string;
+  quantity: number;
+  unit: string;
+  unitPrice: number;
+  supplierId: string;
+  contractId: string;
+  catalogueItemId?: string;
+  riskAssessmentId?: string;
+  commodityCode?: string;
+  deliveryDate?: string;
+}
+
+/** Profile defaults keep checkout short while preserving routing inputs. */
+export interface ProcurementProfile {
+  userId: string;
+  legalEntity?: string;
+  defaultCurrency: string;
+  costCentre?: string;
+  budgetOwner?: string;
+  accountType?: string;
+  beneficiaryId?: string;
+  approvedShipToLocations: { id: string; label: string; address?: string }[];
+  defaultShipToLocationId?: string;
+  defaultCommodityCode?: string;
+}
+
+export interface PurchaseRequisition {
+  id: string;
+  requestId: string;
+  route: PurchaseRequisitionRoute;
+  status: PurchaseRequisitionStatus;
+  supplierId: string;
+  contractId: string;
+  riskAssessmentId?: string;
+  totalValue: number;
+  currency: string;
+  needByDate?: string;
+  serviceStartDate?: string;
+  serviceEndDate?: string;
+  purpose: string;
+  costCentre?: string;
+  budgetOwner?: string;
+  accountType?: string;
+  shipToLocationId?: string;
+  beneficiaryId?: string;
+  approvalRequired: boolean;
+  riskReviewRequired: boolean;
+  contractAmendmentRequired: boolean;
+  idempotencyKey?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Invoice {

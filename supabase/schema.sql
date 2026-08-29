@@ -435,6 +435,31 @@ CREATE TABLE IF NOT EXISTS catalogue_items (
   lead_time TEXT
 );
 
+DO $$ BEGIN
+  ALTER TABLE requests ADD CONSTRAINT requests_requisition_id_fkey
+    FOREIGN KEY (requisition_id) REFERENCES purchase_requisitions(id) ON DELETE SET NULL;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE requests ADD CONSTRAINT requests_risk_assessment_id_fkey
+    FOREIGN KEY (risk_assessment_id) REFERENCES risk_assessments(id) ON DELETE SET NULL;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE purchase_orders ADD CONSTRAINT purchase_orders_requisition_id_fkey
+    FOREIGN KEY (requisition_id) REFERENCES purchase_requisitions(id) ON DELETE SET NULL;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE purchase_orders ADD CONSTRAINT purchase_orders_risk_assessment_id_fkey
+    FOREIGN KEY (risk_assessment_id) REFERENCES risk_assessments(id) ON DELETE SET NULL;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE catalogue_items ADD CONSTRAINT catalogue_items_contract_id_fkey
+    FOREIGN KEY (contract_id) REFERENCES contracts(id) ON DELETE SET NULL;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE catalogue_items ADD CONSTRAINT catalogue_items_risk_assessment_id_fkey
+    FOREIGN KEY (risk_assessment_id) REFERENCES risk_assessments(id) ON DELETE SET NULL;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
 -- Workflow Step Details (per-request stage timeline with forms, comments, docs)
 CREATE TABLE IF NOT EXISTS workflow_step_details (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -758,6 +783,98 @@ CREATE TABLE IF NOT EXISTS user_preferences (
 ALTER TABLE user_preferences ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Allow all" ON user_preferences;
 CREATE POLICY "Allow all" ON user_preferences FOR ALL USING (true) WITH CHECK (true);
+
+-- ── Governed catalogue / contract checkout ──────────────────────────────────
+-- A requisition is the platform-owned audit record between intake and a PO.
+-- These tables are additive so existing request/PO records and deep links stay
+-- valid while new checkouts gain durable line-level governance evidence.
+CREATE TABLE IF NOT EXISTS procurement_profiles (
+  user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  legal_entity TEXT,
+  default_currency TEXT NOT NULL DEFAULT 'EUR',
+  cost_centre TEXT,
+  budget_owner TEXT,
+  account_type TEXT,
+  beneficiary_id TEXT,
+  approved_ship_to_locations JSONB NOT NULL DEFAULT '[]'::jsonb,
+  default_ship_to_location_id TEXT,
+  default_commodity_code TEXT,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS purchase_requisitions (
+  id TEXT PRIMARY KEY,
+  request_id TEXT NOT NULL UNIQUE REFERENCES requests(id) ON DELETE CASCADE,
+  route TEXT NOT NULL CHECK (route IN ('catalogue', 'contract-call-off')),
+  status TEXT NOT NULL DEFAULT 'draft',
+  supplier_id TEXT NOT NULL REFERENCES suppliers(id) ON DELETE RESTRICT,
+  contract_id TEXT NOT NULL REFERENCES contracts(id) ON DELETE RESTRICT,
+  risk_assessment_id TEXT REFERENCES risk_assessments(id) ON DELETE SET NULL,
+  total_value NUMERIC NOT NULL DEFAULT 0,
+  currency TEXT NOT NULL DEFAULT 'EUR',
+  need_by_date DATE,
+  service_start_date DATE,
+  service_end_date DATE,
+  purpose TEXT NOT NULL DEFAULT '',
+  cost_centre TEXT,
+  budget_owner TEXT,
+  account_type TEXT,
+  ship_to_location_id TEXT,
+  beneficiary_id TEXT,
+  approval_required BOOLEAN NOT NULL DEFAULT false,
+  risk_review_required BOOLEAN NOT NULL DEFAULT false,
+  contract_amendment_required BOOLEAN NOT NULL DEFAULT false,
+  idempotency_key TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS purchase_requisitions_idempotency_idx
+  ON purchase_requisitions(idempotency_key) WHERE idempotency_key IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS request_lines (
+  id TEXT PRIMARY KEY,
+  request_id TEXT NOT NULL REFERENCES requests(id) ON DELETE CASCADE,
+  requisition_id TEXT REFERENCES purchase_requisitions(id) ON DELETE CASCADE,
+  description TEXT NOT NULL,
+  quantity NUMERIC NOT NULL CHECK (quantity > 0),
+  unit TEXT NOT NULL DEFAULT 'each',
+  unit_price NUMERIC NOT NULL DEFAULT 0 CHECK (unit_price >= 0),
+  supplier_id TEXT NOT NULL REFERENCES suppliers(id) ON DELETE RESTRICT,
+  contract_id TEXT NOT NULL REFERENCES contracts(id) ON DELETE RESTRICT,
+  catalogue_item_id TEXT REFERENCES catalogue_items(id) ON DELETE SET NULL,
+  risk_assessment_id TEXT REFERENCES risk_assessments(id) ON DELETE SET NULL,
+  commodity_code TEXT,
+  delivery_date DATE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE requests ADD COLUMN IF NOT EXISTS requisition_id TEXT;
+ALTER TABLE requests ADD COLUMN IF NOT EXISTS risk_assessment_id TEXT;
+ALTER TABLE requests ADD COLUMN IF NOT EXISTS fulfilment_status TEXT;
+ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS requisition_id TEXT;
+ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS risk_assessment_id TEXT;
+ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS cost_centre TEXT;
+ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS budget_owner TEXT;
+ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS account_type TEXT;
+ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS ship_to_location_id TEXT;
+ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS beneficiary_id TEXT;
+ALTER TABLE catalogue_items ADD COLUMN IF NOT EXISTS contract_id TEXT;
+ALTER TABLE catalogue_items ADD COLUMN IF NOT EXISTS risk_assessment_id TEXT;
+ALTER TABLE catalogue_items ADD COLUMN IF NOT EXISTS commodity_code TEXT;
+ALTER TABLE catalogue_items ADD COLUMN IF NOT EXISTS available BOOLEAN NOT NULL DEFAULT true;
+
+ALTER TABLE procurement_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE purchase_requisitions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE request_lines ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "governed_checkout_profiles" ON procurement_profiles;
+DROP POLICY IF EXISTS "governed_checkout_requisitions" ON purchase_requisitions;
+DROP POLICY IF EXISTS "governed_checkout_lines" ON request_lines;
+CREATE POLICY "governed_checkout_profiles" ON procurement_profiles FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "governed_checkout_requisitions" ON purchase_requisitions FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "governed_checkout_lines" ON request_lines FOR ALL USING (true) WITH CHECK (true);
+CREATE INDEX IF NOT EXISTS request_lines_request_idx ON request_lines(request_id);
+CREATE INDEX IF NOT EXISTS request_lines_requisition_idx ON request_lines(requisition_id);
+CREATE INDEX IF NOT EXISTS purchase_requisitions_status_idx ON purchase_requisitions(status);
 
 -- ── Chat feedback ─────────────────────────────────────────────────────────────
 

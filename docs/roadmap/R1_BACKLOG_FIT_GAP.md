@@ -190,8 +190,8 @@ board on the event page remains a labelled mock.
 | CHK-02 | Transactable contract — early exit to raise PR | 🟢 | Score-based match + early-exit via the connector ports; **stage 2 of the funnel — reached once the catalogue is ruled out**, so no contract is asserted prematurely (INT-10). A category the catalogue cannot serve now opens here directly instead of making the requester dismiss an empty catalogue card. Scoring is unchanged and still requires a primary signal (supplier, category, or ≥2 keyword hits) — its own weakness, a match on category alone, is recorded as a known gap in the routing eval rather than hidden |
 | CHK-03 | PSL enforcement at check | 🟡 | **Preferred-supplier (PSL) soft check + boost** centralised in `lib/procurement/supplier-preference.ts` (explicit `preferred` flag seam, else heuristic); surfaced in the determination + recommender. Hard PSL reference list pending |
 | CHK-04 | Configurable intake-form engine (ASP/partial) | 🟡 | Partial |
-| CHK-05 | Catalogue matching rules & info to collect | 🟡 | Heuristic; thresholds (POL-20) not configurable |
-| CHK-06 | Contract matching rules & info to collect | 🟡 | Heuristic; thresholds (POL-21) not configurable |
+| CHK-05 | Catalogue matching rules & info to collect | 🟢 | Dedicated item detail plus governed checkout captures approved delivery, recipient, purpose, accounting exceptions, durable request lines, supplier/contract/risk links, and configurable whole-request auto-approval |
+| CHK-06 | Contract matching rules & info to collect | 🟢 | Shared contract-call-off governance seam validates active contract, remaining capacity, supplier risk, profile defaults, and PR-before-PO lifecycle |
 | CHK-07 | **Second** contract check vs full SD + framework/MSA | 🟡 | `lib/procurement/second-contract-check.ts` — classifies the supplier's contracts as **transactable / framework (host a SOW) / expiring** and recommends transact/author-SOW/renew/new; "Contract coverage" panel on the determination. `isFramework` flag is the live-data seam |
 
 #### INT-10 — Staged-Intake Funnel (entry-point + progressive-disclosure redesign) — 🟢 Built

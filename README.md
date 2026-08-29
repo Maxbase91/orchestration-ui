@@ -8,7 +8,7 @@ A procurement orchestration platform foundation with a React SPA, Supabase own-s
 
 ## What This Is
 
-An R1 foundation with a browser UI backed by the platform's own Supabase store. It has no live upstream connections: the source-connector layer supplies the seam for later integrations without changing application call sites.
+An R1 foundation with a browser UI backed by the platform's own Supabase store. It has no live upstream connections: the source-connector layer supplies the seam for later integrations without changing application call sites. Governed catalogue and contract checkout now captures a request and purchase requisition before creating an internal PO when policy permits.
 
 ### Key Capabilities Demonstrated
 
@@ -169,6 +169,8 @@ npm run test:intake-routing-eval  # intake routing eval harness + accuracy basel
 npm run test:referral             # demand disposition — proceed / request-change / refer-back (RTE-06)
 npm run test:knowledge            # grounded policy-Q&A retrieval (ranking, citations, low-confidence)
 npm run test:policy-config        # central decisioning thresholds (defaults pinned + override resolver)
+npm run test:governed-checkout    # contract/risk/capacity gates and PR/PO routing decisions
+npm run test:catalogue-ui         # catalogue item detail and checkout entry-point regressions
 npm run test:p-card               # governed P-card eligibility and route-only safety guard
 npm run test:experience-mode      # role defaults, preference normalization, and pilot eligibility contract
 npm run test:screening            # supplier screening — clear / pending / flagged / unknown + blocking
@@ -281,7 +283,7 @@ src/
 ├── lib/             # Utilities, formatters, mock AI engine
 │   ├── db/          # Data-access modules + TanStack Query hooks
 │   ├── integrations/# Standardised source-connector layer (own-store → live swap)
-│   ├── procurement/ # Pure decisioning modules (classify, materiality, risk, determination, …) + service description config (SERVICE_DESCRIPTION.md)
+│   ├── procurement/ # Pure decisioning modules (classify, materiality, risk, determination, governed checkout, …) + service description config (SERVICE_DESCRIPTION.md)
 │   ├── routing/     # Routing-rule evaluator + diagnostics, and the one buying-channel resolver both the pre-check and the determination call
 │   └── workflow/    # Workflow engine, transition primitive, gate model (see its README)
 ├── components/
@@ -292,6 +294,7 @@ src/
 └── features/        # Feature modules
     ├── dashboard/   # Role-based dashboards + home-designs/ (alternative Apple-style homes)
     ├── requests/    # New request wizard (per-step guidance map + header panel), request detail
+    ├── catalogue/   # Item detail and governed catalogue checkout
     ├── workflows/   # Kanban, table, timeline, monitor
     ├── suppliers/   # Directory, profile, portal
     ├── approvals/   # Approval queue, delegation

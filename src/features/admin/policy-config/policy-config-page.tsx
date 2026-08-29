@@ -25,6 +25,7 @@ interface FieldMeta {
 }
 
 const FIELDS: FieldMeta[] = [
+  { key: 'catalogueAutoApprovalThreshold', label: 'Catalogue auto-approval threshold', help: 'Below this whole-request value, valid catalogue orders are auto-approved', unit: '€' },
   { key: 'approvalFullThreshold', label: 'Full approval-to-source threshold', help: 'At/above this value the full approval gate applies', unit: '€' },
   { key: 'materialityValueThreshold', label: 'Materiality value threshold', help: 'At/above this value a demand is material on size alone', unit: '€' },
   { key: 'criticalServiceThreshold', label: 'Critical-service question threshold', help: 'At/above this value the critical-service question is asked', unit: '€' },

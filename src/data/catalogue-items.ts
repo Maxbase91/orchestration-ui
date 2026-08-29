@@ -13,6 +13,11 @@ export interface CatalogueItem {
   supplierName: string;
   supplierId: string;
   leadTime: string;
+  /** Optional governance metadata resolved from the catalogue source. */
+  contractId?: string;
+  riskAssessmentId?: string;
+  commodityCode?: string;
+  available?: boolean;
 }
 
 export const catalogueItems: CatalogueItem[] = [

@@ -20,7 +20,7 @@ const USERS = {
 
 // Static routes by role. :id detail routes resolved separately.
 const ADMIN_ROUTES = [
-  '/', '/requests', '/requests/my', '/requests/new', '/approvals', '/approvals/delegation',
+  '/', '/requests', '/requests/my', '/requests/new', '/catalogue/items/IT-001', '/approvals', '/approvals/delegation',
   '/workflows', '/workflows/monitor', '/workflows/bottlenecks', '/pipeline/demand', '/pipeline/sourcing',
   '/sourcing', '/sourcing/new', '/sourcing/evaluation', '/sourcing/templates',
   '/suppliers', '/suppliers/risk', '/suppliers/messages', '/suppliers/onboarding', '/suppliers/portal-admin',

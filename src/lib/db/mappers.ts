@@ -15,6 +15,9 @@ import type {
   User,
   Notification,
   AuditEntry,
+  PurchaseRequisition,
+  RequestLine,
+  ProcurementProfile,
 } from '../../data/types.js';
 import type { ComplianceReport } from '../../data/compliance-reports.js';
 import type { SystemIntegration } from '../../data/system-integrations.js';
@@ -312,6 +315,10 @@ export function mapDbToCatalogueItem(row: DbRecord): CatalogueItem {
     supplierId: (row.supplier_id ?? row.supplierId ?? '') as string,
     supplierName: (row.supplier_name ?? row.supplierName ?? '') as string,
     leadTime: (row.lead_time ?? row.leadTime ?? '') as string,
+    ...(row.contract_id != null ? { contractId: row.contract_id as string } : {}),
+    ...(row.risk_assessment_id != null ? { riskAssessmentId: row.risk_assessment_id as string } : {}),
+    ...(row.commodity_code != null ? { commodityCode: row.commodity_code as string } : {}),
+    ...(row.available != null ? { available: Boolean(row.available) } : {}),
   };
 }
 
@@ -327,6 +334,10 @@ export function mapCatalogueItemToDb(c: Partial<CatalogueItem>): DbRecord {
   if (c.supplierId !== undefined) out.supplier_id = c.supplierId;
   if (c.supplierName !== undefined) out.supplier_name = c.supplierName;
   if (c.leadTime !== undefined) out.lead_time = c.leadTime;
+  if (c.contractId !== undefined) out.contract_id = c.contractId;
+  if (c.riskAssessmentId !== undefined) out.risk_assessment_id = c.riskAssessmentId;
+  if (c.commodityCode !== undefined) out.commodity_code = c.commodityCode;
+  if (c.available !== undefined) out.available = c.available;
   return out;
 }
 
@@ -473,6 +484,9 @@ const REQUEST_FIELD_MAP: Record<string, string> = {
   referralDisposition: 'referral_disposition',
   contractId: 'contract_id',
   poId: 'po_id',
+  requisitionId: 'requisition_id',
+  riskAssessmentId: 'risk_assessment_id',
+  fulfilmentStatus: 'fulfilment_status',
   sourcingType: 'sourcing_type',
   sourcingTypeReason: 'sourcing_type_reason',
   buyingChannel: 'buying_channel',
@@ -518,6 +532,132 @@ export function mapRequestToDb(data: Partial<ProcurementRequest>): DbRecord {
     result[snakeKey] = value;
   }
   return result;
+}
+
+// ── Governed checkout records ─────────────────────────────────────
+
+export function mapDbToPurchaseRequisition(row: DbRecord): PurchaseRequisition {
+  return {
+    id: row.id as string,
+    requestId: (row.request_id ?? row.requestId) as string,
+    route: (row.route ?? 'catalogue') as PurchaseRequisition['route'],
+    status: (row.status ?? 'draft') as PurchaseRequisition['status'],
+    supplierId: (row.supplier_id ?? row.supplierId ?? '') as string,
+    contractId: (row.contract_id ?? row.contractId ?? '') as string,
+    riskAssessmentId: (row.risk_assessment_id ?? row.riskAssessmentId) as string | undefined,
+    totalValue: Number(row.total_value ?? row.totalValue ?? 0),
+    currency: (row.currency ?? 'EUR') as string,
+    needByDate: (row.need_by_date ?? row.needByDate) as string | undefined,
+    serviceStartDate: (row.service_start_date ?? row.serviceStartDate) as string | undefined,
+    serviceEndDate: (row.service_end_date ?? row.serviceEndDate) as string | undefined,
+    purpose: (row.purpose ?? '') as string,
+    costCentre: (row.cost_centre ?? row.costCentre) as string | undefined,
+    budgetOwner: (row.budget_owner ?? row.budgetOwner) as string | undefined,
+    accountType: (row.account_type ?? row.accountType) as string | undefined,
+    shipToLocationId: (row.ship_to_location_id ?? row.shipToLocationId) as string | undefined,
+    beneficiaryId: (row.beneficiary_id ?? row.beneficiaryId) as string | undefined,
+    approvalRequired: Boolean(row.approval_required ?? row.approvalRequired),
+    riskReviewRequired: Boolean(row.risk_review_required ?? row.riskReviewRequired),
+    contractAmendmentRequired: Boolean(row.contract_amendment_required ?? row.contractAmendmentRequired),
+    idempotencyKey: (row.idempotency_key ?? row.idempotencyKey) as string | undefined,
+    createdAt: (row.created_at ?? row.createdAt) as string,
+    updatedAt: (row.updated_at ?? row.updatedAt) as string,
+  };
+}
+
+export function mapPurchaseRequisitionToDb(r: Partial<PurchaseRequisition>): DbRecord {
+  const out: DbRecord = {};
+  if (r.id !== undefined) out.id = r.id;
+  if (r.requestId !== undefined) out.request_id = r.requestId;
+  if (r.route !== undefined) out.route = r.route;
+  if (r.status !== undefined) out.status = r.status;
+  if (r.supplierId !== undefined) out.supplier_id = r.supplierId;
+  if (r.contractId !== undefined) out.contract_id = r.contractId;
+  if (r.riskAssessmentId !== undefined) out.risk_assessment_id = r.riskAssessmentId;
+  if (r.totalValue !== undefined) out.total_value = r.totalValue;
+  if (r.currency !== undefined) out.currency = r.currency;
+  if (r.needByDate !== undefined) out.need_by_date = r.needByDate;
+  if (r.serviceStartDate !== undefined) out.service_start_date = r.serviceStartDate;
+  if (r.serviceEndDate !== undefined) out.service_end_date = r.serviceEndDate;
+  if (r.purpose !== undefined) out.purpose = r.purpose;
+  if (r.costCentre !== undefined) out.cost_centre = r.costCentre;
+  if (r.budgetOwner !== undefined) out.budget_owner = r.budgetOwner;
+  if (r.accountType !== undefined) out.account_type = r.accountType;
+  if (r.shipToLocationId !== undefined) out.ship_to_location_id = r.shipToLocationId;
+  if (r.beneficiaryId !== undefined) out.beneficiary_id = r.beneficiaryId;
+  if (r.approvalRequired !== undefined) out.approval_required = r.approvalRequired;
+  if (r.riskReviewRequired !== undefined) out.risk_review_required = r.riskReviewRequired;
+  if (r.contractAmendmentRequired !== undefined) out.contract_amendment_required = r.contractAmendmentRequired;
+  if (r.idempotencyKey !== undefined) out.idempotency_key = r.idempotencyKey;
+  if (r.createdAt !== undefined) out.created_at = r.createdAt;
+  if (r.updatedAt !== undefined) out.updated_at = r.updatedAt;
+  return out;
+}
+
+export function mapDbToRequestLine(row: DbRecord): RequestLine {
+  return {
+    id: row.id as string,
+    requestId: (row.request_id ?? row.requestId) as string,
+    requisitionId: (row.requisition_id ?? row.requisitionId) as string | undefined,
+    description: (row.description ?? '') as string,
+    quantity: Number(row.quantity ?? 0),
+    unit: (row.unit ?? '') as string,
+    unitPrice: Number(row.unit_price ?? row.unitPrice ?? 0),
+    supplierId: (row.supplier_id ?? row.supplierId ?? '') as string,
+    contractId: (row.contract_id ?? row.contractId ?? '') as string,
+    catalogueItemId: (row.catalogue_item_id ?? row.catalogueItemId) as string | undefined,
+    riskAssessmentId: (row.risk_assessment_id ?? row.riskAssessmentId) as string | undefined,
+    commodityCode: (row.commodity_code ?? row.commodityCode) as string | undefined,
+    deliveryDate: (row.delivery_date ?? row.deliveryDate) as string | undefined,
+  };
+}
+
+export function mapRequestLineToDb(line: Partial<RequestLine>): DbRecord {
+  const out: DbRecord = {};
+  if (line.id !== undefined) out.id = line.id;
+  if (line.requestId !== undefined) out.request_id = line.requestId;
+  if (line.requisitionId !== undefined) out.requisition_id = line.requisitionId;
+  if (line.description !== undefined) out.description = line.description;
+  if (line.quantity !== undefined) out.quantity = line.quantity;
+  if (line.unit !== undefined) out.unit = line.unit;
+  if (line.unitPrice !== undefined) out.unit_price = line.unitPrice;
+  if (line.supplierId !== undefined) out.supplier_id = line.supplierId;
+  if (line.contractId !== undefined) out.contract_id = line.contractId;
+  if (line.catalogueItemId !== undefined) out.catalogue_item_id = line.catalogueItemId;
+  if (line.riskAssessmentId !== undefined) out.risk_assessment_id = line.riskAssessmentId;
+  if (line.commodityCode !== undefined) out.commodity_code = line.commodityCode;
+  if (line.deliveryDate !== undefined) out.delivery_date = line.deliveryDate;
+  return out;
+}
+
+export function mapDbToProcurementProfile(row: DbRecord): ProcurementProfile {
+  return {
+    userId: (row.user_id ?? row.userId) as string,
+    legalEntity: (row.legal_entity ?? row.legalEntity) as string | undefined,
+    defaultCurrency: (row.default_currency ?? row.defaultCurrency ?? 'EUR') as string,
+    costCentre: (row.cost_centre ?? row.costCentre) as string | undefined,
+    budgetOwner: (row.budget_owner ?? row.budgetOwner) as string | undefined,
+    accountType: (row.account_type ?? row.accountType) as string | undefined,
+    beneficiaryId: (row.beneficiary_id ?? row.beneficiaryId) as string | undefined,
+    approvedShipToLocations: (row.approved_ship_to_locations ?? row.approvedShipToLocations ?? []) as ProcurementProfile['approvedShipToLocations'],
+    defaultShipToLocationId: (row.default_ship_to_location_id ?? row.defaultShipToLocationId) as string | undefined,
+    defaultCommodityCode: (row.default_commodity_code ?? row.defaultCommodityCode) as string | undefined,
+  };
+}
+
+export function mapProcurementProfileToDb(p: Partial<ProcurementProfile>): DbRecord {
+  const out: DbRecord = {};
+  if (p.userId !== undefined) out.user_id = p.userId;
+  if (p.legalEntity !== undefined) out.legal_entity = p.legalEntity;
+  if (p.defaultCurrency !== undefined) out.default_currency = p.defaultCurrency;
+  if (p.costCentre !== undefined) out.cost_centre = p.costCentre;
+  if (p.budgetOwner !== undefined) out.budget_owner = p.budgetOwner;
+  if (p.accountType !== undefined) out.account_type = p.accountType;
+  if (p.beneficiaryId !== undefined) out.beneficiary_id = p.beneficiaryId;
+  if (p.approvedShipToLocations !== undefined) out.approved_ship_to_locations = p.approvedShipToLocations;
+  if (p.defaultShipToLocationId !== undefined) out.default_ship_to_location_id = p.defaultShipToLocationId;
+  if (p.defaultCommodityCode !== undefined) out.default_commodity_code = p.defaultCommodityCode;
+  return out;
 }
 
 // ── Comments ────────────────────────────────────────────────────────
@@ -734,6 +874,13 @@ export function mapDbToPurchaseOrder(row: DbRecord): PurchaseOrder {
     deliveryDate: (row.delivery_date ?? row.deliveryDate ?? '') as string,
     contractId: (row.contract_id ?? row.contractId) as string | undefined,
     requestId: (row.request_id ?? row.requestId) as string | undefined,
+    requisitionId: (row.requisition_id ?? row.requisitionId) as string | undefined,
+    riskAssessmentId: (row.risk_assessment_id ?? row.riskAssessmentId) as string | undefined,
+    costCentre: (row.cost_centre ?? row.costCentre) as string | undefined,
+    budgetOwner: (row.budget_owner ?? row.budgetOwner) as string | undefined,
+    accountType: (row.account_type ?? row.accountType) as string | undefined,
+    shipToLocationId: (row.ship_to_location_id ?? row.shipToLocationId) as string | undefined,
+    beneficiaryId: (row.beneficiary_id ?? row.beneficiaryId) as string | undefined,
     lineItems: (row.line_items ?? row.lineItems ?? []) as PurchaseOrder['lineItems'],
   };
 }
@@ -749,6 +896,13 @@ export function mapPurchaseOrderToDb(p: Partial<PurchaseOrder>): DbRecord {
   if (p.deliveryDate !== undefined) out.delivery_date = p.deliveryDate;
   if (p.contractId !== undefined) out.contract_id = p.contractId;
   if (p.requestId !== undefined) out.request_id = p.requestId;
+  if (p.requisitionId !== undefined) out.requisition_id = p.requisitionId;
+  if (p.riskAssessmentId !== undefined) out.risk_assessment_id = p.riskAssessmentId;
+  if (p.costCentre !== undefined) out.cost_centre = p.costCentre;
+  if (p.budgetOwner !== undefined) out.budget_owner = p.budgetOwner;
+  if (p.accountType !== undefined) out.account_type = p.accountType;
+  if (p.shipToLocationId !== undefined) out.ship_to_location_id = p.shipToLocationId;
+  if (p.beneficiaryId !== undefined) out.beneficiary_id = p.beneficiaryId;
   if (p.lineItems !== undefined) out.line_items = p.lineItems;
   return out;
 }

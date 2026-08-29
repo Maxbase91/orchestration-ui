@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Monitor,
   Briefcase,
@@ -55,6 +56,7 @@ const CATALOGUE_DEFS: { id: string; name: string; icon: typeof Monitor }[] = [
 ];
 
 export function StepCatalogue({ onPlaceOrder }: StepCatalogueProps) {
+  const navigate = useNavigate();
   const [selectedCatalogue, setSelectedCatalogue] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -193,7 +195,7 @@ export function StepCatalogue({ onPlaceOrder }: StepCatalogueProps) {
               </span>
             </div>
             <Button size="sm" className="w-full" onClick={handlePlaceOrder}>
-              Place Order — no approval needed
+              Review order
             </Button>
           </div>
         )}
@@ -245,7 +247,14 @@ export function StepCatalogue({ onPlaceOrder }: StepCatalogueProps) {
                 >
                   <div>
                     <div className="flex items-start justify-between gap-2">
-                      <p className="text-sm font-medium text-gray-900">{item.name}</p>
+                      <button
+                        type="button"
+                        className="text-left text-sm font-medium text-gray-900 hover:text-blue-700 hover:underline"
+                        onClick={() => navigate(`/catalogue/items/${encodeURIComponent(item.id)}`)}
+                      >
+                        {item.name}
+                        <span className="sr-only"> View item details</span>
+                      </button>
                       {inCart && (
                         <Badge variant="secondary" className="text-[10px] shrink-0">
                           In cart
@@ -355,7 +364,7 @@ export function StepCatalogue({ onPlaceOrder }: StepCatalogueProps) {
                 </div>
 
                 <Button size="sm" className="w-full" onClick={handlePlaceOrder}>
-                  Place Order — no approval needed
+                  Review order
                 </Button>
               </>
             )}
