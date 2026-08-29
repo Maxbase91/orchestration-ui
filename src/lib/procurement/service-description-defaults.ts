@@ -12,7 +12,7 @@ import type {
   ConfiguredSection,
   ConfiguredSlot,
   ServiceDescriptionTemplate,
-} from './service-description-config';
+} from './service-description-config.js';
 
 /**
  * The nine sections generate-sow produces.

@@ -1,4 +1,4 @@
-import type { KnowledgeEntry } from './types';
+import type { KnowledgeEntry } from './types.js';
 
 export const knowledgeBase: KnowledgeEntry[] = [
   // ── Approval thresholds ─────────────────────────────────────────────────────

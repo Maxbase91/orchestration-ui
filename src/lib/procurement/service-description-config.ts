@@ -12,7 +12,7 @@
 // form_templates.trigger_conditions already use, so there is one condition
 // vocabulary across the platform rather than a third.
 
-import type { PolicyConfig } from './policy-config';
+import type { PolicyConfig } from './policy-config.js';
 
 /** Operators a slot condition may use. Matches evaluate-routing-rules. */
 export type SlotConditionOperator = '>=' | '>' | '<=' | '<' | '==' | '!=' | 'in';

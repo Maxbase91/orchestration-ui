@@ -76,6 +76,33 @@ try {
   // plain language…", so a loose match now resolves to two elements.
   await page.getByText('Describe what you need', { exact: true }).waitFor({ timeout: 15000 });
   check('wizard category step renders free-text entry', true);
+
+  // 2b. The floating AI assistant button is `fixed bottom-6 right-6`, mounted
+  //     globally over every page. Content that scrolls to the bottom of a
+  //     wide/tall step (e.g. this wizard's own Back/Next footer) must never
+  //     end up underneath it — see app-layout.tsx / supplier-portal-layout.tsx.
+  //     Assert the invariant generically from the FAB's own rendered geometry
+  //     (not a hardcoded pixel count), so this can't silently rot if the FAB's
+  //     size ever changes.
+  const fabClearance = await page.evaluate(() => {
+    const main = document.querySelector('main');
+    const fab = Array.from(document.querySelectorAll('button')).find((b) => {
+      const r = b.getBoundingClientRect();
+      return getComputedStyle(b).position === 'fixed' && r.width > 40 && r.width < 80;
+    });
+    if (!main || !fab) return null;
+    const fabRect = fab.getBoundingClientRect();
+    const viewportBottom = window.innerHeight;
+    // Height of the FAB's fixed exclusion zone, measured from the bottom of
+    // the viewport (its own height plus its offset from the bottom edge).
+    const exclusionZone = viewportBottom - fabRect.top;
+    const paddingBottom = parseFloat(getComputedStyle(main).paddingBottom);
+    return { exclusionZone, paddingBottom };
+  });
+  check('scrollable content reserves enough bottom clearance to never sit under the AI assistant button',
+    fabClearance !== null && fabClearance.paddingBottom >= fabClearance.exclusionZone,
+    fabClearance ? `exclusion zone ${fabClearance.exclusionZone}px, main padding-bottom ${fabClearance.paddingBottom}px` : 'FAB or <main> not found');
+
   check('NO commodity-category tiles (Goods/Contingent Labour are not a choice)',
     (await page.getByText('Goods', { exact: true }).count()) === 0
     && (await page.getByText('Contingent Labour', { exact: true }).count()) === 0);

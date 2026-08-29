@@ -15,8 +15,8 @@
 // from the requester's profile / a UI control, so the conversation never asks
 // for them.
 
-import { getActivePolicyConfig, type PolicyConfig } from './policy-config';
-import { slotApplies, type ConfiguredSlot } from './service-description-config';
+import { getActivePolicyConfig, type PolicyConfig } from './policy-config.js';
+import { slotApplies, type ConfiguredSlot } from './service-description-config.js';
 
 export type DemandSlotId =
   | 'title'

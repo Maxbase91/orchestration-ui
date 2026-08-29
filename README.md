@@ -173,6 +173,7 @@ npm run test:approver-resolution  # approval step role → switchable directory 
 npm run test:workflow-steps       # config-driven Routing — template lifecycle + risk/onboarding steps + approval-chain banding
 npm run test:approval-chain-persistence # self-cleaning DB check — a value-banded approval-chain key persists on a request
 npm run test:ai-api-config        # API regression — missing Supabase server config returns a controlled 503, not a function crash
+npm run test:api-imports          # every api/*.ts function's import graph has explicit file extensions (tsc/vercel dev don't enforce this; Vercel's real build does)
 npm run test:admin-editors        # admin config saves
 npm run walkthrough               # visual QA harness (Playwright) — drives the front door across scenarios + every tab, screenshots to /tmp/fd (no assertions)
 npm run test:ui                   # browser smoke (Playwright) — wizard end-to-end through the determination + config-driven routing steps

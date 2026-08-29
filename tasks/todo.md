@@ -62,3 +62,27 @@ returns non-zero on scenario failures; its high-value critical scenario still
 needs answer-by-question handling because positional answers can populate the
 wrong dynamic slots. Temporary catalogue requests created by these runs were
 removed explicitly.
+
+## E2E QA pass fixes — 2026-08-29
+- [x] `api/chat-intake` returned `500 FUNCTION_INVOCATION_FAILED` on every call in production — the
+      intake wizard's LLM-driven chat silently ran on its offline fallback with no signal. Root cause:
+      `src/lib/procurement/demand-conversation.ts:18-19` imported two sibling modules without a `.js`
+      extension. `tsc -b` and `vercel dev` both pass regardless — only Vercel's real per-function build
+      catches it. Verified by running `npx vercel build`, inspecting the emitted
+      `.vercel/output/functions/api/chat-intake.func` bundle directly, and executing it with Node's real
+      ESM loader (`ERR_MODULE_NOT_FOUND` before the fix, clean handler execution after). Also fixed three
+      latent (currently-inert, type-only) extensionless imports elsewhere in the same reachable graph
+      (`service-description-config.ts`, `service-description-defaults.ts`, `knowledgeBase.ts`) so the new
+      regression test is a genuine clean gate. New test: `npm run test:api-imports` — statically walks
+      every `api/*.ts` entrypoint's import graph and fails on any relative import missing its extension.
+- [x] The floating AI assistant button (`fixed bottom-6 right-6`, global on every route) could sit
+      directly on top of the wizard's Next/Submit button on wide steps, making it unclickable —
+      confirmed via `elementFromPoint` across the button before the fix. Fixed by reserving bottom
+      clearance on both layouts' scrollable `<main>` (`app-layout.tsx`, `supplier-portal-layout.tsx`,
+      `p-6` → `p-6 pb-24`) so content can never reach the FAB's fixed footprint, verified geometrically
+      (16px clear gap at max scroll) and via a new generic assertion in `npm run test:ui`.
+- [x] `npx tsc -b`, `npm run lint` (touched files), `npm run test:api-imports`, `npm run test:ui` (58/58),
+      `npm run test:demand-conversation`, `npm run test:intake-guidance`, `npm run test:answer-quality`
+      all green. Docs updated: README testing list, TEST_PLAYBOOK.md (regression hot-list, Suite AI
+      TC-AI-13, Suite 0 TC-SMK-08b, Suite UI TC-UI-01b), `tasks/lessons.md`.
+- [ ] Not committed/pushed yet — production is still on the broken build until this deploys.

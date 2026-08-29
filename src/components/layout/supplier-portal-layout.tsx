@@ -79,8 +79,9 @@ export function SupplierPortalLayout() {
         </div>
       </nav>
 
-      {/* Content */}
-      <main className="flex-1 overflow-auto p-6">
+      {/* Content. pb-24: see the identical comment in app-layout.tsx — clears
+          the fixed bottom-right AI assistant button. */}
+      <main className="flex-1 overflow-auto p-6 pb-24">
         <Outlet />
       </main>
     </div>

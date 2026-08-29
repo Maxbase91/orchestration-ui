@@ -30,6 +30,7 @@
 | TC-SMK-06 | Click the notification bell | Opens notifications; unread badge sensible |
 | TC-SMK-07 | Global top search (suppliers/requests/contracts) | Returns/links to results |
 | TC-SMK-08 | Open the floating AI assistant from any page | Overlay opens with intro |
+| TC-SMK-08b | The floating AI assistant button must not obstruct another control's actionable area | Fixed `bottom-6 right-6`, present on every route (both `AppLayout` and `SupplierPortalLayout`); regression was the wizard's own Next/Submit button becoming unclickable underneath it on a wide step (see TC-UI-01b, `npm run test:ui`) |
 
 ## Suite RBAC — role-based access (spec §2.2)
 
@@ -397,6 +398,7 @@ not in a component — because RLS is currently `USING (true)`.
 | TC-AI-10 | Provider parity: same query in `VITE_ASSISTANT_PROVIDER=mock` and `groq` | Equivalent grounded answers + source in both modes |
 | TC-AI-11 | Robustness: slow/empty/erroring 2nd model call (or tiny timeout) | User gets a graceful timeout/fallback message, **never an infinite spinner**; `/api/chat` always terminates (CHATBOT_HANG_FIX.md) |
 | TC-AI-12 | Classifier server configuration (`npm run test:ai-api-config`) | Missing `SUPABASE_URL` or `SUPABASE_SERVICE_ROLE_KEY` produces `503 { code: "service_unavailable" }`; the Vercel function must not fail at module load or expose configuration details |
+| TC-AI-13 | `api/chat-intake` import-graph hygiene (`npm run test:api-imports`) | Same principle as TC-AI-12, different mechanism: `api/chat-intake.ts` shipped in production returning a bare `500 FUNCTION_INVOCATION_FAILED` on **every** call — the intake wizard's chat silently ran on its offline fallback the whole time, with no log and no user-visible signal. Root cause was two relative imports inside `demand-conversation.ts` missing their `.js` extension: neither `tsc -b` (bundler-mode resolution) nor `vercel dev` (a lenient dev-server loader) catches this, only Vercel's real per-function build does — confirmed by running `npx vercel build` and inspecting the emitted `.vercel/output/functions/api/chat-intake.func` bundle directly. The test statically walks the import graph of every `api/*.ts` entrypoint and fails on any relative specifier lacking a file extension, so this can't silently reappear. Any change to `api/*.ts` or a module it imports should run this, not just `tsc -b`. |
 
 ## Suite PLT — platform, notifications, settings, help, NFR
 
@@ -464,6 +466,7 @@ six groups:
 | ID | Steps | Expected |
 |---|---|---|
 | TC-UI-01 | Boot app at `/` | React mounts; no console/page errors |
+| TC-UI-01b | `/requests/new` step 1 render | Scrollable content reserves enough bottom clearance (`<main>` `padding-bottom` ≥ the fixed AI assistant button's own exclusion zone, measured from the button's actual rendered rect) that a page's own bottom-right content can never end up underneath it — regression for the wizard's Next/Submit button being unreachable behind the FAB on the wide (`max-w-5xl`) step-3 layout |
 | TC-UI-02 | `/requests/new` → describe in free text → Accept & continue | **No commodity-category tiles** (Goods/Contingent Labour asserted absent); the free-text classification derives the category and a **"Browse the catalogue"** affordance is the one explicit alternative entry. Pre-check **stage 1 (catalogue)** renders via the connector layer in-browser and a **plain product word** ("laptops") surfaces the model-named catalogue items (regression — scoring is a raw keyword sum, not length-normalised, so a description-level hit counts and extra words don't dilute it); the **contract check is asserted absent** until enrichment; stage 2 (contract) is reached only after enriching. Expected dev-only `/api/*` 404s are ignored; no app errors during the flow |
 | TC-UI-03 | Two-step determination (Contract Renewal → full request → **step 4 Risk & assessment** → **step 5 Determination**) | Step 4 renders the mini-IRQ delta capture; toggling critical-service there drives the cascade shown on step 5 (lifted state). Step 5 renders the determination: buying channel, materiality, inherent risk, contract/sourcing type, Next-steps handoff panel; policy-check region (competitive sourcing/PSL when the validator agent is active, else the notice). |
 | TC-UI-04 | Full-app sweep (`npm run test:e2e-ui`) | Every route (admin role for app/admin, supplier role for portal) + 5 detail pages render with no console errors, no white-screens, no uncaught exceptions. Guarded admin routes render real content (role injection verified). |
@@ -502,6 +505,12 @@ finding routinely reveals more in the same file. Re-run to convergence.
 9. Role persistence on reload (TC-SMK-04).
 10. Classifier accuracy + category-override propagation (TC-REQ-08/09).
 11. SOW generator richness (Suite SOW).
+12. **`api/chat-intake` production-only import-resolution crash** (TC-AI-13) — fixed 29 Aug 2026;
+    re-check with `npm run test:api-imports` on any change to `api/*.ts` or a module it imports, since
+    `tsc -b` and `vercel dev` both pass even when this is broken.
+13. **AI assistant button obstructing the wizard's Next/Submit control** (TC-SMK-08b / TC-UI-01b) —
+    fixed 29 Aug 2026; re-check on any change to `AppLayout`, `SupplierPortalLayout`, or the AI FAB's
+    size/position.
 
 ## Re-test results — build `index-LlQShsel.js` (2 Jun 2026, live-verified)
 **Newly FIXED (verified this run):**
