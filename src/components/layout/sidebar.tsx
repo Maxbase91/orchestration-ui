@@ -331,7 +331,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
         mobileOpen
           ? 'fixed inset-y-0 left-0 z-50 flex w-[260px] md:static md:z-auto'
           : 'hidden md:flex',
-        'h-screen bg-navy-800 shrink-0 transition-all duration-300 ease-in-out',
+        'h-screen bg-navy-800 flex flex-col shrink-0 transition-all duration-300 ease-in-out',
         mobileOpen ? 'w-[260px]' : collapsed ? 'w-16' : 'w-[260px]',
       )}
     >
