@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { FileText, Copy, CheckCircle, ChevronDown, ChevronUp, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import type { ProcurementRequest } from '@/data/types';
@@ -43,11 +44,29 @@ interface TabOverviewProps {
   request: ProcurementRequest;
 }
 
-function DetailRow({ label, value }: { label: string; value: string | undefined }) {
+function DetailRow({
+  label,
+  value,
+  to,
+}: {
+  label: string;
+  value: string | undefined;
+  /** When set and `value` is present, renders the value as a link (e.g. to the
+   *  supplier's full 360 profile) instead of plain text. */
+  to?: string;
+}) {
   return (
     <div className="flex flex-col sm:flex-row sm:gap-4 py-2 border-b border-gray-100 last:border-b-0">
       <dt className="text-sm font-medium text-muted-foreground sm:w-40 shrink-0">{label}</dt>
-      <dd className="text-sm text-gray-900">{value ?? '-'}</dd>
+      <dd className="text-sm text-gray-900">
+        {value && to ? (
+          <Link to={to} className="text-blue-600 hover:underline">
+            {value}
+          </Link>
+        ) : (
+          value ?? '-'
+        )}
+      </dd>
     </div>
   );
 }
@@ -87,7 +106,11 @@ export function TabOverview({ request }: TabOverviewProps) {
             <CardContent>
               <dl className="space-y-0">
                 <DetailRow label="Category" value={CATEGORY_LABELS[request.category] ?? request.category} />
-                <DetailRow label="Supplier" value={supplier?.name} />
+                <DetailRow
+                  label="Supplier"
+                  value={supplier?.name}
+                  to={supplier ? `/suppliers/${supplier.id}` : undefined}
+                />
                 <DetailRow label="Value" value={formatCurrency(request.value, request.currency)} />
                 <DetailRow label="Buying Channel" value={BUYING_CHANNEL_LABELS[request.buyingChannel] ?? request.buyingChannel} />
                 <DetailRow

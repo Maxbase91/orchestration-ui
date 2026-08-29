@@ -275,7 +275,13 @@ POL-20/21), CHK-07 (second contract check already lives in stage 5), RSK-03 / DE
   surface it when classification confidence is low?
 
 #### SUP — Supplier Identification & Selection — 🟡 Partial/mock
-SUP-01 permissible supplier 🟡 (PSL soft-preference now in checks) · SUP-02 competitive sourcing & supplier-count 🟡 (**competitive-sourcing check** in `supplier-preference.ts` — threshold + exemptions for preferred route, exempt category, single-source justification) · SUP-03 screening display 🟢 (**`screening.ts` evaluator** surfaces the supplier's screening status on the determination — clear / pending / flagged / not-screened; a **flagged supplier blocks the demand** → refer-back via the disposition. Real screening provider still mocked).
+SUP-01 permissible supplier 🟡 (PSL soft-preference now in checks) · SUP-02 competitive sourcing & supplier-count 🟡 (**competitive-sourcing check** in `supplier-preference.ts` — threshold + exemptions for preferred route, exempt category, single-source justification) · SUP-03 screening display 🟢 (**`screening.ts` evaluator** surfaces the supplier's screening status on the determination — clear / pending / flagged / not-screened; a **flagged supplier blocks the demand** → refer-back via the disposition. Real screening provider still mocked) · SUP-04 supplier profile reachable from the request journey 🔴→🟢 (the 7-tab Supplier 360 profile at `/suppliers/:id` is built and rated done elsewhere in this doc, but nothing on the request-detail page ever linked to it — the supplier was plain text on Overview, an unlinked card on Compliance, an unlinked name on Related's "same supplier" lists. A request-detail viewer had no path to spend history, performance trend or certifications short of a manual directory search. Fixed: all three surfaces now link to `/suppliers/:id`).
+
+> **Documented spec drift (FR04-02, `docs/specs/requirements/04-supplier-management.md`).** The Supplier
+> 360 spec names the profile's 7th tab "Messages" (an internal thread on the supplier record itself).
+> What shipped is "Activity" — a different, broader tab — with supplier messaging instead living as a
+> separate top-level page (`/suppliers/messages`). Not fixed here: it's a naming/scope decision (keep
+> "Activity" and update the spec, or actually build a Messages tab), not a wiring bug.
 
 #### RSK — Risk & Mini-IRQ Pre-Assessment — 🟡 Partial (core decisioning now modelled)
 | Story | Summary | State | Note |

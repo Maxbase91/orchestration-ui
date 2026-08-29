@@ -7,6 +7,7 @@
 // progressed. This used to be split across this tab and a second copy
 // embedded per-stage in the Workflow tab (ComplianceStageSection) — removed,
 // so compliance content lives in exactly one place.
+import { Link } from 'react-router-dom';
 import type { ProcurementRequest } from '@/data/types';
 import { useComplianceReport } from '@/lib/db/hooks/use-compliance-reports';
 import { useIntakeCompliance } from '@/lib/db/hooks/use-intake-compliance';
@@ -238,10 +239,18 @@ export function TabCompliance({ request }: TabComplianceProps) {
       {supplier && (
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-sm">
-              <Building2 className="size-4 text-blue-500" />
-              Supplier Risk Assessment
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <Building2 className="size-4 text-blue-500" />
+                Supplier Risk Assessment
+              </CardTitle>
+              <Link
+                to={`/suppliers/${supplier.id}`}
+                className="text-xs font-medium text-blue-600 hover:underline"
+              >
+                View full profile
+              </Link>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">

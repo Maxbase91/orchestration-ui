@@ -123,7 +123,15 @@ export function TabRelated({ request }: TabRelatedProps) {
         <Card>
           <CardHeader>
             <CardTitle className="text-base">
-              Other Requests - {supplier?.name ?? 'Same Supplier'} ({relatedRequests.length})
+              Other Requests -{' '}
+              {supplier ? (
+                <Link to={`/suppliers/${supplier.id}`} className="text-blue-600 hover:underline">
+                  {supplier.name}
+                </Link>
+              ) : (
+                'Same Supplier'
+              )}{' '}
+              ({relatedRequests.length})
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -151,7 +159,13 @@ export function TabRelated({ request }: TabRelatedProps) {
         <Card>
           <CardHeader>
             <CardTitle className="text-base">
-              Other Contracts - {supplier?.name} ({supplierContracts.length})
+              Other Contracts -{' '}
+              {supplier && (
+                <Link to={`/suppliers/${supplier.id}`} className="text-blue-600 hover:underline">
+                  {supplier.name}
+                </Link>
+              )}{' '}
+              ({supplierContracts.length})
             </CardTitle>
           </CardHeader>
           <CardContent>

@@ -121,3 +121,22 @@ removed explicitly.
       Workflow no longer shows Compliance/Documents content; confirmed Related shows
       linkage only and Compliance now carries the supplier risk card.
 - [ ] Not committed/pushed yet.
+
+## Supplier 360 reachability from the request journey — 2026-08-29
+- [x] Investigated on request: is Supplier 360 / the Directory built, and connected to the
+      request journey? Directory (search + 5 working filters) and the 7-tab profile are both
+      genuinely built and match spec. But zero click-through existed from request-detail to the
+      profile anywhere — Overview showed the supplier as plain text, Compliance's risk card and
+      Related's "same supplier" lists didn't link out either.
+- [x] Added `SUP-04` to `docs/roadmap/R1_BACKLOG_FIT_GAP.md` and fixed it: Overview's Supplier row
+      (`DetailRow` gained an optional `to` prop, backward compatible — 15 other call sites
+      untouched), Compliance's Supplier Risk Assessment card ("View full profile" link), and
+      Related's "Other Requests/Contracts - Same Supplier" headers all now link to `/suppliers/:id`.
+- [x] Also recorded a smaller spec-drift finding while investigating: `04-supplier-management.md`
+      specifies the profile's 7th tab as "Messages"; the shipped tab is "Activity", with messaging
+      instead a separate top-level page. Documented, not fixed — a naming/scope decision, not
+      what was asked this round.
+- [x] `npx tsc -b`, `npm run lint`, `test:request-detail-ui` (13/13), `test:e2e-ui` (73/73) all
+      green. Live-verified in the browser: all three links navigate to the correct profile; a
+      request with no supplier renders plain "-" text, no broken link.
+- [ ] Not committed/pushed yet.
