@@ -14,6 +14,7 @@ An R1 foundation with a browser UI backed by the platform's own Supabase store. 
 
 - **Intelligent Intake** — AI-assisted request wizard that auto-classifies categories, suggests commodity codes, and runs compliance checks
 - **Dual-mode requester experience** — requesters start in a plain-language Simple view with adaptive routing; reviewers retain the full Expert view, with a keyboard-accessible per-user switch
+- **Requester home** — Simple mode focuses the home page on starting a request, tracking the requester’s own active work, and getting help; Expert mode retains configurable dashboards and operational widgets
 - **Workflow Orchestration** — Kanban, table, and timeline views of active procurement workflows with bottleneck detection
 - **System Integration Handovers** — Visual tracking of requests across SAP Ariba, Coupa Risk, Sirion CLM, and SAP S/4HANA
 - **AI Compliance Agent** — Automated PR compliance reviews with detailed check reports before PO creation

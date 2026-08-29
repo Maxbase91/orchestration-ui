@@ -52,6 +52,16 @@ try {
 
   await page.reload({ waitUntil: 'networkidle' });
   check('mode preference survives reload', await page.getByText('New Request', { exact: true }).isVisible().catch(() => false));
+  const expertSwitcher = page.locator('button[aria-label*="Experience view"]').first();
+  await expertSwitcher.click({ force: true, timeout: 3000 });
+  await page.getByRole('menuitem', { name: /Simple view/ }).click({ force: true, timeout: 3000 });
+  await page.waitForTimeout(250);
+  check('switching back to Simple renders the adaptive request entry', await page.getByText('Simple requester view', { exact: true }).isVisible().catch(() => false));
+  await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(500);
+  check('Simple home has a clear start-request entry point', await page.getByRole('link', { name: /Start a request/ }).isVisible().catch(() => false));
+  check('Simple home shows requester-focused content', await page.getByText('Your requests', { exact: true }).isVisible().catch(() => false));
+  check('Simple home hides Expert dashboard customization', (await page.getByRole('button', { name: /Customise/ }).count()) === 0);
   await page.setViewportSize({ width: 320, height: 800 });
   // The dashboard starts background query refreshes, so networkidle is not a
   // stable readiness signal once the REST surface is stubbed.

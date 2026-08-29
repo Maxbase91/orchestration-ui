@@ -35,6 +35,7 @@ and the existing `user_preferences.prefs.requestExperienceMode` JSON key.
 | TC-MODE-04 | Simple intake: describe catalogue, contract-covered, P-card-eligible, and new needs | One recommended route is shown with a plain-language explanation; only route-specific fields are requested |
 | TC-MODE-05 | Simple intake: use an ineligible P-card category/value | P-card is not offered and the reason is explained; no payment or upstream write occurs |
 | TC-MODE-06 | Simple request detail | Status, owner, due date, value, supplier, summary, route, and next action are visible; internal workflow/approval/configuration controls are absent |
+| TC-MODE-06a | Simple home | A clear Start a request entry point, requester-owned active/recent requests, and help links are shown; Expert customization, pipeline KPIs, and operational widgets are hidden |
 | TC-MODE-07 | Expert request detail deep link | All seven tabs remain available; workflow opens at the current stage and duplicated action/approval/compliance panels are absent |
 | TC-MODE-08 | Resize to 320px and 375px | Sidebar becomes a drawer, menu button is labelled, controls remain reachable, and no horizontal overflow occurs |
 
