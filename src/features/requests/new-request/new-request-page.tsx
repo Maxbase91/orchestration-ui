@@ -40,6 +40,8 @@ import {
 import { RequesterContextBlock } from './components/requester-context-block';
 import type { Contract } from '@/data/types';
 import type { CatalogueItem } from '@/data/catalogue-items';
+import { useExperienceMode } from '@/hooks/use-experience-mode';
+import { SimpleNewRequestPage } from './simple-new-request-page';
 
 /**
  * How a section came to be filled.
@@ -249,6 +251,11 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 export function NewRequestPage() {
+  const { mode } = useExperienceMode();
+  return mode === 'simple' ? <SimpleNewRequestPage /> : <ExpertNewRequestPage />;
+}
+
+function ExpertNewRequestPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [currentStep, setCurrentStep] = useState(1);
   // Original demand text forwarded from the home "What do you need?" box —

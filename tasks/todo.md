@@ -1,5 +1,21 @@
 # Intake / determination / workflow bug tracker — fix one by one
 
+## UX complexity review — 2026-08-29
+
+- [x] Review Claude Code changes since the previous QA pass.
+- [x] Walk the request-creation flow as a first-time requester and record overload points.
+- [x] Walk request-detail tabs and compare each section with the ownership model.
+- [x] Validate findings against the deployed UI and current source.
+- [x] Produce prioritized simplification recommendations; implement only with explicit scope.
+
+### Review notes
+
+- Claude's `33ac529`, `96e7328`, and `6dabff1` changes were reviewed on `main`.
+- Confirmed improvements: duplicate workflow stepper removed, compliance content populated, form submissions persisted, draft forms excluded, and supplier links added.
+- Remaining UX risk: requester-facing creation exposes seven process stages and internal governance terminology; request detail exposes six actions, an eleven-stage lifecycle, and seven tabs before detail is opened.
+- Mobile risk: the fixed 260px sidebar leaves approximately 115px for content at a 375px viewport.
+- Follow-up scope implemented: pilot-gated Simple requester intake/detail, persistent mode switch, governed P-card route, mobile drawer, and Expert progressive-disclosure cleanup. Browser and integration checks are recorded in the test playbook.
+
 ## Release-blocker remediation — 2026-08-28
 - [x] Confirm the production AI function's required environment-key names without exposing values; Vercel access is required to set them.
 - [x] Persist the actual `approval_chains.id` selected for the request value and prove foreign-key persistence with a self-cleaning test.

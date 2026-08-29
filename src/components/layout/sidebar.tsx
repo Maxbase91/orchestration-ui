@@ -314,27 +314,38 @@ function SidebarGroup({
   );
 }
 
-export function Sidebar() {
+interface SidebarProps {
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
+}
+
+export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
   const { sidebarCollapsed, toggleSidebar } = useUIStore();
+  // A mobile drawer must always expose labels, even if the desktop sidebar was
+  // collapsed before opening it; otherwise icon-only navigation is ambiguous.
+  const collapsed = mobileOpen ? false : sidebarCollapsed;
 
   return (
     <aside
       className={cn(
-        'h-screen bg-navy-800 flex flex-col shrink-0 transition-all duration-300 ease-in-out',
-        sidebarCollapsed ? 'w-16' : 'w-[260px]',
+        mobileOpen
+          ? 'fixed inset-y-0 left-0 z-50 flex w-[260px] md:static md:z-auto'
+          : 'hidden md:flex',
+        'h-screen bg-navy-800 shrink-0 transition-all duration-300 ease-in-out',
+        mobileOpen ? 'w-[260px]' : collapsed ? 'w-16' : 'w-[260px]',
       )}
     >
       {/* Brand */}
       <div
         className={cn(
           'h-14 flex items-center shrink-0 border-b border-navy-700',
-          sidebarCollapsed ? 'justify-center px-2' : 'px-4 gap-3',
+          collapsed ? 'justify-center px-2' : 'px-4 gap-3',
         )}
       >
         <div className="flex h-8 w-8 items-center justify-center rounded-md bg-amber-500 shrink-0">
           <span className="text-sm font-bold text-white">GP</span>
         </div>
-        {!sidebarCollapsed && (
+        {!collapsed && (
           <span className="text-sm font-semibold text-white tracking-tight truncate">
             Procurement Platform
           </span>
@@ -348,7 +359,7 @@ export function Sidebar() {
             <SidebarGroup
               key={group.id}
               group={group}
-              collapsed={sidebarCollapsed}
+              collapsed={collapsed}
             />
           ))}
         </div>
@@ -357,11 +368,14 @@ export function Sidebar() {
       {/* Collapse toggle */}
       <div className="shrink-0 border-t border-navy-700 p-2">
         <button
-          onClick={toggleSidebar}
+          onClick={() => {
+            onMobileClose?.();
+            toggleSidebar();
+          }}
           className="w-full flex items-center justify-center gap-2 rounded-md px-2 py-2 text-navy-300 hover:bg-white/8 hover:text-white transition-colors"
-          aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
-          {sidebarCollapsed ? (
+          {collapsed ? (
             <ChevronRight className="h-4 w-4" />
           ) : (
             <>

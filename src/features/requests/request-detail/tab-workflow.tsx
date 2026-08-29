@@ -10,10 +10,6 @@ import { isStageSkippedForChannel } from '@/lib/workflow/buying-channel-stages';
 import { openItemForRequest, type OpenSlaState } from '@/lib/workflow/open-items';
 import { isGatedStage, nodeToStatus, type TemplateNode } from '@/lib/workflow/node-config';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { RotateCcw, UserPlus } from 'lucide-react';
-import { ReferBackDialog } from './components/refer-back-dialog';
-import { ReassignDialog } from './components/reassign-dialog';
 import { StepDetailCard } from './components/step-detail-card';
 import { StageCommentComposer } from './components/stage-comment-composer';
 import { useCommentsByRequest } from '@/lib/db/hooks/use-comments';
@@ -74,8 +70,6 @@ export function TabWorkflow({ request, focusStageId }: TabWorkflowProps) {
   const owner = lookupUser(request.ownerId);
 
 
-  const [referBackOpen, setReferBackOpen] = useState(false);
-  const [reassignOpen, setReassignOpen] = useState(false);
   const [expandedStages, setExpandedStages] = useState<Set<string>>(() => {
     // Default: expand the current stage
     const initial = new Set<string>();
@@ -429,20 +423,8 @@ export function TabWorkflow({ request, focusStageId }: TabWorkflowProps) {
               )}
             </CardContent>
           </Card>
-          <div className="flex flex-col gap-2">
-            <Button
-              variant="outline"
-              className="text-amber-700 border-amber-300 hover:bg-amber-50"
-              onClick={() => setReferBackOpen(true)}
-            >
-              <RotateCcw className="size-3.5" />
-              Refer Back
-            </Button>
-            <Button variant="outline" onClick={() => setReassignOpen(true)}>
-              <UserPlus className="size-3.5" />
-              Reassign
-            </Button>
-          </div>
+          {/* Workflow actions live in the page header. Keeping one action home
+              prevents the same mutation from appearing twice in this tab. */}
         </div>
       </div>
 
@@ -454,8 +436,6 @@ export function TabWorkflow({ request, focusStageId }: TabWorkflowProps) {
         </div>
       )}
 
-      <ReferBackDialog open={referBackOpen} onOpenChange={setReferBackOpen} request={request} />
-      <ReassignDialog open={reassignOpen} onOpenChange={setReassignOpen} request={request} />
     </div>
   );
 }

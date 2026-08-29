@@ -51,6 +51,14 @@ const sraColors = {
   'not-assessed': 'text-gray-400',
 };
 
+function effectiveSraStatus(status: keyof typeof sraIcons, expiryDate?: string): keyof typeof sraIcons {
+  if (expiryDate && status !== 'not-assessed') {
+    const expiry = new Date(`${expiryDate}T23:59:59Z`).getTime();
+    if (Number.isFinite(expiry) && expiry < Date.now()) return 'expired';
+  }
+  return status;
+}
+
 export function TabCompliance({ request }: TabComplianceProps) {
   const { data: report } = useComplianceReport(request.id);
   const { data: intake } = useIntakeCompliance(request.id);
@@ -59,6 +67,9 @@ export function TabCompliance({ request }: TabComplianceProps) {
   useSuppliers();
   const lookupSupplier = useSupplierLookup();
   const supplier = request.supplierId ? lookupSupplier(request.supplierId) : undefined;
+  const supplierSraStatus = supplier
+    ? effectiveSraStatus(supplier.sraStatus, supplier.sraExpiryDate)
+    : undefined;
 
   // The determination now lives on the request itself, so there is something to
   // show even before the intake record or the post-validation report exist.
@@ -262,13 +273,14 @@ export function TabCompliance({ request }: TabComplianceProps) {
                 <span className="text-sm text-muted-foreground">SRA Status</span>
                 <div className="flex items-center gap-1.5">
                   {(() => {
-                    const Icon = sraIcons[supplier.sraStatus];
-                    const color = sraColors[supplier.sraStatus];
+                    const status = supplierSraStatus ?? 'not-assessed';
+                    const Icon = sraIcons[status];
+                    const color = sraColors[status];
                     return (
                       <>
                         <Icon className={`size-4 ${color}`} />
                         <span className={`text-sm font-medium ${color}`}>
-                          {supplier.sraStatus.charAt(0).toUpperCase() + supplier.sraStatus.slice(1).replace('-', ' ')}
+                          {status.charAt(0).toUpperCase() + status.slice(1).replace('-', ' ')}
                         </span>
                       </>
                     );

@@ -20,6 +20,24 @@
 
 ## Suite 0 — Smoke & global
 
+### Dual-mode experience checks
+
+These checks cover the adaptive requester journey introduced alongside the retained Expert wizard.
+The mode is presentation-only: changing it must never alter the role or the actions available to that
+role. Pilot exposure is controlled by `VITE_SIMPLE_EXPERIENCE_ENABLED`, optional user/role allowlists,
+and the existing `user_preferences.prefs.requestExperienceMode` JSON key.
+
+| ID | Steps | Expected |
+|---|---|---|
+| TC-MODE-01 | Sign in as a requester (`service-owner`) and open New Request | Simple view is selected by default; the mode switch is visible and keyboard accessible |
+| TC-MODE-02 | Sign in as procurement, operations, vendor, or admin | Expert view is selected by default and the existing seven-stage wizard is unchanged |
+| TC-MODE-03 | Switch Simple ↔ Expert, refresh, then switch roles | Preference persists for the user; permissions and navigation remain role-driven |
+| TC-MODE-04 | Simple intake: describe catalogue, contract-covered, P-card-eligible, and new needs | One recommended route is shown with a plain-language explanation; only route-specific fields are requested |
+| TC-MODE-05 | Simple intake: use an ineligible P-card category/value | P-card is not offered and the reason is explained; no payment or upstream write occurs |
+| TC-MODE-06 | Simple request detail | Status, owner, due date, value, supplier, summary, route, and next action are visible; internal workflow/approval/configuration controls are absent |
+| TC-MODE-07 | Expert request detail deep link | All seven tabs remain available; workflow opens at the current stage and duplicated action/approval/compliance panels are absent |
+| TC-MODE-08 | Resize to 320px and 375px | Sidebar becomes a drawer, menu button is labelled, controls remain reachable, and no horizontal overflow occurs |
+
 | ID | Steps | Expected |
 |---|---|---|
 | TC-SMK-01 | Load app at base URL | Dashboard renders; no console errors; bundle hash recorded |

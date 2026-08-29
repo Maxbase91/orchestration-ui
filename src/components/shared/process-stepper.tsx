@@ -85,11 +85,14 @@ export function ProcessStepper({ steps, onStepClick }: ProcessStepperProps) {
             key={step.id}
             className={cn('flex items-start flex-1 min-w-0', !isLast && 'flex-shrink-0')}
           >
-            <div
+            <button
+              type="button"
               className={cn(
-                'flex flex-col items-center',
-                onStepClick && 'cursor-pointer'
+                'flex flex-col items-center border-0 bg-transparent p-0',
+                onStepClick ? 'cursor-pointer' : 'cursor-default'
               )}
+              aria-label={`${step.label}: ${step.status}`}
+              disabled={!onStepClick}
               onClick={() => onStepClick?.(step.id)}
             >
               <div
@@ -104,37 +107,37 @@ export function ProcessStepper({ steps, onStepClick }: ProcessStepperProps) {
                   <span>{index + 1}</span>
                 )}
               </div>
-              <p className={cn('mt-1.5 text-xs text-center max-w-[80px] leading-tight', style.label)}>
+              <span className={cn('mt-1.5 text-xs text-center max-w-[80px] leading-tight', style.label)}>
                 {step.label}
-              </p>
+              </span>
               {step.date && (
-                <p className="mt-0.5 text-[10px] text-muted-foreground">{step.date}</p>
+                <span className="mt-0.5 text-[10px] text-muted-foreground">{step.date}</span>
               )}
               {step.daysInStep !== undefined && (
-                <p className="text-[10px] text-muted-foreground">{step.daysInStep}d</p>
+                <span className="text-[10px] text-muted-foreground">{step.daysInStep}d</span>
               )}
               {/* `owner` has been on the Step type since this component was
                   written and was never rendered, so "who owns this stage" was
                   invisible even when the data was there. */}
               {step.owner && (
-                <p className="mt-0.5 max-w-[90px] truncate text-center text-[10px] text-muted-foreground" title={step.owner}>
+                <span className="mt-0.5 max-w-[90px] truncate text-center text-[10px] text-muted-foreground" title={step.owner}>
                   {step.owner}
-                </p>
+                </span>
               )}
               {step.openAction && (
-                <p className="mt-0.5 max-w-[90px] text-center text-[10px] font-medium leading-tight text-amber-700">
+                <span className="mt-0.5 max-w-[90px] text-center text-[10px] font-medium leading-tight text-amber-700">
                   {step.openAction}
-                </p>
+                </span>
               )}
               {step.systemIntegration && (
-                <div className={cn('mt-1 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium', step.systemIntegration.colorClass)}>
+                <span className={cn('mt-1 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium', step.systemIntegration.colorClass)}>
                   <span className="size-1.5 rounded-full bg-current" />
                   {step.systemIntegration.systemLabel}
                   <span className="opacity-70">— {integrationStatusLabels[step.systemIntegration.status] ?? step.systemIntegration.status}</span>
-                </div>
+                </span>
               )}
               {step.events && step.events.length > 0 && (
-                <div className="mt-1 flex items-center gap-1">
+                <span className="mt-1 flex items-center gap-1">
                   {step.events.map((ev) => {
                     const cfg = EVENT_STYLES[ev];
                     const Icon = cfg.icon;
@@ -148,9 +151,9 @@ export function ProcessStepper({ steps, onStepClick }: ProcessStepperProps) {
                       </span>
                     );
                   })}
-                </div>
+                </span>
               )}
-            </div>
+            </button>
             {!isLast && (
               <div className={cn('mt-3.5 h-0.5 flex-1 mx-1', style.line)} />
             )}

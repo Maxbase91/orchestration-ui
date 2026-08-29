@@ -5,7 +5,7 @@ import { StatusBadge } from '@/components/shared/status-badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Bell, ArrowRight, Check, X, MessageSquare } from 'lucide-react';
+import { Bell, Check, X, MessageSquare } from 'lucide-react';
 import { formatDate } from '@/lib/format';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/stores/auth-store';
@@ -32,35 +32,12 @@ export function TabApprovals({ request }: TabApprovalsProps) {
 
   return (
     <div className="space-y-6">
-      {/* Approval Chain Visualization */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Approval Chain</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-2 flex-wrap">
-            {approvals.map((approval, index) => (
-              <div key={approval.id} className="flex items-center gap-2">
-                <div className="flex items-center gap-2 rounded-lg border px-3 py-2">
-                  <StatusBadge status={approval.status} size="sm" />
-                  <div>
-                    <p className="text-sm font-medium">{approval.approverName}</p>
-                    <p className="text-xs text-muted-foreground">{approval.approverRole}</p>
-                  </div>
-                </div>
-                {index < approvals.length - 1 && (
-                  <ArrowRight className="size-4 text-muted-foreground shrink-0" />
-                )}
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Detailed List */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Approval Details</CardTitle>
+          <CardTitle className="text-base">Approvals</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            {approvals.filter((approval) => approval.status === 'approved').length} of {approvals.length} approvals complete
+          </p>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">

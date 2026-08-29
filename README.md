@@ -13,6 +13,7 @@ An R1 foundation with a browser UI backed by the platform's own Supabase store. 
 ### Key Capabilities Demonstrated
 
 - **Intelligent Intake** — AI-assisted request wizard that auto-classifies categories, suggests commodity codes, and runs compliance checks
+- **Dual-mode requester experience** — requesters start in a plain-language Simple view with adaptive routing; reviewers retain the full Expert view, with a keyboard-accessible per-user switch
 - **Workflow Orchestration** — Kanban, table, and timeline views of active procurement workflows with bottleneck detection
 - **System Integration Handovers** — Visual tracking of requests across SAP Ariba, Coupa Risk, Sirion CLM, and SAP S/4HANA
 - **AI Compliance Agent** — Automated PR compliance reviews with detailed check reports before PO creation
@@ -168,6 +169,7 @@ npm run test:referral             # demand disposition — proceed / request-cha
 npm run test:knowledge            # grounded policy-Q&A retrieval (ranking, citations, low-confidence)
 npm run test:policy-config        # central decisioning thresholds (defaults pinned + override resolver)
 npm run test:p-card               # governed P-card eligibility and route-only safety guard
+npm run test:experience-mode      # role defaults, preference normalization, and pilot eligibility contract
 npm run test:screening            # supplier screening — clear / pending / flagged / unknown + blocking
 npm run test:supplier-data        # supplier master-data completeness → remediation handoff (RTE-04)
 npm run test:approver-resolution  # approval step role → switchable directory rep (one identity namespace)

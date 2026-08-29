@@ -1,0 +1,78 @@
+#!/usr/bin/env node
+// Browser smoke for the mode contract: role defaults, visible switching, and persistence.
+// The REST surface is stubbed so this test never writes request or production data.
+import { spawn } from 'node:child_process';
+import { chromium } from 'playwright';
+
+const BASE = 'http://localhost:5179';
+const USER = { id: 'u6', name: "James O'Brien", email: 'james.obrien@company.com', role: 'service-owner', department: 'Marketing', initials: 'JO' };
+const LAUNCH_OPTS = process.env.PW_CHROMIUM_PATH ? { executablePath: process.env.PW_CHROMIUM_PATH } : {};
+let failures = 0;
+function check(label, ok, detail = '') {
+  console.log(`  ${ok ? '\x1b[32m✓\x1b[0m' : '\x1b[31m✗\x1b[0m'} ${label}${ok || !detail ? '' : ` — ${detail}`}`);
+  if (!ok) failures++;
+}
+async function waitForServer() {
+  for (let i = 0; i < 80; i++) {
+    try { if ((await fetch(BASE)).ok) return; } catch { /* starting */ }
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  throw new Error('Dev server not ready');
+}
+
+const server = spawn('npm', ['run', 'dev', '--', '--port', '5179', '--strictPort'], {
+  stdio: 'ignore', env: { ...process.env, VITE_SUPABASE_URL: 'https://stub.supabase.co', VITE_SUPABASE_ANON_KEY: 'stub-anon-key' },
+});
+let browser;
+try {
+  await waitForServer();
+  browser = await chromium.launch(LAUNCH_OPTS);
+  const context = await browser.newContext();
+  await context.route('**/rest/v1/**', async (route) => {
+    const method = route.request().method();
+    await route.fulfill({ status: 200, contentType: 'application/json', body: method === 'GET' ? '[]' : '{}' });
+  });
+  await context.addInitScript((user) => {
+    localStorage.setItem('auth', JSON.stringify({ state: { currentRole: 'service-owner', currentUser: user }, version: 0 }));
+  }, USER);
+  const page = await context.newPage();
+  const errors = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
+
+  await page.goto(`${BASE}/requests/new`, { waitUntil: 'networkidle' });
+  check('requester defaults to Simple view', await page.getByText('Simple requester view', { exact: true }).isVisible().catch(() => false));
+  check('adaptive describe screen renders', await page.getByText('Describe what you need', { exact: true }).isVisible().catch(() => false));
+  const switcher = page.getByRole('button', { name: /Experience view: simple/i });
+  check('mode switch is visible and labelled', await switcher.isVisible().catch(() => false));
+  await switcher.click();
+  await page.getByRole('menuitem', { name: /Expert view/ }).click();
+  await page.waitForTimeout(250);
+  check('switching to Expert preserves the route and renders the expert wizard', await page.getByText('New Request', { exact: true }).isVisible().catch(() => false));
+
+  await page.reload({ waitUntil: 'networkidle' });
+  check('mode preference survives reload', await page.getByText('New Request', { exact: true }).isVisible().catch(() => false));
+  await page.setViewportSize({ width: 320, height: 800 });
+  // The dashboard starts background query refreshes, so networkidle is not a
+  // stable readiness signal once the REST surface is stubbed.
+  await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(500);
+  const menuButton = page.getByRole('button', { name: 'Open navigation' });
+  check('mobile navigation exposes a labelled menu button', await menuButton.isVisible().catch(() => false));
+  await menuButton.click({ force: true, timeout: 3000 });
+  const drawerText = await page.locator('aside nav').innerText().catch(() => '');
+  check('mobile navigation opens the drawer with labels', drawerText.includes('Requests'), drawerText.slice(0, 120));
+  check('320px viewport has no horizontal overflow', await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
+  check('no uncaught browser errors', errors.length === 0, errors.slice(0, 2).join(' | '));
+  await context.close();
+} catch (error) {
+  console.error(`experience-mode-ui errored: ${error.message}`);
+  failures++;
+} finally {
+  if (browser) await browser.close();
+  server.kill('SIGTERM');
+}
+console.log('');
+if (failures) console.error(`FAILED: ${failures} check(s)`);
+else console.log('All experience-mode browser checks passed.');
+process.exit(failures === 0 ? 0 : 1);

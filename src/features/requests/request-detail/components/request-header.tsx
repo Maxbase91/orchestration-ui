@@ -17,7 +17,7 @@ export function RequestHeader({ request }: RequestHeaderProps) {
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon-sm" onClick={() => navigate('/requests')}>
+        <Button variant="ghost" size="icon-sm" aria-label="Back to requests" onClick={() => navigate('/requests')}>
           <ArrowLeft className="size-4" />
         </Button>
         <span className="text-sm text-muted-foreground">{request.id}</span>
