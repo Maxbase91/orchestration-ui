@@ -15,7 +15,6 @@ import { RotateCcw, UserPlus } from 'lucide-react';
 import { ReferBackDialog } from './components/refer-back-dialog';
 import { ReassignDialog } from './components/reassign-dialog';
 import { StepDetailCard } from './components/step-detail-card';
-import { ComplianceStageSection } from './components/compliance-stage-section';
 import { StageCommentComposer } from './components/stage-comment-composer';
 import { useCommentsByRequest } from '@/lib/db/hooks/use-comments';
 import { SystemIntegrationTimeline } from '@/components/shared/system-integration-timeline';
@@ -331,23 +330,42 @@ export function TabWorkflow({ request, focusStageId }: TabWorkflowProps) {
                 requestCategory={request.category}
                 events={stage.events}
               />
-              {/* Compliance context attached to the stage that owns it.
-                  Renders nothing outside intake / validation / approval. */}
-              {expandedStages.has(stage.id) && (
-                <ComplianceStageSection stage={stage.id} request={request} />
-              )}
-              {/* Stage-scoped comments + composer (current stage only). */}
+              {/* Stage-scoped comments + composer (current stage only). One
+                  thread per stage: real comments (useCommentsByRequest) plus
+                  this stage's legacy historical entries (WorkflowStepDetail
+                  .comments — read-only seed data nothing ever writes to,
+                  previously shown a second time in its own box inside
+                  StepDetailCard), merged and sorted together. */}
               {expandedStages.has(stage.id) && (
                 <div className="mt-3 space-y-2">
-                  {allComments
-                    .filter((c) => c.stage === stage.id)
+                  {[
+                    ...allComments
+                      .filter((c) => c.stage === stage.id)
+                      .map((c) => ({
+                        key: c.id,
+                        authorName: c.authorName,
+                        authorInitials: c.authorInitials || c.authorName.slice(0, 2).toUpperCase(),
+                        timestamp: c.timestamp,
+                        isInternal: c.isInternal,
+                        content: c.content,
+                      })),
+                    ...(stage.detail?.comments ?? []).map((c, ci) => ({
+                      key: `legacy-${stage.id}-${ci}`,
+                      authorName: c.author,
+                      authorInitials: c.author.slice(0, 2).toUpperCase(),
+                      timestamp: c.timestamp,
+                      isInternal: c.isInternal,
+                      content: c.content,
+                    })),
+                  ]
+                    .sort((a, b) => a.timestamp.localeCompare(b.timestamp))
                     .map((c) => (
                       <div
-                        key={c.id}
+                        key={c.key}
                         className="flex items-start gap-2 rounded-md border border-gray-200 bg-white p-3"
                       >
                         <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-gray-100 text-[10px] font-medium text-gray-700">
-                          {c.authorInitials || c.authorName.slice(0, 2).toUpperCase()}
+                          {c.authorInitials}
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className="text-xs text-gray-500">

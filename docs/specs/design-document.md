@@ -203,6 +203,28 @@ Navigation items are filtered by role — each role sees only what's relevant.
 | Platform | 6 (notifications, AI chat, settings, help) | Chat overlay, FAQ, forms |
 | **Total** | **~55 screens** | |
 
+### 5.3 Request Detail — Content Ownership
+
+The request-detail page (header + 7 tabs) had accumulated real duplication: compliance
+content rendered on its own tab *and* a second time inside every Workflow stage card;
+documents shown as a dedicated tab *and* again per-stage; two independent comment
+systems stacked in one stage card; a "latest document" chip in the header repeating
+the whole Documents tab. Each was confirmed by tracing the actual hooks/components,
+not assumed — see `tasks/todo.md` (2026-08-29) for the evidence trail. The fix is a
+rule, not a one-off cleanup: **one topic, one home**. Anything new added to this page
+should be placed per this table, not wherever seems locally convenient.
+
+| Owns | Lives only in | Notes |
+|---|---|---|
+| Identity, current status/priority/SLA, primary actions, the 11-stage timeline | **Header** (`request-header.tsx` + `LifecycleStepper`) | Persists across every tab. Does **not** repeat any tab's content — the header used to duplicate the newest document; removed. |
+| The request's own facts (category, value, supplier, channel, dates), AI summary, the Service Description / SOW | **Overview** | The SOW summary is intentionally also shown per relevant Workflow stage (`step-detail-card.tsx`) — that one repeat is deliberate, not drift. |
+| All risk/compliance/policy content: front-door determination, intake compliance summary, duplicate check, reused risk assessments, risk flags, the full compliance report, and the linked supplier's own risk/SRA/screening status | **Compliance** | Single home for every risk signal about this request, including the supplier's — Related no longer carries a risk card. |
+| Per-stage process detail only: handler, decision, event banners, duration/SLA, system integration, forms, and the stage-scoped comment thread (real comments merged with any historical entries for that stage) | **Workflow** | Does not repeat the header's timeline, Compliance's content, or Documents' list. One comment thread per stage, not two. |
+| The approval chain and each approval's status/actions | **Approvals** | |
+| The full documents list | **Documents** | Sole home — no per-stage copy in Workflow. |
+| The unified chronological feed (comments, stage events, audit, notifications) | **Activity** | |
+| Linked records only: contract, PO, sourcing events, other requests/contracts with the same supplier | **Related** | Purely linkage — no risk/compliance content (moved to Compliance). |
+
 ---
 
 ## 6. Core User Flows

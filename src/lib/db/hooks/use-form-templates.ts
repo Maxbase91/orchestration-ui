@@ -38,8 +38,10 @@ export function useFormTemplateLookup() {
       if (!id) return undefined;
       return data?.find((t) => t.id === id);
     },
+    // Only 'active' forms are ever offered to a requester — 'draft'/'disabled'
+    // are admin-side states, not something to surface mid-workflow.
     forStage: (stage: string): FormTemplate[] =>
-      (data ?? []).filter((t) => t.triggerStages.includes(stage)),
+      (data ?? []).filter((t) => t.status === 'active' && t.triggerStages.includes(stage)),
   };
 }
 

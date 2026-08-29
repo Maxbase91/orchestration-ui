@@ -86,3 +86,38 @@ removed explicitly.
       all green. Docs updated: README testing list, TEST_PLAYBOOK.md (regression hot-list, Suite AI
       TC-AI-13, Suite 0 TC-SMK-08b, Suite UI TC-UI-01b), `tasks/lessons.md`.
 - [ ] Not committed/pushed yet — production is still on the broken build until this deploys.
+
+## Form-handling bugs + request-detail information ownership — 2026-08-29
+- [x] `use-form-templates.ts` `forStage()` ignored template `status` entirely — a `draft`
+      form (e.g. "Change Request Form") was still offered to requesters. Fixed: filter to
+      `status === 'active'`.
+- [x] `step-detail-card.tsx`'s `FormsSection` discarded everything typed into a triggered
+      form and faked success (local state + toast only) — `useCreateFormSubmission()`
+      already existed, fully wired to a real Supabase insert, with zero callers anywhere
+      in the codebase. Wired it in: real persistence, `toast.error` on failure instead of
+      silent success.
+- [x] Traced the whole request-detail page (header + all 7 tabs, via two parallel Explore
+      agents) and defined a single-source-of-truth ownership model — see
+      `docs/specs/design-document.md` §5.3. Removed 5 confirmed duplicates:
+      header's "latest document" chip (full dupe of Documents), `ComplianceStageSection`
+      embedded in Workflow (dupe of Compliance — its unique risk-assessment content
+      ported into the Compliance tab, component deleted), the per-stage "Documents Added"
+      table in `StepDetailCard` (dupe of Documents), the legacy dead-write
+      `WorkflowStepDetail.comments` shown as a second comment box per stage (merged into
+      the one real stage-comment thread instead, for display only — no schema change),
+      and Related tab's Supplier Risk Assessment card (moved into Compliance).
+- [x] Extended `tests/ui/request-detail-e2e.mjs`'s existing "Fill Out Form" check to
+      actually submit and verify a real `form_submissions` row lands with the typed
+      values, and that a seeded `draft` form template is excluded — 13/13 checks green.
+      Fixed a latent stub-fixture bug found in the process: `postgrest-stub.mjs`'s form
+      template used `status: 'published'`, a value that was never valid anywhere in the
+      real app (`'active'|'draft'|'disabled'`) — harmless only because status was never
+      checked before this round.
+- [x] `npx tsc -b`, `npm run lint`, `test:request-detail-ui` (13/13), `test:e2e-ui`
+      (73/73 routes clean), `test:api-imports`, `test:demand-conversation`,
+      `test:intake-guidance`, `test:answer-quality` all green. Live-verified on a real
+      request in the browser: submitted a real form, reloaded, confirmed it persisted
+      and wasn't re-offered; confirmed the draft form no longer appears at all; confirmed
+      Workflow no longer shows Compliance/Documents content; confirmed Related shows
+      linkage only and Compliance now carries the supplier risk card.
+- [ ] Not committed/pushed yet.

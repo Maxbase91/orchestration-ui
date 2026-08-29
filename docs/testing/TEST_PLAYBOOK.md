@@ -156,8 +156,11 @@ screen against fixtures: no credentials, no network.
 | TC-REQ-D3 | "Fill Out Form" on the risk stage | The mapped field carries the description's scope. Asserting only "nothing threw" would pass against a form that pre-populated nothing |
 | TC-REQ-D4 | Collapse and reopen every step card | No uncaught error, and specifically no `trim is not a function` — named, so a returning regression says which one |
 | TC-REQ-D5 | The stub's own report | No filter was silently dropped. A filter the stub does not understand would answer the app with rows it never asked for, and the assertions above would be meaningless |
-| TC-REQ-D6 | Request detail, Workflow tab | Shows **one** stepper, not two. The page header's `LifecycleStepper` already shows the full 11-stage timeline on every tab (and deep-links here via `focusStageId`); the tab body used to render an identical "Current Workflow Position" card on top of it — removed. The tab's own content (per-stage detail cards, attached template table, Refer Back/Reassign) is unchanged |
-| TC-REQ-D7 | Request detail, Compliance tab | Renders the front-door determination card (inherent risk, materiality, screening, disposition, sourcing type) for any request that carries those six fields. Most seeded requests predate them and show the empty state instead — `npm run backfill:compliance` (one-time, writes to Supabase, not a `test:*`) fills them using the same decisioning functions the live wizard runs (`deriveComplianceBackfill`), for any row missing them, without touching anything else on the row |
+| TC-REQ-D6 | Request detail, Workflow tab | Shows **one** stepper, not two. The page header's `LifecycleStepper` already shows the full 11-stage timeline on every tab (and deep-links here via `focusStageId`); the tab body used to render an identical "Current Workflow Position" card on top of it — removed. The tab's own content (per-stage detail cards, attached template table, Refer Back/Reassign) is unchanged. Each stage's comment area is now **one** thread, not two — real comments merged with that stage's historical entries (`WorkflowStepDetail.comments`, confirmed dead-write, previously shown a second time in its own box) |
+| TC-REQ-D7 | Request detail, Compliance tab | Single home for every risk/compliance signal: front-door determination (inherent risk, materiality, screening, disposition, sourcing type), intake compliance summary, duplicate check, reused risk assessments, risk flags, the full compliance report, **and the linked supplier's own risk/SRA/screening status** (moved here from Related — Related is linkage-only now). Most seeded requests predate the six front-door fields and show the empty state instead — `npm run backfill:compliance` (one-time, writes to Supabase, not a `test:*`) fills them using the same decisioning functions the live wizard runs (`deriveComplianceBackfill`), for any row missing them, without touching anything else on the row |
+| TC-REQ-D8 | Request detail, header | No longer shows a "latest document" chip — full duplicate of the Documents tab (same `documentsAdded` hook, same fields); Documents tab is the sole home |
+| TC-REQ-D9 | Request detail, Workflow tab, a current stage with a triggered form (`npm run test:request-detail-ui`) | Only `active`-status form templates are offered — `forStage()` used to ignore status entirely, so a `draft` template (e.g. the seeded "Change Request Form") was still offered to requesters. Submitting a triggered form **actually persists** it (`useCreateFormSubmission` → real Supabase insert) — it used to discard everything typed and fake success with local-only state + a toast. After a real submit: the typed values are saved, the form shows as a completed submission on reload (not re-offered), and it stops appearing in the "still to fill out" list |
+| TC-REQ-D10 | Request detail, Documents tab vs Workflow stage cards | The full documents list lives only in Documents — the per-stage "Documents Added" table that duplicated it inside `StepDetailCard` was removed |
 
 ### Supplier is identified once
 
@@ -514,6 +517,12 @@ finding routinely reveals more in the same file. Re-run to convergence.
 13. **AI assistant button obstructing the wizard's Next/Submit control** (TC-SMK-08b / TC-UI-01b) —
     fixed 29 Aug 2026; re-check on any change to `AppLayout`, `SupplierPortalLayout`, or the AI FAB's
     size/position.
+14. **Request-detail content duplication** (TC-REQ-D6/D7/D8/D9/D10) — fixed 29 Aug 2026; a page hook
+    existing in the codebase does not mean it is wired to the UI (`useCreateFormSubmission` had zero
+    callers), and a filter that looks complete may be missing an obvious field (`forStage()` never
+    checked template `status`). Re-check the ownership table in `docs/specs/design-document.md` §5.3
+    before adding new content to any request-detail tab or the header — the failure mode is a new
+    section quietly duplicating one that already exists elsewhere on the page.
 
 ## Re-test results — build `index-LlQShsel.js` (2 Jun 2026, live-verified)
 **Newly FIXED (verified this run):**

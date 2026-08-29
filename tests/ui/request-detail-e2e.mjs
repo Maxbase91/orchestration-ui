@@ -100,7 +100,13 @@ try {
     await column.getByText('An advisory engagement').first().isVisible().catch(() => false));
 
   console.log('\nThe risk form pre-populates from the description');
-  const fillOut = column.getByRole('button', { name: 'Fill Out Form' }).first();
+  const fillOutButtons = column.getByRole('button', { name: 'Fill Out Form' });
+  const fillOutCount = await fillOutButtons.count();
+  // Regression for forStage() never checking template status: the fixture
+  // also seeds a `draft` form on the same stage (FT-RISK-2-DRAFT) \u2014 it must
+  // never be offered, so exactly one "Fill Out Form" button should exist.
+  check('only the active form is offered (draft form excluded)', fillOutCount === 1, `found ${fillOutCount}`);
+  const fillOut = fillOutButtons.first();
   const hasForm = await fillOut.isVisible().catch(() => false);
   check('the risk stage offers its triggered form', hasForm);
   if (hasForm) {
@@ -113,6 +119,26 @@ try {
     // would satisfy a crash-only assertion.
     check('the mapped field carries the description\u2019s scope',
       value.includes('Spend analysis'), value.slice(0, 60) || '(empty)');
+
+    console.log('\nSubmitting the form actually persists it, not just a toast');
+    const before = stub.tables.form_submissions.length;
+    await column.getByRole('button', { name: 'Submit', exact: true }).click();
+    await page.waitForTimeout(500);
+    const after = stub.tables.form_submissions;
+    check('a real form_submissions row was created', after.length === before + 1, `${before} -> ${after.length}`);
+    const created = after[after.length - 1];
+    check('the submission carries the request/stage/template it was filled out on',
+      created?.request_id === REQUEST_ID && created?.stage === 'risk' && created?.form_template_id === 'FT-RISK-1',
+      JSON.stringify({ requestId: created?.request_id, stage: created?.stage, template: created?.form_template_id }));
+    // The bug: onSubmit dropped DynamicForm's `values` argument entirely, so
+    // nothing typed was ever saved. Assert the actual field values landed.
+    // (field_values is the DB column name — mapFormSubmissionToDb maps
+    // FormSubmission.values -> field_values.)
+    check('the typed/pre-populated field values were actually saved (not discarded)',
+      typeof created?.field_values?.f1 === 'string' && created.field_values.f1.includes('Spend analysis'),
+      JSON.stringify(created?.field_values).slice(0, 120));
+    check('the form disappears once really submitted (not re-offered)',
+      (await column.getByRole('button', { name: 'Fill Out Form' }).count()) === 0);
   }
 
   console.log('\nEvery step card collapses and reopens');

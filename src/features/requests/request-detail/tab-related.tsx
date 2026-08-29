@@ -7,25 +7,11 @@ import { useSourcingEventsForRequest } from '@/lib/db/hooks/use-sourcing-events'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { Link } from 'react-router-dom';
-import { ExternalLink, ShieldCheck, ShieldAlert, ShieldX, ShieldQuestion } from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
 
 interface TabRelatedProps {
   request: ProcurementRequest;
 }
-
-const sraIcons = {
-  valid: ShieldCheck,
-  expiring: ShieldAlert,
-  expired: ShieldX,
-  'not-assessed': ShieldQuestion,
-};
-
-const sraColors = {
-  valid: 'text-green-600',
-  expiring: 'text-amber-600',
-  expired: 'text-red-600',
-  'not-assessed': 'text-gray-400',
-};
 
 export function TabRelated({ request }: TabRelatedProps) {
   useSuppliers();
@@ -184,55 +170,10 @@ export function TabRelated({ request }: TabRelatedProps) {
         </Card>
       )}
 
-      {/* Risk / SRA Status */}
-      {supplier && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Supplier Risk Assessment</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Overall Risk Rating</span>
-                <StatusBadge status={supplier.riskRating} size="sm" />
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">SRA Status</span>
-                <div className="flex items-center gap-1.5">
-                  {(() => {
-                    const Icon = sraIcons[supplier.sraStatus];
-                    const color = sraColors[supplier.sraStatus];
-                    return (
-                      <>
-                        <Icon className={`size-4 ${color}`} />
-                        <span className={`text-sm font-medium ${color}`}>
-                          {supplier.sraStatus.charAt(0).toUpperCase() + supplier.sraStatus.slice(1).replace('-', ' ')}
-                        </span>
-                      </>
-                    );
-                  })()}
-                </div>
-              </div>
-              {supplier.sraExpiryDate && (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">SRA Expiry</span>
-                  <span className="text-sm">{formatDate(supplier.sraExpiryDate)}</span>
-                </div>
-              )}
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Screening Status</span>
-                <StatusBadge status={supplier.screeningStatus} size="sm" />
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Performance Score</span>
-                <span className="text-sm font-medium">{supplier.performanceScore}/100</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {/* Supplier risk/SRA/screening status lives on the Compliance tab now —
+          one home for every risk signal, not split across two tabs. */}
 
-      {!contract && !request.poId && relatedRequests.length === 0 && !supplier && sourcingEvents.length === 0 && (
+      {!contract && !request.poId && relatedRequests.length === 0 && supplierContracts.length === 0 && sourcingEvents.length === 0 && (
         <Card>
           <CardContent className="py-8 text-center">
             <p className="text-sm text-muted-foreground">No related items found for this request.</p>

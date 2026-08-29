@@ -96,11 +96,23 @@ export const FIXTURES = {
   form_templates: [
     {
       id: 'FT-RISK-1', name: 'Third-party risk questionnaire', description: 'Risk stage intake',
-      status: 'published', category: 'risk',
+      status: 'active', category: 'risk',
       trigger_stages: ['risk'], trigger_conditions: [],
       fields: [
         { id: 'f1', fieldType: 'textarea', label: 'Scope of the engagement', required: true, prePopulateFrom: 'sow.scope' },
         { id: 'f2', fieldType: 'textarea', label: 'Deliverables', required: false, prePopulateFrom: 'sow.deliverables' },
+      ],
+      version: '1.0', last_modified: '2026-08-01', created_by: 'u11',
+    },
+    // A draft form on the same stage — forStage() must exclude it (only
+    // 'active' forms are ever offered to a requester). Regression for the
+    // bug where a template's status was never checked at all.
+    {
+      id: 'FT-RISK-2-DRAFT', name: 'Draft-only risk addendum', description: 'Not yet published',
+      status: 'draft', category: 'risk',
+      trigger_stages: ['risk'], trigger_conditions: [],
+      fields: [
+        { id: 'f1', fieldType: 'text', label: 'Should never be offered', required: false },
       ],
       version: '1.0', last_modified: '2026-08-01', created_by: 'u11',
     },

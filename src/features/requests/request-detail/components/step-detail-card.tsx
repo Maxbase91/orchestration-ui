@@ -15,7 +15,6 @@ import {
   User,
   Clock,
   FileText,
-  MessageSquare,
   Server,
   ClipboardList,
   Timer,
@@ -27,16 +26,22 @@ import {
 } from 'lucide-react';
 import { systemColors, systemLabels } from '@/data/system-integrations';
 import type { ExternalSystem } from '@/data/system-integrations';
-import { useSubmissionLookup, useFormSubmissions } from '@/lib/db/hooks/use-form-submissions';
+import {
+  useSubmissionLookup,
+  useFormSubmissions,
+  useCreateFormSubmission,
+} from '@/lib/db/hooks/use-form-submissions';
 import {
   useFormTemplates,
   useFormTemplateLookup,
 } from '@/lib/db/hooks/use-form-templates';
 import type { FormTemplate } from '@/data/form-templates';
+import type { FormSubmission } from '@/data/form-submissions';
 import { FormSubmissionView } from '@/components/shared/form-submission-view';
 import { DynamicForm } from '@/components/shared/dynamic-form';
 import { useServiceDescription } from '@/lib/db/hooks/use-service-descriptions';
 import { sectionValuesOf, sowPrePopulateValues } from '@/lib/procurement/service-description-seed';
+import { useAuthStore } from '@/stores/auth-store';
 
 interface StepDetailCardProps {
   stage: string;
@@ -356,68 +361,13 @@ export const StepDetailCard = forwardRef<HTMLDivElement, StepDetailCardProps>(
                 requestCategory={requestCategory}
               />
 
-              {/* Documents Added */}
-              {detail?.documentsAdded && detail.documentsAdded.length > 0 && (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                    <FileText className="size-3.5" />
-                    Documents Added
-                  </div>
-                  <div className="pl-5 space-y-1.5">
-                    {detail.documentsAdded.map((doc, di) => (
-                      <div
-                        key={di}
-                        className="flex items-center gap-2 text-sm text-gray-700"
-                      >
-                        <FileText className="size-3.5 text-gray-400 shrink-0" />
-                        <span className="font-medium">{doc.name}</span>
-                        <Badge variant="outline" className="text-[10px] bg-gray-50">
-                          {doc.type}
-                        </Badge>
-                        <span className="text-xs text-muted-foreground ml-auto">
-                          {doc.addedBy} &middot; {formatDate(doc.addedAt)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              {/* Documents live only on the Documents tab now — one home,
+                  not a per-stage copy of the same documentsAdded list. */}
 
-              {/* Comments */}
-              {detail?.comments && detail.comments.length > 0 && (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                    <MessageSquare className="size-3.5" />
-                    Comments
-                  </div>
-                  <div className="pl-5 space-y-2">
-                    {detail.comments.map((comment, ci) => (
-                      <div
-                        key={ci}
-                        className={cn(
-                          'rounded-md p-3 text-sm',
-                          comment.isInternal
-                            ? 'bg-amber-50 border border-amber-100'
-                            : 'bg-gray-50 border border-gray-100',
-                        )}
-                      >
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-medium text-gray-900">{comment.author}</span>
-                          {comment.isInternal && (
-                            <Badge variant="outline" className="text-[10px] bg-amber-100 text-amber-700 border-amber-200">
-                              Internal
-                            </Badge>
-                          )}
-                          <span className="text-[11px] text-muted-foreground ml-auto">
-                            {formatDate(comment.timestamp)}
-                          </span>
-                        </div>
-                        <p className="text-gray-700">{comment.content}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              {/* Comments live only in the stage-scoped comment thread this
+                  tab renders below (tab-workflow.tsx), which now also
+                  includes this stage's historical entries — no second,
+                  separate comment list here. */}
 
               {/* Duration & SLA */}
               {detail?.duration && (
@@ -532,11 +482,12 @@ function FormsSection({
   requestCategory?: string;
 }) {
   const [expandedFormId, setExpandedFormId] = useState<string | null>(null);
-  const [submittedForms, setSubmittedForms] = useState<Set<string>>(new Set());
   useFormSubmissions();
   useFormTemplates();
   const { forStage } = useSubmissionLookup();
   const { byId: lookupTemplate, forStage: templatesForStage } = useFormTemplateLookup();
+  const currentUser = useAuthStore((s) => s.currentUser);
+  const createFormSubmission = useCreateFormSubmission();
 
   // Pre-populate any form field an admin mapped to a service-description
   // section. DynamicForm has always accepted a prePopulateContext and nothing
@@ -573,19 +524,35 @@ function FormsSection({
       }
       // Check if already submitted
       const alreadySubmitted = submissions.some((s) => s.formTemplateId === form.id);
-      if (!alreadySubmitted && !submittedForms.has(form.id)) {
+      if (!alreadySubmitted) {
         triggeredForms.push(form);
       }
     }
   }
 
   const handleFormSubmit = useCallback(
-    (formId: string) => {
-      setSubmittedForms((prev) => new Set([...prev, formId]));
-      setExpandedFormId(null);
-      toast.success('Form submitted');
+    async (form: FormTemplate, values: Record<string, string | string[] | boolean>) => {
+      if (!requestId) return;
+      const record: FormSubmission = {
+        id: `FSUB-${Date.now()}`,
+        formTemplateId: form.id,
+        formName: form.name,
+        requestId,
+        stage,
+        submittedBy: currentUser.id,
+        submittedAt: new Date().toISOString(),
+        values,
+        status: 'completed',
+      };
+      try {
+        await createFormSubmission.mutateAsync(record);
+        setExpandedFormId(null);
+        toast.success('Form submitted');
+      } catch (err) {
+        toast.error(`Could not submit the form: ${err instanceof Error ? err.message : 'unknown error'}`);
+      }
     },
-    [],
+    [requestId, stage, currentUser.id, createFormSubmission],
   );
 
   const hasSubmissions = submissions.length > 0;
@@ -646,7 +613,7 @@ function FormsSection({
                 <DynamicForm
                   template={form}
                   prePopulateContext={prePopulateContext}
-                  onSubmit={() => handleFormSubmit(form.id)}
+                  onSubmit={(values) => handleFormSubmit(form, values)}
                   onCancel={() => setExpandedFormId(null)}
                 />
               </div>
