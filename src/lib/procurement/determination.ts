@@ -7,7 +7,7 @@
 // existing framework/contract or supplier relationship applies. Standardised and
 // organisation-agnostic.
 
-import type { BuyingChannel } from '@/data/types';
+import type { BuyingChannel } from '../../data/types.js';
 
 export type ContractType = 'new-msa' | 'sow' | 'amend' | 'change' | 'renew' | 'none';
 export type SourcingType = 'new-event' | 'renewal' | 'benchmarking' | 'none';

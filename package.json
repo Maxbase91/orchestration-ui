@@ -64,7 +64,8 @@
     "test:request-detail-ui": "node tests/ui/request-detail-e2e.mjs",
     "test:interactions-ui": "node tests/ui/interactions-e2e.mjs",
     "test:home-designs": "node tests/ui/home-designs.mjs",
-    "walkthrough": "node tests/ui/walkthrough.mjs"
+    "walkthrough": "node tests/ui/walkthrough.mjs",
+    "backfill:compliance": "node --import tsx/esm tests/integration/backfill-compliance-fields.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

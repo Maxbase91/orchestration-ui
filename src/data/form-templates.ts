@@ -819,7 +819,10 @@ export const formTemplates: FormTemplate[] = [
     name: 'Change Request Form',
     description:
       'Captures and documents changes to scope, timeline, or cost of an active procurement request.',
-    status: 'active',
+    // draft: triggerStages below is not wired to anything in the wizard or
+    // request-detail — this form cannot actually be reached by a requester
+    // yet. Flip to 'active' only once a stage genuinely renders it.
+    status: 'draft',
     category: 'Procurement',
     triggerStages: [
       'intake',

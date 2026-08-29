@@ -14,15 +14,12 @@ import { Button } from '@/components/ui/button';
 import { RotateCcw, UserPlus } from 'lucide-react';
 import { ReferBackDialog } from './components/refer-back-dialog';
 import { ReassignDialog } from './components/reassign-dialog';
-import { ProcessStepper } from '@/components/shared/process-stepper';
-import type { Step } from '@/components/shared/process-stepper';
 import { StepDetailCard } from './components/step-detail-card';
 import { ComplianceStageSection } from './components/compliance-stage-section';
 import { StageCommentComposer } from './components/stage-comment-composer';
 import { useCommentsByRequest } from '@/lib/db/hooks/use-comments';
 import { SystemIntegrationTimeline } from '@/components/shared/system-integration-timeline';
 import { formatDate } from '@/lib/format';
-import { systemLabels, systemColors } from '@/data/system-integrations';
 
 interface TabWorkflowProps {
   request: ProcurementRequest;
@@ -45,13 +42,6 @@ const LIFECYCLE_STAGES: { id: RequestStatus; label: string }[] = [
   { id: 'invoice', label: 'Invoice' },
   { id: 'payment', label: 'Payment' },
 ];
-
-function getDaysInStep(entry: StageHistoryEntry): number | undefined {
-  if (!entry.completedAt) return undefined;
-  const start = new Date(entry.enteredAt).getTime();
-  const end = new Date(entry.completedAt).getTime();
-  return Math.round((end - start) / (1000 * 60 * 60 * 24));
-}
 
 /** Compact SLA state for the open stage. `none` renders nothing — an absent
  *  target is not the same as being on track, so it must not look reassuring. */
@@ -132,62 +122,6 @@ export function TabWorkflow({ request, focusStageId }: TabWorkflowProps) {
 
   const isCancelled = request.status === 'cancelled';
   const isCompleted = request.status === 'completed';
-
-  // Build stepper steps
-  // Plain derivation — the compiler memoizes it. The manual useMemo could
-  // not be preserved (its dependencies are objects it cannot prove
-  // unmutated), which cost optimization of the whole component, and its
-  // dependency list had drifted from what the body actually reads.
-  const steps: Step[] = (() => {
-    return LIFECYCLE_STAGES.map((stage) => {
-      const entry = stageEntries.get(stage.id);
-      const isStageCompleted = completedStages.has(stage.id);
-      const isCurrent = request.status === stage.id;
-
-      let status: Step['status'];
-      const channelSkipsThisStage = isStageSkippedForChannel(request.buyingChannel, stage.id);
-      if (isCancelled) {
-        status = isStageCompleted ? 'completed' : 'skipped';
-      } else if (channelSkipsThisStage) {
-        status = isStageCompleted ? 'completed' : 'skipped';
-      } else if (isCompleted) {
-        status = 'completed';
-      } else if (isCurrent) {
-        status = request.isOverdue ? 'blocked' : 'current';
-      } else if (request.status === 'referred-back' && entry && !entry.completedAt) {
-        status = 'blocked';
-      } else if (isStageCompleted) {
-        status = 'completed';
-      } else {
-        status = 'future';
-      }
-
-      const stageOwner = entry ? lookupUser(entry.ownerId) : undefined;
-      const daysInStep = entry ? getDaysInStep(entry) : undefined;
-
-      const step: Step = {
-        id: stage.id,
-        label: stage.label,
-        status,
-        date: entry ? formatDate(entry.enteredAt) : undefined,
-        owner: stageOwner?.name,
-        daysInStep,
-      };
-
-      // Attach system integration info
-      const matchingIntegration = integrations.find((i) => i.stage === stage.id);
-      if (matchingIntegration) {
-        step.systemIntegration = {
-          system: matchingIntegration.system,
-          systemLabel: systemLabels[matchingIntegration.system],
-          status: matchingIntegration.status,
-          colorClass: systemColors[matchingIntegration.system],
-        };
-      }
-
-      return step;
-    });
-  })();
 
   // Handle stepper click
   const handleStepClick = useCallback(
@@ -313,15 +247,9 @@ export function TabWorkflow({ request, focusStageId }: TabWorkflowProps) {
 
   return (
     <div className="space-y-6">
-      {/* Interactive Lifecycle Stepper */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Current Workflow Position</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ProcessStepper steps={steps} onStepClick={handleStepClick} />
-        </CardContent>
-      </Card>
+      {/* The page header's LifecycleStepper already shows the full timeline on
+          every tab and deep-links here via focusStageId — this tab does not
+          repeat it, only the per-stage detail below. */}
 
       {/* The attached template, showing each stage's configured owner, SLA and
           gate. It used to render flat grey pills of node labels only, which is

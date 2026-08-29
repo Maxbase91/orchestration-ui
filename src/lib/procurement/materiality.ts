@@ -11,8 +11,8 @@
 // Nothing here is specific to any regime or industry; thresholds are constants
 // so they can later move into the configurable rule store.
 
-import type { RiskRating } from '@/data/types';
-import { DEFAULT_POLICY_CONFIG, getActivePolicyConfig, type PolicyConfig } from './policy-config';
+import type { RiskRating } from '../../data/types.js';
+import { DEFAULT_POLICY_CONFIG, getActivePolicyConfig, type PolicyConfig } from './policy-config.js';
 
 export type DataSensitivity = 'none' | 'low' | 'medium' | 'high' | 'critical';
 export type Criticality = 'standard' | 'important' | 'critical';

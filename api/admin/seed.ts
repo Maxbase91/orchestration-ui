@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getSupabaseAdmin, requireAdminSecret } from '../_supabase-admin.js';
+import { deriveComplianceBackfill } from '../../src/lib/procurement/compliance-backfill.js';
 
 type DbRow = Record<string, unknown>;
 
@@ -94,7 +95,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Merge the extras in. Supabase upserts by id, so re-runs are
     // idempotent.
-    const requestsAll       = [...requests,       ...extraRequests];
+    const requestsUnbackfilled = [...requests, ...extraRequests];
+    // Fill in the front-door determination fields (inherentRiskTier,
+    // materialityTier, ...) for any request that doesn't already carry them
+    // — most of the hand-authored seed predates these fields, which left the
+    // Compliance tab empty. Never overrides a value already set.
+    const suppliersById = new Map(suppliers.map((s) => [s.id, s]));
+    const requestsAll = requestsUnbackfilled.map((r) => ({
+      ...r,
+      ...deriveComplianceBackfill(r, r.supplierId ? suppliersById.get(r.supplierId) : undefined),
+    }));
     const stageHistoryAll   = [...stageHistory,   ...extraStageHistory];
     const invoicesAll       = [...invoices,       ...extraInvoices];
     const commentsAll       = [...comments,       ...extraComments];

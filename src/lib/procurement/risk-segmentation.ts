@@ -6,9 +6,9 @@
 // highest-attribute-wins, matching the policy default. Thresholds are constants
 // so they can later move into the configurable rule store.
 
-import type { RiskRating } from '@/data/types';
-import type { DataSensitivity } from './materiality';
-import { DEFAULT_POLICY_CONFIG, getActivePolicyConfig, type PolicyConfig } from './policy-config';
+import type { RiskRating } from '../../data/types.js';
+import type { DataSensitivity } from './materiality.js';
+import { DEFAULT_POLICY_CONFIG, getActivePolicyConfig, type PolicyConfig } from './policy-config.js';
 
 /** Inherent risk tier — same scale as supplier risk ratings. */
 export type RiskTier = RiskRating;

@@ -185,6 +185,11 @@ npm run test:request-detail-ui    # browser check on fixtures (no credentials, n
 npm run test:interactions-ui      # interaction E2E — wizard submit, admin save, AI assistant (self-cleaning)
 npm run test:home-designs         # alternative home designs (1a/1b/1c) are fully functional + dashboard intact
 # …see package.json "test:*" scripts for the full list
+
+npm run backfill:compliance       # one-time data migration, NOT a test — fills the front-door
+                                   # determination fields on Supabase `requests` rows that predate
+                                   # them, using the same decisioning logic the live wizard runs.
+                                   # Only ever fills nulls; safe to re-run.
 ```
 
 `test:ui` uses Playwright. First-time setup: `npm install` then `npx playwright install chromium`.
