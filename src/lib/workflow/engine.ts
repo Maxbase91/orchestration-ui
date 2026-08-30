@@ -648,7 +648,20 @@ async function executeNode(
  */
 async function initFallbackWorkflow(requestId: string, buyingChannel: string): Promise<void> {
   const stages = getStagesForChannel(buyingChannel);
-  const firstStage = stages[0] ?? 'intake';
+  // Governed checkout may already have resolved the first actionable stage
+  // (risk, approval, or PO) before the fallback is initialized. Re-entering
+  // `intake` here would make a completed call-off appear stuck and discard the
+  // server-authoritative routing decision. Preserve a valid non-intake status;
+  // otherwise use the channel's normal first stage for legacy submissions.
+  const { data: requestRow } = await supabase
+    .from('requests')
+    .select('status')
+    .eq('id', requestId)
+    .maybeSingle();
+  const existingStatus = (requestRow as Record<string, unknown> | null)?.status;
+  const firstStage = typeof existingStatus === 'string' && existingStatus !== 'intake' && stages.includes(existingStatus as ReturnType<typeof getStagesForChannel>[number])
+    ? existingStatus
+    : (stages[0] ?? 'intake');
 
   await transitionStage({
     requestId,
