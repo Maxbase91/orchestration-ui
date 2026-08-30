@@ -2,8 +2,8 @@
  * Requester-first home for Simple mode. It keeps the front door focused on
  * starting and tracking a request; operational metrics remain in Expert mode.
  */
-import { useMemo } from 'react';
-import { ArrowRight, Clock3, FileText, HelpCircle, Plus, Sparkles } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { ArrowRight, Clock3, FileText, HelpCircle, Plus, Sparkles, Upload, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '@/stores/auth-store';
 import { useRequests } from '@/lib/db/hooks/use-requests';
@@ -45,6 +45,33 @@ export function SimpleHomePage() {
   );
   const activeRequests = myRequests.filter((request) => ACTIVE_STATUSES.has(request.status)).slice(0, 5);
   const recentRequests = myRequests.filter((request) => !ACTIVE_STATUSES.has(request.status)).slice(0, 3);
+  const [description, setDescription] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+  const startFromText = () => {
+    const value = description.trim();
+    if (value) window.location.href = `/requests/new?q=${encodeURIComponent(value)}`;
+  };
+  const handleUpload = async (file: File) => {
+    setUploading(true);
+    setUploadError('');
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      let binary = '';
+      bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
+      const response = await fetch('/api/intake-upload', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: file.name, contentType: file.type, dataBase64: btoa(binary) }) });
+      const body = await response.json() as { attachment?: { extractedText?: string; dataBase64?: string }; error?: string };
+      if (body.attachment?.extractedText) {
+        try { sessionStorage.setItem('intakeAttachment', JSON.stringify(body.attachment)); } catch { /* extraction still works if storage is full */ }
+        window.location.href = `/requests/new?q=${encodeURIComponent(body.attachment.extractedText)}`;
+      } else setUploadError(body.error ?? 'We could not read that document. You can paste its text instead.');
+    } catch {
+      // Upload is an accelerator, not a prerequisite; preserve the text entry
+      // path and make the failure visible rather than leaving an unhandled
+      // promise rejection on the requester home page.
+      setUploadError('We could not read that document. You can paste its text instead.');
+    } finally { setUploading(false); }
+  };
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -55,7 +82,7 @@ export function SimpleHomePage() {
       </header>
 
       <Card className="border-blue-200 bg-gradient-to-br from-blue-50 to-white shadow-sm">
-        <CardContent className="flex flex-col gap-5 p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8">
+        <CardContent className="space-y-4 p-6 sm:p-8">
           <div className="flex items-start gap-3">
             <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white">
               <Sparkles className="size-5" />
@@ -65,9 +92,16 @@ export function SimpleHomePage() {
               <p className="mt-1 max-w-xl text-sm text-gray-600">Tell us what you need, and we’ll check the catalogue, existing contracts, and the fastest compliant route.</p>
             </div>
           </div>
-          <Button asChild className="shrink-0">
-            <Link to="/requests/new"><Plus className="size-4" />Start a request<ArrowRight className="size-4" /></Link>
-          </Button>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <input aria-label="Describe what you need" value={description} onChange={(event) => setDescription(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); startFromText(); } }} placeholder="e.g. 20 laptops for the new team" className="min-h-11 flex-1 rounded-md border border-blue-200 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
+            <Button onClick={startFromText} disabled={!description.trim()} className="shrink-0"><Plus className="size-4" />Start with this<ArrowRight className="size-4" /></Button>
+            <Button asChild variant="outline" className="shrink-0"><Link to="/requests/new"><Plus className="size-4" />Open full intake</Link></Button>
+          </div>
+          <div className="flex items-center gap-3 text-xs text-gray-500">
+            <label htmlFor="home-intake-upload" className="inline-flex cursor-pointer items-center gap-1 font-medium text-blue-700 hover:underline"><Upload className="size-3.5" />{uploading ? <><Loader2 className="size-3.5 animate-spin" />Reading document…</> : 'Upload a PDF or DOCX'}</label>
+            <input id="home-intake-upload" type="file" accept="application/pdf,.pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx" className="sr-only" disabled={uploading} onChange={(event) => { const file = event.target.files?.[0]; if (file) void handleUpload(file); }} />
+            <span>{uploadError || 'We’ll extract the details and ask only what’s missing.'}</span>
+          </div>
         </CardContent>
       </Card>
 

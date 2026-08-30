@@ -35,6 +35,9 @@ CREATE TABLE IF NOT EXISTS requests (
   buying_channel TEXT,
   commodity_code TEXT,
   commodity_code_label TEXT,
+  commodity_candidates JSONB,
+  commodity_classification_confirmed BOOLEAN DEFAULT false,
+  attachments JSONB DEFAULT '[]'::jsonb,
   cost_centre TEXT,
   budget_owner TEXT,
   business_justification TEXT,
@@ -81,6 +84,9 @@ DO $$ BEGIN ALTER TABLE requests ADD COLUMN beneficiary_id TEXT; EXCEPTION WHEN 
 DO $$ BEGIN ALTER TABLE requests ADD COLUMN beneficiary_name TEXT; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 DO $$ BEGIN ALTER TABLE requests ADD COLUMN beneficiary_country TEXT; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 DO $$ BEGIN ALTER TABLE requests ADD COLUMN beneficiary_country_code TEXT; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN ALTER TABLE requests ADD COLUMN commodity_candidates JSONB; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN ALTER TABLE requests ADD COLUMN commodity_classification_confirmed BOOLEAN DEFAULT false; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN ALTER TABLE requests ADD COLUMN attachments JSONB DEFAULT '[]'::jsonb; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 
 -- Stage History
 CREATE TABLE IF NOT EXISTS stage_history (
@@ -110,6 +116,7 @@ CREATE TABLE IF NOT EXISTS service_descriptions (
   request_id TEXT UNIQUE REFERENCES requests(id) ON DELETE CASCADE,
   objective TEXT,
   scope TEXT,
+  exclusions TEXT,
   deliverables TEXT,
   timeline TEXT,
   resources TEXT,
@@ -125,6 +132,7 @@ CREATE TABLE IF NOT EXISTS service_descriptions (
 -- reviewers. These additive columns keep older environments compatible.
 ALTER TABLE service_descriptions ADD COLUMN IF NOT EXISTS quality_score INTEGER;
 ALTER TABLE service_descriptions ADD COLUMN IF NOT EXISTS quality_checks JSONB;
+ALTER TABLE service_descriptions ADD COLUMN IF NOT EXISTS exclusions TEXT;
 
 -- AI Conversations (chat intake transcripts)
 CREATE TABLE IF NOT EXISTS ai_conversations (
@@ -359,6 +367,67 @@ CREATE TABLE IF NOT EXISTS contracts (
   utilisation_percentage INTEGER DEFAULT 0,
   created_at TIMESTAMP DEFAULT now()
 );
+
+-- Contract coverage is normalized so scope changes can be effective-dated and
+-- historical matches can be reproduced without overwriting the contract row.
+CREATE TABLE IF NOT EXISTS procurement_service_families (
+  id TEXT PRIMARY KEY,
+  label TEXT NOT NULL,
+  aliases JSONB NOT NULL DEFAULT '[]'::jsonb,
+  active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS procurement_deliverable_terms (
+  id TEXT PRIMARY KEY,
+  service_family_id TEXT REFERENCES procurement_service_families(id) ON DELETE SET NULL,
+  label TEXT NOT NULL,
+  aliases JSONB NOT NULL DEFAULT '[]'::jsonb,
+  active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS contract_scope_versions (
+  id TEXT PRIMARY KEY,
+  contract_id TEXT NOT NULL REFERENCES contracts(id) ON DELETE CASCADE,
+  effective_from DATE NOT NULL,
+  effective_to DATE,
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('draft', 'active', 'superseded')),
+  scope_narrative TEXT NOT NULL DEFAULT '',
+  service_family_id TEXT REFERENCES procurement_service_families(id) ON DELETE SET NULL,
+  eligible_categories JSONB NOT NULL DEFAULT '[]'::jsonb,
+  geographies JSONB NOT NULL DEFAULT '[]'::jsonb,
+  business_units JSONB NOT NULL DEFAULT '[]'::jsonb,
+  call_off_requirements JSONB NOT NULL DEFAULT '[]'::jsonb,
+  completeness TEXT NOT NULL DEFAULT 'incomplete' CHECK (completeness IN ('complete', 'incomplete')),
+  provenance TEXT NOT NULL DEFAULT 'curated' CHECK (provenance IN ('curated', 'inferred', 'owner-entered')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS contract_scope_deliverables (
+  id TEXT PRIMARY KEY,
+  scope_version_id TEXT NOT NULL REFERENCES contract_scope_versions(id) ON DELETE CASCADE,
+  deliverable_term_id TEXT REFERENCES procurement_deliverable_terms(id) ON DELETE SET NULL,
+  name TEXT NOT NULL,
+  aliases JSONB NOT NULL DEFAULT '[]'::jsonb,
+  description TEXT,
+  required BOOLEAN NOT NULL DEFAULT true
+);
+
+CREATE TABLE IF NOT EXISTS contract_scope_exclusions (
+  id TEXT PRIMARY KEY,
+  scope_version_id TEXT NOT NULL REFERENCES contract_scope_versions(id) ON DELETE CASCADE,
+  term TEXT NOT NULL,
+  reason TEXT
+);
+
+CREATE INDEX IF NOT EXISTS contract_scope_versions_contract_idx ON contract_scope_versions(contract_id, effective_from DESC);
+CREATE INDEX IF NOT EXISTS contract_scope_versions_active_idx ON contract_scope_versions(status, effective_from, effective_to);
+CREATE INDEX IF NOT EXISTS contract_scope_deliverables_scope_idx ON contract_scope_deliverables(scope_version_id);
+CREATE INDEX IF NOT EXISTS contract_scope_exclusions_scope_idx ON contract_scope_exclusions(scope_version_id);
 
 -- Purchase Orders
 CREATE TABLE IF NOT EXISTS purchase_orders (
@@ -870,6 +939,11 @@ CREATE TABLE IF NOT EXISTS purchase_requisitions (
   approval_required BOOLEAN NOT NULL DEFAULT false,
   risk_review_required BOOLEAN NOT NULL DEFAULT false,
   contract_amendment_required BOOLEAN NOT NULL DEFAULT false,
+  contract_scope_version_id TEXT REFERENCES contract_scope_versions(id) ON DELETE SET NULL,
+  contract_match_score NUMERIC,
+  contract_match_reasons JSONB NOT NULL DEFAULT '[]'::jsonb,
+  contract_match_algorithm_version TEXT,
+  contract_match_input_fingerprint TEXT,
   idempotency_key TEXT,
   idempotency_fingerprint TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -879,6 +953,11 @@ CREATE UNIQUE INDEX IF NOT EXISTS purchase_requisitions_idempotency_idx
   ON purchase_requisitions(idempotency_key) WHERE idempotency_key IS NOT NULL;
 
 ALTER TABLE purchase_requisitions ADD COLUMN IF NOT EXISTS idempotency_fingerprint TEXT;
+ALTER TABLE purchase_requisitions ADD COLUMN IF NOT EXISTS contract_scope_version_id TEXT;
+ALTER TABLE purchase_requisitions ADD COLUMN IF NOT EXISTS contract_match_score NUMERIC;
+ALTER TABLE purchase_requisitions ADD COLUMN IF NOT EXISTS contract_match_reasons JSONB NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE purchase_requisitions ADD COLUMN IF NOT EXISTS contract_match_algorithm_version TEXT;
+ALTER TABLE purchase_requisitions ADD COLUMN IF NOT EXISTS contract_match_input_fingerprint TEXT;
 
 -- Server-owned active procurement policy. A singleton row keeps browser
 -- previews and transactional checkout on the same configuration without

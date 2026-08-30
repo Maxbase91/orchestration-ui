@@ -30,7 +30,7 @@ The platform's operating model is:
 
 | Area | Built | Partial | Deferred/R2 | Not production-ready |
 |---|---|---|---|---|
-| Front door and requester UX | Adaptive staged intake, Simple/Expert modes, requester home, drafts, status, catalogue item detail | In-flight edit depth, some quality/fallback handling | External guided-buying/punchout | Role switching is simulation-only |
+| Front door and requester UX | Unified describe/upload → clarify → route → details → submit journey, specific commodity candidates, Simple/Expert modes, requester home, drafts, status, catalogue item detail | In-flight edit depth, attachment blob storage and richer guidance quality/fallback observability | External guided-buying/punchout | Role switching is simulation-only |
 | Decisioning and governance | Classification, category codes, catalogue/contract checks, risk/materiality, approval-to-source, determination and handoff | Hard PSL, reuse matching, policy governance and richer evidence | External risk feeds and policy services | Authorization is not server-derived |
 | Internal procurement lifecycle | Request → PR → conditional internal PO, request lines, supplier/contract/risk/accounting links; atomic governed checkout with replay-safe idempotency | Recovery reporting for pre-existing partial aggregates and P2P exception depth | ERP/CLM/payment writes | No production identity boundary |
 | Workflow and approvals | Templates, instances, stage history, approval entries, admin configuration | Fallback execution, timers, parallelism and atomic transitions | External orchestration systems | Some controls remain prototype-grade |

@@ -38,7 +38,14 @@ try {
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', (error) => errors.push(error.message));
-  page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
+  page.on('console', (message) => {
+    if (message.type() !== 'error') return;
+    // Vite serves the SPA but not Vercel serverless functions. Those expected
+    // local API 404s are intentionally ignored; uncaught React/runtime errors
+    // remain failures.
+    if (/Failed to load resource|\/api\//i.test(message.text())) return;
+    errors.push(message.text());
+  });
 
   await page.goto(`${BASE}/requests/new`, { waitUntil: 'networkidle' });
   check('requester defaults to Simple view', await page.getByText('Simple requester view', { exact: true }).isVisible().catch(() => false));
@@ -59,7 +66,9 @@ try {
   check('switching back to Simple renders the adaptive request entry', await page.getByText('Simple requester view', { exact: true }).isVisible().catch(() => false));
   await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(500);
-  check('Simple home has a clear start-request entry point', await page.getByRole('link', { name: /Start a request/ }).isVisible().catch(() => false));
+  check('Simple home has a clear start-request entry point',
+    await page.getByRole('button', { name: /Start with this/ }).isVisible().catch(() => false)
+      || await page.getByRole('link', { name: /Open full intake/ }).isVisible().catch(() => false));
   check('Simple home shows requester-focused content', await page.getByText('Your requests', { exact: true }).isVisible().catch(() => false));
   check('Simple home hides Expert dashboard customization', (await page.getByRole('button', { name: /Customise/ }).count()) === 0);
   await page.setViewportSize({ width: 320, height: 800 });

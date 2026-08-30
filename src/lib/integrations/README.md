@@ -120,3 +120,9 @@ To move an object type from the own store to a live upstream source in R2:
 
 The own-store connectors keep a `freshnessTtlSeconds` per object so a live
 implementation can honour the same freshness expectations.
+
+Contract matching is a domain read layered over the own-store contract connector: the browser calls
+`/api/contract-match`, which loads effective-dated scope versions, deliverables and exclusions from
+Neon and applies deterministic eligibility before optional Groq/Gemini reranking. Governed checkout
+repeats that read server-side, so a client preview cannot authorize a call-off. A future CLM connector
+can replace the source records without changing the matcher or its consumers.

@@ -33,6 +33,9 @@ docs/
 |---|---|
 | [TEST_PLAYBOOK.md](testing/TEST_PLAYBOOK.md) | Full test scope — manual regression suites plus the automated `npm run test:*` suites (integration, UI smoke, full-app sweep, interaction E2E). |
 
+The unified intake decision and its implementation evidence are recorded in
+[ADR-0005](adr/0005-unified-ai-guided-intake.md) and the [R1 evidence index](roadmap/R1_IMPLEMENTATION_EVIDENCE.md).
+
 > Live test status is the `test:*` scripts in `package.json`, not a static doc. See the root [README](../README.md#testing).
 
 ## archive/ — historical (not maintained)

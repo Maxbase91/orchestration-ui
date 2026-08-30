@@ -41,6 +41,8 @@ const expectedTables = [
   'procurement_policy_configs',
   'goods_receipts', 'sourcing_events', 'sourcing_responses', 'tickets',
   'ticket_responses', 'ticket_links', 'audit_entries', 'knowledge_base', 'chat_feedback',
+  'procurement_service_families', 'procurement_deliverable_terms', 'contract_scope_versions',
+  'contract_scope_deliverables', 'contract_scope_exclusions',
 ];
 
 const failures = [];
@@ -132,6 +134,18 @@ check('catalogue risk links match contracts', Number(governanceRow.risk_contract
   `${governanceRow.risk_contract_mismatch ?? 0} mismatch(es)`);
 check('catalogue items have current risk assessments', Number(governanceRow.expired_risk ?? 0) === 0,
   `${governanceRow.expired_risk ?? 0} expired risk link(s)`);
+
+const scopeCoverage = await sql.query(`
+  SELECT count(*)::int AS total,
+         count(*) FILTER (WHERE sv.completeness = 'complete')::int AS complete,
+         count(*) FILTER (WHERE d.scope_version_id IS NULL)::int AS missing_deliverables
+  FROM contracts c
+  LEFT JOIN contract_scope_versions sv ON sv.contract_id = c.id AND sv.status = 'active'
+  LEFT JOIN (SELECT DISTINCT scope_version_id FROM contract_scope_deliverables) d ON d.scope_version_id = sv.id
+`);
+const scopeRow = scopeCoverage[0] ?? {};
+check('contracts have active complete scope metadata', Number(scopeRow.total ?? 0) > 0 && Number(scopeRow.complete ?? 0) === Number(scopeRow.total ?? 0) && Number(scopeRow.missing_deliverables ?? 0) === 0,
+  `${scopeRow.complete ?? 0}/${scopeRow.total ?? 0} complete, ${scopeRow.missing_deliverables ?? 0} missing deliverable sets`);
 
 if (failures.length > 0) {
   console.error(`Neon live validation failed: ${failures.length} check(s).`);

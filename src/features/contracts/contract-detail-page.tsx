@@ -15,6 +15,11 @@ import { useContract } from '@/lib/db/hooks/use-contracts';
 import { usePurchaseOrders } from '@/lib/db/hooks/use-purchase-orders';
 import { useInvoices } from '@/lib/db/hooks/use-invoices';
 import { formatCurrency, formatDate } from '@/lib/format';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { loadContractScope, saveContractScope } from '@/lib/procurement/contract-scope-api';
+import { requestContractMatch } from '@/lib/procurement/contract-match-api';
+import type { ContractMatchResponse } from '@/data/types';
+import type { ContractScopeDeliverable, ContractScopeExclusion } from '@/data/types';
 
 interface Obligation {
   id: string;
@@ -46,6 +51,24 @@ export function ContractDetailPage() {
   const { data: purchaseOrders = [] } = usePurchaseOrders();
   const { data: invoices = [] } = useInvoices();
   const [obligations, setObligations] = useState(mockObligations);
+  const queryClient = useQueryClient();
+  const scopeQuery = useQuery({ queryKey: ['contract-scope', id], queryFn: () => loadContractScope(id!), enabled: Boolean(id) });
+  const scopeMutation = useMutation({
+    mutationFn: (payload: { scope: Record<string, unknown>; deliverables: ContractScopeDeliverable[]; exclusions: ContractScopeExclusion[] }) => saveContractScope(id!, payload.scope, payload.deliverables, payload.exclusions),
+    onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ['contract-scope', id] }); },
+  });
+  const [scopeNarrative, setScopeNarrative] = useState('');
+  const [serviceFamily, setServiceFamily] = useState('');
+  const [deliverablesText, setDeliverablesText] = useState('');
+  const [exclusionsText, setExclusionsText] = useState('');
+  const [previewText, setPreviewText] = useState('');
+  const [matchPreview, setMatchPreview] = useState<ContractMatchResponse | null>(null);
+  const [previewPending, setPreviewPending] = useState(false);
+  const existingScope = scopeQuery.data?.scope;
+  const effectiveNarrative = scopeNarrative || existingScope?.scopeNarrative || '';
+  const effectiveServiceFamily = serviceFamily || existingScope?.serviceFamily || '';
+  const effectiveDeliverablesText = deliverablesText || (scopeQuery.data?.deliverables ?? []).map((item) => item.name).join('\n');
+  const effectiveExclusionsText = exclusionsText || (scopeQuery.data?.exclusions ?? []).map((item) => item.term).join('\n');
 
   if (!contract) {
     return (
@@ -115,6 +138,7 @@ export function ContractDetailPage() {
       <Tabs defaultValue="summary">
         <TabsList variant="line" className="w-full justify-start">
           <TabsTrigger value="summary">Summary</TabsTrigger>
+          <TabsTrigger value="coverage">Coverage & Matching</TabsTrigger>
           <TabsTrigger value="financial">Financial</TabsTrigger>
           <TabsTrigger value="obligations">Obligations</TabsTrigger>
           <TabsTrigger value="renewal">Renewal</TabsTrigger>
@@ -145,6 +169,47 @@ export function ContractDetailPage() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="coverage" className="mt-4 space-y-4">
+          <Card>
+            <CardHeader><CardTitle className="text-base">Coverage & matching</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              {scopeQuery.isLoading && <p className="text-sm text-muted-foreground">Loading scope metadata…</p>}
+              {!scopeQuery.isLoading && !scopeQuery.data?.scope && <p className="text-sm text-amber-700">This contract has no complete scope version yet, so requests will continue to full intake.</p>}
+              <label className="block text-sm font-medium">Service family<input className="mt-1 w-full rounded-md border px-3 py-2 text-sm" value={effectiveServiceFamily} onChange={(event) => setServiceFamily(event.target.value)} placeholder="e.g. payroll implementation" /></label>
+              <label className="block text-sm font-medium">Scope description<textarea className="mt-1 min-h-24 w-full rounded-md border px-3 py-2 text-sm" value={effectiveNarrative} onChange={(event) => setScopeNarrative(event.target.value)} placeholder="Describe the services and outcomes this contract covers" /></label>
+              <div className="grid gap-4 md:grid-cols-2">
+                <label className="block text-sm font-medium">Deliverables (one per line)<textarea className="mt-1 min-h-24 w-full rounded-md border px-3 py-2 text-sm" value={effectiveDeliverablesText} onChange={(event) => setDeliverablesText(event.target.value)} /></label>
+                <label className="block text-sm font-medium">Exclusions (one per line)<textarea className="mt-1 min-h-24 w-full rounded-md border px-3 py-2 text-sm" value={effectiveExclusionsText} onChange={(event) => setExclusionsText(event.target.value)} /></label>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs text-muted-foreground">Current version: {scopeQuery.data?.scope?.id ?? 'not configured'}</p>
+                <Button disabled={scopeMutation.isPending || !effectiveNarrative.trim() || !effectiveServiceFamily.trim()} onClick={() => {
+                  const existing = scopeQuery.data?.scope;
+                  const scope = { ...(existing ?? {}), contractId: contract.id, effectiveFrom: existing?.effectiveFrom ?? contract.startDate, effectiveTo: existing?.effectiveTo ?? contract.endDate, status: 'active', completeness: 'complete', provenance: 'owner-entered', scopeNarrative: effectiveNarrative, serviceFamily: effectiveServiceFamily, eligibleCategories: [contract.category], geographies: existing?.geographies ?? [], businessUnits: existing?.businessUnits ?? [], callOffRequirements: existing?.callOffRequirements ?? [] };
+                  const deliverables = effectiveDeliverablesText.split('\n').map((name, index) => ({ id: `${existing?.id ?? contract.id}-D${index + 1}`, scopeVersionId: existing?.id ?? '', name: name.trim(), aliases: [], required: true })).filter((item) => item.name);
+                  const exclusions = effectiveExclusionsText.split('\n').map((term, index) => ({ id: `${existing?.id ?? contract.id}-X${index + 1}`, scopeVersionId: existing?.id ?? '', term: term.trim() })).filter((item) => item.term);
+                  scopeMutation.mutate({ scope, deliverables, exclusions });
+                }}>{scopeMutation.isPending ? 'Saving…' : 'Save coverage'}</Button>
+              </div>
+              {scopeMutation.isError && <p className="text-sm text-red-700">{scopeMutation.error.message}</p>}
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader><CardTitle className="text-base">Preview a match</CardTitle></CardHeader>
+            <CardContent className="space-y-3">
+              <textarea className="min-h-20 w-full rounded-md border px-3 py-2 text-sm" value={previewText} onChange={(event) => setPreviewText(event.target.value)} placeholder="Example demand text" />
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs text-muted-foreground">The requester-facing pre-check uses the same server matcher. Save coverage before testing a preview.</p>
+                <Button variant="outline" size="sm" disabled={previewPending || !previewText.trim()} onClick={() => {
+                  setPreviewPending(true);
+                  void requestContractMatch({ text: previewText, category: contract.category, supplierId: contract.supplierId, estimatedValue: 1 }).then(setMatchPreview).catch(() => setMatchPreview(null)).finally(() => setPreviewPending(false));
+                }}>{previewPending ? 'Checking…' : 'Preview match'}</Button>
+              </div>
+              {matchPreview && <div className="rounded-md border bg-muted/30 p-3 text-sm"><p className="font-medium">{matchPreview.route === 'contract' ? 'Matched contract' : matchPreview.route === 'clarify' ? 'More information needed' : 'No confident match'}</p>{matchPreview.questions[0] && <p className="mt-1 text-xs text-muted-foreground">{matchPreview.questions[0]}</p>}{matchPreview.candidates.length > 0 && <ul className="mt-2 space-y-1 text-xs">{matchPreview.candidates.slice(0, 3).map((candidate) => <li key={candidate.scopeVersionId}>{candidate.contractId}: {(candidate.score * 100).toFixed(0)}% — {candidate.reasons.join('; ')}</li>)}</ul>}</div>}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="financial" className="mt-4 space-y-4">

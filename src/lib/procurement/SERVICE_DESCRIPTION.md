@@ -127,3 +127,18 @@ finished is worse than one that says what is missing.
     npm run test:sow-narrative                # narrative is synthesised, never boilerplate
     npm run test:demand-conversation          # the conversation the slots drive
     npm run test:demand-signals               # the capture-time read + config-driven requirements
+
+## Unified requester intake
+
+All demand types use the same describe → clarify → review → complete journey. The broad
+`goods`/`services` values remain internal policy metadata; the requester confirms a specific
+commodity or service family instead. A long paste or PDF/DOCX can seed the structured description,
+but extracted values are shown for confirmation before matching. `scope` and `exclusions` are
+separate fields, as are `deliverables` and `acceptanceCriteria`; `businessJustification` is retained
+only as a legacy compatibility column and is intentionally empty for new submissions.
+
+`src/lib/procurement/intake-guidance-api.ts` and `api/intake-guidance.ts` provide optional,
+short-lived contextual hints from anonymised completed requests or configured templates. Applying a
+hint is explicit and provenance is retained; a provider or database failure falls back to the
+deterministic question engine and never blocks submission. `workflow/engine.ts` records the first
+actionable stage after completion, so a successful intake does not remain parked in `intake`.

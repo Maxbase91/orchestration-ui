@@ -21,7 +21,13 @@ All endpoints are in `/api/` and deployed as Vercel serverless functions.
 | `api/ai.ts` | POST | Context-specific AI responses (approval card, supplier summary, etc.) |
 | `api/workflow-action.ts` | POST | Advance request stage, record stage history |
 | `api/governed-checkout.ts` | POST | Server-authoritative catalogue/contract checkout; atomic request → PR → lines → conditional internal PO with replay-safe idempotency |
+| `api/contract-match.ts` | POST | Effective-dated, explainable contract-scope matching with clarification questions and safe AI reranking |
+| `api/contract-scope.ts` | GET/POST | Procurement maintenance of contract coverage versions, deliverables and exclusions |
+| `api/contract-vocabulary.ts` | GET/POST | Controlled service-family and deliverable vocabulary for scope administration |
 | `api/policy-config.ts` | GET/POST | Load, validate, save, and reset the server-persisted active procurement policy |
+| `api/intake-upload.ts` | POST | Validate PDF/DOCX uploads, extract text server-side, and return a confirmation-ready attachment |
+| `api/commodity-match.ts` | POST | Resolve specific commodity/service-family candidates with probability and reasons |
+| `api/intake-guidance.ts` | POST | Return anonymised contextual requester hints with deterministic template fallback |
 | `api/execute-action.ts` | POST | Execute confirmed AI action (add_watcher, set_delegate, etc.) |
 | `api/conversations.ts` | GET/POST | AI conversation history CRUD |
 | `api/seed.ts` | POST | Seed demo data (dev only) |
@@ -80,6 +86,17 @@ FR14-12 · External integrations are **deferred to R2** — no real HTTP calls o
 FR14-13 · Governed checkout accepts the existing client intent but reloads all governance records and policy from Neon. A deterministic requisition fingerprint makes a matching idempotency-key retry return the existing aggregate; a conflicting payload returns HTTP 409. Request, requisition, lines and any permitted internal PO are committed in one transaction.
 
 FR14-14 · `procurement_policy_configs` is the server-owned singleton policy record. Admin saves validate the complete `PolicyConfig` before persistence; missing/unavailable policy data falls back to shipped defaults without claiming that a failed save succeeded.
+
+FR14-15 · Contract matching is server-authoritative. Rules gate on active/effective scope, exclusions,
+supplier, geography, business unit and capacity before weighted scoring. Groq/Gemini may only rerank
+eligible candidates. Governed checkout re-runs the matcher and records the selected scope version,
+score, reasons, algorithm version and input fingerprint.
+
+FR14-16 · Unified intake is server-bounded: upload extraction, commodity candidates, contextual
+guidance and the final workflow transition are explicit endpoints or domain services. The browser
+may preview and request confirmation, but cannot independently route a request. Guidance responses
+contain only generalized suggestions from approved/completed records or configured templates; raw
+historical request text and identifiers are not returned.
 
 ### Planned Live Connector Shape (R2)
 

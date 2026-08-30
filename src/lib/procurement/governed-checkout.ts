@@ -36,6 +36,14 @@ export interface GovernedCheckoutInput {
   beneficiaryId?: string;
   /** Client-generated key for retries of the same checkout. */
   idempotencyKey?: string;
+  /** Server-generated match evidence carried from the pre-check for audit. */
+  contractMatch?: {
+    scopeVersionId: string;
+    score: number;
+    reasons: string[];
+    inputFingerprint: string;
+    algorithmVersion: string;
+  };
   now?: Date;
 }
 
@@ -59,6 +67,11 @@ export interface GovernedCheckoutDecision {
     shipToLocationId?: string;
     beneficiaryId?: string;
     commodityCodes: string[];
+    contractScopeVersionId?: string;
+    contractMatchScore?: number;
+    contractMatchReasons?: string[];
+    contractMatchInputFingerprint?: string;
+    contractMatchAlgorithmVersion?: string;
   };
 }
 
@@ -164,6 +177,13 @@ export function evaluateGovernedCheckout(
       shipToLocationId,
       beneficiaryId: input.beneficiaryId ?? input.profile.beneficiaryId,
       commodityCodes: [...new Set(lines.map((line) => line.commodityCode ?? line.item?.commodityCode ?? input.profile.defaultCommodityCode).filter((code): code is string => Boolean(code)))],
+      ...(input.contractMatch ? {
+        contractScopeVersionId: input.contractMatch.scopeVersionId,
+        contractMatchScore: input.contractMatch.score,
+        contractMatchReasons: input.contractMatch.reasons,
+        contractMatchInputFingerprint: input.contractMatch.inputFingerprint,
+        contractMatchAlgorithmVersion: input.contractMatch.algorithmVersion,
+      } : {}),
     },
   };
 }

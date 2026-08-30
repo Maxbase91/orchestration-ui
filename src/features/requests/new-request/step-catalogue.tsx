@@ -29,7 +29,7 @@ interface CartItem {
 }
 
 interface StepCatalogueProps {
-  /** Place the catalogue order in one click — pre-approved, no further steps. */
+  /** Pass the cart to the shared governed checkout for fulfilment details. */
   onPlaceOrder: (data: {
     title: string;
     estimatedValue: number;

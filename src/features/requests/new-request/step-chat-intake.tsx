@@ -26,6 +26,7 @@ import {
 } from '@/lib/procurement/demand-conversation';
 import { DEFAULT_SECTIONS } from '@/lib/procurement/service-description-defaults';
 import { UrgencyChannelNote } from './components/urgency-channel-note';
+import { IntakeGuidanceCard } from './components/intake-guidance-card';
 import type {
   ServiceDescription,
   ServiceDescriptionSectionKey,
@@ -47,6 +48,7 @@ interface StepChatIntakeProps {
     costCentre: string;
     commodityCode: string;
     commodityCodeLabel: string;
+    serviceDescription?: ServiceDescription | null;
   };
   onUpdate: (data: Record<string, unknown>) => void;
 }
@@ -88,11 +90,11 @@ const COST_CENTRES = [
 ];
 
 const WELCOME_MESSAGES: Record<string, string> = {
-  goods: "I'll help you set up your purchase request. What do you need to buy? Please describe the items or equipment.",
-  services: "I'll help you create a service engagement request. What service do you need? Describe the scope briefly.",
-  consulting: "Let's set up your consulting engagement. What's the objective of this consulting work?",
-  software: "I'll help you with your software/IT request. What software, licence, or system do you need?",
-  'contingent-labour': "I'll help you request temporary staff or contractors. What role or skills do you need?",
+  goods: "Tell me what you need and the outcome you want. I’ll use your description to work out the right route and ask only for missing details.",
+  services: "Tell me what you need and the outcome you want. I’ll use your description to work out the right route and ask only for missing details.",
+  consulting: "Tell me what you need and the outcome you want. I’ll use your description to work out the right route and ask only for missing details.",
+  software: "Tell me what you need and the outcome you want. I’ll use your description to work out the right route and ask only for missing details.",
+  'contingent-labour': "Tell me what you need and the outcome you want. I’ll use your description to work out the right route and ask only for missing details.",
 };
 
 // Key facts captured during intake. Supplier is intentionally NOT here — it is
@@ -105,7 +107,6 @@ const FIELD_LABELS: { key: string; label: string }[] = [
   { key: 'category', label: 'Commodity Code' },
   { key: 'estimatedValue', label: 'Estimated Value' },
   { key: 'deliveryDate', label: 'Delivery Timeline' },
-  { key: 'businessJustification', label: 'Justification' },
 ];
 
 // The service-description components come from the resolved template, not from
@@ -130,6 +131,7 @@ function buildContext(
     deliveryDate: data.deliveryDate || undefined,
     sow: {
       objective: sow.objective, scope: sow.scope, deliverables: sow.deliverables,
+      exclusions: sow.exclusions,
       resources: sow.resources, timeline: sow.timeline, acceptanceCriteria: sow.acceptanceCriteria,
       pricingModel: sow.pricingModel, dependencies: sow.dependencies,
     },
@@ -330,7 +332,7 @@ function buildWelcomeMessage(
   return { content: parts.join('\n'), example: next?.example };
 }
 
-export function StepChatIntake({ category, categoryDescription, data, onUpdate }: StepChatIntakeProps) {
+export function StepChatIntake({ category, categoryDescription: _categoryDescription, data, onUpdate }: StepChatIntakeProps) {
   const { data: suppliers = [] } = useSuppliers();
   // Which questions get asked, and which sections compose the compact narrative,
   // are admin config (/admin/service-description). Resolution is category-first
@@ -350,7 +352,11 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
   const [isComplete, setIsComplete] = useState(false);
   const [summary, setSummary] = useState('');
   const [error, setError] = useState(false);
-  const [svcDesc, setSvcDesc] = useState<Partial<ServiceDescription>>({});
+  // Long paste/document extraction can pre-populate sections before the chat
+  // mounts. Start from that confirmed context so the engine asks only for the
+  // remaining delta instead of repeating questions the requester already
+  // answered.
+  const [svcDesc, setSvcDesc] = useState<Partial<ServiceDescription>>(() => data.serviceDescription ?? {});
   /**
    * Slots already challenged once.
    *
@@ -447,6 +453,7 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
     () => conversationProgress(progressCtx, undefined, slots),
     [progressCtx, slots],
   );
+  const activeSlot = useMemo(() => determineNextQuestion(progressCtx, undefined, slots)?.slot, [progressCtx, slots]);
 
   // The sections the panel lists, from the resolved template. `asked: false`
   // sections (today, `location`) are GENERATED, never captured — listing them
@@ -459,7 +466,7 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
     if (key === 'category') {
       return data.commodityCode
         ? `${data.commodityCode} — ${data.commodityCodeLabel}`
-        : categoryDescription;
+        : 'Pending specific classification';
     }
     if (key === 'estimatedValue') return data.estimatedValue > 0 ? formatCurrency(data.estimatedValue) : '';
     return String((data as Record<string, unknown>)[key] ?? '');
@@ -488,7 +495,6 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
             supplier: data.supplier || undefined,
             estimatedValue: data.estimatedValue || undefined,
             deliveryDate: data.deliveryDate || undefined,
-            businessJustification: data.businessJustification || undefined,
             serviceDescription: svcDesc,
           },
         }),
@@ -762,7 +768,9 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
       // Only the offline fallback did this, so on the LLM path the justification
       // stayed whatever step 1 had seeded and never reflected what the
       // requester actually described.
-      onUpdate({ serviceDescription: merged, businessJustification: result.narrative });
+      // Keep the detailed description separate from the legacy justification
+      // column; requesters should confirm one coherent document, not duplicate it.
+      onUpdate({ serviceDescription: merged });
       setQualityScore(result.qualityScore);
       // Persisted at submit. These columns have existed since R6 and were null
       // on every live row, so the quality badge tab-overview renders had never
@@ -835,7 +843,11 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
   }, [slots, svcDesc, onUpdate, category, data]);
 
   const handleSowEdit = useCallback((key: string, value: string) => {
-    const updated = { ...svcDesc, [key]: value };
+    const updated = {
+      ...svcDesc,
+      [key]: value,
+      captureFlags: { ...svcDesc.captureFlags, [key]: 'reviewer-edited' as SectionCapture },
+    };
     setSvcDesc(updated);
     onUpdate({ serviceDescription: updated });
   }, [svcDesc, onUpdate]);
@@ -850,8 +862,10 @@ export function StepChatIntake({ category, categoryDescription, data, onUpdate }
             <Sparkles className="size-3.5 text-[#2D5F8A]" />
           </div>
           <span className="text-sm font-semibold text-gray-900">Procurement Assistant</span>
-          <Badge variant="outline" className="text-[10px]">{categoryDescription}</Badge>
+          <Badge variant="outline" className="text-[10px]">Guided intake</Badge>
         </div>
+
+        {activeSlot && <div className="shrink-0 border-b px-4 py-2"><IntakeGuidanceCard category={category} section={activeSlot.target.kind === 'sow' ? activeSlot.target.field : 'objective'} text={data.title} commodityCode={data.commodityCode} onApply={(value) => { if (activeSlot.target.kind === 'sow') handleSowEdit(activeSlot.target.field, value); else onUpdate({ [activeSlot.target.field]: value }); }} /></div>}
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">

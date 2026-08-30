@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AISuggestionCard } from '@/components/shared/ai-suggestion-card';
 import { getAICommodityCode } from '@/lib/mock-ai';
 import { UrgencyChannelNote } from './components/urgency-channel-note';
+import { IntakeGuidanceCard } from './components/intake-guidance-card';
 
 const COST_CENTRES = [
   { value: 'CC-1001', label: 'CC-1001 Marketing' },
@@ -17,14 +17,14 @@ const COST_CENTRES = [
 ];
 
 const CATEGORY_TITLES: Record<string, string> = {
-  goods: 'Purchase of goods',
-  services: 'Service engagement',
-  software: 'Software / IT procurement',
-  consulting: 'Consulting engagement',
-  'contingent-labour': 'Contingent labour request',
-  'contract-renewal': 'Contract renewal',
-  'supplier-onboarding': 'Supplier onboarding',
-  'catalogue': 'Catalogue purchase order',
+  goods: 'Procurement request',
+  services: 'Procurement request',
+  software: 'Procurement request',
+  consulting: 'Procurement request',
+  'contingent-labour': 'Procurement request',
+  'contract-renewal': 'Procurement request',
+  'supplier-onboarding': 'Procurement request',
+  catalogue: 'Procurement request',
 };
 
 interface StepDetailsData {
@@ -118,6 +118,13 @@ export function StepDetails({ category, data, onUpdate }: StepDetailsProps) {
         />
       </div>
 
+      <IntakeGuidanceCard
+        section="objective"
+        category={category}
+        text={data.title}
+        onApply={(suggestion) => onUpdate({ title: data.title.trim() ? `${data.title.trim()} ${suggestion}` : suggestion })}
+      />
+
       {/* Supplier is NOT chosen here. It is chosen once, on the determination
           step, where PSL status, screening, risk tier and master-data
           completeness are all computed — this screen offered a bare directory
@@ -165,17 +172,9 @@ export function StepDetails({ category, data, onUpdate }: StepDetailsProps) {
         </div>
       </div>
 
-      {/* Business Justification */}
-      <div className="space-y-1.5">
-        <Label htmlFor="justification">Business Justification</Label>
-        <Textarea
-          id="justification"
-          rows={3}
-          value={data.businessJustification}
-          onChange={(e) => onUpdate({ businessJustification: e.target.value })}
-          placeholder="Explain why this procurement is needed and the expected business impact..."
-        />
-      </div>
+      {/* Rationale is intentionally not a separate requester field. The
+          confirmed intake/service description is the source of truth for why
+          the request exists; this form only captures missing transaction data. */}
 
       {/* Delivery + Urgent */}
       <div className="grid grid-cols-2 gap-3">
@@ -229,7 +228,7 @@ export function StepDetails({ category, data, onUpdate }: StepDetailsProps) {
 
       {/* Commodity Code */}
       <div className="space-y-1.5">
-        <Label htmlFor="commodity">Commodity Code</Label>
+        <Label htmlFor="commodity">Commodity or service family</Label>
         <Input
           id="commodity"
           value={commodityInput}

@@ -7,6 +7,25 @@ export type Priority = 'low' | 'medium' | 'high' | 'urgent';
 export type RequestCategory = string;
 export type BuyingChannel = string;
 
+/** Candidate commodity/service-family classifications shown for confirmation. */
+export interface CommodityClassificationCandidate {
+  code: string;
+  label: string;
+  probability: number;
+  reason: string;
+  source: 'rules' | 'ai' | 'user';
+}
+
+export interface IntakeAttachment {
+  id: string;
+  name: string;
+  contentType: string;
+  size: number;
+  extractedText: string;
+  dataBase64?: string;
+  extractionStatus: 'complete' | 'partial' | 'failed';
+}
+
 export const KNOWN_CATEGORIES = [
   'goods', 'services', 'software', 'consulting', 'contingent-labour',
   'contract-renewal', 'supplier-onboarding', 'catalogue',
@@ -77,6 +96,10 @@ export interface ProcurementRequest {
   referralDisposition?: string;
   commodityCode: string;
   commodityCodeLabel: string;
+  commodityCandidates?: CommodityClassificationCandidate[];
+  commodityClassificationConfirmed?: boolean;
+  /** Retained uploaded intake sources and their extracted-text provenance. */
+  attachments?: IntakeAttachment[];
   costCentre: string;
   budgetOwner: string;
   businessJustification: string;
@@ -208,6 +231,65 @@ export interface Contract {
   /** A framework / master agreement: not directly transactable, but a SOW can be authored under it. */
   isFramework?: boolean;
   linkedRequestIds: string[];
+  /** Coverage metadata is loaded from the normalized scope tables when available. */
+  coverageStatus?: 'complete' | 'incomplete' | 'draft';
+  activeScopeVersionId?: string;
+  scopeNarrative?: string;
+  scopeServiceFamily?: string;
+  scopeDeliverables?: ContractScopeDeliverable[];
+  scopeExclusions?: ContractScopeExclusion[];
+  scopeGeographies?: string[];
+  scopeBusinessUnits?: string[];
+}
+
+/** Effective-dated, auditable coverage for a contract. */
+export interface ContractScopeVersion {
+  id: string;
+  contractId: string;
+  effectiveFrom: string;
+  effectiveTo?: string;
+  status: 'draft' | 'active' | 'superseded';
+  scopeNarrative: string;
+  serviceFamily?: string;
+  eligibleCategories: string[];
+  geographies: string[];
+  businessUnits: string[];
+  callOffRequirements: string[];
+  completeness: 'complete' | 'incomplete';
+  provenance: 'curated' | 'inferred' | 'owner-entered';
+}
+
+export interface ContractScopeDeliverable {
+  id: string;
+  scopeVersionId: string;
+  name: string;
+  aliases: string[];
+  description?: string;
+  required: boolean;
+}
+
+export interface ContractScopeExclusion {
+  id: string;
+  scopeVersionId: string;
+  term: string;
+  reason?: string;
+}
+
+export interface ContractMatchCandidate {
+  contractId: string;
+  scopeVersionId: string;
+  score: number;
+  confidence: 'high' | 'medium' | 'low';
+  reasons: string[];
+  exclusionsChecked: string[];
+}
+
+export interface ContractMatchResponse {
+  sufficient: boolean;
+  route: 'contract' | 'clarify' | 'full-request';
+  missingFields: string[];
+  questions: string[];
+  candidates: ContractMatchCandidate[];
 }
 
 export interface PurchaseOrder {
@@ -296,6 +378,11 @@ export interface PurchaseRequisition {
   approvalRequired: boolean;
   riskReviewRequired: boolean;
   contractAmendmentRequired: boolean;
+  contractScopeVersionId?: string;
+  contractMatchScore?: number;
+  contractMatchReasons?: string[];
+  contractMatchAlgorithmVersion?: string;
+  contractMatchInputFingerprint?: string;
   idempotencyKey?: string;
   idempotencyFingerprint?: string;
   createdAt: string;

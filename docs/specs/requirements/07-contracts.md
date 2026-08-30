@@ -66,6 +66,21 @@ contracts
   utilisationPercentage, linkedRequestIds[]
 ```
 
+### Contract coverage and demand matching (R1)
+
+Each contract may have one or more effective-dated `contract_scope_versions`. A version stores
+the service-family narrative, eligible categories, geography/business-unit coverage, call-off
+requirements, completeness and provenance. `contract_scope_deliverables` and
+`contract_scope_exclusions` hold normalized outcomes, aliases and excluded terms. Incomplete or
+expired scope versions remain visible in the register but cannot produce a confident call-off.
+
+`POST /api/contract-match` applies hard eligibility gates and explainable weighted scoring before
+the server-side Groq → Gemini reranker may reorder eligible candidates. A requester needs a service
+family, deliverable/outcome and one contextual discriminator; otherwise the pre-check asks up to
+three targeted questions before routing to full intake. `/api/governed-checkout` repeats the match
+against current Neon data and persists scope-version, score, reasons, algorithm version and input
+fingerprint on the requisition. Client-side previews never authorize a call-off.
+
 ---
 
 ## Key Files
@@ -73,3 +88,5 @@ contracts
 - `src/features/contracts/contract-register-page.tsx`
 - `src/features/contracts/renewals-page.tsx`
 - `src/lib/db/contracts.ts`
+- `src/lib/procurement/contract-matching.ts` and `api/contract-match.ts`
+- `api/contract-scope.ts` (Coverage & Matching administration)

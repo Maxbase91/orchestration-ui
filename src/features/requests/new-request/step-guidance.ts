@@ -34,7 +34,7 @@ export const STEP_GUIDANCE: Record<number, StepGuidance> = {
     purpose:
       'Describe what you need in plain language. The assistant classifies it and pulls out what it can — you do not pick a category.',
     youProvide: [
-      'A sentence or two on what you need and why',
+      'A sentence, pasted brief, or PDF/DOCX describing what you need',
       'A supplier or an approximate value, if you already know them',
     ],
     next: 'We check whether a catalogue item or an existing contract already covers this before any new demand is raised.',
@@ -49,7 +49,7 @@ export const STEP_GUIDANCE: Record<number, StepGuidance> = {
     purpose:
       'The assistant works through the questions a complete service description needs, one at a time, and writes the description from your answers.',
     youProvide: [
-      'Scope and deliverables — what is being bought and what "done" looks like',
+      'Only the missing scope, deliverables, exclusions, or acceptance details',
       'Value, timing and any constraints the assistant asks about',
     ],
     next: 'The description written here is reused downstream — in the risk assessment, in sourcing documents and in the contract request — so it is written once.',
@@ -91,7 +91,7 @@ export const CATALOGUE_STEP_GUIDANCE: Record<number, StepGuidance> = {
   3: {
     purpose: 'Pick your items, set quantities and place the order.',
     youProvide: ['Items and quantities', 'A delivery location and cost centre'],
-    next: 'The order is raised against the existing agreement — no approval, no sourcing.',
+    next: 'We validate the agreement, supplier risk and policy before creating the internal request; higher-value orders may need approval.',
   },
   // Step 7 is the confirmation screen — see the note on STEP_GUIDANCE.
 };

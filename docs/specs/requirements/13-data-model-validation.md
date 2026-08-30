@@ -17,7 +17,7 @@ This document is the authoritative reference for all application-owned Neon tabl
 |-------|------|-----------|-------|
 | id | text PK | `REQ-YYYY-NNNN` format | Generated client-side |
 | title | text | NOT NULL | |
-| description | text | NOT NULL | Derived from SOW narrative or businessJustification |
+| description | text | NOT NULL | Derived from the confirmed structured service-description narrative |
 | category | text | NOT NULL | From `procurement_categories.id` |
 | status | text | enum RequestStatus | See §2 |
 | priority | text | low/medium/high/urgent | |
@@ -73,6 +73,12 @@ the validated `PolicyConfig` JSON, simulation identity (`updated_by`), and times
 source used by server checkout and the browser preview; unavailable policy data falls back to the
 shipped defaults.
 
+`contract_scope_versions` is the effective-dated, normalized coverage record for a contract;
+`contract_scope_deliverables` and `contract_scope_exclusions` store matching evidence. Requisitions
+persist `contract_scope_version_id`, `contract_match_score`, `contract_match_reasons`,
+`contract_match_algorithm_version`, and `contract_match_input_fingerprint` so a call-off can be
+reproduced and stale client selections can be rejected.
+
 ---
 
 ## Status Enums
@@ -107,10 +113,15 @@ shipped defaults.
 
 ## All Application-Owned Tables
 
-requests, stage_history, comments, comment_reads, approval_entries, audit_entries, users, user_preferences, suppliers, contracts, purchase_orders, invoices, notifications, routing_rules, workflow_templates, workflow_step_details, workflow_instances, risk_assessments, ai_agents, ai_conversations, knowledge_base, chat_feedback, form_templates, form_submissions, intake_compliance_records, compliance_reports, catalogue_items, service_descriptions, system_integrations, kpi_data, approval_chains, sla_targets, procurement_categories, goods_receipts, sourcing_events, sourcing_responses, tickets
+requests, stage_history, comments, comment_reads, approval_entries, audit_entries, users, user_preferences, suppliers, contracts, contract_scope_versions, contract_scope_deliverables, contract_scope_exclusions, procurement_service_families, procurement_deliverable_terms, purchase_orders, purchase_requisitions, request_lines, invoices, notifications, routing_rules, workflow_templates, workflow_step_details, workflow_instances, risk_assessments, ai_agents, ai_conversations, knowledge_base, chat_feedback, form_templates, form_submissions, intake_compliance_records, compliance_reports, catalogue_items, service_descriptions, system_integrations, kpi_data, approval_chains, sla_targets, procurement_categories, goods_receipts, sourcing_events, sourcing_responses, tickets
 
-### service_descriptions (updated June 2026)
-All 11 SOW fields + narrative + **quality_score INT** (0–100, nullable) + **quality_checks JSONB** (array of `{ section, passed, issue }`, nullable). Quality fields populated by `POST /api/generate-sow` at time of SOW generation.
+### service_descriptions (updated August 2026)
+Structured fields include objective, Included scope, Exclusions, Deliverables, Acceptance Criteria,
+timeline, resources, pricing model, location, dependencies and narrative, plus provenance
+(`capture_flags`), **quality_score INT** (0–100, nullable) and **quality_checks JSONB** (array of
+`{ section, passed, issue }`, nullable). The legacy request `business_justification` column remains
+for backwards compatibility but is not populated from the service-description narrative for new
+submissions. Quality fields are populated by `POST /api/generate-sow` at time of generation.
 
 ---
 

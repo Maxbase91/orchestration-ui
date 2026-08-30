@@ -492,6 +492,9 @@ const REQUEST_FIELD_MAP: Record<string, string> = {
   buyingChannel: 'buying_channel',
   commodityCode: 'commodity_code',
   commodityCodeLabel: 'commodity_code_label',
+  commodityCandidates: 'commodity_candidates',
+  commodityClassificationConfirmed: 'commodity_classification_confirmed',
+  attachments: 'attachments',
   costCentre: 'cost_centre',
   budgetOwner: 'budget_owner',
   businessJustification: 'business_justification',
@@ -559,6 +562,11 @@ export function mapDbToPurchaseRequisition(row: DbRecord): PurchaseRequisition {
     approvalRequired: Boolean(row.approval_required ?? row.approvalRequired),
     riskReviewRequired: Boolean(row.risk_review_required ?? row.riskReviewRequired),
     contractAmendmentRequired: Boolean(row.contract_amendment_required ?? row.contractAmendmentRequired),
+    contractScopeVersionId: (row.contract_scope_version_id ?? row.contractScopeVersionId) as string | undefined,
+    contractMatchScore: row.contract_match_score != null ? Number(row.contract_match_score) : (row.contractMatchScore != null ? Number(row.contractMatchScore) : undefined),
+    contractMatchReasons: (row.contract_match_reasons ?? row.contractMatchReasons) as string[] | undefined,
+    contractMatchAlgorithmVersion: (row.contract_match_algorithm_version ?? row.contractMatchAlgorithmVersion) as string | undefined,
+    contractMatchInputFingerprint: (row.contract_match_input_fingerprint ?? row.contractMatchInputFingerprint) as string | undefined,
     idempotencyKey: (row.idempotency_key ?? row.idempotencyKey) as string | undefined,
     idempotencyFingerprint: (row.idempotency_fingerprint ?? row.idempotencyFingerprint) as string | undefined,
     createdAt: (row.created_at ?? row.createdAt) as string,
@@ -589,6 +597,11 @@ export function mapPurchaseRequisitionToDb(r: Partial<PurchaseRequisition>): DbR
   if (r.approvalRequired !== undefined) out.approval_required = r.approvalRequired;
   if (r.riskReviewRequired !== undefined) out.risk_review_required = r.riskReviewRequired;
   if (r.contractAmendmentRequired !== undefined) out.contract_amendment_required = r.contractAmendmentRequired;
+  if (r.contractScopeVersionId !== undefined) out.contract_scope_version_id = r.contractScopeVersionId;
+  if (r.contractMatchScore !== undefined) out.contract_match_score = r.contractMatchScore;
+  if (r.contractMatchReasons !== undefined) out.contract_match_reasons = r.contractMatchReasons;
+  if (r.contractMatchAlgorithmVersion !== undefined) out.contract_match_algorithm_version = r.contractMatchAlgorithmVersion;
+  if (r.contractMatchInputFingerprint !== undefined) out.contract_match_input_fingerprint = r.contractMatchInputFingerprint;
   if (r.idempotencyKey !== undefined) out.idempotency_key = r.idempotencyKey;
   if (r.idempotencyFingerprint !== undefined) out.idempotency_fingerprint = r.idempotencyFingerprint;
   if (r.createdAt !== undefined) out.created_at = r.createdAt;
@@ -714,6 +727,7 @@ export interface ServiceDescriptionRecord {
   requestId: string;
   objective: string;
   scope: string;
+  exclusions?: string;
   deliverables: string;
   timeline: string;
   resources: string;
@@ -743,6 +757,7 @@ export function mapDbToServiceDescription(row: DbRecord): ServiceDescriptionReco
     requestId: (row.request_id ?? row.requestId) as string,
     objective: (row.objective ?? '') as string,
     scope: (row.scope ?? '') as string,
+    ...(row.exclusions != null ? { exclusions: row.exclusions as string } : {}),
     deliverables: (row.deliverables ?? '') as string,
     timeline: (row.timeline ?? '') as string,
     resources: (row.resources ?? '') as string,
@@ -841,6 +856,14 @@ export function mapDbToContract(row: DbRecord): Contract {
     // Prefer the live array from contracts_with_derived view; fall back
     // to the seeded column on the base table.
     linkedRequestIds: (row.linked_request_ids_live ?? row.linked_request_ids ?? row.linkedRequestIds ?? []) as string[],
+    coverageStatus: (row.coverage_status ?? row.coverageStatus) as Contract['coverageStatus'],
+    activeScopeVersionId: (row.active_scope_version_id ?? row.activeScopeVersionId) as string | undefined,
+    scopeNarrative: (row.scope_narrative ?? row.scopeNarrative) as string | undefined,
+    scopeServiceFamily: (row.scope_service_family ?? row.scopeServiceFamily) as string | undefined,
+    scopeDeliverables: (row.scope_deliverables ?? row.scopeDeliverables) as Contract['scopeDeliverables'],
+    scopeExclusions: (row.scope_exclusions ?? row.scopeExclusions) as Contract['scopeExclusions'],
+    scopeGeographies: (row.scope_geographies ?? row.scopeGeographies) as string[] | undefined,
+    scopeBusinessUnits: (row.scope_business_units ?? row.scopeBusinessUnits) as string[] | undefined,
   };
 }
 

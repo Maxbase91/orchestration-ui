@@ -122,7 +122,7 @@ export function TabOverview({ request }: TabOverviewProps) {
                       : undefined
                   }
                 />
-                <DetailRow label="Commodity Code" value={`${request.commodityCode} - ${request.commodityCodeLabel}`} />
+                <DetailRow label="Commodity / service family" value={`${request.commodityCode} - ${request.commodityCodeLabel}`} />
                 <DetailRow label="Cost Centre" value={request.costCentre} />
                 <DetailRow label="Budget Owner" value={request.budgetOwner} />
                 <DetailRow label="Requestor" value={requestor?.name} />
@@ -143,10 +143,7 @@ export function TabOverview({ request }: TabOverviewProps) {
                 <DetailRow label="Last Updated" value={formatDate(request.updatedAt)} />
                 <DetailRow label="Days in Stage" value={String(request.daysInStage)} />
               </dl>
-              <div className="mt-4 pt-4 border-t border-gray-100">
-                <p className="text-sm font-medium text-muted-foreground mb-1">Business Justification</p>
-                <p className="text-sm text-gray-700">{request.businessJustification}</p>
-              </div>
+              {!svcDesc?.narrative && request.businessJustification && <div className="mt-4 pt-4 border-t border-gray-100"><p className="text-sm font-medium text-muted-foreground mb-1">Request description</p><p className="text-sm text-gray-700">{request.businessJustification}</p></div>}
             </CardContent>
           </Card>
         </div>

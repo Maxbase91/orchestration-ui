@@ -5,6 +5,9 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
+import { useContracts } from '@/lib/db/hooks/use-contracts';
+import { useRiskAssessments } from '@/lib/db/hooks/use-risk-assessments';
+import { useCatalogueItems } from '@/lib/db/hooks/use-catalogue-items';
 import { useUsers } from '@/lib/db/hooks/use-users';
 import { useAuthStore } from '@/stores/auth-store';
 import { createRequest } from '@/lib/db/requests';
@@ -13,7 +16,7 @@ import { saveServiceDescription } from '@/lib/db/service-descriptions';
 import { saveIntakeCompliance } from '@/lib/db/intake-compliance';
 import { initWorkflow } from '@/lib/workflow/engine';
 import { queryClient } from '@/lib/query-client';
-import type { RequestCategory, BuyingChannel } from '@/data/types';
+import type { CommodityClassificationCandidate, IntakeAttachment, RequestCategory, BuyingChannel } from '@/data/types';
 import type { MaterialityResult } from '@/lib/procurement/materiality';
 import type { InherentRiskResult } from '@/lib/procurement/risk-segmentation';
 import type { ScreeningResult } from '@/lib/procurement/screening';
@@ -42,6 +45,10 @@ import type { Contract } from '@/data/types';
 import type { CatalogueItem } from '@/data/catalogue-items';
 import { useExperienceMode } from '@/hooks/use-experience-mode';
 import { SimpleNewRequestPage } from './simple-new-request-page';
+import { getProcurementProfile } from '@/lib/db/procurement-profiles';
+import { evaluateGovernedCheckout, resolveCheckoutRiskAssessment, resolveCheckoutContract } from '@/lib/procurement/governed-checkout';
+import { submitGovernedCheckout } from '@/lib/procurement/submit-governed-checkout';
+import { CatalogueOrderCheckout, type CatalogueOrderDraft } from '@/features/catalogue/catalogue-order-checkout';
 
 /**
  * How a section came to be filled.
@@ -53,11 +60,13 @@ import { SimpleNewRequestPage } from './simple-new-request-page';
  *   anyway. Never a hard block, but never invisible either: a reviewer sees
  *   which parts of a description nobody really wrote.
  */
-export type SectionCapture = 'answered' | 'assistant-drafted' | 'weak';
+export type SectionCapture = 'answered' | 'document-extracted' | 'assistant-drafted' | 'reviewer-edited' | 'weak';
 
 export interface ServiceDescription {
   objective: string;
   scope: string;
+  /** Explicit exclusions are kept separate from included scope. */
+  exclusions?: string;
   deliverables: string;
   timeline: string;
   resources: string;
@@ -110,6 +119,9 @@ interface RequestFormData {
   costCentre: string;
   commodityCode: string;
   commodityCodeLabel: string;
+  commodityCandidates?: CommodityClassificationCandidate[];
+  commodityClassificationConfirmed?: boolean;
+  attachments?: IntakeAttachment[];
   serviceDescription: ServiceDescription | null;
   // Catalogue / contract resolution (Step 2 pre-check)
   catalogueItems: { itemId: string; name: string; quantity: number; unitPrice: number; supplierId: string }[];
@@ -172,6 +184,9 @@ const INITIAL_DATA: RequestFormData = {
   costCentre: '',
   commodityCode: '',
   commodityCodeLabel: '',
+  commodityCandidates: [],
+  commodityClassificationConfirmed: false,
+  attachments: [],
   serviceDescription: null,
   catalogueItems: [],
   preCheckOutcome: '',
@@ -198,7 +213,7 @@ const INITIAL_DATA: RequestFormData = {
 };
 
 const STEPS = [
-  { number: 1, title: 'Category', description: 'What do you need?' },
+  { number: 1, title: 'Describe', description: 'What do you need?' },
   { number: 2, title: 'Pre-check', description: 'Catalogue & contract match' },
   { number: 3, title: 'Details', description: 'Service description' },
   { number: 4, title: 'Risk & assessment', description: 'Risk, IRQ, reuse' },
@@ -211,7 +226,7 @@ const STEPS = [
 // determination or approval routing — just pick and place the order. The
 // wizard jumps Step 3 (Order) straight to Confirmation.
 const CATALOGUE_STEPS = [
-  { number: 1, title: 'Category', description: 'What do you need?' },
+  { number: 1, title: 'Describe', description: 'What do you need?' },
   { number: 2, title: 'Pre-check', description: 'Catalogue match' },
   { number: 3, title: 'Order', description: 'Pick items & place the order' },
   { number: 7, title: 'Confirmation', description: 'Order placed' },
@@ -267,8 +282,19 @@ function ExpertNewRequestPage() {
   const [requestId, setRequestId] = useState('');
   const [initialized, setInitialized] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [catalogueOrder, setCatalogueOrder] = useState<{
+    title: string;
+    estimatedValue: number;
+    supplier: string;
+    supplierId: string;
+    catalogueItems: { itemId: string; name: string; quantity: number; unitPrice: number; supplierId: string }[];
+  } | null>(null);
+  const [catalogueCheckoutOpen, setCatalogueCheckoutOpen] = useState(false);
   const { currentUser } = useAuthStore();
   const { data: suppliers = [] } = useSuppliers();
+  const { data: contracts = [] } = useContracts();
+  const { data: riskAssessments = [] } = useRiskAssessments();
+  const { data: catalogueItems = [] } = useCatalogueItems();
   const { data: users = [] } = useUsers();
 
   // Auto-derive the requester's country from their profile (read-only). Runs
@@ -420,55 +446,80 @@ function ExpertNewRequestPage() {
     }
   };
 
-  // Fast-track a catalogue order — pre-approved items skip risk/determination/
-  // routing and go straight to a raised PO. No SOW, no approval workflow. Takes
-  // the cart payload directly so it's a single click from the catalogue.
+  // Catalogue orders use the same governed endpoint as Simple mode. The
+  // browser can collect a cart, but it must not create a PO directly or claim
+  // that approval is unnecessary before the server checks current policy.
   const submitCatalogueOrder = async (order: {
     title: string;
     estimatedValue: number;
     supplier: string;
     supplierId: string;
     catalogueItems: { itemId: string; name: string; quantity: number; unitPrice: number; supplierId: string }[];
-  }) => {
+  }, draft?: CatalogueOrderDraft) => {
+    if (!draft) {
+      // The shared checkout collects only fulfilment details that cannot be
+      // inferred from the catalogue/profile. Governance is evaluated after
+      // those fields are present, so the browser never bypasses that seam.
+      setCatalogueOrder(order);
+      updateFormData(order);
+      setCatalogueCheckoutOpen(true);
+      return;
+    }
     const id = generateRequestId();
-    updateFormData(order); // keep the confirmation screen in sync
+    const submittedOrder = {
+      ...order,
+      estimatedValue: draft.quantity * (order.catalogueItems[0]?.unitPrice ?? 0),
+      catalogueItems: order.catalogueItems.map((line, index) => index === 0 ? { ...line, quantity: draft.quantity } : line),
+    };
+    updateFormData({ ...submittedOrder, deliveryDate: draft.needBy, costCentre: draft.costCentre });
     setIsSubmitting(true);
     try {
-      const lines = order.catalogueItems
-        .map((i) => `- ${i.name} × ${i.quantity} @ €${i.unitPrice.toLocaleString('de-DE')}`)
-        .join('\n');
-      await createRequest({
-        id,
-        title: order.title || 'Catalogue order',
-        description: lines || order.title,
-        category: 'catalogue' as RequestCategory,
-        status: 'po',
-        priority: formData.isUrgent ? 'urgent' : 'medium',
-        value: order.estimatedValue,
-        currency: formData.currency,
-        supplierId: order.supplierId || undefined,
-        buyingChannel: 'catalogue' as BuyingChannel,
-        commodityCode: formData.commodityCode,
-        commodityCodeLabel: formData.commodityCodeLabel,
-        costCentre: formData.costCentre,
-        budgetOwner: currentUser.name,
-        businessJustification: 'Pre-approved catalogue purchase — no approval required.',
-        deliveryDate: parseDeliveryDate(formData.deliveryDate) ?? undefined,
-        isUrgent: formData.isUrgent,
-        requestorId: currentUser.id,
-        ownerId: currentUser.id,
-        daysInStage: 0,
-        isOverdue: false,
-        referBackCount: 0,
-        requesterCountry: formData.requesterCountry || undefined,
-        requesterCountryCode: formData.requesterCountryCode || undefined,
-        beneficiaryId: formData.beneficiaryId || undefined,
-        beneficiaryName: formData.beneficiaryName || undefined,
-        beneficiaryCountry: formData.beneficiaryCountry || undefined,
-        beneficiaryCountryCode: formData.beneficiaryCountryCode || undefined,
-      });
+      const primary = submittedOrder.catalogueItems[0];
+      const item = primary ? catalogueItems.find((candidate) => candidate.id === primary.itemId) : undefined;
+      if (!item) throw new Error('The selected catalogue item is no longer available.');
+      const supplier = suppliers.find((candidate) => candidate.id === item.supplierId);
+      if (!supplier) throw new Error('The catalogue supplier could not be resolved.');
+      const resolved = resolveCheckoutContract(item, contracts);
+      if (!resolved.contract) throw new Error(resolved.error ?? 'No active contract covers this catalogue item.');
+      const storedProfile = await getProcurementProfile(currentUser.id).catch(() => null);
+      const profile = storedProfile ?? {
+        userId: currentUser.id, defaultCurrency: formData.currency, costCentre: formData.costCentre,
+        budgetOwner: currentUser.name, accountType: 'expense', beneficiaryId: formData.beneficiaryId || currentUser.id,
+        approvedShipToLocations: [{ id: 'office', label: 'Default location' }],
+        defaultShipToLocationId: 'office', defaultCommodityCode: item.commodityCode,
+      };
+      const riskAssessment = resolveCheckoutRiskAssessment(riskAssessments, supplier.id, resolved.contract.id);
+      const checkout = {
+        route: 'catalogue' as const,
+        lines: submittedOrder.catalogueItems.map((line) => ({ item, description: line.name, quantity: line.quantity, unit: item.unit, unitPrice: item.unitPrice, supplierId: supplier.id, contractId: resolved.contract!.id, riskAssessmentId: riskAssessment?.id, commodityCode: item.commodityCode })),
+        supplier, contract: resolved.contract, riskAssessment, profile,
+        currency: formData.currency, needByDate: draft.needBy,
+        purpose: draft.businessPurpose || submittedOrder.title, costCentre: draft.costCentre,
+        shipToLocationId: draft.deliveryLocation,
+        beneficiaryId: formData.beneficiaryId || currentUser.id, idempotencyKey: `checkout-${id}`,
+      };
+      const decision = evaluateGovernedCheckout(checkout);
+      if (!decision.ok) throw new Error(decision.errors.join(' '));
+      const request = {
+        id, title: submittedOrder.title || 'Catalogue order', description: submittedOrder.title || 'Catalogue order',
+        category: 'catalogue' as RequestCategory, status: 'intake' as const,
+        priority: formData.isUrgent ? ('urgent' as const) : ('medium' as const), value: decision.totalValue, currency: formData.currency,
+        supplierId: supplier.id, contractId: resolved.contract.id, buyingChannel: 'catalogue' as BuyingChannel,
+        commodityCode: item.commodityCode, commodityCodeLabel: item.commodityCode,
+        commodityCandidates: formData.commodityCandidates, commodityClassificationConfirmed: formData.commodityClassificationConfirmed,
+        attachments: formData.attachments, costCentre: formData.costCentre, budgetOwner: currentUser.name,
+        businessJustification: '', deliveryDate: parseDeliveryDate(formData.deliveryDate) ?? undefined,
+        isUrgent: formData.isUrgent, requestorId: currentUser.id, ownerId: currentUser.id,
+        daysInStage: 0, isOverdue: false, referBackCount: 0,
+        requesterCountry: formData.requesterCountry || undefined, requesterCountryCode: formData.requesterCountryCode || undefined,
+        beneficiaryId: formData.beneficiaryId || undefined, beneficiaryName: formData.beneficiaryName || undefined,
+        beneficiaryCountry: formData.beneficiaryCountry || undefined, beneficiaryCountryCode: formData.beneficiaryCountryCode || undefined,
+      };
+      const lines = submittedOrder.catalogueItems.map((line) => ({ id: `LINE-${id}-${line.itemId}`, requestId: id, description: line.name, quantity: line.quantity, unit: item.unit, unitPrice: item.unitPrice, supplierId: supplier.id, contractId: resolved.contract!.id, catalogueItemId: line.itemId, riskAssessmentId: riskAssessment?.id, commodityCode: item.commodityCode, deliveryDate: draft.needBy }));
+      await submitGovernedCheckout({ requestId: id, requisitionId: `PR-${id}`, decision, checkout, request, lines });
       queryClient.invalidateQueries({ queryKey: ['requests'] });
-      toast.success('Catalogue order placed');
+      toast.success('Catalogue request submitted');
+      setCatalogueCheckoutOpen(false);
       setRequestId(id);
       setCurrentStep(7);
     } catch (e) {
@@ -512,9 +563,14 @@ function ExpertNewRequestPage() {
           referralDisposition: formData.referral?.outcome,
           commodityCode: formData.commodityCode,
           commodityCodeLabel: formData.commodityCodeLabel,
+          commodityCandidates: formData.commodityCandidates,
+          commodityClassificationConfirmed: formData.commodityClassificationConfirmed,
+          attachments: formData.attachments,
           costCentre: formData.costCentre,
           budgetOwner: currentUser.name,
-          businessJustification: formData.businessJustification,
+          // The structured service description is the requester-facing source
+          // of truth; keep the legacy column empty for newly created requests.
+          businessJustification: undefined,
           deliveryDate: parseDeliveryDate(formData.deliveryDate) ?? undefined,
           isUrgent: formData.isUrgent,
           requestorId: currentUser.id,
@@ -572,6 +628,7 @@ function ExpertNewRequestPage() {
           await saveServiceDescription(id, {
             objective: sow.objective ?? '',
             scope: sow.scope ?? '',
+            exclusions: sow.exclusions ?? '',
             deliverables: sow.deliverables ?? '',
             timeline: sow.timeline ?? '',
             resources: sow.resources ?? '',
@@ -644,9 +701,12 @@ function ExpertNewRequestPage() {
         sourcingTypeReason: formData.sourcingType?.reason,
         commodityCode: formData.commodityCode,
         commodityCodeLabel: formData.commodityCodeLabel,
+        commodityCandidates: formData.commodityCandidates,
+        commodityClassificationConfirmed: formData.commodityClassificationConfirmed,
+        attachments: formData.attachments,
         costCentre: formData.costCentre,
         budgetOwner: '',
-        businessJustification: formData.businessJustification,
+        businessJustification: undefined,
         deliveryDate: formData.deliveryDate,
         isUrgent: formData.isUrgent,
         daysInStage: 0,
@@ -682,7 +742,7 @@ function ExpertNewRequestPage() {
         <h1 className="text-xl font-semibold text-gray-900">New Request</h1>
         <p className="mt-0.5 text-sm text-gray-500">
           {isCatalogue
-            ? 'Fast catalogue order — pre-approved items, no approval needed'
+            ? 'Catalogue request — governed checkout'
             : `Create a new procurement request in ${STEPS.length} steps`}
         </p>
       </div>
@@ -814,9 +874,7 @@ function ExpertNewRequestPage() {
               // Carry the enrichment forward so the full SD / second contract
               // check benefit from the extra detail captured at the gate.
               updateFormData({
-                businessJustification: formData.businessJustification
-                  ? `${formData.businessJustification}\n${text}`
-                  : text,
+                title: formData.title ? `${formData.title} — ${text}` : text,
               });
             }}
           />
@@ -833,7 +891,13 @@ function ExpertNewRequestPage() {
           />
         )}
         {currentStep === 3 && formData.preCheckOutcome === 'catalogue' && (
-          <StepCatalogue onPlaceOrder={(order) => void submitCatalogueOrder(order)} />
+          catalogueCheckoutOpen && catalogueOrder ? (
+            <CatalogueOrderCheckout
+              item={catalogueItems.find((candidate) => candidate.id === catalogueOrder.catalogueItems[0]?.itemId) ?? catalogueItems[0]!}
+              mode="expert"
+              onSubmit={(draft) => void submitCatalogueOrder(catalogueOrder, draft)}
+            />
+          ) : <StepCatalogue onPlaceOrder={(order) => void submitCatalogueOrder(order)} />
         )}
         {currentStep === 3 && formData.preCheckOutcome === 'contract' && (
           <StepDetails
@@ -855,7 +919,13 @@ function ExpertNewRequestPage() {
           />
         )}
         {currentStep === 3 && formData.preCheckOutcome === 'full-request' && formData.category === 'catalogue' && (
-          <StepCatalogue onPlaceOrder={(order) => void submitCatalogueOrder(order)} />
+          catalogueCheckoutOpen && catalogueOrder ? (
+            <CatalogueOrderCheckout
+              item={catalogueItems.find((candidate) => candidate.id === catalogueOrder.catalogueItems[0]?.itemId) ?? catalogueItems[0]!}
+              mode="expert"
+              onSubmit={(draft) => void submitCatalogueOrder(catalogueOrder, draft)}
+            />
+          ) : <StepCatalogue onPlaceOrder={(order) => void submitCatalogueOrder(order)} />
         )}
         {currentStep === 3 && formData.preCheckOutcome === 'full-request' && ['contract-renewal', 'supplier-onboarding'].includes(formData.category) && (
           <StepDetails
@@ -892,6 +962,7 @@ function ExpertNewRequestPage() {
               costCentre: formData.costCentre,
               commodityCode: formData.commodityCode,
               commodityCodeLabel: formData.commodityCodeLabel,
+              serviceDescription: formData.serviceDescription,
             }}
             onUpdate={(d) => updateFormData(d)}
           />

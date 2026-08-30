@@ -274,6 +274,10 @@ export async function initWorkflow(
     await advanceInstance(instance, template, undefined);
   } catch (e) {
     console.error('[engine] initWorkflow error:', e);
+    // A completed intake must not be left parked in `intake` because an
+    // optional template/side-effect failed. The channel fallback records the
+    // first actionable stage and preserves a visible recovery path.
+    try { await initFallbackWorkflow(requestId, buyingChannel); } catch (fallbackError) { console.error('[engine] fallback transition failed:', fallbackError); }
   }
 }
 

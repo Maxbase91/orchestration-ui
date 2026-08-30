@@ -25,6 +25,7 @@ export async function saveServiceDescription(
     request_id: requestId,
     objective: sow.objective,
     scope: sow.scope,
+    ...(sow.exclusions !== undefined ? { exclusions: sow.exclusions } : {}),
     deliverables: sow.deliverables,
     timeline: sow.timeline,
     resources: sow.resources,

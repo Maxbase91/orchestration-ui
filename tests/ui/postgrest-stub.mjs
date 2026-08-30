@@ -19,6 +19,7 @@ export const FIXTURES = {
     { id: 'u11', name: 'Christine Dupont', email: 'christine.dupont@company.com', role: 'admin', department: 'Global Procurement', initials: 'CD', is_ooo: false },
     { id: 'u02', name: 'Marc Aubert', email: 'marc.aubert@company.com', role: 'requester', department: 'Operations', initials: 'MA', is_ooo: false },
     { id: 'u05', name: 'Sofia Ricci', email: 'sofia.ricci@company.com', role: 'approver', department: 'Finance', initials: 'SR', is_ooo: false },
+    { id: 'u3', name: 'Sarah Chen', email: 'sarah.chen@company.com', role: 'vendor-manager', department: 'Supplier Management', initials: 'SC', is_ooo: false },
   ],
   requests: [
     {
@@ -126,9 +127,61 @@ export const FIXTURES = {
   risk_assessments: [],
   intake_compliance_records: [],
   notifications: [],
-  suppliers: [],
-  contracts: [],
+  suppliers: [{
+    id: 'SUP-CAT-001', name: 'Lenovo', country: 'Germany', country_code: 'DE', risk_rating: 'low',
+    active_contracts: 1, total_spend_12m: 0, onboarding_status: 'active', sra_status: 'valid',
+    sra_expiry_date: '2027-12-31', screening_status: 'cleared', categories: ['goods'], tier: 2,
+  }],
+  suppliers_with_derived: [{
+    id: 'SUP-CAT-001', name: 'Lenovo', country: 'Germany', country_code: 'DE', risk_rating: 'low',
+    active_contracts_live: 1, total_spend_12m_live: 0, onboarding_status: 'active', sra_status: 'valid',
+    sra_expiry_date: '2027-12-31', screening_status: 'cleared', categories: ['goods'], tier: 2,
+  }],
+  contracts: [{
+    id: 'CON-CAT-001', title: 'IT Equipment Framework', supplier_id: 'SUP-CAT-001', supplier_name: 'Lenovo',
+    value: 1000000, start_date: '2025-01-01', end_date: '2027-12-31', status: 'active', owner_id: 'u11',
+    owner_name: 'Christine Dupont', department: 'IT', category: 'goods', utilisation_percentage: 10,
+    linked_request_ids: [],
+  }],
+  contracts_with_derived: [{
+    id: 'CON-CAT-001', title: 'IT Equipment Framework', supplier_id: 'SUP-CAT-001', supplier_name: 'Lenovo',
+    value: 1000000, start_date: '2025-01-01', end_date: '2027-12-31', status: 'active', owner_id: 'u11',
+    owner_name: 'Christine Dupont', department: 'IT', category: 'goods', utilisation_percentage: 10,
+    linked_request_ids_live: [],
+  }],
+  risk_assessments: [{
+    id: 'RSK-CAT-001', title: 'Lenovo supplier assessment', subject_type: 'supplier', supplier_id: 'SUP-CAT-001',
+    contract_id: 'CON-CAT-001', category: 'operational', risk_level: 'low', score: 10, status: 'completed',
+    assessor_id: 'u11', assessor_name: 'Christine Dupont', assessed_at: '2026-01-01', valid_until: '2027-12-31',
+    summary: 'Valid supplier assessment', mitigations: [], reusable: true, linked_request_ids: [],
+  }],
+  procurement_categories: [
+    { id: 'goods', label: 'Goods', description: 'Physical products', active: true, timeline_days: 5, sort_order: 1, catalogue_eligible: true },
+    { id: 'consulting', label: 'Consulting', description: 'Advisory services', active: true, timeline_days: 15, sort_order: 2, catalogue_eligible: false },
+    { id: 'contract-renewal', label: 'Contract Renewal', description: 'Renew an existing agreement', active: true, timeline_days: 12, sort_order: 3, catalogue_eligible: false },
+  ],
   audit_entries: [],
+  // Minimal admin configuration keeps the routing preview meaningful in an
+  // offline browser run: the same labels and value band as the seeded app.
+  workflow_templates: [{
+    id: 'WF-001', name: 'Standard Procurement', description: 'Standard lifecycle', type: 'procurement',
+    nodes: [
+      { id: 'n1', type: 'start', label: 'Request Submitted' },
+      { id: 'n2', type: 'stage', label: 'Intake', role: 'Business Requestor', slaDays: 1, gate: 'auto' },
+      { id: 'n3', type: 'stage', label: 'Validation', role: 'Category Manager', slaDays: 3, gate: 'manual' },
+      { id: 'n3-risk', type: 'stage', label: 'Risk Assessment', role: 'Third-party risk', slaDays: 7, gate: 'manual' },
+      { id: 'n3-vendor', type: 'stage', label: 'Vendor Onboarding', role: 'Supplier Manager', slaDays: 7, gate: 'manual' },
+      { id: 'n4', type: 'decision', label: 'Auto-Route' },
+      { id: 'n5', type: 'stage', label: 'Approval', role: 'Approver', slaDays: 5, gate: 'manual' },
+      { id: 'n6', type: 'stage', label: 'Sourcing', role: 'Procurement Lead', slaDays: 20, gate: 'manual' },
+      { id: 'n7', type: 'stage', label: 'Contracting', role: 'Legal', slaDays: 10, gate: 'manual' },
+    ],
+    edges: [],
+  }],
+  approval_chains: [{
+    id: 'AC-VP', name: 'VP-Level chain', description: 'Value-banded approval', threshold: '100,000 - 500,000',
+    steps: [{ id: 'step-vp', role: 'VP Procurement' }], referenced_by: [],
+  }],
 };
 
 /** Parameters that shape the result rather than filter it. */

@@ -22,24 +22,15 @@ interface StepConfirmationProps {
   onReset: () => void;
 }
 
-const CATEGORY_LABELS: Record<string, string> = {
-  goods: 'Goods',
-  services: 'Services',
-  software: 'Software / IT',
-  consulting: 'Consulting',
-  'contingent-labour': 'Contingent Labour',
-  'contract-renewal': 'Contract Renewal',
-  'supplier-onboarding': 'Supplier Onboarding',
-  'catalogue': 'Catalogue Purchase',
-};
-
 export function StepConfirmation({ requestId, data, onReset }: StepConfirmationProps) {
   const navigate = useNavigate();
 
   const summaryItems = [
     { label: 'Request ID', value: requestId },
     { label: 'Title', value: data.title },
-    { label: 'Category', value: CATEGORY_LABELS[data.category] ?? data.category },
+    // Broad category values remain internal routing metadata. Requesters see
+    // the specific commodity/service family instead of a Goods/Services split.
+    { label: 'Classification', value: data.commodityCodeLabel || 'Being confirmed' },
     { label: 'Supplier', value: data.supplier || 'Not specified' },
     { label: 'Estimated Value', value: formatCurrency(data.estimatedValue, data.currency) },
     { label: 'Cost Centre', value: data.costCentre || 'Not specified' },

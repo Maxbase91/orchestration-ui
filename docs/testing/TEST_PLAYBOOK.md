@@ -35,6 +35,14 @@ For the atomic checkout tranche, run `npm run test:governed-checkout-atomic` and
 exercise transaction writes, safe replay, conflicting-key rejection, concurrency, and policy
 singleton validation, then restore/remove their uniquely prefixed test data.
 
+For contract-aware matching, run `npm run test:contract-matching` for deterministic rules and
+`npm run test:contract-match-api` for the read-only Neon endpoint. Verify that generic descriptions
+such as “we need consulting” ask for a deliverable and context; a description with service,
+deliverable and context returns explainable candidates; exclusions, geography, effective dates and
+incomplete scope route to full intake. Contract detail’s Coverage & Matching tab is the maintenance
+surface for narratives, deliverables and exclusions. Governed checkout must be re-run for a
+contract call-off after any scope edit and reject a stale or low-confidence client selection.
+
 The browser must never contain `DATABASE_URL`, `NEON_DATABASE_URL`, or a service-role key. Supabase
 variables are retained only for rollback/comparison; Neon is the active R1 database. Because the
 historical cutover had no write freeze, retain the migration mismatch report for audit.
@@ -164,12 +172,16 @@ These are the cases where the wizard could not.
 |---|---|---|
 | TC-REQ-G1 | Any step | A header panel states **what the step is for**, **what we need from you**, and **what happens next**. The stepper renders each step's description under its label — that copy was defined on every step and drawn nowhere |
 | TC-REQ-G2 | Step 1, after classification | **One** classification block: category as the headline with the commodity code beneath it as the derived specific code. The title is the block's heading, not a card of its own. Supplier and value are labelled **extracted** (they are confirmed at the determination). No "routes the request" sub-label — the channel routes it, and it is not decided here |
+| TC-REQ-G2a | Step 1, any demand | The requester never chooses or sees a Goods/Services split. Specific commodity/service-family candidates are shown only when confidence meets the configured threshold (up to three at ≥90%, otherwise the top candidate), with probability, reason, and **None of these** |
+| TC-REQ-G2d | Step 1, upload a PDF/DOCX | The document is stored with the request, extracted server-side, and the extracted fields are visible for confirmation before route matching. Unsupported, oversized, or unreadable files show a recoverable message and never block plain-text intake |
 | TC-REQ-G2b | Step 1, after classification | **No generated business justification.** Step 1 classifies; it does not author the justification. The offline fallback used to emit boilerplate — "Business need: <your words>. This procurement supports business operations and is raised via the front door for classification, risk assessment and routing…" — which restated the input and said nothing, and the chat path overwrote it anyway |
 | TC-REQ-G2c | Complete the step-3 conversation, then open the request | The **justification is the service-description narrative**, on the LLM path as well as the offline one. Only the offline fallback set it, so on the LLM path the request carried step 1's seed and never reflected what the requester actually described |
 | TC-REQ-G3 | Step 1, click Accept | No accepted banner. The old one repeated the category and supplier from the card above it, then auto-advanced after **600 ms** — nobody could read it. The block stays on screen with its controls locked through the hand-off |
 | TC-REQ-G4 | Step 2, any demand | The **buying channel** is shown, with its indicative timeline and the rule that decided it. This was first visible on step 5, four steps after it became knowable |
 | TC-REQ-G5 | Step 2 → step 5, same demand | The channel shown on the pre-check **equals** the one the determination computes. Both call `resolveDemandChannel`; a second derivation would be the drift this codebase keeps paying for |
 | TC-REQ-G6 | Step 3, tick "Mark as urgent" | The toggle states inline that the request now goes to Procurement-Led Sourcing instead of its current channel. Derived from the live rule set, and **silent** when urgency would change nothing |
+| TC-REQ-G7 | Step 3, complete the adaptive conversation | Included, Excluded, Deliverables and Acceptance Criteria are separate editable sections; guidance is optional, sourced as a generalized similar approved request/template, and must be explicitly applied. No Business Justification field is shown and the narrative is not copied into the legacy field |
+| TC-REQ-G8 | Submit a complete request | The server creates the request and stage history, then transitions to validation/risk/approval/sourcing as applicable. A successful complete submission is not left in `intake`; genuinely incomplete information remains there with the missing fields visible |
 | TC-REQ-G7 | Step 3 progress bar, answer every question | Reads **100%**. The denominator is the questions this demand is actually asked, not a fixed 14 — which topped out at 57% (goods €8k), 64% (software €30k), 71% (services €60k) and 86% (consulting €400k) |
 | TC-REQ-G8 | Step 3 panel, section list | Comes from the resolved template, not a hardcoded nine. A section the template marks `asked: false` (today, `location`) shows as **inferred**, not "Pending" — it is generated, never captured |
 | TC-REQ-G9 | Step 3, a conditional question | Carries an **"Asked because…"** line explaining why *this* demand gets it. The six mandatory questions carry none — a justification on every question is one the requester learns to skip. The copy is per-slot config, editable in the admin slot table |

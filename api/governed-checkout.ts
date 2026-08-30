@@ -22,6 +22,8 @@ import {
   mapDbToSupplier,
 } from '../src/lib/db/mappers.js';
 import type { ProcurementProfile, PurchaseOrder, PurchaseRequisition, ProcurementRequest, RequestLine, RiskAssessment } from '../src/data/types.js';
+import { loadContractMatchScopes } from './contract-match.js';
+import { matchContractScopes } from '../src/lib/procurement/contract-matching.js';
 
 type DbRow = Record<string, unknown>;
 type CheckoutPayload = {
@@ -68,6 +70,7 @@ function fingerprint(payload: CheckoutPayload): string {
       beneficiaryId: checkout.beneficiaryId, idempotencyKey: checkout.idempotencyKey,
       supplierId: checkout.supplier?.id, contractId: checkout.contract?.id,
       riskAssessmentId: checkout.riskAssessment?.id,
+      contractMatch: checkout.contractMatch,
     } : null,
   };
   return createHash('sha256').update(JSON.stringify(stable(normalized))).digest('hex');
@@ -177,6 +180,10 @@ function sameDecision(client: GovernedCheckoutDecision | undefined, server: Gove
     && client.resolved.supplierId === server.resolved.supplierId && client.resolved.contractId === server.resolved.contractId;
 }
 
+function matchFingerprint(text: string): string {
+  return createHash('sha256').update(text.trim().toLowerCase().replace(/\s+/g, ' ')).digest('hex');
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
   if (req.method !== 'POST') { res.status(405).json({ error: 'Method not allowed', code: 'method_not_allowed' }); return; }
   let sql!: ReturnType<typeof getNeonClient>;
@@ -228,9 +235,48 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     });
     const riskId = checkout.riskAssessment?.id ?? authoritativeLines.find((line) => line.riskAssessmentId)?.riskAssessmentId;
     const riskAssessment: RiskAssessment | undefined = riskId ? assessments.find((candidate) => candidate.id === riskId) : undefined;
+    // A call-off must be supported by the current effective scope, not merely
+    // by the category carried in the browser payload. Catalogue lines inherit
+    // their linked contract scope and still persist the evidence for audit.
+    let scopeEvidence: GovernedCheckoutInput['contractMatch'] | undefined;
+    try {
+      const scopeInput = {
+        text: [checkout.purpose, ...authoritativeLines.map((line) => line.description)].filter(Boolean).join(' '),
+        category: request.category ?? undefined,
+        supplierId,
+        estimatedValue: authoritativeLines.reduce((sum, line) => sum + line.quantity * line.unitPrice, 0),
+        needByDate: checkout.needByDate,
+        serviceStartDate: checkout.serviceStartDate,
+        serviceEndDate: checkout.serviceEndDate,
+      };
+      const scopes = (await loadContractMatchScopes(sql)).filter((scope) => scope.contractId === contractId);
+      const match = matchContractScopes(scopeInput, scopes);
+      const selected = match.candidates.find((candidate) => candidate.contractId === contractId);
+      if (checkout.route === 'contract-call-off' && (!selected || match.route !== 'contract')) {
+        throw new CheckoutError('The selected contract does not confidently cover this demand. Add more scope detail or continue as a new request.', 'contract_match_required', 409);
+      }
+      if (selected) {
+        scopeEvidence = {
+          scopeVersionId: selected.scopeVersionId,
+          score: selected.score,
+          reasons: selected.reasons,
+          inputFingerprint: matchFingerprint(scopeInput.text),
+          algorithmVersion: 'contract-match-v1',
+        };
+      }
+      if (checkout.contractMatch && scopeEvidence && (checkout.contractMatch.scopeVersionId !== scopeEvidence.scopeVersionId || Math.abs(checkout.contractMatch.score - scopeEvidence.score) > 0.001)) {
+        throw new CheckoutError('The contract match changed while you were reviewing the request.', 'governance_mismatch', 409);
+      }
+    } catch (error) {
+      if (error instanceof CheckoutError) throw error;
+      if (!/contract_scope_versions|does not exist|relation/i.test(errorMessage(error))) throw error;
+      // Older environments can still process existing catalogue checkouts;
+      // they remain auditable through the linked contract but have no scope evidence.
+    }
     const authoritative: GovernedCheckoutInput = {
       ...checkout, lines: authoritativeLines, supplier, contract,
       ...(riskAssessment ? { riskAssessment } : {}), profile,
+      ...(scopeEvidence ? { contractMatch: scopeEvidence } : {}),
       now: new Date(),
     };
     const decision = evaluateGovernedCheckout(authoritative, policy);
@@ -249,6 +295,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       approval_required: decision.approvalRequired, risk_review_required: decision.riskReviewRequired,
       contract_amendment_required: decision.contractAmendmentRequired, idempotency_key: idempotencyKey ?? null,
       idempotency_fingerprint: requestFingerprint, created_at: now, updated_at: now,
+      contract_scope_version_id: decision.resolved.contractScopeVersionId ?? null,
+      contract_match_score: decision.resolved.contractMatchScore ?? null,
+      contract_match_reasons: decision.resolved.contractMatchReasons ?? [],
+      contract_match_algorithm_version: decision.resolved.contractMatchAlgorithmVersion ?? null,
+      contract_match_input_fingerprint: decision.resolved.contractMatchInputFingerprint ?? null,
     };
     const reqColumns = Object.keys(requisitionData);
     const reqValues = Object.values(requisitionData);

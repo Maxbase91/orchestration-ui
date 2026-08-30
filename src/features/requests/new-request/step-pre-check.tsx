@@ -26,7 +26,7 @@
 // `resolveDemandChannel`, the same function the determination calls, so the two
 // screens cannot disagree.
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ShoppingCart, FileText, ArrowRight, ArrowLeft, Check, Loader2, Info, Route } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -40,8 +40,10 @@ import { useRoutingRules } from '@/lib/db/hooks/use-routing-rules';
 import { buyingChannelLabel } from '@/lib/routing/evaluate-routing-rules';
 import { resolveDemandChannel } from '@/lib/routing/demand-channel';
 import { computeDemandSignals } from '@/lib/procurement/demand-signals';
+import { requestContractMatch } from '@/lib/procurement/contract-match-api';
 import type { CatalogueItem } from '@/data/catalogue-items';
-import type { Contract, Supplier } from '@/data/types';
+import type { Contract, ContractMatchResponse, Supplier } from '@/data/types';
+import { IntakeGuidanceCard } from './components/intake-guidance-card';
 
 export type PreCheckOutcome = 'catalogue' | 'contract' | 'full-request';
 
@@ -147,8 +149,27 @@ export function StepPreCheck({
   const { data: routingRules = [] } = useRoutingRules();
 
   const [enrich, setEnrich] = useState('');
+  const [serverMatch, setServerMatch] = useState<ContractMatchResponse | null>(null);
+  const [matchUnavailable, setMatchUnavailable] = useState(false);
+  const [clarificationRound, setClarificationRound] = useState(0);
   /** Set when the user overrides the recommendation to look anyway. */
   const [forcedStage, setForcedStage] = useState<Stage | null>(null);
+
+  // Debounce the server match while the requester types clarification detail.
+  // The local matcher remains available as a responsive preview if the API is down.
+  useEffect(() => {
+    if (!title.trim() || conLoading || conError) return undefined;
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      void requestContractMatch({ text: `${title} ${enrich}`.trim(), category, supplierId: supplierId || undefined, estimatedValue }, controller.signal)
+        .then((result) => { setServerMatch(result); setMatchUnavailable(false); })
+        .catch((error: unknown) => {
+          if (error instanceof DOMException && error.name === 'AbortError') return;
+          setServerMatch(null); setMatchUnavailable(true);
+        });
+    }, 350);
+    return () => { window.clearTimeout(timer); controller.abort(); };
+  }, [category, conError, conLoading, enrich, estimatedValue, supplierId, title]);
 
   // Which categories the catalogue can actually fulfil — admin config, falling
   // back to the canonical taxonomy so an empty store behaves identically.
@@ -172,6 +193,17 @@ export function StepPreCheck({
 
   const supplierById = useMemo(() => new Map(suppliers.map((s) => [s.id, s])), [suppliers]);
 
+  const serverContractMatches = useMemo(() => {
+    if (!serverMatch) return undefined;
+    return serverMatch.candidates
+      .map((candidate) => {
+        const contract = contracts.find((item) => item.id === candidate.contractId);
+        return contract ? { contract, score: candidate.score, reasons: candidate.reasons } : null;
+      })
+      .filter((match): match is { contract: Contract; score: number; reasons: string[] } => Boolean(match));
+  }, [contracts, serverMatch]);
+  const contractMatches = serverContractMatches ?? decision.contractMatches;
+
   // ── The buying channel, as far as it can be known here ───────────────────
   //
   // `computeDemandSignals` supplies the risk and materiality inputs rather than
@@ -184,9 +216,9 @@ export function StepPreCheck({
       category,
       value: estimatedValue,
       sow: { objective: `${title} ${enrich}`.trim() },
-      contractCovered: decision.contractMatches.length > 0,
+      contractCovered: contractMatches.length > 0,
     }),
-    [category, estimatedValue, title, enrich, decision.contractMatches.length],
+    [category, estimatedValue, title, enrich, contractMatches.length],
   );
 
   const routing = useMemo(
@@ -196,11 +228,11 @@ export function StepPreCheck({
       supplierId,
       // The pre-check is where the contract question is settled, and it is the
       // one routing input step 1 could not have.
-      contractId: decision.contractMatches[0]?.contract.id,
+      contractId: contractMatches[0]?.contract.id,
       riskRating: signals.inherentRiskTier,
       material: signals.material,
     }),
-    [routingRules, category, estimatedValue, supplierId, decision.contractMatches, signals],
+    [routingRules, category, estimatedValue, supplierId, contractMatches, signals],
   );
 
   const timelineByCategory = useMemo(() => {
@@ -241,7 +273,8 @@ export function StepPreCheck({
 
   const catalogueMatches = decision.catalogueMatches.map((m) => m.item);
   const hasCatalogue = catalogueMatches.length > 0;
-  const hasContract = decision.contractMatches.length > 0;
+  const canCallOff = contractMatches.length > 0 && (!serverMatch || serverMatch.route === 'contract');
+  const hasContract = canCallOff;
 
   // Open on the catalogue only when it is genuinely in play. A ruled-out
   // catalogue is stated once and stepped over, not rendered as an empty card
@@ -382,8 +415,7 @@ export function StepPreCheck({
         <div className="rounded-lg border border-gray-200 bg-white p-4">
           <p className="text-sm font-medium text-gray-900">Tell us a bit more</p>
           <p className="mt-0.5 text-xs text-gray-500">
-            Add the specifics that distinguish this from a generic{' '}
-            {category ? `${category} ` : ''}need — it sharpens the contract match.{' '}
+            Add the specifics that distinguish this from a generic need — it sharpens the contract match.{' '}
             {enrichGuidance(category)}.
           </p>
           <Textarea
@@ -411,8 +443,8 @@ export function StepPreCheck({
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <h2 className="text-base font-semibold text-gray-900">Contract check</h2>
+      <div>
+        <h2 className="text-base font-semibold text-gray-900">Contract check</h2>
           <p className="mt-0.5 text-sm text-gray-500">
             Next we look for an active contract that can already cover this.
           </p>
@@ -425,6 +457,13 @@ export function StepPreCheck({
         </Button>
       </div>
 
+      <IntakeGuidanceCard
+        section="scope"
+        category={category}
+        text={title}
+        onApply={(suggestion) => { setEnrich((previous) => previous.trim() ? `${previous.trim()} ${suggestion}` : suggestion); onEnrich?.(suggestion); }}
+      />
+
       {!catalogueApplies && decision.ruledOut.catalogue && (
         <p className="flex items-start gap-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600">
           <Info className="mt-px size-3.5 shrink-0 text-gray-400" />
@@ -435,6 +474,47 @@ export function StepPreCheck({
       {decision.llmOverruled && (
         <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
           {decision.llmOverruled}
+        </p>
+      )}
+
+      {serverMatch?.route === 'clarify' && serverMatch.questions.length > 0 && clarificationRound < 3 && (
+        <Card className="border-amber-200 bg-amber-50/40">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">More information needed</CardTitle>
+            <p className="text-xs text-gray-600">
+              We found possible contract coverage, but need one detail to confirm the right one.
+              Question {clarificationRound + 1} of 3.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm font-medium text-gray-900">{serverMatch.questions[0]}</p>
+            <Textarea
+              value={enrich}
+              onChange={(event) => setEnrich(event.target.value)}
+              placeholder={`Add a detail (${enrichGuidance(category)})`}
+              aria-label="Contract matching clarification"
+              rows={3}
+            />
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-[11px] text-gray-500">You can answer “I don’t know” and continue to a full request.</p>
+              <Button size="sm" onClick={() => { setClarificationRound((round) => round + 1); onEnrich?.(enrich.trim()); }}>
+                Use this detail
+                <ArrowRight className="size-3.5" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {matchUnavailable && (
+        <p className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600">
+          Preliminary match only — server confirmation will be required before a contract call-off can be submitted.
+        </p>
+      )}
+
+      {serverMatch?.route === 'full-request' && (
+        <p className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600">
+          We could not confirm contract coverage from the information provided. Continue with a new request and we&apos;ll collect the full service details.
         </p>
       )}
 
@@ -456,20 +536,20 @@ export function StepPreCheck({
         <CardHeader className="pb-3">
           <CardTitle className="text-sm flex items-center gap-2">
             <FileText className="size-4 text-blue-600" />
-            Active contracts that can cover this
+            {serverMatch?.route === 'clarify' ? 'Possible contract matches' : 'Active contracts that can cover this'}
             <span className="text-[11px] font-normal text-gray-400">
-              {hasContract ? `${decision.contractMatches.length} candidate${decision.contractMatches.length === 1 ? '' : 's'}` : 'no match'}
+              {contractMatches.length > 0 ? `${contractMatches.length} candidate${contractMatches.length === 1 ? '' : 's'}` : 'no match'}
             </span>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {!hasContract ? (
+          {contractMatches.length === 0 ? (
             <p className="text-sm text-gray-500">
               {decision.ruledOut.contract ?? 'No active contract appears to cover this request.'}
             </p>
           ) : (
             <ul className="space-y-2">
-              {decision.contractMatches.map(({ contract, reasons, score }) => (
+              {contractMatches.map(({ contract, reasons, score }) => (
                 <li
                   key={contract.id}
                   className="rounded-md border border-blue-100 bg-blue-50/40 p-3"
@@ -488,10 +568,11 @@ export function StepPreCheck({
                       <span className="text-[11px] text-gray-400">fit {(score * 100).toFixed(0)}%</span>
                       <Button
                         size="sm"
+                        disabled={!canCallOff}
                         onClick={() => onChooseContract(contract, supplierById.get(contract.supplierId))}
                       >
                         <ArrowRight className="size-3.5" />
-                        Call-off
+                        {canCallOff ? 'Call-off' : 'Confirm details first'}
                       </Button>
                     </div>
                   </div>

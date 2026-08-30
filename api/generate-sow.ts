@@ -137,8 +137,11 @@ function mockGenerate(
       ? `${capturedAnswers.objective}. This engagement is critical to delivering the organisation's strategic priorities and is expected to generate significant operational and financial value. A rigorous, structured approach will ensure outcomes are measurable and sustainable.`
       : `Procure ${cat} to address the business need described as: "${title}". The engagement will deliver measurable improvements aligned to organisational KPIs. Success will be defined by stakeholder sign-off and quantified outcomes.`,
     scope: capturedAnswers.scope
-      ? `${capturedAnswers.scope}. In scope: end-to-end delivery of all agreed workstreams. Out of scope: ongoing operational support beyond the contract period unless separately agreed in writing.`
-      : `Full lifecycle ${cat} delivery for "${title}". In scope: design, delivery, and handover. Out of scope: post-handover operational support.`,
+      ? `${capturedAnswers.scope}. The agreed workstreams will be delivered end to end.`
+      : `Full lifecycle ${cat} delivery for "${title}" covering design, delivery, and handover.`,
+    exclusions: capturedAnswers.exclusions
+      ? capturedAnswers.exclusions
+      : 'Ongoing operational support beyond the agreed delivery period and work outside the confirmed deliverables.',
     deliverables: capturedAnswers.deliverables
       ? capturedAnswers.deliverables
       : `1. Inception and scoping report\n2. Detailed work plan with milestones\n3. Interim progress reviews (bi-weekly)\n4. Final deliverable as agreed\n5. Handover documentation and knowledge transfer`,

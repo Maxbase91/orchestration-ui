@@ -33,7 +33,7 @@ import { submitGovernedCheckout } from '@/lib/procurement/submit-governed-checko
 import { getProcurementProfile } from '@/lib/db/procurement-profiles';
 import { sectionValuesOf } from '@/lib/procurement/service-description-seed';
 import { parseDeliveryDate } from '@/lib/parse-delivery-date';
-import type { Contract, ProcurementRequest } from '@/data/types';
+import type { Contract, ProcurementRequest, CommodityClassificationCandidate, IntakeAttachment } from '@/data/types';
 import type { CatalogueItem } from '@/data/catalogue-items';
 import type { ServiceDescription } from './new-request-page';
 import { StepCategory } from './step-category';
@@ -43,6 +43,7 @@ import { StepDetails } from './step-details';
 import { StepChatIntake } from './step-chat-intake';
 import { RequesterContextBlock } from './components/requester-context-block';
 import { CatalogueOrderCheckout } from '@/features/catalogue/catalogue-order-checkout';
+import { IntakeGuidanceCard } from './components/intake-guidance-card';
 
 type SimplePhase = 'describe' | 'route' | 'details' | 'review' | 'submitted';
 type SimpleRoute = 'catalogue' | 'contract' | 'p-card' | 'direct-po' | 'new-request';
@@ -62,6 +63,9 @@ interface SimpleData {
   costCentre: string;
   commodityCode: string;
   commodityCodeLabel: string;
+  commodityCandidates?: CommodityClassificationCandidate[];
+  commodityClassificationConfirmed?: boolean;
+  attachments?: IntakeAttachment[];
   serviceDescription: ServiceDescription | null;
   catalogueItems: { itemId: string; name: string; quantity: number; unitPrice: number; supplierId: string }[];
   contractId: string;
@@ -79,7 +83,7 @@ interface SimpleData {
 const INITIAL_DATA: SimpleData = {
   category: '', categoryDescription: '', llmIntent: '', title: '', supplier: '', supplierId: '',
   estimatedValue: 0, currency: 'EUR', businessJustification: '', deliveryDate: '', isUrgent: false,
-  costCentre: '', commodityCode: '', commodityCodeLabel: '', serviceDescription: null,
+  costCentre: '', commodityCode: '', commodityCodeLabel: '', commodityCandidates: [], commodityClassificationConfirmed: false, attachments: [], serviceDescription: null,
   catalogueItems: [], contractId: '', contractTitle: '', requesterCountry: '', requesterCountryCode: '',
   beneficiaryId: '', beneficiaryName: '', beneficiaryCountry: '', beneficiaryCountryCode: '',
   deliveryLocation: 'office', recipient: '',
@@ -262,12 +266,13 @@ export function SimpleNewRequestPage() {
         if (!decision.ok) throw new Error(decision.errors.join(' '));
         const templateForRequest = selectWorkflowTemplateForCategory(workflowTemplates, requestData.category);
         const governedRequest = {
-          id, title: requestData.title, description: requestData.businessJustification || requestData.title,
+          id, title: requestData.title, description: requestData.serviceDescription?.narrative || requestData.title,
           category: requestRoute === 'catalogue' ? 'catalogue' : requestData.category, status: 'intake' as const, priority: requestData.isUrgent ? 'urgent' as const : 'medium' as const,
           value: decision.totalValue, currency: decision.currency, requestorId: currentUser.id, ownerId: currentUser.id,
           supplierId: supplier.id, contractId: matchedContract.id, buyingChannel: requestRoute === 'catalogue' ? 'catalogue' : 'framework-call-off', commodityCode: item?.commodityCode || requestData.commodityCode || '',
           commodityCodeLabel: requestData.commodityCodeLabel || item?.commodityCode || '', costCentre: decision.resolved.costCentre || '', budgetOwner: decision.resolved.budgetOwner || '',
-          businessJustification: requestData.businessJustification, deliveryDate: parseDeliveryDate(requestData.deliveryDate) ?? undefined,
+          businessJustification: '', deliveryDate: parseDeliveryDate(requestData.deliveryDate) ?? undefined,
+          commodityCandidates: requestData.commodityCandidates, commodityClassificationConfirmed: requestData.commodityClassificationConfirmed, attachments: requestData.attachments,
         };
         const governedLines = [{ id: `LINE-${id}-1`, requestId: id, description: line.description, quantity: line.quantity, unit: line.unit, unitPrice: line.unitPrice, supplierId: supplier.id, contractId: matchedContract.id, ...(item ? { catalogueItemId: item.id } : {}), riskAssessmentId: riskAssessment?.id, commodityCode: line.commodityCode, deliveryDate: requestData.deliveryDate }];
         await submitGovernedCheckout({
@@ -294,7 +299,8 @@ export function SimpleNewRequestPage() {
         contractId: requestData.contractId || undefined, workflowTemplateId: templateForRequest?.id,
         buyingChannel: channel, approvalChain: approval?.id, commodityCode: requestData.commodityCode,
         commodityCodeLabel: requestData.commodityCodeLabel, costCentre: requestData.costCentre, budgetOwner: currentUser.name,
-        businessJustification: requestData.businessJustification, deliveryDate: parseDeliveryDate(requestData.deliveryDate) ?? undefined,
+        businessJustification: '', deliveryDate: parseDeliveryDate(requestData.deliveryDate) ?? undefined,
+        commodityCandidates: requestData.commodityCandidates, commodityClassificationConfirmed: requestData.commodityClassificationConfirmed, attachments: requestData.attachments,
         isUrgent: requestData.isUrgent, requestorId: currentUser.id, ownerId: currentUser.id, daysInStage: 0,
         isOverdue: false, referBackCount: 0, requesterCountry: requestData.requesterCountry || undefined,
         requesterCountryCode: requestData.requesterCountryCode || undefined, beneficiaryId: requestData.beneficiaryId || undefined,
@@ -334,7 +340,7 @@ export function SimpleNewRequestPage() {
       await createRequest({
         id,
         title: data.title || data.categoryDescription || 'Procurement request',
-        description: data.businessJustification || data.serviceDescription?.narrative || data.categoryDescription,
+        description: data.serviceDescription?.narrative || data.title || data.categoryDescription,
         category: data.category || 'goods',
         status: 'draft',
         priority: data.isUrgent ? 'urgent' : 'medium',
@@ -344,7 +350,12 @@ export function SimpleNewRequestPage() {
         contractId: data.contractId || undefined,
         buyingChannel: route === 'p-card' ? 'p-card' : route === 'contract' ? 'framework-call-off' : route === 'catalogue' ? 'catalogue' : undefined,
         costCentre: data.costCentre || undefined,
-        businessJustification: data.businessJustification || undefined,
+        businessJustification: undefined,
+        commodityCode: data.commodityCode || undefined,
+        commodityCodeLabel: data.commodityCodeLabel || undefined,
+        commodityCandidates: data.commodityCandidates,
+        commodityClassificationConfirmed: data.commodityClassificationConfirmed,
+        attachments: data.attachments,
         deliveryDate: parseDeliveryDate(data.deliveryDate) ?? undefined,
         requestorId: currentUser.id,
         ownerId: currentUser.id,
@@ -389,7 +400,7 @@ export function SimpleNewRequestPage() {
 
       {phase === 'route' && (
         <div className="space-y-4">
-          <Card><CardContent className="p-6"><StepPreCheck title={data.title || data.categoryDescription} category={data.category} estimatedValue={data.estimatedValue} supplierId={data.supplierId} llmIntent={data.llmIntent} onChooseCatalogue={(items: CatalogueItem[]) => { const primary = items[0]; if (primary) { navigate(`/catalogue/items/${encodeURIComponent(primary.id)}`); return; } }} onChooseContract={(contract: Contract) => { update({ contractId: contract.id, contractTitle: contract.title, supplier: contract.supplierName, supplierId: contract.supplierId, category: data.category || contract.category.toLowerCase() }); setRoute('contract'); setPhase('details'); }} onProceedToFullRequest={() => { setRoute(routeFromChannel(routing.channel)); setPhase('details'); }} onEnrich={(text) => update({ businessJustification: data.businessJustification ? `${data.businessJustification}\n${text}` : text })} /></CardContent></Card>
+        <Card><CardContent className="p-6"><StepPreCheck title={data.title || data.categoryDescription} category={data.category} estimatedValue={data.estimatedValue} supplierId={data.supplierId} llmIntent={data.llmIntent} onChooseCatalogue={(items: CatalogueItem[]) => { const primary = items[0]; if (primary) { navigate(`/catalogue/items/${encodeURIComponent(primary.id)}`); return; } }} onChooseContract={(contract: Contract) => { update({ contractId: contract.id, contractTitle: contract.title, supplier: contract.supplierName, supplierId: contract.supplierId, category: data.category || contract.category.toLowerCase() }); setRoute('contract'); setPhase('details'); }} onProceedToFullRequest={() => { setRoute(routeFromChannel(routing.channel)); setPhase('details'); }} onEnrich={(text) => update({ title: data.title ? `${data.title} — ${text}` : text })} /></CardContent></Card>
           <Card className="border-blue-100 bg-blue-50/40"><CardContent className="space-y-2 p-4 text-sm"><p className="font-medium text-blue-900">Recommended path: {ROUTE_COPY[routeFromChannel(routing.channel)].label}</p><p className="text-blue-800">{ROUTE_COPY[routeFromChannel(routing.channel)].detail}</p>{!pCardEligibility.eligible && <p className="text-xs text-blue-700">Purchasing card is not available for this request: {pCardEligibility.ineligibleReasons[0]}</p>}</CardContent></Card>
         </div>
       )}
@@ -397,14 +408,20 @@ export function SimpleNewRequestPage() {
       {phase === 'details' && (
         <div className="space-y-4">
           <RequesterContextBlock requestorId={currentUser.id} requesterCountry={data.requesterCountry} beneficiaryId={data.beneficiaryId} beneficiaryName={data.beneficiaryName} onUpdate={update} />
-          {route === 'catalogue' ? (catalogueCheckoutOpen && data.catalogueItems[0] ? <CatalogueOrderCheckout item={catalogueItems.find((item) => item.id === data.catalogueItems[0].itemId) ?? catalogueItems[0]} mode="simple" initialValues={{ quantity: data.catalogueItems[0].quantity, costCentre: data.costCentre, needBy: data.deliveryDate, businessPurpose: data.businessJustification, deliveryLocation: data.deliveryLocation, recipient: data.recipient }} onSubmit={finishCatalogueCheckout} /> : <Card><CardHeader><CardTitle className="text-base">Choose your items</CardTitle></CardHeader><CardContent><StepCatalogue onPlaceOrder={(order) => void finishCatalogueOrder(order)} /></CardContent></Card>) : route === 'new-request' ? <Card><CardContent className="p-6"><StepChatIntake category={data.category} categoryDescription={data.categoryDescription} data={data} onUpdate={update} /></CardContent></Card> : <Card><CardContent className="p-6"><StepDetails category={data.category || 'services'} data={data} onUpdate={update} /></CardContent></Card>}
+          {route === 'catalogue' ? (catalogueCheckoutOpen && data.catalogueItems[0] ? <CatalogueOrderCheckout item={catalogueItems.find((item) => item.id === data.catalogueItems[0].itemId) ?? catalogueItems[0]} mode="simple" initialValues={{ quantity: data.catalogueItems[0].quantity, costCentre: data.costCentre, needBy: data.deliveryDate, businessPurpose: data.businessJustification, deliveryLocation: data.deliveryLocation, recipient: data.recipient }} onSubmit={finishCatalogueCheckout} /> : <Card><CardHeader><CardTitle className="text-base">Choose your items</CardTitle></CardHeader><CardContent><StepCatalogue onPlaceOrder={(order) => void finishCatalogueOrder(order)} /></CardContent></Card>) : route === 'new-request' ? <Card><CardContent className="p-6"><StepChatIntake category={data.category} categoryDescription={data.categoryDescription} data={{ ...data, serviceDescription: data.serviceDescription }} onUpdate={update} /></CardContent></Card> : <Card><CardContent className="p-6"><StepDetails category={data.category || 'services'} data={data} onUpdate={update} /></CardContent></Card>}
           {route !== 'catalogue' && <div className="flex items-center justify-between"><Button variant="ghost" onClick={() => setPhase('route')}><ArrowLeft className="size-4" />Back</Button><Button onClick={() => setPhase('review')} disabled={route === 'new-request' ? !descriptionComplete : !detailComplete}>Review request<ArrowRight className="size-4" /></Button></div>}
         </div>
       )}
 
       {phase === 'review' && (
         <div className="space-y-4">
-          <Card><CardHeader><CardTitle className="flex items-center gap-2 text-base"><CheckCircle className="size-4 text-green-600" />Review your request</CardTitle></CardHeader><CardContent className="space-y-4 text-sm"><div><p className="text-xs font-medium uppercase tracking-wider text-gray-500">What you need</p><p className="mt-1 font-medium text-gray-900">{data.title || 'Procurement request'}</p><p className="mt-1 whitespace-pre-wrap text-gray-600">{data.businessJustification || data.serviceDescription?.narrative || 'Details captured from your answers.'}</p></div><div className="rounded-lg border border-blue-100 bg-blue-50/50 p-4"><p className="text-xs font-medium uppercase tracking-wider text-blue-700">Your request will follow</p><p className="mt-1 font-semibold text-gray-900">{routeLabel.label}</p><p className="mt-1 text-xs text-gray-600">{routeLabel.detail}</p></div><div className="grid grid-cols-2 gap-3"><div><p className="text-xs text-gray-500">Estimated value</p><p className="font-medium">{data.currency} {data.estimatedValue.toLocaleString()}</p></div><div><p className="text-xs text-gray-500">Needed by</p><p className="font-medium">{data.deliveryDate || 'To be confirmed'}</p></div></div></CardContent></Card>
+          <IntakeGuidanceCard
+            section="review"
+            category={data.category}
+            text={data.title}
+            onApply={(suggestion) => update({ title: data.title.trim() ? `${data.title.trim()} ${suggestion}` : suggestion })}
+          />
+          <Card><CardHeader><CardTitle className="flex items-center gap-2 text-base"><CheckCircle className="size-4 text-green-600" />Review your request</CardTitle></CardHeader><CardContent className="space-y-4 text-sm"><div><p className="text-xs font-medium uppercase tracking-wider text-gray-500">What you need</p><p className="mt-1 font-medium text-gray-900">{data.title || 'Procurement request'}</p><p className="mt-1 whitespace-pre-wrap text-gray-600">{data.serviceDescription?.narrative || data.title || 'Details captured from your answers.'}</p></div><div className="rounded-lg border border-blue-100 bg-blue-50/50 p-4"><p className="text-xs font-medium uppercase tracking-wider text-blue-700">Your request will follow</p><p className="mt-1 font-semibold text-gray-900">{routeLabel.label}</p><p className="mt-1 text-xs text-gray-600">{routeLabel.detail}</p></div><div className="grid grid-cols-2 gap-3"><div><p className="text-xs text-gray-500">Estimated value</p><p className="font-medium">{data.currency} {data.estimatedValue.toLocaleString()}</p></div><div><p className="text-xs text-gray-500">Needed by</p><p className="font-medium">{data.deliveryDate || 'To be confirmed'}</p></div></div></CardContent></Card>
           <div className="flex items-center justify-between"><Button variant="ghost" onClick={() => setPhase('details')}><ArrowLeft className="size-4" />Back</Button><div className="flex gap-2"><Button variant="ghost" onClick={() => void saveDraft()} disabled={submitting}><Save className="size-4" />Save for later</Button><Button onClick={() => void submitRequest(data, route)} disabled={submitting}>{submitting ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}Submit request</Button></div></div>
         </div>
       )}

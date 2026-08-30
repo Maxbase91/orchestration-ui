@@ -42,6 +42,7 @@ export const DEFAULT_SECTIONS: ConfiguredSection[] = [
     id: 'scope', label: 'Scope', asked: true,
     requiredWhen: [{ field: 'materiality', operator: 'in', value: 'important,critical' }],
   },
+  { id: 'exclusions', label: 'Exclusions', asked: true },
   {
     id: 'deliverables', label: 'Deliverables', asked: true,
     requiredWhen: [{ field: 'sourcingType', operator: '==', value: 'competitive' }],
@@ -104,7 +105,11 @@ export const DEFAULT_SLOTS: ConfiguredSlot[] = [
   },
   {
     id: 'scope', targetKind: 'sow', targetField: 'scope', required: true,
-    prompt: 'What should be in scope — and anything explicitly out of scope?',
+    prompt: 'What is included in the work or purchase?',
+  },
+  {
+    id: 'exclusions', targetKind: 'sow', targetField: 'exclusions', required: false,
+    prompt: 'Is anything explicitly excluded or not required?',
   },
   {
     id: 'deliverables', targetKind: 'sow', targetField: 'deliverables', required: true,
@@ -144,7 +149,7 @@ export const DEFAULT_SLOTS: ConfiguredSlot[] = [
 
 /** Which sections compose the compact narrative — matches the API's composer. */
 export const DEFAULT_NARRATIVE_SECTIONS = [
-  'objective', 'scope', 'deliverables', 'timeline',
+  'objective', 'scope', 'exclusions', 'deliverables', 'timeline',
   'resources', 'acceptanceCriteria', 'pricingModel',
 ];
 

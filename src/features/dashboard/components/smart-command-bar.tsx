@@ -164,10 +164,12 @@ function localClassify(
     // wizard about the same sentence.
     const category = classifyDemandCategory(query);
 
-    const labels: Record<string, string> = { goods: 'Goods', services: 'Services', software: 'Software / IT', consulting: 'Consulting', 'contingent-labour': 'Contingent Labour', 'contract-renewal': 'Contract Renewal', 'supplier-onboarding': 'Supplier Onboarding' };
+    // Keep broad classification internal. The requester confirms a specific
+    // commodity/service family inside the shared intake instead of choosing a
+    // Goods/Services route from this command bar.
     return {
-      intent: 'new-request', message: `This is a ${labels[category] ?? category} request.`,
-      category, extractedTitle: query, links: [{ label: `Start ${labels[category] ?? category} Request`, path: '/requests/new' }],
+      intent: 'new-request', message: 'I’ll help you describe and route this request.',
+      category, extractedTitle: query, links: [{ label: 'Start request', path: '/requests/new' }],
     };
   }
 
@@ -250,7 +252,7 @@ export function SmartCommandBar() {
         setShowCatalogue(true);
         setProposal({
           type: 'catalogue',
-            message: message || 'Found matching catalogue items. Order directly — no approval needed.',
+            message: message || 'Found matching catalogue items. Review the order details and submit for governance checks.',
           catalogueItems: [], links: [],
           agent,
         });
@@ -276,15 +278,12 @@ export function SmartCommandBar() {
       if (aiResult.extractedValue) params.set('value', String(aiResult.extractedValue));
       if (aiResult.generatedDescription) params.set('description', aiResult.generatedDescription);
 
-      const labels: Record<string, string> = { goods: 'Goods', services: 'Services', software: 'Software / IT', consulting: 'Consulting', 'contingent-labour': 'Contingent Labour', 'contract-renewal': 'Contract Renewal', 'supplier-onboarding': 'Supplier Onboarding' };
-      const catLabel = labels[cat] ?? cat;
-
       setProposal({
         type: 'action',
-        message: message || `This is a ${catLabel} request.`,
+        message: message || 'I’ll help you describe and route this request.',
         catalogueItems: [],
         links: [
-          { label: `Start ${catLabel} Request`, path: `/requests/new?${params.toString()}` },
+          { label: 'Start request', path: `/requests/new?${params.toString()}` },
           { label: 'Browse Catalogue Instead', path: '__show_catalogue__' },
         ],
         agent,

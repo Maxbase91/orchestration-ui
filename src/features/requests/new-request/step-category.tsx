@@ -20,7 +20,12 @@ import {
   ROUTE_LIKE_CATEGORY,
 } from '@/lib/procurement/classify';
 import { resolveCategoryCode } from '@/lib/procurement/category-code';
-import type { RequestCategory } from '@/data/types';
+import { requestCommodityCandidates } from '@/lib/procurement/commodity-candidates-api';
+import { resolveCommodityCandidates } from '@/lib/procurement/commodity-candidates';
+import { seedServiceDescriptionFromText } from '@/lib/procurement/intake-seed';
+import type { CommodityClassificationCandidate, IntakeAttachment, RequestCategory } from '@/data/types';
+import { IntakeGuidanceCard } from './components/intake-guidance-card';
+import type { ServiceDescription } from './new-request-page';
 
 interface StepCategoryProps {
   category: string;
@@ -28,13 +33,17 @@ interface StepCategoryProps {
   /** Original demand text forwarded from the home page — seeds the input. */
   prefill?: string;
   onUpdate: (data: {
-    category: string;
-    categoryDescription: string;
+    category?: string;
+    categoryDescription?: string;
     title?: string;
     supplier?: string;
     supplierId?: string;
     commodityCode?: string;
     commodityCodeLabel?: string;
+    commodityCandidates?: CommodityClassificationCandidate[];
+    commodityClassificationConfirmed?: boolean;
+    attachments?: IntakeAttachment[];
+    serviceDescription?: ServiceDescription | null;
     estimatedValue?: number;
     businessJustification?: string;
     /** The assistant's read of what kind of demand this is — see api/ai.ts. */
@@ -66,6 +75,8 @@ interface AIClassification {
   /** Derived UNSPSC-style commodity code — the specific classification. */
   commodityCode?: string;
   commodityCodeLabel?: string;
+  commodityCandidates?: CommodityClassificationCandidate[];
+  generatedDescription?: string;
 }
 
 /** The intent vocabulary api/ai.ts documents in its own prompt. */
@@ -91,6 +102,7 @@ async function classifyWithAI(input: string): Promise<AIClassification | null> {
       estimatedValue: data.extractedValue ?? 0,
       source: 'llm',
       intent,
+      generatedDescription: typeof data.generatedDescription === 'string' ? data.generatedDescription : undefined,
     };
   } catch {
     return null;
@@ -121,11 +133,13 @@ function localClassify(input: string): AIClassification {
   };
 }
 
-export function StepCategory({ prefill, onUpdate, onAutoAdvance, onBrowseCatalogue }: StepCategoryProps) {
+export function StepCategory({ category, prefill, onUpdate, onAutoAdvance, onBrowseCatalogue }: StepCategoryProps) {
   const [inputValue, setInputValue] = useState(prefill ?? '');
   const [loading, setLoading] = useState(false);
   const [aiResult, setAiResult] = useState<AIClassification | null>(null);
   const [accepted, setAccepted] = useState(false);
+  const [selectedCode, setSelectedCode] = useState<string | null>(null);
+  const [noneSelected, setNoneSelected] = useState(false);
   const { data: suppliers = [] } = useSuppliers();
   const { data: classifierAgent } = useAiAgent('AI-001');
   const { data: dbCategories = [] } = useProcurementCategories();
@@ -155,6 +169,8 @@ export function StepCategory({ prefill, onUpdate, onAutoAdvance, onBrowseCatalog
     setLoading(true);
     setAiResult(null);
     setAccepted(false);
+    setSelectedCode(null);
+    setNoneSelected(false);
 
     // Try LLM only if AI-001 is active; otherwise use local keyword classification
     let result = aiClassifierEnabled ? await classifyWithAI(text) : null;
@@ -201,6 +217,13 @@ export function StepCategory({ prefill, onUpdate, onAutoAdvance, onBrowseCatalog
       result.commodityCodeLabel = cc.label;
     }
 
+    try {
+      const candidates = await requestCommodityCandidates({ text, category: result.category });
+      result.commodityCandidates = candidates.length > 0 ? candidates : resolveCommodityCandidates(text, result.category);
+    } catch {
+      result.commodityCandidates = resolveCommodityCandidates(text, result.category);
+    }
+
     setAiResult(result);
   };
 
@@ -219,6 +242,16 @@ export function StepCategory({ prefill, onUpdate, onAutoAdvance, onBrowseCatalog
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prefill]);
 
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem('intakeAttachment');
+      if (!raw) return;
+      const attachment = JSON.parse(raw) as IntakeAttachment;
+      if (attachment?.id && attachment?.name) onUpdate({ attachments: [attachment] });
+      sessionStorage.removeItem('intakeAttachment');
+    } catch { /* the extracted text remains usable without attachment metadata */ }
+  }, [onUpdate]);
+
   const handleAccept = () => {
     if (!aiResult) return;
 
@@ -228,11 +261,22 @@ export function StepCategory({ prefill, onUpdate, onAutoAdvance, onBrowseCatalog
       categoryDescription: cat?.name ?? aiResult.category,
       title: aiResult.title || inputValue,
     };
+    const seeded = seedServiceDescriptionFromText(inputValue);
+    if (Object.keys(seeded).length > 0) updates.serviceDescription = seeded;
 
-    // Carry the derived commodity code downstream (shown in the SOW panel).
-    if (aiResult.commodityCode) {
-      updates.commodityCode = aiResult.commodityCode;
-      updates.commodityCodeLabel = aiResult.commodityCodeLabel;
+    // Carry the confirmed specific commodity candidate downstream. The broad
+    // category remains internal routing metadata, never a requester choice.
+    const selected = noneSelected ? undefined : aiResult.commodityCandidates?.find((candidate) => candidate.code === selectedCode) ?? aiResult.commodityCandidates?.[0];
+    if (selected) {
+      updates.commodityCode = selected.code;
+      updates.commodityCodeLabel = selected.label;
+      updates.commodityCandidates = aiResult.commodityCandidates;
+      updates.commodityClassificationConfirmed = true;
+    } else {
+      updates.commodityCode = '';
+      updates.commodityCodeLabel = '';
+      updates.commodityCandidates = aiResult.commodityCandidates;
+      updates.commodityClassificationConfirmed = true;
     }
 
     // Pre-fill supplier if extracted
@@ -267,7 +311,26 @@ export function StepCategory({ prefill, onUpdate, onAutoAdvance, onBrowseCatalog
     if (onAutoAdvance) setTimeout(onAutoAdvance, 600);
   };
 
-  const categoryLabel = (id: string) => activeCategories.find((c) => c.id === id)?.name ?? id;
+  const handleFile = async (file: File) => {
+    if (!/application\/pdf|wordprocessingml\.document/.test(file.type) || file.size > 10 * 1024 * 1024) return;
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      let binary = '';
+      bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
+      const response = await fetch('/api/intake-upload', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: file.name, contentType: file.type, dataBase64: btoa(binary) }),
+      });
+      const body = await response.json() as { attachment?: IntakeAttachment };
+      if (body.attachment) {
+        onUpdate({ attachments: [body.attachment] });
+        if (body.attachment.extractedText) {
+          setInputValue(body.attachment.extractedText);
+          await runClassification(body.attachment.extractedText);
+        }
+      }
+    } catch { /* the text path remains available if extraction fails */ }
+  };
 
   return (
     <div className="space-y-6">
@@ -280,6 +343,12 @@ export function StepCategory({ prefill, onUpdate, onAutoAdvance, onBrowseCatalog
           Press Enter — we&apos;ll find the fastest way to fulfil it: an existing catalogue item, an
           active contract, or a full request. No need to pick a category.
         </p>
+        <IntakeGuidanceCard
+          section="objective"
+          text={inputValue}
+          category={category}
+          onApply={(suggestion) => setInputValue((previous) => previous.trim() ? `${previous.trim()} ${suggestion}` : suggestion)}
+        />
         <form onSubmit={handleSubmit} className="relative">
           <Sparkles className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
           <Input
@@ -296,6 +365,13 @@ export function StepCategory({ prefill, onUpdate, onAutoAdvance, onBrowseCatalog
             </div>
           )}
         </form>
+        <div className="mt-3 flex items-center gap-3">
+          <label htmlFor="intake-upload" className="cursor-pointer text-xs font-medium text-blue-700 hover:underline">
+            Upload a PDF or DOCX
+          </label>
+          <input id="intake-upload" type="file" accept="application/pdf,.pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx" className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; if (file) void handleFile(file); }} />
+          <span className="text-[11px] text-gray-400">We extract the details for you to confirm.</span>
+        </div>
       </div>
 
       {/* Loading */}
@@ -331,24 +407,17 @@ export function StepCategory({ prefill, onUpdate, onAutoAdvance, onBrowseCatalog
                 {aiResult.title || inputValue}
               </h3>
 
-              {/* One classification block. The commodity code is DERIVED from
-                  the category (resolveCategoryCode takes it as input), so it
-                  sits beneath it as the specific code rather than beside it as
-                  an independent fact. No "routes the request" sub-label: the
-                  buying channel routes it, and that is settled on step 2. */}
+              {/* Specific candidates replace the old Goods/Services choice. */}
               <div className="rounded-md border border-gray-200 bg-white px-3 py-2">
-                <p className="text-[10px] font-medium uppercase tracking-wider text-gray-400">
-                  Classification
-                </p>
-                <p className="text-sm font-semibold text-gray-900">
-                  {categoryLabel(aiResult.category)}
-                </p>
-                {aiResult.commodityCode && (
-                  <p className="mt-0.5 text-[11px] text-gray-500">
-                    <span className="font-medium text-gray-600">{aiResult.commodityCode}</span>
-                    {aiResult.commodityCodeLabel ? ` · ${aiResult.commodityCodeLabel}` : ''}
-                  </p>
-                )}
+                <p className="text-[10px] font-medium uppercase tracking-wider text-gray-400">Suggested commodity or service family</p>
+                {(aiResult.commodityCandidates ?? []).map((candidate) => (
+                  <button key={candidate.code} type="button" className={`mt-2 flex w-full items-center justify-between rounded border px-2 py-1.5 text-left hover:border-blue-400 ${selectedCode === candidate.code && !noneSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}`} onClick={() => { setSelectedCode(candidate.code); setNoneSelected(false); }}>
+                    <span><span className="font-medium text-gray-900">{candidate.label}</span><span className="ml-2 text-[11px] text-gray-500">{candidate.code}</span><span className="block text-[10px] text-gray-500">{candidate.reason}</span></span>
+                    <span className="text-xs font-semibold text-blue-700">{Math.round(candidate.probability * 100)}%</span>
+                  </button>
+                ))}
+                {!!aiResult.commodityCandidates?.length && <button type="button" className={`mt-2 text-xs ${noneSelected ? 'font-semibold text-blue-700' : 'text-gray-500 hover:text-blue-700'}`} onClick={() => { setNoneSelected(true); setSelectedCode(null); }}>None of these</button>}
+                {!aiResult.commodityCandidates?.length && <p className="text-sm text-gray-600">Specific classification will be confirmed later.</p>}
               </div>
 
               {/* Supplier and value are labelled EXTRACTED, matching the

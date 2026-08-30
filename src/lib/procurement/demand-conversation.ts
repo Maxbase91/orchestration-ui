@@ -24,6 +24,7 @@ export type DemandSlotId =
   | 'deliveryDate'
   | 'objective'
   | 'scope'
+  | 'exclusions'
   | 'deliverables'
   | 'resources'
   | 'timeline'
@@ -35,6 +36,7 @@ export type DemandSlotId =
 export interface ServiceDescriptionSlots {
   objective?: string;
   scope?: string;
+  exclusions?: string;
   deliverables?: string;
   resources?: string;
   timeline?: string;
@@ -149,11 +151,21 @@ export const ALL_SLOTS: DemandSlot[] = [
     id: 'scope',
     target: { kind: 'sow', field: 'scope' },
     required: true,
-    prompt: 'What should be in scope — and anything explicitly out of scope?',
+    prompt: 'What is included in the work or purchase?',
     example: (ctx) => ex(ctx, {
-      consulting: 'in: current-state assessment, design and roadmap; out: implementation',
-      software: 'in: Sales & Service modules + migration; out: custom reports',
-    }, "what's included — and anything explicitly out of scope"),
+      consulting: 'current-state assessment, design and roadmap',
+      software: 'Sales & Service modules and data migration',
+    }, "the work, items or capabilities included"),
+  },
+  {
+    id: 'exclusions',
+    target: { kind: 'sow', field: 'exclusions' },
+    required: false,
+    prompt: 'Is anything explicitly excluded or not required?',
+    example: (ctx) => ex(ctx, {
+      consulting: 'implementation and ongoing managed support',
+      software: 'custom reporting beyond the standard modules',
+    }, 'anything the supplier should not provide'),
   },
   {
     id: 'deliverables',

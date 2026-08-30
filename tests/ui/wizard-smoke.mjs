@@ -10,6 +10,7 @@
 
 import { spawn } from 'node:child_process';
 import { chromium } from 'playwright';
+import { installSupabaseStub } from './postgrest-stub.mjs';
 
 const BASE = 'http://localhost:5173';
 let failures = 0;
@@ -44,12 +45,54 @@ async function waitForServer(timeoutMs = 40000) {
   throw new Error(`Dev server did not become ready at ${BASE} within ${timeoutMs}ms`);
 }
 
-const server = spawn('npm', ['run', 'dev'], { stdio: 'ignore' });
+// Keep this full Expert-path smoke deterministic even when a developer's local
+// Neon preferences have a saved Simple view. The dedicated experience-mode
+// browser suite covers the requester presentation separately.
+const server = spawn('npm', ['run', 'dev'], {
+  stdio: 'ignore',
+  env: {
+    ...process.env,
+    // Browser smoke uses the in-memory PostgREST fixture below. This keeps the
+    // test independent from the developer's Neon URL while production remains
+    // Neon-backed through the private API boundary.
+    VITE_DATABASE_PROVIDER: 'supabase',
+    VITE_SUPABASE_URL: 'https://stub.supabase.co',
+    VITE_SUPABASE_ANON_KEY: 'stub-anon-key',
+    VITE_SIMPLE_EXPERIENCE_ENABLED: 'false',
+  },
+});
 let browser;
+let page;
 try {
   await waitForServer();
   browser = await chromium.launch(LAUNCH_OPTS);
-  const page = await browser.newContext().then((c) => c.newPage());
+  const context = await browser.newContext();
+  // The app is now Neon-backed in production, while Vite serves no Vercel API
+  // functions locally. Keep this browser smoke deterministic with a fixture
+  // catalogue row, without writing to a real database or pretending that a
+  // local Vite process can exercise serverless routes.
+  await installSupabaseStub(context, {
+    catalogue_items: [{
+      id: 'IT-001', name: 'ThinkPad T14 Gen 5', description: 'Lenovo business laptop, 14-inch, 16GB RAM',
+      unit_price: 1299, unit: 'each', catalogue_id: 'it-equipment', catalogue_name: 'IT Equipment',
+      supplier_name: 'Lenovo', supplier_id: 'SUP-CAT-001', lead_time: '5-7 days', available: true,
+    }],
+  });
+  await context.route('**/api/governed-checkout', async (route) => {
+    const payload = JSON.parse(route.request().postData() || '{}');
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        requestId: payload.requestId,
+        request: payload.request,
+        requisition: { ...payload.requisition, id: payload.requisitionId, status: 'approved' },
+        lines: payload.lines ?? [],
+        purchaseOrder: { id: `PO-${payload.requestId}`, requestId: payload.requestId, status: 'created' },
+      }),
+    });
+  });
+  page = await context.newPage();
 
   const consoleErrors = [];
   page.on('console', (m) => {
@@ -76,6 +119,8 @@ try {
   // plain language…", so a loose match now resolves to two elements.
   await page.getByText('Describe what you need', { exact: true }).waitFor({ timeout: 15000 });
   check('wizard category step renders free-text entry', true);
+  check('unified intake labels the first step Describe', (await page.getByText('Describe', { exact: true }).count()) > 0);
+  check('unified intake offers PDF/DOCX upload', (await page.locator('#intake-upload').count()) > 0);
 
   // 2b. The floating AI assistant button is `fixed bottom-6 right-6`, mounted
   //     globally over every page. Content that scrolls to the bottom of a
@@ -168,7 +213,10 @@ try {
   // catalogue card first.
   await page.getByText('Contract check', { exact: true }).waitFor({ timeout: 15000 });
   check('a renewal demand opens on the contract stage', true);
-  await page.getByRole('button', { name: /Proceed to full request/ }).click();
+  await page.getByRole('button', { name: /Proceed to full request/ }).last().click();
+  // The parent advances after the pre-check callback; wait for the details
+  // control rather than assuming the React state update is synchronous.
+  await page.locator('#title').waitFor({ timeout: 10000 });
   await page.locator('#title').fill('Renewal smoke test');
   await page.locator('#value').fill('150000');  // ≥ critical-service threshold so that residual question triggers
   await page.getByRole('button', { name: /Next/ }).click();              // → step 4 (risk)
@@ -302,13 +350,19 @@ try {
   check('catalogue fast track omits the Risk & Determination steps',
     (await page.getByText('Risk & assessment').count()) === 0 &&
     (await page.getByText('Determination', { exact: true }).count()) === 0);
-  check('catalogue shows the fast-track header',
-    (await page.getByText(/Fast catalogue order/i).count()) > 0);
+  check('catalogue shows the governed checkout header',
+    (await page.getByText(/Catalogue request — governed checkout/i).count()) > 0);
   await page.getByRole('button', { name: /IT Equipment/ }).first().click();
   await page.getByRole('button', { name: /^Add$/ }).first().click();
   const placeBtn = page.getByRole('button', { name: /Review order/ });
   check('catalogue cart shows a Review order action', (await placeBtn.count()) > 0);
   await placeBtn.first().click();
+  await page.locator('#catalogue-recipient').fill('New starter');
+  await page.locator('#catalogue-purpose').fill('Provide standard equipment for the new starter.');
+  await page.locator('#catalogue-cost-centre').selectOption('CC-2001');
+  const checkoutSubmit = page.getByRole('button', { name: /Review order/ });
+  check('shared checkout enables submit after required details', await checkoutSubmit.isEnabled().catch(() => false));
+  await checkoutSubmit.click();
   await page.getByText('Request Submitted Successfully').waitFor({ timeout: 15000 });
   check('catalogue order placed → confirmation reached without the full wizard', true);
   check('confirmation lists the catalogue items',
@@ -327,6 +381,7 @@ try {
   }
 } catch (err) {
   console.error('UI smoke errored:', err.message);
+  if (page) console.error(`At ${page.url()}\n${(await page.locator('body').innerText().catch(() => '')).slice(0, 1200)}`);
   process.exitCode = 1;
 } finally {
   if (browser) await browser.close();
