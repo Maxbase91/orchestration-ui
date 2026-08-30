@@ -99,8 +99,10 @@ export function PortalInvoices() {
   const [form, setForm] = useState<SubmitForm>(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
 
-  const handleChange = (field: keyof SubmitForm) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    setForm((prev) => ({ ...prev, [field]: e.target.value }));
+  // Accept both change and input events: native date controls can emit the
+  // value through `input` before React delivers a conventional change event.
+  const handleChange = (field: keyof SubmitForm) => (e: React.SyntheticEvent<HTMLInputElement>) =>
+    setForm((prev) => ({ ...prev, [field]: e.currentTarget.value }));
 
   const handleSubmit = async () => {
     if (!form.invoiceNumber || !form.invoiceDate || !form.dueDate || !form.amount) {
@@ -161,11 +163,11 @@ export function PortalInvoices() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label htmlFor="inv-date">Invoice Date *</Label>
-                <Input id="inv-date" type="date" value={form.invoiceDate} onChange={handleChange('invoiceDate')} />
+                <Input id="inv-date" type="date" value={form.invoiceDate} onChange={handleChange('invoiceDate')} onInput={handleChange('invoiceDate')} />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="due-date">Due Date *</Label>
-                <Input id="due-date" type="date" value={form.dueDate} onChange={handleChange('dueDate')} />
+                <Input id="due-date" type="date" value={form.dueDate} onChange={handleChange('dueDate')} onInput={handleChange('dueDate')} />
               </div>
             </div>
             <div className="space-y-1.5">
