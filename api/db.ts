@@ -5,6 +5,12 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getNeonClient } from './_neon.js';
 import commodityMatch from '../src/server/api/commodity-match.js';
+import contractMatch from '../src/server/api/contract-match.js';
+import contractScope from '../src/server/api/contract-scope.js';
+import contractVocabulary from '../src/server/api/contract-vocabulary.js';
+import intakeGuidance from '../src/server/api/intake-guidance.js';
+import intakeUpload from '../src/server/api/intake-upload.js';
+import policyConfig from '../src/server/api/policy-config.js';
 
 type DomainHandler = (req: VercelRequest, res: VercelResponse) => void | Promise<void>;
 
@@ -17,12 +23,12 @@ type DomainHandler = (req: VercelRequest, res: VercelResponse) => void | Promise
 async function loadDomainHandler(name: string): Promise<DomainHandler | undefined> {
   switch (name) {
     case 'commodity-match': return commodityMatch;
-    case 'contract-match': return (await import('../src/server/api/contract-match.js')).default;
-    case 'contract-scope': return (await import('../src/server/api/contract-scope.js')).default;
-    case 'contract-vocabulary': return (await import('../src/server/api/contract-vocabulary.js')).default;
-    case 'intake-guidance': return (await import('../src/server/api/intake-guidance.js')).default;
-    case 'intake-upload': return (await import('../src/server/api/intake-upload.js')).default;
-    case 'policy-config': return (await import('../src/server/api/policy-config.js')).default;
+    case 'contract-match': return contractMatch;
+    case 'contract-scope': return contractScope;
+    case 'contract-vocabulary': return contractVocabulary;
+    case 'intake-guidance': return intakeGuidance;
+    case 'intake-upload': return intakeUpload;
+    case 'policy-config': return policyConfig;
     default: return undefined;
   }
 }
