@@ -103,10 +103,11 @@ async function jsonColumns(table: string): Promise<Set<string>> {
   const cached = jsonColumnsCache.get(table);
   if (cached) return cached;
   const sql = getNeonClient();
+  // `table` is allowlisted above, so embedding it avoids a Neon HTTP driver
+  // type-inference failure on this metadata-only query during cold starts.
   const rows = await sql.query(
     `SELECT column_name FROM information_schema.columns
-     WHERE table_schema = 'public' AND table_name = $1::text AND data_type IN ('json', 'jsonb')`,
-    [table],
+     WHERE table_schema = 'public' AND table_name = '${table}' AND data_type IN ('json', 'jsonb')`,
   );
   const columns = new Set(rows.map((row) => String(row.column_name)));
   jsonColumnsCache.set(table, columns);
