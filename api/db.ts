@@ -21,6 +21,7 @@ const ALLOWED_RELATIONS = new Set([
 
 const ALLOWED_FUNCTIONS = new Set(['next_ticket_id', 'next_sourcing_event_id']);
 const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
+const jsonColumnsCache = new Map<string, Set<string>>();
 
 interface Filter { column: string; operator: string; value: unknown }
 interface Order { column: string; ascending: boolean }
@@ -88,6 +89,29 @@ function bodyRows(body: unknown): Record<string, unknown>[] {
   return rows as Record<string, unknown>[];
 }
 
+async function jsonColumns(table: string): Promise<Set<string>> {
+  const cached = jsonColumnsCache.get(table);
+  if (cached) return cached;
+  const sql = getNeonClient();
+  const rows = await sql.query(
+    `SELECT column_name FROM information_schema.columns
+     WHERE table_schema = 'public' AND table_name = $1 AND data_type IN ('json', 'jsonb')`,
+    [table],
+  );
+  const columns = new Set(rows.map((row) => String(row.column_name)));
+  jsonColumnsCache.set(table, columns);
+  return columns;
+}
+
+function parameterValue(value: unknown, column: string, jsonColumnsForTable: Set<string>): unknown {
+  // The Neon driver treats a JavaScript array parameter as a PostgreSQL array;
+  // JSONB writes therefore need explicit serialization or [] becomes {}.
+  if (jsonColumnsForTable.has(column) && value !== null && value !== undefined && typeof value !== 'string') {
+    return JSON.stringify(value);
+  }
+  return value;
+}
+
 export async function executeNeonRequest(request: DbRequest): Promise<unknown> {
   const sql = getNeonClient();
   if (request.operation === 'rpc') {
@@ -112,10 +136,14 @@ export async function executeNeonRequest(request: DbRequest): Promise<unknown> {
     return request.single ? (rows[0] ?? null) : rows;
   }
   const rows = bodyRows(request.body);
+  const jsonColumnsForTable = await jsonColumns(request.table);
   const columns = Object.keys(rows[0]);
   if (columns.length === 0 || columns.some((column) => !IDENTIFIER.test(column))) throw new Error('Invalid database write columns');
   const quotedColumns = columns.map(quoteIdentifier).join(', ');
-  const valueGroups = rows.map((row) => `(${columns.map((column) => { params.push(row[column]); return `$${params.length}`; }).join(', ')})`);
+  const valueGroups = rows.map((row) => `(${columns.map((column) => {
+    params.push(parameterValue(row[column], column, jsonColumnsForTable));
+    return `$${params.length}`;
+  }).join(', ')})`);
   if (request.operation === 'insert') {
     const result = await sql.query(`INSERT INTO ${relation} (${quotedColumns}) VALUES ${valueGroups.join(', ')} RETURNING *`, params);
     return request.single ? (result[0] ?? null) : result;
@@ -126,7 +154,10 @@ export async function executeNeonRequest(request: DbRequest): Promise<unknown> {
     const result = await sql.query(`INSERT INTO ${relation} (${quotedColumns}) VALUES ${valueGroups.join(', ')} ON CONFLICT (${conflictColumns}) DO ${updates.length ? `UPDATE SET ${updates.join(', ')}` : 'NOTHING'} RETURNING *`, params);
     return request.single ? (result[0] ?? null) : result;
   }
-  const updates = columns.map((column) => { params.push(rows[0][column]); return `${quoteIdentifier(column)} = $${params.length}`; });
+  const updates = columns.map((column) => {
+    params.push(parameterValue(rows[0][column], column, jsonColumnsForTable));
+    return `${quoteIdentifier(column)} = $${params.length}`;
+  });
   const result = await sql.query(`UPDATE ${relation} SET ${updates.join(', ')}${where} RETURNING *`, params);
   return request.single ? (result[0] ?? null) : result;
 }
