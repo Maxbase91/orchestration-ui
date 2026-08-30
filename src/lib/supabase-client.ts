@@ -6,7 +6,12 @@ const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 
 let client: SupabaseClient;
-if (provider === 'neon') {
+// Neon is the active production store. Defaulting production to the private
+// API boundary prevents a missing build-time flag from silently sending reads
+// to the retained Supabase rollback configuration (which otherwise appears as
+// an empty catalogue to requesters).
+const useNeon = provider === 'neon' || (import.meta.env.PROD && provider !== 'supabase');
+if (useNeon) {
   // The cast keeps the existing data modules source-compatible while the
   // compatibility client routes operations through the private server API.
   client = new NeonCompatibleClient() as unknown as SupabaseClient;
