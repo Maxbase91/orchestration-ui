@@ -116,6 +116,7 @@ interface RequestFormData {
   currency: string;
   businessJustification: string;
   deliveryDate: string;
+  deliveryLocation: string;
   isUrgent: boolean;
   costCentre: string;
   commodityCode: string;
@@ -181,6 +182,7 @@ const INITIAL_DATA: RequestFormData = {
   currency: 'EUR',
   businessJustification: '',
   deliveryDate: '',
+  deliveryLocation: '',
   isUrgent: false,
   costCentre: '',
   commodityCode: '',
@@ -985,6 +987,7 @@ function ExpertNewRequestPage() {
             <CatalogueOrderCheckout
               item={catalogueItems.find((candidate) => candidate.id === catalogueOrder.catalogueItems[0]?.itemId) ?? catalogueItems[0]!}
               mode="expert"
+              initialValues={{ quantity: catalogueOrder.catalogueItems[0]?.quantity, needBy: formData.deliveryDate, deliveryLocation: formData.deliveryLocation, recipient: formData.beneficiaryName, businessPurpose: formData.businessJustification, costCentre: formData.costCentre }}
               onSubmit={(draft) => void submitCatalogueOrder(catalogueOrder, draft)}
             />
           ) : <StepCatalogue onPlaceOrder={(order) => void submitCatalogueOrder(order)} />
@@ -1002,6 +1005,7 @@ function ExpertNewRequestPage() {
             <CatalogueOrderCheckout
               item={catalogueItems.find((candidate) => candidate.id === catalogueOrder.catalogueItems[0]?.itemId) ?? catalogueItems[0]!}
               mode="expert"
+              initialValues={{ quantity: catalogueOrder.catalogueItems[0]?.quantity, needBy: formData.deliveryDate, deliveryLocation: formData.deliveryLocation, recipient: formData.beneficiaryName, businessPurpose: formData.businessJustification, costCentre: formData.costCentre }}
               onSubmit={(draft) => void submitCatalogueOrder(catalogueOrder, draft)}
             />
           ) : <StepCatalogue onPlaceOrder={(order) => void submitCatalogueOrder(order)} />
