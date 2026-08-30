@@ -1,14 +1,16 @@
 # Procurement Orchestration Platform
 
-A procurement orchestration platform foundation with a React SPA, an application-owned PostgreSQL store, and Vercel API functions. Supabase remains the current provider during the Neon migration; Neon mode keeps the database private behind the API boundary. It demonstrates end-to-end workflows, AI-assisted decision making, and system-integration handovers across 40+ interactive screens.
+A procurement orchestration platform with a React SPA, a private application-owned Neon PostgreSQL store, and Vercel API functions. Browser data access is routed through the allowlisted `/api/db` boundary. It demonstrates end-to-end internal procurement workflows, AI-assisted decision making, and integration handover records across 40+ interactive screens.
 
 **Live demo:** [orchestration-ui.vercel.app](https://orchestration-ui.vercel.app)
+
+**Release documentation:** [R1 roadmap](docs/roadmap/R1_BACKLOG_FIT_GAP.md) · [implementation evidence index](docs/roadmap/R1_IMPLEMENTATION_EVIDENCE.md) · [test playbook](docs/testing/TEST_PLAYBOOK.md)
 
 ---
 
 ## What This Is
 
-An R1 foundation with a browser UI backed by the platform's own Supabase store. It has no live upstream connections: the source-connector layer supplies the seam for later integrations without changing application call sites. Governed catalogue and contract checkout now captures a request and purchase requisition before creating an internal PO when policy permits.
+R1 is an internally operated system of record backed by private Neon. It owns request, PR, internal PO, workflow, sourcing, supplier, contract, risk, catalogue, ticket, conversation, and audit records. There are no live upstream writes: the connector layer is the seam for R2 integrations. Governed catalogue and contract checkout submits through `/api/governed-checkout`, which recomputes policy server-side and atomically captures a request, purchase requisition and lines before creating an internal PO when policy permits. Policy edits persist through `/api/policy-config` so browser previews and server writes share one configuration. Role switching remains a simulation/UAT mechanism; authentication and production authorization are deferred.
 
 ### Key Capabilities Demonstrated
 
@@ -16,7 +18,7 @@ An R1 foundation with a browser UI backed by the platform's own Supabase store. 
 - **Dual-mode requester experience** — requesters start in a plain-language Simple view with adaptive routing; reviewers retain the full Expert view, with a keyboard-accessible per-user switch
 - **Requester home** — Simple mode focuses the home page on starting a request, tracking the requester’s own active work, and getting help; Expert mode retains configurable dashboards and operational widgets
 - **Workflow Orchestration** — Kanban, table, and timeline views of active procurement workflows with bottleneck detection
-- **System Integration Handovers** — Visual tracking of requests across SAP Ariba, Coupa Risk, Sirion CLM, and SAP S/4HANA
+- **System Integration Handovers** — Internal handover records for future SAP Ariba, Coupa Risk, Sirion CLM, and SAP S/4HANA connectors (R2; no external writes)
 - **AI Compliance Agent** — Automated PR compliance reviews with detailed check reports before PO creation
 - **Supplier 360** — Unified supplier directory with risk, spend, performance, and compliance views
 - **Supplier Portal** — Self-service portal for external suppliers (onboarding, invoices, messaging)
@@ -169,7 +171,9 @@ npm run test:intake-routing-eval  # intake routing eval harness + accuracy basel
 npm run test:referral             # demand disposition — proceed / request-change / refer-back (RTE-06)
 npm run test:knowledge            # grounded policy-Q&A retrieval (ranking, citations, low-confidence)
 npm run test:policy-config        # central decisioning thresholds (defaults pinned + override resolver)
+npm run test:policy-config-server # Neon policy singleton save/load/validation (self-cleaning)
 npm run test:governed-checkout    # contract/risk/capacity gates and PR/PO routing decisions
+npm run test:governed-checkout-atomic # atomic Neon request → PR → lines → conditional PO, replay/conflict/concurrency
 npm run test:catalogue-ui         # catalogue item detail and checkout entry-point regressions
 npm run test:p-card               # governed P-card eligibility and route-only safety guard
 npm run test:experience-mode      # role defaults, preference normalization, and pilot eligibility contract
@@ -178,7 +182,7 @@ npm run test:supplier-data        # supplier master-data completeness → remedi
 npm run test:approver-resolution  # approval step role → switchable directory rep (one identity namespace)
 npm run test:workflow-steps       # config-driven Routing — template lifecycle + risk/onboarding steps + approval-chain banding
 npm run test:approval-chain-persistence # self-cleaning DB check — a value-banded approval-chain key persists on a request
-npm run test:ai-api-config        # API regression — missing Supabase server config returns a controlled 503, not a function crash
+npm run test:ai-api-config        # API regression — missing active database/AI server config returns a controlled 503, not a function crash
 npm run test:api-imports          # every api/*.ts function's import graph has explicit file extensions (tsc/vercel dev don't enforce this; Vercel's real build does)
 npm run test:admin-editors        # admin config saves
 npm run walkthrough               # visual QA harness (Playwright) — drives the front door across scenarios + every tab, screenshots to /tmp/fd (no assertions)
@@ -195,7 +199,7 @@ npm run test:neon-live            # read-only Neon schema, relationship, and cat
 # …see package.json "test:*" scripts for the full list
 
 npm run backfill:compliance       # one-time data migration, NOT a test — fills the front-door
-                                   # determination fields on Supabase `requests` rows that predate
+                                   # determination fields on application-owned `requests` rows that predate
                                    # them, using the same decisioning logic the live wizard runs.
                                    # Only ever fills nulls; safe to re-run.
 npm run backfill:catalogue-governance # idempotent data repair — creates/renews catalogue supplier
@@ -206,9 +210,10 @@ npm run backfill:neon-catalogue-governance # idempotent Neon-side repair when th
 ```
 
 `test:ui` uses Playwright. First-time setup: `npm install` then `npx playwright install chromium`.
-It boots the dev server itself and needs `.env.local` (Supabase creds).
+It boots the dev server itself and needs `.env.local` with the Neon provider configured (or the
+documented Supabase rollback variables).
 
-`test:request-detail-ui` is the exception: it stubs Supabase's REST API inside the browser
+`test:request-detail-ui` is the exception: it stubs the data API inside the browser
 (`tests/ui/postgrest-stub.mjs`) and runs with **no credentials and no network**. Use that harness for
 any screen worth checking where the project is unreachable — a suite that can only run against a live
 database does not run in CI or in a sandbox, which is how a render crash on the request detail
@@ -218,9 +223,11 @@ Set `E2E_API_BASE=https://orchestration-ui.vercel.app` for deployed API tests an
 
 Per the repo's Definition of Done (see `CLAUDE.md`), every change ships with updated tests and docs.
 
-### Role Switching
+### Role Switching (simulation)
 
-Use the role switcher dropdown in the top-right corner to switch between:
+Use the role switcher dropdown in the top-right corner to simulate each persona during demos and UAT. It is a presentation/testing mechanism, not authentication or authorization.
+
+Switch between:
 
 - **Service Owner** — simplified view focused on requests and actions
 - **Procurement Manager** — full orchestration control tower
@@ -231,9 +238,10 @@ Use the role switcher dropdown in the top-right corner to switch between:
 
 ---
 
-## Mock Data
+## Seed and demo data
 
-The prototype is pre-loaded with realistic mock data:
+The internal Neon store is pre-loaded with representative seed data for demos and UAT. Typed local
+fixtures remain available for offline UI tests:
 
 | Entity | Count |
 |--------|-------|
@@ -270,12 +278,12 @@ Integration status is visible on the process stepper, workflow cards, request de
 
 ### Source-connector layer
 
-Upstream business objects (requests, orders, invoices, contracts, suppliers, tickets, risk records, …)
-are read through a single, standardised connector interface in `src/lib/integrations`. The default
-implementation reads the platform's **own store** — the system of record for this release — so no live
-connection is required. A later release can register a **live** connector for any object type with no
-change at the call site. Every result carries a provenance envelope (`sourceSystem`, `mode`,
-`retrievedAt`, freshness). See `src/lib/integrations/README.md` for the layer and the live-swap seam.
+Upstream-shaped business objects (requests, orders, invoices, contracts, suppliers, tickets, risk
+records, …) are read through a single, standardised connector interface in `src/lib/integrations`.
+The default implementation reads the platform's **own Neon store** — the R1 system of record — so no
+live connection is required. R2 can register a **live** connector for any object type with no change
+at the call site. Every result carries a provenance envelope (`sourceSystem`, `mode`, `retrievedAt`,
+freshness). See `src/lib/integrations/README.md` and the [R1 evidence index](docs/roadmap/R1_IMPLEMENTATION_EVIDENCE.md).
 
 ---
 
@@ -284,10 +292,10 @@ change at the call site. Every result carries a provenance envelope (`sourceSyst
 ```
 src/
 ├── config/          # Theme, navigation, roles
-├── data/            # Mock data (typed TypeScript files)
+├── data/            # Typed seed/fallback fixtures used by offline tests
 ├── stores/          # Zustand state stores
 ├── hooks/           # Custom React hooks
-├── lib/             # Utilities, formatters, mock AI engine
+├── lib/             # Utilities, formatters, decisioning and AI adapters
 │   ├── db/          # Data-access modules + TanStack Query hooks
 │   ├── integrations/# Standardised source-connector layer (own-store → live swap)
 │   ├── procurement/ # Pure decisioning modules (classify, materiality, risk, determination, governed checkout, …) + service description config (SERVICE_DESCRIPTION.md)
@@ -334,14 +342,14 @@ Full descriptions live in `.env.example`.
 
 | Variable | Scope | Required | Notes |
 | --- | --- | --- | --- |
-| `VITE_DATABASE_PROVIDER` | Browser | No | `supabase` during transition; `neon` routes data through `/api/db` |
+| `VITE_DATABASE_PROVIDER` | Browser | No | `neon` routes data through `/api/db`; `supabase` is retained only for rollback |
 | `VITE_PROCUREMENT_PROFILES_ENABLED` | Browser | No | Enable only after the additive profile table exists; defaults to `false` |
 | `VITE_SUPABASE_URL` | Browser | Conditional | Required only for the Supabase fallback; omit from the browser in Neon mode |
 | `VITE_SUPABASE_ANON_KEY` | Browser | Conditional | Legacy **anon JWT**, required only for the Supabase fallback |
 | `SUPABASE_URL` | Serverless (`api/`) | Conditional | Required only for Supabase mode/rollback |
 | `SUPABASE_ANON_KEY` | Serverless (`api/`) | Conditional | Required only for Supabase mode/rollback |
 | `SUPABASE_SERVICE_ROLE_KEY` | Serverless (`api/`) | Conditional | Required for Supabase administration/rollback; bypasses RLS. Never prefix with `VITE_` |
-| `DATABASE_PROVIDER` | Serverless (`api/`) | No | `supabase` during transition; `neon` after cutover |
+| `DATABASE_PROVIDER` | Serverless (`api/`) | No | `neon` is the active provider; `supabase` is retained only for rollback |
 | `NEON_DATABASE_URL` | Serverless (`api/`) | Yes when Neon is active | Private Neon connection string; never expose with `VITE_` |
 | `ADMIN_SEED_SECRET` | Serverless (`api/`) | Only for seeding | Shared secret for `api/admin/seed.ts` |
 | `VITE_ASSISTANT_PROVIDER` | Browser | No | `groq` (default) or `mock` for a fully offline assistant |
@@ -350,8 +358,8 @@ Full descriptions live in `.env.example`.
 
 When `DATABASE_PROVIDER=neon` and `VITE_DATABASE_PROVIDER=neon`, the browser uses the private
 `/api/db` boundary. `NEON_DATABASE_URL`/`DATABASE_URL` must be configured only as a server-side
-Vercel variable; do not copy it into a `VITE_` variable. Keep Supabase server variables during the
-rollback window, then remove them after Neon validation.
+Vercel variable; do not copy it into a `VITE_` variable. Supabase server variables are retained only
+for rollback/comparison and are not the active R1 database.
 
 Two things that reliably break a deploy:
 

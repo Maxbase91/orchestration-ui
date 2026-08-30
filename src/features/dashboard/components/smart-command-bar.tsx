@@ -8,7 +8,6 @@ import {
   Plus,
   Minus,
   X,
-  Check,
   Package,
   Loader2,
   Monitor,
@@ -24,11 +23,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { CatalogueItem } from '@/data/catalogue-items';
 import { useCatalogueItems } from '@/lib/db/hooks/use-catalogue-items';
-import { createRequest } from '@/lib/db/requests';
-import { useAuthStore } from '@/stores/auth-store';
-import { parseDeliveryDate } from '@/lib/parse-delivery-date';
-import { queryClient } from '@/lib/query-client';
-import type { RequestCategory, BuyingChannel } from '@/data/types';
 import { openAIChat, openAIChatWithPrompt } from '@/features/ai-assistant/ai-chat-controls';
 import { formatCurrency } from '@/lib/format';
 import { decideIntakeRoute } from '@/lib/procurement/intake-routing';
@@ -220,7 +214,6 @@ export function SmartCommandBar() {
   const [catalogueResults, setCatalogueResults] = useState<CatalogueItem[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
-  const [orderSuccess, setOrderSuccess] = useState<string | null>(null);
 
   // Declared before `handleSubmit`, which calls it — the reverse order relied
   // on hoisting through a memoized callback, which the compiler cannot track.
@@ -378,52 +371,22 @@ export function SmartCommandBar() {
   const removeFromCart = (id: string) => setCart((p) => p.filter((c) => c.item.id !== id));
   const cartTotal = cart.reduce((s, c) => s + c.quantity * c.item.unitPrice, 0);
 
-  const handleOrderNow = async () => {
+  const handleOrderNow = () => {
     if (cart.length === 0) return;
-    const id = `REQ-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
-    const user = useAuthStore.getState().currentUser;
-    const primary = cart[0].item;
-    const totalValue = cart.reduce((s, c) => s + c.quantity * c.item.unitPrice, 0);
-    const title = cart.length === 1
-      ? `Catalogue order: ${primary.name}`
-      : `Catalogue order: ${cart.length} items`;
-    const description = cart
-      .map((c) => `- ${c.item.name} x ${c.quantity} @ €${c.item.unitPrice}`)
-      .join('\n');
-
-    try {
-      await createRequest({
-        id,
-        title,
-        description,
-        category: 'goods' as RequestCategory,
-        status: 'completed',
-        priority: 'medium',
-        value: totalValue,
-        currency: 'EUR',
-        requestorId: user.id,
-        ownerId: user.id,
-        supplierId: primary.supplierId,
-        buyingChannel: 'catalogue' as BuyingChannel,
-        commodityCode: '',
-        commodityCodeLabel: '',
-        costCentre: '',
-        budgetOwner: '',
-        businessJustification: description,
-        deliveryDate: parseDeliveryDate(primary.leadTime ?? null) ?? undefined,
-        isUrgent: false,
-        daysInStage: 0,
-        isOverdue: false,
-        referBackCount: 0,
-      });
-      await queryClient.invalidateQueries({ queryKey: ['requests'] });
-      toast.success(`Order submitted: ${id} \u2014 ${cart.map((c) => c.item.name).join(', ')}. Delivery: 2-3 business days.`);
-      setOrderSuccess(id);
-      setTimeout(() => { setCart([]); setInput(''); setShowCatalogue(false); setCatalogueResults([]); setOrderSuccess(null); setQuantities({}); setProposal(null); }, 3000);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'unknown';
-      toast.error(`Order failed: ${msg}`);
+    if (cart.length > 1) {
+      // The shared item-detail flow currently accepts one governed line. Do
+      // not silently discard the rest of a command-bar basket; ask the user to
+      // review items individually until the multi-line detail flow is wired.
+      toast.error('Review one catalogue item at a time from its item page.');
+      return;
     }
+    const primary = cart[0].item;
+    // The detail page is the single governed checkout entry point. The old
+    // direct request write bypassed contract, risk, accounting and replay
+    // checks, so preserve the selected item context and collect fields there.
+    navigate(`/catalogue/items/${encodeURIComponent(primary.id)}`);
+    setProposal(null);
+    setShowCatalogue(false);
   };
 
   const handleBrowseCategory = (catId: string) => {
@@ -539,14 +502,6 @@ export function SmartCommandBar() {
               </div>
             )}
 
-            {/* Order Success */}
-            {orderSuccess && (
-              <div className="flex items-center gap-2 rounded-lg bg-green-50 border border-green-200 p-4">
-                <Check className="size-5 text-green-600 shrink-0" />
-                <p className="text-sm font-medium text-green-800">Order {orderSuccess} submitted successfully</p>
-              </div>
-            )}
-
             {/* Category tiles */}
             <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
               {CATALOGUE_CATEGORIES.map((cat) => {
@@ -567,7 +522,7 @@ export function SmartCommandBar() {
             </div>
 
             {/* Items */}
-            {catalogueResults.length > 0 && !orderSuccess && (
+            {catalogueResults.length > 0 && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {catalogueResults.slice(0, 9).map((item) => {
                   const inCart = cart.find((c) => c.item.id === item.id);
@@ -605,7 +560,7 @@ export function SmartCommandBar() {
             )}
 
             {/* Cart */}
-            {cart.length > 0 && !orderSuccess && (
+            {cart.length > 0 && (
               <div className="rounded-lg border border-green-200 bg-green-50 p-4 space-y-3">
                 <div className="flex items-center gap-2">
                   <ShoppingCart className="size-4 text-green-600" />
@@ -628,20 +583,18 @@ export function SmartCommandBar() {
                   <span className="text-sm font-bold text-green-900">{formatCurrency(cartTotal)}</span>
                 </div>
                 <Button className="w-full bg-green-600 hover:bg-green-700 text-white" onClick={handleOrderNow}>
-                  <Package className="size-4 mr-1.5" />Order Now &mdash; No approval needed
+                  <Package className="size-4 mr-1.5" />Review order
                 </Button>
                 <p className="text-[11px] text-green-700 text-center">Pre-approved catalogue items. Estimated delivery: 2-3 business days.</p>
               </div>
             )}
 
             {/* Footer */}
-            {!orderSuccess && (
-              <div className="flex items-center gap-3 pt-1">
+            <div className="flex items-center gap-3 pt-1">
                 <Button variant="link" size="sm" className="text-xs text-gray-500 px-0" onClick={() => { navigate('/requests/new'); handleClear(); }}>
                   Not in the catalogue? Create a procurement request <ArrowRight className="size-3 ml-1" />
                 </Button>
-              </div>
-            )}
+            </div>
           </div>
         )}
       </div>

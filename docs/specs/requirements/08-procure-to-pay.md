@@ -6,7 +6,7 @@
 
 ## Purpose
 
-P2P covers the operational chain from PO issuance through goods receipt, invoice matching, and payment. POs and invoices are real Supabase records; three-way match now computes live.
+P2P covers the internal operational chain from PO creation through goods receipt, invoice matching, and payment status. POs and invoices are Neon records; three-way match computes live. External issuance and payment execution remain R2.
 
 ---
 

@@ -1,9 +1,13 @@
 # Procurement Orchestration Platform — Functional Specification
 
 **Version:** 1.0
-**Date:** 6 April 2026
+**Date:** 30 August 2026
 **Status:** Approved
 **Classification:** Business-Facing — No Technical Implementation Detail
+
+> **Current implementation note:** R1 now owns internal request, PR, PO, workflow, sourcing, supplier,
+> contract, risk, catalogue, ticket, conversation, and audit records in private Neon. External-system
+> execution and authentication remain deferred; see the [current roadmap](../roadmap/R1_BACKLOG_FIT_GAP.md).
 
 ---
 

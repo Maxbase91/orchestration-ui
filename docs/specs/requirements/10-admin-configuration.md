@@ -28,7 +28,7 @@ FR10-04 · (Future) **Stage Sequences** (`/admin/stage-sequences`): per-channel 
 
 FR10-10 · **Routing Rules** (`/admin/rules`): condition/action pairs that map (category, value, urgency, supplier) → buying channel + approval chain. Wired to intake (wizard Step 5 preview + compliance step). Match count shown per rule.
 
-FR10-11 · **Approval Chains** (`/admin/approvals`): CRUD on `approval_chains` table. Each chain has steps with role labels. Save persists to Supabase; `generateApprovalEntries` reads chains by id.
+FR10-11 · **Approval Chains** (`/admin/approvals`): CRUD on the Neon-backed `approval_chains` table. Each chain has steps with role labels. `generateApprovalEntries` reads chains by id.
 
 FR10-12 · **Form Builder** (`/admin/forms`): create/edit form templates (8 built-in: risk triage, IT security, etc.). Form fields (11 types), conditional logic. Forms are triggered by workflow stage nodes.
 
@@ -68,7 +68,7 @@ FR10-50 · **System Health** (`/admin/health`): integration status (Ariba, Coupa
 
 FR10-51 · **Audit Log** (`/admin/audit`): full `audit_entries` table — all human, system, AI, and warning events. Filterable by user, type, time.
 
-FR10-52 · **Database Admin** (`/admin/database`): full CRUD on all Supabase tables via admin UI.
+FR10-52 · **Database Admin** (`/admin/database`): controlled CRUD on application-owned Neon tables via the private API boundary.
 
 ---
 

@@ -28,7 +28,7 @@ Requestor (any employee)
 [AI Assistant] ──► Q&A, lookups, propose/confirm/execute actions
 ```
 
-**Supabase tables:** 35 tables — requests, workflow_instances, approval_entries, approval_chains, contracts, purchase_orders, invoices, goods_receipts, suppliers, sourcing_events, sourcing_responses, compliance_reports, procurement_categories, sla_targets, routing_rules, workflow_templates, form_templates, form_submissions, knowledge_base, ai_agents, users, user_preferences, notifications, audit_entries, stage_history, comments, risk_assessments, catalogue_items, service_descriptions, system_integrations, kpi_data, intake_compliance_records, ai_conversations, chat_feedback, tickets.
+**Application-owned Neon tables:** requests, workflow_instances, approval_entries, approval_chains, contracts, purchase_orders, invoices, goods_receipts, suppliers, sourcing_events, sourcing_responses, compliance_reports, procurement_categories, sla_targets, routing_rules, workflow_templates, form_templates, form_submissions, knowledge_base, ai_agents, users, user_preferences, notifications, audit_entries, stage_history, comments, risk_assessments, catalogue_items, service_descriptions, system_integrations, kpi_data, intake_compliance_records, ai_conversations, assistant_conversations, chat_feedback, tickets, purchase_requisitions, request_lines, procurement_profiles.
 
 ---
 
@@ -96,7 +96,7 @@ Source: `src/lib/assistant/capabilities/action.ts:ROLE_ALLOWED_ACTIONS`
 ## 6. Demo / Dev Impersonation
 
 FR00-05 · A role switcher is available in the topbar for all users (demo environment only).
-FR00-06 · In a production-bound build, the role switcher is replaced by Supabase Auth + SSO; the `switchRole` action becomes admin-only for impersonation.
+FR00-06 · The current R1 role switcher is intentionally retained for simulation and UAT. Authentication, server-derived identity, SSO, and production authorization are deferred hardening work; they are not represented by the switcher.
 
 ---
 

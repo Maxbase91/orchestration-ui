@@ -871,11 +871,25 @@ CREATE TABLE IF NOT EXISTS purchase_requisitions (
   risk_review_required BOOLEAN NOT NULL DEFAULT false,
   contract_amendment_required BOOLEAN NOT NULL DEFAULT false,
   idempotency_key TEXT,
+  idempotency_fingerprint TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE UNIQUE INDEX IF NOT EXISTS purchase_requisitions_idempotency_idx
   ON purchase_requisitions(idempotency_key) WHERE idempotency_key IS NOT NULL;
+
+ALTER TABLE purchase_requisitions ADD COLUMN IF NOT EXISTS idempotency_fingerprint TEXT;
+
+-- Server-owned active procurement policy. A singleton row keeps browser
+-- previews and transactional checkout on the same configuration without
+-- introducing a second policy source.
+CREATE TABLE IF NOT EXISTS procurement_policy_configs (
+  singleton_key TEXT PRIMARY KEY DEFAULT 'default' CHECK (singleton_key = 'default'),
+  config JSONB NOT NULL DEFAULT '{}'::jsonb,
+  updated_by TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 
 CREATE TABLE IF NOT EXISTS request_lines (
   id TEXT PRIMARY KEY,

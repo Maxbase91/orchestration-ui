@@ -6,7 +6,7 @@
 
 ## Purpose
 
-The AI assistant is a conversational procurement concierge — it answers policy questions, looks up objects, proposes actions, and routes buy intent. It uses tool calling to ground answers in live KB/Supabase data.
+The AI assistant is a conversational procurement concierge — it answers policy questions, looks up objects, proposes actions, and routes buy intent. It uses tool calling to ground answers in live knowledge-base and Neon-backed application data.
 
 ---
 
@@ -53,13 +53,13 @@ FR11-12 · Synthetic tool_call_id format: `call_txt_{timestamp}` (Groq-compatibl
 | Tool | Trigger | Execution |
 |------|---------|-----------|
 | `search_knowledge` | Policy/process Q | Query `knowledge_base` table; score by keyword |
-| `lookup_object` | Status query by ID/name | Query Supabase for request/supplier/contract/PO/invoice |
-| `filter_objects` | "Show me all X" | Filter Supabase with conditions |
+| `lookup_object` | Status query by ID/name | Query Neon-backed request/supplier/contract/PO/invoice data |
+| `filter_objects` | "Show me all X" | Filter application-owned data with conditions |
 | `propose_action` | State-change intent | Return `ConfirmTurn` to user; wait for confirmation |
 | `create_ticket` | Human help needed | Insert `tickets` row |
 | `start_demand` | Buy/procure intent | Return deep-link to `/requests/new?category=...` |
 | `remember_preference` | User tells delegate/cost-centre | Upsert `user_preferences.prefs` |
-| `filter_objects` | List queries | Query Supabase with field filters |
+| `filter_objects` | List queries | Query application-owned data with field filters |
 
 ---
 
@@ -84,7 +84,7 @@ FR11-31 · SYSTEM_PROMPT explicitly forbids LaTeX, chain-of-thought, and step-by
 ## Knowledge Base
 
 FR11-40 · `knowledge_base` table: id, title, body, source, tags[].
-FR11-41 · `execSearchKnowledge()`: tries Supabase first; falls back to hardcoded `knowledgeBase` array if table empty.
+FR11-41 · `execSearchKnowledge()`: queries the Neon-backed `knowledge_base` table first and falls back to the built-in knowledge base when the table is empty. The fallback is degraded data, not a permissions boundary.
 FR11-42 · KB Management admin page (`/admin/kb`) for adding/editing entries.
 
 ---

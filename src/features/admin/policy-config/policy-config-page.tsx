@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { usePolicyConfigStore } from '@/stores/policy-config-store';
+import { useAuthStore } from '@/stores/auth-store';
 import {
   type PolicyConfig, DEFAULT_POLICY_CONFIG, resolvePolicyConfig,
 } from '@/lib/procurement/policy-config';
@@ -45,7 +46,8 @@ const FIELDS: FieldMeta[] = [
 const RISK_TIERS: RiskTier[] = ['low', 'medium', 'high', 'critical'];
 
 export function PolicyConfigPage() {
-  const { overrides, setOverrides, reset } = usePolicyConfigStore();
+  const { overrides, persistOverrides, persistReset } = usePolicyConfigStore();
+  const { currentUser } = useAuthStore();
   const [draft, setDraft] = useState<PolicyConfig>(() => resolvePolicyConfig(overrides));
   const [sim, setSim] = useState({ value: 300_000, riskRating: 'medium' as RiskTier, criticalService: false });
 
@@ -58,7 +60,7 @@ export function PolicyConfigPage() {
   );
   const changedFromDefault = (key: NumericPolicyKey) => draft[key] !== DEFAULT_POLICY_CONFIG[key];
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const next: Partial<PolicyConfig> = {};
     for (const f of FIELDS) {
       if (draft[f.key] !== DEFAULT_POLICY_CONFIG[f.key]) next[f.key] = draft[f.key];
@@ -70,14 +72,22 @@ export function PolicyConfigPage() {
     if (JSON.stringify(draft.pCardExcludedCategories) !== JSON.stringify(DEFAULT_POLICY_CONFIG.pCardExcludedCategories)) {
       next.pCardExcludedCategories = draft.pCardExcludedCategories;
     }
-    setOverrides(next);
-    toast.success('Decisioning thresholds saved — applied to the live front door.');
+    try {
+      await persistOverrides(next, currentUser?.id);
+      toast.success('Decisioning thresholds saved — applied to the live front door.');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not save the live policy.');
+    }
   };
 
-  const handleReset = () => {
-    reset();
-    setDraft({ ...DEFAULT_POLICY_CONFIG });
-    toast.success('Thresholds reset to the shipped defaults.');
+  const handleReset = async () => {
+    try {
+      await persistReset(currentUser?.id);
+      setDraft({ ...DEFAULT_POLICY_CONFIG });
+      toast.success('Thresholds reset to the shipped defaults.');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not reset the live policy.');
+    }
   };
 
   // Live simulation under the *edited* (possibly unsaved) thresholds.

@@ -6,7 +6,7 @@
 
 ## Purpose
 
-This document is the authoritative reference for all Supabase tables, key field constraints, enum values, and validation rules applied at the application layer.
+This document is the authoritative reference for all application-owned Neon tables, key field constraints, enum values, and validation rules applied at the application layer.
 
 ---
 
@@ -58,6 +58,21 @@ This document is the authoritative reference for all Supabase tables, key field 
 | line_items | jsonb | `[{ description, quantity, unitPrice, received }]` |
 | status | text | complete/partial |
 
+### purchase_requisitions and governed checkout
+
+`purchase_requisitions` is the durable internal order record between a request and an optional
+internal PO. It links supplier, active contract, selected risk assessment, accounting context,
+approved ship-to and beneficiary, total value, lifecycle flags, and `idempotency_key`.
+`idempotency_fingerprint` stores a stable hash of the submitted request/line intent: matching
+retries return the existing request/PR/lines/PO aggregate; a different payload using the same key
+is rejected with a conflict. The `/api/governed-checkout` endpoint reloads authoritative records,
+evaluates policy, and writes the aggregate in one Neon transaction.
+
+`procurement_policy_configs` is an additive singleton table (`singleton_key = 'default'`) containing
+the validated `PolicyConfig` JSON, simulation identity (`updated_by`), and timestamps. It is the
+source used by server checkout and the browser preview; unavailable policy data falls back to the
+shipped defaults.
+
 ---
 
 ## Status Enums
@@ -90,7 +105,7 @@ This document is the authoritative reference for all Supabase tables, key field 
 
 ---
 
-## All Supabase Tables (35)
+## All Application-Owned Tables
 
 requests, stage_history, comments, comment_reads, approval_entries, audit_entries, users, user_preferences, suppliers, contracts, purchase_orders, invoices, notifications, routing_rules, workflow_templates, workflow_step_details, workflow_instances, risk_assessments, ai_agents, ai_conversations, knowledge_base, chat_feedback, form_templates, form_submissions, intake_compliance_records, compliance_reports, catalogue_items, service_descriptions, system_integrations, kpi_data, approval_chains, sla_targets, procurement_categories, goods_receipts, sourcing_events, sourcing_responses, tickets
 
@@ -101,4 +116,4 @@ All 11 SOW fields + narrative + **quality_score INT** (0–100, nullable) + **qu
 
 ## Schema Source
 
-`supabase/schema.sql` — kept in sync with all migrations. Run in SQL Editor to recreate all tables.
+`supabase/schema.sql` remains the portable PostgreSQL schema source for the Neon migration. Apply it to a compatible database, then run the documented Neon migration/validation scripts.

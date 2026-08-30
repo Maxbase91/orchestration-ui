@@ -6,7 +6,7 @@
 
 ## Purpose
 
-The New Request wizard is the platform's primary front door — a single intelligent intake channel for any procurement need. It combines AI-assisted classification, natural language SOW generation, compliance checks, and routing preview into an 8-step guided flow.
+The New Request wizard is the platform's primary front door — a single intelligent intake channel for any procurement need. It combines AI-assisted classification, natural language service-description generation, compliance checks, and routing preview into the current seven-stage Expert flow, with an adaptive Simple flow for requesters.
 
 ---
 
@@ -15,7 +15,7 @@ The New Request wizard is the platform's primary front door — a single intelli
 | ID | Role | Story | Priority |
 |----|------|-------|----------|
 | FR01-01 | service-owner | I can describe what I need in plain English and the system classifies it into the right procurement category | Must |
-| FR01-02 | service-owner | I can browse and order from the approved catalogue without going through the full approval workflow | Must |
+| FR01-02 | service-owner | I can browse and submit an approved catalogue order through governed checkout; eligible low-value orders may auto-approve | Must |
 | FR01-03 | service-owner | I can see exactly which approval path my request will follow before submitting | Must |
 | FR01-04 | service-owner | After submitting I can track my request status and see "Track this Request" resolve correctly | Must |
 | FR01-05 | procurement-manager | I can see all requests across the organization, not just my own | Must |
@@ -59,7 +59,7 @@ The New Request wizard is the platform's primary front door — a single intelli
 ### Step 6 — Confirmation
 - FR01-29 · `createRequest()` called with all formData fields, `deliveryDate` sanitized.
 - FR01-30 · On success: `initWorkflow()` starts the workflow engine instance.
-- FR01-31 · On failure: error toast with Supabase error detail; wizard stays on Step 5 (does not advance).
+- FR01-31 · On failure: a clean API/database error is shown without provider internals; the wizard stays on the current step (does not advance). Neon is the active R1 provider.
 - FR01-32 · "Track this Request" deep-link navigates to `/requests/{id}` which loads via `useRequest(id)`.
 
 ---

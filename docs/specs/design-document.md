@@ -2,15 +2,15 @@
 
 **Version:** 2.0
 **Status:** Prototype Complete
-**Last Updated:** April 2026
+**Last Updated:** 30 August 2026
 
 ---
 
 ## 1. Executive Summary
 
-The Procurement Orchestration Platform is a unified digital workspace that manages the full procurement lifecycle — from initial demand intake through sourcing, contracting, purchasing, and payment. It replaces fragmented tools and manual processes with a single, AI-assisted platform that orchestrates workflows, connects to enterprise systems, and provides real-time visibility across all procurement activities.
+The Procurement Orchestration Platform is a unified digital workspace that manages the internal procurement lifecycle — from demand intake through sourcing, contracting, purchasing, and payment status. It replaces fragmented tools and manual processes with a single, AI-assisted platform. R1 stores internal records in private Neon; enterprise-system connections are deferred to R2.
 
-This document describes the design of a working interactive prototype built for stakeholder design workshops. The prototype covers 53 routes, 6 user roles, 235 source files, and ~38,000 lines of TypeScript/React code. All data is mocked client-side for demonstration purposes.
+This document describes the design of the working R1 application and its simulation surfaces. The app covers 53 routes, 6 switchable simulation roles, and a Neon-backed internal data store; typed fixtures remain available for offline UI tests.
 
 ---
 

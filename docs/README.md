@@ -25,6 +25,7 @@ docs/
 | Doc | What it covers |
 |---|---|
 | [R1_BACKLOG_FIT_GAP.md](roadmap/R1_BACKLOG_FIT_GAP.md) | **Primary roadmap.** Fit/gap of the R1 backlog vs the codebase + the workstream plan. Updated as gaps close. |
+| [R1_IMPLEMENTATION_EVIDENCE.md](roadmap/R1_IMPLEMENTATION_EVIDENCE.md) | **R1 evidence index.** Code, schema, tests, ADRs, and live-validation references for every Built roadmap capability. |
 | [REQUIREMENTS_AND_FIT_GAP.md](roadmap/REQUIREMENTS_AND_FIT_GAP.md) | Capability baseline vs market leaders (Zip, Oro, Ariba), scored against the app. |
 
 ## testing/ — how we verify
@@ -36,7 +37,9 @@ docs/
 
 ## archive/ — historical (not maintained)
 Point-in-time reviews of earlier builds and bug fixes that are now resolved. Kept
-for context; **do not treat as current state** — verify against the code.
+for context; **do not treat as current state** — verify against the code and the current
+[R1 roadmap](roadmap/R1_BACKLOG_FIT_GAP.md). Archived documents are intentionally not rewritten when
+the implementation moves on.
 
 | Doc | What it was |
 |---|---|

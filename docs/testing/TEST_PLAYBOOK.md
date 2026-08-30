@@ -1,9 +1,12 @@
 # Procurement Orchestration UI — Full Test Playbook
 
 **Purpose:** a complete, repeatable regression script covering every page, role, and path in the application. Run it end-to-end before each release (or after major changes) to confirm nothing is broken.
-**App:** orchestration-ui · **Last updated:** 2 June 2026
+**App:** orchestration-ui · **Last updated:** 30 August 2026
 
-> **Deployment note (2 Jun 2026):** verified against the new live build **`index-LlQShsel.js`**. Headline re-test results below.
+The roadmap status and implementation references are maintained in the [R1 roadmap](../roadmap/R1_BACKLOG_FIT_GAP.md)
+and its [implementation evidence index](../roadmap/R1_IMPLEMENTATION_EVIDENCE.md).
+
+> **Deployment note (30 Aug 2026):** the current live alias is `https://orchestration-ui.vercel.app` and the latest verified deployment is commit `0bf9a93`.
 
 ---
 
@@ -11,8 +14,8 @@
 
 - **Environments:** record the URL + JS bundle hash (DevTools → Sources, or `document.querySelector('script[src*="/assets/"]').src`) so you know which build you tested.
 - **Roles (6):** Requestor/End User · Strategic Procurement Manager · Vendor Manager · Procurement Operations Lead · Supplier (External) · Admin/Platform Owner. Switch via the top-right role switcher.
-- **For each test:** follow Steps, compare to **Expected**, mark **Pass / Fail / Blocked**. On Fail, capture: route, role, screenshot, console error (DevTools console), network status (for Supabase 4xx), and severity.
-- **Per-screen baseline checks (apply to every page):** (a) page renders, no blank/white screen; (b) **no console errors/exceptions**; (c) no Supabase 4xx in Network; (d) no raw `undefined`/`NaN`/`0.xx%` confidence/`$\boxed{}$`/"Po"-style mangled labels; (e) all buttons do something (no dead controls); (f) date fields show real dates, not "Invalid Date"/"—" everywhere.
+- **For each test:** follow Steps, compare to **Expected**, mark **Pass / Fail / Blocked**. On Fail, capture: route, role, screenshot, console error (DevTools console), network status (for `/api/db` or other API failures), and severity.
+- **Per-screen baseline checks (apply to every page):** (a) page renders, no blank/white screen; (b) **no console errors/exceptions**; (c) no unexpected API 4xx/5xx; (d) no raw `undefined`/`NaN`/`0.xx%` confidence/`$\boxed{}$`/"Po"-style mangled labels; (e) all buttons do something (no dead controls); (f) date fields show real dates, not "Invalid Date"/"—" everywhere.
 - **Severity:** BLOCKER (cannot proceed) · HIGH (core feature broken) · MEDIUM (degraded) · LOW/COSMETIC.
 - **Write actions:** this playbook includes create/submit/approve flows. Run against a non-production/demo DB.
 
@@ -27,9 +30,14 @@ checks. If the source catalogue predates explicit governance columns, run
 catalogue, contract, risk, PR, PO, audit, ticket, and conversation records before switching
 `DATABASE_PROVIDER` and `VITE_DATABASE_PROVIDER` to `neon`.
 
-The browser must never contain `DATABASE_URL`, `NEON_DATABASE_URL`, or a service-role key. Because
-the selected cutover has no write freeze, compare recent Supabase writes after the copy and record
-any mismatch before accepting the deployment.
+For the atomic checkout tranche, run `npm run test:governed-checkout-atomic` and
+`npm run test:policy-config-server` with Neon configured. These are self-cleaning live checks: they
+exercise transaction writes, safe replay, conflicting-key rejection, concurrency, and policy
+singleton validation, then restore/remove their uniquely prefixed test data.
+
+The browser must never contain `DATABASE_URL`, `NEON_DATABASE_URL`, or a service-role key. Supabase
+variables are retained only for rollback/comparison; Neon is the active R1 database. Because the
+historical cutover had no write freeze, retain the migration mismatch report for audit.
 
 ---
 
@@ -78,7 +86,7 @@ and the existing `user_preferences.prefs.requestExperienceMode` JSON key.
 | TC-RBAC-06 | Admin | Confirm full Admin group visible | Per matrix |
 | TC-RBAC-07 | Internal role | Navigate to `/portal` | Redirected to Home (portal is supplier-only) |
 | TC-RBAC-08 | Supplier | Navigate to any internal route (e.g. `/requests`) | Redirected to `/portal` |
-| TC-RBAC-09 | R1 release gate — not yet implemented | As Requestor, via API/devtools, attempt to read another role's data | Must be blocked by Supabase Auth-backed RLS. The current browser role switcher and permissive prototype policies are not an authorization boundary, so this remains a release blocker |
+| TC-RBAC-09 | Deferred authentication boundary | As a simulation user, verify role switching changes presentation only and does not claim to provide authorization | Authentication, server-derived roles, and cross-user isolation are explicitly deferred; role switching remains a documented R1 simulation mechanism |
 
 ## Suite DASH — dashboards & command bar (run per applicable role)
 
@@ -181,9 +189,9 @@ These are the cases where the wizard could not.
 
 ### The request detail, driven offline (`npm run test:request-detail-ui`)
 
-Every other browser suite needs a reachable Supabase project, so none of them run in a sandbox or in
+Every other browser suite needs a reachable Neon-backed API, so none of them run in a sandbox or in
 CI — which is why a render crash on the request detail was found by a user rather than a test. This
-suite stubs Supabase's REST API inside the page (`tests/ui/postgrest-stub.mjs`) and drives the real
+suite stubs the data API inside the page (`tests/ui/postgrest-stub.mjs`) and drives the real
 screen against fixtures: no credentials, no network.
 
 | ID | Steps | Expected |
@@ -405,7 +413,7 @@ not in a component — because RLS is currently `USING (true)`.
 | TC-ADM-11 | Categories admin | `procurement_categories` **seeded** from the canonical taxonomy (8 rows); add/edit category **persists** and appears in intake; **Icon picker** sets the tile icon shown at intake |
 | TC-ADM-12 | SLA targets admin | Edit per-stage SLA **persists** (requires `sla_targets` table); reflects in SLA tracker |
 | TC-ADM-13 | `/admin/policies` | Policies versioned; view full text |
-| TC-ADM-14 | `/admin/users` (wired CRUD) | **Add User** (dialog) persists to Supabase and appears in the table; **Edit Role** updates the role; **Remove** deletes the record — all via the real mutation hooks (no more toast-only no-ops). Verified by `npm run test:interactions-ui` (create → persist → cleanup). |
+| TC-ADM-14 | `/admin/users` (wired CRUD) | **Add User** (dialog) persists to the active Neon store and appears in the table; **Edit Role** updates the role; **Remove** deletes the record — all via the real mutation hooks (no more toast-only no-ops). Verified by `npm run test:interactions-ui` (create → persist → cleanup). |
 | TC-ADM-15 | `/admin/health` System Health | Integration status, uptime, error log |
 | TC-ADM-16 | `/admin/audit` Audit Log | 40+ entries; filters; **Export** |
 | TC-ADM-17 | `/admin/kb` KB Management | Add entry persists; assistant uses it |
@@ -440,7 +448,7 @@ not in a component — because RLS is currently `USING (true)`.
 | TC-AI-09 | Regression: a knowledge/lookup query that triggers a tool | Server **executes** the tool (or client suppresses it); user sees a clean grounded answer, **never raw `tool_calls.…` text**; no stall (CHATBOT_TOOLCALL_FIX.md) |
 | TC-AI-10 | Provider parity: same query in `VITE_ASSISTANT_PROVIDER=mock` and `groq` | Equivalent grounded answers + source in both modes |
 | TC-AI-11 | Robustness: slow/empty/erroring 2nd model call (or tiny timeout) | User gets a graceful timeout/fallback message, **never an infinite spinner**; `/api/chat` always terminates (CHATBOT_HANG_FIX.md) |
-| TC-AI-12 | Classifier server configuration (`npm run test:ai-api-config`) | Missing `SUPABASE_URL` or `SUPABASE_SERVICE_ROLE_KEY` produces `503 { code: "service_unavailable" }`; the Vercel function must not fail at module load or expose configuration details |
+| TC-AI-12 | Classifier server configuration (`npm run test:ai-api-config`) | Missing active database/AI server configuration produces `503 { code: "service_unavailable" }`; the Vercel function must not fail at module load or expose configuration details. Supabase variables are rollback-only. |
 | TC-AI-13 | `api/chat-intake` import-graph hygiene (`npm run test:api-imports`) | Same principle as TC-AI-12, different mechanism: `api/chat-intake.ts` shipped in production returning a bare `500 FUNCTION_INVOCATION_FAILED` on **every** call — the intake wizard's chat silently ran on its offline fallback the whole time, with no log and no user-visible signal. Root cause was two relative imports inside `demand-conversation.ts` missing their `.js` extension: neither `tsc -b` (bundler-mode resolution) nor `vercel dev` (a lenient dev-server loader) catches this, only Vercel's real per-function build does — confirmed by running `npx vercel build` and inspecting the emitted `.vercel/output/functions/api/chat-intake.func` bundle directly. The test statically walks the import graph of every `api/*.ts` entrypoint and fails on any relative specifier lacking a file extension, so this can't silently reappear. Any change to `api/*.ts` or a module it imports should run this, not just `tsc -b`. |
 
 ## Suite PLT — platform, notifications, settings, help, NFR
@@ -482,9 +490,10 @@ six groups:
 | TC-MAT-01 | Materiality (`npm run test:materiality`) | Highest-attribute-wins from data sensitivity + supplier risk + value (+ critical-service flag); critical data/risk → critical+material; high or value≥threshold → important+material; benign → standard. Surfaced on the determination screen and feeds routing (`material`). |
 | TC-CAT-01 | Category-code mapping (`npm run test:category-code`) | Keyword match resolves a code (confidence scales with hits); no keyword + known category → category default; keyword wins over default; unknown/none → null; every canonical category has a default code |
 | TC-CFG-01 | Central policy config (`npm run test:policy-config`) | `DEFAULT_POLICY_CONFIG` pins every decisioning threshold (approval/materiality/risk-band/competitive-sourcing/contract); all decisioning modules source their constants from it (values unchanged — dependent suites stay green); `resolvePolicyConfig` merges a partial override without mutating defaults; an override changes the decision (200k → light at default, → full at a 150k threshold). |
-| TC-CFG-02 | Decisioning Thresholds admin page (`/admin/thresholds`, route sweep `npm run test:e2e-ui`) | Admin edits a threshold; the **live simulation** recomputes a sample demand's materiality / inherent risk / approval gate under the edited values; **Save** persists + applies to the active config (drives the live front door, survives reload); Reset restores defaults. Page renders clean in the route sweep. |
+| TC-CFG-02 | Decisioning Thresholds admin page (`/admin/thresholds`, route sweep `npm run test:e2e-ui`) | Admin edits a threshold; the **live simulation** recomputes a sample demand's materiality / inherent risk / approval gate under the edited values; **Save** validates and persists to the Neon policy singleton before showing success (drives the live front door, survives reload); Reset restores defaults. A failed save leaves the prior active config. Page renders clean in the route sweep. |
 | TC-GOV-01 | Classification eval harness (`npm run test:classification-eval`) | Labelled benchmark over the deterministic classifier (`classify.ts`); reports overall accuracy + per-category breakdown + misclassifications; **gates at ≥85% accuracy** (currently 95.8%) and asserts every category is reachable. Prevents silent regressions when keyword rules change (CLS-G1). |
 | TC-GOV-02 | Intake routing eval harness (`npm run test:intake-routing-eval`) | Labelled benchmark of free-text demands → expected route (catalogue / contract / new-demand), with a per-route breakdown and an **accuracy floor that fails the build** (currently 90% against an 85% baseline). Also asserts outright that no service-category demand can ever route to the catalogue. Gates the **deterministic** layer: the LLM's intent is authoritative at runtime but is not reproducible from the text, so it is covered by a contract test (TC-REQ-R8/R9) rather than an accuracy floor. Two known misses are recorded in the harness rather than relabelled away — a catering and a translation demand match a Services contract on its *category* alone, which is the contract-side analogue of the same fault |
+| TC-GOV-03 | Atomic governed checkout (`npm run test:governed-checkout-atomic`) | Live Neon submission creates request → PR → lines and a conditional PO in one transaction. A matching idempotency-key retry returns the same aggregate, a changed payload returns HTTP 409, and concurrent submissions produce one requisition/PO. The test uses uniquely prefixed rows and cleans them up. |
 | TC-RSK-01 | Risk segmentation (`npm run test:risk-segmentation`) | Inherent-risk cascade highest-attribute-wins (critical data/access/service → critical; high risk or value≥250k → high; value≥50k → medium); outcome: no reusable → new, within band → reuse, one tier above → amend, more → change. Surfaced on the determination screen + drives routing. |
 | TC-RSK-02 | Structured reuse model (`npm run test:risk-reuse`) | Per-assessment decision by supplier/scope/data-class/inherent-tier/validity; not-reusable/not-completed/different-supplier → no-match; expired → new; worst dimension wins; `selectReuseOutcome` picks the most favourable candidate across the register. Drives the determination outcome. |
 | TC-RSK-03 | Preliminary operational risk (`npm run test:operational-risk` + UI smoke) | Per-dimension screen — business continuity (critical-service/material spend), data handling (sensitivity), concentration (incumbent + material), regulatory (materiality), access (privileged); **worst-dimension-wins** overall. "Preliminary operational risk" panel renders on the risk step and appears in the export. |
@@ -561,7 +570,7 @@ finding routinely reveals more in the same file. Re-run to convergence.
     before adding new content to any request-detail tab or the header — the failure mode is a new
     section quietly duplicating one that already exists elsewhere on the page.
 
-## Re-test results — build `index-LlQShsel.js` (2 Jun 2026, live-verified)
+## Historical re-test results — build `index-LlQShsel.js` (2 Jun 2026, live-verified)
 **Newly FIXED (verified this run):**
 - ✅ **TC-REQ-17** catalogue Order Now — now succeeds (REQ-2026-4279 submitted; no date error).
 - ✅ **TC-REQ-08** classifier — "management consulting…" now correctly **Consulting** (was Goods).
@@ -576,8 +585,22 @@ finding routinely reveals more in the same file. Re-run to convergence.
 
 ---
 
-## Open questions for you
+## Historical open questions (superseded)
 1. **Deployment:** the new build isn't on `orchestration-ui-khaki.vercel.app` (same bundle hash; catalogue bug persists). Is there a **preview URL** to test, or should I wait for the production deploy and re-run? Please confirm the URL + that a new bundle hash is live.
 2. **Audit scope:** do you want the full click-through executed by me against the new build (I'll run this playbook and log every Fail), or just delivery of the playbook for your QA to run?
 3. **SOW generation timing** (from the assessment doc §10): up-front full draft vs. Q&A-then-generate vs. hybrid? (I recommend hybrid.)
 4. **Test data:** OK to create/submit/approve real records in the demo DB during the run (the playbook includes write flows)?
+
+## Current verification record — 30 Aug 2026
+
+- ✅ Latest production alias: `https://orchestration-ui.vercel.app`, deployment commit `0bf9a93`.
+- ✅ Admin/detail route sweep: 66/66 clean.
+- ✅ Supplier route sweep: 8/8 clean.
+- ✅ Requester route sweep: 9/9 clean.
+- ✅ Neon validation: 44/44 repository tables, functions, governance links and orphan checks passed.
+- ✅ Catalogue item detail and governed-checkout handoff verified without submitting live test data.
+- ✅ Simple ↔ Expert mode switching and persistence verified.
+- ⚠️ One malformed diagnostic probe queried `procurement_profiles.id` instead of `user_id`; this produced a controlled API error and is not an application defect.
+
+Future runs should append a dated record here rather than replacing earlier results. Role-switching
+checks remain simulation coverage; authentication and production authorization are intentionally deferred.

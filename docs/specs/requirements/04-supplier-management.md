@@ -2,6 +2,8 @@
 
 **Version:** 1.0 · **Date:** June 2026 · **Roles:** `procurement-manager`, `vendor-manager`, `operations-lead`, `admin`
 
+> **Current R1 status:** supplier, screening, onboarding, risk, and performance records are application-owned Neon data. External screening feeds remain R2; see the [current roadmap](../../roadmap/R1_BACKLOG_FIT_GAP.md).
+
 ---
 
 ## Purpose

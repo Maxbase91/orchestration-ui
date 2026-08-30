@@ -2,6 +2,8 @@
 
 **Version:** 1.0 · **Date:** June 2026 · **Roles:** `procurement-manager`, `operations-lead`, `admin`
 
+> **Current R1 status:** internal workflow instances, stage history, approvals, and lifecycle writes run against Neon. External integration nodes remain R2; see the [current roadmap](../../roadmap/R1_BACKLOG_FIT_GAP.md).
+
 ---
 
 ## Purpose

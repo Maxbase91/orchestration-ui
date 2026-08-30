@@ -5,15 +5,16 @@
 
 **Purpose.** Define each user persona: who they are, what they see, what they can access, what
 they actually *do*, and how complex the experience is for them — **in Release 1** (the current
-read/classify/recommend/route scope) **and in the end state** (live execution + automation). Use this
+internal Neon-backed request/PR/PO and route scope) **and in the end state** (live execution + automation). Use this
 to size onboarding, training, permissions, and where to invest UX effort per persona.
 
 This is grounded in the implemented access model: roles (`src/config/roles.ts`), route guards
 (`src/App.tsx`), the role-based landing widgets (`src/features/dashboard/widget-registry.tsx`), and the
 front-door / approval flows. Standardised and organisation-agnostic — no client- or sector-specific framing.
 
-> **Scope reminder (R1).** The front door **classifies, recommends and routes**; it does **not** execute
-> upstream writes. Users act through **deep-links**, and the **determination screen is the R1 endpoint**.
+> **Scope reminder (R1).** The front door **classifies, recommends, routes, and creates internal
+> records**. It does **not** execute upstream writes. Internal request/PR/PO and sourcing lifecycle
+> records are owned by Neon; external systems remain an R2 boundary. Role switching is simulation-only.
 > The assistant **proposes** actions (confirm-before-act). End-state lifts that boundary to live execution.
 
 ---

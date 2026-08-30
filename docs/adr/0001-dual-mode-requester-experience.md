@@ -4,8 +4,8 @@
 
 The procurement front door serves occasional requesters and operational reviewers. A single dense
 wizard and request-detail surface exposes governance vocabulary and controls before they are useful
-to requesters, while reviewers still need the complete operational view. Release 1 also constrains the
-front door to classify, recommend, and route; it must not execute upstream purchasing actions.
+to requesters, while reviewers still need the complete operational view. Release 1 owns the internal
+request lifecycle while it still does not execute upstream purchasing actions.
 
 ## Decision
 
@@ -25,7 +25,8 @@ Provide two presentation modes behind one permission model:
 ## Consequences
 
 The mode contract is a UI density decision, not an authorization boundary. Both modes use the same
-request records, routing rules, workflow APIs, and R1 read/route boundary. Product telemetry can
+request records, routing rules, workflow APIs, and internal Neon-backed write lifecycle. Product telemetry can
 compare completion, abandonment, correction, and route comprehension before broad rollout. The
 Simple journey adds a second composition surface and therefore requires browser coverage in addition
-to the existing Expert wizard tests.
+to the existing Expert wizard tests. Role switching remains intentionally available for simulation and
+UAT; authentication and production authorization are deferred.

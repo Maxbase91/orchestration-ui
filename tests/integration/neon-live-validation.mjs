@@ -38,6 +38,7 @@ const expectedTables = [
   'compliance_reports', 'system_integrations', 'form_submissions', 'approval_entries',
   'notifications', 'workflow_step_details', 'workflow_instances',
   'purchase_requisitions', 'request_lines', 'purchase_orders', 'invoices',
+  'procurement_policy_configs',
   'goods_receipts', 'sourcing_events', 'sourcing_responses', 'tickets',
   'ticket_responses', 'ticket_links', 'audit_entries', 'knowledge_base', 'chat_feedback',
 ];
@@ -72,6 +73,11 @@ const functionRows = await sql.query(
 );
 const presentFunctions = new Set(functionRows.map((row) => row.proname));
 check('documented ID functions exist', presentFunctions.size === 2, `${presentFunctions.size}/2`);
+
+const policyRows = await sql.query(
+  `SELECT singleton_key FROM procurement_policy_configs WHERE singleton_key = 'default'`,
+);
+check('server policy singleton is available', policyRows.length <= 1, `${policyRows.length} row(s)`);
 
 const orphanRequests = await sql.query(
   `SELECT count(*)::int AS count FROM requests r

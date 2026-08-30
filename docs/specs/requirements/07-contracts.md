@@ -2,6 +2,8 @@
 
 **Version:** 1.0 · **Date:** June 2026 · **Roles:** `procurement-manager`, `operations-lead`, `admin`
 
+> **Current R1 status:** contract coverage, validity, capacity, risk linkage, and governed call-offs are internal Neon capabilities. CLM authoring, e-signature, and upstream contract writes remain R2; see the [current roadmap](../../roadmap/R1_BACKLOG_FIT_GAP.md).
+
 ---
 
 ## Purpose

@@ -18,8 +18,7 @@ import { useApprovalChains } from '@/lib/db/hooks/use-approval-chains';
 import { useCatalogueItems } from '@/lib/db/hooks/use-catalogue-items';
 import { useContracts } from '@/lib/db/hooks/use-contracts';
 import { useRiskAssessments } from '@/lib/db/hooks/use-risk-assessments';
-import { createRequest, updateRequest } from '@/lib/db/requests';
-import { createPurchaseOrder } from '@/lib/db/purchase-orders';
+import { createRequest } from '@/lib/db/requests';
 import { saveServiceDescription } from '@/lib/db/service-descriptions';
 import { saveIntakeCompliance } from '@/lib/db/intake-compliance';
 import { initWorkflow } from '@/lib/workflow/engine';
@@ -96,16 +95,6 @@ const ROUTE_COPY: Record<SimpleRoute, { label: string; detail: string }> = {
 
 function requestId(): string {
   return `REQ-2025-${Math.floor(1000 + Math.random() * 9000)}`;
-}
-
-function isGovernedCheckoutSchemaUnavailable(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error);
-  // Older deployments can have the original request/PO tables but not the
-  // additive requisition/line tables. Keep catalogue submission usable until
-  // the migration is applied, while preserving the governed path everywhere
-  // the new tables are available.
-  return /purchase_requisitions|request_lines/i.test(message)
-    && /schema cache|does not exist|could not find/i.test(message);
 }
 
 function routeFromChannel(channel: string): SimpleRoute {
@@ -281,31 +270,11 @@ export function SimpleNewRequestPage() {
           businessJustification: requestData.businessJustification, deliveryDate: parseDeliveryDate(requestData.deliveryDate) ?? undefined,
         };
         const governedLines = [{ id: `LINE-${id}-1`, requestId: id, description: line.description, quantity: line.quantity, unit: line.unit, unitPrice: line.unitPrice, supplierId: supplier.id, contractId: matchedContract.id, ...(item ? { catalogueItemId: item.id } : {}), riskAssessmentId: riskAssessment?.id, commodityCode: line.commodityCode, deliveryDate: requestData.deliveryDate }];
-        try {
-          await submitGovernedCheckout({
-            requestId: id, requisitionId: `PR-${id}`, decision, checkout,
-            request: governedRequest,
-            lines: governedLines,
-          });
-        } catch (error) {
-          if (!isGovernedCheckoutSchemaUnavailable(error)) throw error;
-          // The production prototype may still be on the pre-PR schema. The
-          // compatibility write keeps the existing request/PO store usable;
-          // once the additive migration is applied, the governed branch above
-          // remains the only path and records the full requisition audit trail.
-          console.warn('Governed checkout tables are unavailable; using legacy catalogue persistence.');
-          const legacyStatus = decision.status === 'approved' ? 'po' : decision.approvalRequired ? 'approval' : 'intake';
-          await createRequest({ ...governedRequest, status: legacyStatus });
-          if (decision.status === 'approved') {
-            const purchaseOrder = await createPurchaseOrder({
-              id: `PO-${id}`, supplierId: supplier.id, supplierName: supplier.name,
-              value: decision.totalValue, status: 'submitted', createdAt: new Date().toISOString(),
-              deliveryDate: requestData.deliveryDate, contractId: matchedContract.id, requestId: id,
-              lineItems: [{ description: line.description, quantity: line.quantity, unitPrice: line.unitPrice, received: 0 }],
-            });
-            await updateRequest(id, { poId: purchaseOrder.id });
-          }
-        }
+        await submitGovernedCheckout({
+          requestId: id, requisitionId: `PR-${id}`, decision, checkout,
+          request: governedRequest,
+          lines: governedLines,
+        });
         if (decision.status !== 'approved') {
           await initWorkflow(id, templateForRequest?.id, requestRoute === 'catalogue' ? 'catalogue' : 'framework-call-off');
         }

@@ -1,25 +1,33 @@
 # Procurement Orchestration — Requirements & Fit-Gap Analysis
 
-**Benchmarks:** Zip · Oro Labs · SAP Ariba · **Compared against:** orchestration-ui (this app) · **Date:** June 2026
+**Benchmarks:** Zip · Oro Labs · SAP Ariba · **Compared against:** orchestration-ui (this app) · **Date:** 30 August 2026
 **Purpose:** a holistic capability/requirements baseline drawn from the three market leaders, scored against the current app, with a prioritized backlog to close gaps or improve existing features.
 
 ---
 
 ## 1. Executive summary
 
-The app already implements the **shape** of a modern orchestration platform — a single intelligent intake, a no-code routing/workflow/forms layer, supplier 360, sourcing+evaluation, a P2P chain (PO → receipt → invoice → 3-way match → payment), analytics, a supplier portal, an admin control plane, and an AI assistant. That is genuinely broad and aligns conceptually with **Zip** and **Oro** (orchestration-first) more than with **SAP Ariba** (deep source-to-pay suite).
+The app now implements an internally operated procurement-orchestration platform: adaptive intake, Simple/Expert requester UX, catalogue and contract checkout, request → PR → conditional internal PO, workflow and approvals, supplier and risk records, sourcing and evaluation, analytics, a supplier portal, admin configuration, and an AI assistant. It is backed by private Neon and owns its internal records; there are no live upstream writes.
 
 The gaps are mostly about **depth and "realness"**, not missing concepts:
 
-1. **It's a prototype** — mock/Supabase data, simulated integrations, and a workflow engine that *renders* but doesn't *execute*. Zip/Oro/Ariba are transactional systems of record wired to ERPs, networks, and payment rails.
-2. **No real integration ecosystem** — the single biggest differentiator of Zip/Oro is connecting to 50–100s of systems (ERP, CLM, HRIS, ITSM, e-sign, risk feeds). The app only *visualises* four integrations.
-3. **Shallow P2P and spend analytics** — catalog/punchout, real invoice OCR + matching tolerances, payments, and a true spend cube/savings tracking are largely demonstrative.
-4. **Contracts and supplier risk are thin** vs Ariba CLM (clause library, redlining, obligations) and SLP/Risk (third-party sanctions/financial/ESG feeds).
-5. **AI is mostly UI-deep** — agents exist as config cards; competitors run agentic execution end-to-end.
+1. **Internal depth is uneven** — the main request and sourcing paths are functional, while workflow atomicity, P2P exceptions, contract obligations, reporting exports, and some supplier panels remain partial.
+2. **No external integration ecosystem** — ERP, CLM, HRIS, ITSM, e-sign, payment, supplier-network, and risk-feed integrations are intentionally deferred to R2.
+3. **Enterprise security is deferred** — role switching remains a simulation mechanism; authentication and server-derived authorization are not part of this update.
+4. **AI remains governed but bounded** — assistant lookups and intake assistance work, while server-path consistency, masking, fallback observability, and agent execution need hardening.
+5. **Market parity is a separate decision** — Zip/Oro/Ariba depth is useful as a benchmark, not an implicit R1 commitment.
 
 None of this is surprising for a prototype. The fit-gap below turns it into a backlog: **what to make real, what to deepen, and what to add.**
 
 ---
+
+## Current implementation reconciliation
+
+The current release status is maintained in the [R1 capability roadmap](R1_BACKLOG_FIT_GAP.md) and the
+[implementation evidence index](R1_IMPLEMENTATION_EVIDENCE.md). This document remains the market
+benchmark: ✅ means internally implemented, 🟡 means partial internal depth, 🧪 means simulated or
+display-only, and 🔴 means deferred or absent. The ratings below describe market parity, not whether
+the internal R1 front door exists.
 
 ## 2. Method & sources
 
@@ -62,18 +70,18 @@ Sources are listed in §7.
 ### B. Orchestration / Workflow engine
 | # | Requirement | App today | Cov. |
 |---|---|---|---|
-| B1 | No-code visual workflow builder | Workflow Designer (React Flow, 10 node types, templates) | 🧪 (builds & saves, but doesn't drive runtime lifecycle) |
+| B1 | No-code visual workflow builder | Workflow Designer (React Flow, 10 node types, templates) | 🟡 (templates and runtime exist; some nodes/fallbacks need hardening) |
 | B2 | Rules engine for routing/policy (IF/THEN) | Routing Rules engine + test panel, wired to intake | ✅ |
 | B3 | Smart, reusable forms triggered by stage/condition | Form Builder (8 templates, 11 field types, conditional) | ✅ |
 | B4 | Parallel branches, decisions, timers, sub-workflows | Node types exist in designer | 🧪 |
-| B5 | **Executable** workflow runtime (state machine drives stages/SLAs/integration calls) | Lifecycle hardcoded by buying channel | 🔴 (designer is decorative — see Admin Recommendations A2) |
+| B5 | **Executable** workflow runtime (state machine drives stages/SLAs/integration calls) | Template runtime plus channel fallback drives internal stages and approvals | 🟡 (transactionality, timers, and complete node enforcement remain) |
 | B6 | SLA tracking, escalation, bottleneck detection | SLA tracker, bottlenecks, heatmap, AI analysis | 🟡 (date-anchored data; SLAs hardcoded) |
 | B7 | Workflow simulation / dry-run | Designer "Simulate" | 🧪 |
 
 ### C. Approvals
 | # | Requirement | App today | Cov. |
 |---|---|---|---|
-| C1 | Multi-step approval chains by value/category/risk | 4 chains + threshold bands | 🟡 (chains don't persist/execute) |
+| C1 | Multi-step approval chains by value/category/risk | Approval-chain records generate approval entries and gate internal workflow | 🟡 (delegation, OOO and atomic completion remain) |
 | C2 | Parallel + sequential approvers, delegation, OOO | Shown in routing preview; OOO in user mgmt | 🟡 (delegation not auto-applied) |
 | C3 | One-click approve/reject/request-info from queue, email, mobile | In-app approve works (verified) | 🟡 (no email/mobile actions) |
 | C4 | AI approval recommendations / risk summaries | AI pre-validation cards | ✅ (UI) |
@@ -112,11 +120,11 @@ Sources are listed in §7.
 ### G. Procure-to-Pay (catalog, PO, receipt, invoice, match, pay)
 | # | Requirement | App today | Cov. |
 |---|---|---|---|
-| G1 | PO creation & lifecycle | PO list/detail | 🧪 |
+| G1 | PO creation & lifecycle | Internal PO creation follows governed PR submission | 🟡 (external issuance is deferred) |
 | G2 | Goods/services receipt | Goods Receipt form | 🟡 |
 | G3 | Invoice capture with **AI OCR/extraction** | AI extraction (described) | 🧪 |
 | G4 | **2/3-way match** with tolerances & variance handling | Three-Way Match (now computes mismatch) | 🟡 (single example; no tolerance config) |
-| G5 | Payment scheduling/execution + **global payments** | Payment tracker | 🧪 / 🔴 (no real payments/global) |
+| G5 | Payment scheduling/execution + **global payments** | Internal payment status/tracker foundation | 🧪 / 🔴 (no upstream payment execution; R2) |
 | G6 | Catalog management / punchout | Catalogue browse | 🔴 (no punchout) |
 | G7 | Budget checks / encumbrance (Zip Budgets) | — | 🔴 |
 | G8 | Virtual/vendor cards (Zip Vendor Cards) | — | 🔴 |
@@ -142,7 +150,7 @@ Sources are listed in §7.
 ### J. Integrations & Ecosystem
 | # | Requirement | App today | Cov. |
 |---|---|---|---|
-| J1 | Broad pre-built connector library (ERP/CLM/HRIS/ITSM/e-sign/risk) | Visualises 4 systems (Ariba/Coupa/Sirion/S4HANA) | 🔴 (simulated, not real) |
+| J1 | Broad pre-built connector library (ERP/CLM/HRIS/ITSM/e-sign/risk) | Own-store connector ports with Neon implementation; live systems are deferred | 🔴 (external connectors are R2) |
 | J2 | Bi-directional ERP sync (vendors, POs, invoices, GL) | — | 🔴 |
 | J3 | API/webhooks + iPaaS / app-builder (Zip App Studio) | — | 🔴 |
 | J4 | SSO/SCIM provisioning | — | 🔴 |
@@ -152,7 +160,7 @@ Sources are listed in §7.
 | # | Requirement | App today | Cov. |
 |---|---|---|---|
 | K1 | No-code config of rules/forms/workflows/agents | Admin suite | 🟡 (see ADMIN_RECOMMENDATIONS.md — some editors UI-only) |
-| K2 | Configurable taxonomy (categories, channels, stages, thresholds, SLAs) | Hardcoded | 🔴 |
+| K2 | Configurable taxonomy (categories, channels, stages, thresholds, SLAs) | Categories, thresholds, rules and approval chains are configurable; channel/stage tables remain partial | 🟡 |
 | K3 | Policy management linked to enforcement | Policy viewer | 🔴 (display-only) |
 | K4 | Roles & permissions management | Code-defined matrix | 🟡 (now route-guarded; not admin-editable) |
 | K5 | Audit log + change governance | Audit log + DB admin | ✅ |
@@ -161,7 +169,7 @@ Sources are listed in §7.
 | # | Requirement | App today | Cov. |
 |---|---|---|---|
 | L1 | RBAC across 6 roles | Implemented + route guards | ✅ |
-| L2 | Authentication / enterprise identity | Role switcher (demo) | 🔴 (no real auth) |
+| L2 | Authentication / enterprise identity | Role switcher intentionally retained for simulation/UAT | 🔴 (authentication deferred) |
 | L3 | Notifications (in-app/email/push, quiet hours, digest) | In-app + prefs | 🟡 (prefs not persisted) |
 | L4 | Mobile / responsive approvals | Desktop | 🔴 |
 | L5 | Internationalization / multi-currency | EUR-centric | 🔴 (currency setting not applied) |
@@ -190,7 +198,11 @@ Sources are listed in §7.
 
 ---
 
-## 6. Prioritized backlog to close gaps / improve
+## 6. Market-parity backlog and deferred depth
+
+The following backlog is retained as a benchmark against larger suites. It is not a statement that
+these capabilities are required for the current internal R1 release. The current R1 hardening backlog
+is in [`R1_BACKLOG_FIT_GAP.md`](R1_BACKLOG_FIT_GAP.md).
 
 **P0 — make the orchestration core real (the differentiator Zip/Oro win on)**
 1. **Executable workflow runtime (B5):** turn the Designer template into the state machine that drives stages, SLAs, forms, and integration steps per request. This unlocks B1/B4/B7 and connects to SLA/escalation/notifications.
@@ -214,7 +226,7 @@ Sources are listed in §7.
 
 ## 7. Caveats
 - Competitor capabilities are from public product/marketing material (June 2026); exact feature depth varies by edition/tier and is not independently verified.
-- App ratings reflect the prior functional audit + admin review of this prototype (mock/Supabase, simulated integrations); a production build would change several 🧪 items.
+- App ratings reflect the current internal Neon-backed implementation and the remaining depth of this prototype; external integrations and authentication are intentionally deferred.
 - "Gap" doesn't always mean "build it" — for a demo/prototype, several enterprise items (network, global payments, SOC2) may be intentionally out of scope. Use the backlog to decide *make real* vs *deepen* vs *defer*.
 
 ## Sources

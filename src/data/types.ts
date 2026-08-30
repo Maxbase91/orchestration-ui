@@ -297,6 +297,7 @@ export interface PurchaseRequisition {
   riskReviewRequired: boolean;
   contractAmendmentRequired: boolean;
   idempotencyKey?: string;
+  idempotencyFingerprint?: string;
   createdAt: string;
   updatedAt: string;
 }

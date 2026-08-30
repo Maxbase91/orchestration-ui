@@ -186,3 +186,10 @@ removed explicitly.
 - [x] Repaired and validated 37/37 catalogue supplier, active-contract, and current-risk links in Neon.
 - [x] Configure `DATABASE_PROVIDER=neon`, `VITE_DATABASE_PROVIDER=neon`, and `NEON_DATABASE_URL` in Vercel, deploy, and run the Neon-backed browser suite before cutover.
 - [x] Live deployment verified on Git SHA `db90a7b`: read-only Neon API probes and eight representative production screens pass with no console, page, or 5xx errors.
+# Atomic governed checkout — 2026-08-30
+
+- [x] Trace checkout callers, policy store, Neon transaction support, and schema
+- [x] Implement policy persistence and atomic server checkout endpoint
+- [x] Route Simple and Expert checkout through the endpoint
+- [x] Add tests and update living documentation
+- [x] Run build, lint, focused suites, and Neon validation (browser smoke unavailable: local dev server did not become ready)

@@ -1,9 +1,9 @@
 // Pure governance decisioning for catalogue orders and contract call-offs.
 // Persistence/UI callers use this seam before creating a request, requisition,
 // and (only when allowed) an internal purchase order.
-import type { CatalogueItem } from '@/data/catalogue-items';
-import type { Contract, ProcurementProfile, PurchaseRequisitionRoute, RiskAssessment, Supplier } from '@/data/types';
-import { getActivePolicyConfig, type PolicyConfig } from './policy-config';
+import type { CatalogueItem } from '../../data/catalogue-items.js';
+import type { Contract, ProcurementProfile, PurchaseRequisitionRoute, RiskAssessment, Supplier } from '../../data/types.js';
+import { getActivePolicyConfig, type PolicyConfig } from './policy-config.js';
 
 export interface GovernedCheckoutLine {
   item?: CatalogueItem;

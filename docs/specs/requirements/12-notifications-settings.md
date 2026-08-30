@@ -1,12 +1,12 @@
 # FR-12: Notifications & Settings
 
-**Version:** 1.0 · **Date:** June 2026 · **Roles:** All internal roles
+**Version:** 1.1 · **Date:** 30 August 2026 · **Roles:** All internal roles
 
 ---
 
 ## Purpose
 
-Notifications keep users informed of approvals, status changes, and SLA warnings. Settings allow per-user configuration of currency, match tolerance, notification channels, and display preferences.
+Notifications keep users informed of approvals, status changes, and SLA warnings. Settings allow per-user configuration of currency, match tolerance, notification channels, and display preferences. Role switching remains a simulation control; authentication is deferred from R1.
 
 ---
 

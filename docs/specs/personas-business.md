@@ -13,7 +13,10 @@ manager who lives in it all day needs power and control. Getting this right is t
 tool people *adopt* and a tool people *avoid*.
 
 This guide describes the **six types of user**, what each one does, what they care about, and **how much
-effort and training each will realistically need** — both for the first release and for the full vision.
+effort and training each will realistically need** — both for the current internal R1 and for the full vision.
+
+The current R1 uses private Neon for internal records and keeps role switching as a simulation/UAT
+control. External integrations and authentication are deferred; see the [R1 roadmap](../roadmap/R1_BACKLOG_FIT_GAP.md).
 
 ---
 

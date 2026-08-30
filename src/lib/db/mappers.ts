@@ -308,7 +308,7 @@ export function mapDbToCatalogueItem(row: DbRecord): CatalogueItem {
     id: row.id as string,
     name: row.name as string,
     description: (row.description ?? '') as string,
-    unitPrice: (row.unit_price ?? row.unitPrice ?? 0) as number,
+    unitPrice: Number(row.unit_price ?? row.unitPrice ?? 0),
     unit: (row.unit ?? '') as string,
     catalogueId: (row.catalogue_id ?? row.catalogueId ?? '') as string,
     catalogueName: (row.catalogue_name ?? row.catalogueName ?? '') as string,
@@ -560,6 +560,7 @@ export function mapDbToPurchaseRequisition(row: DbRecord): PurchaseRequisition {
     riskReviewRequired: Boolean(row.risk_review_required ?? row.riskReviewRequired),
     contractAmendmentRequired: Boolean(row.contract_amendment_required ?? row.contractAmendmentRequired),
     idempotencyKey: (row.idempotency_key ?? row.idempotencyKey) as string | undefined,
+    idempotencyFingerprint: (row.idempotency_fingerprint ?? row.idempotencyFingerprint) as string | undefined,
     createdAt: (row.created_at ?? row.createdAt) as string,
     updatedAt: (row.updated_at ?? row.updatedAt) as string,
   };
@@ -589,6 +590,7 @@ export function mapPurchaseRequisitionToDb(r: Partial<PurchaseRequisition>): DbR
   if (r.riskReviewRequired !== undefined) out.risk_review_required = r.riskReviewRequired;
   if (r.contractAmendmentRequired !== undefined) out.contract_amendment_required = r.contractAmendmentRequired;
   if (r.idempotencyKey !== undefined) out.idempotency_key = r.idempotencyKey;
+  if (r.idempotencyFingerprint !== undefined) out.idempotency_fingerprint = r.idempotencyFingerprint;
   if (r.createdAt !== undefined) out.created_at = r.createdAt;
   if (r.updatedAt !== undefined) out.updated_at = r.updatedAt;
   return out;
@@ -825,7 +827,7 @@ export function mapDbToContract(row: DbRecord): Contract {
     title: row.title as string,
     supplierId: (row.supplier_id ?? row.supplierId ?? '') as string,
     supplierName: (row.supplier_name ?? row.supplierName ?? '') as string,
-    value: (row.value ?? 0) as number,
+    value: Number(row.value ?? 0),
     startDate: (row.start_date ?? row.startDate ?? '') as string,
     endDate: (row.end_date ?? row.endDate ?? '') as string,
     status: (row.status ?? 'draft') as Contract['status'],
@@ -834,7 +836,7 @@ export function mapDbToContract(row: DbRecord): Contract {
     department: (row.department ?? '') as string,
     category: (row.category ?? '') as string,
     renewalDate: (row.renewal_date ?? row.renewalDate) as string | undefined,
-    utilisationPercentage: (row.utilisation_percentage ?? row.utilisationPercentage ?? 0) as number,
+    utilisationPercentage: Number(row.utilisation_percentage ?? row.utilisationPercentage ?? 0),
     isFramework: (row.is_framework ?? row.isFramework) as boolean | undefined,
     // Prefer the live array from contracts_with_derived view; fall back
     // to the seeded column on the base table.
@@ -986,7 +988,7 @@ export function mapDbToRiskAssessment(row: DbRecord): RiskAssessment {
     contractId: (row.contract_id ?? row.contractId) as string | undefined,
     category: row.category as RiskAssessment['category'],
     riskLevel: (row.risk_level ?? row.riskLevel) as RiskAssessment['riskLevel'],
-    score: (row.score ?? 0) as number,
+    score: Number(row.score ?? 0),
     status: (row.status ?? 'draft') as RiskAssessment['status'],
     assessorId: (row.assessor_id ?? row.assessorId ?? '') as string,
     assessorName: (row.assessor_name ?? row.assessorName ?? '') as string,

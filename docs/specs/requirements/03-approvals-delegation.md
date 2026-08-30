@@ -2,6 +2,8 @@
 
 **Version:** 1.0 · **Date:** June 2026 · **Roles:** All internal roles
 
+> **Current R1 status:** approval chains and approval entries are stored in Neon and participate in the internal request lifecycle. Authentication and enterprise identity remain deferred; see the [current roadmap](../../roadmap/R1_BACKLOG_FIT_GAP.md).
+
 ---
 
 ## Purpose

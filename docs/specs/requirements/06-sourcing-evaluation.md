@@ -6,7 +6,7 @@
 
 ## Purpose
 
-Sourcing covers the RFx lifecycle: event creation, supplier invitations, Q&A board, response tracking, weighted scoring, AI-assisted evaluation, and award. Events now persist to Supabase (`sourcing_events` table).
+Sourcing covers the internal RFx lifecycle: event creation, supplier invitations, Q&A board, response tracking, weighted scoring, AI-assisted evaluation, and award. Events persist to the application-owned Neon store (`sourcing_events` table); no external sourcing-system writes occur in R1.
 
 ---
 
@@ -36,7 +36,7 @@ FR06-16 · **Save Draft** calls `createSourcingEvent()` with `status = 'draft'` 
 
 ## Event List
 
-FR06-20 · `/sourcing` loads from `useSourcingEvents()` (Supabase `sourcing_events` table).
+FR06-20 · `/sourcing` loads from `useSourcingEvents()` (Neon-backed `sourcing_events` table).
 FR06-21 · Draft events listed with 0 suppliers — clicking navigates to detail without 404 (SRC-004 fix).
 FR06-22 · Filters: status, type, category.
 
@@ -58,7 +58,7 @@ FR06-41 · Each criterion has a weight (0–100); weights must sum to ≤ 100.
 FR06-42 · Scores are entered per supplier per criterion (1–10).
 FR06-43 · Weighted score computed: `Σ(score_i × weight_i / 100)`.
 FR06-44 · AI-006 (PR Compliance Reviewer) generates a narrative recommendation.
-FR06-45 · Award button triggers award→contract/PO handoff (future phase).
+FR06-45 · Award writes the winning supplier to the internal request and closes the internal sourcing event. Contract/PO creation remains a governed internal follow-up; external handoff is R2.
 
 ---
 

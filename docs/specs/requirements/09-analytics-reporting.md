@@ -2,6 +2,8 @@
 
 **Version:** 1.0 · **Date:** June 2026 · **Roles:** `procurement-manager`, `operations-lead`, `admin`
 
+> **Current R1 status:** dashboards and KPI views read internal Neon records. Scheduled reports, PDF/Excel exports, and an external spend cube remain partial or deferred; see the [current roadmap](../../roadmap/R1_BACKLOG_FIT_GAP.md).
+
 ---
 
 ## Purpose

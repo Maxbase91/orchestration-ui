@@ -1,13 +1,13 @@
 # Source connectors
 
-A standardised, single-interface layer for reading upstream business objects
+A standardised, single-interface layer for reading upstream-shaped business objects
 (requests, orders, invoices, contracts, suppliers, tickets, risk records, …).
 
 The platform reads everything through these **ports**. The default implementation
-reads the platform's **own store** — the system of record for this release — so
-no live upstream connection is required. A later release can register a live
-implementation for any object type; because every consumer depends only on the
-ports, that swap needs **no change at the call site**.
+reads the platform's **own Neon store** — the R1 system of record — so no live
+upstream connection is required. R2 can register a live implementation for any
+object type; because every consumer depends only on the ports, that swap needs
+**no change at the call site**.
 
 Nothing here is specific to any organisation or industry. The upstream
 `sourceSystem` is a free-form, deployment-configured identifier.
@@ -40,9 +40,9 @@ Nothing here is specific to any organisation or industry. The upstream
 | `support-ticket` | `db/tickets` | `support-desk` |
 | `sourcing-event` | `db/sourcing-events` | `sourcing` |
 
-`payment` is the supplier banking/payment master — a vendor-data **foundation** (not an R1 flow);
+`payment` is the supplier banking/payment master — a vendor-data **foundation** (not an upstream R1 flow);
 its `iban`/`bic` are sensitive and must be masked when surfaced. Seed-backed today; the `db/payments`
-module is the seam to a Supabase table / live AP source later.
+module is the seam to the Neon store / a live AP source later.
 
 `support-ticket` is the support queue. Its TTL is 60s rather than the hour used for reference data:
 a queue is worked by several agents at once, so a stale list costs more here. Reads through the
@@ -63,7 +63,7 @@ re-apply repair — reads through `db/sourcing-events` directly instead, where t
 between it and the decision.
 
 Not yet wired (no own-store read module): `risk-screening`, `category-taxonomy`,
-`form-submission` — add a connector behind the ports when their data lands.
+`form-submission` — these remain R1 hardening items before any R2 live connector is added.
 Coverage is guarded by `npm run test:connectors` (drift guard).
 
 ## Reading data
@@ -95,17 +95,22 @@ A `SourceRecord<T>` is `{ data, meta }`. `meta` carries the `sourceSystem`,
 `mode` (`shadow` | `live`), `retrievedAt`, and an optional `freshnessTtlSeconds`,
 so consumers can reason about freshness regardless of where the record came from.
 
+The active R1 implementation is the private Neon-backed own store; Supabase is retained only as a
+rollback seam.
+
 ## Consumers on the layer
 
-The front-door **catalogue and contract checks** (`step-pre-check.tsx`) and the
-supplier/contract reads in `step-compliance.tsx` read through `useSourceData`.
-Risk **reuse-matching** (`findMatchingRiskAssessments`) and the assistant lookups
-are not yet routed — see the layer's status in `docs/roadmap/R1_BACKLOG_FIT_GAP.md` (they
-need, respectively, validity-window query support and a server-side connector).
+The front-door **catalogue and contract checks** (`step-pre-check.tsx`), the
+supplier/contract reads in `step-compliance.tsx`, and client-side assistant lookups
+read through `useSourceData`/`requireConnector`. Risk **reuse-matching**
+(`findMatchingRiskAssessments`) and the server-side assistant action path still need
+connector-native implementations — see the layer's status in
+`docs/roadmap/R1_BACKLOG_FIT_GAP.md` (they need, respectively, validity-window query
+support and a server-side connector).
 
 ## The live-swap seam
 
-To move an object type from the own store to a live upstream source:
+To move an object type from the own store to a live upstream source in R2:
 
 1. Implement the `SourceConnector<TKey, TRecord>` interface against the live
    source. Set `mode: 'live'` and return the same domain type.

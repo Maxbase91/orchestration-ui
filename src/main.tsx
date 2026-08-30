@@ -13,7 +13,7 @@ registerDefaultConnectors()
 
 // Apply any admin-saved decisioning-threshold overrides to the active policy
 // config before the first determination runs (rehydrates from localStorage).
-usePolicyConfigStore.getState()
+usePolicyConfigStore.getState().hydrateFromServer();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

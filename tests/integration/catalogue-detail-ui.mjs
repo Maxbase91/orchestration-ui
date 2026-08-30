@@ -26,7 +26,8 @@ check('wizard catalogue items deep-link to item details', /navigate\(`\/catalogu
 check('home command-bar items deep-link to item details', /navigate\(`\/catalogue\/items\//.test(commandBar));
 check('expert pre-check order CTA deep-links to item details', /onChooseCatalogue[\s\S]*?navigate\(`\/catalogue\/items\//.test(requestEntry));
 check('simple pre-check order CTA deep-links to item details', /onChooseCatalogue[\s\S]*?navigate\(`\/catalogue\/items\//.test(simpleRequestEntry));
-check('legacy deployments have a safe catalogue persistence fallback', /legacy catalogue persistence/.test(simpleRequestEntry) && /purchase_requisitions\|request_lines/.test(simpleRequestEntry));
+check('simple checkout uses the atomic governed endpoint', /submitGovernedCheckout/.test(simpleRequestEntry) && !/legacy catalogue persistence/.test(simpleRequestEntry));
+check('command-bar catalogue cart does not bypass governed checkout', !/createRequest|createPurchaseOrder/.test(commandBar) && /Review order/.test(commandBar));
 check('catalogue checkout ignores stale contracts when resolving coverage', /isUsableContract/.test(simpleRequestEntry) && /endDate/.test(simpleRequestEntry));
 check('checkout does not claim one-click/no-approval ordering', !/no approval needed/i.test(checkout));
 

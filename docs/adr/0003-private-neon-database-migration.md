@@ -2,13 +2,13 @@
 
 ## Context
 
-The application historically used Supabase PostgREST directly from React and from Vercel handlers. That exposed the browser to a database API whose permissive prototype policies were not an authorization boundary. The repository schema and application-owned data need to remain portable while moving the database to Neon.
+The application historically used Supabase PostgREST directly from React and from Vercel handlers. That exposed the browser to a database API whose permissive prototype policies were not an authorization boundary. The repository schema and application-owned data were migrated to Neon while retaining Supabase only for rollback/comparison.
 
 ## Decision
 
 Use Neon PostgreSQL as a private database and route browser operations through the allowlisted `/api/db` endpoint. The endpoint rejects arbitrary relations, identifiers, SQL, and functions; only application-owned tables/views and the two documented ID functions are available. Existing data modules retain their public function shape through a compatibility client selected by `VITE_DATABASE_PROVIDER=neon`.
 
-Keep the current prototype role-switching identity model during this migration. Real authentication and production authorization remain a separate hardening milestone.
+Neon is the active R1 database. Keep the current prototype role-switching identity model for simulation and UAT; real authentication and production authorization remain a separate deferred hardening milestone.
 
 Copy all rows from the repository-defined schema with an idempotent, non-destructive migration script. The cutover is immediate with no write freeze, so the migration records a best-effort count/mismatch report and retains Supabase for rollback.
 
@@ -19,4 +19,3 @@ Copy all rows from the repository-defined schema with an idempotent, non-destruc
 - Supabase-specific RLS policies are not treated as application authorization; API authorization must be added when real authentication is introduced.
 - A no-freeze cutover can miss writes made during the copy window; operators must review the mismatch report before accepting the cutover.
 - The migration is intentionally limited to schema and tables owned by this repository; undocumented Supabase objects require a complete PostgreSQL dump.
-
