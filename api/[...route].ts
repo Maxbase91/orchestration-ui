@@ -7,7 +7,6 @@ import contractMatch from '../src/server/api/contract-match.js';
 import contractScope from '../src/server/api/contract-scope.js';
 import contractVocabulary from '../src/server/api/contract-vocabulary.js';
 import intakeGuidance from '../src/server/api/intake-guidance.js';
-import intakeUpload from '../src/server/api/intake-upload.js';
 import policyConfig from '../src/server/api/policy-config.js';
 
 type Handler = (req: VercelRequest, res: VercelResponse) => void | Promise<void>;
@@ -18,7 +17,6 @@ const HANDLERS: Record<string, Handler> = {
   'contract-scope': contractScope,
   'contract-vocabulary': contractVocabulary,
   'intake-guidance': intakeGuidance,
-  'intake-upload': intakeUpload,
   'policy-config': policyConfig,
 };
 
