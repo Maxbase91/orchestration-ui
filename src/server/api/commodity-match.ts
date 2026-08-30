@@ -2,7 +2,7 @@
 // Persisted routing still validates the confirmed code against current policy.
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { resolveCommodityCandidates } from '../src/lib/procurement/commodity-candidates.js';
+import { resolveCommodityCandidates } from '../../lib/procurement/commodity-candidates.js';
 
 export default function handler(req: VercelRequest, res: VercelResponse): void {
   if (req.method !== 'POST') { res.status(405).json({ error: 'Method not allowed', code: 'method_not_allowed' }); return; }

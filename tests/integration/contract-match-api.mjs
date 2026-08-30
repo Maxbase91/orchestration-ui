@@ -15,7 +15,7 @@ const connectionString = env.NEON_DATABASE_URL ?? env.DATABASE_URL;
 if (!connectionString) { console.log('contract-match-api skipped: Neon is not configured.'); process.exit(0); }
 process.env.NEON_DATABASE_URL = connectionString;
 const sql = neon(connectionString);
-const { default: handler } = await import('../../api/contract-match.ts');
+const { default: handler } = await import('../../src/server/api/contract-match.ts');
 const response = { statusCode: 200, body: undefined, status(code) { this.statusCode = code; return this; }, json(value) { this.body = value; return this; } };
 const rows = await sql.query(`SELECT c.category FROM contracts c JOIN contract_scope_versions sv ON sv.contract_id = c.id WHERE sv.completeness = 'complete' LIMIT 1`);
 if (!rows[0]) { console.log('contract-match-api skipped: no complete contract scope.'); process.exit(0); }

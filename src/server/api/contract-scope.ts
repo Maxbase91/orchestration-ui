@@ -2,7 +2,7 @@
 // scope aggregate needed by the contract detail screen; checkout still owns
 // all transactional request/PR/PO writes.
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getNeonClient } from './_neon.js';
+import { getNeonClient } from '../../../api/_neon.js';
 
 type Row = Record<string, unknown>;
 const isRecord = (value: unknown): value is Row => Boolean(value && typeof value === 'object' && !Array.isArray(value));

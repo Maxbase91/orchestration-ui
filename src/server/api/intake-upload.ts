@@ -4,7 +4,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { PDFParse } from 'pdf-parse';
 import * as mammoth from 'mammoth';
-import type { IntakeAttachment } from '../src/data/types.js';
+import type { IntakeAttachment } from '../../data/types.js';
 
 const MAX_BYTES = 10 * 1024 * 1024;
 const ALLOWED = new Set(['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']);

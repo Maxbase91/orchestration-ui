@@ -1,7 +1,7 @@
 // Controlled vocabulary endpoint for contract service families and deliverable
 // terms. It is intentionally narrow; no generic table administration is exposed.
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getNeonClient } from './_neon.js';
+import { getNeonClient } from '../../../api/_neon.js';
 type Row = Record<string, unknown>;
 const isRecord = (v: unknown): v is Row => Boolean(v && typeof v === 'object' && !Array.isArray(v));
 const text = (v: unknown) => typeof v === 'string' ? v.trim() : '';

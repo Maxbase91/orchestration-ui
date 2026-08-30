@@ -19,7 +19,7 @@ const connectionString = env.NEON_DATABASE_URL ?? env.DATABASE_URL;
 if (!connectionString) { console.log('policy-config-server skipped: Neon is not configured.'); process.exit(0); }
 process.env.NEON_DATABASE_URL = connectionString;
 const sql = neon(connectionString);
-const { default: handler } = await import('../../api/policy-config.ts');
+const { default: handler } = await import('../../src/server/api/policy-config.ts');
 
 function invoke(method, body) {
   let statusCode = 200; let responseBody;

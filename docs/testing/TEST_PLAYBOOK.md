@@ -43,6 +43,10 @@ incomplete scope route to full intake. Contract detail’s Coverage & Matching t
 surface for narratives, deliverables and exclusions. Governed checkout must be re-run for a
 contract call-off after any scope edit and reject a stale or low-confidence client selection.
 
+Run `npm run test:vercel-functions` before deployment to keep the explicit API surface within the
+Vercel Hobby plan's twelve-function limit; low-volume routes are dispatched through one allowlisted
+catch-all function.
+
 The browser must never contain `DATABASE_URL`, `NEON_DATABASE_URL`, or a service-role key. Supabase
 variables are retained only for rollback/comparison; Neon is the active R1 database. Because the
 historical cutover had no write freeze, retain the migration mismatch report for audit.

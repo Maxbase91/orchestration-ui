@@ -20,8 +20,8 @@ check('exclusions are distinct from scope in the intake model', /exclusions/.tes
 check('scope prompt does not combine Included and Excluded questions', !readFileSync('src/lib/procurement/demand-conversation.ts', 'utf8').includes('in scope — and anything explicitly out of scope'));
 check('document context carries into the adaptive chat', readFileSync('src/features/requests/new-request/step-chat-intake.tsx', 'utf8').includes('data.serviceDescription ?? {}'));
 check('requester-facing intake does not render a business justification field', !/label.*Business Justification/.test(readFileSync('src/features/requests/new-request/step-chat-intake.tsx', 'utf8')));
-check('upload and guidance API boundaries exist', readFileSync('api/intake-upload.ts', 'utf8').includes('PDF') && readFileSync('api/intake-guidance.ts', 'utf8').includes('similar approved request'));
-check('guidance supports classification, route, details and review moments', ['classification', 'route', 'details', 'review'].every((section) => readFileSync('api/intake-guidance.ts', 'utf8').includes(section)));
+check('upload and guidance API boundaries exist', readFileSync('src/server/api/intake-upload.ts', 'utf8').includes('PDF') && readFileSync('src/server/api/intake-guidance.ts', 'utf8').includes('similar approved request'));
+check('guidance supports classification, route, details and review moments', ['classification', 'route', 'details', 'review'].every((section) => readFileSync('src/server/api/intake-guidance.ts', 'utf8').includes(section)));
 
 if (failures) process.exit(1);
 console.log('Unified intake checks passed.');

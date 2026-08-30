@@ -12,22 +12,24 @@ This document covers the Vercel serverless API endpoints, the AI tool call contr
 
 ## Serverless Endpoints
 
-All endpoints are in `/api/` and deployed as Vercel serverless functions.
+Public endpoints remain under `/api/`. The twelve-function Hobby deployment budget is enforced by
+keeping low-volume domain handlers in `src/server/api/` and routing them through the explicit
+allowlisted `api/[...route].ts` dispatcher; this does not change any browser URL.
 
-| File | Method | Purpose |
+| Handler / public path | Method | Purpose |
 |------|--------|---------|
 | `api/chat.ts` | POST | AI assistant — tool-calling loop, KB search, object lookup, action proposal |
 | `api/chat-intake.ts` | POST | Request intake — NLU extraction (title, category, value, delivery date) |
 | `api/ai.ts` | POST | Context-specific AI responses (approval card, supplier summary, etc.) |
 | `api/workflow-action.ts` | POST | Advance request stage, record stage history |
 | `api/governed-checkout.ts` | POST | Server-authoritative catalogue/contract checkout; atomic request → PR → lines → conditional internal PO with replay-safe idempotency |
-| `api/contract-match.ts` | POST | Effective-dated, explainable contract-scope matching with clarification questions and safe AI reranking |
-| `api/contract-scope.ts` | GET/POST | Procurement maintenance of contract coverage versions, deliverables and exclusions |
-| `api/contract-vocabulary.ts` | GET/POST | Controlled service-family and deliverable vocabulary for scope administration |
-| `api/policy-config.ts` | GET/POST | Load, validate, save, and reset the server-persisted active procurement policy |
-| `api/intake-upload.ts` | POST | Validate PDF/DOCX uploads, extract text server-side, and return a confirmation-ready attachment |
-| `api/commodity-match.ts` | POST | Resolve specific commodity/service-family candidates with probability and reasons |
-| `api/intake-guidance.ts` | POST | Return anonymised contextual requester hints with deterministic template fallback |
+| `src/server/api/contract-match.ts` | POST `/api/contract-match` | Effective-dated, explainable contract-scope matching with clarification questions and safe AI reranking |
+| `src/server/api/contract-scope.ts` | GET/POST `/api/contract-scope` | Procurement maintenance of contract coverage versions, deliverables and exclusions |
+| `src/server/api/contract-vocabulary.ts` | GET/POST `/api/contract-vocabulary` | Controlled service-family and deliverable vocabulary for scope administration |
+| `src/server/api/policy-config.ts` | GET/POST `/api/policy-config` | Load, validate, save, and reset the server-persisted active procurement policy |
+| `src/server/api/intake-upload.ts` | POST `/api/intake-upload` | Validate PDF/DOCX uploads, extract text server-side, and return a confirmation-ready attachment |
+| `src/server/api/commodity-match.ts` | POST `/api/commodity-match` | Resolve specific commodity/service-family candidates with probability and reasons |
+| `src/server/api/intake-guidance.ts` | POST `/api/intake-guidance` | Return anonymised contextual requester hints with deterministic template fallback |
 | `api/execute-action.ts` | POST | Execute confirmed AI action (add_watcher, set_delegate, etc.) |
 | `api/conversations.ts` | GET/POST | AI conversation history CRUD |
 | `api/seed.ts` | POST | Seed demo data (dev only) |

@@ -22,7 +22,7 @@ import {
   mapDbToSupplier,
 } from '../src/lib/db/mappers.js';
 import type { ProcurementProfile, PurchaseOrder, PurchaseRequisition, ProcurementRequest, RequestLine, RiskAssessment } from '../src/data/types.js';
-import { loadContractMatchScopes } from './contract-match.js';
+import { loadContractMatchScopes } from '../src/server/api/contract-match.js';
 import { matchContractScopes } from '../src/lib/procurement/contract-matching.js';
 
 type DbRow = Record<string, unknown>;

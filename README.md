@@ -189,6 +189,7 @@ npm run test:workflow-steps       # config-driven Routing — template lifecycle
 npm run test:approval-chain-persistence # self-cleaning DB check — a value-banded approval-chain key persists on a request
 npm run test:ai-api-config        # API regression — missing active database/AI server config returns a controlled 503, not a function crash
 npm run test:api-imports          # every api/*.ts function's import graph has explicit file extensions (tsc/vercel dev don't enforce this; Vercel's real build does)
+npm run test:vercel-functions     # keeps the explicit API surface within the Vercel Hobby 12-function budget
 npm run test:admin-editors        # admin config saves
 npm run walkthrough               # visual QA harness (Playwright) — drives the front door across scenarios + every tab, screenshots to /tmp/fd (no assertions)
 npm run test:ui                   # browser smoke (Playwright) — wizard end-to-end through the determination + config-driven routing steps
@@ -295,6 +296,7 @@ freshness). See `src/lib/integrations/README.md` and the [R1 evidence index](doc
 ## Project Structure
 
 ```
+api/                 # Vercel entrypoints; low-volume routes use api/[...route].ts
 src/
 ├── config/          # Theme, navigation, roles
 ├── data/            # Typed seed/fallback fixtures used by offline tests
@@ -305,6 +307,7 @@ src/
 │   ├── integrations/# Standardised source-connector layer (own-store → live swap)
 │   ├── procurement/ # Pure decisioning modules (classify, materiality, risk, determination, governed checkout, …) + service description config (SERVICE_DESCRIPTION.md)
 │   ├── routing/     # Routing-rule evaluator + diagnostics, and the one buying-channel resolver both the pre-check and the determination call
+│   ├── server/api/  # Explicit low-volume API handlers behind the dispatcher
 │   └── workflow/    # Workflow engine, transition primitive, gate model (see its README)
 ├── components/
 │   ├── ui/          # shadcn/ui primitives

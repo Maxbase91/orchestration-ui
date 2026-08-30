@@ -3,10 +3,10 @@
 // eligible candidates with the existing Groq → Gemini provider chain.
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getNeonClient } from './_neon.js';
-import { callLLM } from '../src/lib/llm.js';
-import { matchContractScopes, type ContractMatchInput, type ContractMatchScope } from '../src/lib/procurement/contract-matching.js';
-import type { ContractMatchCandidate, ContractScopeDeliverable, ContractScopeExclusion } from '../src/data/types.js';
+import { getNeonClient } from '../../../api/_neon.js';
+import { callLLM } from '../../lib/llm.js';
+import { matchContractScopes, type ContractMatchInput, type ContractMatchScope } from '../../lib/procurement/contract-matching.js';
+import type { ContractMatchCandidate, ContractScopeDeliverable, ContractScopeExclusion } from '../../data/types.js';
 
 type Row = Record<string, unknown>;
 
@@ -18,18 +18,23 @@ function errorMessage(error: unknown): string { return error instanceof Error ? 
 
 function validateInput(body: unknown): ContractMatchInput {
   if (!isRecord(body)) throw new Error('A contract match request is required.');
-  const value = (key: string) => body[key];
-  if (typeof value('text') !== 'string' || !value('text').trim()) throw new Error('text is required.');
-  if (value('text').length > 5000) throw new Error('text is too long.');
+  const value = (key: string): unknown => body[key];
+  const requestText = value('text');
+  if (typeof requestText !== 'string' || !requestText.trim()) throw new Error('text is required.');
+  if (requestText.length > 5000) throw new Error('text is too long.');
   const optionalText = ['category', 'supplierId', 'needByDate', 'serviceStartDate', 'serviceEndDate', 'geography', 'businessUnit'];
   for (const key of optionalText) if (value(key) !== undefined && typeof value(key) !== 'string') throw new Error(`${key} must be a string.`);
-  for (const key of ['needByDate', 'serviceStartDate', 'serviceEndDate']) if (typeof value(key) === 'string' && value(key) && !/^\d{4}-\d{2}-\d{2}$/.test(value(key))) throw new Error(`${key} must use YYYY-MM-DD.`);
-  if (value('estimatedValue') !== undefined && (typeof value('estimatedValue') !== 'number' || !Number.isFinite(value('estimatedValue')) || value('estimatedValue') < 0)) throw new Error('estimatedValue must be a non-negative number.');
+  for (const key of ['needByDate', 'serviceStartDate', 'serviceEndDate']) {
+    const item = value(key);
+    if (typeof item === 'string' && item && !/^\d{4}-\d{2}-\d{2}$/.test(item)) throw new Error(`${key} must use YYYY-MM-DD.`);
+  }
+  const estimatedValue = value('estimatedValue');
+  if (estimatedValue !== undefined && (typeof estimatedValue !== 'number' || !Number.isFinite(estimatedValue) || estimatedValue < 0)) throw new Error('estimatedValue must be a non-negative number.');
   const clarificationAnswers = value('clarificationAnswers');
   if (clarificationAnswers !== undefined && (!isRecord(clarificationAnswers) || Object.keys(clarificationAnswers).length > 3 || Object.values(clarificationAnswers).some((item) => typeof item !== 'string' || item.length > 1000))) throw new Error('clarificationAnswers must contain at most three short text values.');
   return {
-    text: value('text'), category: text(value('category')) || undefined, supplierId: text(value('supplierId')) || undefined,
-    estimatedValue: typeof value('estimatedValue') === 'number' ? value('estimatedValue') : undefined,
+    text: requestText, category: text(value('category')) || undefined, supplierId: text(value('supplierId')) || undefined,
+    estimatedValue: typeof estimatedValue === 'number' ? estimatedValue : undefined,
     needByDate: text(value('needByDate')) || undefined, serviceStartDate: text(value('serviceStartDate')) || undefined,
     serviceEndDate: text(value('serviceEndDate')) || undefined, geography: text(value('geography')) || undefined,
     businessUnit: text(value('businessUnit')) || undefined, clarificationAnswers: clarificationAnswers as Record<string, string> | undefined,

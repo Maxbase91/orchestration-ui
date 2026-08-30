@@ -11,7 +11,7 @@ const client = readFileSync(new URL('../../src/lib/neon-compatible-client.ts', i
 const endpoint = readFileSync(new URL('../../api/db.ts', import.meta.url), 'utf8');
 const schema = readFileSync(new URL('../../supabase/schema.sql', import.meta.url), 'utf8');
 const governedEndpoint = readFileSync(new URL('../../api/governed-checkout.ts', import.meta.url), 'utf8');
-const policyEndpoint = readFileSync(new URL('../../api/policy-config.ts', import.meta.url), 'utf8');
+const policyEndpoint = readFileSync(new URL('../../src/server/api/policy-config.ts', import.meta.url), 'utf8');
 
 const checks = [
   ['Neon driver dependency is declared', Boolean(packageJson.dependencies?.['@neondatabase/serverless'])],

@@ -3,8 +3,8 @@
 // requests are never returned to the browser.
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getNeonClient } from './_neon.js';
-import type { IntakeGuidanceSuggestion } from '../src/lib/procurement/intake-guidance-api.js';
+import { getNeonClient } from '../../../api/_neon.js';
+import type { IntakeGuidanceSuggestion } from '../../lib/procurement/intake-guidance-api.js';
 
 const SECTIONS = new Set(['objective', 'scope', 'exclusions', 'deliverables', 'acceptanceCriteria', 'timeline', 'resources', 'dependencies', 'pricingModel', 'classification', 'route', 'details', 'review']);
 const FIELD_MAP: Record<string, string> = {
