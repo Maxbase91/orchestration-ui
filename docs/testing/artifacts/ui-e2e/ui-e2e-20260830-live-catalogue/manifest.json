@@ -21,7 +21,8 @@
     {"screenshot":"028-payment-tracker-row.png","scenario":"catalogue-low","role":"admin","mode":"expert","stage":"payment","action":"verify tracker","observed":"Matched / Approved / Paid","errors":[]},
     {"screenshot":"029-contract-match.png","scenario":"contract-call-off","role":"requestor","mode":"simple","stage":"pre-check","action":"confirm contract candidate","observed":"AWS Cloud Infrastructure matched at 97% with explainable reasons","errors":[]},
     {"screenshot":"031-contract-calloff-before-submit.png","scenario":"contract-call-off","role":"requestor","mode":"simple","stage":"checkout","action":"complete mandatory fields","observed":"Review request enabled after date/input fixes","errors":[]},
-    {"screenshot":"032-contract-calloff-after-submit.png","scenario":"contract-call-off","role":"requestor","mode":"simple","stage":"submit","action":"submit call-off","observed":"REQ-2025-8479 created successfully","errors":[]}
+    {"screenshot":"032-contract-calloff-after-submit.png","scenario":"contract-call-off","role":"requestor","mode":"simple","stage":"submit","action":"submit call-off","observed":"REQ-2025-8479 created successfully","errors":[]},
+    {"screenshot":"033-calloff-approval-stage.png","scenario":"contract-call-off-2","role":"vendor-manager","mode":"expert","stage":"risk/onboarding","action":"record risk and complete onboarding","observed":"REQ-2025-4818 advanced to approval","errors":[]}
   ],
   "unavailable": [
     {"scenario":"pdf-docx-upload","reason":"intake-upload is not currently bundled in the deployed catch-all after a serverless cold-start failure"},
