@@ -152,7 +152,7 @@ export async function executeNeonRequest(request: DbRequest): Promise<unknown> {
   if (columns.length === 0 || columns.some((column) => !IDENTIFIER.test(column))) throw new Error('Invalid database write columns');
   const quotedColumns = columns.map(quoteIdentifier).join(', ');
   const bodyParams: unknown[] = [];
-  const valueGroups = rows.map((row) => `(${columns.map((column) => {
+  const valueGroups = () => rows.map((row) => `(${columns.map((column) => {
     const value = parameterValue(row[column], column, jsonColumnsForTable);
     // A bare NULL has no type for the Neon HTTP protocol to infer. Emitting
     // the SQL NULL literal preserves nullable updates/inserts and avoids the
@@ -162,13 +162,13 @@ export async function executeNeonRequest(request: DbRequest): Promise<unknown> {
     return `$${bodyParams.length}`;
   }).join(', ')})`);
   if (request.operation === 'insert') {
-    const result = await sql.query(`INSERT INTO ${relation} (${quotedColumns}) VALUES ${valueGroups.join(', ')} RETURNING *`, bodyParams);
+    const result = await sql.query(`INSERT INTO ${relation} (${quotedColumns}) VALUES ${valueGroups().join(', ')} RETURNING *`, bodyParams);
     return request.single ? (result[0] ?? null) : result;
   }
   if (request.operation === 'upsert') {
     const conflictColumns = (request.conflict ?? 'id').split(',').map((column) => quoteIdentifier(column.trim())).join(', ');
     const updates = columns.filter((column) => !(request.conflict ?? 'id').split(',').includes(column)).map((column) => `${quoteIdentifier(column)} = EXCLUDED.${quoteIdentifier(column)}`);
-    const result = await sql.query(`INSERT INTO ${relation} (${quotedColumns}) VALUES ${valueGroups.join(', ')} ON CONFLICT (${conflictColumns}) DO ${updates.length ? `UPDATE SET ${updates.join(', ')}` : 'NOTHING'} RETURNING *`, bodyParams);
+    const result = await sql.query(`INSERT INTO ${relation} (${quotedColumns}) VALUES ${valueGroups().join(', ')} ON CONFLICT (${conflictColumns}) DO ${updates.length ? `UPDATE SET ${updates.join(', ')}` : 'NOTHING'} RETURNING *`, bodyParams);
     return request.single ? (result[0] ?? null) : result;
   }
   const updates = columns.map((column) => {
