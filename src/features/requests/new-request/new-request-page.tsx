@@ -371,6 +371,41 @@ function ExpertNewRequestPage() {
     }
   }, [searchParams, setSearchParams, initialized, suppliers]);
 
+  // The item-detail page is shared by both experience modes. When an Expert
+  // requester returns from that page, hydrate the selected line directly into
+  // the governed checkout; otherwise the wizard would silently fall back to
+  // step 1 and discard the fulfilment context the requester just confirmed.
+  useEffect(() => {
+    const itemId = searchParams.get('catalogueItem');
+    if (!itemId || catalogueOrder || catalogueItems.length === 0) return;
+    const item = catalogueItems.find((candidate) => candidate.id === itemId);
+    if (!item) return;
+    const quantity = Math.max(1, Number(searchParams.get('quantity') ?? '1'));
+    const needBy = searchParams.get('needBy') ?? '';
+    const purpose = searchParams.get('purpose') ?? '';
+    const deliveryLocation = searchParams.get('deliveryLocation') ?? '';
+    const recipient = searchParams.get('recipient') ?? '';
+    const costCentre = searchParams.get('costCentre') ?? '';
+    const supplier = suppliers.find((candidate) => candidate.id === item.supplierId);
+    const order = {
+      title: item.name,
+      estimatedValue: quantity * item.unitPrice,
+      supplier: supplier?.name ?? item.supplierName,
+      supplierId: item.supplierId,
+      catalogueItems: [{ itemId: item.id, name: item.name, quantity, unitPrice: item.unitPrice, supplierId: item.supplierId }],
+    };
+    setFormData((previous) => ({
+      ...previous,
+      category: 'catalogue', categoryDescription: 'Catalogue Purchase', preCheckOutcome: 'catalogue', buyingChannelResult: 'catalogue',
+      title: item.name, supplier: order.supplier, supplierId: item.supplierId, estimatedValue: order.estimatedValue,
+      deliveryDate: needBy, deliveryLocation, costCentre, beneficiaryName: recipient, businessJustification: purpose,
+    }));
+    setCatalogueOrder(order);
+    setCatalogueCheckoutOpen(true);
+    setCurrentStep(3);
+    setSearchParams({}, { replace: true });
+  }, [catalogueItems, catalogueOrder, searchParams, setSearchParams, suppliers]);
+
   const updateFormData = useCallback((updates: Partial<RequestFormData>) => {
     setFormData((prev) => ({ ...prev, ...updates }));
   }, []);
