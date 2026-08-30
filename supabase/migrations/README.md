@@ -2,6 +2,12 @@
 
 The repository schema remains the source of truth for the application-owned PostgreSQL model. Apply [`../schema.sql`](../schema.sql) to the Neon project before copying data. If the SQL editor stops part-way through, resume safely with `npm run migrate:neon-schema`; it applies additive statements, replaces views, and skips destructive drops and Supabase RLS policies.
 
+The schema includes both request-bound `ai_conversations` transcripts and the
+user-scoped `assistant_conversations` history used by the assistant inbox and
+full-page assistant. Older Supabase projects may not have the latter; the data
+copy treats it as an optional source table and leaves the Neon table empty until
+new conversations are created.
+
 With `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `NEON_DATABASE_URL` (or `DATABASE_URL`) set, run:
 
 ```bash

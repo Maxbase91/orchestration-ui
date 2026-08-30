@@ -34,7 +34,7 @@ const expectedTables = [
   'user_preferences', 'workflow_templates', 'routing_rules', 'ai_agents', 'kpi_data',
   'form_templates', 'service_description_templates', 'procurement_profiles',
   'procurement_categories', 'sla_targets', 'approval_chains', 'requests', 'stage_history',
-  'service_descriptions', 'ai_conversations', 'comments', 'comment_reads',
+  'service_descriptions', 'ai_conversations', 'assistant_conversations', 'comments', 'comment_reads',
   'compliance_reports', 'system_integrations', 'form_submissions', 'approval_entries',
   'notifications', 'workflow_step_details', 'workflow_instances',
   'purchase_requisitions', 'request_lines', 'purchase_orders', 'invoices',

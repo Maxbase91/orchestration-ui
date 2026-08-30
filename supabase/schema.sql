@@ -138,6 +138,18 @@ CREATE TABLE IF NOT EXISTS ai_conversations (
   updated_at TIMESTAMP DEFAULT now()
 );
 
+-- Assistant conversations (user-scoped support/knowledge assistant history).
+-- This is separate from request-bound ai_conversations so the full-page
+-- assistant can retain a reusable conversation list without a request.
+CREATE TABLE IF NOT EXISTS assistant_conversations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title TEXT NOT NULL DEFAULT 'New conversation',
+  messages JSONB NOT NULL DEFAULT '[]'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- Comments (TEXT PK so mock IDs like CMT-001 round-trip through the seed idempotently)
 CREATE TABLE IF NOT EXISTS comments (
   id TEXT PRIMARY KEY,
@@ -632,6 +644,7 @@ ALTER TABLE requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE stage_history ENABLE ROW LEVEL SECURITY;
 ALTER TABLE service_descriptions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ai_conversations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE assistant_conversations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE compliance_reports ENABLE ROW LEVEL SECURITY;
 ALTER TABLE system_integrations ENABLE ROW LEVEL SECURITY;
@@ -659,6 +672,7 @@ DROP POLICY IF EXISTS "Allow all" ON requests;
 DROP POLICY IF EXISTS "Allow all" ON stage_history;
 DROP POLICY IF EXISTS "Allow all" ON service_descriptions;
 DROP POLICY IF EXISTS "Allow all" ON ai_conversations;
+DROP POLICY IF EXISTS "Allow all" ON assistant_conversations;
 DROP POLICY IF EXISTS "Allow all" ON comments;
 DROP POLICY IF EXISTS "Allow all" ON compliance_reports;
 DROP POLICY IF EXISTS "Allow all" ON system_integrations;
@@ -685,6 +699,7 @@ CREATE POLICY "Allow all" ON requests FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON stage_history FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON service_descriptions FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON ai_conversations FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all" ON assistant_conversations FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON comments FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON compliance_reports FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON system_integrations FOR ALL USING (true) WITH CHECK (true);
@@ -709,6 +724,8 @@ CREATE INDEX IF NOT EXISTS idx_requests_owner ON requests(owner_id);
 CREATE INDEX IF NOT EXISTS idx_stage_history_request ON stage_history(request_id);
 CREATE INDEX IF NOT EXISTS idx_comments_request ON comments(request_id);
 CREATE INDEX IF NOT EXISTS idx_ai_conversations_request ON ai_conversations(request_id);
+CREATE INDEX IF NOT EXISTS idx_assistant_conversations_user
+  ON assistant_conversations(user_id, updated_at DESC);
 
 -- Indexes for new tables
 CREATE INDEX IF NOT EXISTS idx_suppliers_risk_rating ON suppliers(risk_rating);

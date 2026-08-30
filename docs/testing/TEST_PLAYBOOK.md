@@ -435,7 +435,7 @@ not in a component — because RLS is currently `USING (true)`.
 | TC-AI-05 | Demand intake: "I need to buy 50 laptops" | Deep-links into New Request prefilled |
 | TC-AI-05b | Demand routing (`npm run test:assistant-intents`) | A procurement demand — incl. people/consultants ("I need consultants for a promptathon", "hire a developer", "looking for an agency") — routes to **start_demand → New Request**, **never a support ticket**. `create_ticket` fires only on explicit human-help ("speak to someone"). Holds on both the LLM path (rule precedence in `api/chat.ts`) and the offline classifier (`intents.ts`). |
 | TC-AI-06 | Role filtering | As Requestor, restricted actions not offered; as Ops Lead, different set |
-| TC-AI-07 | Full-page assistant (`/help/assistant`) | Same behaviour as overlay |
+| TC-AI-07 | Full-page assistant (`/help/assistant`) | Same behaviour as overlay; the user-scoped conversation history is backed by `assistant_conversations` in the active database |
 | TC-AI-08 | Guardrail: no master-data write-back | Vendor bank-detail change routes to ticket, not direct write |
 | TC-AI-09 | Regression: a knowledge/lookup query that triggers a tool | Server **executes** the tool (or client suppresses it); user sees a clean grounded answer, **never raw `tool_calls.…` text**; no stall (CHATBOT_TOOLCALL_FIX.md) |
 | TC-AI-10 | Provider parity: same query in `VITE_ASSISTANT_PROVIDER=mock` and `groq` | Equivalent grounded answers + source in both modes |

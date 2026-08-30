@@ -42,14 +42,16 @@ const TABLES = [
   'user_preferences', 'workflow_templates', 'routing_rules', 'ai_agents', 'kpi_data',
   'form_templates', 'service_description_templates', 'procurement_profiles',
   'procurement_categories', 'sla_targets', 'approval_chains', 'requests', 'stage_history',
-  'service_descriptions', 'ai_conversations', 'comments', 'comment_reads',
+  'service_descriptions', 'ai_conversations', 'assistant_conversations', 'comments', 'comment_reads',
   'compliance_reports', 'system_integrations', 'form_submissions', 'approval_entries',
   'notifications', 'workflow_step_details', 'workflow_instances',
   'purchase_requisitions', 'request_lines', 'purchase_orders', 'invoices',
   'goods_receipts', 'sourcing_events', 'sourcing_responses', 'tickets',
   'ticket_responses', 'ticket_links', 'audit_entries', 'knowledge_base', 'chat_feedback',
 ];
-const OPTIONAL_SOURCE_TABLES = new Set(['procurement_profiles', 'purchase_requisitions', 'request_lines']);
+const OPTIONAL_SOURCE_TABLES = new Set([
+  'procurement_profiles', 'purchase_requisitions', 'request_lines', 'assistant_conversations',
+]);
 
 const BATCH_SIZE = 100;
 const jsonColumnsCache = new Map();
