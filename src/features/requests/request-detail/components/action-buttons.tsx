@@ -146,7 +146,23 @@ export function ActionButtons({ request }: ActionButtonsProps) {
       } else if (confirmAction === 'approve' && isApprovalStage) {
         const allDone = await areAllApprovalsComplete(request.id);
         if (allDone) {
-          await advanceWorkflow(request.id, 'approved');
+          // Governed call-offs can be created without a workflow instance.
+          // In that fallback path `advanceWorkflow` has nothing to advance,
+          // so move directly to the channel's next stage while preserving the
+          // same stage-history semantics used by Complete stage.
+          const instance = await getWorkflowInstanceForRequest(request.id);
+          if (instance) {
+            await advanceWorkflow(request.id, 'approved');
+          } else {
+            const nextStage = nextStageAfter(request.buyingChannel, request.status);
+            if (!nextStage) throw new Error('No next stage is configured for this request.');
+            await transitionStage({
+              requestId: request.id,
+              toStage: nextStage,
+              action: 'approved',
+              actor: { id: currentUser.id, name: currentUser.name },
+            });
+          }
         }
         // else: other approvers still pending — engine stays suspended
       }
