@@ -287,6 +287,7 @@ async function execFilterObjects(
   objectType: string,
   filtersRaw: string | undefined,
   limit: number,
+  userId?: string,
 ): Promise<string> {
   const cap = Math.min(Math.max(limit, 1), 10);
   let filters: Record<string, unknown> = {};
@@ -336,8 +337,17 @@ async function execFilterObjects(
   if (objectType === 'purchase_orders') {
     let q = supabase
       .from('purchase_orders')
-      .select('id, supplier_name, value, status, delivery_date')
+      .select('id, supplier_name, value, status, delivery_date, created_at, request_id')
+      .order('created_at', { ascending: false })
       .limit(cap);
+    // “My latest PO” is requester-scoped, not a global top-N query. The PO
+    // owns request_id, so resolve the current persona's request IDs first.
+    if (userId) {
+      const { data: ownedRequests } = await supabase.from('requests').select('id').eq('requestor_id', userId);
+      const requestIds = (ownedRequests ?? []).map((item) => String((item as { id?: unknown }).id ?? '')).filter(Boolean);
+      if (requestIds.length === 0) return JSON.stringify({ found: false, object_type: 'purchase_orders', count: 0, items: [] });
+      q = q.in('request_id', requestIds);
+    }
     if (filters.status) q = q.eq('status', filters.status as string);
     const { data } = await q;
     return JSON.stringify({ found: !!data?.length, object_type: 'purchase_orders', count: data?.length ?? 0, items: data ?? [] });
@@ -627,6 +637,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             (textCall.args.object_type as string) ?? '',
             textCall.args.filters as string | undefined,
             typeof textCall.args.limit === 'number' ? textCall.args.limit : 5,
+            userId,
           );
         }
         if (textToolResult) {
@@ -803,6 +814,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           (args.object_type as string) ?? '',
           args.filters as string | undefined,
           typeof args.limit === 'number' ? args.limit : 5,
+          userId,
         );
       } else if (toolName === 'remember_preference') {
         toolResult = await execRememberPreference(

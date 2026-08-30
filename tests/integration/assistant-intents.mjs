@@ -80,6 +80,8 @@ check('create_ticket restricted to explicit human-help (not a fallback)',
   chatSrc.includes('create_ticket ONLY when the user EXPLICITLY asks for human help'));
 check('provider function citation markers are stripped before display',
   chatSrc.includes('stripTechnicalSourceMarkers') && chatSrc.includes('functions\\.)?') && chatSrc.includes('["\']source["\']'));
+check('most-recent PO lookup is requester-scoped and date-ordered',
+  chatSrc.includes("eq('requestor_id', userId)") && chatSrc.includes("order('created_at', { ascending: false })"));
 
 console.log('One classifier, not two');
 // The assistant used to carry a private `guessCategory` keyword table whose
