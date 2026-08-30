@@ -350,7 +350,7 @@ async function execFilterObjects(
     }
     if (filters.status) q = q.eq('status', filters.status as string);
     const { data } = await q;
-    return JSON.stringify({ found: !!data?.length, object_type: 'purchase_orders', count: data?.length ?? 0, items: data ?? [] });
+    return JSON.stringify({ found: !!data?.length, object_type: 'purchase_orders', count: data?.length ?? 0, items: data ?? [], mostRecent: data?.[0] ?? null });
   }
 
   if (objectType === 'invoices') {
@@ -461,6 +461,7 @@ function stripTechnicalSourceMarkers(content: string): string {
     .replace(/【\s*(?:functions\.)?(?:search_knowledge|lookup_object|filter_objects|propose_action|create_ticket|start_demand|remember_preference)\s*】/gi, '')
     .replace(/【\s*(?:source\s*:\s*)?functions\.(?:search_knowledge|lookup_object|filter_objects|propose_action|create_ticket|start_demand|remember_preference)\s*】/gi, '')
     .replace(/【\s*\{[^】]*["']source["']\s*:\s*["']functions\.(?:search_knowledge|lookup_object|filter_objects|propose_action|create_ticket|start_demand|remember_preference)["'][^】]*\}\s*】/gi, '')
+    .replace(/【\s*source\s*】/gi, '')
     .replace(/\s{2,}/g, ' ')
     .trim();
 }

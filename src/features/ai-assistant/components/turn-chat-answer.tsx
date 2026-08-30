@@ -27,6 +27,7 @@ function cleanAssistantText(content: string): string {
     .replace(/【\s*(?:functions\.)?(?:search_knowledge|lookup_object|filter_objects|propose_action|create_ticket|start_demand|remember_preference)\s*】/gi, '')
     .replace(/【\s*(?:source\s*:\s*)?functions\.(?:search_knowledge|lookup_object|filter_objects|propose_action|create_ticket|start_demand|remember_preference)\s*】/gi, '')
     .replace(/【\s*\{[^】]*["']source["']\s*:\s*["']functions\.(?:search_knowledge|lookup_object|filter_objects|propose_action|create_ticket|start_demand|remember_preference)["'][^】]*\}\s*】/gi, '')
+    .replace(/【\s*source\s*】/gi, '')
     // Trailing whitespace / multiple blank lines
     .replace(/\n{3,}/g, '\n\n')
     .trim();
