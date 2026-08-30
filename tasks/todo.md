@@ -184,5 +184,5 @@ removed explicitly.
 - [x] Applied `supabase/schema.sql` to Neon; all 42 repository tables and both documented ID functions exist.
 - [x] Copied all 39 available source tables with zero count mismatches; three legacy source tables (`procurement_profiles`, `purchase_requisitions`, `request_lines`) were absent and remain empty in Neon.
 - [x] Repaired and validated 37/37 catalogue supplier, active-contract, and current-risk links in Neon.
-- [ ] Configure `DATABASE_PROVIDER=neon`, `VITE_DATABASE_PROVIDER=neon`, and `NEON_DATABASE_URL` in Vercel, deploy, and run the Neon-backed browser suite before cutover.
-- [ ] Live verification remains blocked until the Neon migration code is committed/pushed: the latest Vercel redeploy is ready but still serves Git SHA `9eeb32b` (Supabase bundle; `POST /api/db` returns 405).
+- [x] Configure `DATABASE_PROVIDER=neon`, `VITE_DATABASE_PROVIDER=neon`, and `NEON_DATABASE_URL` in Vercel, deploy, and run the Neon-backed browser suite before cutover.
+- [x] Live deployment verified on Git SHA `db90a7b`: read-only Neon API probes and eight representative production screens pass with no console, page, or 5xx errors.
