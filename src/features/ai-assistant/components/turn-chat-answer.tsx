@@ -22,6 +22,9 @@ function cleanAssistantText(content: string): string {
     .replace(/^(the\s+)?(final\s+answer\s+(is|:)|therefore[,:]).*$/gim, '')
     // Tool-call leaks: tool_calls.NAME(...) or bare NAME(...) on any line
     .replace(/^(?:tool_calls\.)?\b(?:search_knowledge|lookup_object|filter_objects|propose_action|create_ticket|start_demand|remember_preference)\b\s*[:(][^\n]*/gim, '')
+    // Provider citation markers such as 【functions.filter_objects】 are
+    // internal tool metadata and should never be shown as a technical source.
+    .replace(/【\s*(?:functions\.)?(?:search_knowledge|lookup_object|filter_objects|propose_action|create_ticket|start_demand|remember_preference)\s*】/gi, '')
     // Trailing whitespace / multiple blank lines
     .replace(/\n{3,}/g, '\n\n')
     .trim();

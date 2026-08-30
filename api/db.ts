@@ -50,21 +50,21 @@ function selectList(value: string | undefined): string {
   return value.split(',').map((column) => quoteIdentifier(column.trim())).join(', ');
 }
 
-function addFilter(parts: string[], params: unknown[], filter: Filter): void {
+function addFilter(parts: string[], params: unknown[], filter: Filter, placeholderOffset = 0): void {
   const column = quoteIdentifier(filter.column);
   const value = filter.value;
   switch (filter.operator) {
-    case 'eq': params.push(value); parts.push(`${column} = $${params.length}`); break;
-    case 'neq': params.push(value); parts.push(`${column} <> $${params.length}`); break;
-    case 'gt': params.push(value); parts.push(`${column} > $${params.length}`); break;
-    case 'gte': params.push(value); parts.push(`${column} >= $${params.length}`); break;
-    case 'lt': params.push(value); parts.push(`${column} < $${params.length}`); break;
-    case 'lte': params.push(value); parts.push(`${column} <= $${params.length}`); break;
-    case 'ilike': params.push(value); parts.push(`${column} ILIKE $${params.length}`); break;
+    case 'eq': params.push(value); parts.push(`${column} = $${placeholderOffset + params.length}`); break;
+    case 'neq': params.push(value); parts.push(`${column} <> $${placeholderOffset + params.length}`); break;
+    case 'gt': params.push(value); parts.push(`${column} > $${placeholderOffset + params.length}`); break;
+    case 'gte': params.push(value); parts.push(`${column} >= $${placeholderOffset + params.length}`); break;
+    case 'lt': params.push(value); parts.push(`${column} < $${placeholderOffset + params.length}`); break;
+    case 'lte': params.push(value); parts.push(`${column} <= $${placeholderOffset + params.length}`); break;
+    case 'ilike': params.push(value); parts.push(`${column} ILIKE $${placeholderOffset + params.length}`); break;
     case 'is': parts.push(value === null ? `${column} IS NULL` : `${column} IS NOT NULL`); break;
     case 'in': {
       if (!Array.isArray(value) || value.length === 0) { parts.push('FALSE'); break; }
-      const placeholders = value.map((item) => { params.push(item); return `$${params.length}`; });
+      const placeholders = value.map((item) => { params.push(item); return `$${placeholderOffset + params.length}`; });
       parts.push(`${column} IN (${placeholders.join(', ')})`);
       break;
     }
@@ -72,11 +72,11 @@ function addFilter(parts: string[], params: unknown[], filter: Filter): void {
   }
 }
 
-function whereClause(request: DbRequest, params: unknown[]): string {
+function whereClause(request: DbRequest, params: unknown[], placeholderOffset = 0): string {
   const andParts: string[] = [];
-  for (const filter of request.filters ?? []) addFilter(andParts, params, filter);
+  for (const filter of request.filters ?? []) addFilter(andParts, params, filter, placeholderOffset);
   const orParts: string[] = [];
-  for (const filter of request.orFilters ?? []) addFilter(orParts, params, filter);
+  for (const filter of request.orFilters ?? []) addFilter(orParts, params, filter, placeholderOffset);
   if (orParts.length > 0) andParts.push(`(${orParts.join(' OR ')})`);
   return andParts.length > 0 ? ` WHERE ${andParts.join(' AND ')}` : '';
 }
@@ -140,25 +140,38 @@ export async function executeNeonRequest(request: DbRequest): Promise<unknown> {
   const columns = Object.keys(rows[0]);
   if (columns.length === 0 || columns.some((column) => !IDENTIFIER.test(column))) throw new Error('Invalid database write columns');
   const quotedColumns = columns.map(quoteIdentifier).join(', ');
+  const bodyParams: unknown[] = [];
   const valueGroups = rows.map((row) => `(${columns.map((column) => {
-    params.push(parameterValue(row[column], column, jsonColumnsForTable));
-    return `$${params.length}`;
+    const value = parameterValue(row[column], column, jsonColumnsForTable);
+    // A bare NULL has no type for the Neon HTTP protocol to infer. Emitting
+    // the SQL NULL literal preserves nullable updates/inserts and avoids the
+    // approval action failure caused by an untyped second parameter.
+    if (value === null) return 'NULL';
+    bodyParams.push(value);
+    return `$${bodyParams.length}`;
   }).join(', ')})`);
   if (request.operation === 'insert') {
-    const result = await sql.query(`INSERT INTO ${relation} (${quotedColumns}) VALUES ${valueGroups.join(', ')} RETURNING *`, params);
+    const result = await sql.query(`INSERT INTO ${relation} (${quotedColumns}) VALUES ${valueGroups.join(', ')} RETURNING *`, bodyParams);
     return request.single ? (result[0] ?? null) : result;
   }
   if (request.operation === 'upsert') {
     const conflictColumns = (request.conflict ?? 'id').split(',').map((column) => quoteIdentifier(column.trim())).join(', ');
     const updates = columns.filter((column) => !(request.conflict ?? 'id').split(',').includes(column)).map((column) => `${quoteIdentifier(column)} = EXCLUDED.${quoteIdentifier(column)}`);
-    const result = await sql.query(`INSERT INTO ${relation} (${quotedColumns}) VALUES ${valueGroups.join(', ')} ON CONFLICT (${conflictColumns}) DO ${updates.length ? `UPDATE SET ${updates.join(', ')}` : 'NOTHING'} RETURNING *`, params);
+    const result = await sql.query(`INSERT INTO ${relation} (${quotedColumns}) VALUES ${valueGroups.join(', ')} ON CONFLICT (${conflictColumns}) DO ${updates.length ? `UPDATE SET ${updates.join(', ')}` : 'NOTHING'} RETURNING *`, bodyParams);
     return request.single ? (result[0] ?? null) : result;
   }
   const updates = columns.map((column) => {
-    params.push(parameterValue(rows[0][column], column, jsonColumnsForTable));
-    return `${quoteIdentifier(column)} = $${params.length}`;
+    const value = parameterValue(rows[0][column], column, jsonColumnsForTable);
+    if (value === null) return `${quoteIdentifier(column)} = NULL`;
+    bodyParams.push(value);
+    return `${quoteIdentifier(column)} = $${bodyParams.length}`;
   });
-  const result = await sql.query(`UPDATE ${relation} SET ${updates.join(', ')}${where} RETURNING *`, params);
+  // Put SET parameters first and append filter parameters afterwards. This
+  // keeps values typed by their target columns at $1..$n; the previous
+  // filter-first ordering caused Neon/Postgres to reject $2 as indeterminate.
+  const whereParams: unknown[] = [];
+  const updateWhere = whereClause(request, whereParams, bodyParams.length);
+  const result = await sql.query(`UPDATE ${relation} SET ${updates.join(', ')}${updateWhere} RETURNING *`, [...bodyParams, ...whereParams]);
   return request.single ? (result[0] ?? null) : result;
 }
 

@@ -102,6 +102,9 @@ async function fetchSSE(
   const TOOL_LEAK_RE = /(?:tool_calls\.)?(?:search_knowledge|lookup_object|filter_objects|propose_action|create_ticket|start_demand|remember_preference)\s*[:(]/i;
   const cleanedText = accumulatedText
     .replace(/^(?:tool_calls\.)?\b(?:search_knowledge|lookup_object|filter_objects|propose_action|create_ticket|start_demand|remember_preference)\b\s*[:(][^\n]*/gim, '')
+    // Some providers append an internal citation token after a grounded
+    // answer. It is implementation metadata, never requester-facing copy.
+    .replace(/【\s*(?:functions\.)?(?:search_knowledge|lookup_object|filter_objects|propose_action|create_ticket|start_demand|remember_preference)\s*】/gi, '')
     .trim();
 
   const turns: AssistantTurn[] = [];

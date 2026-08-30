@@ -443,7 +443,14 @@ const KNOWN_TOOLS = new Set([
 /** True when content looks like a leaked tool call the model wrote as text. */
 function isToolCallLeak(content: string): boolean {
   if (!content) return false;
-  return /(?:tool_calls\.)?(?:search_knowledge|lookup_object|filter_objects|propose_action|create_ticket|start_demand|remember_preference)\s*[:(]/i.test(content);
+  return /(?:tool_calls\.|functions\.)?(?:search_knowledge|lookup_object|filter_objects|propose_action|create_ticket|start_demand|remember_preference)\s*[:(]/i.test(content);
+}
+
+function stripTechnicalSourceMarkers(content: string): string {
+  return content
+    .replace(/【\s*(?:functions\.)?(?:search_knowledge|lookup_object|filter_objects|propose_action|create_ticket|start_demand|remember_preference)\s*】/gi, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
 }
 
 function parseTextToolCall(content: string): ParsedTextToolCall | null {
@@ -707,7 +714,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // hang because llmMessages already includes the grounded answer — Groq timed out
       // trying to respond to a conversation that was already complete.
       if (isSSE && hadToolCalls) {
-        const answerText = result.content?.trim() ?? '';
+        const answerText = stripTechnicalSourceMarkers(result.content?.trim() ?? '');
         if (answerText && !isToolCallLeak(answerText)) {
           res.write(`data: ${JSON.stringify({ t: 'tok', c: answerText })}\n\n`);
         }
@@ -719,7 +726,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Non-streaming path (or SSE without prior tool calls)
       // Guard: suppress raw tool-call text that parseTextToolCall couldn't parse
       // (e.g. model wrote tool_calls.NAME(...) but we couldn't extract valid args).
-      const rawText = result.content?.trim() ?? '';
+      const rawText = stripTechnicalSourceMarkers(result.content?.trim() ?? '');
       const text = isToolCallLeak(rawText) ? '' : rawText;
       const allTurns: unknown[] = [];
       if (text) allTurns.push({ type: 'chat-answer', content: text });
