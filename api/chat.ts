@@ -449,6 +449,7 @@ function isToolCallLeak(content: string): boolean {
 function stripTechnicalSourceMarkers(content: string): string {
   return content
     .replace(/【\s*(?:functions\.)?(?:search_knowledge|lookup_object|filter_objects|propose_action|create_ticket|start_demand|remember_preference)\s*】/gi, '')
+    .replace(/【\s*\{[^】]*["']source["']\s*:\s*["']functions\.(?:search_knowledge|lookup_object|filter_objects|propose_action|create_ticket|start_demand|remember_preference)["'][^】]*\}\s*】/gi, '')
     .replace(/\s{2,}/g, ' ')
     .trim();
 }

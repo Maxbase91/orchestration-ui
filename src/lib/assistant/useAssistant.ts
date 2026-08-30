@@ -105,6 +105,7 @@ async function fetchSSE(
     // Some providers append an internal citation token after a grounded
     // answer. It is implementation metadata, never requester-facing copy.
     .replace(/【\s*(?:functions\.)?(?:search_knowledge|lookup_object|filter_objects|propose_action|create_ticket|start_demand|remember_preference)\s*】/gi, '')
+    .replace(/【\s*\{[^】]*["']source["']\s*:\s*["']functions\.(?:search_knowledge|lookup_object|filter_objects|propose_action|create_ticket|start_demand|remember_preference)["'][^】]*\}\s*】/gi, '')
     .trim();
 
   const turns: AssistantTurn[] = [];

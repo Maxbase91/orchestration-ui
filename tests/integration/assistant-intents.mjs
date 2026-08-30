@@ -79,7 +79,7 @@ check('procure/hire intent is explicitly a start_demand, never a ticket',
 check('create_ticket restricted to explicit human-help (not a fallback)',
   chatSrc.includes('create_ticket ONLY when the user EXPLICITLY asks for human help'));
 check('provider function citation markers are stripped before display',
-  chatSrc.includes('stripTechnicalSourceMarkers') && chatSrc.includes('functions\\.)?'));
+  chatSrc.includes('stripTechnicalSourceMarkers') && chatSrc.includes('functions\\.)?') && chatSrc.includes('["\']source["\']'));
 
 console.log('One classifier, not two');
 // The assistant used to carry a private `guessCategory` keyword table whose
