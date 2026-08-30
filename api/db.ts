@@ -4,6 +4,7 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getNeonClient } from './_neon.js';
+import commodityMatch from '../src/server/api/commodity-match.js';
 
 type DomainHandler = (req: VercelRequest, res: VercelResponse) => void | Promise<void>;
 
@@ -15,7 +16,7 @@ type DomainHandler = (req: VercelRequest, res: VercelResponse) => void | Promise
  */
 async function loadDomainHandler(name: string): Promise<DomainHandler | undefined> {
   switch (name) {
-    case 'commodity-match': return (await import('../src/server/api/commodity-match.js')).default;
+    case 'commodity-match': return commodityMatch;
     case 'contract-match': return (await import('../src/server/api/contract-match.js')).default;
     case 'contract-scope': return (await import('../src/server/api/contract-scope.js')).default;
     case 'contract-vocabulary': return (await import('../src/server/api/contract-vocabulary.js')).default;
