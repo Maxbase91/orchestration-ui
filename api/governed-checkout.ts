@@ -128,11 +128,21 @@ function assertString(value: unknown, name: string): string {
 }
 
 function requestDb(request: Partial<ProcurementRequest>, fields: { id: string; requisitionId: string; decision: GovernedCheckoutDecision; now: string }): { columns: string[]; values: unknown[] } {
+  // The first actionable stage is part of the persisted request state. Keeping
+  // every checkout in `intake` made a completed catalogue request appear
+  // stuck even when the policy had already created its internal PO.
+  const lifecycleStatus: ProcurementRequest['status'] = fields.decision.status === 'approved'
+    ? 'po'
+    : fields.decision.status === 'pending-approval'
+      ? 'approval'
+      : fields.decision.status === 'risk-review'
+        ? 'risk'
+        : 'contracting';
   const data: Record<string, unknown> = {
     id: fields.id,
     title: request.title ?? 'Procurement request',
     description: request.description ?? request.businessJustification ?? request.title ?? '',
-    category: request.category ?? 'catalogue', status: 'intake', priority: request.priority ?? 'medium',
+    category: request.category ?? 'catalogue', status: lifecycleStatus, priority: request.priority ?? 'medium',
     value: fields.decision.totalValue, currency: fields.decision.currency,
     requestor_id: request.requestorId, owner_id: request.ownerId ?? request.requestorId,
     supplier_id: fields.decision.resolved.supplierId, supplier_name: request.supplierName,
