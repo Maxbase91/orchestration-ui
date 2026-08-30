@@ -128,6 +128,13 @@ try {
   // suggestion is one the requester can see through rather than trust.
   check('a catalogue match shows the words it matched on',
     (await page.getByText(/matched on/).count()) > 0);
+  // Regression: selecting the suggested item must open its product-details
+  // page, preserving the item id for governed checkout, rather than dropping
+  // the requester at the catalogue root.
+  await page.getByRole('button', { name: /Order from catalogue/ }).click();
+  await page.waitForURL(`${BASE}/catalogue/items/IT-001`, { timeout: 10000 });
+  check('Order from catalogue opens the selected item detail page',
+    new URL(page.url()).pathname === '/catalogue/items/IT-001');
 
   // 3b. THE REPORTED DEFECT. "business consulting" used to match the catalogue
   //     item "Business Cards 500" — the word "business" hit the item name and

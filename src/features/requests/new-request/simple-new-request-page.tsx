@@ -4,7 +4,7 @@
  * description components as the Expert journey.
  */
 import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, CheckCircle, Loader2, Save, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -18,7 +18,8 @@ import { useApprovalChains } from '@/lib/db/hooks/use-approval-chains';
 import { useCatalogueItems } from '@/lib/db/hooks/use-catalogue-items';
 import { useContracts } from '@/lib/db/hooks/use-contracts';
 import { useRiskAssessments } from '@/lib/db/hooks/use-risk-assessments';
-import { createRequest } from '@/lib/db/requests';
+import { createRequest, updateRequest } from '@/lib/db/requests';
+import { createPurchaseOrder } from '@/lib/db/purchase-orders';
 import { saveServiceDescription } from '@/lib/db/service-descriptions';
 import { saveIntakeCompliance } from '@/lib/db/intake-compliance';
 import { initWorkflow } from '@/lib/workflow/engine';
@@ -97,6 +98,16 @@ function requestId(): string {
   return `REQ-2025-${Math.floor(1000 + Math.random() * 9000)}`;
 }
 
+function isGovernedCheckoutSchemaUnavailable(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  // Older deployments can have the original request/PO tables but not the
+  // additive requisition/line tables. Keep catalogue submission usable until
+  // the migration is applied, while preserving the governed path everywhere
+  // the new tables are available.
+  return /purchase_requisitions|request_lines/i.test(message)
+    && /schema cache|does not exist|could not find/i.test(message);
+}
+
 function routeFromChannel(channel: string): SimpleRoute {
   if (channel === 'catalogue') return 'catalogue';
   if (channel === 'p-card') return 'p-card';
@@ -106,6 +117,7 @@ function routeFromChannel(channel: string): SimpleRoute {
 
 export function SimpleNewRequestPage() {
   const { currentUser } = useAuthStore();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { data: suppliers = [] } = useSuppliers();
   const { data: routingRules = [] } = useRoutingRules();
@@ -216,8 +228,15 @@ export function SimpleNewRequestPage() {
           ? catalogueItems.find((candidate) => candidate.id === requestData.catalogueItems[0]?.itemId)
           : undefined;
         if (requestRoute === 'catalogue' && !item) throw new Error('The selected catalogue item is no longer available.');
-        const matchedContract = contracts.find((candidate) => candidate.id === (item?.contractId || requestData.contractId))
-          ?? contracts.find((candidate) => item && candidate.supplierName.toLowerCase() === item.supplierName.toLowerCase() && ['active', 'expiring'].includes(candidate.status));
+        const now = new Date();
+        const isUsableContract = (candidate: Contract) =>
+          ['active', 'expiring'].includes(candidate.status)
+          && new Date(candidate.startDate) <= now
+          && new Date(candidate.endDate) >= now;
+        const matchedContract = contracts.find((candidate) => candidate.id === (item?.contractId || requestData.contractId) && isUsableContract(candidate))
+          ?? contracts
+            .filter((candidate) => item && candidate.supplierName.toLowerCase() === item.supplierName.toLowerCase() && isUsableContract(candidate))
+            .sort((a, b) => b.endDate.localeCompare(a.endDate))[0];
         if (!matchedContract) throw new Error('No active supplier contract could be resolved for this order. Please contact Procurement.');
         const supplier = suppliers.find((candidate) => candidate.id === matchedContract.supplierId)
           ?? (item ? suppliers.find((candidate) => candidate.id === item.supplierId) : undefined);
@@ -253,18 +272,40 @@ export function SimpleNewRequestPage() {
         const decision = evaluateGovernedCheckout(checkout);
         if (!decision.ok) throw new Error(decision.errors.join(' '));
         const templateForRequest = selectWorkflowTemplateForCategory(workflowTemplates, requestData.category);
-        await submitGovernedCheckout({
-          requestId: id, requisitionId: `PR-${id}`, decision, checkout,
-          request: {
-            id, title: requestData.title, description: requestData.businessJustification || requestData.title,
-            category: requestRoute === 'catalogue' ? 'catalogue' : requestData.category, status: 'intake', priority: requestData.isUrgent ? 'urgent' : 'medium',
-            value: decision.totalValue, currency: decision.currency, requestorId: currentUser.id, ownerId: currentUser.id,
-            supplierId: supplier.id, contractId: matchedContract.id, buyingChannel: requestRoute === 'catalogue' ? 'catalogue' : 'framework-call-off', commodityCode: item?.commodityCode || requestData.commodityCode || '',
-            commodityCodeLabel: requestData.commodityCodeLabel || item?.commodityCode || '', costCentre: decision.resolved.costCentre || '', budgetOwner: decision.resolved.budgetOwner || '',
-            businessJustification: requestData.businessJustification, deliveryDate: parseDeliveryDate(requestData.deliveryDate) ?? undefined,
-          },
-          lines: [{ id: `LINE-${id}-1`, requestId: id, description: line.description, quantity: line.quantity, unit: line.unit, unitPrice: line.unitPrice, supplierId: supplier.id, contractId: matchedContract.id, ...(item ? { catalogueItemId: item.id } : {}), riskAssessmentId: riskAssessment?.id, commodityCode: line.commodityCode, deliveryDate: requestData.deliveryDate }],
-        });
+        const governedRequest = {
+          id, title: requestData.title, description: requestData.businessJustification || requestData.title,
+          category: requestRoute === 'catalogue' ? 'catalogue' : requestData.category, status: 'intake' as const, priority: requestData.isUrgent ? 'urgent' as const : 'medium' as const,
+          value: decision.totalValue, currency: decision.currency, requestorId: currentUser.id, ownerId: currentUser.id,
+          supplierId: supplier.id, contractId: matchedContract.id, buyingChannel: requestRoute === 'catalogue' ? 'catalogue' : 'framework-call-off', commodityCode: item?.commodityCode || requestData.commodityCode || '',
+          commodityCodeLabel: requestData.commodityCodeLabel || item?.commodityCode || '', costCentre: decision.resolved.costCentre || '', budgetOwner: decision.resolved.budgetOwner || '',
+          businessJustification: requestData.businessJustification, deliveryDate: parseDeliveryDate(requestData.deliveryDate) ?? undefined,
+        };
+        const governedLines = [{ id: `LINE-${id}-1`, requestId: id, description: line.description, quantity: line.quantity, unit: line.unit, unitPrice: line.unitPrice, supplierId: supplier.id, contractId: matchedContract.id, ...(item ? { catalogueItemId: item.id } : {}), riskAssessmentId: riskAssessment?.id, commodityCode: line.commodityCode, deliveryDate: requestData.deliveryDate }];
+        try {
+          await submitGovernedCheckout({
+            requestId: id, requisitionId: `PR-${id}`, decision, checkout,
+            request: governedRequest,
+            lines: governedLines,
+          });
+        } catch (error) {
+          if (!isGovernedCheckoutSchemaUnavailable(error)) throw error;
+          // The production prototype may still be on the pre-PR schema. The
+          // compatibility write keeps the existing request/PO store usable;
+          // once the additive migration is applied, the governed branch above
+          // remains the only path and records the full requisition audit trail.
+          console.warn('Governed checkout tables are unavailable; using legacy catalogue persistence.');
+          const legacyStatus = decision.status === 'approved' ? 'po' : decision.approvalRequired ? 'approval' : 'intake';
+          await createRequest({ ...governedRequest, status: legacyStatus });
+          if (decision.status === 'approved') {
+            const purchaseOrder = await createPurchaseOrder({
+              id: `PO-${id}`, supplierId: supplier.id, supplierName: supplier.name,
+              value: decision.totalValue, status: 'submitted', createdAt: new Date().toISOString(),
+              deliveryDate: requestData.deliveryDate, contractId: matchedContract.id, requestId: id,
+              lineItems: [{ description: line.description, quantity: line.quantity, unitPrice: line.unitPrice, received: 0 }],
+            });
+            await updateRequest(id, { poId: purchaseOrder.id });
+          }
+        }
         if (decision.status !== 'approved') {
           await initWorkflow(id, templateForRequest?.id, requestRoute === 'catalogue' ? 'catalogue' : 'framework-call-off');
         }
@@ -379,7 +420,7 @@ export function SimpleNewRequestPage() {
 
       {phase === 'route' && (
         <div className="space-y-4">
-          <Card><CardContent className="p-6"><StepPreCheck title={data.title || data.categoryDescription} category={data.category} estimatedValue={data.estimatedValue} supplierId={data.supplierId} llmIntent={data.llmIntent} onChooseCatalogue={(items: CatalogueItem[]) => { const primary = items[0]; update({ route: undefined, catalogueItems: items.slice(0, 3).map((item) => ({ itemId: item.id, name: item.name, quantity: 1, unitPrice: item.unitPrice, supplierId: item.supplierId })), title: primary?.name ?? data.title, supplier: primary?.supplierName ?? data.supplier, supplierId: primary?.supplierId ?? data.supplierId, estimatedValue: items.slice(0, 3).reduce((sum, item) => sum + item.unitPrice, 0) }); setRoute('catalogue'); setPhase('details'); }} onChooseContract={(contract: Contract) => { update({ contractId: contract.id, contractTitle: contract.title, supplier: contract.supplierName, supplierId: contract.supplierId, category: data.category || contract.category.toLowerCase() }); setRoute('contract'); setPhase('details'); }} onProceedToFullRequest={() => { setRoute(routeFromChannel(routing.channel)); setPhase('details'); }} onEnrich={(text) => update({ businessJustification: data.businessJustification ? `${data.businessJustification}\n${text}` : text })} /></CardContent></Card>
+          <Card><CardContent className="p-6"><StepPreCheck title={data.title || data.categoryDescription} category={data.category} estimatedValue={data.estimatedValue} supplierId={data.supplierId} llmIntent={data.llmIntent} onChooseCatalogue={(items: CatalogueItem[]) => { const primary = items[0]; if (primary) { navigate(`/catalogue/items/${encodeURIComponent(primary.id)}`); return; } }} onChooseContract={(contract: Contract) => { update({ contractId: contract.id, contractTitle: contract.title, supplier: contract.supplierName, supplierId: contract.supplierId, category: data.category || contract.category.toLowerCase() }); setRoute('contract'); setPhase('details'); }} onProceedToFullRequest={() => { setRoute(routeFromChannel(routing.channel)); setPhase('details'); }} onEnrich={(text) => update({ businessJustification: data.businessJustification ? `${data.businessJustification}\n${text}` : text })} /></CardContent></Card>
           <Card className="border-blue-100 bg-blue-50/40"><CardContent className="space-y-2 p-4 text-sm"><p className="font-medium text-blue-900">Recommended path: {ROUTE_COPY[routeFromChannel(routing.channel)].label}</p><p className="text-blue-800">{ROUTE_COPY[routeFromChannel(routing.channel)].detail}</p>{!pCardEligibility.eligible && <p className="text-xs text-blue-700">Purchasing card is not available for this request: {pCardEligibility.ineligibleReasons[0]}</p>}</CardContent></Card>
         </div>
       )}

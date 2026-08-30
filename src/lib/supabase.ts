@@ -1,4 +1,7 @@
-// Helper for Vercel serverless functions to call Supabase REST API
+// Serverless data helper. It retains the Supabase REST contract during
+// transition and delegates to the private Neon executor when configured.
+
+import { executeNeonRequest } from '../../api/db.js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL!;
 const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY!;
@@ -11,6 +14,7 @@ interface SupabaseQueryOptions {
   single?: boolean;
   upsert?: boolean;
   order?: string;
+  limit?: number;
 }
 
 export async function supabaseQuery<T = unknown>(
@@ -25,7 +29,45 @@ export async function supabaseQuery<T = unknown>(
     single = false,
     upsert = false,
     order,
+    limit,
   } = options;
+
+  if (process.env.DATABASE_PROVIDER === 'neon') {
+    const filtersList = (filters ?? '').split('&').filter(Boolean).map((part) => {
+      const separator = part.indexOf('=');
+      const column = separator > 0 ? part.slice(0, separator) : part;
+      const expression = separator > 0 ? decodeURIComponent(part.slice(separator + 1)) : '';
+      const dot = expression.indexOf('.');
+      return {
+        column,
+        operator: dot > 0 ? expression.slice(0, dot) : 'eq',
+        value: dot > 0
+          ? expression.slice(dot + 1) === 'null' ? null : expression.slice(dot + 1)
+          : expression,
+      };
+    });
+    try {
+      const data = await executeNeonRequest({
+        operation: method === 'GET' ? 'select' : method === 'POST' ? (upsert ? 'upsert' : 'insert') : method === 'PATCH' ? 'update' : 'delete',
+        table,
+        select,
+        filters: filtersList,
+        orders: order ? order.split(',').map((item) => {
+          const [column, direction] = item.split('.');
+          return { column, ascending: direction !== 'desc' };
+        }) : undefined,
+        limit,
+        single,
+        body,
+        conflict: upsert ? 'id' : undefined,
+      });
+      return { data: data as T, error: null };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Neon database request failed';
+      console.error(`Neon ${method} ${table} error:`, message);
+      return { data: null, error: message };
+    }
+  }
 
   const params = new URLSearchParams();
   if (select) params.set('select', select);

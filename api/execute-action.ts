@@ -1,11 +1,14 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseAdmin } from './_supabase-admin.js';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_ANON_KEY!,
-  { auth: { persistSession: false } }
-);
+const supabase = new Proxy({} as SupabaseClient, {
+  get(_target, property: string | symbol) {
+    const target = getSupabaseAdmin() as unknown as Record<PropertyKey, unknown>;
+    const value = target[property];
+    return typeof value === 'function' ? value.bind(target) : value;
+  },
+});
 
 const ACTION_LABELS: Record<string, string> = {
   add_watcher: 'Add Watcher',

@@ -121,6 +121,11 @@ CREATE TABLE IF NOT EXISTS service_descriptions (
   created_at TIMESTAMP DEFAULT now()
 );
 
+-- Quality metadata is written by the adaptive intake gate and shown to
+-- reviewers. These additive columns keep older environments compatible.
+ALTER TABLE service_descriptions ADD COLUMN IF NOT EXISTS quality_score INTEGER;
+ALTER TABLE service_descriptions ADD COLUMN IF NOT EXISTS quality_checks JSONB;
+
 -- AI Conversations (chat intake transcripts)
 CREATE TABLE IF NOT EXISTS ai_conversations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -438,27 +443,51 @@ CREATE TABLE IF NOT EXISTS catalogue_items (
 DO $$ BEGIN
   ALTER TABLE requests ADD CONSTRAINT requests_requisition_id_fkey
     FOREIGN KEY (requisition_id) REFERENCES purchase_requisitions(id) ON DELETE SET NULL;
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+  WHEN undefined_table THEN NULL;
+  WHEN undefined_column THEN NULL;
+END $$;
 DO $$ BEGIN
   ALTER TABLE requests ADD CONSTRAINT requests_risk_assessment_id_fkey
     FOREIGN KEY (risk_assessment_id) REFERENCES risk_assessments(id) ON DELETE SET NULL;
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+  WHEN undefined_table THEN NULL;
+  WHEN undefined_column THEN NULL;
+END $$;
 DO $$ BEGIN
   ALTER TABLE purchase_orders ADD CONSTRAINT purchase_orders_requisition_id_fkey
     FOREIGN KEY (requisition_id) REFERENCES purchase_requisitions(id) ON DELETE SET NULL;
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+  WHEN undefined_table THEN NULL;
+  WHEN undefined_column THEN NULL;
+END $$;
 DO $$ BEGIN
   ALTER TABLE purchase_orders ADD CONSTRAINT purchase_orders_risk_assessment_id_fkey
     FOREIGN KEY (risk_assessment_id) REFERENCES risk_assessments(id) ON DELETE SET NULL;
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+  WHEN undefined_table THEN NULL;
+  WHEN undefined_column THEN NULL;
+END $$;
 DO $$ BEGIN
   ALTER TABLE catalogue_items ADD CONSTRAINT catalogue_items_contract_id_fkey
     FOREIGN KEY (contract_id) REFERENCES contracts(id) ON DELETE SET NULL;
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+  WHEN undefined_table THEN NULL;
+  WHEN undefined_column THEN NULL;
+END $$;
 DO $$ BEGIN
   ALTER TABLE catalogue_items ADD CONSTRAINT catalogue_items_risk_assessment_id_fkey
     FOREIGN KEY (risk_assessment_id) REFERENCES risk_assessments(id) ON DELETE SET NULL;
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+  WHEN undefined_table THEN NULL;
+  WHEN undefined_column THEN NULL;
+END $$;
 
 -- Workflow Step Details (per-request stage timeline with forms, comments, docs)
 CREATE TABLE IF NOT EXISTS workflow_step_details (

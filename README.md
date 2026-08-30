@@ -1,6 +1,6 @@
 # Procurement Orchestration Platform
 
-A procurement orchestration platform foundation with a React SPA, Supabase own-store, and Vercel API functions. It demonstrates end-to-end workflows, AI-assisted decision making, and system-integration handovers across 40+ interactive screens.
+A procurement orchestration platform foundation with a React SPA, an application-owned PostgreSQL store, and Vercel API functions. Supabase remains the current provider during the Neon migration; Neon mode keeps the database private behind the API boundary. It demonstrates end-to-end workflows, AI-assisted decision making, and system-integration handovers across 40+ interactive screens.
 
 **Live demo:** [orchestration-ui.vercel.app](https://orchestration-ui.vercel.app)
 
@@ -190,12 +190,19 @@ npm run test:request-detail-ui    # browser check on fixtures (no credentials, n
                                   # workflow step opens, and the risk form pre-populates from the service description
 npm run test:interactions-ui      # interaction E2E — wizard submit, admin save, AI assistant (self-cleaning)
 npm run test:home-designs         # alternative home designs (1a/1b/1c) are fully functional + dashboard intact
+npm run test:neon-migration       # Neon migration guardrails; live copy requires explicit credentials
+npm run test:neon-live            # read-only Neon schema, relationship, and catalogue-governance validation
 # …see package.json "test:*" scripts for the full list
 
 npm run backfill:compliance       # one-time data migration, NOT a test — fills the front-door
                                    # determination fields on Supabase `requests` rows that predate
                                    # them, using the same decisioning logic the live wizard runs.
                                    # Only ever fills nulls; safe to re-run.
+npm run backfill:catalogue-governance # idempotent data repair — creates/renews catalogue supplier
+                                      # contracts and risk assessments and links every catalogue item.
+                                      # Requires the service-role key; never creates requests or orders.
+npm run backfill:neon-catalogue-governance # idempotent Neon-side repair when the source schema
+                                           # predates explicit catalogue contract/risk columns.
 ```
 
 `test:ui` uses Playwright. First-time setup: `npm install` then `npx playwright install chromium`.
@@ -327,15 +334,24 @@ Full descriptions live in `.env.example`.
 
 | Variable | Scope | Required | Notes |
 | --- | --- | --- | --- |
-| `VITE_SUPABASE_URL` | Browser | Yes | Project REST URL, e.g. `https://<ref>.supabase.co` |
-| `VITE_SUPABASE_ANON_KEY` | Browser | Yes | Legacy **anon JWT** — see the key note below |
-| `SUPABASE_URL` | Serverless (`api/`) | Yes | Same URL, without the `VITE_` prefix |
-| `SUPABASE_ANON_KEY` | Serverless (`api/`) | Yes | Same anon JWT |
-| `SUPABASE_SERVICE_ROLE_KEY` | Serverless (`api/`) | Yes for AI agent configuration and controlled administration | Bypasses RLS. Never prefix with `VITE_` |
+| `VITE_DATABASE_PROVIDER` | Browser | No | `supabase` during transition; `neon` routes data through `/api/db` |
+| `VITE_PROCUREMENT_PROFILES_ENABLED` | Browser | No | Enable only after the additive profile table exists; defaults to `false` |
+| `VITE_SUPABASE_URL` | Browser | Conditional | Required only for the Supabase fallback; omit from the browser in Neon mode |
+| `VITE_SUPABASE_ANON_KEY` | Browser | Conditional | Legacy **anon JWT**, required only for the Supabase fallback |
+| `SUPABASE_URL` | Serverless (`api/`) | Conditional | Required only for Supabase mode/rollback |
+| `SUPABASE_ANON_KEY` | Serverless (`api/`) | Conditional | Required only for Supabase mode/rollback |
+| `SUPABASE_SERVICE_ROLE_KEY` | Serverless (`api/`) | Conditional | Required for Supabase administration/rollback; bypasses RLS. Never prefix with `VITE_` |
+| `DATABASE_PROVIDER` | Serverless (`api/`) | No | `supabase` during transition; `neon` after cutover |
+| `NEON_DATABASE_URL` | Serverless (`api/`) | Yes when Neon is active | Private Neon connection string; never expose with `VITE_` |
 | `ADMIN_SEED_SECRET` | Serverless (`api/`) | Only for seeding | Shared secret for `api/admin/seed.ts` |
 | `VITE_ASSISTANT_PROVIDER` | Browser | No | `groq` (default) or `mock` for a fully offline assistant |
 | `GROQ_API_KEY` / `GEMINI_API_KEY` | Serverless (`api/`) | For AI classification and assistant | Server-side only, used by `api/ai.ts`, `api/chat.ts`, and `api/chat-intake.ts` |
 | `GROQ_MODEL` | Serverless (`api/`) | No | Groq model override for classifier routes; defaults to `openai/gpt-oss-20b` |
+
+When `DATABASE_PROVIDER=neon` and `VITE_DATABASE_PROVIDER=neon`, the browser uses the private
+`/api/db` boundary. `NEON_DATABASE_URL`/`DATABASE_URL` must be configured only as a server-side
+Vercel variable; do not copy it into a `VITE_` variable. Keep Supabase server variables during the
+rollback window, then remove them after Neon validation.
 
 Two things that reliably break a deploy:
 

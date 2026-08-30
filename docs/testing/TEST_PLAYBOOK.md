@@ -16,6 +16,21 @@
 - **Severity:** BLOCKER (cannot proceed) · HIGH (core feature broken) · MEDIUM (degraded) · LOW/COSMETIC.
 - **Write actions:** this playbook includes create/submit/approve flows. Run against a non-production/demo DB.
 
+## Suite NEON — database migration and cutover
+
+Run `npm run test:neon-migration` before any live copy. It verifies the dependency, environment
+contract, non-destructive migration script, API relation/function allowlists, and ADR. With a Neon
+connection configured, run `npm run migrate:supabase-to-neon` and retain its source/target count
+report, then run `npm run test:neon-live` for read-only schema, relationship, and catalogue-governance
+checks. If the source catalogue predates explicit governance columns, run
+`npm run backfill:neon-catalogue-governance` before that validation. Validate representative request,
+catalogue, contract, risk, PR, PO, audit, ticket, and conversation records before switching
+`DATABASE_PROVIDER` and `VITE_DATABASE_PROVIDER` to `neon`.
+
+The browser must never contain `DATABASE_URL`, `NEON_DATABASE_URL`, or a service-role key. Because
+the selected cutover has no write freeze, compare recent Supabase writes after the copy and record
+any mismatch before accepting the deployment.
+
 ---
 
 ## Suite 0 — Smoke & global
@@ -110,7 +125,7 @@ and the existing `user_preferences.prefs.requestExperienceMode` JSON key.
 | TC-REQ-19 | Save as Draft mid-wizard | Draft saved + retrievable |
 | TC-REQ-20 | Submit each remaining category (Services, Software, Contingent Labour, Contract Renewal, Supplier Onboarding) | Each routes/submits correctly |
 | TC-REQ-21 | P-card route policy (`npm run test:p-card`) | Low-value eligible goods/services may be routed only when policy allows it; missing/over-limit/material/urgent/high-risk or excluded demands are withheld with reasons; the route remains read/route-only and does not initiate payment |
-| TC-REQ-22 | Catalogue item detail + governed checkout (`npm run test:catalogue-ui`, `npm run test:governed-checkout`) | Catalogue entry points open the selected item; checkout captures fulfilment context; supplier/contract/risk/capacity gates and configurable whole-request auto-approval are enforced |
+| TC-REQ-22 | Catalogue item detail + governed checkout (`npm run test:catalogue-ui`, `npm run test:governed-checkout`) | Catalogue entry points open the selected item; checkout captures fulfilment context; supplier/contract/risk/capacity gates and configurable whole-request auto-approval are enforced. If the deployed database predates the additive PR tables, run `npm run backfill:catalogue-governance` for supplier/contract/risk coverage, then apply the governed-checkout section of `supabase/schema.sql`. |
 | TC-REQ-23 | Catalogue item route in full UI sweep (`npm run test:e2e-ui`) | `/catalogue/items/:id` renders through the app shell without a white screen or uncaught page error |
 
 ### Intake routing — catalogue vs contract vs new demand (INT-10)

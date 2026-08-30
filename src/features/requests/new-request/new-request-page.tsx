@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, Component, type ReactNode, type ErrorInfo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Save, Send, AlertTriangle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -257,6 +257,7 @@ export function NewRequestPage() {
 
 function ExpertNewRequestPage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
   // Original demand text forwarded from the home "What do you need?" box —
   // captured once so the Step 1 input starts pre-populated (read synchronously
@@ -786,25 +787,11 @@ function ExpertNewRequestPage() {
             supplierId={formData.supplierId}
             llmIntent={formData.llmIntent}
             onChooseCatalogue={(items: CatalogueItem[]) => {
-              const cartItems = items.slice(0, 3).map((i) => ({
-                itemId: i.id,
-                name: i.name,
-                quantity: 1,
-                unitPrice: i.unitPrice,
-                supplierId: i.supplierId,
-              }));
-              const total = cartItems.reduce((sum, i) => sum + i.quantity * i.unitPrice, 0);
               const primary = items[0];
-              updateFormData({
-                preCheckOutcome: 'catalogue',
-                catalogueItems: cartItems,
-                title: primary?.name ?? formData.title,
-                supplier: primary?.supplierName ?? formData.supplier,
-                supplierId: primary?.supplierId ?? formData.supplierId,
-                estimatedValue: total || formData.estimatedValue,
-                buyingChannelResult: 'catalogue',
-              });
-              setCurrentStep(3);
+              if (!primary) return;
+              // A matched catalogue result is a specific buyable item. Keep
+              // that context in the URL so checkout starts on its detail page.
+              navigate(`/catalogue/items/${encodeURIComponent(primary.id)}`);
             }}
             onChooseContract={(contract: Contract) => {
               updateFormData({

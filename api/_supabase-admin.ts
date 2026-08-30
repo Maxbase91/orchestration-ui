@@ -1,15 +1,17 @@
-// Server-side Supabase client using the SERVICE ROLE key. Bypasses RLS.
-// Only import from inside api/* handlers that require admin privileges
-// (e.g. seeding). Never import this from the browser bundle.
+// Server-side privileged data client. Supabase mode uses the SERVICE ROLE key;
+// Neon mode uses the private connection through the allowlisted query executor.
+// Only import from api/* handlers that require server-side data access.
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { NeonCompatibleClient } from '../src/lib/neon-compatible-client.js';
+import { executeNeonRequest } from './db.js';
 
 let client: SupabaseClient | null = null;
 
 /** A recoverable server configuration error, safe to turn into a 503 response. */
 export class ServerConfigurationError extends Error {
   constructor() {
-    super('Supabase admin configuration is unavailable.');
+    super('Database administration configuration is unavailable.');
     this.name = 'ServerConfigurationError';
   }
 }
@@ -21,6 +23,11 @@ export class ServerConfigurationError extends Error {
  */
 export function getSupabaseAdmin(): SupabaseClient {
   if (client) return client;
+
+  if (process.env.DATABASE_PROVIDER === 'neon') {
+    client = new NeonCompatibleClient((payload) => executeNeonRequest(payload)) as unknown as SupabaseClient;
+    return client;
+  }
 
   const url = process.env.SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;

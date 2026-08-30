@@ -8,6 +8,8 @@ const detail = readFileSync(new URL('../../src/features/catalogue/catalogue-item
 const checkout = readFileSync(new URL('../../src/features/catalogue/catalogue-order-checkout.tsx', import.meta.url), 'utf8');
 const wizard = readFileSync(new URL('../../src/features/requests/new-request/step-catalogue.tsx', import.meta.url), 'utf8');
 const commandBar = readFileSync(new URL('../../src/features/dashboard/components/smart-command-bar.tsx', import.meta.url), 'utf8');
+const requestEntry = readFileSync(new URL('../../src/features/requests/new-request/new-request-page.tsx', import.meta.url), 'utf8');
+const simpleRequestEntry = readFileSync(new URL('../../src/features/requests/new-request/simple-new-request-page.tsx', import.meta.url), 'utf8');
 
 let failures = 0;
 function check(name, condition) {
@@ -22,6 +24,10 @@ check('checkout captures fulfilment context', /needBy/.test(checkout) && /delive
 check('expert governance details are progressive', /mode === 'expert'/.test(checkout) && /aria-expanded/.test(checkout));
 check('wizard catalogue items deep-link to item details', /navigate\(`\/catalogue\/items\//.test(wizard));
 check('home command-bar items deep-link to item details', /navigate\(`\/catalogue\/items\//.test(commandBar));
+check('expert pre-check order CTA deep-links to item details', /onChooseCatalogue[\s\S]*?navigate\(`\/catalogue\/items\//.test(requestEntry));
+check('simple pre-check order CTA deep-links to item details', /onChooseCatalogue[\s\S]*?navigate\(`\/catalogue\/items\//.test(simpleRequestEntry));
+check('legacy deployments have a safe catalogue persistence fallback', /legacy catalogue persistence/.test(simpleRequestEntry) && /purchase_requisitions\|request_lines/.test(simpleRequestEntry));
+check('catalogue checkout ignores stale contracts when resolving coverage', /isUsableContract/.test(simpleRequestEntry) && /endDate/.test(simpleRequestEntry));
 check('checkout does not claim one-click/no-approval ordering', !/no approval needed/i.test(checkout));
 
 if (failures > 0) process.exitCode = 1;
