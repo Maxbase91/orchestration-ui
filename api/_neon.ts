@@ -16,7 +16,9 @@ export function getNeonClient(): ReturnType<typeof neon> {
   if (client) return client;
   const connectionString = process.env.NEON_DATABASE_URL ?? process.env.DATABASE_URL;
   if (!connectionString) throw new NeonConfigurationError();
-  client = neon(connectionString, { fetchOptions: { signal: AbortSignal.timeout(10000) } });
+  // Neon may need to wake an idle branch during the first parallel page load;
+  // keep this above the browser request budget so the API returns a clear error
+  // instead of aborting every cold-start query at the same instant.
+  client = neon(connectionString, { fetchOptions: { signal: AbortSignal.timeout(30000) } });
   return client;
 }
-

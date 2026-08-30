@@ -102,7 +102,9 @@ class NeonQueryBuilder implements PromiseLike<CompatibilityResult> {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(this.payload),
-        signal: AbortSignal.timeout(10000),
+        // Match the server wake-up budget; a cold Neon branch can take longer
+        // than ten seconds when several first-render queries arrive together.
+        signal: AbortSignal.timeout(30000),
       });
       const body = await response.json() as { data?: unknown; error?: string };
       if (!response.ok) return { data: null, error: { message: body.error ?? `Database request failed (${response.status})` } };
@@ -138,7 +140,7 @@ class NeonRpcBuilder implements PromiseLike<CompatibilityResult> {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ operation: 'rpc', functionName: this.functionName, args: this.args }),
-        signal: AbortSignal.timeout(10000),
+        signal: AbortSignal.timeout(30000),
       });
       const body = await response.json() as { data?: unknown; error?: string };
       if (!response.ok) throw new Error(body.error ?? `Database request failed (${response.status})`);
