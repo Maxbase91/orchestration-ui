@@ -14,6 +14,8 @@ This run used only the visible in-app role switcher and browser UI against the d
 | Invoice review and matching | Procurement Operations Lead | Invoice opened for review and matched to the PO. | `022`–`023` |
 | Invoice approval | Strategic Procurement Manager | Matched invoice approved. | `024` |
 | Payment simulation | Admin / Platform Owner | Payment scheduled and released; tracker shows Matched → Approved → Paid. | `025`–`028` |
+| Contract call-off, successful submit | Requestor / Simple | AWS Cloud Infrastructure matched at 97%, checkout submitted as `REQ-2025-8479`; initial post-submit status exposed the fallback reset and was retained as evidence. | `029`–`032` |
+| Contract call-off, staged handoff | Requestor → Vendor Manager → Strategic Procurement Manager | `REQ-2025-4818` advanced through Risk → Onboarding → Approval using visible role switches. Approval persistence exposed the no-workflow fallback gap fixed in `0429a8d`. | live UI, no extra screenshot |
 
 ## Retained records
 
@@ -22,6 +24,8 @@ This run used only the visible in-app role switcher and browser UI against the d
 - Request: `REQ-2025-8847` (Expert high-value catalogue order; approval required)
 - PO: `PO-REQ-2025-8216`
 - Invoice: `UI-E2E-20260830-INV-LOW-4`
+- Contract call-off request: `REQ-2025-8479` (successful submission before stage-reset fix)
+- Contract call-off request: `REQ-2025-4818` (risk/onboarding/approval handoff)
 
 ## Findings during the run
 
@@ -30,6 +34,7 @@ This run used only the visible in-app role switcher and browser UI against the d
 3. The Supplier Portal currently presents a fixed supplier identity (Accenture), so the test invoice references a Staples PO while displaying Accenture. Supplier/PO consistency should be enforced before production use.
 4. PDF/DOCX extraction was not included in this run because the deployed intake-upload handler is intentionally excluded from the shared function bundle after a serverless cold-start failure. This remains an unavailable UI path and should be delivered through the existing dispatcher/function-budget boundary.
 5. Contract call-off and full new-demand submissions were not completed in this run; their visible route screens were available, but the first demand form did not reliably submit from the wrapped input until the explicit **Find route** control was added. Resume those journeys after the next deployment.
+6. Contract call-off submission initially reached the success screen, but the workflow fallback reset the request to Intake. The fix in `b5c9316` preserves the governed Risk/Approval stage; a subsequent approval fallback fix is in `0429a8d`.
 
 ## Runtime evidence
 
