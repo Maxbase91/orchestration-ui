@@ -163,11 +163,11 @@ export function PortalInvoices() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label htmlFor="inv-date">Invoice Date *</Label>
-                <Input id="inv-date" type="date" value={form.invoiceDate} onChange={handleChange('invoiceDate')} onInput={handleChange('invoiceDate')} />
+                <Input id="inv-date" type="date" value={form.invoiceDate} onInput={handleChange('invoiceDate')} />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="due-date">Due Date *</Label>
-                <Input id="due-date" type="date" value={form.dueDate} onChange={handleChange('dueDate')} onInput={handleChange('dueDate')} />
+                <Input id="due-date" type="date" value={form.dueDate} onInput={handleChange('dueDate')} />
               </div>
             </div>
             <div className="space-y-1.5">
