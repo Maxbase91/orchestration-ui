@@ -9,7 +9,6 @@ import contractMatch from '../src/server/api/contract-match.js';
 import contractScope from '../src/server/api/contract-scope.js';
 import contractVocabulary from '../src/server/api/contract-vocabulary.js';
 import intakeGuidance from '../src/server/api/intake-guidance.js';
-import intakeUpload from '../src/server/api/intake-upload.js';
 import policyConfig from '../src/server/api/policy-config.js';
 
 type DomainHandler = (req: VercelRequest, res: VercelResponse) => void | Promise<void>;
@@ -27,7 +26,6 @@ async function loadDomainHandler(name: string): Promise<DomainHandler | undefine
     case 'contract-scope': return contractScope;
     case 'contract-vocabulary': return contractVocabulary;
     case 'intake-guidance': return intakeGuidance;
-    case 'intake-upload': return intakeUpload;
     case 'policy-config': return policyConfig;
     default: return undefined;
   }
