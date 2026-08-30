@@ -4,6 +4,24 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getNeonClient } from './_neon.js';
+import commodityMatch from '../src/server/api/commodity-match.js';
+import contractMatch from '../src/server/api/contract-match.js';
+import contractScope from '../src/server/api/contract-scope.js';
+import contractVocabulary from '../src/server/api/contract-vocabulary.js';
+import intakeGuidance from '../src/server/api/intake-guidance.js';
+import intakeUpload from '../src/server/api/intake-upload.js';
+import policyConfig from '../src/server/api/policy-config.js';
+
+type DomainHandler = (req: VercelRequest, res: VercelResponse) => void | Promise<void>;
+const DOMAIN_HANDLERS: Record<string, DomainHandler> = {
+  'commodity-match': commodityMatch,
+  'contract-match': contractMatch,
+  'contract-scope': contractScope,
+  'contract-vocabulary': contractVocabulary,
+  'intake-guidance': intakeGuidance,
+  'intake-upload': intakeUpload,
+  'policy-config': policyConfig,
+};
 
 const ALLOWED_RELATIONS = new Set([
   'users', 'user_preferences', 'requests', 'stage_history', 'service_descriptions',
@@ -196,6 +214,16 @@ export async function executeNeonRequest(request: DbRequest): Promise<unknown> {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
+  // Vercel Hobby only permits twelve functions. Explicit rewrites route the
+  // small domain endpoints through this already-deployed function without
+  // exposing a generic database operation to those callers.
+  const domain = req.query.domain;
+  const domainName = Array.isArray(domain) ? domain[0] : domain;
+  const delegate = domainName ? DOMAIN_HANDLERS[domainName] : undefined;
+  if (delegate) {
+    await delegate(req, res);
+    return;
+  }
   if (req.method !== 'POST') { res.status(405).json({ error: 'Method not allowed' }); return; }
   try {
     const result = await executeNeonRequest(req.body as DbRequest);

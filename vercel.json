@@ -1,6 +1,13 @@
 {
   "rewrites": [
     { "source": "/api/requests/:id", "destination": "/api/requests/[id]" },
+    { "source": "/api/commodity-match", "destination": "/api/db?domain=commodity-match" },
+    { "source": "/api/contract-match", "destination": "/api/db?domain=contract-match" },
+    { "source": "/api/contract-scope", "destination": "/api/db?domain=contract-scope" },
+    { "source": "/api/contract-vocabulary", "destination": "/api/db?domain=contract-vocabulary" },
+    { "source": "/api/intake-guidance", "destination": "/api/db?domain=intake-guidance" },
+    { "source": "/api/intake-upload", "destination": "/api/db?domain=intake-upload" },
+    { "source": "/api/policy-config", "destination": "/api/db?domain=policy-config" },
     { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
