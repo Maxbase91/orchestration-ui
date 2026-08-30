@@ -83,6 +83,8 @@ check('provider function citation markers are stripped before display',
 check('plain source markers are stripped before display', chatSrc.includes('source\\s*】'));
 check('most-recent PO lookup is requester-scoped and date-ordered',
   chatSrc.includes("eq('requestor_id', userId)") && chatSrc.includes("order('created_at', { ascending: false })"));
+check('most-recent PO answers bypass model list selection',
+  chatSrc.includes('latestPOQuestion') && chatSrc.includes("execFilterObjects('purchase_orders', undefined, 1, userId)"));
 
 console.log('One classifier, not two');
 // The assistant used to carry a private `guessCategory` keyword table whose

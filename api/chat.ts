@@ -571,6 +571,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   async function run() {
   // Load session memory and inject into system prompt
   const userId = ctx?.currentUser?.id ?? '';
+  const latestPOQuestion = [...rawMessages].reverse().find((message) => message.role === 'user')?.content ?? '';
+  // “My latest PO” is a deterministic record lookup. Bypassing the LLM here
+  // prevents it from selecting an arbitrary item from a correctly sorted list.
+  if (/\b(?:most recent|latest|last)\b[\s\S]*\bpurchase order\b/i.test(latestPOQuestion)) {
+    const result = JSON.parse(await execFilterObjects('purchase_orders', undefined, 1, userId)) as { mostRecent?: Record<string, unknown> | null };
+    const po = result.mostRecent;
+    if (po) {
+      const value = Number(po.value ?? 0);
+      const amount = Number.isFinite(value) ? new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(value) : 'the recorded value';
+      sendTurns([
+        { type: 'chat-answer', content: `Your most recent purchase order is ${String(po.id)} from ${String(po.supplier_name)}, valued at ${amount}, currently in “${String(po.status)}” status${po.delivery_date ? ` with a delivery date of ${String(po.delivery_date)}.` : '.'}` },
+        { type: 'deep-link', label: `Purchase Order — ${String(po.id)}`, description: 'PO lines, receipts, and invoice match status', path: `/purchasing/orders/${String(po.id)}` },
+      ]);
+      return;
+    }
+  }
   let systemPrompt = SYSTEM_PROMPT;
   if (userId) {
     const { data: prefRow } = await supabase
