@@ -10,7 +10,7 @@ let client: SupabaseClient;
 // API boundary prevents a missing build-time flag from silently sending reads
 // to the retained Supabase rollback configuration (which otherwise appears as
 // an empty catalogue to requesters).
-const useNeon = provider === 'neon' || (import.meta.env.PROD && provider !== 'supabase');
+const useNeon = import.meta.env.PROD || provider === 'neon';
 if (useNeon) {
   // The cast keeps the existing data modules source-compatible while the
   // compatibility client routes operations through the private server API.
