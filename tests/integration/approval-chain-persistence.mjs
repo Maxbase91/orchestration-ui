@@ -37,6 +37,7 @@ const source = readFileSync(new URL('../../src/features/requests/new-request/ste
 const dbProxy = readFileSync(new URL('../../api/db.ts', import.meta.url), 'utf8');
 check('Neon update proxy binds SET values before filters', dbProxy.includes('const updateWhere = whereClause(request, whereParams, bodyParams.length)'));
 check('Neon update proxy emits typed-safe SQL NULL literals', dbProxy.includes("if (value === null) return 'NULL';"));
+check('Neon filter parameters carry explicit casts', dbProxy.includes('function parameterCast') && dbProxy.includes('${parameterCast(value)}'));
 check(
   'wizard persists a configured approval-chain id rather than the routing label',
   source.includes('approvalChain: configuredChain?.id ?? valueBandedChain?.id'),

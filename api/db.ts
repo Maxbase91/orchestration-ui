@@ -45,6 +45,12 @@ function quoteIdentifier(value: string): string {
   return `"${value}"`;
 }
 
+function parameterCast(value: unknown): string {
+  if (typeof value === 'boolean') return '::boolean';
+  if (typeof value === 'number') return '::numeric';
+  return '::text';
+}
+
 function selectList(value: string | undefined): string {
   if (!value || value === '*') return '*';
   return value.split(',').map((column) => quoteIdentifier(column.trim())).join(', ');
@@ -54,17 +60,21 @@ function addFilter(parts: string[], params: unknown[], filter: Filter, placehold
   const column = quoteIdentifier(filter.column);
   const value = filter.value;
   switch (filter.operator) {
-    case 'eq': params.push(value); parts.push(`${column} = $${placeholderOffset + params.length}`); break;
-    case 'neq': params.push(value); parts.push(`${column} <> $${placeholderOffset + params.length}`); break;
-    case 'gt': params.push(value); parts.push(`${column} > $${placeholderOffset + params.length}`); break;
-    case 'gte': params.push(value); parts.push(`${column} >= $${placeholderOffset + params.length}`); break;
-    case 'lt': params.push(value); parts.push(`${column} < $${placeholderOffset + params.length}`); break;
-    case 'lte': params.push(value); parts.push(`${column} <= $${placeholderOffset + params.length}`); break;
-    case 'ilike': params.push(value); parts.push(`${column} ILIKE $${placeholderOffset + params.length}`); break;
+    case 'eq':
+      if (value === null) { parts.push(`${column} IS NULL`); break; }
+      params.push(value); parts.push(`${column} = $${placeholderOffset + params.length}${parameterCast(value)}`); break;
+    case 'neq':
+      if (value === null) { parts.push(`${column} IS NOT NULL`); break; }
+      params.push(value); parts.push(`${column} <> $${placeholderOffset + params.length}${parameterCast(value)}`); break;
+    case 'gt': params.push(value); parts.push(`${column} > $${placeholderOffset + params.length}${parameterCast(value)}`); break;
+    case 'gte': params.push(value); parts.push(`${column} >= $${placeholderOffset + params.length}${parameterCast(value)}`); break;
+    case 'lt': params.push(value); parts.push(`${column} < $${placeholderOffset + params.length}${parameterCast(value)}`); break;
+    case 'lte': params.push(value); parts.push(`${column} <= $${placeholderOffset + params.length}${parameterCast(value)}`); break;
+    case 'ilike': params.push(value); parts.push(`${column} ILIKE $${placeholderOffset + params.length}${parameterCast(value)}`); break;
     case 'is': parts.push(value === null ? `${column} IS NULL` : `${column} IS NOT NULL`); break;
     case 'in': {
       if (!Array.isArray(value) || value.length === 0) { parts.push('FALSE'); break; }
-      const placeholders = value.map((item) => { params.push(item); return `$${placeholderOffset + params.length}`; });
+      const placeholders = value.map((item) => { params.push(item); return `$${placeholderOffset + params.length}${parameterCast(item)}`; });
       parts.push(`${column} IN (${placeholders.join(', ')})`);
       break;
     }
