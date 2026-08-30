@@ -13,7 +13,7 @@ const ALLOWED_RELATIONS = new Set([
   'purchase_orders', 'purchase_requisitions', 'request_lines', 'invoices', 'risk_assessments',
   'workflow_templates', 'workflow_step_details', 'workflow_instances', 'approval_chains',
   'routing_rules', 'catalogue_items', 'ai_agents', 'kpi_data', 'form_templates',
-  'intake_compliance_records', 'audit_entries', 'knowledge_base', 'chat_feedback',
+  'intake_compliance_records', 'procurement_profiles', 'audit_entries', 'knowledge_base', 'chat_feedback',
   'sla_targets', 'procurement_categories', 'goods_receipts', 'sourcing_events',
   'sourcing_responses', 'tickets', 'ticket_responses', 'ticket_links',
   'service_description_templates',
