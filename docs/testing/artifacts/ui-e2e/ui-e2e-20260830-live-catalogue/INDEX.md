@@ -14,8 +14,8 @@ This run used only the visible in-app role switcher and browser UI against the d
 | Invoice review and matching | Procurement Operations Lead | Invoice opened for review and matched to the PO. | `022`–`023` |
 | Invoice approval | Strategic Procurement Manager | Matched invoice approved. | `024` |
 | Payment simulation | Admin / Platform Owner | Payment scheduled and released; tracker shows Matched → Approved → Paid. | `025`–`028` |
-| Contract call-off, successful submit | Requestor / Simple | AWS Cloud Infrastructure matched at 97%, checkout submitted as `REQ-2025-8479`; initial post-submit status exposed the fallback reset and was retained as evidence. | `029`–`032` |
-| Contract call-off, staged handoff | Requestor → Vendor Manager → Strategic Procurement Manager | `REQ-2025-4818` advanced through Risk → Onboarding → Approval using visible role switches. Approval persistence exposed the no-workflow fallback gap fixed in `0429a8d`. | live UI, no extra screenshot |
+| Contract call-off, successful submit | Requestor / Simple | AWS Cloud Infrastructure matched at 97%, checkout submitted as `REQ-2025-8479`; initial post-submit status exposed the fallback reset and was retained in the run log. | live UI, screenshot adapter did not persist 029–032 |
+| Contract call-off, staged handoff | Requestor → Vendor Manager → Strategic Procurement Manager | `REQ-2025-4818` advanced through Risk → Onboarding → Approval using visible role switches. Approval persistence exposed the no-workflow fallback gap fixed in `0429a8d`. | `033-calloff-approval-stage.png` |
 
 ## Retained records
 
