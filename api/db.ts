@@ -4,24 +4,27 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getNeonClient } from './_neon.js';
-import commodityMatch from '../src/server/api/commodity-match.js';
-import contractMatch from '../src/server/api/contract-match.js';
-import contractScope from '../src/server/api/contract-scope.js';
-import contractVocabulary from '../src/server/api/contract-vocabulary.js';
-import intakeGuidance from '../src/server/api/intake-guidance.js';
-import intakeUpload from '../src/server/api/intake-upload.js';
-import policyConfig from '../src/server/api/policy-config.js';
 
 type DomainHandler = (req: VercelRequest, res: VercelResponse) => void | Promise<void>;
-const DOMAIN_HANDLERS: Record<string, DomainHandler> = {
-  'commodity-match': commodityMatch,
-  'contract-match': contractMatch,
-  'contract-scope': contractScope,
-  'contract-vocabulary': contractVocabulary,
-  'intake-guidance': intakeGuidance,
-  'intake-upload': intakeUpload,
-  'policy-config': policyConfig,
-};
+
+/**
+ * Load only the requested domain at runtime. Besides keeping the dispatcher
+ * small, this prevents optional document-parser dependencies from being
+ * evaluated on every database request (Vercel can otherwise fail the whole
+ * function during cold start before the selected handler runs).
+ */
+async function loadDomainHandler(name: string): Promise<DomainHandler | undefined> {
+  switch (name) {
+    case 'commodity-match': return (await import('../src/server/api/commodity-match.js')).default;
+    case 'contract-match': return (await import('../src/server/api/contract-match.js')).default;
+    case 'contract-scope': return (await import('../src/server/api/contract-scope.js')).default;
+    case 'contract-vocabulary': return (await import('../src/server/api/contract-vocabulary.js')).default;
+    case 'intake-guidance': return (await import('../src/server/api/intake-guidance.js')).default;
+    case 'intake-upload': return (await import('../src/server/api/intake-upload.js')).default;
+    case 'policy-config': return (await import('../src/server/api/policy-config.js')).default;
+    default: return undefined;
+  }
+}
 
 const ALLOWED_RELATIONS = new Set([
   'users', 'user_preferences', 'requests', 'stage_history', 'service_descriptions',
@@ -219,7 +222,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   // exposing a generic database operation to those callers.
   const domain = req.query?.domain;
   const domainName = Array.isArray(domain) ? domain[0] : domain;
-  const delegate = domainName ? DOMAIN_HANDLERS[domainName] : undefined;
+  const delegate = domainName ? await loadDomainHandler(domainName) : undefined;
   if (delegate) {
     await delegate(req, res);
     return;
