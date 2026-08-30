@@ -85,7 +85,7 @@ export function SimpleHomePage() {
 
       {recentRequests.length > 0 && <Card><CardHeader><CardTitle className="text-base">Recently completed</CardTitle></CardHeader><CardContent><div className="divide-y divide-gray-100">{recentRequests.map((request) => <RequestRow key={request.id} request={request} />)}</div></CardContent></Card>}
 
-      <Card className="bg-gray-50/70"><CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-start gap-3"><HelpCircle className="mt-0.5 size-5 text-gray-500" /><div><p className="font-medium text-gray-900">Need help?</p><p className="text-sm text-gray-600">Find answers or contact the request team.</p></div></div><div className="flex gap-3 text-sm"><Link className="font-medium text-blue-600 hover:underline" to="/help/knowledge">Knowledge base</Link><Link className="font-medium text-blue-600 hover:underline" to="/help/contact">Contact support</Link></div></CardContent></Card>
+      <Card className="bg-gray-50/70"><CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-start gap-3"><HelpCircle className="mt-0.5 size-5 text-gray-500" /><div><p className="font-medium text-gray-900">Need help?</p><p className="text-sm text-gray-600">Find answers or contact the request team.</p></div></div><div className="flex gap-3 text-sm"><Link className="font-medium text-blue-600 hover:underline" to="/help/kb">Knowledge base</Link><Link className="font-medium text-blue-600 hover:underline" to="/help/support">Contact support</Link></div></CardContent></Card>
     </div>
   );
 }
