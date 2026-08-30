@@ -105,7 +105,7 @@ async function jsonColumns(table: string): Promise<Set<string>> {
   const sql = getNeonClient();
   const rows = await sql.query(
     `SELECT column_name FROM information_schema.columns
-     WHERE table_schema = 'public' AND table_name = $1 AND data_type IN ('json', 'jsonb')`,
+     WHERE table_schema = 'public' AND table_name = $1::text AND data_type IN ('json', 'jsonb')`,
     [table],
   );
   const columns = new Set(rows.map((row) => String(row.column_name)));
