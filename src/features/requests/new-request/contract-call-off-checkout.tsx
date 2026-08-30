@@ -88,11 +88,15 @@ export function ContractCallOffCheckout({ contract, mode = 'simple', initialValu
         <div className="space-y-1.5"><Label htmlFor="calloff-title">What is being ordered?</Label><Input id="calloff-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Short description of this call-off" /></div>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5"><Label htmlFor="calloff-value">Call-off value (EUR)</Label><Input id="calloff-value" type="number" min={0.01} step="0.01" value={value || ''} onChange={(e) => setValue(Math.max(0, Number(e.target.value) || 0))} /></div>
-          <div className="space-y-1.5"><Label htmlFor="calloff-need-by">Need by</Label><Input id="calloff-need-by" type="date" value={needBy} onChange={(e) => setNeedBy(e.target.value)} /></div>
+          {/* The browser date control emits its committed value through
+              input in the deployed WebKit runner; keeping this handler on
+              input prevents a valid date from being visually present while
+              the controlled state still blocks Review. */}
+          <div className="space-y-1.5"><Label htmlFor="calloff-need-by">Need by</Label><Input id="calloff-need-by" type="date" value={needBy} onInput={(e) => setNeedBy(e.currentTarget.value)} /></div>
         </div>
         {needsServiceDates && <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-1.5"><Label htmlFor="calloff-start">Service start</Label><Input id="calloff-start" type="date" value={serviceStartDate} onChange={(e) => setServiceStartDate(e.target.value)} /></div>
-          <div className="space-y-1.5"><Label htmlFor="calloff-end">Service end</Label><Input id="calloff-end" type="date" value={serviceEndDate} onChange={(e) => setServiceEndDate(e.target.value)} /></div>
+          <div className="space-y-1.5"><Label htmlFor="calloff-start">Service start</Label><Input id="calloff-start" type="date" value={serviceStartDate} onInput={(e) => setServiceStartDate(e.currentTarget.value)} /></div>
+          <div className="space-y-1.5"><Label htmlFor="calloff-end">Service end</Label><Input id="calloff-end" type="date" value={serviceEndDate} onInput={(e) => setServiceEndDate(e.currentTarget.value)} /></div>
         </div>}
         {!validDates && <p className="text-xs text-red-600">Service end must be on or after service start.</p>}
         <div className="space-y-1.5"><Label htmlFor="calloff-location">Deliver to</Label><div className="relative"><MapPin className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" /><select id="calloff-location" value={deliveryLocation} onChange={(e) => setDeliveryLocation(e.target.value)} className="h-10 w-full appearance-none rounded-md border border-input bg-background px-9 pr-8 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring">{locations.map((location) => <option key={location.id} value={location.id}>{location.label}</option>)}</select><ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" /></div><p className="text-xs text-muted-foreground">Only approved delivery locations are available.</p></div>
