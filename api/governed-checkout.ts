@@ -307,7 +307,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       idempotency_fingerprint: requestFingerprint, created_at: now, updated_at: now,
       contract_scope_version_id: decision.resolved.contractScopeVersionId ?? null,
       contract_match_score: decision.resolved.contractMatchScore ?? null,
-      contract_match_reasons: decision.resolved.contractMatchReasons ?? [],
+      // Neon receives JSONB parameters as JSON text; passing the JavaScript
+      // array directly is interpreted as a Postgres array literal and fails
+      // with "invalid input syntax for type json" during call-off checkout.
+      contract_match_reasons: JSON.stringify(decision.resolved.contractMatchReasons ?? []),
       contract_match_algorithm_version: decision.resolved.contractMatchAlgorithmVersion ?? null,
       contract_match_input_fingerprint: decision.resolved.contractMatchInputFingerprint ?? null,
     };
