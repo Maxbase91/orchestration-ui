@@ -217,7 +217,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   // Vercel Hobby only permits twelve functions. Explicit rewrites route the
   // small domain endpoints through this already-deployed function without
   // exposing a generic database operation to those callers.
-  const domain = req.query.domain;
+  const domain = req.query?.domain;
   const domainName = Array.isArray(domain) ? domain[0] : domain;
   const delegate = domainName ? DOMAIN_HANDLERS[domainName] : undefined;
   if (delegate) {
