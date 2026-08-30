@@ -27,6 +27,15 @@ const LIFECYCLE_STAGES: { id: RequestStatus; label: string }[] = [
   { id: 'payment', label: 'Payment' },
 ];
 
+function stageLabel(request: ProcurementRequest, stage: { id: RequestStatus; label: string }): string {
+  // A framework call-off still needs a data/compliance gate and, where policy
+  // requires it, a separate spend-authority decision. Plain-language labels
+  // prevent those controls from looking like two versions of approval.
+  if (request.buyingChannel === 'framework-call-off' && stage.id === 'validation') return 'Contract & compliance check';
+  if (request.buyingChannel === 'framework-call-off' && stage.id === 'approval') return 'Budget approval';
+  return stage.label;
+}
+
 function getDaysInStep(entry: StageHistoryEntry): number | undefined {
   if (!entry.completedAt) return undefined;
   const start = new Date(entry.enteredAt).getTime();
@@ -124,7 +133,7 @@ export function LifecycleStepper({ request, onStepClick }: LifecycleStepperProps
 
     return {
       id: stage.id,
-      label: stage.label,
+      label: stageLabel(request, stage),
       status,
       date: entry ? formatDate(entry.enteredAt) : undefined,
       owner,

@@ -61,6 +61,7 @@ export function ActionButtons({ request }: ActionButtonsProps) {
   const [eventDeadline, setEventDeadline] = useState('');
 
   const currentUser = useAuthStore((s) => s.currentUser);
+  const currentRole = useAuthStore((s) => s.currentRole);
   useApprovals();
   const { byRequest } = useApprovalLookup();
   const updateApproval = useUpdateApproval();
@@ -87,17 +88,21 @@ export function ActionButtons({ request }: ActionButtonsProps) {
   );
   // Approval and sourcing have their own dedicated actions below, so the generic
   // gate action would duplicate them.
+  const roleCanAdvanceStage =
+    (request.status === 'risk' && ['vendor-manager', 'admin'].includes(currentRole))
+    || (request.status === 'validation' && ['operations-lead', 'procurement-manager', 'admin'].includes(currentRole))
+    || (request.status === 'onboarding' && ['vendor-manager', 'procurement-manager', 'admin'].includes(currentRole));
   const showGateAction =
     !isTerminalStatus(request.status) &&
     request.status !== 'approval' &&
     request.status !== 'sourcing' &&
-    isGatedStage(currentNode, request.status);
+    isGatedStage(currentNode, request.status) && roleCanAdvanceStage;
 
-  const isPOStage = request.status === 'po';
+  const isPOStage = request.status === 'po' && ['procurement-manager', 'admin'].includes(currentRole);
   // Gated on the stage, deliberately not on request.sourcingType: that column
   // only fills for requests created after it was added, so gating on it would
   // hide the action on every existing request — including the ones stuck here.
-  const isSourcingStage = request.status === 'sourcing';
+  const isSourcingStage = request.status === 'sourcing' && ['procurement-manager', 'admin'].includes(currentRole);
 
   const isTerminal = request.status === 'completed' || request.status === 'cancelled';
   const isApprovalStage = request.status === 'approval';
@@ -106,6 +111,8 @@ export function ActionButtons({ request }: ActionButtonsProps) {
     (a) => a.approverId === currentUser.id && a.status === 'pending',
   );
   const canApprove = isApprovalStage || Boolean(myPendingApproval);
+  const canManageRequest = ['procurement-manager', 'vendor-manager', 'operations-lead', 'admin'].includes(currentRole)
+    || (currentRole === 'service-owner' && request.requestorId === currentUser.id);
 
   async function handleConfirm() {
     if (!confirmAction) return;
@@ -382,22 +389,22 @@ export function ActionButtons({ request }: ActionButtonsProps) {
             </Button>
           </>
         )}
-        <Button size="sm" variant="outline" className="text-amber-700 border-amber-300 hover:bg-amber-50" onClick={() => setReferBackOpen(true)}>
+        {canManageRequest && <Button size="sm" variant="outline" className="text-amber-700 border-amber-300 hover:bg-amber-50" onClick={() => setReferBackOpen(true)}>
           <RotateCcw className="size-3.5" />
           Refer Back
-        </Button>
-        <Button size="sm" variant="outline" onClick={() => setReassignOpen(true)}>
+        </Button>}
+        {['procurement-manager', 'operations-lead', 'admin'].includes(currentRole) && <Button size="sm" variant="outline" onClick={() => setReassignOpen(true)}>
           <UserPlus className="size-3.5" />
           Reassign
-        </Button>
-        <Button size="sm" variant="outline" onClick={() => setEscalateOpen(true)}>
+        </Button>}
+        {['procurement-manager', 'operations-lead', 'admin'].includes(currentRole) && <Button size="sm" variant="outline" onClick={() => setEscalateOpen(true)}>
           <ArrowUpRight className="size-3.5" />
           Escalate
-        </Button>
-        <Button size="sm" variant="outline" className="text-red-600 border-red-200 hover:bg-red-50" onClick={() => setConfirmAction('cancel')}>
+        </Button>}
+        {canManageRequest && <Button size="sm" variant="outline" className="text-red-600 border-red-200 hover:bg-red-50" onClick={() => setConfirmAction('cancel')}>
           <Ban className="size-3.5" />
           Cancel
-        </Button>
+        </Button>}
       </div>
 
       <ReferBackDialog open={referBackOpen} onOpenChange={setReferBackOpen} request={request} />

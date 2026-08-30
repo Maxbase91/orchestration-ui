@@ -49,6 +49,7 @@ import { getProcurementProfile } from '@/lib/db/procurement-profiles';
 import { evaluateGovernedCheckout, resolveCheckoutRiskAssessment, resolveCheckoutContract } from '@/lib/procurement/governed-checkout';
 import { submitGovernedCheckout } from '@/lib/procurement/submit-governed-checkout';
 import { CatalogueOrderCheckout, type CatalogueOrderDraft } from '@/features/catalogue/catalogue-order-checkout';
+import { ContractCallOffCheckout, type ContractCallOffDraft } from './contract-call-off-checkout';
 
 /**
  * How a section came to be filled.
@@ -376,7 +377,11 @@ function ExpertNewRequestPage() {
 
   // Catalogue fast track — drives the reduced stepper and the Step-3 "Create
   // order" action that skips risk/determination/routing.
-  const isCatalogue = formData.preCheckOutcome === 'catalogue' || formData.category === 'catalogue';
+  // The fulfilment route is settled by the pre-check outcome, not by the
+  // broad commodity value. A user can explicitly reject a catalogue result
+  // and continue as a full request; retaining the category-only fallback here
+  // would silently put that choice back into the reduced catalogue wizard.
+  const isCatalogue = formData.preCheckOutcome === 'catalogue';
 
   // Step 3's floor. The chat path is the only one that captures the service
   // description through the conversation; the catalogue, contract and
@@ -528,6 +533,56 @@ function ExpertNewRequestPage() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  // Contract call-offs use the same governed persistence seam as catalogue
+  // orders. Keeping this path here prevents Expert mode from falling back to
+  // the generic request writer and losing the PR/PO audit links.
+  const submitContractCallOff = async (draft: ContractCallOffDraft) => {
+    const contract = contracts.find((candidate) => candidate.id === formData.contractId);
+    if (!contract) { toast.error('The selected contract is no longer available.'); return; }
+    const supplier = suppliers.find((candidate) => candidate.id === contract.supplierId);
+    if (!supplier) { toast.error('The contract supplier could not be resolved.'); return; }
+    setIsSubmitting(true);
+    const id = generateRequestId();
+    try {
+      const storedProfile = await getProcurementProfile(currentUser.id).catch(() => null);
+      const profile = storedProfile ?? {
+        userId: currentUser.id, defaultCurrency: formData.currency, costCentre: draft.costCentre,
+        budgetOwner: currentUser.name, accountType: 'expense', beneficiaryId: formData.beneficiaryId || currentUser.id,
+        approvedShipToLocations: [{ id: draft.deliveryLocation, label: draft.deliveryLocation }],
+        defaultShipToLocationId: draft.deliveryLocation,
+      };
+      const riskAssessment = resolveCheckoutRiskAssessment(riskAssessments, supplier.id, contract.id);
+      const line = { description: draft.title, quantity: 1, unit: 'service', unitPrice: draft.value, supplierId: supplier.id, contractId: contract.id, riskAssessmentId: riskAssessment?.id, commodityCode: formData.commodityCode || profile.defaultCommodityCode };
+      const checkout = {
+        route: 'contract-call-off' as const, lines: [line], supplier, contract, riskAssessment, profile,
+        currency: formData.currency, needByDate: draft.needBy, serviceStartDate: draft.serviceStartDate || undefined,
+        serviceEndDate: draft.serviceEndDate || undefined, purpose: draft.purpose, costCentre: draft.costCentre,
+        shipToLocationId: draft.deliveryLocation, beneficiaryId: formData.beneficiaryId || currentUser.id,
+        idempotencyKey: `checkout-${id}`,
+      };
+      const decision = evaluateGovernedCheckout(checkout);
+      if (!decision.ok) throw new Error(decision.errors.join(' '));
+      const request = {
+        id, title: draft.title, description: draft.purpose, category: (formData.category || contract.category || 'services') as RequestCategory,
+        status: 'intake' as const, priority: formData.isUrgent ? ('urgent' as const) : ('medium' as const), value: decision.totalValue,
+        currency: formData.currency, supplierId: supplier.id, contractId: contract.id, buyingChannel: 'framework-call-off' as BuyingChannel,
+        commodityCode: line.commodityCode, commodityCodeLabel: formData.commodityCodeLabel || line.commodityCode, costCentre: draft.costCentre,
+        budgetOwner: currentUser.name, businessJustification: '', deliveryDate: parseDeliveryDate(draft.needBy) ?? undefined,
+        requestorId: currentUser.id, ownerId: currentUser.id, daysInStage: 0, isOverdue: false, referBackCount: 0,
+        beneficiaryId: formData.beneficiaryId || undefined, beneficiaryName: formData.beneficiaryName || undefined,
+      };
+      const lines = [{ id: `LINE-${id}-1`, requestId: id, description: draft.title, quantity: 1, unit: 'service', unitPrice: draft.value,
+        supplierId: supplier.id, contractId: contract.id, riskAssessmentId: riskAssessment?.id, commodityCode: line.commodityCode, deliveryDate: draft.needBy }];
+      await submitGovernedCheckout({ requestId: id, requisitionId: `PR-${id}`, decision, checkout, request, lines });
+      if (decision.status !== 'approved') await initWorkflow(id, formData.workflowTemplateId, 'framework-call-off');
+      queryClient.invalidateQueries({ queryKey: ['requests'] });
+      toast.success('Contract call-off submitted');
+      setRequestId(id); setCurrentStep(7);
+    } catch (error) {
+      toast.error(`Could not submit contract call-off: ${error instanceof Error ? error.message : 'Please try again.'}`);
+    } finally { setIsSubmitting(false); }
   };
 
   const handleNext = async () => {
@@ -900,22 +955,11 @@ function ExpertNewRequestPage() {
           ) : <StepCatalogue onPlaceOrder={(order) => void submitCatalogueOrder(order)} />
         )}
         {currentStep === 3 && formData.preCheckOutcome === 'contract' && (
-          <StepDetails
-            category={formData.category || 'contract-renewal'}
-            data={{
-              title: formData.title || formData.contractTitle,
-              supplier: formData.supplier,
-              supplierId: formData.supplierId,
-              estimatedValue: formData.estimatedValue,
-              currency: formData.currency,
-              businessJustification: formData.businessJustification,
-              deliveryDate: formData.deliveryDate,
-              isUrgent: formData.isUrgent,
-              costCentre: formData.costCentre,
-              commodityCode: formData.commodityCode,
-              commodityCodeLabel: formData.commodityCodeLabel,
-            }}
-            onUpdate={(d) => updateFormData(d)}
+          <ContractCallOffCheckout
+            contract={contracts.find((candidate) => candidate.id === formData.contractId)}
+            mode="expert"
+            initialValues={{ title: formData.title || formData.contractTitle, value: formData.estimatedValue, needBy: formData.deliveryDate, recipient: formData.beneficiaryName, purpose: formData.businessJustification, costCentre: formData.costCentre }}
+            onSubmit={(draft) => void submitContractCallOff(draft)}
           />
         )}
         {currentStep === 3 && formData.preCheckOutcome === 'full-request' && formData.category === 'catalogue' && (
@@ -1058,7 +1102,7 @@ function ExpertNewRequestPage() {
             )}
             {/* Catalogue places the order from the cart itself (single click),
                 so the footer shows no primary action on that step. */}
-            {!(isCatalogue && currentStep === 3) && (
+            {!(isCatalogue && currentStep === 3) && !(currentStep === 3 && formData.preCheckOutcome === 'contract') && (
               <Button
                 onClick={handleNext}
                 disabled={!canProceed() || isSubmitting}

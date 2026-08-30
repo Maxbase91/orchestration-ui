@@ -21,7 +21,14 @@ async function waitForServer() {
 }
 
 const server = spawn('npm', ['run', 'dev', '--', '--port', '5179', '--strictPort'], {
-  stdio: 'ignore', env: { ...process.env, VITE_SUPABASE_URL: 'https://stub.supabase.co', VITE_SUPABASE_ANON_KEY: 'stub-anon-key' },
+  stdio: 'ignore', env: {
+    ...process.env,
+    // Keep this browser suite deterministic and independent from a developer's
+    // local Neon URL. The route handoff only needs the fixture REST surface.
+    VITE_DATABASE_PROVIDER: 'supabase',
+    VITE_SUPABASE_URL: 'https://stub.supabase.co',
+    VITE_SUPABASE_ANON_KEY: 'stub-anon-key',
+  },
 });
 let browser;
 try {
@@ -64,6 +71,23 @@ try {
   await page.getByRole('menuitem', { name: /Simple view/ }).click({ force: true, timeout: 3000 });
   await page.waitForTimeout(250);
   check('switching back to Simple renders the adaptive request entry', await page.getByText('Simple requester view', { exact: true }).isVisible().catch(() => false));
+
+  // A demand entered on Simple Home is already the first intake signal. The
+  // route screen should open directly with that text preserved, rather than
+  // sending the requester through the describe/classify screen a second time.
+  const homeDemand = 'I need a new laptop for a new starter';
+  await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
+  await page.getByLabel('Describe what you need').fill(homeDemand);
+  await page.getByRole('button', { name: /Start with this/ }).click();
+  await page.waitForURL(`${BASE}/requests/new?q=${encodeURIComponent(homeDemand)}`, { timeout: 10000 });
+  await page.waitForLoadState('networkidle');
+  check('home demand opens directly on route evaluation', await page.getByText('Contract check', { exact: true }).isVisible().catch(() => false));
+  check('home demand is carried into route evaluation', await page.getByText(homeDemand, { exact: true }).isVisible().catch(() => false));
+  check('home demand skips the duplicate describe screen', (await page.getByText('Describe what you need', { exact: true }).count()) === 0);
+  await page.getByRole('button', { name: /Proceed to full request/ }).last().click();
+  check('full-request escape opens the adaptive details path', await page.getByPlaceholder('Type your answer...').isVisible().catch(() => false));
+  check('full-request escape does not open catalogue selection', (await page.getByText('Choose your items', { exact: true }).count()) === 0);
+
   await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(500);
   check('Simple home has a clear start-request entry point',

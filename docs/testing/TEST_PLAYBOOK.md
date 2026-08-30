@@ -71,6 +71,7 @@ and the existing `user_preferences.prefs.requestExperienceMode` JSON key.
 | TC-MODE-05 | Simple intake: use an ineligible P-card category/value | P-card is not offered and the reason is explained; no payment or upstream write occurs |
 | TC-MODE-06 | Simple request detail | Status, owner, due date, value, supplier, summary, route, and next action are visible; internal workflow/approval/configuration controls are absent |
 | TC-MODE-06a | Simple home | A clear Start a request entry point, requester-owned active/recent requests, and help links are shown; Expert customization, pipeline KPIs, and operational widgets are hidden |
+| TC-MODE-06b | Simple home → Start with this | The typed demand opens directly on route evaluation, the original text is visible in the checking context, and the duplicate describe/classify screen is skipped |
 | TC-MODE-07 | Expert request detail deep link | All seven tabs remain available; workflow opens at the current stage and duplicated action/approval/compliance panels are absent |
 | TC-MODE-08 | Resize to 320px and 375px | Sidebar becomes a drawer, menu button is labelled, controls remain reachable, and no horizontal overflow occurs |
 
@@ -146,6 +147,7 @@ and the existing `user_preferences.prefs.requestExperienceMode` JSON key.
 | TC-REQ-20 | Submit each remaining category (Services, Software, Contingent Labour, Contract Renewal, Supplier Onboarding) | Each routes/submits correctly |
 | TC-REQ-21 | P-card route policy (`npm run test:p-card`) | Low-value eligible goods/services may be routed only when policy allows it; missing/over-limit/material/urgent/high-risk or excluded demands are withheld with reasons; the route remains read/route-only and does not initiate payment |
 | TC-REQ-22 | Catalogue item detail + governed checkout (`npm run test:catalogue-ui`, `npm run test:governed-checkout`) | Catalogue entry points open the selected item; checkout captures fulfilment context; supplier/contract/risk/capacity gates and configurable whole-request auto-approval are enforced. If the deployed database predates the additive PR tables, run `npm run backfill:catalogue-governance` for supplier/contract/risk coverage, then apply the governed-checkout section of `supabase/schema.sql`. |
+| TC-REQ-22a | Contract call-off completion | The Review request action remains disabled until the individual call-off has a value, need-by/service date, and cost centre; profile defaults fill accounting data where available and the form explains any remaining fields. Validation checks transaction, contract, supplier, risk, and capacity data; approval is a separate budget/authority decision and is only entered when policy or risk requires it. |
 | TC-REQ-23 | Catalogue item route in full UI sweep (`npm run test:e2e-ui`) | `/catalogue/items/:id` renders through the app shell without a white screen or uncaught page error |
 
 ### Intake routing — catalogue vs contract vs new demand (INT-10)
@@ -156,6 +158,7 @@ The pre-check makes one explainable decision. These are the cases that broke it.
 |---|---|---|
 | TC-REQ-R1 | "I want to buy business consulting" → step 2 | **Never** offers a catalogue item. The reported defect matched **Business Cards 500** (the word "business" hit the item name and carried the whole match) and the ThinkPad ("business laptop" in its description), while "consulting" matched nothing and cost nothing. The catalogue stage is **skipped with the reason stated** — "consulting demand isn't fulfilled from the catalogue" — not rendered empty |
 | TC-REQ-R2 | Same demand, check the escape routes | "Browse the catalogue anyway" and "Proceed to full request" are both present. A skipped stage is a visible, reversible recommendation, not a decision imposed on the requester |
+| TC-REQ-R2a | Proceed to full request from Simple route evaluation | The explicit escape always opens the adaptive details conversation, even when the preliminary channel preview says catalogue or direct PO; it must never show the catalogue picker |
 | TC-REQ-R3 | "a few laptops for a new starter" (goods) | Still matches the ThinkPad. This is the verbose-ask regression an earlier length-normalised matcher caused, and that a coverage-*fraction* rule would cause again — one naming word among five is a match, because circumstantial detail must not count against it |
 | TC-REQ-R4 | "business cards for the sales team" (goods) | Still matches Business Cards 500. "business" is not banned — it just cannot carry a route on its own |
 | TC-REQ-R5 | A matched catalogue item | Shows **which words it matched on**. A suggestion the requester can check is one they can reject |
@@ -620,3 +623,15 @@ finding routinely reveals more in the same file. Re-run to convergence.
 
 Future runs should append a dated record here rather than replacing earlier results. Role-switching
 checks remain simulation coverage; authentication and production authorization are intentionally deferred.
+
+## UI-only procurement lifecycle run
+
+`npm run test:ui-full` drives the live Vercel app through the visible role switcher. It covers
+Simple and Expert catalogue checkout, contract call-off, full intake, sourcing, receipt, invoice
+matching, approval and the internal scheduled/paid payment tracker. The suite never impersonates a
+user through localStorage or calls application APIs directly. Screenshots and a manifest are kept in
+`docs/testing/artifacts/ui-e2e/<run-id>/`; records are retained with a `UI-E2E-<timestamp>` prefix.
+
+Required fields are asserted at the current stage only. Optional expert fields remain collapsed and
+cannot block progression. A missing UI action, unavailable live fixture or lifecycle error is written
+to the run manifest rather than silently bypassed.

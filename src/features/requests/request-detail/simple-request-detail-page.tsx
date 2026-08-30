@@ -36,6 +36,16 @@ const STATUS_COPY: Record<string, string> = {
   'referred-back': 'More information is needed before this request can continue.',
 };
 
+function statusExplanation(request: ProcurementRequest): string {
+  if (request.buyingChannel === 'framework-call-off' && request.status === 'validation') {
+    return 'The contract, supplier, risk, and order details are being checked before this call-off can be released.';
+  }
+  if (request.buyingChannel === 'framework-call-off' && request.status === 'approval') {
+    return 'The budget owner is confirming authority for this call-off. This is separate from the contract and compliance check.';
+  }
+  return STATUS_COPY[request.status] ?? 'This request is progressing through its assigned process.';
+}
+
 function prettyStatus(status: string): string {
   return status.replace(/-/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
@@ -55,7 +65,7 @@ export function SimpleRequestDetailPage({ request }: { request: ProcurementReque
   const owner = lookupUser(request.ownerId);
   const supplier = lookupSupplier(request.supplierId);
   const canWithdraw = request.requestorId === currentUser.id && ['draft', 'intake', 'validation'].includes(request.status);
-  const statusText = STATUS_COPY[request.status] ?? 'This request is progressing through its assigned process.';
+  const statusText = statusExplanation(request);
   const visibleComments = comments.filter((item) => !item.isInternal);
 
   const postComment = async () => {

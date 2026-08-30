@@ -33,16 +33,17 @@ import { submitGovernedCheckout } from '@/lib/procurement/submit-governed-checko
 import { getProcurementProfile } from '@/lib/db/procurement-profiles';
 import { sectionValuesOf } from '@/lib/procurement/service-description-seed';
 import { parseDeliveryDate } from '@/lib/parse-delivery-date';
+import { classifyCommodityCategory } from '@/lib/procurement/classify';
 import type { Contract, ProcurementRequest, CommodityClassificationCandidate, IntakeAttachment } from '@/data/types';
 import type { CatalogueItem } from '@/data/catalogue-items';
 import type { ServiceDescription } from './new-request-page';
 import { StepCategory } from './step-category';
 import { StepPreCheck } from './step-pre-check';
 import { StepCatalogue } from './step-catalogue';
-import { StepDetails } from './step-details';
 import { StepChatIntake } from './step-chat-intake';
 import { RequesterContextBlock } from './components/requester-context-block';
 import { CatalogueOrderCheckout } from '@/features/catalogue/catalogue-order-checkout';
+import { ContractCallOffCheckout } from './contract-call-off-checkout';
 import { IntakeGuidanceCard } from './components/intake-guidance-card';
 
 type SimplePhase = 'describe' | 'route' | 'details' | 'review' | 'submitted';
@@ -89,6 +90,33 @@ const INITIAL_DATA: SimpleData = {
   deliveryLocation: 'office', recipient: '',
 };
 
+const CATEGORY_LABELS: Record<string, string> = {
+  goods: 'Goods',
+  services: 'Services',
+  software: 'Software / IT',
+  consulting: 'Consulting',
+  'contingent-labour': 'Contingent Labour',
+  'contract-renewal': 'Contract Renewal',
+  'supplier-onboarding': 'Supplier Onboarding',
+};
+
+/**
+ * Seed the route stage from a demand entered on the home page. The home page
+ * already collected the user's intent, so showing the same describe/classify
+ * screen again adds friction and previously caused the text to be discarded.
+ * The deterministic category is only a routing hint; the pre-check and server
+ * remain authoritative for catalogue, contract, and governance decisions.
+ */
+function dataFromHomeDemand(text: string): SimpleData {
+  const category = classifyCommodityCategory(text);
+  return {
+    ...INITIAL_DATA,
+    category,
+    categoryDescription: CATEGORY_LABELS[category] ?? category,
+    title: text,
+  };
+}
+
 const ROUTE_COPY: Record<SimpleRoute, { label: string; detail: string }> = {
   catalogue: { label: 'Order from the catalogue', detail: 'Pre-approved items can be ordered without a new sourcing exercise.' },
   contract: { label: 'Use an existing contract', detail: 'The matched agreement can cover this need without starting a new sourcing event.' },
@@ -119,8 +147,13 @@ export function SimpleNewRequestPage() {
   const { data: catalogueItems = [] } = useCatalogueItems();
   const { data: contracts = [] } = useContracts();
   const { data: riskAssessments = [] } = useRiskAssessments();
-  const [phase, setPhase] = useState<SimplePhase>('describe');
-  const [data, setData] = useState<SimpleData>(INITIAL_DATA);
+  const homeDemand = (searchParams.get('q') ?? '').trim();
+  // A demand typed on Simple Home is already a valid intake starting point.
+  // Open on route evaluation so the requester sees the catalogue/contract
+  // decision directly, while a blank /requests/new link keeps the normal
+  // describe screen for users who intentionally opened the full intake.
+  const [phase, setPhase] = useState<SimplePhase>(() => homeDemand ? 'route' : 'describe');
+  const [data, setData] = useState<SimpleData>(() => homeDemand ? dataFromHomeDemand(homeDemand) : INITIAL_DATA);
   const [route, setRoute] = useState<SimpleRoute>('new-request');
   const [requestIdValue, setRequestIdValue] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -158,6 +191,23 @@ export function SimpleNewRequestPage() {
     setData((previous) => ({ ...previous, ...patch } as SimpleData));
   };
 
+  // Profile defaults remove accounting friction from call-offs, but never
+  // overwrite a value the requester has already entered or confirmed.
+  useEffect(() => {
+    let cancelled = false;
+    void getProcurementProfile(currentUser.id).then((profile) => {
+      if (cancelled || !profile) return;
+      setData((previous) => ({
+        ...previous,
+        costCentre: previous.costCentre || profile.costCentre || '',
+        beneficiaryId: previous.beneficiaryId || profile.beneficiaryId || '',
+      }));
+    }).catch(() => {
+      // The form remains usable when the additive profile table is unavailable.
+    });
+    return () => { cancelled = true; };
+  }, [currentUser.id]);
+
   const { data: template } = useServiceDescriptionTemplate(data.category || undefined);
   const slots = useMemo(() => resolveSlots(template?.slots), [template]);
   const context = useMemo<DemandConversationContext>(() => ({
@@ -169,6 +219,12 @@ export function SimpleNewRequestPage() {
   }), [data]);
   const descriptionComplete = requiredSlotsFilled(context, slots);
   const detailComplete = Boolean(data.title && data.estimatedValue > 0 && data.deliveryDate && data.costCentre);
+  const missingDetailFields = [
+    !data.title ? 'a title' : null,
+    !(data.estimatedValue > 0) ? 'an order value' : null,
+    !data.deliveryDate ? 'a need-by/service date' : null,
+    !data.costCentre ? 'a cost centre' : null,
+  ].filter((field): field is string => Boolean(field));
   const signals = useMemo(() => computeDemandSignals({
     category: data.category,
     value: data.estimatedValue,
@@ -395,12 +451,15 @@ export function SimpleNewRequestPage() {
       )}
 
       {phase === 'describe' && (
-        <Card><CardContent className="p-6"><StepCategory category={data.category} categoryDescription={data.categoryDescription} onUpdate={update} onAutoAdvance={() => setPhase('route')} onBrowseCatalogue={() => { update({ category: 'catalogue', categoryDescription: 'Catalogue Purchase', preCheckOutcome: 'catalogue' }); setRoute('catalogue'); setPhase('details'); }} /></CardContent></Card>
+          <Card><CardContent className="p-6"><StepCategory category={data.category} categoryDescription={data.categoryDescription} prefill={homeDemand} onUpdate={update} onAutoAdvance={() => setPhase('route')} onBrowseCatalogue={() => { update({ category: 'catalogue', categoryDescription: 'Catalogue Purchase', preCheckOutcome: 'catalogue' }); setRoute('catalogue'); setPhase('details'); }} /></CardContent></Card>
       )}
 
       {phase === 'route' && (
         <div className="space-y-4">
-        <Card><CardContent className="p-6"><StepPreCheck title={data.title || data.categoryDescription} category={data.category} estimatedValue={data.estimatedValue} supplierId={data.supplierId} llmIntent={data.llmIntent} onChooseCatalogue={(items: CatalogueItem[]) => { const primary = items[0]; if (primary) { navigate(`/catalogue/items/${encodeURIComponent(primary.id)}`); return; } }} onChooseContract={(contract: Contract) => { update({ contractId: contract.id, contractTitle: contract.title, supplier: contract.supplierName, supplierId: contract.supplierId, category: data.category || contract.category.toLowerCase() }); setRoute('contract'); setPhase('details'); }} onProceedToFullRequest={() => { setRoute(routeFromChannel(routing.channel)); setPhase('details'); }} onEnrich={(text) => update({ title: data.title ? `${data.title} — ${text}` : text })} /></CardContent></Card>
+        <Card><CardContent className="p-6"><StepPreCheck title={data.title || data.categoryDescription} category={data.category} estimatedValue={data.estimatedValue} supplierId={data.supplierId} llmIntent={data.llmIntent} onChooseCatalogue={(items: CatalogueItem[]) => { const primary = items[0]; if (primary) { navigate(`/catalogue/items/${encodeURIComponent(primary.id)}`); return; } }} onChooseContract={(contract: Contract) => { update({ contractId: contract.id, contractTitle: contract.title, supplier: contract.supplierName, supplierId: contract.supplierId, category: data.category || contract.category.toLowerCase() }); setRoute('contract'); setPhase('details'); }} onProceedToFullRequest={() => { // Explicitly selecting a full request must never inherit a catalogue/direct-PO channel from the preliminary rules preview.
+          setRoute('new-request');
+          setPhase('details');
+        }} onEnrich={(text) => update({ title: data.title ? `${data.title} — ${text}` : text })} /></CardContent></Card>
           <Card className="border-blue-100 bg-blue-50/40"><CardContent className="space-y-2 p-4 text-sm"><p className="font-medium text-blue-900">Recommended path: {ROUTE_COPY[routeFromChannel(routing.channel)].label}</p><p className="text-blue-800">{ROUTE_COPY[routeFromChannel(routing.channel)].detail}</p>{!pCardEligibility.eligible && <p className="text-xs text-blue-700">Purchasing card is not available for this request: {pCardEligibility.ineligibleReasons[0]}</p>}</CardContent></Card>
         </div>
       )}
@@ -408,8 +467,16 @@ export function SimpleNewRequestPage() {
       {phase === 'details' && (
         <div className="space-y-4">
           <RequesterContextBlock requestorId={currentUser.id} requesterCountry={data.requesterCountry} beneficiaryId={data.beneficiaryId} beneficiaryName={data.beneficiaryName} onUpdate={update} />
-          {route === 'catalogue' ? (catalogueCheckoutOpen && data.catalogueItems[0] ? <CatalogueOrderCheckout item={catalogueItems.find((item) => item.id === data.catalogueItems[0].itemId) ?? catalogueItems[0]} mode="simple" initialValues={{ quantity: data.catalogueItems[0].quantity, costCentre: data.costCentre, needBy: data.deliveryDate, businessPurpose: data.businessJustification, deliveryLocation: data.deliveryLocation, recipient: data.recipient }} onSubmit={finishCatalogueCheckout} /> : <Card><CardHeader><CardTitle className="text-base">Choose your items</CardTitle></CardHeader><CardContent><StepCatalogue onPlaceOrder={(order) => void finishCatalogueOrder(order)} /></CardContent></Card>) : route === 'new-request' ? <Card><CardContent className="p-6"><StepChatIntake category={data.category} categoryDescription={data.categoryDescription} data={{ ...data, serviceDescription: data.serviceDescription }} onUpdate={update} /></CardContent></Card> : <Card><CardContent className="p-6"><StepDetails category={data.category || 'services'} data={data} onUpdate={update} /></CardContent></Card>}
-          {route !== 'catalogue' && <div className="flex items-center justify-between"><Button variant="ghost" onClick={() => setPhase('route')}><ArrowLeft className="size-4" />Back</Button><Button onClick={() => setPhase('review')} disabled={route === 'new-request' ? !descriptionComplete : !detailComplete}>Review request<ArrowRight className="size-4" /></Button></div>}
+          {route === 'contract' && (
+            <Card className="border-blue-100 bg-blue-50/40">
+              <CardContent className="space-y-1 p-4 text-sm">
+                <p className="font-medium text-blue-900">Contract call-off</p>
+                <p className="text-blue-800">Confirm the value and timing for this purchase against {data.contractTitle || 'the selected contract'}. The contract ceiling is not the value of this individual call-off.</p>
+              </CardContent>
+            </Card>
+          )}
+          {route === 'catalogue' ? (catalogueCheckoutOpen && data.catalogueItems[0] ? <CatalogueOrderCheckout item={catalogueItems.find((item) => item.id === data.catalogueItems[0].itemId) ?? catalogueItems[0]} mode="simple" initialValues={{ quantity: data.catalogueItems[0].quantity, costCentre: data.costCentre, needBy: data.deliveryDate, businessPurpose: data.businessJustification, deliveryLocation: data.deliveryLocation, recipient: data.recipient }} onSubmit={finishCatalogueCheckout} /> : <Card><CardHeader><CardTitle className="text-base">Choose your items</CardTitle></CardHeader><CardContent><StepCatalogue onPlaceOrder={(order) => void finishCatalogueOrder(order)} /></CardContent></Card>) : route === 'new-request' ? <Card><CardContent className="p-6"><StepChatIntake category={data.category} categoryDescription={data.categoryDescription} data={{ ...data, serviceDescription: data.serviceDescription }} onUpdate={update} /></CardContent></Card> : <ContractCallOffCheckout contract={contracts.find((candidate) => candidate.id === data.contractId) ?? contracts[0]} mode="simple" initialValues={{ title: data.title, value: data.estimatedValue, needBy: data.deliveryDate, deliveryLocation: data.deliveryLocation, recipient: data.recipient, purpose: data.businessJustification, costCentre: data.costCentre }} onSubmit={(draft) => { update({ title: draft.title, estimatedValue: draft.value, deliveryDate: draft.needBy, deliveryLocation: draft.deliveryLocation, recipient: draft.recipient, businessJustification: draft.purpose, costCentre: draft.costCentre }); setPhase('review'); }} />}
+          {route !== 'catalogue' && route !== 'contract' && <div className="space-y-2"><div className="flex items-center justify-between"><Button variant="ghost" onClick={() => setPhase('route')}><ArrowLeft className="size-4" />Back</Button><Button onClick={() => setPhase('review')} disabled={route === 'new-request' ? !descriptionComplete : !detailComplete}>Review request<ArrowRight className="size-4" /></Button></div>{route !== 'new-request' && !detailComplete && <p className="text-right text-xs text-muted-foreground">To review this request, add {missingDetailFields.join(', ')}.</p>}</div>}
         </div>
       )}
 

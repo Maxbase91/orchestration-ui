@@ -461,6 +461,10 @@ function stripTechnicalSourceMarkers(content: string): string {
     .replace(/【\s*(?:functions\.)?(?:search_knowledge|lookup_object|filter_objects|propose_action|create_ticket|start_demand|remember_preference)\s*】/gi, '')
     .replace(/【\s*(?:source\s*:\s*)?functions\.(?:search_knowledge|lookup_object|filter_objects|propose_action|create_ticket|start_demand|remember_preference)\s*】/gi, '')
     .replace(/【\s*\{[^】]*["']source["']\s*:\s*["']functions\.(?:search_knowledge|lookup_object|filter_objects|propose_action|create_ticket|start_demand|remember_preference)["'][^】]*\}\s*】/gi, '')
+    // Some providers omit the `functions.` prefix and append a human-looking
+    // "result" suffix (for example `【source: filter_objects result】`). It is
+    // still tool metadata, never a source a requester should see.
+    .replace(/【\s*source\s*:\s*(?:functions\.)?(?:search_knowledge|lookup_object|filter_objects|propose_action|create_ticket|start_demand|remember_preference)(?:\s+result)?\s*】/gi, '')
     .replace(/【\s*source\s*】/gi, '')
     .replace(/\s{2,}/g, ' ')
     .trim();
@@ -586,6 +590,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ]);
       return;
     }
+    // Keep the empty state scoped to the simulated requester. Returning this
+    // deterministic sentence avoids the model turning an empty personal
+    // result into the misleading claim that the entire system has no POs.
+    sendTurns([{ type: 'chat-answer', content: 'I could not find a purchase order linked to your requests yet.' }]);
+    return;
   }
   let systemPrompt = SYSTEM_PROMPT;
   if (userId) {

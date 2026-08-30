@@ -81,6 +81,7 @@ check('create_ticket restricted to explicit human-help (not a fallback)',
 check('provider function citation markers are stripped before display',
   chatSrc.includes('stripTechnicalSourceMarkers') && chatSrc.includes('functions\\.)?') && chatSrc.includes('["\']source["\']'));
 check('plain source markers are stripped before display', chatSrc.includes('source\\s*】'));
+check('provider source result markers are stripped before display', chatSrc.includes('source\\s*:\\s*(?:functions\\.)?') && chatSrc.includes('(?:\\s+result)?'));
 check('most-recent PO lookup is requester-scoped and date-ordered',
   chatSrc.includes("eq('requestor_id', userId)") && chatSrc.includes("order('created_at', { ascending: false })"));
 check('most-recent PO answers bypass model list selection',

@@ -326,6 +326,9 @@ export function StepPreCheck({
             The fastest path is an existing catalogue item. Let&apos;s see if one fits before we go
             any further.
           </p>
+          <p className="mt-2 text-xs text-gray-600">
+            Checking: <span className="font-medium text-gray-900">{title}</span>
+          </p>
         </div>
 
         {decision.llmOverruled && (
@@ -447,6 +450,9 @@ export function StepPreCheck({
         <h2 className="text-base font-semibold text-gray-900">Contract check</h2>
           <p className="mt-0.5 text-sm text-gray-500">
             Next we look for an active contract that can already cover this.
+          </p>
+          <p className="mt-2 text-xs text-gray-600">
+            Checking: <span className="font-medium text-gray-900">{title}</span>
           </p>
         </div>
         {/* Reachable even when the catalogue was ruled out — the decision is
