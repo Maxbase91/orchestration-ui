@@ -356,9 +356,15 @@ export function StepCategory({ category, prefill, onUpdate, onAutoAdvance, onBro
             placeholder='e.g. "I need business consulting from Accenture for a digital transformation project"'
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
-            className="text-base h-12 pl-10"
+            className="text-base h-12 pl-10 pr-28"
             disabled={loading}
           />
+          {/* A visible submit target keeps the primary action usable on
+              keyboards and touch devices where implicit Enter submission is
+              not consistently exposed by the wrapped input control. */}
+          <Button type="submit" size="sm" variant="secondary" className="absolute right-2 top-1/2 -translate-y-1/2" disabled={loading || !inputValue.trim()}>
+            {loading ? 'Checking…' : 'Find route'}
+          </Button>
           {loading && (
             <div className="absolute right-3 top-1/2 -translate-y-1/2">
               <Loader2 className="size-4 animate-spin text-[#2D5F8A]" />
