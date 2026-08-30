@@ -51,6 +51,13 @@ function parameterCast(value: unknown): string {
   return '::text';
 }
 
+function updateParameterCast(value: unknown): string {
+  // Neon HTTP sends JavaScript strings as unknown parameters. Explicit casts
+  // are required for UPDATE assignments (notably approval status fields),
+  // even though a WHERE comparison can infer its type from the column.
+  return parameterCast(value);
+}
+
 function selectList(value: string | undefined): string {
   if (!value || value === '*') return '*';
   return value.split(',').map((column) => quoteIdentifier(column.trim())).join(', ');
@@ -175,7 +182,7 @@ export async function executeNeonRequest(request: DbRequest): Promise<unknown> {
     const value = parameterValue(rows[0][column], column, jsonColumnsForTable);
     if (value === null) return `${quoteIdentifier(column)} = NULL`;
     bodyParams.push(value);
-    return `${quoteIdentifier(column)} = $${bodyParams.length}`;
+    return `${quoteIdentifier(column)} = $${bodyParams.length}${updateParameterCast(value)}`;
   });
   // Put SET parameters first and append filter parameters afterwards. This
   // keeps values typed by their target columns at $1..$n; the previous
