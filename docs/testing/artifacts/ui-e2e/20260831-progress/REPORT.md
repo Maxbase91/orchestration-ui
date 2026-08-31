@@ -155,6 +155,22 @@ handoff (sourcing award, onboarding decision, invoice variance, and simulated
 payment) was completed in this rerun. Those remain explicit follow-up scenarios
 for the full UAT run.
 
+## Write-enabled catalogue lifecycle — 31 August 2026
+
+A prefixed catalogue request was submitted through the visible requester UI and
+completed through the role handoffs:
+
+`requester submit → procurement approval → procurement PO creation → operations full receipt → supplier invoice submission → operations review/match → procurement invoice approval → admin schedule → admin release`.
+
+The request and invoice both persisted after reload. The final invoice state was
+`Paid` and the PO receipt was confirmed. Screenshots are retained under
+`../UI-E2E-20260831-CATALOGUE-WRITE/`.
+
+This run also found and repaired the catalogue approval-stage mapping and added
+role-gated simulated payment actions to the Admin tracker. The UI still exposes
+approval controls to the requester persona on request detail, which remains a
+permission-surface follow-up because role switching is simulation-only.
+
 ## Proposed remediation plan
 
 ### P0 — release blockers
