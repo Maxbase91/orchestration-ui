@@ -15,9 +15,11 @@ async function upsert(table: string, rows: DbRow[], conflict?: string): Promise<
   let total = 0;
   for (const batch of chunks(rows)) {
     const q = getSupabaseAdmin().from(table).upsert(batch, conflict ? { onConflict: conflict } : undefined);
-    const { error, count } = await q.select('*', { count: 'exact', head: true });
+    const { error } = await q.select('*', { count: 'exact', head: true });
     if (error) throw new Error(`${table}: ${error.message}`);
-    total += count ?? batch.length;
+    // The head query intentionally avoids transferring rows; batch size is a
+    // reliable idempotent progress count for this administrative seed action.
+    total += batch.length;
   }
   return total;
 }

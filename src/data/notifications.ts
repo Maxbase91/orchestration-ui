@@ -1,7 +1,7 @@
 // Seed data only — not read by the runtime app.
 // Notifications moved to Supabase in Wave 2.
 
-import type { Notification } from './types';
+import type { Notification } from './types.js';
 
 export const notifications: Notification[] = [
   {

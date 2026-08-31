@@ -6,7 +6,7 @@
 // Workflow templates moved to Supabase in Wave 3
 // (UI uses `@/lib/db/hooks/use-workflow-templates`).
 
-import type { WorkflowTemplate } from './types';
+import type { WorkflowTemplate } from './types.js';
 
 export const workflowTemplates: WorkflowTemplate[] = [
   {

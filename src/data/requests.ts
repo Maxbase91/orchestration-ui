@@ -2,7 +2,7 @@
 // Requests moved to Supabase in Wave 1. UI reads via
 // `@/lib/db/hooks/use-requests`.
 
-import type { ProcurementRequest } from './types';
+import type { ProcurementRequest } from './types.js';
 
 export const requests: ProcurementRequest[] = [
   // === 5 COMPLETE LIFECYCLE requests (completed/payment) ===

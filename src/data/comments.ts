@@ -1,7 +1,7 @@
 // Seed data only — not read by the runtime app.
 // Comments moved to Supabase in Wave 1.
 
-import type { Comment } from './types';
+import type { Comment } from './types.js';
 
 export const comments: Comment[] = [
   // REQ-2024-0001 (Cloud hosting migration - AWS) - completed

@@ -1,4 +1,4 @@
-import type { SupplierPayment } from './types';
+import type { SupplierPayment } from './types.js';
 
 // Vendor-data foundation: representative supplier payment / banking master
 // records. Not wired into an R1 flow — this is the own-store data the `payment`

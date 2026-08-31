@@ -152,7 +152,7 @@ async function jsonColumns(table: string): Promise<Set<string>> {
   const rows = await sql.query(
     `SELECT column_name FROM information_schema.columns
      WHERE table_schema = 'public' AND table_name = '${table}' AND data_type IN ('json', 'jsonb')`,
-  );
+  ) as unknown as Array<Record<string, unknown>>;
   const columns = new Set(rows.map((row) => String(row.column_name)));
   jsonColumnsCache.set(table, columns);
   return columns;
@@ -181,7 +181,7 @@ export async function executeNeonRequest(request: DbRequest): Promise<unknown> {
   if (request.operation === 'select') {
     const order = (request.orders ?? []).map((item) => `${quoteIdentifier(item.column)} ${item.ascending ? 'ASC' : 'DESC'}`).join(', ');
     const suffix = `${where}${order ? ` ORDER BY ${order}` : ''}${request.limit ? ` LIMIT ${Math.max(1, Math.min(request.limit, 2000))}` : ''}`;
-    const rows = await sql.query(`SELECT ${selectList(request.select)} FROM ${relation}${suffix}`, params);
+    const rows = await sql.query(`SELECT ${selectList(request.select)} FROM ${relation}${suffix}`, params) as unknown as Array<Record<string, unknown>>;
     if (!request.single) return rows;
     if (rows.length > 1) throw new Error('Expected at most one database row');
     return rows[0] ?? null;

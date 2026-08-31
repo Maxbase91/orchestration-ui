@@ -2,7 +2,7 @@
 // Routing rules moved to Supabase in Wave 3
 // (UI uses `@/lib/db/hooks/use-routing-rules`).
 
-import type { RoutingRule } from './types';
+import type { RoutingRule } from './types.js';
 
 export const routingRules: RoutingRule[] = [
   {

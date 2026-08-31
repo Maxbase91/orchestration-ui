@@ -3,7 +3,7 @@
 // Stage history moved to Supabase in Wave 1. UI reads via
 // `@/lib/db/hooks/use-stage-history`.
 
-import type { StageHistoryEntry } from './types';
+import type { StageHistoryEntry } from './types.js';
 
 export const stageHistory: StageHistoryEntry[] = [
   // REQ-2024-0001 (Cloud hosting - completed)

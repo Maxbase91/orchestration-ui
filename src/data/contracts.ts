@@ -4,7 +4,7 @@
 // This file remains as the source of truth for `api/admin/seed.ts` to import
 // during database seeding.
 
-import type { Contract } from './types';
+import type { Contract } from './types.js';
 
 export const contracts: Contract[] = [
   {

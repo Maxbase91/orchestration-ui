@@ -11,7 +11,7 @@
 // pulling in lucide. Icon *names* are strings here; `@/data/category-icons`
 // resolves them to components on the client.
 
-import type { ProcurementCategory } from '@/lib/db/procurement-categories';
+import type { ProcurementCategory } from '../lib/db/procurement-categories.js';
 
 /**
  * Canonical default taxonomy, in display order.

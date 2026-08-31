@@ -15,7 +15,7 @@
 //   - 3 info-requested approval entries so the Activity tab and the
 //     stepper ❓ badge both fire.
 
-import type { ProcurementRequest, StageHistoryEntry, Invoice, Comment, ApprovalEntry, PurchaseOrder } from './types';
+import type { ProcurementRequest, StageHistoryEntry, Invoice, Comment, ApprovalEntry, PurchaseOrder } from './types.js';
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
@@ -69,14 +69,14 @@ function historyForRequest(
 // ── Requests ────────────────────────────────────────────────────────
 // IDs REQ-2025-0101 through REQ-2025-0120 (safe from existing 0001-0035).
 
-const REQS_SPEC: Array<Pick<ProcurementRequest,
+const REQS_SPEC: Array<Partial<Pick<ProcurementRequest,
   'id' | 'title' | 'description' | 'category' | 'status' | 'priority' |
   'value' | 'currency' | 'requestorId' | 'ownerId' | 'supplierId' |
   'contractId' | 'poId' | 'buyingChannel' | 'commodityCode' |
   'commodityCodeLabel' | 'costCentre' | 'budgetOwner' |
   'businessJustification' | 'deliveryDate' | 'isUrgent' |
   'createdAt' | 'updatedAt' | 'daysInStage' | 'isOverdue' | 'referBackCount'
->> = [
+>>> = [
   // 6 completed procurement-led services across 2025-02..2026-01
   { id: 'REQ-2025-0101', title: 'Cyber security consulting — Q2 engagement', description: 'Deloitte penetration testing + gap analysis.',
     category: 'consulting', status: 'completed', priority: 'medium', value: 185000, currency: 'EUR',

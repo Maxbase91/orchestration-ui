@@ -3,7 +3,7 @@
 // Invoices moved to Supabase in Wave 1. UI reads via
 // `@/lib/db/hooks/use-invoices`.
 
-import type { Invoice } from './types';
+import type { Invoice } from './types.js';
 
 export const invoices: Invoice[] = [
   {

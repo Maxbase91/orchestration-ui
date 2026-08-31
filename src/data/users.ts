@@ -3,7 +3,7 @@
 // Users moved to Supabase in Wave 1. UI reads via `@/lib/db/hooks/use-users`.
 // This file remains as the source of truth for `api/admin/seed.ts`.
 
-import type { User } from './types';
+import type { User } from './types.js';
 
 // Single identity namespace — every user carries one of the 6 canonical system
 // roles. The role-switcher's switchable personas are real rows here (u6, u1, u3,

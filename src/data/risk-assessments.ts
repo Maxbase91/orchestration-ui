@@ -6,7 +6,7 @@
 // `IntakeComplianceRecord.matchingRiskAssessmentIds` in request-compliance.ts
 // (intake-compliance migrates in Wave 2).
 
-import type { RiskAssessment } from './types';
+import type { RiskAssessment } from './types.js';
 
 export const riskAssessments: RiskAssessment[] = [
   {

@@ -3,7 +3,7 @@
 // Approval entries moved to Supabase in Wave 1. UI reads via
 // `@/lib/db/hooks/use-approvals`.
 
-import type { ApprovalEntry } from './types';
+import type { ApprovalEntry } from './types.js';
 
 export const approvalEntries: ApprovalEntry[] = [
   // REQ-2024-0001 (Cloud hosting - completed, approved)

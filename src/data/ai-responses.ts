@@ -1,4 +1,4 @@
-import type { AIResponse } from './types';
+import type { AIResponse } from './types.js';
 
 export const aiResponses: AIResponse[] = [
   // Intake context

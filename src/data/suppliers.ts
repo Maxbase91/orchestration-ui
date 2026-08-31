@@ -5,7 +5,7 @@
 // during database seeding. Once the seed is owned by a separate data bundle
 // (follow-up), this file can be deleted.
 
-import type { Supplier } from './types';
+import type { Supplier } from './types.js';
 
 export const suppliers: Supplier[] = [
   {
