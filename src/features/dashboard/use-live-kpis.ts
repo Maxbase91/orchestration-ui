@@ -74,7 +74,9 @@ function compute(requests: ProcurementRequest[], events: SourcingEvent[]): LiveK
     const firstTimeRight = completed.filter((r) => (r.referBackCount ?? 0) === 0).length;
     return Math.round((firstTimeRight / completed.length) * 100);
   });
-  const complianceRate = complianceSeries[complianceSeries.length - 1] ?? 0;
+  // A quiet current month has no completed denominator. Use the latest month
+  // with completed requests so the KPI does not present an artificial 0%.
+  const complianceRate = [...complianceSeries].reverse().find((value) => value > 0) ?? 0;
   const complianceTrend = trend(complianceSeries);
 
   // ── avg cycle time: days from createdAt → updatedAt, bucketed by completion month

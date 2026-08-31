@@ -6,7 +6,7 @@ export function WidgetKPICompliance() {
 
   return (
     <KPICard
-      label="Compliance Rate"
+      label="Compliance rate (latest completed)"
       value={complianceRate}
       format="percentage"
       sparklineData={complianceSeries}

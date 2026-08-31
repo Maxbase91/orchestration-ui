@@ -18,7 +18,7 @@ export const widgetRegistry: WidgetConfig[] = [
   { id: 'kpi-open-demand', title: 'Open pipeline', description: 'Requests currently in an active intake or procurement stage', icon: 'TrendingUp', size: 'small', availableTo: coreInternal },
   { id: 'kpi-sourcing', title: 'Active Sourcing', description: 'Number of active sourcing events', icon: 'Search', size: 'small', availableTo: coreInternal },
   { id: 'kpi-cycle-time', title: 'Avg Cycle Time', description: 'Average request processing duration', icon: 'Clock', size: 'small', availableTo: coreInternal },
-  { id: 'kpi-compliance', title: 'Compliance Rate', description: 'Policy compliance percentage', icon: 'ShieldCheck', size: 'small', availableTo: coreInternal },
+  { id: 'kpi-compliance', title: 'Compliance rate', description: 'First-time-right rate from the latest completed month', icon: 'ShieldCheck', size: 'small', availableTo: coreInternal },
   { id: 'demand-pipeline', title: 'Demand Pipeline', description: 'Requests by workflow stage', icon: 'BarChart3', size: 'medium', availableTo: coreInternal },
   { id: 'team-workload', title: 'Team Workload', description: 'Request distribution per team member', icon: 'Users', size: 'medium', availableTo: ['procurement-manager', 'operations-lead'] },
   { id: 'attention-required', title: 'Attention Required', description: 'Overdue and referred-back items needing action', icon: 'AlertTriangle', size: 'medium', availableTo: allInternal },
