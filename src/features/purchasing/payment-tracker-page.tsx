@@ -1,11 +1,15 @@
 // Payment tracker page: invoice payment progress from matching through to
 // settlement, with an inline mini-stepper per row and pending/scheduled/paid
-// KPIs. Display-only — payment execution stays in the upstream finance system.
+// KPIs. Admin actions update the internal simulated tracker only; no upstream
+// payment execution is performed in R1.
 import { useMemo, useState } from 'react';
 import { PageHeader } from '@/components/shared/page-header';
 import { KPICard } from '@/components/shared/kpi-card';
 import { DataTable, type Column } from '@/components/shared/data-table';
-import { useInvoices } from '@/lib/db/hooks/use-invoices';
+import { useInvoices, useUpdateInvoice } from '@/lib/db/hooks/use-invoices';
+import { useAuthStore } from '@/stores/auth-store';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -73,6 +77,8 @@ function PaymentStepper({ status }: { status: string }) {
 
 export function PaymentTrackerPage() {
   const { data: invoices = [] } = useInvoices();
+  const updateInvoice = useUpdateInvoice();
+  const currentRole = useAuthStore((s) => s.currentRole);
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
   // The single invoice status is unpacked into separate approval and payment
@@ -187,6 +193,17 @@ export function PaymentTrackerPage() {
         return val ? <span className="text-xs">{formatDate(val)}</span> : <span className="text-xs text-muted-foreground">--</span>;
       },
     },
+    ...(currentRole === 'admin' ? [{
+      key: 'action',
+      label: 'Action',
+      render: (row: InvoiceRow) => {
+        const invoice = invoices.find((item) => item.id === row.id);
+        if (!invoice) return null;
+        if (invoice.status === 'approved') return <Button size="sm" variant="outline" onClick={() => updateInvoice.mutate({ id: invoice.id, patch: { status: 'scheduled' } }, { onSuccess: () => toast.success(`${invoice.id} scheduled for payment`) })}>Schedule</Button>;
+        if (invoice.status === 'scheduled') return <Button size="sm" onClick={() => updateInvoice.mutate({ id: invoice.id, patch: { status: 'paid', paidDate: new Date().toISOString() } }, { onSuccess: () => toast.success(`${invoice.id} marked paid`) })}>Release</Button>;
+        return <span className="text-xs text-muted-foreground">No action</span>;
+      },
+    }] : []),
   ];
 
   return (
