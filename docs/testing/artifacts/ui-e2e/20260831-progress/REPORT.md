@@ -230,3 +230,13 @@ Post-deployment verification passed against the public alias. Evidence:
 `../link-navigation-20260831153010664/manifest.json` — supplier, contract and
 expiring-contract destinations, requester read-only controls, admin controls,
 console/runtime errors, and desktop overflow all passed.
+
+## Full role-based UI sweep — 31 August 2026
+
+The deployed `npm run test:ui-full` run completed all 63 checkpoints across
+requester, procurement, vendor manager, operations, admin, and supplier portal
+routes. It recorded zero failures, zero local-serverless-unavailable findings,
+and no uncaught page/runtime errors. Evidence: `../ui-e2e-20260831164251/`.
+The harness now returns to the shared app shell before switching out of the
+supplier portal, ensuring checkout readiness checks and manifest generation are
+not skipped.

@@ -134,6 +134,13 @@ async function run() {
     }
   }
 
+  // The last route in the matrix is the supplier portal, whose shell has a
+  // different header. Return to the shared app shell before switching back to
+  // the requester persona for checkout readiness; otherwise the role trigger
+  // is not present and the harness stops before it writes its manifest.
+  await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded', timeout: 20000 });
+  await page.waitForTimeout(500);
+
   for (const mode of ['simple', 'expert']) {
     try { await fillCatalogue(page, mode); }
     catch (error) { findings.push({ scenario: 'catalogue', role: 'requester', stage: `${mode}-checkout`, action: 'fill/review', expected: 'mandatory fields enable review', observedUrl: page.url(), errors: [String(error)] }); }
