@@ -11,6 +11,7 @@ import contractVocabulary from '../src/server/api/contract-vocabulary.js';
 import intakeGuidance from '../src/server/api/intake-guidance.js';
 import policyConfig from '../src/server/api/policy-config.js';
 import intakeSubmit from '../src/server/api/intake-submit.js';
+import neonHealth from '../src/server/api/neon-health.js';
 
 type DomainHandler = (req: VercelRequest, res: VercelResponse) => void | Promise<void>;
 
@@ -29,6 +30,7 @@ async function loadDomainHandler(name: string): Promise<DomainHandler | undefine
     case 'intake-guidance': return intakeGuidance;
     case 'policy-config': return policyConfig;
     case 'intake-submit': return intakeSubmit;
+    case 'neon-health': return neonHealth;
     // Keep document parser dependencies out of the common cold-start path;
     // only the upload request loads PDF/DOCX parsing code.
     case 'intake-upload': return (await import('../src/server/api/intake-upload.js')).default;

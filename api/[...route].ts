@@ -9,6 +9,7 @@ import contractVocabulary from '../src/server/api/contract-vocabulary.js';
 import intakeGuidance from '../src/server/api/intake-guidance.js';
 import policyConfig from '../src/server/api/policy-config.js';
 import intakeSubmit from '../src/server/api/intake-submit.js';
+import neonHealth from '../src/server/api/neon-health.js';
 
 type Handler = (req: VercelRequest, res: VercelResponse) => void | Promise<void>;
 
@@ -20,6 +21,7 @@ const HANDLERS: Record<string, Handler> = {
   'intake-guidance': intakeGuidance,
   'policy-config': policyConfig,
   'intake-submit': intakeSubmit,
+  'neon-health': neonHealth,
 };
 
 function routeName(req: VercelRequest): string {

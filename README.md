@@ -185,6 +185,7 @@ npm run test:policy-config-server # Neon policy singleton save/load/validation (
 npm run test:governed-checkout    # contract/risk/capacity gates and PR/PO routing decisions
 npm run test:governed-checkout-atomic # atomic Neon request → PR → lines → conditional PO, replay/conflict/concurrency
 npm run test:intake-submit        # atomic full-demand intake, ISO-date validation and first-stage selection
+# Neon-backed live suites report unavailable when the configured database hostname cannot be resolved.
 npm run test:catalogue-ui         # catalogue item detail and checkout entry-point regressions
 npm run test:p-card               # governed P-card eligibility and route-only safety guard
 npm run test:experience-mode      # role defaults, preference normalization, and pilot eligibility contract
@@ -212,6 +213,7 @@ npm run test:link-route-integrity # static deep-link contract for active request
 npm run test:link-navigation      # deployed role-aware link navigation and requester read-only details
 npm run test:neon-migration       # Neon migration guardrails; live copy requires explicit credentials
 npm run test:neon-live            # read-only Neon schema, relationship, and catalogue-governance validation
+# GET /api/neon-health reports safe configuration, DNS, TLS, authentication, connection, and schema classes.
 # …see package.json "test:*" scripts for the full list
 
 npm run backfill:compliance       # one-time data migration, NOT a test — fills the front-door

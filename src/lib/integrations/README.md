@@ -96,7 +96,10 @@ A `SourceRecord<T>` is `{ data, meta }`. `meta` carries the `sourceSystem`,
 so consumers can reason about freshness regardless of where the record came from.
 
 The active R1 implementation is the private Neon-backed own store; Supabase is retained only as a
-rollback seam.
+rollback/comparison seam. It is never selected implicitly in a Vercel runtime: set
+`DATABASE_PROVIDER=supabase` explicitly for a controlled rollback. The read-only
+`/api/neon-health` dispatcher route reports safe connectivity/error classes without exposing
+connection details.
 
 ## Consumers on the layer
 

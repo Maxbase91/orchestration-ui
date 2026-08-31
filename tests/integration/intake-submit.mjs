@@ -15,5 +15,11 @@ assert.match(endpoint, /invalid_date/);
 assert.match(endpoint, /missing_required_field/);
 assert.match(endpoint, /approval_entries/);
 assert.match(endpoint, /business_justification: null/);
+assert.match(endpoint, /information_schema\.columns/);
+assert.match(endpoint, /persistedRequestRow/);
+assert.match(endpoint, /procurement-led.*validation|validation.*procurement-led/s,
+  'procurement-led intake must enter the shared validation gate before sourcing');
+assert.match(endpoint, /previously incomplete submission/,
+  'safe retries repair legacy orphaned intake rows with no lifecycle evidence');
 assert.match(dispatcher, /'intake-submit'/);
 console.log('Atomic intake submission and date checks passed.');

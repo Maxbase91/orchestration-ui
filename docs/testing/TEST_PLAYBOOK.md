@@ -10,6 +10,12 @@ and its [implementation evidence index](../roadmap/R1_IMPLEMENTATION_EVIDENCE.md
 
 ## 2026-08-31 lifecycle stabilisation tranche
 
+Full-intake submissions enter the shared `validation` stage before any risk,
+approval, or sourcing hand-off. The dispatcher also repairs a legacy orphan —
+a request left in `intake` without stage history or a workflow instance — on a
+safe retry, without overwriting requests that already have lifecycle evidence.
+This keeps partially persisted requests from being presented as complete.
+
 The full-demand submit path now uses the dispatcher-routed `/api/intake-submit`
 boundary. It validates the confirmed date, route, accounting and beneficiary,
 then commits the request, structured service description, compliance record,
@@ -681,6 +687,22 @@ as serverless-unavailable; the meaningful navigation verdict is the deployed run
 
 Future runs should append a dated record here rather than replacing earlier results. Role-switching
 checks remain simulation coverage; authentication and production authorization are intentionally deferred.
+
+## Stabilisation follow-up — 31 Aug 2026
+
+- Full-intake writes now tolerate additive Neon schema rollout gaps by persisting only columns present
+  in `information_schema` (including the optional `commodity_candidates` compatibility field).
+- Neon connectivity checks classify DNS/network failures as unavailable rather than product failures;
+  deployed runtime checks remain authoritative.
+- Supplier risk pages expose a rationale-gated vendor-manager/admin decision form, and the onboarding
+  pipeline exposes a rationale-gated procurement/admin completion action. These are simulation-role
+  controls; production authorization is deferred.
+- Remaining live gaps to validate: full text/PDF/DOCX intake submission, linked sourcing through PO,
+  supplier onboarding form persistence, invoice variance/payment reloads, and assistant conversation
+  persistence. No existing UAT evidence is removed.
+- Latest deployed route checks completed successfully: `npm run test:ui-full` recorded 63 checkpoints
+  with zero failures/runtime errors in `docs/testing/artifacts/ui-e2e/ui-e2e-20260831174649/`; the
+  deployed link-navigation suite recorded 11/11 checks in `link-navigation-20260831174621205/`.
 
 ## UI-only procurement lifecycle run
 

@@ -32,7 +32,8 @@ export async function supabaseQuery<T = unknown>(
     limit,
   } = options;
 
-  if (process.env.DATABASE_PROVIDER === 'neon') {
+  const provider = process.env.DATABASE_PROVIDER?.trim().toLowerCase();
+  if (provider === 'neon') {
     const filtersList = (filters ?? '').split('&').filter(Boolean).map((part) => {
       const separator = part.indexOf('=');
       const column = separator > 0 ? part.slice(0, separator) : part;
@@ -67,6 +68,12 @@ export async function supabaseQuery<T = unknown>(
       console.error(`Neon ${method} ${table} error:`, message);
       return { data: null, error: message };
     }
+  }
+
+  // Supabase is rollback-only. In a Vercel runtime, an unset provider is a
+  // configuration error rather than permission to use the legacy database.
+  if (process.env.VERCEL_ENV && provider !== 'supabase') {
+    return { data: null, error: 'Active database provider is not configured.' };
   }
 
   const params = new URLSearchParams();

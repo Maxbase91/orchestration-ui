@@ -24,10 +24,16 @@ export class ServerConfigurationError extends Error {
 export function getSupabaseAdmin(): SupabaseClient {
   if (client) return client;
 
-  if (process.env.DATABASE_PROVIDER === 'neon') {
+  const provider = process.env.DATABASE_PROVIDER?.trim().toLowerCase();
+  if (provider === 'neon') {
     client = new NeonCompatibleClient((payload) => executeNeonRequest(payload)) as unknown as SupabaseClient;
     return client;
   }
+
+  // Supabase is retained for an explicit rollback window only. A production
+  // deployment with a missing/unknown provider must fail closed instead of
+  // silently reading or writing the rollback database.
+  if (process.env.VERCEL_ENV && provider !== 'supabase') throw new ServerConfigurationError();
 
   const url = process.env.SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;

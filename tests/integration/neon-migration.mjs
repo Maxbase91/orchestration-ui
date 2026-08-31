@@ -12,6 +12,9 @@ const endpoint = readFileSync(new URL('../../api/db.ts', import.meta.url), 'utf8
 const schema = readFileSync(new URL('../../supabase/schema.sql', import.meta.url), 'utf8');
 const governedEndpoint = readFileSync(new URL('../../api/governed-checkout.ts', import.meta.url), 'utf8');
 const policyEndpoint = readFileSync(new URL('../../src/server/api/policy-config.ts', import.meta.url), 'utf8');
+const neonFactory = readFileSync(new URL('../../api/_neon.ts', import.meta.url), 'utf8');
+const healthEndpoint = readFileSync(new URL('../../src/server/api/neon-health.ts', import.meta.url), 'utf8');
+const supabaseAdmin = readFileSync(new URL('../../api/_supabase-admin.ts', import.meta.url), 'utf8');
 
 const checks = [
   ['Neon driver dependency is declared', Boolean(packageJson.dependencies?.['@neondatabase/serverless'])],
@@ -21,6 +24,9 @@ const checks = [
   ['schema resume skips destructive statements', schemaApply.includes('shouldSkip') && schemaApply.includes('destructive/policy statements skipped')],
   ['schema includes checkout fingerprint and policy singleton', schema.includes('idempotency_fingerprint') && schema.includes('procurement_policy_configs')],
   ['atomic checkout and policy routes exist', governedEndpoint.includes('sql.transaction') && policyEndpoint.includes('procurement_policy_configs')],
+  ['Neon connection strings are normalized safely', neonFactory.includes('channel_binding') && neonFactory.includes('replace(/^([\'\"])')],
+  ['Neon health endpoint classifies safe failure modes', healthEndpoint.includes("return 'dns'") && healthEndpoint.includes("return 'schema'") && healthEndpoint.includes('neon_${kind}')],
+  ['Supabase server fallback is explicit in production', supabaseAdmin.includes('provider !== \'supabase\'') && supabaseAdmin.includes('fail closed')],
   ['browser client uses the API endpoint', client.includes("fetch('/api/db'")],
   ['endpoint has an explicit relation allowlist', endpoint.includes('ALLOWED_RELATIONS') && endpoint.includes('Unsupported database relation')],
   ['endpoint has an explicit function allowlist', endpoint.includes('ALLOWED_FUNCTIONS') && endpoint.includes('Unsupported database function')],

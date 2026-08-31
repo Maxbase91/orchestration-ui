@@ -33,8 +33,19 @@ function invoke(body) {
   return Promise.resolve(handler({ method: 'POST', body }, response)).then(() => ({ statusCode, body: responseBody }));
 }
 
-const items = await sql.query(`SELECT * FROM catalogue_items WHERE available IS DISTINCT FROM false ORDER BY id LIMIT 1`);
-const users = await sql.query('SELECT id, name FROM users ORDER BY id LIMIT 1');
+let items;
+let users;
+try {
+  items = await sql.query(`SELECT * FROM catalogue_items WHERE available IS DISTINCT FROM false ORDER BY id LIMIT 1`);
+  users = await sql.query('SELECT id, name FROM users ORDER BY id LIMIT 1');
+} catch (error) {
+  const message = error instanceof Error ? error.message : String(error);
+  if (/fetch failed|ENOTFOUND|ENETUNREACH|ETIMEDOUT|ECONNREFUSED/i.test(message)) {
+    console.log('governed-checkout-atomic unavailable: could not reach the configured Neon database.');
+    process.exit(0);
+  }
+  throw error;
+}
 if (!items[0] || !users[0]) { console.log('governed-checkout-atomic skipped: no seeded item/user.'); process.exit(0); }
 const item = items[0];
 const contract = (await sql.query('SELECT * FROM contracts WHERE id = $1', [item.contract_id]))[0];

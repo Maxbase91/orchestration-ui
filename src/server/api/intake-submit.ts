@@ -42,11 +42,12 @@ function optionalIsoDate(value: unknown, field: string): string | null {
 function json(value: unknown): string { return JSON.stringify(value ?? null); }
 
 function stageFor(request: JsonRecord, approvalThreshold: number): { status: string; stage: string } {
-  const value = Number(request.value ?? 0);
-  const channel = String(request.buyingChannel ?? '').toLowerCase();
-  if (request.riskAssessmentRequired === true) return { status: 'risk', stage: 'risk' };
-  if (channel.includes('sourcing') || channel.includes('procurement-led')) return { status: 'sourcing', stage: 'sourcing' };
-  if (request.approvalChain || value >= approvalThreshold) return { status: 'approval', stage: 'approval' };
+  // Every completed intake enters the shared validation gate first. Risk,
+  // approval, and sourcing are downstream decisions made after validation;
+  // selecting them here made the lifecycle skip required data-quality checks.
+  // Keep the threshold argument for API compatibility with existing callers.
+  void request;
+  void approvalThreshold;
   return { status: 'validation', stage: 'validation' };
 }
 
@@ -92,8 +93,42 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     // The client keeps one request id for a submission attempt. Reusing that
     // id makes retries safe without adding a second idempotency column to the
     // established request table.
-    const existing = await sql.query('SELECT id, status FROM requests WHERE id = $1 LIMIT 1', [id]) as Array<JsonRecord>;
-    if (existing[0]) { res.status(200).json({ requestId: String(existing[0].id), status: String(existing[0].status), replay: true }); return; }
+    const existing = await sql.query(
+      'SELECT id, status, buying_channel, value, approval_chain, risk_assessment_required, workflow_template_id, requestor_id, owner_id FROM requests WHERE id = $1 LIMIT 1',
+      [id],
+    ) as Array<JsonRecord>;
+    if (existing[0]) {
+      // Older clients could persist the request row before stage history and
+      // workflow creation. Repair only that unambiguous orphan on a safe retry;
+      // never overwrite a request that already has lifecycle evidence.
+      const lifecycle = await sql.query(
+        `SELECT
+           (SELECT COUNT(*)::int FROM stage_history WHERE request_id = $1) AS history_count,
+           (SELECT COUNT(*)::int FROM workflow_instances WHERE request_id = $1) AS workflow_count`,
+        [id],
+      ) as Array<JsonRecord>;
+      const historyCount = Number(lifecycle[0]?.history_count ?? 0);
+      const workflowCount = Number(lifecycle[0]?.workflow_count ?? 0);
+      if (String(existing[0].status) === 'intake' && historyCount === 0 && workflowCount === 0) {
+        const repairedStage = stageFor({
+          buyingChannel: existing[0].buying_channel,
+          value: existing[0].value,
+          approvalChain: existing[0].approval_chain,
+          riskAssessmentRequired: existing[0].risk_assessment_required,
+        }, approvalThreshold);
+        const repairNow = new Date().toISOString();
+        const repairQueries = [
+          sql.query('UPDATE requests SET status = $1, updated_at = $2 WHERE id = $3', [repairedStage.status, repairNow, id]),
+          sql.query('INSERT INTO stage_history (request_id, stage, entered_at, owner_id, action, notes) VALUES ($1, $2, $3, $4, $5, $6)', [id, repairedStage.stage, repairNow, existing[0].owner_id ?? existing[0].requestor_id, 'repaired', 'Initial lifecycle evidence restored for a previously incomplete submission.']),
+          sql.query('INSERT INTO workflow_instances (id, request_id, template_id, current_node_ids, status, variables, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)', [`WI-${id}`, id, existing[0].workflow_template_id ?? templateId, json([repairedStage.stage]), 'running', json({ repaired: true }), repairNow, repairNow]),
+        ];
+        await sql.transaction(repairQueries);
+        res.status(200).json({ requestId: id, status: repairedStage.status, stage: repairedStage.stage, repaired: true });
+        return;
+      }
+      res.status(200).json({ requestId: String(existing[0].id), status: String(existing[0].status), replay: true });
+      return;
+    }
 
     const requestRow = cleanRow({
       id, title, description: request.description ?? sow?.narrative ?? title, category, status: stage.status,
@@ -113,8 +148,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       beneficiary_name: request.beneficiaryName ?? null, beneficiary_country: request.beneficiaryCountry ?? null,
       beneficiary_country_code: request.beneficiaryCountryCode ?? null, created_at: now, updated_at: now,
     });
+    // Neon deployments can be one additive migration behind while a release
+    // is rolling out. Restrict the insert to the known request columns that
+    // exist in the target schema so a missing optional compatibility column
+    // (for example commodity_candidates) cannot abort an otherwise valid
+    // intake submission. Required core columns are still validated above.
+    const columnRows = await sql.query(
+      `SELECT column_name FROM information_schema.columns
+       WHERE table_schema = 'public' AND table_name = 'requests'`,
+    ) as Array<{ column_name?: string }>;
+    const availableColumns = new Set(columnRows.map((row) => row.column_name).filter((value): value is string => Boolean(value)));
+    const persistedRequestRow = Object.fromEntries(
+      Object.entries(requestRow).filter(([column]) => availableColumns.has(column)),
+    );
     const queries = [
-      sql.query(`INSERT INTO requests (${Object.keys(requestRow).join(', ')}) VALUES (${Object.keys(requestRow).map((_, i) => `$${i + 1}`).join(', ')})`, Object.values(requestRow)),
+      sql.query(`INSERT INTO requests (${Object.keys(persistedRequestRow).join(', ')}) VALUES (${Object.keys(persistedRequestRow).map((_, i) => `$${i + 1}`).join(', ')})`, Object.values(persistedRequestRow)),
     ];
     if (sow) {
       const sowRow = cleanRow({ request_id: id, objective: sow.objective ?? '', scope: sow.scope ?? '', exclusions: sow.exclusions ?? '', deliverables: sow.deliverables ?? '', timeline: sow.timeline ?? '', resources: sow.resources ?? '', acceptance_criteria: sow.acceptanceCriteria ?? '', pricing_model: sow.pricingModel ?? '', location: sow.location ?? '', dependencies: sow.dependencies ?? '', narrative: sow.narrative ?? '', quality_score: sow.qualityScore ?? null, quality_checks: json(sow.qualityChecks ?? []), signals: json(sow.signals ?? []), required_sections: Array.isArray(sow.requiredSections) ? sow.requiredSections : [], capture_flags: json(sow.captureFlags ?? {}), created_at: now });

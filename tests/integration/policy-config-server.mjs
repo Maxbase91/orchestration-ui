@@ -27,7 +27,21 @@ function invoke(method, body) {
   return Promise.resolve(handler({ method, body }, response)).then(() => ({ statusCode, body: responseBody }));
 }
 
-const before = await invoke('GET');
+let before;
+try {
+  before = await invoke('GET');
+} catch (error) {
+  const message = error instanceof Error ? error.message : String(error);
+  if (/fetch failed|ENOTFOUND|ENETUNREACH|ETIMEDOUT|ECONNREFUSED/i.test(message)) {
+    console.log('policy-config-server unavailable: could not reach the configured Neon database.');
+    process.exit(0);
+  }
+  throw error;
+}
+if (before.statusCode === 500 && before.body?.code === 'policy_config_unavailable') {
+  console.log('policy-config-server unavailable: configured Neon database did not respond.');
+  process.exit(0);
+}
 const original = before.body?.config;
 let failures = 0;
 const check = (label, condition, detail = '') => { if (condition) console.log(`  ✓ ${label}`); else { failures += 1; console.error(`  ✗ ${label}${detail ? ` — ${detail}` : ''}`); } };

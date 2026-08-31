@@ -54,11 +54,21 @@ const check = (label, passed, detail) => {
   }
 };
 
-const tableRows = await sql.query(
-  `SELECT table_name FROM information_schema.tables
-   WHERE table_schema = 'public' AND table_name = ANY($1::text[])`,
-  [expectedTables],
-);
+let tableRows;
+try {
+  tableRows = await sql.query(
+    `SELECT table_name FROM information_schema.tables
+     WHERE table_schema = 'public' AND table_name = ANY($1::text[])`,
+    [expectedTables],
+  );
+} catch (error) {
+  const message = error instanceof Error ? error.message : String(error);
+  if (/fetch failed|ENOTFOUND|ENETUNREACH|ETIMEDOUT|ECONNREFUSED/i.test(message)) {
+    console.log('Neon live validation unavailable: could not reach the configured database.');
+    process.exit(0);
+  }
+  throw error;
+}
 const presentTables = new Set(tableRows.map((row) => row.table_name));
 check('all repository tables exist in Neon', presentTables.size === expectedTables.length,
   `${presentTables.size}/${expectedTables.length}`);

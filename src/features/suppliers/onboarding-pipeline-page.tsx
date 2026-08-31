@@ -1,10 +1,14 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/shared/page-header';
 import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
 import { cn } from '@/lib/utils';
 import { MapPin, Tag } from 'lucide-react';
 import type { Supplier } from '@/data/types';
+import { useAuthStore } from '@/stores/auth-store';
+import { useUpdateSupplier } from '@/lib/db/hooks/use-suppliers';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 
 const COLUMNS: { key: Supplier['onboardingStatus']; label: string; color: string }[] = [
   { key: 'not-started', label: 'Not Started', color: 'border-t-gray-400' },
@@ -20,7 +24,17 @@ const COLUMNS: { key: Supplier['onboardingStatus']; label: string; color: string
 // any kind, so there is nothing to derive a real figure from: a stable version
 // (seeded from the supplier id, say) would only make the invention harder to
 // spot. It returns when the data does.
-function SupplierCard({ supplier, onClick }: { supplier: Supplier; onClick: () => void }) {
+function SupplierCard({ supplier, onClick, canComplete }: { supplier: Supplier; onClick: () => void; canComplete: boolean }) {
+  const updateSupplier = useUpdateSupplier();
+  const [reason, setReason] = useState('');
+  const complete = async () => {
+    if (!reason.trim()) { toast.error('Add a completion note before advancing onboarding.'); return; }
+    try {
+      await updateSupplier.mutateAsync({ id: supplier.id, patch: { onboardingStatus: 'completed' } });
+      toast.success(`${supplier.name} marked ready for use.`);
+      setReason('');
+    } catch { toast.error('Could not update onboarding status.'); }
+  };
   return (
     <div
       className={cn(
@@ -46,6 +60,12 @@ function SupplierCard({ supplier, onClick }: { supplier: Supplier; onClick: () =
           <span className="text-[10px] text-muted-foreground">+{supplier.categories.length - 2}</span>
         )}
       </div>
+      {canComplete && supplier.onboardingStatus === 'in-progress' && (
+        <div className="mt-3 flex items-center gap-2" onClick={(event) => event.stopPropagation()}>
+          <input aria-label={`Completion note for ${supplier.name}`} value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Completion note" className="min-w-0 flex-1 rounded border px-2 py-1 text-xs" />
+          <Button size="sm" onClick={() => void complete()} disabled={updateSupplier.isPending}>Complete</Button>
+        </div>
+      )}
     </div>
   );
 }
@@ -53,6 +73,8 @@ function SupplierCard({ supplier, onClick }: { supplier: Supplier; onClick: () =
 export function OnboardingPipelinePage() {
   const navigate = useNavigate();
   const { data: suppliers = [] } = useSuppliers();
+  const currentRole = useAuthStore((state) => state.currentRole);
+  const canComplete = currentRole === 'procurement-manager' || currentRole === 'admin';
 
   const grouped = useMemo(() => {
     const groups: Record<string, Supplier[]> = {};
@@ -86,6 +108,7 @@ export function OnboardingPipelinePage() {
                     key={supplier.id}
                     supplier={supplier}
                     onClick={() => navigate(`/suppliers/${supplier.id}`)}
+                    canComplete={canComplete}
                   />
                 ))}
                 {items.length === 0 && (

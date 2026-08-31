@@ -9,6 +9,7 @@
     { "source": "/api/intake-upload", "destination": "/api/db?domain=intake-upload" },
     { "source": "/api/policy-config", "destination": "/api/db?domain=policy-config" },
     { "source": "/api/intake-submit", "destination": "/api/db?domain=intake-submit" },
+    { "source": "/api/neon-health", "destination": "/api/db?domain=neon-health" },
     { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]

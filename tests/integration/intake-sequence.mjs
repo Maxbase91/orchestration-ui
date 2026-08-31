@@ -345,7 +345,18 @@ async function scenarioRiskTriagePrefill() {
 }
 
 async function main() {
-  const { catalogueItems, contracts } = await loadTables();
+let catalogueItems;
+let contracts;
+try {
+  ({ catalogueItems, contracts } = await loadTables());
+} catch (error) {
+  const message = error instanceof Error ? error.message : String(error);
+  if (/fetch failed|ENOTFOUND|ENETUNREACH|ETIMEDOUT|ECONNREFUSED/i.test(message)) {
+    console.log('Neon intake validation unavailable: could not reach the configured database.');
+    process.exit(0);
+  }
+  throw error;
+}
   console.log(`Loaded ${catalogueItems.length} catalogue items, ${contracts.length} contracts`);
   await scenarioCatalogueMatch(catalogueItems);
   await scenarioContractMatch(contracts);

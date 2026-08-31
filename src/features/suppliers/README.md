@@ -8,9 +8,11 @@ purchasing screens. No external supplier or payment system is written in R1.
 
 The supplier onboarding screen includes a persisted company/contact form and a
 compliance confirmation before the submission is marked ready for review. The
-portal identity is still the fixed simulation persona; vendor-manager risk and
-approval decisions remain on internal request stages until authentication is
-implemented.
+supplier profile risk tab now exposes a rationale-gated approve/refer-back form
+to Vendor Manager and Admin personas, while the onboarding pipeline exposes a
+rationale-gated completion action to Procurement and Admin personas. These
+controls persist through the existing own-store adapter and remain simulation
+role controls until authentication is implemented.
 
 Supplier profile deep links are also available from requester request details as
 read-only views. The supplier directory, onboarding, risk, and administrative

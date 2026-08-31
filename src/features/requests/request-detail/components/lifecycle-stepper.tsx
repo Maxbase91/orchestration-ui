@@ -69,13 +69,18 @@ export function LifecycleStepper({ request, onStepClick }: LifecycleStepperProps
     stageEntries.set(entry.stage, entry);
   }
 
-  const isCancelled = request.status === 'cancelled';
-  const isCompleted = request.status === 'completed';
+  // A terminal status without any lifecycle evidence is a legacy/incomplete
+  // aggregate, not a completed workflow. Keep the visual state honest while
+  // the server-side repair/retry path restores the missing records.
+  const inconsistentTerminalState = request.status === 'completed' && history.length === 0;
+  const lifecycleStatus: RequestStatus = inconsistentTerminalState ? 'intake' : request.status;
+  const isCancelled = lifecycleStatus === 'cancelled';
+  const isCompleted = lifecycleStatus === 'completed';
 
   const steps: Step[] = LIFECYCLE_STAGES.map((stage) => {
     const entry = stageEntries.get(stage.id);
     const isStageCompleted = completedStages.has(stage.id);
-    const isCurrent = request.status === stage.id;
+    const isCurrent = lifecycleStatus === stage.id;
 
     let status: Step['status'];
     const channelSkipsThisStage = isStageSkippedForChannel(request.buyingChannel, stage.id);
@@ -91,7 +96,7 @@ export function LifecycleStepper({ request, onStepClick }: LifecycleStepperProps
       status = 'completed';
     } else if (isCurrent) {
       status = request.isOverdue ? 'blocked' : 'current';
-    } else if (request.status === 'referred-back' && entry && !entry.completedAt) {
+    } else if (lifecycleStatus === 'referred-back' && entry && !entry.completedAt) {
       status = 'blocked';
     } else if (isStageCompleted) {
       status = 'completed';
@@ -160,5 +165,14 @@ export function LifecycleStepper({ request, onStepClick }: LifecycleStepperProps
     }
   }
 
-  return <ProcessStepper steps={steps} onStepClick={onStepClick} />;
+  return (
+    <div className="space-y-3">
+      {inconsistentTerminalState && (
+        <p role="status" className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          This request is marked complete but has no recorded lifecycle history. It is being shown as intake until the record is repaired.
+        </p>
+      )}
+      <ProcessStepper steps={steps} onStepClick={onStepClick} />
+    </div>
+  );
 }
