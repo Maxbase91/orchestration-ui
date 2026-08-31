@@ -3,7 +3,7 @@
 // remains authoritative for persisted routing decisions.
 
 import { KEYWORD_CODES, CATEGORY_DEFAULT_CODES } from './category-code.js';
-import type { CommodityClassificationCandidate } from '@/data/types';
+import type { CommodityClassificationCandidate } from '../../data/types.js';
 
 function normalise(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
