@@ -225,3 +225,8 @@ The pre-deployment baseline is recorded at
 supplier redirect to Home and confirmed the old requester contract guard. The
 expiring-contract row was absent from the persisted requester layout, so that
 case remains a post-deployment verification rather than a product pass.
+
+Post-deployment verification passed against the public alias. Evidence:
+`../link-navigation-20260831153010664/manifest.json` — supplier, contract and
+expiring-contract destinations, requester read-only controls, admin controls,
+console/runtime errors, and desktop overflow all passed.
