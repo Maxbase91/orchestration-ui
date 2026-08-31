@@ -6,9 +6,9 @@ import type { BuyingChannel, RequestStatus } from '@/data/types';
  * the lifecycle stepper and in the Workflow tab.
  *
  * Rules:
- *   - catalogue:          intake → po → receipt → invoice → payment
- *                         (pre-approved items skip validation + approval
- *                         + sourcing + contracting)
+ *   - catalogue:          intake → approval (when threshold requires it) →
+ *                         po → receipt → invoice → payment. Pre-approved
+ *                         low-value items skip the approval stage at runtime.
  *   - direct-po:          skip sourcing + contracting
  *   - business-led:       skip sourcing + contracting (low-value path
  *                         with single-level approval)
@@ -19,7 +19,7 @@ import type { BuyingChannel, RequestStatus } from '@/data/types';
  *   - procurement-led:    full 9-stage flow (intake → payment)
  */
 const STAGES_BY_CHANNEL: Record<BuyingChannel, RequestStatus[]> = {
-  catalogue:            ['intake', 'po', 'receipt', 'invoice', 'payment'],
+  catalogue:            ['intake', 'approval', 'po', 'receipt', 'invoice', 'payment'],
   'direct-po':          ['intake', 'validation', 'approval', 'po', 'receipt', 'invoice', 'payment'],
   'business-led':       ['intake', 'validation', 'risk', 'onboarding', 'approval', 'po', 'receipt', 'invoice', 'payment'],
   'framework-call-off': ['intake', 'validation', 'risk', 'onboarding', 'approval', 'po', 'receipt', 'invoice', 'payment'],
@@ -55,9 +55,9 @@ export function isStageSkippedForChannel(
  *
  * Used only when a request has no workflow instance to advance — 93 of 101
  * requests predate the engine creating one, so this is the common path, not a
- * rare fallback. The channel's own stage list is the right source: it already
- * encodes that catalogue skips validation and approval, so the fallback cannot
- * walk a request through a stage its channel does not have.
+ * rare fallback. The channel's own stage list is the right source: it encodes
+ * the approval edge for high-value catalogue orders while still skipping
+ * validation, sourcing and contracting.
  */
 export function nextStageAfter(
   channel: string | undefined,

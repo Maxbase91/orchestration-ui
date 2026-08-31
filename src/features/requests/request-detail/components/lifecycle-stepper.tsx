@@ -82,8 +82,8 @@ export function LifecycleStepper({ request, onStepClick }: LifecycleStepperProps
     if (isCancelled) {
       status = isStageCompleted ? 'completed' : 'skipped';
     } else if (channelSkipsThisStage) {
-      // Channel rule wins: catalogue skips validation/approval/sourcing/
-      // contracting, framework-call-off skips sourcing+contracting, etc.
+      // Channel rule wins: catalogue skips validation/sourcing/contracting,
+      // framework-call-off skips sourcing+contracting, etc.
       // If the stage actually ran (legacy seed data), keep it as
       // completed so history stays accurate; otherwise show skipped.
       status = isStageCompleted ? 'completed' : 'skipped';

@@ -440,13 +440,13 @@ console.log('\nThe channel is stored as a slug');
 // getStagesForChannel — which keys on slugs — always missed and returned the
 // full lifecycle, meaning no stage was ever marked skipped for the channel.
 const STAGES_BY_CHANNEL = {
-  catalogue: ['intake', 'po', 'receipt', 'invoice', 'payment'],
+  catalogue: ['intake', 'approval', 'po', 'receipt', 'invoice', 'payment'],
   'procurement-led': ['intake','validation','approval','sourcing','contracting','po','receipt','invoice','payment'],
 };
 const FULL = STAGES_BY_CHANNEL['procurement-led'];
 const getStagesForChannel = (c) => STAGES_BY_CHANNEL[c] ?? FULL;
 check('the slug resolves the channel\'s real stage list',
-  getStagesForChannel('catalogue').length === 5);
+  getStagesForChannel('catalogue').length === 6);
 check('the display label does not resolve — the old bug',
   getStagesForChannel('Procurement-Led Sourcing') === FULL);
 check('catalogue correctly skips validation',

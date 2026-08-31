@@ -2,7 +2,7 @@
 // Verifies that every request's stage_history and workflow_step_details
 // respect the buying-channel stage rules:
 //
-//   catalogue:          intake → po → receipt → invoice → payment
+//   catalogue:          intake → approval (when threshold applies) → po → receipt → invoice → payment
 //   direct-po:          skip sourcing + contracting
 //   business-led:       skip sourcing + contracting
 //   framework-call-off: skip sourcing + contracting
@@ -29,7 +29,7 @@ const sb = createClient(
 );
 
 const SKIP = {
-  'catalogue':          new Set(['validation', 'approval', 'sourcing', 'contracting']),
+  'catalogue':          new Set(['validation', 'sourcing', 'contracting']),
   'direct-po':          new Set(['sourcing', 'contracting']),
   'business-led':       new Set(['sourcing', 'contracting']),
   'framework-call-off': new Set(['sourcing', 'contracting']),
