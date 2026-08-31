@@ -11,3 +11,7 @@ compliance confirmation before the submission is marked ready for review. The
 portal identity is still the fixed simulation persona; vendor-manager risk and
 approval decisions remain on internal request stages until authentication is
 implemented.
+
+Supplier profile deep links are also available from requester request details as
+read-only views. The supplier directory, onboarding, risk, and administrative
+surfaces remain restricted to supplier-management roles.

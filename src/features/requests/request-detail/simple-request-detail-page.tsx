@@ -51,6 +51,8 @@ function prettyStatus(status: string): string {
 }
 
 export function SimpleRequestDetailPage({ request }: { request: ProcurementRequest }) {
+  const currentRole = useAuthStore((state) => state.currentRole);
+  const canOpenPurchaseOrders = ['procurement-manager', 'operations-lead', 'admin'].includes(currentRole);
   useSuppliers();
   useUsers();
   const { currentUser } = useAuthStore();
@@ -114,7 +116,7 @@ export function SimpleRequestDetailPage({ request }: { request: ProcurementReque
 
       {description?.narrative && <Card><CardHeader><CardTitle className="text-base">Service description</CardTitle></CardHeader><CardContent><p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-700">{description.narrative}</p></CardContent></Card>}
 
-      {(request.contractId || request.poId) && <Card><CardHeader><CardTitle className="text-base">Linked records</CardTitle></CardHeader><CardContent className="flex flex-wrap gap-2">{request.contractId && <Link className="text-sm text-blue-600 hover:underline" to={`/contracts/${request.contractId}`}>Open existing contract</Link>}{request.poId && <Link className="text-sm text-blue-600 hover:underline" to={`/purchasing/orders/${request.poId}`}>Open purchase order</Link>}</CardContent></Card>}
+      {(request.contractId || request.poId) && <Card><CardHeader><CardTitle className="text-base">Linked records</CardTitle></CardHeader><CardContent className="flex flex-wrap items-center gap-2">{request.contractId && <Link className="text-sm text-blue-600 hover:underline" to={`/contracts/${request.contractId}`}>Open existing contract</Link>}{request.poId && (canOpenPurchaseOrders ? <Link className="text-sm text-blue-600 hover:underline" to={`/purchasing/orders/${request.poId}`}>Open purchase order</Link> : <span className="text-sm text-muted-foreground">Purchase order details are available to operations.</span>)}</CardContent></Card>}
 
       {request.status !== 'completed' && request.status !== 'cancelled' && <Card><CardHeader><CardTitle className="flex items-center gap-2 text-base"><MessageSquare className="size-4" />Contact the request team</CardTitle></CardHeader><CardContent className="space-y-3"><textarea value={comment} onChange={(event) => setComment(event.target.value)} rows={3} placeholder="Add information or ask a question…" className="w-full resize-none rounded-md border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" /><div className="flex justify-end"><Button size="sm" onClick={() => void postComment()} disabled={!comment.trim() || addComment.isPending}><Send className="size-3.5" />Send message</Button></div>{visibleComments.length > 0 && <div className="space-y-2 border-t border-gray-100 pt-3">{visibleComments.slice(-3).map((item) => <div key={item.id} className="rounded-md bg-gray-50 p-3"><p className="text-xs text-gray-500"><strong>{item.authorName}</strong> · {formatDate(item.timestamp)}</p><p className="mt-1 text-sm text-gray-700">{item.content}</p></div>)}</div>}</CardContent></Card>}
 

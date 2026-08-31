@@ -38,7 +38,7 @@ The platform's operating model is:
 | Assistant and AI | Grounded knowledge, object lookup, intake assistance, support handoff, conversation history | Server-path consistency, masking, fallback observability, agent execution | Teams, vector RAG and external agent actions | Mock fallback must not be mistaken for live AI |
 | Data and connectors | Private Neon API boundary, own-store connectors for core objects, migration validation | Screening/taxonomy/form ports and remaining consumers | Live ERP/CLM/payment/risk connectors | No authenticated API principal |
 | Analytics and reporting | Internal dashboards, KPIs, pipeline and cycle-time views | Scheduled reports, PDF/Excel exports, spend depth | External data warehouse/cube | Simulated heatmaps and sample panels remain labelled |
-| Platform and NFRs | Responsive shell, keyboard-accessible mode switch, route guards, audit records | Mobile/a11y depth, locale/currency, observability and retention | SSO/SCIM, multi-tenant enterprise controls | Prototype authorization and open-policy assumptions |
+| Platform and NFRs | Responsive shell, keyboard-accessible mode switch, role-aware deep links, route guards, audit records | Mobile/a11y depth, locale/currency, observability and retention | SSO/SCIM, multi-tenant enterprise controls | Prototype authorization and open-policy assumptions |
 
 Every Built row is expanded in the [implementation evidence index](R1_IMPLEMENTATION_EVIDENCE.md).
 
@@ -47,12 +47,13 @@ Every Built row is expanded in the [implementation evidence index](R1_IMPLEMENTA
 ### R1 hardening
 
 1. ~~Make request → PR → line → PO submission atomic and replay-safe, including failure recovery.~~ **Complete in this tranche:** `/api/governed-checkout` recomputes policy server-side and commits the internal aggregate transactionally; replay and conflict behavior is covered by the evidence index.
-2. Make workflow transitions, sourcing award write-back and approval completion transactional and server-owned.
-3. Remove remaining direct/compatibility-only consumers from the Neon path and standardise domain repositories.
-4. Add missing own-store connector ports for screening, taxonomy and form submissions.
-5. Finish contract capacity/risk evidence, supplier documents, sourcing Q&A and P2P exception handling.
-6. Make assistant fallback, masking, tool authorization and operational failures visible and measurable.
-7. Complete responsive accessibility, locale/currency handling, error boundaries and production observability.
+2. ~~Make dashboard and request-detail deep links role-aware and prevent unauthorized visible links from falling back to Home.~~ **Complete:** supplier and contract details are requester-readable; mutations remain role-gated and navigation is covered by static and deployed browser checks.
+3. Make workflow transitions, sourcing award write-back and approval completion transactional and server-owned.
+4. Remove remaining direct/compatibility-only consumers from the Neon path and standardise domain repositories.
+5. Add missing own-store connector ports for screening, taxonomy and form submissions.
+6. Finish contract capacity/risk evidence, supplier documents, sourcing Q&A and P2P exception handling.
+7. Make assistant fallback, masking, tool authorization and operational failures visible and measurable.
+8. Complete responsive accessibility, locale/currency handling, error boundaries and production observability.
 
 ### R2 integrations and enterprise hardening
 

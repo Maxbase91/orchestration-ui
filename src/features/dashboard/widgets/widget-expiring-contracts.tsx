@@ -9,7 +9,7 @@ import { differenceInDays, parseISO } from 'date-fns';
 
 export function WidgetExpiringContracts() {
   const navigate = useNavigate();
-  const { data: contracts = [] } = useContracts();
+  const { data: contracts = [], isLoading } = useContracts();
 
   const expiring = useMemo(() => {
     const now = new Date();
@@ -28,6 +28,10 @@ export function WidgetExpiringContracts() {
       .slice(0, 5);
   }, [contracts]);
 
+  if (isLoading) {
+    return <p className="text-sm text-muted-foreground">Loading contract alerts…</p>;
+  }
+
   if (expiring.length === 0) {
     return <p className="text-sm text-muted-foreground">No contracts expiring soon.</p>;
   }
@@ -39,6 +43,7 @@ export function WidgetExpiringContracts() {
           key={c.id}
           type="button"
           onClick={() => navigate(`/contracts/${c.id}`)}
+          aria-label={`Open contract details for ${c.title}`}
           className="flex items-center justify-between w-full text-left px-2 py-1.5 rounded hover:bg-muted/50 transition-colors text-sm"
         >
           <div className="flex items-center gap-2 min-w-0">

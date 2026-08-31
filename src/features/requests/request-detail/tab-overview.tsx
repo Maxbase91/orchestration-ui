@@ -85,7 +85,7 @@ const SOW_LABELS: Record<string, string> = {
 };
 
 export function TabOverview({ request }: TabOverviewProps) {
-  useSuppliers();
+  const suppliersQuery = useSuppliers();
   useUsers();
   const lookupSupplier = useSupplierLookup();
   const lookupUser = useUserLookup();
@@ -109,7 +109,7 @@ export function TabOverview({ request }: TabOverviewProps) {
                 <DetailRow label="Category" value={CATEGORY_LABELS[request.category] ?? request.category} />
                 <DetailRow
                   label="Supplier"
-                  value={supplier?.name}
+                  value={supplier?.name ?? (suppliersQuery.isLoading && request.supplierId ? 'Loading supplier…' : undefined)}
                   to={supplier ? `/suppliers/${supplier.id}` : undefined}
                 />
                 <DetailRow label="Value" value={formatCurrency(request.value, request.currency)} />

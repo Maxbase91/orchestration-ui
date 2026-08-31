@@ -132,7 +132,6 @@ export function App() {
               <Route path="/suppliers/risk" element={<RiskCompliancePage />} />
               <Route path="/suppliers/portal-admin" element={<PortalAdminPage />} />
               <Route path="/suppliers/messages" element={<SupplierMessagesPage />} />
-              <Route path="/suppliers/:id" element={<SupplierProfilePage />} />
             </Route>
 
             {/* Contracts — procurement-manager, operations-lead, admin */}
@@ -140,6 +139,14 @@ export function App() {
               <Route path="/contracts" element={<ContractRegisterPage />} />
               <Route path="/contracts/renewals" element={<RenewalsPage />} />
               <Route path="/contracts/templates" element={<TemplatesPage />} />
+            </Route>
+
+            {/* Detail pages are readable by requesters; list and control surfaces
+                remain restricted to the roles that operate those domains. */}
+            <Route element={<RequireRole roles={['service-owner', 'procurement-manager', 'vendor-manager', 'operations-lead', 'admin']} />}>
+              <Route path="/suppliers/:id" element={<SupplierProfilePage />} />
+            </Route>
+            <Route element={<RequireRole roles={['service-owner', 'procurement-manager', 'operations-lead', 'admin']} />}>
               <Route path="/contracts/:id" element={<ContractDetailPage />} />
             </Route>
 

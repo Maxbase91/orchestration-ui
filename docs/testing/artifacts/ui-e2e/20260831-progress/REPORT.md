@@ -207,3 +207,21 @@ permission-surface follow-up because role switching is simulation-only.
 11. Migrate or replace the legacy Supabase-bound `test:intake` suite.
 12. Run the remaining Expert-mode full intake, admin policy save, invoice variance, reassignment,
     escalation, refer-back, mobile 320/375px, and keyboard checks after the P0/P1 fixes.
+
+## Role-aware navigation repair — 31 August 2026
+
+The deployed check reproduced the reported requester failure: supplier links were
+present, but `/suppliers/:id` was protected by a directory-only role guard and
+redirected to `/`. The same guard mismatch affected contract links and the
+Expiring Contracts widget. Detail routes are now requester-readable in a
+read-only presentation, while coverage, renewal, obligation, and purchasing
+mutations remain role-gated.
+
+Static and browser checks are registered as `test:link-route-integrity` and
+`test:link-navigation`. The deployed browser run should be executed after the
+next Vercel deployment; its screenshots and manifest belong beside this report.
+The pre-deployment baseline is recorded at
+`../link-navigation-20260831151803930/manifest.json`: it reproduced the
+supplier redirect to Home and confirmed the old requester contract guard. The
+expiring-contract row was absent from the persisted requester layout, so that
+case remains a post-deployment verification rather than a product pass.

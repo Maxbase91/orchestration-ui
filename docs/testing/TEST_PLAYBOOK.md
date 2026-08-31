@@ -632,6 +632,21 @@ finding routinely reveals more in the same file. Re-run to convergence.
     before adding new content to any request-detail tab or the header — the failure mode is a new
     section quietly duplicating one that already exists elsewhere on the page.
 
+15. **Role-aware deep links** (TC-NAV-01..05) — supplier and contract names on request
+    details, expiring-contract rows, related records, and purchase-order links must land on
+    their record route for entitled roles. Requesters may inspect supplier/contract details
+    read-only; they must never be sent to Home because a visible link was unauthorized.
+
+### Link navigation suite
+
+`npm run test:link-route-integrity` checks the active route/link contract statically.
+`npm run test:link-navigation` runs the deployed Playwright checks using the visible role and
+experience-mode controls. It captures before/after screenshots and a manifest under
+`docs/testing/artifacts/ui-e2e/<run-id>/`, checks supplier and contract deep links, expiring
+contract rows, read-only requester controls, privileged edit controls, keyboard activation,
+console/runtime errors, and horizontal overflow. A local Vite run may classify `/api/*` failures
+as serverless-unavailable; the meaningful navigation verdict is the deployed run.
+
 ## Historical re-test results — build `index-LlQShsel.js` (2 Jun 2026, live-verified)
 **Newly FIXED (verified this run):**
 - ✅ **TC-REQ-17** catalogue Order Now — now succeeds (REQ-2026-4279 submitted; no date error).

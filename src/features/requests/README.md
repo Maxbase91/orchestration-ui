@@ -15,3 +15,8 @@ workflow instance atomically. Date answers are parsed to ISO dates before the
 server accepts them; prose in a date slot is rejected and re-asked. The legacy
 `businessJustification` compatibility field is left empty for new structured
 intake records so the confirmed description is not duplicated.
+
+Request detail links are stable record links: supplier, contract, sourcing event,
+purchase order and related request references retain their IDs. Requesters can
+inspect supplier and contract records in read-only mode; controls that change
+governance or purchasing data remain role-owned.

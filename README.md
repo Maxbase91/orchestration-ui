@@ -208,6 +208,8 @@ npm run test:request-detail-ui    # browser check on fixtures (no credentials, n
                                   # workflow step opens, and the risk form pre-populates from the service description
 npm run test:interactions-ui      # interaction E2E — wizard submit, admin save, AI assistant (self-cleaning)
 npm run test:home-designs         # alternative home designs (1a/1b/1c) are fully functional + dashboard intact
+npm run test:link-route-integrity # static deep-link contract for active request/dashboard destinations
+npm run test:link-navigation      # deployed role-aware link navigation and requester read-only details
 npm run test:neon-migration       # Neon migration guardrails; live copy requires explicit credentials
 npm run test:neon-live            # read-only Neon schema, relationship, and catalogue-governance validation
 # …see package.json "test:*" scripts for the full list
@@ -232,6 +234,11 @@ documented Supabase rollback variables).
 any screen worth checking where the project is unreachable — a suite that can only run against a live
 database does not run in CI or in a sandbox, which is how a render crash on the request detail
 reached production unnoticed.
+
+The link-navigation suite uses only visible role and experience-mode controls. It verifies that
+supplier, contract, sourcing, purchase-order and request links land on the intended record instead
+of silently redirecting to Home. Requesters may inspect supplier and contract details read-only;
+operational edits remain restricted to entitled roles.
 Set `E2E_API_BASE=https://orchestration-ui.vercel.app` for deployed API tests and
 `E2E_UI_BASE=https://orchestration-ui.vercel.app` for the interaction suite against a deployed build.
 
@@ -323,7 +330,7 @@ src/
 │   ├── shared/      # Reusable components (badges, cards, tables, charts)
 │   └── charts/      # Recharts wrappers
 └── features/        # Feature modules
-    ├── dashboard/   # Role-based dashboards + home-designs/ (alternative Apple-style homes)
+    ├── dashboard/   # Role-based dashboards + retired home-designs/ (historical components)
     ├── requests/    # New request wizard (per-step guidance map + header panel), request detail
     ├── catalogue/   # Item detail and governed catalogue checkout
     ├── workflows/   # Kanban, table, timeline, monitor

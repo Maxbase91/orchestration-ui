@@ -85,6 +85,8 @@
     "test:request-detail-ui": "node tests/ui/request-detail-e2e.mjs",
     "test:interactions-ui": "node tests/ui/interactions-e2e.mjs",
     "test:home-designs": "node tests/ui/home-designs.mjs",
+    "test:link-navigation": "node tests/ui/link-navigation-e2e.mjs",
+    "test:link-route-integrity": "node tests/integration/link-route-integrity.mjs",
     "walkthrough": "node tests/ui/walkthrough.mjs",
     "backfill:compliance": "node --import tsx/esm tests/integration/backfill-compliance-fields.mjs"
   },

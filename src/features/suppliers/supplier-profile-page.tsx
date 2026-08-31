@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PageHeader } from '@/components/shared/page-header';
 import { useSupplier } from '@/lib/db/hooks/use-suppliers';
+import { useAuthStore } from '@/stores/auth-store';
 import { riskColors, countryFlags } from './supplier-display';
 import { ProfileOverviewTab } from './components/profile-overview-tab';
 import { ProfileContractsTab } from './components/profile-contracts-tab';
@@ -18,6 +19,9 @@ import { ProfileActivityTab } from './components/profile-activity-tab';
 export function SupplierProfilePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const currentRole = useAuthStore((state) => state.currentRole);
+  const canBrowseDirectory = currentRole !== 'service-owner';
+  const goBack = () => { if (canBrowseDirectory) navigate('/suppliers'); else navigate(-1); };
   const { data: fetched } = useSupplier(id);
   const supplier = fetched ?? undefined;
 
@@ -25,7 +29,7 @@ export function SupplierProfilePage() {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4">
         <p className="text-sm text-muted-foreground">Supplier not found.</p>
-        <Button variant="outline" onClick={() => navigate('/suppliers')}>
+        <Button variant="outline" onClick={goBack}>
           <ArrowLeft className="size-4" />
           Back to Directory
         </Button>
@@ -41,7 +45,7 @@ export function SupplierProfilePage() {
         variant="ghost"
         size="sm"
         className="text-muted-foreground"
-        onClick={() => navigate('/suppliers')}
+        onClick={goBack}
       >
         <ArrowLeft className="size-3.5" />
         Back to Directory

@@ -18,6 +18,7 @@ import { formatCurrency, formatDate } from '@/lib/format';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { loadContractScope, saveContractScope } from '@/lib/procurement/contract-scope-api';
 import { requestContractMatch } from '@/lib/procurement/contract-match-api';
+import { useAuthStore } from '@/stores/auth-store';
 import type { ContractMatchResponse } from '@/data/types';
 import type { ContractScopeDeliverable, ContractScopeExclusion } from '@/data/types';
 
@@ -47,6 +48,10 @@ const mockDocuments = [
 export function ContractDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const currentRole = useAuthStore((state) => state.currentRole);
+  const canEditContract = currentRole !== 'service-owner';
+  const canOpenPurchaseOrders = ['procurement-manager', 'operations-lead', 'admin'].includes(currentRole);
+  const goBack = () => { if (canEditContract) navigate('/contracts'); else navigate(-1); };
   const { data: contract } = useContract(id);
   const { data: purchaseOrders = [] } = usePurchaseOrders();
   const { data: invoices = [] } = useInvoices();
@@ -74,7 +79,7 @@ export function ContractDetailPage() {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4">
         <p className="text-sm text-muted-foreground">Contract not found.</p>
-        <Button variant="outline" onClick={() => navigate('/contracts')}>
+        <Button variant="outline" onClick={goBack}>
           <ArrowLeft className="size-4" />
           Back to Contracts
         </Button>
@@ -109,7 +114,7 @@ export function ContractDetailPage() {
         variant="ghost"
         size="sm"
         className="text-muted-foreground"
-        onClick={() => navigate('/contracts')}
+        onClick={goBack}
       >
         <ArrowLeft className="size-3.5" />
         Back to Contracts
@@ -177,13 +182,14 @@ export function ContractDetailPage() {
             <CardContent className="space-y-4">
               {scopeQuery.isLoading && <p className="text-sm text-muted-foreground">Loading scope metadata…</p>}
               {!scopeQuery.isLoading && !scopeQuery.data?.scope && <p className="text-sm text-amber-700">This contract has no complete scope version yet, so requests will continue to full intake.</p>}
-              <label className="block text-sm font-medium">Service family<input className="mt-1 w-full rounded-md border px-3 py-2 text-sm" value={effectiveServiceFamily} onChange={(event) => setServiceFamily(event.target.value)} placeholder="e.g. payroll implementation" /></label>
-              <label className="block text-sm font-medium">Scope description<textarea className="mt-1 min-h-24 w-full rounded-md border px-3 py-2 text-sm" value={effectiveNarrative} onChange={(event) => setScopeNarrative(event.target.value)} placeholder="Describe the services and outcomes this contract covers" /></label>
+              {!canEditContract && <p className="rounded-md bg-blue-50 px-3 py-2 text-xs text-blue-800">You are viewing this contract in read-only mode. Procurement owners maintain coverage and renewal data.</p>}
+              <label className="block text-sm font-medium">Service family<input readOnly={!canEditContract} className="mt-1 w-full rounded-md border px-3 py-2 text-sm" value={effectiveServiceFamily} onChange={(event) => setServiceFamily(event.target.value)} placeholder="e.g. payroll implementation" /></label>
+              <label className="block text-sm font-medium">Scope description<textarea readOnly={!canEditContract} className="mt-1 min-h-24 w-full rounded-md border px-3 py-2 text-sm" value={effectiveNarrative} onChange={(event) => setScopeNarrative(event.target.value)} placeholder="Describe the services and outcomes this contract covers" /></label>
               <div className="grid gap-4 md:grid-cols-2">
-                <label className="block text-sm font-medium">Deliverables (one per line)<textarea className="mt-1 min-h-24 w-full rounded-md border px-3 py-2 text-sm" value={effectiveDeliverablesText} onChange={(event) => setDeliverablesText(event.target.value)} /></label>
-                <label className="block text-sm font-medium">Exclusions (one per line)<textarea className="mt-1 min-h-24 w-full rounded-md border px-3 py-2 text-sm" value={effectiveExclusionsText} onChange={(event) => setExclusionsText(event.target.value)} /></label>
+                <label className="block text-sm font-medium">Deliverables (one per line)<textarea readOnly={!canEditContract} className="mt-1 min-h-24 w-full rounded-md border px-3 py-2 text-sm" value={effectiveDeliverablesText} onChange={(event) => setDeliverablesText(event.target.value)} /></label>
+                <label className="block text-sm font-medium">Exclusions (one per line)<textarea readOnly={!canEditContract} className="mt-1 min-h-24 w-full rounded-md border px-3 py-2 text-sm" value={effectiveExclusionsText} onChange={(event) => setExclusionsText(event.target.value)} /></label>
               </div>
-              <div className="flex items-center justify-between gap-3">
+              {canEditContract && <div className="flex items-center justify-between gap-3">
                 <p className="text-xs text-muted-foreground">Current version: {scopeQuery.data?.scope?.id ?? 'not configured'}</p>
                 <Button disabled={scopeMutation.isPending || !effectiveNarrative.trim() || !effectiveServiceFamily.trim()} onClick={() => {
                   const existing = scopeQuery.data?.scope;
@@ -192,8 +198,8 @@ export function ContractDetailPage() {
                   const exclusions = effectiveExclusionsText.split('\n').map((term, index) => ({ id: `${existing?.id ?? contract.id}-X${index + 1}`, scopeVersionId: existing?.id ?? '', term: term.trim() })).filter((item) => item.term);
                   scopeMutation.mutate({ scope, deliverables, exclusions });
                 }}>{scopeMutation.isPending ? 'Saving…' : 'Save coverage'}</Button>
-              </div>
-              {scopeMutation.isError && <p className="text-sm text-red-700">{scopeMutation.error.message}</p>}
+              </div>}
+              {canEditContract && scopeMutation.isError && <p className="text-sm text-red-700">{scopeMutation.error.message}</p>}
             </CardContent>
           </Card>
           <Card>
@@ -253,6 +259,7 @@ export function ContractDetailPage() {
               {obligations.map((ob) => (
                 <div key={ob.id} className="flex items-center gap-3 rounded-lg border p-3">
                   <Checkbox
+                    disabled={!canEditContract}
                     checked={ob.completed}
                     onCheckedChange={() => toggleObligation(ob.id)}
                   />
@@ -301,10 +308,10 @@ export function ContractDetailPage() {
                   </div>
                 </div>
               </div>
-              <Button>
+              {canEditContract && <Button>
                 <RefreshCw className="size-3.5" />
                 Initiate Renewal
-              </Button>
+              </Button>}
             </CardContent>
           </Card>
         </TabsContent>
@@ -347,8 +354,17 @@ export function ContractDetailPage() {
                   {linkedPOs.map((po) => (
                     <div
                       key={po.id}
-                      className="flex items-center justify-between rounded-lg border p-3 cursor-pointer hover:bg-gray-50"
-                      onClick={() => navigate(`/purchasing/orders/${po.id}`)}
+                      className={`flex items-center justify-between rounded-lg border p-3 ${canOpenPurchaseOrders ? 'cursor-pointer hover:bg-gray-50' : ''}`}
+                      onClick={canOpenPurchaseOrders ? () => navigate(`/purchasing/orders/${po.id}`) : undefined}
+                      onKeyDown={canOpenPurchaseOrders ? (event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          navigate(`/purchasing/orders/${po.id}`);
+                        }
+                      } : undefined}
+                      role={canOpenPurchaseOrders ? 'link' : undefined}
+                      tabIndex={canOpenPurchaseOrders ? 0 : undefined}
+                      aria-label={canOpenPurchaseOrders ? `Open purchase order ${po.id}` : undefined}
                     >
                       <div>
                         <p className="text-sm font-medium">{po.id}</p>
