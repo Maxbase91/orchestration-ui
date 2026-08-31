@@ -136,6 +136,25 @@ The latest local role/screenshot sweep is retained at
 local server has no Vercel functions, so API-backed requests returned expected
 404s; use the deployed alias for a meaningful runtime-error verdict.
 
+## Deployed rerun — 31 August 2026
+
+After the stabilization commits were pushed and deployed (Vercel deployment
+`dpl_HSrpDzqgvwyD9s7k4xWtQDeNxj9B`), the role-based browser sweep was rerun
+against `https://orchestration-ui.vercel.app`.
+
+- 63 checkpoints across requester, procurement, vendor, operations, admin, and supplier routes;
+- Simple and Expert catalogue checkout readiness checks;
+- responsive checks at 320px and 375px;
+- 0 white screens, 0 uncaught page errors, 0 console/runtime failures;
+- 0 local-serverless-unavailable findings (deployed APIs were reachable).
+
+Evidence: `../ui-e2e-20260831141047/INDEX.md` and `../ui-e2e-20260831141047/manifest.json`.
+
+This is a route and readiness sweep; it does not claim that every write-heavy
+handoff (sourcing award, onboarding decision, invoice variance, and simulated
+payment) was completed in this rerun. Those remain explicit follow-up scenarios
+for the full UAT run.
+
 ## Proposed remediation plan
 
 ### P0 — release blockers
