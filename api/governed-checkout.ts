@@ -105,8 +105,9 @@ async function aggregate(sql: ReturnType<typeof getNeonClient>, requisitionRow: 
     sql.query('SELECT * FROM purchase_orders WHERE requisition_id = $1 ORDER BY created_at DESC', [String(requisitionRow.id)]),
   ]);
   const request = requestRows[0] as DbRow | undefined;
+  const purchaseOrders = poRows as unknown as DbRow[];
   const lines = (lineRows as DbRow[]).map(mapDbToRequestLine);
-  if (!request || lines.length === 0 || (requisitionRow.status === 'po-created' && poRows.length === 0)) {
+  if (!request || lines.length === 0 || (requisitionRow.status === 'po-created' && purchaseOrders.length === 0)) {
     throw new CheckoutError('Existing checkout aggregate is incomplete and requires recovery.', 'incomplete_checkout', 409);
   }
   return {
@@ -114,7 +115,7 @@ async function aggregate(sql: ReturnType<typeof getNeonClient>, requisitionRow: 
     request: mapDbToRequest(request),
     requisition: mapDbToPurchaseRequisition(requisitionRow),
     lines,
-    ...(poRows[0] ? { purchaseOrder: mapDbToPurchaseOrder(poRows[0] as DbRow) } : {}),
+    ...(purchaseOrders[0] ? { purchaseOrder: mapDbToPurchaseOrder(purchaseOrders[0]) } : {}),
   };
 }
 
@@ -145,7 +146,7 @@ function requestDb(request: Partial<ProcurementRequest>, fields: { id: string; r
     category: request.category ?? 'catalogue', status: lifecycleStatus, priority: request.priority ?? 'medium',
     value: fields.decision.totalValue, currency: fields.decision.currency,
     requestor_id: request.requestorId, owner_id: request.ownerId ?? request.requestorId,
-    supplier_id: fields.decision.resolved.supplierId, supplier_name: request.supplierName,
+    supplier_id: fields.decision.resolved.supplierId, supplier_name: null,
     contract_id: fields.decision.resolved.contractId,
     risk_assessment_id: fields.decision.resolved.riskAssessmentId,
     buying_channel: request.buyingChannel ?? 'catalogue', commodity_code: request.commodityCode ?? fields.decision.resolved.commodityCodes[0] ?? '',
@@ -212,7 +213,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     const existing = await findExisting(sql, idempotencyKey, requestId);
     if (existing) {
       if (existing.idempotency_fingerprint && existing.idempotency_fingerprint !== requestFingerprint) throw new CheckoutError('This idempotency key was already used for different checkout data.', 'idempotency_conflict', 409);
-      return res.status(200).json(await aggregate(sql, existing));
+      res.status(200).json(await aggregate(sql, existing)); return;
     }
 
     const supplierId = assertString(checkout.supplier?.id, 'supplierId');
@@ -338,7 +339,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     }
     await sql.transaction(queries);
     const saved = await sql.query('SELECT * FROM purchase_requisitions WHERE id = $1', [requisitionId]);
-    return res.status(200).json(await aggregate(sql, saved[0] as DbRow));
+    res.status(200).json(await aggregate(sql, saved[0] as DbRow)); return;
   } catch (error) {
     if (error instanceof CheckoutError) { res.status(error.status).json({ error: error.message, code: error.code }); return; }
     const message = errorMessage(error);
