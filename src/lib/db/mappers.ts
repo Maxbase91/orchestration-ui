@@ -525,6 +525,11 @@ export function mapDbToRequest(row: DbRecord): ProcurementRequest {
     const camelKey = REVERSE_REQUEST_MAP[key] ?? key;
     result[camelKey] = value;
   }
+  // PostgreSQL numeric columns arrive as strings through the Neon HTTP driver;
+  // normalize KPI-critical fields so arithmetic cannot concatenate values.
+  for (const key of ['value', 'daysInStage', 'referBackCount']) {
+    if (result[key] !== undefined && result[key] !== null) result[key] = Number(result[key]);
+  }
   return result as unknown as ProcurementRequest;
 }
 

@@ -2,7 +2,6 @@ import { Breadcrumbs } from './breadcrumbs';
 import { GlobalSearch } from './global-search';
 import { NotificationBell } from './notification-bell';
 import { RoleSwitcher } from './role-switcher';
-import { DesignSwitcher } from './design-switcher';
 import { ExperienceModeSwitcher } from './experience-mode-switcher';
 import { Separator } from '@/components/ui/separator';
 import { Menu } from 'lucide-react';
@@ -27,8 +26,6 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
         <GlobalSearch />
         <Separator orientation="vertical" className="h-6 mx-1" />
         <NotificationBell />
-        <Separator orientation="vertical" className="h-6 mx-1" />
-        <DesignSwitcher />
         <Separator orientation="vertical" className="h-6 mx-1" />
         <ExperienceModeSwitcher />
         <Separator orientation="vertical" className="h-6 mx-1" />

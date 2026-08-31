@@ -15,7 +15,7 @@ export interface WidgetConfig {
 
 export const widgetRegistry: WidgetConfig[] = [
   { id: 'my-requests', title: 'My Active Requests', description: 'Your open procurement requests with status tracking', icon: 'FileText', size: 'large', availableTo: allInternal },
-  { id: 'kpi-open-demand', title: 'Open Demand', description: 'Count and value of open demand items', icon: 'TrendingUp', size: 'small', availableTo: coreInternal },
+  { id: 'kpi-open-demand', title: 'Open pipeline', description: 'Requests currently in an active intake or procurement stage', icon: 'TrendingUp', size: 'small', availableTo: coreInternal },
   { id: 'kpi-sourcing', title: 'Active Sourcing', description: 'Number of active sourcing events', icon: 'Search', size: 'small', availableTo: coreInternal },
   { id: 'kpi-cycle-time', title: 'Avg Cycle Time', description: 'Average request processing duration', icon: 'Clock', size: 'small', availableTo: coreInternal },
   { id: 'kpi-compliance', title: 'Compliance Rate', description: 'Policy compliance percentage', icon: 'ShieldCheck', size: 'small', availableTo: coreInternal },

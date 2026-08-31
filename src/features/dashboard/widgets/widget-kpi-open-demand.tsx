@@ -7,8 +7,8 @@ export function WidgetKPIOpenDemand() {
 
   return (
     <KPICard
-      label="Open Demand"
-      value={`${openDemandCount} (${formatCurrency(openDemandValue)})`}
+      label="Open pipeline"
+      value={`${openDemandCount} requests · ${formatCurrency(openDemandValue)}`}
       sparklineData={openDemandSeries}
       trend={openDemandTrend}
     />
