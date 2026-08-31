@@ -18,6 +18,11 @@ export function useCreateGoodsReceipt() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (receipt: Omit<GoodsReceipt, 'id' | 'createdAt'>) => createGoodsReceipt(receipt),
-    onSuccess: () => qc.invalidateQueries({ queryKey: KEYS.all }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.all });
+      // The receipt changes the PO status and line quantities, so the queue
+      // must refresh immediately instead of waiting for a full page reload.
+      qc.invalidateQueries({ queryKey: ['purchase-orders'] });
+    },
   });
 }

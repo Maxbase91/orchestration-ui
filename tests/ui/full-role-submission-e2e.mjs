@@ -6,6 +6,7 @@ import { chromium } from 'playwright';
 
 const BASE = process.env.E2E_UI_BASE ?? 'http://localhost:5173';
 const LIVE_WRITES = process.env.ALLOW_LIVE_WRITES === '1';
+const LOCAL_VITE = /^https?:\/\/(localhost|127\.0\.0\.1)(?::\d+)?$/i.test(BASE);
 const runId = `ui-e2e-${new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 14)}`;
 const artifactDir = `docs/testing/artifacts/ui-e2e/${runId}`;
 mkdirSync(artifactDir, { recursive: true });
@@ -29,6 +30,7 @@ const routes = {
 };
 
 const findings = [];
+const unavailable = [];
 let screenshotNumber = 0;
 
 function screenshotPath(label) {
@@ -101,9 +103,24 @@ async function run() {
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const page = await context.newPage();
   page.on('pageerror', (error) => findings.push({ scenario: 'runtime', role: 'unknown', stage: 'pageerror', action: error.message, expected: 'no uncaught error', observedUrl: page.url(), errors: [error.message] }));
-  page.on('console', (message) => { if (message.type() === 'error') findings.push({ scenario: 'runtime', role: 'unknown', stage: 'console', action: message.text(), expected: 'no console error', observedUrl: page.url(), errors: [message.text()] }); });
+  page.on('console', (message) => {
+    if (message.type() !== 'error') return;
+    const text = message.text();
+    // Local Vite does not host Vercel serverless functions. Keep these visible
+    // in the manifest, but do not misclassify infrastructure absence as an app defect.
+    if (LOCAL_VITE && (/\/api\//.test(text) || /status of 404 \(Not Found\)/i.test(text))) {
+      unavailable.push({ kind: 'local-serverless', message: text, url: page.url() });
+      return;
+    }
+    findings.push({ scenario: 'runtime', role: 'unknown', stage: 'console', action: text, expected: 'no console error', observedUrl: page.url(), errors: [text] });
+  });
   page.on('response', (response) => {
-    if (response.status() >= 400 && !response.url().includes('/api/')) findings.push({ scenario: 'runtime', role: 'unknown', stage: 'http', action: `${response.status()} ${response.url()}`, expected: 'successful page resource', observedUrl: page.url(), errors: [`HTTP ${response.status()}`] });
+    if (response.status() < 400) return;
+    if (LOCAL_VITE && response.url().includes('/api/')) {
+      unavailable.push({ kind: 'local-serverless', status: response.status(), url: response.url() });
+      return;
+    }
+    if (!response.url().includes('/api/')) findings.push({ scenario: 'runtime', role: 'unknown', stage: 'http', action: `${response.status()} ${response.url()}`, expected: 'successful page resource', observedUrl: page.url(), errors: [`HTTP ${response.status()}`] });
   });
 
   await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded', timeout: 20000 });
@@ -131,13 +148,13 @@ async function run() {
     await checkpoint(page, 'responsive', 'requester', `${width}px`, 'open home', `no horizontal overflow (observed ${overflow ? 'overflow' : 'ok'})`);
   }
 
-  writeFileSync(`${artifactDir}/manifest.json`, JSON.stringify({ runId, base: BASE, liveWrites: LIVE_WRITES, findings }, null, 2));
+  writeFileSync(`${artifactDir}/manifest.json`, JSON.stringify({ runId, base: BASE, liveWrites: LIVE_WRITES, localServerlessUnavailable: unavailable, findings }, null, 2));
   const lines = [`# UI E2E ${runId}`, '', `Base: ${BASE}`, `Live writes enabled: ${LIVE_WRITES}`, '', '| Scenario | Role | Stage | Action | Result | Screenshot |', '|---|---|---|---|---|---|'];
   for (const finding of findings) lines.push(`| ${finding.scenario} | ${finding.role} | ${finding.stage} | ${finding.action} | ${(finding.errors?.length ?? 0) ? 'FAILED' : 'OBSERVED'} | ${finding.screenshot ? `[image](${finding.screenshot.split('/').pop()})` : ''} |`);
   writeFileSync(`${artifactDir}/INDEX.md`, `${lines.join('\n')}\n`);
   await browser.close();
   const failures = findings.filter((finding) => finding.errors?.length || finding.whiteScreen).length;
-  console.log(`UI E2E complete: ${findings.length} checkpoints, ${failures} failures. Artifacts: ${artifactDir}`);
+  console.log(`UI E2E complete: ${findings.length} checkpoints, ${failures} failures, ${unavailable.length} local-serverless unavailable. Artifacts: ${artifactDir}`);
   if (failures > 0) process.exitCode = 1;
 }
 

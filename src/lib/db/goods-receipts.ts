@@ -59,5 +59,14 @@ export async function createGoodsReceipt(receipt: Omit<GoodsReceipt, 'id' | 'cre
     .select('*')
     .single();
   if (error) throw error;
+  // Keep the receipt queue driven by the PO's persisted line quantities. The
+  // previous implementation only inserted a receipt row, so a fully received
+  // PO continued to appear as receivable until a later manual refresh or
+  // unrelated PO edit.
+  const { error: poError } = await supabase
+    .from('purchase_orders')
+    .update({ line_items: receipt.lineItems, status: receipt.status === 'complete' ? 'received' : 'partially-received' })
+    .eq('id', receipt.poId);
+  if (poError) throw poError;
   return mapRow(data);
 }

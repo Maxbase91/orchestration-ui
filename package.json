@@ -19,6 +19,7 @@
     "test:vercel-functions": "node tests/integration/vercel-function-budget.mjs",
     "test:approval-chain-persistence": "node tests/integration/approval-chain-persistence.mjs",
     "test:intake": "node tests/integration/intake-sequence.mjs",
+    "test:intake-submit": "node --import tsx/esm tests/integration/intake-submit.mjs",
     "test:audit": "node tests/integration/audit-trail.mjs",
     "test:derived": "node tests/integration/derived-fields.mjs",
     "test:admin-editors": "node tests/integration/admin-editors.mjs",

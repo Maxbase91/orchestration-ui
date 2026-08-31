@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 
 const vercel = readFileSync('vercel.json', 'utf8');
 const db = readFileSync('api/db.ts', 'utf8');
-const domains = ['commodity-match', 'contract-match', 'contract-scope', 'contract-vocabulary', 'intake-guidance', 'intake-upload', 'policy-config'];
+const domains = ['commodity-match', 'contract-match', 'contract-scope', 'contract-vocabulary', 'intake-guidance', 'intake-upload', 'intake-submit', 'policy-config'];
 let failures = 0;
 for (const domain of domains) {
   const ok = vercel.includes(`/api/${domain}`) && vercel.includes(`/api/db?domain=${domain}`) && db.includes(`'${domain}'`);

@@ -23,6 +23,7 @@ allowlisted `api/[...route].ts` dispatcher; this does not change any browser URL
 | `api/ai.ts` | POST | Context-specific AI responses (approval card, supplier summary, etc.) |
 | `api/workflow-action.ts` | POST | Advance request stage, record stage history |
 | `api/governed-checkout.ts` | POST | Server-authoritative catalogue/contract checkout; atomic request → PR → lines → conditional internal PO with replay-safe idempotency |
+| `src/server/api/intake-submit.ts` | POST `/api/intake-submit` | Validate complete adaptive intake and atomically persist request, structured description, compliance, stage history, workflow instance and initial approval entry; server selects the first actionable stage |
 | `src/server/api/contract-match.ts` | POST `/api/contract-match` | Effective-dated, explainable contract-scope matching with clarification questions and safe AI reranking |
 | `src/server/api/contract-scope.ts` | GET/POST `/api/contract-scope` | Procurement maintenance of contract coverage versions, deliverables and exclusions |
 | `src/server/api/contract-vocabulary.ts` | GET/POST `/api/contract-vocabulary` | Controlled service-family and deliverable vocabulary for scope administration |

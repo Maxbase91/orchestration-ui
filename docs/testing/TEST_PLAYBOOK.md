@@ -8,6 +8,49 @@ and its [implementation evidence index](../roadmap/R1_IMPLEMENTATION_EVIDENCE.md
 
 > **Deployment note (30 Aug 2026):** the current live alias is `https://orchestration-ui.vercel.app` and the latest verified deployment is commit `0bf9a93`.
 
+## 2026-08-31 lifecycle stabilisation tranche
+
+The full-demand submit path now uses the dispatcher-routed `/api/intake-submit`
+boundary. It validates the confirmed date, route, accounting and beneficiary,
+then commits the request, structured service description, compliance record,
+stage history, workflow instance and (when applicable) the initial approval
+entry in one Neon transaction. A failed submission therefore cannot leave a
+new partial request. Existing request IDs are replay-safe.
+
+The shared catalogue checkout treats an empty draft date as an unhydrated
+default and supplies a concrete need-by date before calculating the Review
+order state. Receipt creation updates the linked PO status, and supplier
+invoice entry resolves the supplier from the referenced PO. Request-linked
+sourcing drafts now expose Edit and Publish gates; publishing requires
+invitees, requirements and complete evaluation criteria before moving the
+originating request to sourcing.
+
+The assistant's latest-PO response is requester-scoped and no longer renders
+tool/source markers. JSONB update parameters use explicit casts through the
+Neon dispatcher, preventing conversation-history update failures.
+
+Verification commands for this tranche:
+
+```text
+npm run build
+npm run lint
+npm run test:ui
+npm run test:intake-submit
+npm run test:api-domain-routing
+npm run test:api-imports
+npm run test:governed-checkout
+npm run test:catalogue-order
+npm run test:sourcing
+npm run test:onboarding-stage
+npm run test:unified-intake
+npm run test:intake-guidance
+npm run test:vercel-functions
+```
+
+`npm run test:neon-live` and the atomic Neon integration suite require network
+access to the configured Neon endpoint; when DNS/network access is unavailable
+they are recorded as unavailable rather than treated as application passes.
+
 ---
 
 ## How to use this playbook

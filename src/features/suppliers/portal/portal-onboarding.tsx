@@ -1,6 +1,15 @@
-import { Check, Circle, Loader2 } from 'lucide-react';
+// Supplier-owned onboarding form. It keeps the portal actionable while the
+// internal vendor-manager decisions remain on the request workflow stage.
+import { useEffect, useState } from 'react';
+import { Check, Circle, Loader2, Save } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useSupplier, useUpdateSupplier } from '@/lib/db/hooks/use-suppliers';
+import { PORTAL_SUPPLIER_ID } from './portal-identity';
+import { toast } from 'sonner';
 
 interface OnboardingStep {
   id: string;
@@ -71,12 +80,56 @@ function StepIcon({ status }: { status: OnboardingStep['status'] }) {
 }
 
 export function PortalOnboarding() {
+  const { data: supplier } = useSupplier(PORTAL_SUPPLIER_ID);
+  const updateSupplier = useUpdateSupplier();
+  const [companyName, setCompanyName] = useState('');
+  const [duns, setDuns] = useState('');
+  const [contact, setContact] = useState('');
+  const [email, setEmail] = useState('');
+  const [confirmed, setConfirmed] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    if (supplier && !hydrated) {
+      // Supplier data arrives asynchronously; seed the editable draft exactly
+      // once when it becomes available, then leave subsequent typing alone.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setDuns(supplier.duns);
+      setCompanyName(supplier.name);
+      setContact(supplier.primaryContact);
+      setEmail(supplier.primaryContactEmail);
+      setHydrated(true);
+    }
+  }, [hydrated, supplier]);
+  const save = async () => {
+    if (!companyName.trim() || !duns.trim() || !contact.trim() || !email.trim() || !confirmed) {
+      toast.error('Complete the company, contact and compliance confirmation fields before saving.');
+      return;
+    }
+    try {
+      await updateSupplier.mutateAsync({ id: PORTAL_SUPPLIER_ID, patch: { name: companyName.trim(), duns: duns.trim(), primaryContact: contact.trim(), primaryContactEmail: email.trim(), onboardingStatus: 'in-progress' } });
+      toast.success('Onboarding information saved for review.');
+    } catch {
+      toast.error('Could not save onboarding information. Please try again.');
+    }
+  };
   return (
     <div className="space-y-6">
       <h1 className="text-xl font-semibold text-gray-900">Onboarding</h1>
       <p className="text-sm text-muted-foreground">
         Complete each step to become a fully qualified supplier.
       </p>
+
+      <Card className="border-blue-200 bg-blue-50/30">
+        <CardHeader className="pb-2"><CardTitle className="text-sm">Provide your company details</CardTitle></CardHeader>
+        <CardContent className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5"><Label htmlFor="onboarding-company">Legal company name</Label><Input id="onboarding-company" value={companyName} onChange={(event) => setCompanyName(event.target.value)} placeholder="Registered company name" /></div>
+          <div className="space-y-1.5"><Label htmlFor="onboarding-duns">Registration or DUNS number</Label><Input id="onboarding-duns" value={duns} onChange={(event) => setDuns(event.target.value)} placeholder="Company registration number" /></div>
+          <div className="space-y-1.5"><Label htmlFor="onboarding-contact">Primary contact</Label><Input id="onboarding-contact" value={contact} onChange={(event) => setContact(event.target.value)} placeholder="Contact name" /></div>
+          <div className="space-y-1.5"><Label htmlFor="onboarding-email">Contact email</Label><Input id="onboarding-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="name@company.example" /></div>
+          <label className="flex items-start gap-2 text-sm sm:pt-6"><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} className="mt-1" /> <span>I confirm these details and the compliance documents are accurate.</span></label>
+          <Button type="button" className="sm:col-span-2 sm:w-fit" onClick={() => void save()} disabled={updateSupplier.isPending}><Save className="size-4" /> Save for review</Button>
+        </CardContent>
+      </Card>
 
       <div className="space-y-0">
         {steps.map((step, index) => {

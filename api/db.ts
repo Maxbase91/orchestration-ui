@@ -10,6 +10,7 @@ import contractScope from '../src/server/api/contract-scope.js';
 import contractVocabulary from '../src/server/api/contract-vocabulary.js';
 import intakeGuidance from '../src/server/api/intake-guidance.js';
 import policyConfig from '../src/server/api/policy-config.js';
+import intakeSubmit from '../src/server/api/intake-submit.js';
 
 type DomainHandler = (req: VercelRequest, res: VercelResponse) => void | Promise<void>;
 
@@ -27,6 +28,10 @@ async function loadDomainHandler(name: string): Promise<DomainHandler | undefine
     case 'contract-vocabulary': return contractVocabulary;
     case 'intake-guidance': return intakeGuidance;
     case 'policy-config': return policyConfig;
+    case 'intake-submit': return intakeSubmit;
+    // Keep document parser dependencies out of the common cold-start path;
+    // only the upload request loads PDF/DOCX parsing code.
+    case 'intake-upload': return (await import('../src/server/api/intake-upload.js')).default;
     default: return undefined;
   }
 }
@@ -77,12 +82,16 @@ function parameterCast(value: unknown): string {
   return '::text';
 }
 
-function updateParameterCast(value: unknown, column: string): string {
+function updateParameterCast(value: unknown, column: string, jsonColumnsForTable?: Set<string>): string {
   // Neon HTTP sends JavaScript strings as unknown parameters. Explicit casts
   // are required for UPDATE assignments (notably approval status fields),
   // even though a WHERE comparison can infer its type from the column.
   if (typeof value === 'string' && (column.endsWith('_at') || column === 'sla_deadline')) return '::timestamp';
   if (typeof value === 'string' && (column.endsWith('_date') || column === 'effective_from' || column === 'effective_to')) return '::date';
+  // JSONB updates arrive as serialized JSON text. Without an explicit cast
+  // PostgreSQL treats the parameter as text and rejects assistant messages,
+  // policy arrays, and other JSONB updates even though inserts succeed.
+  if (typeof value === 'string' && jsonColumnsForTable?.has(column)) return '::jsonb';
   return parameterCast(value);
 }
 
@@ -210,7 +219,7 @@ export async function executeNeonRequest(request: DbRequest): Promise<unknown> {
     const value = parameterValue(rows[0][column], column, jsonColumnsForTable);
     if (value === null) return `${quoteIdentifier(column)} = NULL`;
     bodyParams.push(value);
-    return `${quoteIdentifier(column)} = $${bodyParams.length}${updateParameterCast(value, column)}`;
+    return `${quoteIdentifier(column)} = $${bodyParams.length}${updateParameterCast(value, column, jsonColumnsForTable)}`;
   });
   // Put SET parameters first and append filter parameters afterwards. This
   // keeps values typed by their target columns at $1..$n; the previous

@@ -19,8 +19,6 @@ import { useCatalogueItems } from '@/lib/db/hooks/use-catalogue-items';
 import { useContracts } from '@/lib/db/hooks/use-contracts';
 import { useRiskAssessments } from '@/lib/db/hooks/use-risk-assessments';
 import { createRequest } from '@/lib/db/requests';
-import { saveServiceDescription } from '@/lib/db/service-descriptions';
-import { saveIntakeCompliance } from '@/lib/db/intake-compliance';
 import { initWorkflow } from '@/lib/workflow/engine';
 import { queryClient } from '@/lib/query-client';
 import { resolveDemandChannel } from '@/lib/routing/demand-channel';
@@ -30,6 +28,7 @@ import { resolveSlots, requiredSlotsFilled, type DemandConversationContext } fro
 import { selectWorkflowTemplateForCategory, selectApprovalChainForValue } from '@/lib/workflow/workflow-steps';
 import { evaluateGovernedCheckout } from '@/lib/procurement/governed-checkout';
 import { submitGovernedCheckout } from '@/lib/procurement/submit-governed-checkout';
+import { submitIntake } from '@/lib/procurement/submit-intake';
 import { getProcurementProfile } from '@/lib/db/procurement-profiles';
 import { sectionValuesOf } from '@/lib/procurement/service-description-seed';
 import { parseDeliveryDate } from '@/lib/parse-delivery-date';
@@ -347,7 +346,7 @@ export function SimpleNewRequestPage() {
       const channel = requestRoute === 'p-card' ? 'p-card' : requestRoute === 'direct-po' ? 'direct-po' : routing.channel;
       const templateForRequest = selectWorkflowTemplateForCategory(workflowTemplates, requestData.category);
       const approval = selectApprovalChainForValue(approvalChains, requestData.estimatedValue);
-      const record: Partial<ProcurementRequest> = {
+      const record: Partial<ProcurementRequest> & { id: string } = {
         id, title: requestData.title || 'Procurement request',
         description: requestData.serviceDescription?.narrative || requestData.businessJustification || requestData.title,
         category: requestData.category, status: 'intake', priority: requestData.isUrgent ? 'urgent' : 'medium',
@@ -363,17 +362,19 @@ export function SimpleNewRequestPage() {
         beneficiaryName: requestData.beneficiaryName || undefined, beneficiaryCountry: requestData.beneficiaryCountry || undefined,
         beneficiaryCountryCode: requestData.beneficiaryCountryCode || undefined,
       };
-      await createRequest(record);
-      if (requestData.serviceDescription) {
-        await saveServiceDescription(id, { ...requestData.serviceDescription });
-      }
-      await saveIntakeCompliance({
-        requestId: id, determinedAt: new Date().toISOString(),
-        buyingChannel: { channel, label: ROUTE_COPY[requestRoute].label, reasoning: ROUTE_COPY[requestRoute].detail },
-        sraCheck: { status: 'pass', detail: 'Automated checks will continue with the assigned owner.' },
-        policyChecks: [], duplicateCheck: { found: false, detail: 'No duplicate demand detected at intake.' }, riskFlags: [], matchingRiskAssessmentIds: [],
+      await submitIntake({
+        request: record,
+        serviceDescription: requestData.serviceDescription ? { ...requestData.serviceDescription } : undefined,
+        compliance: {
+          determinedAt: new Date().toISOString(),
+          buyingChannel: { channel, label: ROUTE_COPY[requestRoute].label, reasoning: ROUTE_COPY[requestRoute].detail },
+          sraCheck: { status: 'pass', detail: 'Automated checks will continue with the assigned owner.' },
+          policyChecks: [], duplicateCheck: { found: false, detail: 'No duplicate demand detected at intake.' }, riskFlags: [], matchingRiskAssessmentIds: [],
+        },
+        workflowTemplateId: templateForRequest?.id,
+        buyingChannel: channel,
+        idempotencyKey: `intake-${id}`,
       });
-      await initWorkflow(id, templateForRequest?.id, channel);
       queryClient.invalidateQueries({ queryKey: ['requests'] });
       setRequestIdValue(id);
       setPhase('submitted');

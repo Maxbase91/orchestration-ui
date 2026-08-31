@@ -66,7 +66,9 @@ export function CatalogueOrderCheckout({
   const { currentUser } = useAuthStore();
   const { data: profile } = useProcurementProfile(currentUser.id);
   const [quantity, setQuantity] = useState(initialValues?.quantity ?? 1);
-  const [needBy, setNeedBy] = useState(initialValues?.needBy ?? dateInDays(7));
+  // An empty parent draft means "not hydrated yet", not an intentional empty
+  // date. Keep the governed checkout usable while still requiring a real date.
+  const [needBy, setNeedBy] = useState(initialValues?.needBy?.trim() || dateInDays(7));
   const [deliveryLocation, setDeliveryLocation] = useState(initialValues?.deliveryLocation ?? '');
   const [recipient, setRecipient] = useState(initialValues?.recipient ?? '');
   const [businessPurpose, setBusinessPurpose] = useState(initialValues?.businessPurpose ?? '');

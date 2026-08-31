@@ -5,9 +5,10 @@
 // step-1 fields, silently discarding the supplier selection, the requirements
 // and the criteria — so the supplier picker was decorative and the criteria the
 // user weighted never reached the scoring matrix that needs them.
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useCreateSourcingEvent } from '@/lib/db/hooks/use-sourcing-events';
+import { useSearchParams } from 'react-router-dom';
+import { useCreateSourcingEvent, useSourcingEvent, useUpdateSourcingEvent } from '@/lib/db/hooks/use-sourcing-events';
 import { useInviteSuppliers } from '@/lib/db/hooks/use-sourcing-responses';
 import { nextSourcingEventId } from '@/lib/db/sourcing-events';
 import { useAuthStore } from '@/stores/auth-store';
@@ -71,8 +72,12 @@ interface RequirementSection {
 
 export function NewEventPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const editId = searchParams.get('edit');
   const { data: suppliers = [] } = useSuppliers();
   const createEvent = useCreateSourcingEvent();
+  const updateEvent = useUpdateSourcingEvent();
+  const { data: editEvent } = useSourcingEvent(editId ?? undefined);
   const inviteSuppliers = useInviteSuppliers();
   const { currentUser } = useAuthStore();
   const [step, setStep] = useState(0);
@@ -104,6 +109,20 @@ export function NewEventPage() {
     { id: '3', name: 'Experience', weight: 20, scoringType: '1-5' },
     { id: '4', name: 'Sustainability', weight: 10, scoringType: '1-5' },
   ]);
+
+  useEffect(() => {
+    if (!editEvent) return;
+    // Hydrate the existing event once it arrives; this is intentionally a
+    // state sync because the editor is a controlled form and the event loads
+    // asynchronously from Neon.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setTitle(editEvent.title); setDescription(editEvent.description); setCategory(editEvent.category);
+    setEventType(editEvent.type as 'RFI' | 'RFP' | 'RFQ'); setStartDate(editEvent.startDate ?? '');
+    setEndDate(editEvent.deadline ?? ''); setBudgetMax(editEvent.budget != null ? String(editEvent.budget) : '');
+    setBudgetMin(editEvent.budgetMin != null ? String(editEvent.budgetMin) : '');
+    setRequirements(editEvent.requirements.map((content, index) => ({ id: String(index + 1), title: content.split(':')[0] ?? 'Requirement', content: content.includes(':') ? content.slice(content.indexOf(':') + 1).trim() : content })));
+    setCriteria(editEvent.criteria.map((criterion) => ({ id: criterion.id, name: criterion.label, weight: criterion.weight, scoringType: '1-5' })));
+  }, [editEvent]);
 
   const filteredSuppliers = suppliers.filter(
     (s) =>
@@ -172,8 +191,8 @@ export function NewEventPage() {
    * leaves a recoverable event rather than orphaned response rows.
    */
   async function saveEvent(status: 'published' | 'draft') {
-    const id = await nextSourcingEventId();
-    await createEvent.mutateAsync({
+    const id = editId ?? await nextSourcingEventId();
+    const eventData = {
       id,
       title: title || (status === 'draft' ? 'Untitled Draft' : 'Untitled Event'),
       description,
@@ -193,7 +212,9 @@ export function NewEventPage() {
         .filter((r) => r.content.trim())
         .map((r) => `${r.title}: ${r.content.trim()}`),
       criteria: criteria.map((c) => ({ id: c.id, label: c.name, weight: c.weight })),
-    });
+    };
+    if (editId) await updateEvent.mutateAsync({ id, patch: eventData });
+    else await createEvent.mutateAsync(eventData);
 
     const invited = suppliers
       .filter((s) => selectedSuppliers.includes(s.id))

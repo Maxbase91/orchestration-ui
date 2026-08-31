@@ -12,8 +12,6 @@ import { useUsers } from '@/lib/db/hooks/use-users';
 import { useAuthStore } from '@/stores/auth-store';
 import { createRequest } from '@/lib/db/requests';
 import { parseDeliveryDate } from '@/lib/parse-delivery-date';
-import { saveServiceDescription } from '@/lib/db/service-descriptions';
-import { saveIntakeCompliance } from '@/lib/db/intake-compliance';
 import { initWorkflow } from '@/lib/workflow/engine';
 import { queryClient } from '@/lib/query-client';
 import type { CommodityClassificationCandidate, IntakeAttachment, RequestCategory, BuyingChannel } from '@/data/types';
@@ -48,6 +46,7 @@ import { SimpleNewRequestPage } from './simple-new-request-page';
 import { getProcurementProfile } from '@/lib/db/procurement-profiles';
 import { evaluateGovernedCheckout, resolveCheckoutRiskAssessment, resolveCheckoutContract } from '@/lib/procurement/governed-checkout';
 import { submitGovernedCheckout } from '@/lib/procurement/submit-governed-checkout';
+import { submitIntake } from '@/lib/procurement/submit-intake';
 import { CatalogueOrderCheckout, type CatalogueOrderDraft } from '@/features/catalogue/catalogue-order-checkout';
 import { ContractCallOffCheckout, type ContractCallOffDraft } from './contract-call-off-checkout';
 
@@ -629,123 +628,54 @@ function ExpertNewRequestPage() {
       setIsSubmitting(true);
       try {
         const sow = formData.serviceDescription ?? null;
-        await createRequest({
-          id,
-          title: formData.title,
-          description: sow?.narrative ?? formData.businessJustification ?? formData.title,
-          category: formData.category as RequestCategory,
-          status: 'intake',
-          priority: formData.isUrgent ? 'urgent' : 'medium',
-          value: formData.estimatedValue,
-          currency: formData.currency,
-          supplierId: formData.supplierId,
-          contractId: formData.contractId || undefined,
-          workflowTemplateId: formData.workflowTemplateId || undefined,
-          // The slug, not the display label. Every consumer of buying_channel
-          // keys on the slug; writing the label made getStagesForChannel miss.
-          buyingChannel: (formData.buyingChannelSlug || 'procurement-led') as BuyingChannel,
-          approvalChain: formData.approvalChain,
-          sourcingType: formData.sourcingType?.type,
-          sourcingTypeReason: formData.sourcingType?.reason,
-          // The determination the front door made, kept with the request.
-          inherentRiskTier: formData.inherentRisk?.tier,
-          materialityTier: formData.materiality?.criticality,
-          riskAssessmentRequired: formData.riskAssessmentRequired,
-          screeningOutcome: formData.screening?.status,
-          referralDisposition: formData.referral?.outcome,
-          commodityCode: formData.commodityCode,
-          commodityCodeLabel: formData.commodityCodeLabel,
-          commodityCandidates: formData.commodityCandidates,
-          commodityClassificationConfirmed: formData.commodityClassificationConfirmed,
-          attachments: formData.attachments,
-          costCentre: formData.costCentre,
-          budgetOwner: currentUser.name,
-          // The structured service description is the requester-facing source
-          // of truth; keep the legacy column empty for newly created requests.
-          businessJustification: undefined,
-          deliveryDate: parseDeliveryDate(formData.deliveryDate) ?? undefined,
-          isUrgent: formData.isUrgent,
-          requestorId: currentUser.id,
-          ownerId: currentUser.id,
-          daysInStage: 0,
-          isOverdue: false,
-          referBackCount: 0,
-          requesterCountry: formData.requesterCountry || undefined,
-          requesterCountryCode: formData.requesterCountryCode || undefined,
-          beneficiaryId: formData.beneficiaryId || undefined,
-          beneficiaryName: formData.beneficiaryName || undefined,
-          beneficiaryCountry: formData.beneficiaryCountry || undefined,
-          beneficiaryCountryCode: formData.beneficiaryCountryCode || undefined,
-        });
-
-        // Persist the intake determination so the Compliance tab has content
-        // from t=0. saveIntakeCompliance has existed, correctly shaped, with
-        // zero call sites — intake_compliance_records was written only by the
-        // demo seeder, which is why every app-created request showed the empty
-        // state while seeded ones looked fine. Best-effort: a failed compliance
-        // record is a reporting gap, not a reason to lose the request.
-        try {
-          await saveIntakeCompliance({
-            requestId: id,
-            determinedAt: new Date().toISOString(),
-            buyingChannel: {
-              channel: formData.buyingChannelSlug || 'procurement-led',
-              label: formData.buyingChannelResult || 'Procurement-Led Sourcing',
-              reasoning: formData.matchedRuleName
-                ? `Matched routing rule "${formData.matchedRuleName}".`
-                : 'No routing rule matched; the value-band fallback applied.',
-            },
-            sraCheck: {
-              status: formData.sraStatus.includes('expired') ? 'warning' : 'pass',
-              detail: formData.sraStatus || 'Will be initiated upon submission',
-            },
-            policyChecks: formData.policyChecks,
-            duplicateCheck: {
-              found: false,
-              detail: formData.duplicateCheck ?? 'No duplicate demand detected at intake.',
-            },
-            riskFlags: [
-              ...(formData.materiality?.material ? ['material'] : []),
-              ...(formData.inherentRisk?.tier ? [`inherent-risk:${formData.inherentRisk.tier}`] : []),
-              ...(formData.riskAssessmentRequired ? ['risk-assessment-required'] : []),
-              ...(formData.supplierOnboardingRequired ? ['supplier-onboarding-required'] : []),
-            ],
-            matchingRiskAssessmentIds: (formData.matchingRiskAssessments ?? []).map((r) => r.id),
-          });
-        } catch (e) {
-          console.warn('[intake] compliance record not saved (non-blocking):', e);
+        const parsedDeliveryDate = parseDeliveryDate(formData.deliveryDate);
+        if (formData.deliveryDate && !parsedDeliveryDate) {
+          toast.error('Please provide a specific need-by date before submitting.');
+          return;
         }
-
-        if (sow) {
-          await saveServiceDescription(id, {
-            objective: sow.objective ?? '',
-            scope: sow.scope ?? '',
-            exclusions: sow.exclusions ?? '',
-            deliverables: sow.deliverables ?? '',
-            timeline: sow.timeline ?? '',
-            resources: sow.resources ?? '',
-            acceptanceCriteria: sow.acceptanceCriteria ?? '',
-            pricingModel: sow.pricingModel ?? '',
-            location: sow.location ?? '',
-            dependencies: sow.dependencies ?? '',
-            narrative: sow.narrative ?? '',
+        await submitIntake({
+          request: {
+            id, title: formData.title, description: sow?.narrative ?? formData.title,
+            category: formData.category as RequestCategory, status: 'intake',
+            priority: formData.isUrgent ? 'urgent' : 'medium', value: formData.estimatedValue,
+            currency: formData.currency, supplierId: formData.supplierId, contractId: formData.contractId || undefined,
+            workflowTemplateId: formData.workflowTemplateId || undefined,
+            buyingChannel: (formData.buyingChannelSlug || 'procurement-led') as BuyingChannel,
+            approvalChain: formData.approvalChain, sourcingType: formData.sourcingType?.type,
+            sourcingTypeReason: formData.sourcingType?.reason, inherentRiskTier: formData.inherentRisk?.tier,
+            materialityTier: formData.materiality?.criticality, riskAssessmentRequired: formData.riskAssessmentRequired,
+            screeningOutcome: formData.screening?.status, referralDisposition: formData.referral?.outcome,
+            commodityCode: formData.commodityCode, commodityCodeLabel: formData.commodityCodeLabel,
+            commodityCandidates: formData.commodityCandidates, commodityClassificationConfirmed: formData.commodityClassificationConfirmed,
+            attachments: formData.attachments, costCentre: formData.costCentre, budgetOwner: currentUser.name,
+            businessJustification: undefined, deliveryDate: parsedDeliveryDate ?? undefined, isUrgent: formData.isUrgent,
+            requestorId: currentUser.id, ownerId: currentUser.id, daysInStage: 0, isOverdue: false, referBackCount: 0,
+            requesterCountry: formData.requesterCountry || undefined, requesterCountryCode: formData.requesterCountryCode || undefined,
+            beneficiaryId: formData.beneficiaryId || undefined, beneficiaryName: formData.beneficiaryName || undefined,
+            beneficiaryCountry: formData.beneficiaryCountry || undefined, beneficiaryCountryCode: formData.beneficiaryCountryCode || undefined,
+          },
+          serviceDescription: sow ? {
+            objective: sow.objective ?? '', scope: sow.scope ?? '', exclusions: sow.exclusions ?? '', deliverables: sow.deliverables ?? '',
+            timeline: sow.timeline ?? '', resources: sow.resources ?? '', acceptanceCriteria: sow.acceptanceCriteria ?? '',
+            pricingModel: sow.pricingModel ?? '', location: sow.location ?? '', dependencies: sow.dependencies ?? '', narrative: sow.narrative ?? '',
             ...(formData.sowQualityScore != null ? { qualityScore: formData.sowQualityScore } : {}),
             ...(formData.sowQualityChecks ? { qualityChecks: formData.sowQualityChecks } : {}),
             ...(formData.sowSignals ? { signals: formData.sowSignals } : {}),
             ...(formData.sowRequiredSections ? { requiredSections: formData.sowRequiredSections } : {}),
-            // Provenance of each section — answered, assistant-drafted or weak —
-            // so the determination can show which parts of the description are thin.
             ...(sow.captureFlags ? { captureFlags: sow.captureFlags } : {}),
-          });
-        }
-
-        // Start workflow engine — this will auto-advance from intake
-        // and generate approval entries when the request reaches the approval stage
-        await initWorkflow(
-          id,
-          formData.workflowTemplateId,
-          formData.buyingChannelResult || 'procurement-led',
-        );
+          } : undefined,
+          compliance: {
+            determinedAt: new Date().toISOString(),
+            buyingChannel: { channel: formData.buyingChannelSlug || 'procurement-led', label: formData.buyingChannelResult || 'Procurement-Led Sourcing', reasoning: formData.matchedRuleName ? `Matched routing rule "${formData.matchedRuleName}".` : 'No routing rule matched; the value-band fallback applied.' },
+            sraCheck: { status: formData.sraStatus.includes('expired') ? 'warning' : 'pass', detail: formData.sraStatus || 'Will be initiated upon submission' },
+            policyChecks: formData.policyChecks, duplicateCheck: { found: false, detail: formData.duplicateCheck ?? 'No duplicate demand detected at intake.' },
+            riskFlags: [ ...(formData.materiality?.material ? ['material'] : []), ...(formData.inherentRisk?.tier ? [`inherent-risk:${formData.inherentRisk.tier}`] : []), ...(formData.riskAssessmentRequired ? ['risk-assessment-required'] : []), ...(formData.supplierOnboardingRequired ? ['supplier-onboarding-required'] : []) ],
+            matchingRiskAssessmentIds: (formData.matchingRiskAssessments ?? []).map((r) => r.id),
+          },
+          workflowTemplateId: formData.workflowTemplateId,
+          buyingChannel: formData.buyingChannelSlug || 'procurement-led',
+          idempotencyKey: `intake-${id}`,
+        });
 
         queryClient.invalidateQueries({ queryKey: ['requests'] });
         toast.success('Request submitted successfully');
@@ -753,7 +683,9 @@ function ExpertNewRequestPage() {
         setCurrentStep(7);
       } catch (e) {
         console.error('Failed to persist request:', e);
-        toast.error('Failed to submit request. Please try again.');
+        // The dispatcher returns safe field-level validation text; surface it
+        // instead of masking actionable date/accounting errors behind a generic toast.
+        toast.error(e instanceof Error ? e.message : 'Failed to submit request. Please try again.');
       } finally {
         setIsSubmitting(false);
       }

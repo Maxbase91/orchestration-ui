@@ -15,6 +15,7 @@ import type { DemandSlot } from '@/lib/procurement/demand-conversation';
 import { getAICommodityCode } from '@/lib/mock-ai';
 import { formatCurrency } from '@/lib/format';
 import { assessAnswer, type AnswerVerdict } from '@/lib/procurement/answer-quality';
+import { parseDeliveryDate } from '@/lib/parse-delivery-date';
 import {
   applicableSlots,
   conversationProgress,
@@ -154,6 +155,7 @@ function localFallbackResponse(
   extracted: Record<string, unknown>;
   sow: Partial<ServiceDescription>;
   nextQuestion: string;
+  warning?: string;
   /** The rationale for `nextQuestion`, when it is a conditional slot. */
   why?: string;
   /** A worked example for `nextQuestion`, shown as a hint beneath it. */
@@ -162,6 +164,7 @@ function localFallbackResponse(
 } {
   const extracted: Record<string, unknown> = {};
   const sowUpdate: Partial<ServiceDescription> = {};
+  let warning: string | undefined;
 
   // Which slot is the user answering right now?
   const answering = determineNextQuestion(buildContext(category, data, svcDesc), undefined, slots)?.slot;
@@ -176,7 +179,13 @@ function localFallbackResponse(
           if (num > 0) extracted.estimatedValue = num;
         }
       } else {
-        extracted[answering.target.field] = userText.slice(0, 200); // title / deliveryDate
+        if (answering.target.field === 'deliveryDate') {
+          // A date slot must carry a real date forward. Keeping a prose answer
+          // here made the review appear complete and later persisted unusable
+          // text into a DATE column.
+          extracted.deliveryDate = parseDeliveryDate(userText) ?? '';
+          if (!extracted.deliveryDate) warning = 'Please enter a specific need-by date, for example 2026-12-31.';
+        } else extracted[answering.target.field] = userText.slice(0, 200);
       }
     } else {
       sowUpdate[answering.target.field] = userText;
@@ -201,7 +210,7 @@ function localFallbackResponse(
     // The captured sections are the real content and are all displayed. The
     // narrative and the business justification are written when generation
     // runs, which is also where the quality score comes from.
-    return { extracted, sow: sowUpdate, nextQuestion: buildCompletionMessage(ctx, slots), complete: true };
+    return { extracted, sow: sowUpdate, nextQuestion: buildCompletionMessage(ctx, slots), ...(warning ? { warning } : {}), complete: true };
   }
 
   const next = determineNextQuestion(ctx, undefined, slots);
@@ -212,7 +221,7 @@ function localFallbackResponse(
     why: next?.slot.why,
     // Offline the wording is always the engine's, so the example earns its place.
     example: next?.example,
-    complete: false,
+    ...(warning ? { warning } : {}), complete: false,
   };
 }
 
@@ -543,11 +552,16 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
 
       // Merge extracted request fields (LLM does the extraction).
       const updates: Record<string, unknown> = {};
+      let invalidDateAnswer = false;
       if (result.extracted) {
         for (const [key, value] of Object.entries(result.extracted)) {
           if (value !== undefined && value !== null && value !== '' && value !== 0) {
             updates[key] = value;
           }
+        }
+        if (typeof updates.deliveryDate === 'string') {
+          updates.deliveryDate = parseDeliveryDate(updates.deliveryDate) ?? '';
+          if (!updates.deliveryDate) { delete updates.deliveryDate; invalidDateAnswer = true; }
         }
         // Match supplier against directory
         if (updates.supplier && typeof updates.supplier === 'string') {
@@ -632,7 +646,7 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
             ...prev,
             {
               role: 'assistant',
-              content: phrased ?? next.prompt,
+              content: `${invalidDateAnswer ? 'Please enter a specific need-by date, for example 2026-12-31.\n\n' : ''}${phrased ?? next.prompt}`,
               why: next.slot.why,
               // A generic example only helps when the wording is generic too.
               example: phrased ? undefined : next.example,
@@ -690,7 +704,7 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
         ...prev,
         {
           role: 'assistant',
-          content: fallback.nextQuestion,
+          content: fallback.warning ? `${fallback.warning}\n\n${fallback.nextQuestion}` : fallback.nextQuestion,
           why: fallback.why,
           example: fallback.example,
         },

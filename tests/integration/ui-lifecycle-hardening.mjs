@@ -8,6 +8,7 @@ const simpleRequest = readFileSync('src/features/requests/new-request/simple-new
 const contractCheckout = readFileSync('src/features/requests/new-request/contract-call-off-checkout.tsx', 'utf8');
 const actionButtons = readFileSync('src/features/requests/request-detail/components/action-buttons.tsx', 'utf8');
 const invoiceQueue = readFileSync('src/features/purchasing/invoice-queue-page.tsx', 'utf8');
+const portalOnboarding = readFileSync('src/features/suppliers/portal/portal-onboarding.tsx', 'utf8');
 
 const checks = [
   ['Expert call-offs use the governed submission seam', newRequest.includes('submitContractCallOff') && newRequest.includes('submitGovernedCheckout')],
@@ -15,6 +16,7 @@ const checks = [
   ['Contract checkout captures call-off timing and delivery', contractCheckout.includes('calloff-start') && contractCheckout.includes('calloff-location')],
   ['Workflow actions are role-gated', actionButtons.includes('roleCanAdvanceStage') && actionButtons.includes('canManageRequest')],
   ['Invoice queue exposes operational transitions', invoiceQueue.includes('useUpdateInvoice') && invoiceQueue.includes('Release payment') && invoiceQueue.includes('Variance')],
+  ['Supplier onboarding exposes a persisted completion form', portalOnboarding.includes('useUpdateSupplier') && portalOnboarding.includes('onboarding-duns') && portalOnboarding.includes('Save for review')],
 ];
 
 let failures = 0;

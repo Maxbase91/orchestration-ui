@@ -4,6 +4,11 @@ A procurement orchestration platform with a React SPA, a private application-own
 
 **Live demo:** [orchestration-ui.vercel.app](https://orchestration-ui.vercel.app)
 
+The 31 August lifecycle-stabilisation changes are verified locally (including
+the full wizard smoke and atomic intake source checks) and are ready for a
+deployment-backed rerun. Neon live checks remain environment-dependent and
+must be repeated once the configured database hostname is reachable.
+
 **Release documentation:** [R1 roadmap](docs/roadmap/R1_BACKLOG_FIT_GAP.md) · [implementation evidence index](docs/roadmap/R1_IMPLEMENTATION_EVIDENCE.md) · [test playbook](docs/testing/TEST_PLAYBOOK.md)
 
 ---
@@ -179,6 +184,7 @@ npm run test:policy-config        # central decisioning thresholds (defaults pin
 npm run test:policy-config-server # Neon policy singleton save/load/validation (self-cleaning)
 npm run test:governed-checkout    # contract/risk/capacity gates and PR/PO routing decisions
 npm run test:governed-checkout-atomic # atomic Neon request → PR → lines → conditional PO, replay/conflict/concurrency
+npm run test:intake-submit        # atomic full-demand intake, ISO-date validation and first-stage selection
 npm run test:catalogue-ui         # catalogue item detail and checkout entry-point regressions
 npm run test:p-card               # governed P-card eligibility and route-only safety guard
 npm run test:experience-mode      # role defaults, preference normalization, and pilot eligibility contract

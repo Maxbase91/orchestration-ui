@@ -6,6 +6,7 @@ import { DataTable, type Column } from '@/components/shared/data-table';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { useInvoiceLookup, useInvoices, useCreateInvoice } from '@/lib/db/hooks/use-invoices';
+import { usePurchaseOrderLookup } from '@/lib/db/hooks/use-purchase-orders';
 import {
   Dialog,
   DialogContent,
@@ -90,8 +91,11 @@ const EMPTY_FORM: SubmitForm = {
 export function PortalInvoices() {
   useInvoices();
   const { bySupplier: invoicesBySupplier } = useInvoiceLookup();
+  const { byId: purchaseOrderById } = usePurchaseOrderLookup();
   const createInvoice = useCreateInvoice();
-  const invoices = invoicesBySupplier(PORTAL_SUPPLIER_ID);
+  const [supplierId, setSupplierId] = useState(PORTAL_SUPPLIER_ID);
+  const [supplierName, setSupplierName] = useState(PORTAL_SUPPLIER_NAME);
+  const invoices = invoicesBySupplier(supplierId);
   const paidInvoices = invoices.filter((inv) => inv.status === 'paid');
   const pendingInvoices = invoices.filter((inv) => inv.status !== 'paid');
 
@@ -116,10 +120,20 @@ export function PortalInvoices() {
     }
     setSubmitting(true);
     try {
+      const purchaseOrder = form.poId ? purchaseOrderById(form.poId.trim()) : undefined;
+      if (form.poId && !purchaseOrder) {
+        toast.error('That purchase order could not be found. Check the reference and try again.');
+        return;
+      }
+      // A supplier invoice belongs to the supplier on the referenced PO. The
+      // previous fixed Accenture identity could submit an invoice against a
+      // Staples PO, producing a misleading supplier/invoice relationship.
+      const resolvedSupplierId = purchaseOrder?.supplierId ?? supplierId;
+      const resolvedSupplierName = purchaseOrder?.supplierName ?? supplierName;
       await createInvoice.mutateAsync({
         id: form.invoiceNumber,
-        supplierId: PORTAL_SUPPLIER_ID,
-        supplierName: PORTAL_SUPPLIER_NAME,
+        supplierId: resolvedSupplierId,
+        supplierName: resolvedSupplierName,
         amount,
         currency: 'EUR',
         status: 'submitted',
@@ -129,6 +143,8 @@ export function PortalInvoices() {
         matchStatus: 'unmatched',
       });
       toast.success(`Invoice ${form.invoiceNumber} submitted successfully.`);
+      setSupplierId(resolvedSupplierId);
+      setSupplierName(resolvedSupplierName);
       setForm(EMPTY_FORM);
       setOpen(false);
     } catch (e) {

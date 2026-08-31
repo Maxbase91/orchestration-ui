@@ -23,6 +23,7 @@ import { StatusBadge } from '@/components/shared/status-badge';
 import { formatDate, formatCurrency } from '@/lib/format';
 import { Link } from 'react-router-dom';
 import { useSourcingEvent } from '@/lib/db/hooks/use-sourcing-events';
+import { useUpdateSourcingEvent } from '@/lib/db/hooks/use-sourcing-events';
 import { useUserLookup } from '@/lib/db/hooks/use-users';
 import {
   useApplyAwardToRequest,
@@ -30,6 +31,7 @@ import {
 } from '@/lib/db/hooks/use-sourcing-responses';
 import { toAwardCandidate } from '@/lib/db/sourcing-responses';
 import { useRequest } from '@/lib/db/hooks/use-requests';
+import { useUpdateRequest } from '@/lib/db/hooks/use-requests';
 import { EVALUATABLE_EVENT_STATUSES } from '@/lib/procurement/sourcing-award';
 import { useAuthStore } from '@/stores/auth-store';
 import { QABoard } from './components/qa-board';
@@ -48,6 +50,8 @@ export function EventDetailPage() {
   const { data: linkedRequest } = useRequest(event?.requestId);
   const currentUser = useAuthStore((s) => s.currentUser);
   const applyAward = useApplyAwardToRequest();
+  const updateEvent = useUpdateSourcingEvent();
+  const updateRequest = useUpdateRequest();
 
   if (isLoading) {
     return <p className="py-20 text-center text-sm text-muted-foreground">Loading event…</p>;
@@ -68,6 +72,9 @@ export function EventDetailPage() {
   const ownerName = lookupUser(event.ownerId)?.name;
   const respondedCount = responses.filter((r) => r.status === 'responded').length;
   const canEvaluate = EVALUATABLE_EVENT_STATUSES.includes(event.status) && respondedCount > 0;
+  const criteriaTotal = event.criteria.reduce((sum, criterion) => sum + criterion.weight, 0);
+  const canPublish = event.status === 'draft' && responses.length > 0 && event.requirements.some((requirement) => requirement.trim()) && criteriaTotal === 100;
+  const currentEvent = event;
 
   // The award write-back spans three tables with no transaction, so it can land
   // half-applied. When the event says it was awarded but the request disagrees,
@@ -90,6 +97,20 @@ export function EventDetailPage() {
       toast.success(`Award re-applied to ${event.requestId}`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Could not re-apply the award');
+    }
+  }
+
+  async function handlePublish() {
+    if (!canPublish) {
+      toast.error('Add at least one invited supplier, one requirement, and criteria totalling 100% before publishing.');
+      return;
+    }
+    try {
+      await updateEvent.mutateAsync({ id: currentEvent.id, patch: { status: 'published', publishDate: new Date().toISOString().slice(0, 10) } });
+      if (currentEvent.requestId) await updateRequest.mutateAsync({ id: currentEvent.requestId, patch: { status: 'sourcing' } });
+      toast.success(`Sourcing event ${currentEvent.id} published`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not publish sourcing event');
     }
   }
 
@@ -123,6 +144,14 @@ export function EventDetailPage() {
                 <Award className="size-3.5" />
                 Evaluate &amp; award
               </Button>
+            )}
+            {event.status === 'draft' && (
+              <>
+                <Button size="sm" variant="outline" onClick={() => navigate(`/sourcing/new?edit=${encodeURIComponent(event.id)}`)}>
+                  Edit event
+                </Button>
+                <Button size="sm" onClick={() => void handlePublish()} disabled={updateEvent.isPending || !canPublish}>Publish event</Button>
+              </>
             )}
             {needsReapply && (
               <Button

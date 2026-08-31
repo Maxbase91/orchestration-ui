@@ -29,11 +29,13 @@ production authorization.
 | RSK-01..09 / DET-10 | Risk cascade, materiality, mini-IRQ, reuse and operational risk | `src/lib/procurement/risk*.ts`, `src/lib/procurement/materiality.ts`, risk UI | `npm run test:risk-segmentation`, `npm run test:risk-reuse`, `npm run test:materiality`, `npm run test:operational-risk` | `README.md`, `docs/specs/requirements/13-data-model-validation.md` |
 | CFG-01/02/03/08/09/10/11 | Routing, thresholds, approval chains, taxonomy and service-description configuration | `src/features/admin/`, `src/lib/procurement/policy-config.ts`, `src/lib/procurement/policy-config-api.ts`, `src/server/api/policy-config.ts`, `procurement_policy_configs`, `routing_rules`, `approval_chains`, `procurement_categories` | `npm run test:routing-rule-integrity`, `npm run test:policy-config`, `npm run test:policy-config-server`, `npm run test:approval-chain-persistence`, `npm run test:admin-editors` | `README.md`, `docs/specs/requirements/10-admin-configuration.md` |
 | PLT / E1..E4 | Internal sourcing event, invitations, responses, scoring and award | `src/features/sourcing/`, `src/lib/db/sourcing-*`, sourcing tables | `npm run test:sourcing`, `npm run test:approval-to-source` | `README.md`, `docs/testing/TEST_PLAYBOOK.md` |
-| SUP / RTE-04 | Supplier directory, profile, screening state and conditional onboarding | `src/features/suppliers/`, `src/lib/procurement/supplier-data.ts`, onboarding stages | `npm run test:supplier-data`, `npm run test:onboarding-stage`, `npm run test:screening` | `README.md`, `docs/specs/requirements/04-supplier-management.md` |
+| SUP / RTE-04 | Supplier directory, profile, screening state and conditional onboarding | `src/features/suppliers/`, `src/lib/procurement/supplier-data.ts`, `src/features/suppliers/portal/portal-onboarding.tsx`, onboarding stages | `npm run test:supplier-data`, `npm run test:onboarding-stage`, `npm run test:screening`, `npm run test:ui-lifecycle` | `README.md`, `src/features/suppliers/README.md`, `docs/specs/requirements/04-supplier-management.md` | Supplier-owned company/contact submission is persisted; vendor-manager risk/approval forms remain a hardening gap. |
 | WFL / CFG-02 | Workflow instances, stage history, approval entries and configurable templates | `src/lib/workflow/`, `api/workflow-action.ts`, workflow/admin pages | `npm run test:workflow-steps`, `npm run test:orchestration`, `npm run test:lifecycle-consistency` | `docs/specs/requirements/02-workflow-orchestration.md` |
 | AST-Q/P/S/X | Assistant lookup, grounded knowledge, support handoff and conversation history | `src/lib/assistant/`, `api/chat.ts`, `api/conversations.ts`, ticket modules | `npm run test:knowledge`, `npm run test:assistant-intents`, `npm run test:tickets`, `npm run test:ticket-sla` | `docs/specs/requirements/11-ai-assistant-knowledge.md` |
 | ANA / PLT | Internal KPI, pipeline and cycle-time dashboards | `src/features/analytics/`, `src/features/dashboard/`, KPI data access | `npm run test:kpis`, `npm run test:e2e-ui` | `README.md`, `docs/testing/TEST_PLAYBOOK.md` |
 | CON / WS-B | Own-store connectors and private Neon data boundary | `src/lib/integrations/`, `api/db.ts`, `src/lib/neon-compatible-client.ts` | `npm run test:connectors`, `npm run test:neon-migration`, `npm run test:neon-live` | ADR-0003, `src/lib/integrations/README.md` |
+| INT-12 / LIF-01 | Atomic full-intake submission and first-stage transition | `src/server/api/intake-submit.ts`, `src/lib/procurement/submit-intake.ts`, dispatcher rewrites in `api/db.ts` and `api/[...route].ts`; request, service-description, compliance, stage-history, workflow-instance and approval-entry writes are transactional | `npm run test:intake-submit`, `npm run test:api-domain-routing`, `npm run test:api-imports`, `npm run test:ui` | `docs/testing/TEST_PLAYBOOK.md`, lifecycle ADRs | Neon live transaction tests require reachable database DNS; the local run was unavailable, while static/API/UI gates passed. |
+| LIF-02 / P2P-03 | Receipt and invoice identity consistency | `src/lib/db/goods-receipts.ts`, `src/lib/db/hooks/use-goods-receipts.ts`, `src/features/suppliers/portal/portal-invoices.tsx`, `api/db.ts` JSONB update casts | `npm run test:workflow-steps`, `npm run test:sourcing`, `npm run test:ui` | `docs/testing/TEST_PLAYBOOK.md` | Full deployed receipt-to-payment handoff still needs a fresh live run after deployment. |
 
 ## Partial capabilities
 
@@ -62,3 +64,16 @@ production authorization.
 - Atomic checkout validation: `npm run test:governed-checkout-atomic` passed for create, replay, conflict and concurrent submission; `npm run test:policy-config-server` passed for save/load/validation and restored the prior policy.
 - Catalogue detail and governed-checkout handoff verified; the atomic live test used uniquely prefixed Neon rows and cleaned them up.
 - One malformed diagnostic probe queried `procurement_profiles.id` instead of `user_id`; it produced a controlled Vercel error and is not an application defect.
+
+## Current stabilisation run — 31 August 2026
+
+- Build and lint passed; the local Playwright wizard smoke passed all checks,
+  including the previously disabled shared-checkout Review order control.
+- Dispatcher routing, atomic intake source checks, sourcing, onboarding,
+  unified intake and guidance suites passed.
+- Neon live validation and the atomic Neon transaction suite were unavailable
+  in this environment because the configured Neon hostname could not be
+  resolved (`ENOTFOUND`); this is an environment/network limitation, not a
+  passed database verification.
+- A fresh deployed Vercel route sweep, role handoff, onboarding form run and
+  receipt → invoice → payment run remain required after deployment.
