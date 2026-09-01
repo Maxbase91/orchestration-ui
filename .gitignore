@@ -40,3 +40,10 @@ __pycache__/
 
 # Local-only non-code files
 _local/
+
+# Browser-suite evidence. tests/ui/full-role-submission-e2e.mjs writes a
+# timestamped run directory of full-page PNGs into this tracked path, so a
+# routine test run dirtied the tree by ~5 MB; ten runs (~35 MB, five of them
+# re-runs minutes apart) were committed before this rule existed. Keep the
+# harness writing here, keep the output out of git.
+docs/testing/artifacts/ui-e2e/

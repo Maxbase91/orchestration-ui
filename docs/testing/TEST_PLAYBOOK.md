@@ -255,6 +255,22 @@ These are the cases where the wizard could not.
 | TC-REQ-G13 | Open a request, click through **every** workflow step | No screen throws. The step detail pre-populates risk forms from the service description; it used to cast the whole stored record — which carries a quality score, two arrays and two objects beside its nine text sections — to a map of strings and trim every value, so the first non-string member crashed the page with `r?.trim is not a function`. `sectionValuesOf()` narrows at the boundary; `test:intake-guidance` scans `src/` for both the cast and the unguarded walk, and `test:request-detail-ui` drives the real screen against fixtures — it white-screens on the pre-fix code |
 | TC-REQ-G14 | Raise a sourcing event from a request that has a description | Requirements seed from the **text sections only**. Same cast, same crash class, second call site |
 
+### The data layer says what it means (`npm run test:db-casts`, `npm run test:mode-equivalence`, `npm run test:intake-evidence`)
+
+Three suites covering the defect classes found when Supabase was retired and the browser client
+stopped being cast to something it is not.
+
+| ID | Steps | Expected |
+|---|---|---|
+| TC-DB-1 | Filter any column that is not text | The parameter is cast to the **column's** type. Every string used to be cast `::text`, and PostgreSQL has no implicit text→uuid/date/timestamptz cast — `"valid_until" > $1::text` fails with `operator does not exist: date > text`. Risk-assessment reuse matching threw; assistant conversation writes (uuid keys, no error check) failed silently |
+| TC-DB-2 | Add a column type to `supabase/schema.sql` with no cast mapping | `test:db-casts` fails. The suite reads the types out of the schema, so it cannot go stale |
+| TC-DB-3 | A `.single()` that matches nothing | Errors, as supabase-js did. `.single()` and `.maybeSingle()` were the same request, so a not-found `.single()` returned `{ data: null, error: null }` and callers mapped null instead of throwing |
+| TC-DB-4 | The Mentions widget, and `/admin/ai-analytics` | Both work. `.contains()` had no implementation (TypeError every 60s, silently empty widget) and `select(..., { count, head })` dropped its options (total permanently 0, every row fetched) |
+| TC-DB-5 | An `.or()` fragment that does not parse | Throws. It used to be dropped, and when every fragment was dropped the clause vanished and the query returned the **whole table** |
+| TC-MODE-1 | The same catalogue demand in Simple and Expert | One `GovernedCheckoutDecision`. Expert refused an ambiguous item ("procurement must select one") while Simple matched on lower-cased supplier **name** and picked the latest end date; Expert filtered risk assessments to completed and unexpired, Simple filtered on neither; Simple dropped `shipToLocationId` entirely, so a stored profile silently replaced the requester's chosen delivery location |
+| TC-EVID-1 | Submit through Simple mode, then open the request's Compliance tab | The SRA reads **not-run** and the duplicate check reads **Not checked**, both in grey. Simple used to persist `sraCheck: 'pass'` and "No duplicate demand detected" on every submission for checks it never performs — stored as governance evidence a reviewer would believe |
+| TC-EVID-2 | The same request in Expert mode | Its evidence still comes from real evaluation. The opposite regression — making Expert record literals too — fails the suite |
+
 ### The request detail, driven offline (`npm run test:request-detail-ui`)
 
 Every other browser suite needs a reachable Neon-backed API, so none of them run in a sandbox or in
@@ -701,8 +717,9 @@ checks remain simulation coverage; authentication and production authorization a
   supplier onboarding form persistence, invoice variance/payment reloads, and assistant conversation
   persistence. No existing UAT evidence is removed.
 - Latest deployed route checks completed successfully: `npm run test:ui-full` recorded 63 checkpoints
-  with zero failures/runtime errors in `docs/testing/artifacts/ui-e2e/ui-e2e-20260831174649/`; the
-  deployed link-navigation suite recorded 11/11 checks in `link-navigation-20260831174621205/`.
+  with zero failures/runtime errors; the deployed link-navigation suite recorded 11/11 checks. Run
+  directories are no longer committed (see below), so re-run the suite to reproduce the evidence
+  rather than citing a run id that is not in the repository.
 
 ## UI-only procurement lifecycle run
 
@@ -710,7 +727,10 @@ checks remain simulation coverage; authentication and production authorization a
 Simple and Expert catalogue checkout, contract call-off, full intake, sourcing, receipt, invoice
 matching, approval and the internal scheduled/paid payment tracker. The suite never impersonates a
 user through localStorage or calls application APIs directly. Screenshots and a manifest are kept in
-`docs/testing/artifacts/ui-e2e/<run-id>/`; records are retained with a `UI-E2E-<timestamp>` prefix.
+`docs/testing/artifacts/ui-e2e/<run-id>/`, which is **gitignored**: a run writes ~5 MB of full-page
+PNGs, and ten committed runs had reached 35 MB in the history before the rule existed. Treat the
+output as local evidence for the run you just did, not as a repository artefact. Records are retained
+in the database with a `UI-E2E-<timestamp>` prefix (ADR-0006) and need a periodic purge.
 
 Required fields are asserted at the current stage only. Optional expert fields remain collapsed and
 cannot block progression. A missing UI action, unavailable live fixture or lifecycle error is written

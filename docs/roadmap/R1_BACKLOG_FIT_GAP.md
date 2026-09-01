@@ -3,6 +3,9 @@
 **Status:** living roadmap and fit/gap assessment
 **Last reviewed:** 30 August 2026
 **Evidence index:** [`R1_IMPLEMENTATION_EVIDENCE.md`](R1_IMPLEMENTATION_EVIDENCE.md)
+**Story detail:** [`R1_STORY_FIT_GAP.md`](R1_STORY_FIT_GAP.md) — the per-story fit/gap and the
+`POL-xx` policy defaults this summary replaced, kept because 111 references across the repo cite
+those ids
 
 ## R1 definition
 

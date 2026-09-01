@@ -59,3 +59,21 @@ export function skipIfUnreachable(suite, error) {
   if (UNREACHABLE.test(message)) skipLive(suite, 'could not reach the configured database');
   throw error;
 }
+
+/**
+ * Guard for the suites that still create their own Supabase client.
+ *
+ * Supabase was replaced by Neon; these suites assert against a database that is
+ * no longer the system of record, and they crashed on a missing key rather than
+ * skipping — ten hard failures in every run without credentials. They skip with
+ * a reason that names the real work: each needs rewriting against Neon.
+ */
+export function requireLegacySupabase(suite) {
+  const env = loadEnv();
+  const url = env.SUPABASE_URL ?? env.VITE_SUPABASE_URL;
+  const key = env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) {
+    skipLive(suite, 'still targets Supabase, which Neon replaced — needs migrating to the Neon store');
+  }
+  return { url, key };
+}

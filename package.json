@@ -66,6 +66,8 @@
     "test:policy-config-server": "node --import tsx/esm tests/integration/policy-config-server.mjs",
     "test:p-card": "node --import tsx/esm tests/integration/p-card.mjs",
     "test:experience-mode": "node --import tsx/esm tests/integration/experience-mode.mjs",
+    "test:intake-evidence": "node tests/integration/intake-evidence-honesty.mjs",
+    "test:mode-equivalence": "node --import tsx/esm tests/integration/mode-equivalence.mjs",
     "test:governed-checkout": "node --import tsx/esm tests/integration/governed-checkout.mjs",
     "test:governed-checkout-atomic": "node --import tsx/esm tests/integration/governed-checkout-atomic.mjs",
     "test:knowledge": "node tests/integration/knowledge-retrieval.mjs",

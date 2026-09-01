@@ -22,7 +22,7 @@ external ERP, bank or payment-system write is made.
 Role switching is a simulation/UAT mechanism and does not provide production
 authorization. Every action remains visible only to the role that owns the
 current stage. Screenshots and a manifest are stored under
-`docs/testing/artifacts/ui-e2e/<run-id>/`.
+`docs/testing/artifacts/ui-e2e/<run-id>/`, which is gitignored — the screenshots are evidence for the run that produced them, not a committed artefact.
 
 The application must remain within the Vercel Hobby limit of twelve deployable
 functions; new lifecycle behavior therefore uses existing domain endpoints or

@@ -8,6 +8,8 @@
 
 import { readFileSync } from 'node:fs';
 import { createClient } from '@supabase/supabase-js';
+import { requireLegacySupabase } from '../lib/live.mjs';
+const legacy = requireLegacySupabase('admin-editors');
 
 function loadEnv() {
   const raw = readFileSync(new URL('../../.env.local', import.meta.url), 'utf8');
@@ -19,8 +21,8 @@ function loadEnv() {
 loadEnv();
 
 const sb = createClient(
-  process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY,
+  legacy.url,
+  legacy.key,
   { auth: { persistSession: false } },
 );
 

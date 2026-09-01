@@ -7,6 +7,8 @@
 
 import { readFileSync } from 'node:fs';
 import { createClient } from '@supabase/supabase-js';
+import { requireLegacySupabase } from '../lib/live.mjs';
+const legacy = requireLegacySupabase('routing');
 
 // Evaluator mirrors src/lib/routing/evaluate-routing-rules.ts — keep in sync.
 function fieldValue(ctx, field) {
@@ -88,8 +90,8 @@ function loadEnv() {
 loadEnv();
 
 const sb = createClient(
-  process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY,
+  legacy.url,
+  legacy.key,
   { auth: { persistSession: false } },
 );
 

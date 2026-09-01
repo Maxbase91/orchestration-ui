@@ -24,6 +24,7 @@ import {
   Info,
   CheckCircle,
   AlertTriangle,
+  HelpCircle,
   Search,
   Flag,
   Recycle,
@@ -138,7 +139,13 @@ export function TabCompliance({ request }: TabComplianceProps) {
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">SRA Status</span>
-              <Badge variant="outline" className={cn('text-xs', intake.sraCheck.status === 'pass' ? 'border-green-200 text-green-700' : intake.sraCheck.status === 'fail' ? 'border-red-200 text-red-700' : 'border-amber-200 text-amber-700')}>
+              {/* `not-run` renders grey rather than amber: it is a check that
+                  has not happened, not one that raised a concern. */}
+              <Badge variant="outline" className={cn('text-xs',
+                intake.sraCheck.status === 'pass' ? 'border-green-200 text-green-700'
+                  : intake.sraCheck.status === 'fail' ? 'border-red-200 text-red-700'
+                    : intake.sraCheck.status === 'not-run' ? 'border-gray-200 text-gray-600'
+                      : 'border-amber-200 text-amber-700')}>
                 {intake.sraCheck.status}
               </Badge>
             </div>
@@ -169,8 +176,13 @@ export function TabCompliance({ request }: TabComplianceProps) {
             </div>
           </CardHeader>
           <CardContent className="space-y-2">
+            {/* Three states, not two: a search that ran and found nothing is a
+                green "No duplicates"; one that never ran must not borrow that
+                badge, because a reviewer treats it as a cleared check. */}
             <div className="flex items-center gap-2">
-              {intake.duplicateCheck.found ? (
+              {intake.duplicateCheck.performed === false ? (
+                <HelpCircle className="size-4 text-gray-400" />
+              ) : intake.duplicateCheck.found ? (
                 <AlertTriangle className="size-4 text-amber-500" />
               ) : (
                 <CheckCircle className="size-4 text-green-600" />
@@ -178,12 +190,16 @@ export function TabCompliance({ request }: TabComplianceProps) {
               <Badge
                 variant="outline"
                 className={
-                  intake.duplicateCheck.found
-                    ? 'bg-amber-100 text-amber-700 border-amber-200'
-                    : 'bg-green-100 text-green-700 border-green-200'
+                  intake.duplicateCheck.performed === false
+                    ? 'bg-gray-100 text-gray-600 border-gray-200'
+                    : intake.duplicateCheck.found
+                      ? 'bg-amber-100 text-amber-700 border-amber-200'
+                      : 'bg-green-100 text-green-700 border-green-200'
                 }
               >
-                {intake.duplicateCheck.found ? 'Potential overlap found' : 'No duplicates'}
+                {intake.duplicateCheck.performed === false
+                  ? 'Not checked'
+                  : intake.duplicateCheck.found ? 'Potential overlap found' : 'No duplicates'}
               </Badge>
             </div>
             <p className="text-xs text-gray-600">{intake.duplicateCheck.detail}</p>

@@ -18,6 +18,9 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
 const SKIP_EXIT_CODE = 3;
+// A suite that hangs is worse than one that fails: unbounded, it blocks CI
+// indefinitely and looks like a slow build rather than a broken test.
+const SUITE_TIMEOUT_MS = 120_000;
 
 // Needs a browser binary and a dev server, so it runs as its own pass rather
 // than inside the default gate. `npm run test:all -- --browser` includes them.
@@ -27,10 +30,15 @@ const BROWSER = new Set([
   'test:interactions-ui', 'test:catalogue-ui', 'test:experience-mode-ui', 'test:link-navigation',
 ]);
 
+// This runner is itself registered as `test:all`; without excluding the
+// aggregates, discovery finds them and the run recurses into itself.
+const AGGREGATE = new Set(['test:all', 'test:ui:all']);
+
 const includeBrowser = process.argv.includes('--browser');
 const scripts = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).scripts;
 const suites = Object.keys(scripts)
   .filter((name) => name.startsWith('test:'))
+  .filter((name) => !AGGREGATE.has(name))
   .filter((name) => includeBrowser || !BROWSER.has(name))
   .sort();
 
@@ -39,7 +47,12 @@ const skipped = [];
 const failed = [];
 
 for (const suite of suites) {
-  const result = spawnSync('npm', ['run', '--silent', suite], { encoding: 'utf8' });
+  const result = spawnSync('npm', ['run', '--silent', suite], { encoding: 'utf8', timeout: SUITE_TIMEOUT_MS });
+  if (result.signal) {
+    failed.push({ suite, output: `timed out after ${SUITE_TIMEOUT_MS / 1000}s (killed with ${result.signal})` });
+    process.stdout.write('T');
+    continue;
+  }
   const code = result.status ?? 1;
   if (code === 0) { passed.push(suite); process.stdout.write('.'); }
   else if (code === SKIP_EXIT_CODE) { skipped.push(suite); process.stdout.write('s'); }

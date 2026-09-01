@@ -142,6 +142,11 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 Integration tests run as standalone Node scripts under `tests/integration/`:
 
 ```bash
+npm run test:all                  # every suite above in one run — pass/skip/fail counted separately
+npm run test:ui:all               # …including the browser suites (needs a Chromium binary)
+npm run test:db-casts             # every query parameter is cast to its column's type, never blindly to text
+npm run test:mode-equivalence     # Simple and Expert reach the same governance decision for the same demand
+npm run test:intake-evidence      # a request never carries a compliance check that did not run
 npm run test:e2e                  # end-to-end request → approval workflow
 npm run test:routing              # routing-rule evaluator
 npm run test:routing-rule-integrity # editor ↔ runtime ↔ test-panel parity — every offered field/operator is evaluated, a broken rule is diagnosed

@@ -26,7 +26,7 @@ import { evaluatePCardEligibility } from '@/lib/routing/p-card';
 import { computeDemandSignals } from '@/lib/procurement/demand-signals';
 import { resolveSlots, requiredSlotsFilled, type DemandConversationContext } from '@/lib/procurement/demand-conversation';
 import { selectWorkflowTemplateForCategory, selectApprovalChainForValue } from '@/lib/workflow/workflow-steps';
-import { evaluateGovernedCheckout } from '@/lib/procurement/governed-checkout';
+import { evaluateGovernedCheckout, resolveCheckoutContract, resolveCheckoutRiskAssessment } from '@/lib/procurement/governed-checkout';
 import { submitGovernedCheckout } from '@/lib/procurement/submit-governed-checkout';
 import { submitIntake } from '@/lib/procurement/submit-intake';
 import { getProcurementProfile } from '@/lib/db/procurement-profiles';
@@ -276,16 +276,21 @@ export function SimpleNewRequestPage() {
           ? catalogueItems.find((candidate) => candidate.id === requestData.catalogueItems[0]?.itemId)
           : undefined;
         if (requestRoute === 'catalogue' && !item) throw new Error('The selected catalogue item is no longer available.');
+        // Resolved by the same helpers Expert mode uses. Simple had its own
+        // matcher that fell back to comparing supplier *names* and picked the
+        // latest end date, so where Expert refused an ambiguous item and sent it
+        // to Procurement, Simple silently chose one — a different governance
+        // outcome for the same demand, decided by which screen you were on.
         const now = new Date();
-        const isUsableContract = (candidate: Contract) =>
-          ['active', 'expiring'].includes(candidate.status)
-          && new Date(candidate.startDate) <= now
-          && new Date(candidate.endDate) >= now;
-        const matchedContract = contracts.find((candidate) => candidate.id === (item?.contractId || requestData.contractId) && isUsableContract(candidate))
-          ?? contracts
-            .filter((candidate) => item && candidate.supplierName.toLowerCase() === item.supplierName.toLowerCase() && isUsableContract(candidate))
-            .sort((a, b) => b.endDate.localeCompare(a.endDate))[0];
-        if (!matchedContract) throw new Error('No active supplier contract could be resolved for this order. Please contact Procurement.');
+        const matchedContract = item
+          ? resolveCheckoutContract(item, contracts, now).contract
+          : contracts.find((candidate) => candidate.id === requestData.contractId
+            && candidate.status !== 'expired' && candidate.status !== 'terminated'
+            && new Date(candidate.startDate) <= now && new Date(candidate.endDate) >= now);
+        if (!matchedContract) {
+          const reason = item ? resolveCheckoutContract(item, contracts, now).error : undefined;
+          throw new Error(reason ?? 'No active supplier contract could be resolved for this order. Please contact Procurement.');
+        }
         const supplier = suppliers.find((candidate) => candidate.id === matchedContract.supplierId)
           ?? (item ? suppliers.find((candidate) => candidate.id === item.supplierId) : undefined);
         if (!supplier) throw new Error('The catalogue supplier could not be resolved.');
@@ -303,8 +308,11 @@ export function SimpleNewRequestPage() {
           approvedShipToLocations: [{ id: requestData.deliveryLocation || 'office', label: requestData.deliveryLocation || 'Default location' }],
           defaultShipToLocationId: requestData.deliveryLocation || 'office', defaultCommodityCode: item?.commodityCode,
         };
-        const riskAssessment = riskAssessments.find((candidate) => candidate.id === item?.riskAssessmentId)
-          ?? riskAssessments.find((candidate) => candidate.supplierId === supplier.id && candidate.contractId === matchedContract.id);
+        // Same helper as Expert: it filters to completed assessments and prefers
+        // an unexpired one. Simple filtered on neither, so an expired or draft
+        // assessment could be handed to the evaluator and change whether the
+        // order needed a risk review at all.
+        const riskAssessment = resolveCheckoutRiskAssessment(riskAssessments, supplier.id, matchedContract.id, now);
         const quantity = requestData.catalogueItems[0]?.quantity ?? 1;
         const unitPrice = item?.unitPrice ?? requestData.estimatedValue;
         const line = {
@@ -315,7 +323,13 @@ export function SimpleNewRequestPage() {
         const checkout = {
           route: requestRoute === 'catalogue' ? 'catalogue' as const : 'contract-call-off' as const, lines: [line], supplier, contract: matchedContract, riskAssessment, profile,
           currency: requestData.currency, needByDate: requestData.deliveryDate, purpose: requestData.businessJustification,
-          costCentre: requestData.costCentre, beneficiaryId: requestData.beneficiaryId || currentUser.id,
+          costCentre: requestData.costCentre,
+          // Was omitted entirely, so whenever a stored profile existed the
+          // requester's chosen delivery location was shown back to them and then
+          // discarded in favour of the profile default. Expert has always passed it.
+          shipToLocationId: requestData.deliveryLocation || profile.defaultShipToLocationId,
+          beneficiaryId: requestData.beneficiaryId || currentUser.id,
+          idempotencyKey: `checkout-${id}`,
         };
         const decision = evaluateGovernedCheckout(checkout);
         if (!decision.ok) throw new Error(decision.errors.join(' '));
@@ -368,8 +382,15 @@ export function SimpleNewRequestPage() {
         compliance: {
           determinedAt: new Date().toISOString(),
           buyingChannel: { channel, label: ROUTE_COPY[requestRoute].label, reasoning: ROUTE_COPY[requestRoute].detail },
-          sraCheck: { status: 'pass', detail: 'Automated checks will continue with the assigned owner.' },
-          policyChecks: [], duplicateCheck: { found: false, detail: 'No duplicate demand detected at intake.' }, riskFlags: [], matchingRiskAssessmentIds: [],
+          // Recorded as not-run, not as passed. Simple intake does not perform a
+          // supplier-risk screen or a duplicate search — it used to store
+          // `pass` and "No duplicate demand detected", which a reviewer reads
+          // as evidence that both ran and cleared. Expert mode fills these from
+          // real evaluation; until Simple does the same, it says so.
+          sraCheck: { status: 'not-run', detail: 'Not screened at intake — the assigned owner runs this check.' },
+          policyChecks: [],
+          duplicateCheck: { found: false, performed: false, detail: 'No duplicate search was run at intake.' },
+          riskFlags: [], matchingRiskAssessmentIds: [],
         },
         workflowTemplateId: templateForRequest?.id,
         buyingChannel: channel,

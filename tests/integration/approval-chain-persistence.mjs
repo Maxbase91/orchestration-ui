@@ -4,14 +4,16 @@
 
 import { readFileSync } from 'node:fs';
 import { createClient } from '@supabase/supabase-js';
+import { requireLegacySupabase } from '../lib/live.mjs';
+const legacy = requireLegacySupabase('approval-chain-persistence');
 
 for (const line of readFileSync(new URL('../../.env.local', import.meta.url), 'utf8').split('\n')) {
   const match = line.match(/^([A-Z_][A-Z0-9_]*)=(.*)$/);
   if (match && !process.env[match[1]]) process.env[match[1]] = match[2];
 }
 
-const url = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const url = legacy.url;
+const serviceRoleKey = legacy.key;
 if (!url || !serviceRoleKey) throw new Error('Missing Supabase service-role test configuration.');
 
 const sb = createClient(url, serviceRoleKey, { auth: { persistSession: false } });

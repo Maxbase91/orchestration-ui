@@ -1,114 +1,47 @@
 #!/usr/bin/env node
-// Verifies the smart-command-bar "Order Now" button writes a real
-// request row (not a fake client-side ID).
+// The command bar's catalogue result hands off to the governed checkout.
 //
-// Simulates the handler's Supabase insert directly; the handler's
-// client-side code path is exercised by static assertion on the file.
+// This used to simulate the old "Order Now" button's Supabase insert directly,
+// asserting that it wrote a real request row rather than a client-side id. That
+// path is gone twice over: the button was replaced by a hand-off to the
+// catalogue item-detail screen, where governed checkout recomputes the decision
+// server-side (api/governed-checkout.ts, ADR-0002), and Supabase was replaced by
+// Neon. The suite kept its Supabase half behind a `DATABASE_PROVIDER === 'neon'`
+// branch, so once the provider flag went away it fell through to a client it
+// could no longer construct and failed every run.
+//
+// What remains is the part that still means something and needs no database:
+// the command bar must route to the governed screen rather than ordering
+// directly. The write itself is covered by test:governed-checkout-atomic, which
+// exercises the real transaction against Neon.
 //
 // Run: node tests/integration/catalogue-order.mjs
 
 import { readFileSync } from 'node:fs';
-import { createClient } from '@supabase/supabase-js';
-import { loadEnv } from '../lib/live.mjs';
 
-loadEnv();
-
-if ((process.env.DATABASE_PROVIDER ?? process.env.VITE_DATABASE_PROVIDER) === 'neon') {
-  const source = readFileSync(new URL('../../src/features/dashboard/components/smart-command-bar.tsx', import.meta.url), 'utf8');
-  if (!source.includes('navigate(`/catalogue/items/${encodeURIComponent(primary.id)}`)')) {
-    console.error('catalogue-order: Neon path must route to the governed item-detail checkout.');
-    process.exit(1);
-  }
-  console.log('catalogue-order: Neon-backed checkout is covered by test:governed-checkout-atomic; item-detail handoff is wired.');
-  process.exit(0);
-}
-
-const sb = createClient(
-  process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY,
-  { auth: { persistSession: false } },
+const SOURCE = readFileSync(
+  new URL('../../src/features/dashboard/components/smart-command-bar.tsx', import.meta.url),
+  'utf8',
 );
 
-const results = [];
-const pass = (n, d = '') => results.push({ n, o: 'PASS', d });
-const fail = (n, d) => results.push({ n, o: 'FAIL', d });
-const assert = (cond, n, d) => (cond ? pass(n, d) : fail(n, d));
+let failures = 0;
+const check = (label, ok, detail = '') => {
+  console.log(`  ${ok ? '\x1b[32m✓\x1b[0m' : '\x1b[31m✗\x1b[0m'} ${label}${ok || !detail ? '' : ` — ${detail}`}`);
+  if (!ok) failures++;
+};
 
-const PREFIX = 'E2E-CAT-';
+console.log('\nA catalogue match goes to the governed checkout, not straight to an order');
 
-async function cleanup() {
-  const { data: rows } = await sb.from('requests').select('id').like('id', `${PREFIX}%`);
-  if (!rows?.length) return 0;
-  await sb.from('requests').delete().in('id', rows.map((r) => r.id));
-  return rows.length;
-}
+check('the command bar navigates to the item-detail screen',
+  SOURCE.includes('navigate(`/catalogue/items/${encodeURIComponent(primary.id)}`)'));
 
-async function scenarioCatalogueOrderPersists() {
-  const { data: item } = await sb.from('catalogue_items').select('*').limit(1).single();
-  if (!item) { fail('catalogue-order: catalogue has items', 'no items'); return; }
-  const { data: anyUser } = await sb.from('users').select('id').limit(1).single();
+// The regression this guards against is the old behaviour returning: writing a
+// request from the browser skips the server-side recompute, the policy gate and
+// the idempotency fingerprint that make the order defensible.
+check('it does not insert a request row directly from the command bar',
+  !/\.from\(\s*['"]requests['"]\s*\)\s*\.insert/.test(SOURCE));
 
-  const id = `${PREFIX}${Date.now()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
-  const { error } = await sb.from('requests').insert({
-    id,
-    title: `Catalogue order: ${item.name}`,
-    description: `- ${item.name} x 1 @ EUR ${item.unit_price}`,
-    category: 'goods',
-    status: 'completed',
-    priority: 'medium',
-    value: item.unit_price,
-    currency: 'EUR',
-    requestor_id: anyUser.id,
-    owner_id: anyUser.id,
-    supplier_id: item.supplier_id,
-    buying_channel: 'catalogue',
-    is_urgent: false,
-    days_in_stage: 0,
-    is_overdue: false,
-    refer_back_count: 0,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  });
-  if (error) { fail('catalogue-order: insert succeeds', error.message); return; }
-
-  const { data: row } = await sb.from('requests').select('*').eq('id', id).single();
-  assert(row?.status === 'completed', 'catalogue-order: status=completed (bypasses workflow)');
-  assert(row?.buying_channel === 'catalogue', 'catalogue-order: buying_channel=catalogue');
-  assert(row?.supplier_id === item.supplier_id, 'catalogue-order: supplier_id preserved');
-  assert(Number(row?.value) === Number(item.unit_price), 'catalogue-order: value matches unit_price');
-  assert(row?.description?.includes(item.name), 'catalogue-order: description includes item name');
-}
-
-async function scenarioSourceWired() {
-  const src = readFileSync(
-    new URL('../../src/features/dashboard/components/smart-command-bar.tsx', import.meta.url),
-    'utf8',
-  );
-  assert(
-    src.includes('createRequest') && src.includes("buyingChannel: 'catalogue'"),
-    'catalogue-order: handler calls createRequest with buyingChannel=catalogue',
-  );
-  assert(
-    src.includes('if (cart.length === 0) return'),
-    'catalogue-order: handler guards against empty cart',
-  );
-}
-
-async function main() {
-  await cleanup();
-  await scenarioCatalogueOrderPersists();
-  await scenarioSourceWired();
-  const removed = await cleanup();
-  console.log(`Removed ${removed} test request(s).`);
-
-  const failed = results.filter((r) => r.o === 'FAIL').length;
-  for (const r of results) {
-    const tag = r.o === 'PASS' ? '\x1b[32mPASS\x1b[0m' : '\x1b[31mFAIL\x1b[0m';
-    console.log(`  ${tag}  ${r.n}`);
-    if (r.d) console.log(`        ${r.d}`);
-  }
-  console.log(`\n  ${results.length - failed} passed, ${failed} failed.`);
-  process.exit(failed === 0 ? 0 : 1);
-}
-
-main().catch((e) => { console.error(e); process.exit(2); });
+console.log('');
+if (failures) console.error(`FAILED: ${failures} check(s)`);
+else console.log('All catalogue-order checks passed.');
+process.exit(failures === 0 ? 0 : 1);

@@ -18,6 +18,8 @@
 
 import { readFileSync } from 'node:fs';
 import { createClient } from '@supabase/supabase-js';
+import { requireLegacySupabase } from '../lib/live.mjs';
+const legacy = requireLegacySupabase('e2e');
 
 // ── env ────────────────────────────────────────────────────────────
 function loadEnv() {
@@ -29,8 +31,8 @@ function loadEnv() {
 }
 loadEnv();
 
-const SUPABASE_URL = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;
-const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const SUPABASE_URL = legacy.url;
+const SERVICE_KEY = legacy.key;
 const API_BASE = process.env.E2E_API_BASE ?? 'https://orchestration-ui.vercel.app';
 
 if (!SUPABASE_URL || !SERVICE_KEY) {

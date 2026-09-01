@@ -14,7 +14,10 @@ export interface IntakeComplianceRecord {
     reasoning: string;
   };
   sraCheck: {
-    status: 'pass' | 'warning' | 'fail' | 'not-applicable';
+    // `not-run` is distinct from `not-applicable`: the check applies to this
+    // demand and was not performed. Simple-mode intake used to record `pass`
+    // for a screen that never ran one, which reads to a reviewer as evidence.
+    status: 'pass' | 'warning' | 'fail' | 'not-applicable' | 'not-run';
     detail: string;
   };
   policyChecks: {
@@ -25,6 +28,13 @@ export interface IntakeComplianceRecord {
   duplicateCheck: {
     found: boolean;
     detail: string;
+    /**
+     * Whether a duplicate search actually ran. `found: false` alone cannot say
+     * "nothing matched" apart from "nobody looked", and the two mean very
+     * different things to whoever approves the request. Absent on rows written
+     * before this existed, where a search had run.
+     */
+    performed?: boolean;
   };
   riskFlags: string[];
   matchingRiskAssessmentIds?: string[];
