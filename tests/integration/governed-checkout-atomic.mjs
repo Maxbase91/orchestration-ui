@@ -4,21 +4,11 @@
 // request aggregate after replay/conflict/concurrency checks complete.
 import { readFileSync } from 'node:fs';
 import { neon } from '@neondatabase/serverless';
+import { loadEnv, requireConnection, skipIfUnreachable, skipLive } from '../lib/live.mjs';
 
-function loadEnv() {
-  const env = { ...process.env };
-  try {
-    for (const line of readFileSync(new URL('../../.env.local', import.meta.url), 'utf8').split('\n')) {
-      const separator = line.indexOf('=');
-      if (separator > 0 && !line.trimStart().startsWith('#') && !(line.slice(0, separator).trim() in env)) env[line.slice(0, separator).trim()] = line.slice(separator + 1).trim().replace(/^"|"$/g, '');
-    }
-  } catch { /* CI supplies environment variables. */ }
-  return env;
-}
 
 const env = loadEnv();
-const connectionString = env.NEON_DATABASE_URL ?? env.DATABASE_URL;
-if (!connectionString) { console.log('governed-checkout-atomic skipped: Neon is not configured.'); process.exit(0); }
+const connectionString = requireConnection('governed-checkout-atomic');
 process.env.NEON_DATABASE_URL = connectionString;
 const sql = neon(connectionString);
 const { default: handler } = await import('../../api/governed-checkout.ts');
@@ -39,20 +29,15 @@ try {
   items = await sql.query(`SELECT * FROM catalogue_items WHERE available IS DISTINCT FROM false ORDER BY id LIMIT 1`);
   users = await sql.query('SELECT id, name FROM users ORDER BY id LIMIT 1');
 } catch (error) {
-  const message = error instanceof Error ? error.message : String(error);
-  if (/fetch failed|ENOTFOUND|ENETUNREACH|ETIMEDOUT|ECONNREFUSED/i.test(message)) {
-    console.log('governed-checkout-atomic unavailable: could not reach the configured Neon database.');
-    process.exit(0);
-  }
-  throw error;
+  skipIfUnreachable('governed-checkout-atomic', error);
 }
-if (!items[0] || !users[0]) { console.log('governed-checkout-atomic skipped: no seeded item/user.'); process.exit(0); }
+if (!items[0] || !users[0]) skipLive('governed-checkout-atomic', 'no seeded item/user');
 const item = items[0];
 const contract = (await sql.query('SELECT * FROM contracts WHERE id = $1', [item.contract_id]))[0];
 const supplier = (await sql.query('SELECT * FROM suppliers WHERE id = $1', [item.supplier_id]))[0];
 const risk = (await sql.query('SELECT * FROM risk_assessments WHERE id = $1', [item.risk_assessment_id]))[0];
 const user = users[0];
-if (!contract || !supplier || !risk) { console.log('governed-checkout-atomic skipped: catalogue governance seed incomplete.'); process.exit(0); }
+if (!contract || !supplier || !risk) skipLive('governed-checkout-atomic', 'catalogue governance seed incomplete');
 
 const suffix = Date.now().toString(36);
 const requestId = `TEST-ATOMIC-${suffix}`;

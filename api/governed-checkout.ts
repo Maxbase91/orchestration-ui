@@ -2,7 +2,7 @@
 // request → PR → line → conditional PO writes happen behind this endpoint.
 import { createHash } from 'node:crypto';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getNeonClient } from './_neon.js';
+import { getNeonClient, queryRows, type DbRow } from './_neon.js';
 import {
   evaluateGovernedCheckout,
   type GovernedCheckoutInput,
@@ -25,7 +25,6 @@ import type { ProcurementProfile, PurchaseOrder, PurchaseRequisition, Procuremen
 import { loadContractMatchScopes } from '../src/server/api/contract-match.js';
 import { matchContractScopes } from '../src/lib/procurement/contract-matching.js';
 
-type DbRow = Record<string, unknown>;
 type CheckoutPayload = {
   request?: Partial<ProcurementRequest>;
   requestId?: unknown;
@@ -87,8 +86,8 @@ function configFromRow(row: DbRow | undefined): PolicyConfig {
 
 async function loadPolicy(sql: ReturnType<typeof getNeonClient>): Promise<PolicyConfig> {
   try {
-    const rows = await sql.query('SELECT config FROM procurement_policy_configs WHERE singleton_key = $1', ['default']);
-    return configFromRow(rows[0] as DbRow | undefined);
+    const rows = await queryRows(sql, 'SELECT config FROM procurement_policy_configs WHERE singleton_key = $1', ['default']);
+    return configFromRow(rows[0]);
   } catch (error) {
     // The policy table is additive. A deployment that has not run the migration
     // still uses shipped defaults rather than making checkout unusable.
@@ -100,13 +99,13 @@ async function loadPolicy(sql: ReturnType<typeof getNeonClient>): Promise<Policy
 async function aggregate(sql: ReturnType<typeof getNeonClient>, requisitionRow: DbRow): Promise<Aggregate> {
   const requestId = String(requisitionRow.request_id);
   const [requestRows, lineRows, poRows] = await Promise.all([
-    sql.query('SELECT * FROM requests WHERE id = $1', [requestId]),
-    sql.query('SELECT * FROM request_lines WHERE requisition_id = $1 ORDER BY id', [String(requisitionRow.id)]),
-    sql.query('SELECT * FROM purchase_orders WHERE requisition_id = $1 ORDER BY created_at DESC', [String(requisitionRow.id)]),
+    queryRows(sql, 'SELECT * FROM requests WHERE id = $1', [requestId]),
+    queryRows(sql, 'SELECT * FROM request_lines WHERE requisition_id = $1 ORDER BY id', [String(requisitionRow.id)]),
+    queryRows(sql, 'SELECT * FROM purchase_orders WHERE requisition_id = $1 ORDER BY created_at DESC', [String(requisitionRow.id)]),
   ]);
-  const request = requestRows[0] as DbRow | undefined;
-  const purchaseOrders = poRows as unknown as DbRow[];
-  const lines = (lineRows as DbRow[]).map(mapDbToRequestLine);
+  const request = requestRows[0];
+  const purchaseOrders = poRows;
+  const lines = lineRows.map(mapDbToRequestLine);
   if (!request || lines.length === 0 || (requisitionRow.status === 'po-created' && purchaseOrders.length === 0)) {
     throw new CheckoutError('Existing checkout aggregate is incomplete and requires recovery.', 'incomplete_checkout', 409);
   }
@@ -176,11 +175,11 @@ function lineSql(lines: RequestLine[], requestId: string, requisitionId: string)
 
 async function findExisting(sql: ReturnType<typeof getNeonClient>, key: string | undefined, requestId: string): Promise<DbRow | undefined> {
   if (key) {
-    const rows = await sql.query('SELECT * FROM purchase_requisitions WHERE idempotency_key = $1', [key]);
-    if (rows[0]) return rows[0] as DbRow;
+    const rows = await queryRows(sql, 'SELECT * FROM purchase_requisitions WHERE idempotency_key = $1', [key]);
+    if (rows[0]) return rows[0];
   }
-  const rows = await sql.query('SELECT * FROM purchase_requisitions WHERE request_id = $1', [requestId]);
-  return rows[0] as DbRow | undefined;
+  const rows = await queryRows(sql, 'SELECT * FROM purchase_requisitions WHERE request_id = $1', [requestId]);
+  return rows[0];
 }
 
 function sameDecision(client: GovernedCheckoutDecision | undefined, server: GovernedCheckoutDecision): boolean {
@@ -219,20 +218,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     const supplierId = assertString(checkout.supplier?.id, 'supplierId');
     const contractId = assertString(checkout.contract?.id, 'contractId');
     const [supplierRows, contractRows, profileRows, catalogueRows, riskRows, policy] = await Promise.all([
-      sql.query('SELECT * FROM suppliers WHERE id = $1', [supplierId]),
-      sql.query('SELECT * FROM contracts WHERE id = $1', [contractId]),
-      sql.query('SELECT * FROM procurement_profiles WHERE user_id = $1', [assertString(checkout.profile?.userId, 'profile.userId')]),
-      sql.query('SELECT * FROM catalogue_items WHERE id = ANY($1::text[])', [lines.map((line) => line.catalogueItemId).filter((id): id is string => typeof id === 'string')]),
-      sql.query('SELECT * FROM risk_assessments WHERE contract_id = $1 OR supplier_id = $2', [contractId, supplierId]),
+      queryRows(sql, 'SELECT * FROM suppliers WHERE id = $1', [supplierId]),
+      queryRows(sql, 'SELECT * FROM contracts WHERE id = $1', [contractId]),
+      queryRows(sql, 'SELECT * FROM procurement_profiles WHERE user_id = $1', [assertString(checkout.profile?.userId, 'profile.userId')]),
+      queryRows(sql, 'SELECT * FROM catalogue_items WHERE id = ANY($1::text[])', [lines.map((line) => line.catalogueItemId).filter((id): id is string => typeof id === 'string')]),
+      queryRows(sql, 'SELECT * FROM risk_assessments WHERE contract_id = $1 OR supplier_id = $2', [contractId, supplierId]),
       loadPolicy(sql),
     ]);
-    const supplier = supplierRows[0] ? mapDbToSupplier(supplierRows[0] as DbRow) : null;
-    const contract = contractRows[0] ? mapDbToContract(contractRows[0] as DbRow) : null;
+    const supplier = supplierRows[0] ? mapDbToSupplier(supplierRows[0]) : null;
+    const contract = contractRows[0] ? mapDbToContract(contractRows[0]) : null;
     if (!supplier || !contract) throw new CheckoutError('The selected supplier or contract could not be found.', 'governance_data_missing', 422);
     if (contract.supplierId !== supplier.id) throw new CheckoutError('Supplier and contract do not match.', 'governance_data_mismatch', 422);
-    const profile = profileRows[0] ? mapDbToProcurementProfile(profileRows[0] as DbRow) : checkout.profile as ProcurementProfile;
-    const catalogueById = new Map((catalogueRows as DbRow[]).map((row) => [String(row.id), mapDbToCatalogueItem(row)]));
-    const assessments = (riskRows as DbRow[]).map(mapDbToRiskAssessment);
+    const profile = profileRows[0] ? mapDbToProcurementProfile(profileRows[0]) : checkout.profile as ProcurementProfile;
+    const catalogueById = new Map(catalogueRows.map((row) => [String(row.id), mapDbToCatalogueItem(row)]));
+    const assessments = riskRows.map(mapDbToRiskAssessment);
     const authoritativeLines: GovernedCheckoutLine[] = lines.map((line) => {
       const item = line.catalogueItemId ? catalogueById.get(line.catalogueItemId) : undefined;
       if (line.catalogueItemId && !item) throw new CheckoutError(`Catalogue item ${line.catalogueItemId} was not found.`, 'governance_data_missing', 422);
@@ -338,8 +337,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       queries.push(sql.query('UPDATE purchase_requisitions SET status = $1, updated_at = $2 WHERE id = $3', ['po-created', now, requisitionId]));
     }
     await sql.transaction(queries);
-    const saved = await sql.query('SELECT * FROM purchase_requisitions WHERE id = $1', [requisitionId]);
-    res.status(200).json(await aggregate(sql, saved[0] as DbRow)); return;
+    const saved = await queryRows(sql, 'SELECT * FROM purchase_requisitions WHERE id = $1', [requisitionId]);
+    res.status(200).json(await aggregate(sql, saved[0])); return;
   } catch (error) {
     if (error instanceof CheckoutError) { res.status(error.status).json({ error: error.message, code: error.code }); return; }
     const message = errorMessage(error);

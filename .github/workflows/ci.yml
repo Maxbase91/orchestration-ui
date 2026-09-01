@@ -1,0 +1,58 @@
+# The gate the repository did not have.
+#
+# 72 commits — including a database migration — landed with no automated check,
+# so the only thing that ever failed was a Vercel deploy. That is why a run of
+# commits reads "fix: cast Neon date assignments", "fix: resolve remaining vercel
+# function type errors": the errors were real, and the deployment found them.
+#
+# `tsc -b` now covers api/ as well (tsconfig.api.json), which is where those
+# errors lived.
+
+name: CI
+
+on:
+  push:
+    branches: [main, 'claude/**']
+  pull_request:
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+
+      - name: Typecheck (src, vite config and api/)
+        run: npx tsc -b
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      # Suites needing a live Neon database report SKIPPED (exit 3) and are
+      # counted separately — never as passes. Set NEON_DATABASE_URL and
+      # REQUIRE_LIVE=1 on a branch with a test database to make them mandatory.
+      - name: Tests
+        run: npm run test:all
+
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+
+      # The offline browser suites drive the real screens against a stubbed
+      # database (tests/ui/postgrest-stub.mjs), so they need no credentials.
+      - name: Browser suites
+        run: npm run test:request-detail-ui

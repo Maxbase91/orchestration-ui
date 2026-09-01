@@ -2,21 +2,11 @@
 // Live Neon verification for policy singleton persistence and validation.
 import { readFileSync } from 'node:fs';
 import { neon } from '@neondatabase/serverless';
+import { loadEnv, requireConnection, skipIfUnreachable, skipLive } from '../lib/live.mjs';
 
-function loadEnv() {
-  const env = { ...process.env };
-  try {
-    for (const line of readFileSync(new URL('../../.env.local', import.meta.url), 'utf8').split('\n')) {
-      const separator = line.indexOf('=');
-      if (separator > 0 && !line.trimStart().startsWith('#') && !(line.slice(0, separator).trim() in env)) env[line.slice(0, separator).trim()] = line.slice(separator + 1).trim().replace(/^"|"$/g, '');
-    }
-  } catch { /* CI supplies environment variables. */ }
-  return env;
-}
 
 const env = loadEnv();
-const connectionString = env.NEON_DATABASE_URL ?? env.DATABASE_URL;
-if (!connectionString) { console.log('policy-config-server skipped: Neon is not configured.'); process.exit(0); }
+const connectionString = requireConnection('policy-config-server');
 process.env.NEON_DATABASE_URL = connectionString;
 const sql = neon(connectionString);
 const { default: handler } = await import('../../src/server/api/policy-config.ts');
@@ -31,16 +21,10 @@ let before;
 try {
   before = await invoke('GET');
 } catch (error) {
-  const message = error instanceof Error ? error.message : String(error);
-  if (/fetch failed|ENOTFOUND|ENETUNREACH|ETIMEDOUT|ECONNREFUSED/i.test(message)) {
-    console.log('policy-config-server unavailable: could not reach the configured Neon database.');
-    process.exit(0);
-  }
-  throw error;
+  skipIfUnreachable('policy-config-server', error);
 }
 if (before.statusCode === 500 && before.body?.code === 'policy_config_unavailable') {
-  console.log('policy-config-server unavailable: configured Neon database did not respond.');
-  process.exit(0);
+  skipLive('policy-config-server', 'the configured Neon database did not respond');
 }
 const original = before.body?.config;
 let failures = 0;

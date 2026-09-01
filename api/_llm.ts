@@ -3,6 +3,15 @@
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
+// The Gemini body, only as deep as the fields read below. `response.json()` is
+// `unknown`, and this file sat outside every tsconfig until api/ gained one, so
+// the optional-chain walk was never type-checked. (The Groq calls below already
+// type their own responses inline, including tool calls.)
+interface GeminiResponse {
+  candidates?: { content?: { parts?: { text?: string }[] } }[];
+}
+
+
 // Single source of truth for the Groq model — it was previously repeated at all
 // three call sites, so a decommissioned ID had to be fixed in three places.
 //
@@ -314,6 +323,6 @@ async function callGemini(
     return null;
   }
 
-  const data = await response.json();
+  const data = await response.json() as GeminiResponse;
   return data.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
 }

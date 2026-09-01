@@ -5,28 +5,10 @@
  */
 import { readFileSync } from 'node:fs';
 import { neon } from '@neondatabase/serverless';
-
-function loadEnv() {
-  const env = { ...process.env };
-  try {
-    for (const line of readFileSync(new URL('../../.env.local', import.meta.url), 'utf8').split('\n')) {
-      const separator = line.indexOf('=');
-      if (separator <= 0 || line.trimStart().startsWith('#')) continue;
-      const key = line.slice(0, separator).trim();
-      if (!(key in env)) env[key] = line.slice(separator + 1).trim().replace(/^"|"$/g, '');
-    }
-  } catch {
-    // CI may provide environment variables directly.
-  }
-  return env;
-}
+import { loadEnv, requireConnection, skipIfUnreachable } from '../lib/live.mjs';
 
 const env = loadEnv();
-const connectionString = env.NEON_DATABASE_URL ?? env.DATABASE_URL;
-if (!connectionString) {
-  console.log('Neon live validation skipped: NEON_DATABASE_URL/DATABASE_URL is not configured.');
-  process.exit(0);
-}
+const connectionString = requireConnection('neon-live-validation');
 
 const sql = neon(connectionString, { fetchOptions: { signal: AbortSignal.timeout(10000) } });
 const expectedTables = [
@@ -62,12 +44,7 @@ try {
     [expectedTables],
   );
 } catch (error) {
-  const message = error instanceof Error ? error.message : String(error);
-  if (/fetch failed|ENOTFOUND|ENETUNREACH|ETIMEDOUT|ECONNREFUSED/i.test(message)) {
-    console.log('Neon live validation unavailable: could not reach the configured database.');
-    process.exit(0);
-  }
-  throw error;
+  skipIfUnreachable('neon-live-validation', error);
 }
 const presentTables = new Set(tableRows.map((row) => row.table_name));
 check('all repository tables exist in Neon', presentTables.size === expectedTables.length,

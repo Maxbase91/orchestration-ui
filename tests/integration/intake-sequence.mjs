@@ -13,26 +13,10 @@
 
 import { readFileSync } from 'node:fs';
 import { neon } from '@neondatabase/serverless';
+import { loadEnv, requireConnection, skipIfUnreachable } from '../lib/live.mjs';
 
-function loadEnv() {
-  const env = { ...process.env };
-  try {
-    const raw = readFileSync(new URL('../../.env.local', import.meta.url), 'utf8');
-    for (const line of raw.split('\n')) {
-      const separator = line.indexOf('=');
-      if (separator <= 0 || line.trimStart().startsWith('#')) continue;
-      const key = line.slice(0, separator).trim();
-      if (!(key in env)) env[key] = line.slice(separator + 1).trim().replace(/^"|"$/g, '');
-    }
-  } catch { /* CI supplies environment variables directly. */ }
-  return env;
-}
 const env = loadEnv();
-const connectionString = env.NEON_DATABASE_URL ?? env.DATABASE_URL;
-if (!connectionString) {
-  console.log('Neon intake validation skipped: database URL is not configured.');
-  process.exit(0);
-}
+const connectionString = requireConnection('intake-sequence');
 // Neon HTTP's URL parser does not accept the libpq-only channel_binding
 // parameter present in some copied connection strings; TLS remains enforced
 // by the provider, so remove only that optional parameter for this read test.
@@ -350,12 +334,7 @@ let contracts;
 try {
   ({ catalogueItems, contracts } = await loadTables());
 } catch (error) {
-  const message = error instanceof Error ? error.message : String(error);
-  if (/fetch failed|ENOTFOUND|ENETUNREACH|ETIMEDOUT|ECONNREFUSED/i.test(message)) {
-    console.log('Neon intake validation unavailable: could not reach the configured database.');
-    process.exit(0);
-  }
-  throw error;
+  skipIfUnreachable('intake-sequence', error);
 }
   console.log(`Loaded ${catalogueItems.length} catalogue items, ${contracts.length} contracts`);
   await scenarioCatalogueMatch(catalogueItems);

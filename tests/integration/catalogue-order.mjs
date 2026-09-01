@@ -9,14 +9,8 @@
 
 import { readFileSync } from 'node:fs';
 import { createClient } from '@supabase/supabase-js';
+import { loadEnv } from '../lib/live.mjs';
 
-function loadEnv() {
-  const raw = readFileSync(new URL('../../.env.local', import.meta.url), 'utf8');
-  for (const line of raw.split('\n')) {
-    const m = line.match(/^([A-Z_][A-Z0-9_]*)=(.*)$/);
-    if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^"|"$/g, '');
-  }
-}
 loadEnv();
 
 if ((process.env.DATABASE_PROVIDER ?? process.env.VITE_DATABASE_PROVIDER) === 'neon') {

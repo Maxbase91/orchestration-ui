@@ -1,0 +1,33 @@
+{
+  // The Vercel serverless functions were outside every tsconfig: `tsconfig.app`
+  // includes only `src`, `tsconfig.node` only `vite.config.ts`. So `tsc -b`
+  // never checked api/ — including api/db.ts, which builds every SQL statement
+  // the app runs — and type errors there were found by a failing deployment
+  // instead. That is what produced the run of "fix: cast Neon …" commits.
+  //
+  // Bundler resolution, matching the rest of the repo: these handlers import
+  // each other with explicit `.js` specifiers (`./_neon.js`) for Vercel's
+  // runtime, and bundler mode maps those onto the `.ts` sources. It also means
+  // the `src/` files they pull in are checked the same way tsconfig.app checks
+  // them, rather than under a second, stricter module mode.
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.api.tsbuildinfo",
+    "target": "es2023",
+    "lib": ["ES2023"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    // Both ambient sets: these handlers share modules with the browser (the
+    // database compatibility client), so `import.meta.env` must resolve here too.
+    "types": ["node", "vite/client"],
+    "skipLibCheck": true,
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    "noEmit": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["api"]
+}

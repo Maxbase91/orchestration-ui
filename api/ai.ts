@@ -61,7 +61,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // without a code change. When the agent is disabled, return a stub
     // response instead of calling the LLM.
     const agent = await getAgent(CLASSIFIER_AGENT_ID);
-    if (!isAgentActive(agent)) {
+    // The explicit null check comes first so the compiler knows `agent` is
+    // present below; `isAgentActive` stays a plain boolean because the branch
+    // it guards also has to describe a present-but-disabled agent.
+    if (!agent || !isAgentActive(agent)) {
       return res.status(200).json({
         intent: 'general',
         message: agent

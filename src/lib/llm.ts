@@ -4,6 +4,18 @@ const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 const LLM_TIMEOUT_MS = 10_000;
 
+// Shapes of the two provider responses, only as deep as the fields read below.
+// `response.json()` is `unknown`, and these two files sat outside every tsconfig
+// until api/ gained one — so the optional-chain walk was never type-checked.
+interface GroqResponse {
+  choices?: { message?: { content?: string } }[];
+}
+
+interface GeminiResponse {
+  candidates?: { content?: { parts?: { text?: string }[] } }[];
+}
+
+
 // Groq retired llama-3.1-8b-instant on 2026-08-16. This is its documented
 // replacement; an env override keeps future provider migrations deploy-free.
 export const DEFAULT_GROQ_MODEL = 'openai/gpt-oss-20b';
@@ -98,7 +110,7 @@ async function callGroq(
     return null;
   }
 
-  const data = await response.json();
+  const data = await response.json() as GroqResponse;
   const content = data.choices?.[0]?.message?.content;
   if (!content) {
     console.error('Groq empty content. Full response:', JSON.stringify(data).slice(0, 500));
@@ -156,6 +168,6 @@ async function callGemini(
     return null;
   }
 
-  const data = await response.json();
+  const data = await response.json() as GeminiResponse;
   return data.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
 }

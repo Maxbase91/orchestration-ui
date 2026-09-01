@@ -58,6 +58,9 @@ export async function getAgent(id: string): Promise<AgentRecord | null> {
   return value;
 }
 
+// Deliberately not a type predicate: `false` covers both "no agent" and
+// "agent present but disabled", and callers render a different message for each.
+// A predicate would narrow the disabled case to `never` and hide that branch.
 export function isAgentActive(agent: AgentRecord | null): boolean {
   return agent?.status === 'active';
 }
