@@ -58,7 +58,9 @@ export async function supabaseQuery<T = unknown>(
           return { column, ascending: direction !== 'desc' };
         }) : undefined,
         limit,
-        single,
+        // This helper's `single` has always meant "one row or null", which is
+        // `maybeSingle` semantics — the strict form errors when nothing matched.
+        single: single ? 'maybe' : undefined,
         body,
         conflict: upsert ? 'id' : undefined,
       });

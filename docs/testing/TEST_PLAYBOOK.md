@@ -259,7 +259,7 @@ These are the cases where the wizard could not.
 
 Every other browser suite needs a reachable Neon-backed API, so none of them run in a sandbox or in
 CI — which is why a render crash on the request detail was found by a user rather than a test. This
-suite stubs the data API inside the page (`tests/ui/postgrest-stub.mjs`) and drives the real
+suite stubs the data API inside the page (`tests/ui/db-stub.mjs`) and drives the real
 screen against fixtures: no credentials, no network.
 
 | ID | Steps | Expected |

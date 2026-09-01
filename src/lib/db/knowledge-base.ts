@@ -22,7 +22,7 @@ export async function listKnowledgeBase(): Promise<KBEntry[]> {
     .select('id, title, body, source, tags')
     .order('id', { ascending: true });
   if (error) throw error;
-  return (data ?? []) as KBEntry[];
+  return (data ?? []) as unknown as KBEntry[];
 }
 
 /**

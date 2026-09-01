@@ -91,9 +91,9 @@ export function AIAnalyticsPage() {
           .select('polarity, created_at'),
       ]);
 
-      setConvs((recentConvs ?? []) as ConvRow[]);
+      setConvs((recentConvs ?? []) as unknown as ConvRow[]);
       setTotalConvs(count ?? 0);
-      setFeedback((fb ?? []) as FeedbackRow[]);
+      setFeedback((fb ?? []) as unknown as FeedbackRow[]);
       setLoading(false);
     })();
   }, []);

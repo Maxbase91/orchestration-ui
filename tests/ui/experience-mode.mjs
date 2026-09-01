@@ -25,9 +25,6 @@ const server = spawn('npm', ['run', 'dev', '--', '--port', '5179', '--strictPort
     ...process.env,
     // Keep this browser suite deterministic and independent from a developer's
     // local Neon URL. The route handoff only needs the fixture REST surface.
-    VITE_DATABASE_PROVIDER: 'supabase',
-    VITE_SUPABASE_URL: 'https://stub.supabase.co',
-    VITE_SUPABASE_ANON_KEY: 'stub-anon-key',
   },
 });
 let browser;

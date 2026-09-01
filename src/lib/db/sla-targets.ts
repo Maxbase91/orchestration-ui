@@ -11,7 +11,7 @@ const TABLE = 'sla_targets';
 export async function listSlaTargets(): Promise<SlaTarget[]> {
   const { data, error } = await supabase.from(TABLE).select('*').order('stage');
   if (error) throw error;
-  return (data ?? []) as SlaTarget[];
+  return (data ?? []) as unknown as SlaTarget[];
 }
 
 export async function upsertSlaTarget(target: SlaTarget): Promise<SlaTarget> {
@@ -21,7 +21,7 @@ export async function upsertSlaTarget(target: SlaTarget): Promise<SlaTarget> {
     .select('*')
     .single();
   if (error) throw error;
-  return data as SlaTarget;
+  return data as unknown as SlaTarget;
 }
 
 /** Returns SLA days for a given stage (falls back to 5). */

@@ -232,7 +232,7 @@ It boots the dev server itself and needs `.env.local` with the Neon provider con
 documented Supabase rollback variables).
 
 `test:request-detail-ui` is the exception: it stubs the data API inside the browser
-(`tests/ui/postgrest-stub.mjs`) and runs with **no credentials and no network**. Use that harness for
+(`tests/ui/db-stub.mjs`) and runs with **no credentials and no network**. Use that harness for
 any screen worth checking where the project is unreachable — a suite that can only run against a live
 database does not run in CI or in a sandbox, which is how a render crash on the request detail
 reached production unnoticed.

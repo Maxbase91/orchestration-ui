@@ -173,7 +173,7 @@ export async function inviteSuppliers(
   if (actor) {
     await auditEvent(eventId, 'sourcing.suppliers.invited', `Invited ${suppliers.length} supplier(s)`, actor);
   }
-  return (data ?? []).map((r) => mapRow(r as ResponseRow));
+  return (data ?? []).map((r) => mapRow(r as unknown as ResponseRow));
 }
 
 /**
@@ -184,7 +184,7 @@ export async function inviteSuppliers(
 export async function listAllResponses(): Promise<SourcingResponse[]> {
   const { data, error } = await supabase.from(TABLE).select('*');
   if (error) throw error;
-  return (data ?? []).map((r) => mapRow(r as ResponseRow));
+  return (data ?? []).map((r) => mapRow(r as unknown as ResponseRow));
 }
 
 /** All responses on an event — the buyer-side view. */
@@ -195,7 +195,7 @@ export async function listResponsesForEvent(eventId: string): Promise<SourcingRe
     .eq('event_id', eventId)
     .order('supplier_name', { ascending: true });
   if (error) throw error;
-  return (data ?? []).map((r) => mapRow(r as ResponseRow));
+  return (data ?? []).map((r) => mapRow(r as unknown as ResponseRow));
 }
 
 /**
@@ -214,7 +214,7 @@ export async function listInvitationsForSupplier(supplierId: string): Promise<So
     .eq('supplier_id', supplierId)
     .order('invited_at', { ascending: false });
   if (error) throw error;
-  return (data ?? []).map((r) => mapRow(r as ResponseRow));
+  return (data ?? []).map((r) => mapRow(r as unknown as ResponseRow));
 }
 
 async function patch(id: string, values: Record<string, unknown>): Promise<SourcingResponse> {
@@ -225,7 +225,7 @@ async function patch(id: string, values: Record<string, unknown>): Promise<Sourc
     .select('*')
     .single();
   if (error) throw error;
-  return mapRow(data as ResponseRow);
+  return mapRow(data as unknown as ResponseRow);
 }
 
 /**

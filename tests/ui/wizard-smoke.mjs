@@ -10,7 +10,7 @@
 
 import { spawn } from 'node:child_process';
 import { chromium } from 'playwright';
-import { installSupabaseStub } from './postgrest-stub.mjs';
+import { installDbStub } from './db-stub.mjs';
 
 class LocalServerlessUnavailable extends Error {}
 
@@ -57,9 +57,6 @@ const server = spawn('npm', ['run', 'dev'], {
     // Browser smoke uses the in-memory PostgREST fixture below. This keeps the
     // test independent from the developer's Neon URL while production remains
     // Neon-backed through the private API boundary.
-    VITE_DATABASE_PROVIDER: 'supabase',
-    VITE_SUPABASE_URL: 'https://stub.supabase.co',
-    VITE_SUPABASE_ANON_KEY: 'stub-anon-key',
     VITE_SIMPLE_EXPERIENCE_ENABLED: 'false',
   },
 });
@@ -73,7 +70,7 @@ try {
   // functions locally. Keep this browser smoke deterministic with a fixture
   // catalogue row, without writing to a real database or pretending that a
   // local Vite process can exercise serverless routes.
-  await installSupabaseStub(context, {
+  await installDbStub(context, {
     catalogue_items: [{
       id: 'IT-001', name: 'ThinkPad T14 Gen 5', description: 'Lenovo business laptop, 14-inch, 16GB RAM',
       unit_price: 1299, unit: 'each', catalogue_id: 'it-equipment', catalogue_name: 'IT Equipment',

@@ -1,31 +1,17 @@
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+// The application's database client.
+//
+// Neon is the store. This used to pick between Neon and Supabase — Supabase in
+// dev, Neon whenever `import.meta.env.PROD` — which meant no test anywhere
+// exercised the client production actually runs. Three defects reached users
+// through that gap, none of them reproducible locally. One client, one code
+// path, dev and production alike.
+//
+// It is also no longer cast to `SupabaseClient`. That cast made TypeScript
+// accept every call site regardless of what the client implements, so a method
+// the compatibility layer lacked (`.contains()`) compiled cleanly and threw at
+// runtime — the same failure shape as the `?.trim()` crash that cost a release.
+// Typed as itself, a missing method is a build error.
+
 import { NeonCompatibleClient } from './neon-compatible-client';
 
-const provider = import.meta.env.VITE_DATABASE_PROVIDER as string | undefined;
-const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
-
-let client: SupabaseClient;
-// Neon is the active production store. Defaulting production to the private
-// API boundary prevents a missing build-time flag from silently sending reads
-// to the retained Supabase rollback configuration (which otherwise appears as
-// an empty catalogue to requesters).
-const useNeon = import.meta.env.PROD || provider === 'neon';
-if (useNeon) {
-  // The cast keeps the existing data modules source-compatible while the
-  // compatibility client routes operations through the private server API.
-  client = new NeonCompatibleClient() as unknown as SupabaseClient;
-} else if (!url || !anonKey) {
-  throw new Error(
-    'Missing Supabase env vars. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env.local — see .env.example.',
-  );
-} else {
-  client = createClient(url, anonKey, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-    },
-  });
-}
-
-export const supabase: SupabaseClient = client;
+export const supabase = new NeonCompatibleClient();

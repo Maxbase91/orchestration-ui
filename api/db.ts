@@ -3,7 +3,7 @@
 // arbitrary SQL and arbitrary identifiers are rejected at the boundary.
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getNeonClient } from './_neon.js';
+import { getNeonClient, queryRows } from './_neon.js';
 import commodityMatch from '../src/server/api/commodity-match.js';
 import contractMatch from '../src/server/api/contract-match.js';
 import contractScope from '../src/server/api/contract-scope.js';
@@ -54,7 +54,7 @@ const ALLOWED_RELATIONS = new Set([
 
 const ALLOWED_FUNCTIONS = new Set(['next_ticket_id', 'next_sourcing_event_id']);
 const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
-const jsonColumnsCache = new Map<string, Set<string>>();
+const columnTypeCache = new Map<string, Map<string, string>>();
 
 interface Filter { column: string; operator: string; value: unknown }
 interface Order { column: string; ascending: boolean }
@@ -68,9 +68,16 @@ export interface DbRequest {
   orFilters?: Filter[];
   orders?: Order[];
   limit?: number;
-  single?: boolean;
+  // 'one' must match a row and errors otherwise (supabase-js `.single()`);
+  // 'maybe' returns null when nothing matched (`.maybeSingle()`). A single
+  // boolean made the two indistinguishable, so a not-found `.single()` returned
+  // `{ data: null, error: null }` and callers mapped null instead of throwing.
+  single?: 'one' | 'maybe';
   body?: unknown;
   conflict?: string;
+  ignoreDuplicates?: boolean;
+  count?: 'exact';
+  head?: boolean;
 }
 
 function quoteIdentifier(value: string): string {
@@ -78,23 +85,13 @@ function quoteIdentifier(value: string): string {
   return `"${value}"`;
 }
 
-function parameterCast(value: unknown): string {
-  if (typeof value === 'boolean') return '::boolean';
-  if (typeof value === 'number') return '::numeric';
-  return '::text';
-}
-
-function updateParameterCast(value: unknown, column: string, jsonColumnsForTable?: Set<string>): string {
-  // Neon HTTP sends JavaScript strings as unknown parameters. Explicit casts
-  // are required for UPDATE assignments (notably approval status fields),
-  // even though a WHERE comparison can infer its type from the column.
-  if (typeof value === 'string' && (column.endsWith('_at') || column === 'sla_deadline')) return '::timestamp';
-  if (typeof value === 'string' && (column.endsWith('_date') || column === 'effective_from' || column === 'effective_to')) return '::date';
-  // JSONB updates arrive as serialized JSON text. Without an explicit cast
-  // PostgreSQL treats the parameter as text and rejects assistant messages,
-  // policy arrays, and other JSONB updates even though inserts succeed.
-  if (typeof value === 'string' && jsonColumnsForTable?.has(column)) return '::jsonb';
-  return parameterCast(value);
+// SET assignments need the same treatment as WHERE comparisons: the Neon HTTP
+// driver sends JavaScript strings as untyped parameters, so PostgreSQL needs to
+// be told what they are. This used to guess from the column *name*
+// (`_at` → timestamp, `_date` → date), which worked for the columns someone had
+// hit and silently mis-cast the rest; the schema knows the answer.
+function updateParameterCast(value: unknown, column: string, types: Map<string, string>): string {
+  return castForColumn(value, column, types);
 }
 
 function selectList(value: string | undefined): string {
@@ -102,25 +99,35 @@ function selectList(value: string | undefined): string {
   return value.split(',').map((column) => quoteIdentifier(column.trim())).join(', ');
 }
 
-function addFilter(parts: string[], params: unknown[], filter: Filter, placeholderOffset = 0): void {
+function addFilter(parts: string[], params: unknown[], filter: Filter, types: Map<string, string>, placeholderOffset = 0): void {
   const column = quoteIdentifier(filter.column);
   const value = filter.value;
+  const cast = (item: unknown) => castForColumn(item, filter.column, types);
   switch (filter.operator) {
     case 'eq':
       if (value === null) { parts.push(`${column} IS NULL`); break; }
-      params.push(value); parts.push(`${column} = $${placeholderOffset + params.length}${parameterCast(value)}`); break;
+      params.push(value); parts.push(`${column} = $${placeholderOffset + params.length}${cast(value)}`); break;
     case 'neq':
       if (value === null) { parts.push(`${column} IS NOT NULL`); break; }
-      params.push(value); parts.push(`${column} <> $${placeholderOffset + params.length}${parameterCast(value)}`); break;
-    case 'gt': params.push(value); parts.push(`${column} > $${placeholderOffset + params.length}${parameterCast(value)}`); break;
-    case 'gte': params.push(value); parts.push(`${column} >= $${placeholderOffset + params.length}${parameterCast(value)}`); break;
-    case 'lt': params.push(value); parts.push(`${column} < $${placeholderOffset + params.length}${parameterCast(value)}`); break;
-    case 'lte': params.push(value); parts.push(`${column} <= $${placeholderOffset + params.length}${parameterCast(value)}`); break;
-    case 'ilike': params.push(value); parts.push(`${column} ILIKE $${placeholderOffset + params.length}${parameterCast(value)}`); break;
+      params.push(value); parts.push(`${column} <> $${placeholderOffset + params.length}${cast(value)}`); break;
+    case 'gt': params.push(value); parts.push(`${column} > $${placeholderOffset + params.length}${cast(value)}`); break;
+    case 'gte': params.push(value); parts.push(`${column} >= $${placeholderOffset + params.length}${cast(value)}`); break;
+    case 'lt': params.push(value); parts.push(`${column} < $${placeholderOffset + params.length}${cast(value)}`); break;
+    case 'lte': params.push(value); parts.push(`${column} <= $${placeholderOffset + params.length}${cast(value)}`); break;
+    case 'ilike': params.push(value); parts.push(`${column} ILIKE $${placeholderOffset + params.length}${cast(value)}`); break;
     case 'is': parts.push(value === null ? `${column} IS NULL` : `${column} IS NOT NULL`); break;
+    case 'cs': {
+      // Array containment (`comments.mentions` is TEXT[]). The explicit
+      // element cast is needed because the driver would otherwise send the
+      // array as an untyped parameter.
+      if (!Array.isArray(value)) { parts.push('FALSE'); break; }
+      params.push(value);
+      parts.push(`${column} @> $${placeholderOffset + params.length}::text[]`);
+      break;
+    }
     case 'in': {
       if (!Array.isArray(value) || value.length === 0) { parts.push('FALSE'); break; }
-      const placeholders = value.map((item) => { params.push(item); return `$${placeholderOffset + params.length}${parameterCast(item)}`; });
+      const placeholders = value.map((item) => { params.push(item); return `$${placeholderOffset + params.length}${cast(item)}`; });
       parts.push(`${column} IN (${placeholders.join(', ')})`);
       break;
     }
@@ -128,11 +135,11 @@ function addFilter(parts: string[], params: unknown[], filter: Filter, placehold
   }
 }
 
-function whereClause(request: DbRequest, params: unknown[], placeholderOffset = 0): string {
+function whereClause(request: DbRequest, params: unknown[], types: Map<string, string>, placeholderOffset = 0): string {
   const andParts: string[] = [];
-  for (const filter of request.filters ?? []) addFilter(andParts, params, filter, placeholderOffset);
+  for (const filter of request.filters ?? []) addFilter(andParts, params, filter, types, placeholderOffset);
   const orParts: string[] = [];
-  for (const filter of request.orFilters ?? []) addFilter(orParts, params, filter, placeholderOffset);
+  for (const filter of request.orFilters ?? []) addFilter(orParts, params, filter, types, placeholderOffset);
   if (orParts.length > 0) andParts.push(`(${orParts.join(' OR ')})`);
   return andParts.length > 0 ? ` WHERE ${andParts.join(' AND ')}` : '';
 }
@@ -145,25 +152,59 @@ function bodyRows(body: unknown): Record<string, unknown>[] {
   return rows as Record<string, unknown>[];
 }
 
-async function jsonColumns(table: string): Promise<Set<string>> {
-  const cached = jsonColumnsCache.get(table);
+async function columnTypes(table: string): Promise<Map<string, string>> {
+  const cached = columnTypeCache.get(table);
   if (cached) return cached;
   const sql = getNeonClient();
   // `table` is allowlisted above, so embedding it avoids a Neon HTTP driver
   // type-inference failure on this metadata-only query during cold starts.
-  const rows = await sql.query(
-    `SELECT column_name FROM information_schema.columns
-     WHERE table_schema = 'public' AND table_name = '${table}' AND data_type IN ('json', 'jsonb')`,
-  ) as unknown as Array<Record<string, unknown>>;
-  const columns = new Set(rows.map((row) => String(row.column_name)));
-  jsonColumnsCache.set(table, columns);
-  return columns;
+  const rows = await queryRows(sql,
+    `SELECT column_name, data_type FROM information_schema.columns
+     WHERE table_schema = 'public' AND table_name = '${table}'`,
+  );
+  const types = new Map(rows.map((row) => [String(row.column_name), String(row.data_type)]));
+  columnTypeCache.set(table, types);
+  return types;
 }
 
-function parameterValue(value: unknown, column: string, jsonColumnsForTable: Set<string>): unknown {
+/**
+ * The cast a parameter needs to be comparable with its column.
+ *
+ * Every string parameter used to be cast to `::text`, which is wrong for any
+ * column that is not text: PostgreSQL has no implicit `text` → `uuid`/`date`/
+ * `timestamptz` cast, so `"valid_until" > $1::text` fails with
+ * `operator does not exist: date > text`. That broke risk-assessment reuse
+ * matching outright and made assistant conversation writes (uuid keys) fail
+ * silently, because those call sites do not check the error.
+ *
+ * Casting to the column's own type is what makes the comparison legal. An
+ * unknown column gets no cast at all, which lets PostgreSQL infer from the
+ * column — the behaviour the original code assumed it already had.
+ */
+export function castForColumn(value: unknown, column: string, types: Map<string, string>): string {
+  if (value === null || value === undefined) return '';
+  const type = types.get(column);
+  switch (type) {
+    case 'uuid': return '::uuid';
+    case 'date': return '::date';
+    case 'timestamp with time zone': return '::timestamptz';
+    case 'timestamp without time zone': return '::timestamp';
+    case 'boolean': return '::boolean';
+    case 'integer': case 'bigint': case 'smallint':
+    case 'numeric': case 'double precision': case 'real': return '::numeric';
+    case 'text': case 'character varying': case 'character': return '::text';
+    case 'jsonb': case 'json': return '::jsonb';
+    // ARRAY and anything unmapped: no cast, so PostgreSQL infers from the
+    // column rather than being told the wrong thing.
+    default: return '';
+  }
+}
+
+function parameterValue(value: unknown, column: string, types: Map<string, string>): unknown {
   // The Neon driver treats a JavaScript array parameter as a PostgreSQL array;
   // JSONB writes therefore need explicit serialization or [] becomes {}.
-  if (jsonColumnsForTable.has(column) && value !== null && value !== undefined && typeof value !== 'string') {
+  const type = types.get(column);
+  if ((type === 'jsonb' || type === 'json') && value !== null && value !== undefined && typeof value !== 'string') {
     return JSON.stringify(value);
   }
   return value;
@@ -173,33 +214,45 @@ export async function executeNeonRequest(request: DbRequest): Promise<unknown> {
   const sql = getNeonClient();
   if (request.operation === 'rpc') {
     if (!request.functionName || !ALLOWED_FUNCTIONS.has(request.functionName)) throw new Error('Unsupported database function');
-    const rows = await sql.query(`SELECT ${quoteIdentifier(request.functionName)}() AS value`);
+    const rows = await queryRows(sql, `SELECT ${quoteIdentifier(request.functionName)}() AS value`);
     return rows[0]?.value ?? null;
   }
   if (!request.table || !ALLOWED_RELATIONS.has(request.table)) throw new Error('Unsupported database relation');
   const relation = quoteIdentifier(request.table);
+  const types = await columnTypes(request.table);
   const params: unknown[] = [];
-  const where = whereClause(request, params);
+  const where = whereClause(request, params, types);
   if (request.operation === 'select') {
     const order = (request.orders ?? []).map((item) => `${quoteIdentifier(item.column)} ${item.ascending ? 'ASC' : 'DESC'}`).join(', ');
     const suffix = `${where}${order ? ` ORDER BY ${order}` : ''}${request.limit ? ` LIMIT ${Math.max(1, Math.min(request.limit, 2000))}` : ''}`;
-    const rows = await sql.query(`SELECT ${selectList(request.select)} FROM ${relation}${suffix}`, params) as unknown as Array<Record<string, unknown>>;
+    // `head` asks for the count without the rows; `count` asks for both. Neither
+    // was implemented, so a caller reading `{ count }` got undefined and the
+    // query fetched every row it was trying to avoid.
+    if (request.count || request.head) {
+      const totals = await queryRows(sql, `SELECT count(*)::int AS count FROM ${relation}${where}`, params);
+      const count = Number(totals[0]?.count ?? 0);
+      if (request.head) return { rows: [], count };
+      const counted = await queryRows(sql, `SELECT ${selectList(request.select)} FROM ${relation}${suffix}`, params);
+      return { rows: counted, count };
+    }
+    const rows = await queryRows(sql, `SELECT ${selectList(request.select)} FROM ${relation}${suffix}`, params);
     if (!request.single) return rows;
     if (rows.length > 1) throw new Error('Expected at most one database row');
+    if (!rows[0] && request.single === 'one') throw new Error('Expected exactly one database row, found none');
     return rows[0] ?? null;
   }
   if (request.operation === 'delete') {
-    const rows = await sql.query(`DELETE FROM ${relation}${where} RETURNING *`, params);
+    const rows = await queryRows(sql, `DELETE FROM ${relation}${where} RETURNING *`, params);
     return request.single ? (rows[0] ?? null) : rows;
   }
   const rows = bodyRows(request.body);
-  const jsonColumnsForTable = await jsonColumns(request.table);
+  
   const columns = Object.keys(rows[0]);
   if (columns.length === 0 || columns.some((column) => !IDENTIFIER.test(column))) throw new Error('Invalid database write columns');
   const quotedColumns = columns.map(quoteIdentifier).join(', ');
   const bodyParams: unknown[] = [];
   const valueGroups = () => rows.map((row) => `(${columns.map((column) => {
-    const value = parameterValue(row[column], column, jsonColumnsForTable);
+    const value = parameterValue(row[column], column, types);
     // A bare NULL has no type for the Neon HTTP protocol to infer. Emitting
     // the SQL NULL literal preserves nullable updates/inserts and avoids the
     // approval action failure caused by an untyped second parameter.
@@ -208,27 +261,32 @@ export async function executeNeonRequest(request: DbRequest): Promise<unknown> {
     return `$${bodyParams.length}`;
   }).join(', ')})`);
   if (request.operation === 'insert') {
-    const result = await sql.query(`INSERT INTO ${relation} (${quotedColumns}) VALUES ${valueGroups().join(', ')} RETURNING *`, bodyParams);
+    const result = await queryRows(sql, `INSERT INTO ${relation} (${quotedColumns}) VALUES ${valueGroups().join(', ')} RETURNING *`, bodyParams);
     return request.single ? (result[0] ?? null) : result;
   }
   if (request.operation === 'upsert') {
-    const conflictColumns = (request.conflict ?? 'id').split(',').map((column) => quoteIdentifier(column.trim())).join(', ');
-    const updates = columns.filter((column) => !(request.conflict ?? 'id').split(',').includes(column)).map((column) => `${quoteIdentifier(column)} = EXCLUDED.${quoteIdentifier(column)}`);
-    const result = await sql.query(`INSERT INTO ${relation} (${quotedColumns}) VALUES ${valueGroups().join(', ')} ON CONFLICT (${conflictColumns}) DO ${updates.length ? `UPDATE SET ${updates.join(', ')}` : 'NOTHING'} RETURNING *`, bodyParams);
+    const conflictKeys = (request.conflict ?? 'id').split(',').map((column) => column.trim());
+    const conflictColumns = conflictKeys.map(quoteIdentifier).join(', ');
+    // `.trim()` on both sides: the key list was split without trimming here, so
+    // `onConflict: 'a, b'` left ' b' in the SET list and overwrote a conflict key.
+    const updates = request.ignoreDuplicates
+      ? []
+      : columns.filter((column) => !conflictKeys.includes(column)).map((column) => `${quoteIdentifier(column)} = EXCLUDED.${quoteIdentifier(column)}`);
+    const result = await queryRows(sql, `INSERT INTO ${relation} (${quotedColumns}) VALUES ${valueGroups().join(', ')} ON CONFLICT (${conflictColumns}) DO ${updates.length ? `UPDATE SET ${updates.join(', ')}` : 'NOTHING'} RETURNING *`, bodyParams);
     return request.single ? (result[0] ?? null) : result;
   }
   const updates = columns.map((column) => {
-    const value = parameterValue(rows[0][column], column, jsonColumnsForTable);
+    const value = parameterValue(rows[0][column], column, types);
     if (value === null) return `${quoteIdentifier(column)} = NULL`;
     bodyParams.push(value);
-    return `${quoteIdentifier(column)} = $${bodyParams.length}${updateParameterCast(value, column, jsonColumnsForTable)}`;
+    return `${quoteIdentifier(column)} = $${bodyParams.length}${updateParameterCast(value, column, types)}`;
   });
   // Put SET parameters first and append filter parameters afterwards. This
   // keeps values typed by their target columns at $1..$n; the previous
   // filter-first ordering caused Neon/Postgres to reject $2 as indeterminate.
   const whereParams: unknown[] = [];
-  const updateWhere = whereClause(request, whereParams, bodyParams.length);
-  const result = await sql.query(`UPDATE ${relation} SET ${updates.join(', ')}${updateWhere} RETURNING *`, [...bodyParams, ...whereParams]);
+  const updateWhere = whereClause(request, whereParams, types, bodyParams.length);
+  const result = await queryRows(sql, `UPDATE ${relation} SET ${updates.join(', ')}${updateWhere} RETURNING *`, [...bodyParams, ...whereParams]);
   return request.single ? (result[0] ?? null) : result;
 }
 
@@ -246,6 +304,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   if (req.method !== 'POST') { res.status(405).json({ error: 'Method not allowed' }); return; }
   try {
     const result = await executeNeonRequest(req.body as DbRequest);
+    // A counted select returns rows and a total; everything else returns rows.
+    if (result && typeof result === 'object' && 'rows' in result && 'count' in result) {
+      const { rows, count } = result as { rows: unknown; count: number };
+      res.status(200).json({ data: rows, count, error: null });
+      return;
+    }
     res.status(200).json({ data: result, error: null });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Database request failed';

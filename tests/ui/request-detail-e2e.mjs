@@ -11,7 +11,7 @@
 // suites do not render, and every browser suite needed a database this sandbox
 // cannot reach.
 //
-// So the database is stubbed (tests/ui/postgrest-stub.mjs) and the real screen
+// So the database is stubbed (tests/ui/db-stub.mjs) and the real screen
 // is driven: open the request, expand every workflow step, open the form that
 // pre-populates from the description, and assert both that nothing threw and
 // that the pre-populated values actually arrived.
@@ -20,7 +20,7 @@
 
 import { spawn } from 'node:child_process';
 import { chromium } from 'playwright';
-import { installSupabaseStub } from './postgrest-stub.mjs';
+import { installDbStub } from './db-stub.mjs';
 
 const BASE = 'http://localhost:5178';
 const REQUEST_ID = 'REQ-TEST-0001';
@@ -48,24 +48,17 @@ async function waitForServer(timeoutMs = 60000) {
   throw new Error('Dev server not ready');
 }
 
-// Dummy credentials so the Supabase client constructs. Every REST call is
-// intercepted before it leaves the page, so the values are never used — which is
-// the point: this suite runs where the real project is unreachable.
-const server = spawn('npm', ['run', 'dev', '--', '--port', '5178', '--strictPort'], {
-  stdio: 'ignore',
-  env: {
-    ...process.env,
-    VITE_SUPABASE_URL: 'https://stub.supabase.co',
-    VITE_SUPABASE_ANON_KEY: 'stub-anon-key',
-  },
-});
+// No credentials: the client posts to /api/db, which the stub intercepts before
+// it leaves the page. That is the point — this suite runs where no database is
+// reachable, against the same client production runs.
+const server = spawn('npm', ['run', 'dev', '--', '--port', '5178', '--strictPort'], { stdio: 'ignore' });
 
 let browser;
 try {
   await waitForServer();
   browser = await chromium.launch(LAUNCH_OPTS);
   const context = await browser.newContext();
-  const stub = await installSupabaseStub(context);
+  const stub = await installDbStub(context);
   await context.addInitScript((user) => {
     localStorage.setItem('auth', JSON.stringify({ state: { currentRole: 'admin', currentUser: user }, version: 0 }));
   }, ADMIN);

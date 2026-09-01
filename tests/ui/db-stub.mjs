@@ -1,17 +1,16 @@
-// An offline stand-in for Supabase's REST API, for browser tests.
+// An offline stand-in for the application's database endpoint, for browser tests.
 //
-// Why this exists: the browser suites all need a reachable Supabase project, so
-// in any sandbox without egress to it (or without credentials) they cannot run
-// at all — which is precisely how a crash on the request detail reached
-// production. This intercepts `**/rest/v1/**` inside Playwright and answers from
-// in-memory fixtures, so a full screen can be driven with no network and no
-// database.
+// Why this exists: the browser suites need a reachable database, so in any
+// sandbox without egress (or without credentials) they cannot run at all —
+// which is precisely how a crash on the request detail reached production. This
+// intercepts `POST /api/db` inside Playwright and answers from in-memory
+// fixtures, so a full screen can be driven with no network and no database.
 //
-// It implements the slice of PostgREST that supabase-js actually emits from this
-// codebase: column filters, ordering, limit, single-object responses, and the
-// three write verbs. Anything it does not understand is reported rather than
-// silently ignored — a filter quietly dropped would make a test pass against
-// rows the app would never have received.
+// It speaks the same `RequestPayload` the browser client sends
+// (src/lib/neon-compatible-client.ts): an operation, a table, filters, orders,
+// a limit and the single/count modifiers. Anything it does not understand is
+// reported rather than silently ignored — a filter quietly dropped would make a
+// test pass against rows the app would never have received.
 
 /** Rows are DB-shaped (snake_case), exactly as PostgREST returns them. */
 export const FIXTURES = {
@@ -184,14 +183,11 @@ export const FIXTURES = {
   }],
 };
 
-/** Parameters that shape the result rather than filter it. */
-const CONTROL = new Set(['select', 'order', 'limit', 'offset', 'on_conflict', 'columns']);
-
 function compare(rowValue, op, raw) {
-  // PostgREST sends `null` unquoted and strings sometimes quoted.
-  const literal = raw.startsWith('"') && raw.endsWith('"') ? raw.slice(1, -1) : raw;
-  const asNumber = Number(literal);
-  const value = literal === 'null' ? null : Number.isNaN(asNumber) || literal === '' ? literal : asNumber;
+  // Values arrive typed from the payload; `or()` fragments still arrive as the
+  // string tail of `col.op.value`, so both shapes are handled.
+  const literal = typeof raw === 'string' && raw.startsWith('"') && raw.endsWith('"') ? raw.slice(1, -1) : raw;
+  const value = literal === 'null' ? null : literal;
   switch (op) {
     case 'eq': return String(rowValue) === String(value);
     case 'neq': return String(rowValue) !== String(value);
@@ -201,16 +197,20 @@ function compare(rowValue, op, raw) {
     case 'lte': return rowValue <= value;
     case 'is': return literal === 'null' ? rowValue == null : String(rowValue) === literal;
     case 'in': {
-      const set = literal.replace(/^\(|\)$/g, '').split(',').map((s) => s.replace(/^"|"$/g, ''));
-      return set.includes(String(rowValue));
+      const set = Array.isArray(literal)
+        ? literal
+        : String(literal).replace(/^\(|\)$/g, '').split(',').map((item) => item.replace(/^"|"$/g, ''));
+      return set.map(String).includes(String(rowValue));
     }
     case 'like':
     case 'ilike': {
-      const pattern = new RegExp(`^${literal.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/%/g, '.*')}$`, op === 'ilike' ? 'i' : '');
+      const pattern = new RegExp(`^${String(literal).replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/%/g, '.*')}$`, op === 'ilike' ? 'i' : '');
       return pattern.test(String(rowValue ?? ''));
     }
-    case 'cs': // contains, for array/jsonb columns
-      return Array.isArray(rowValue) && literal.replace(/^\{|\}$/g, '').split(',').every((v) => rowValue.includes(v));
+    case 'cs': { // containment, for array/jsonb columns
+      const wanted = Array.isArray(literal) ? literal : String(literal).replace(/^\{|\}$/g, '').split(',');
+      return Array.isArray(rowValue) && wanted.every((item) => rowValue.includes(item));
+    }
     default: return null; // "not understood", distinct from "no match"
   }
 }
@@ -222,91 +222,105 @@ function compare(rowValue, op, raw) {
  * A test should fail on a non-empty list rather than trust its assertions: a
  * dropped filter means the app was answered with rows it never asked for.
  */
-export async function installSupabaseStub(target, overrides = {}) {
+export async function installDbStub(target, overrides = {}) {
   const tables = structuredClone(FIXTURES);
   for (const [name, rows] of Object.entries(overrides)) tables[name] = structuredClone(rows);
   const unsupported = [];
 
-  await target.route('**/rest/v1/**', async (route) => {
-    const request = route.request();
-    const url = new URL(request.url());
-    const table = url.pathname.split('/rest/v1/')[1]?.split('/')[0] ?? '';
-    // An unknown table answers empty rather than 404: a screen reading a table
-    // this fixture set does not model should render its empty state, not crash.
+  await target.route('**/api/db', async (route) => {
+    const payload = JSON.parse(route.request().postData() || '{}');
+
+    if (payload.operation === 'rpc') {
+      // Only the two id sequences are exposed; a deterministic value keeps
+      // generated ids stable across a run.
+      await route.fulfill({ status: 200, contentType: 'application/json',
+        body: JSON.stringify({ data: `${payload.functionName}-1`, error: null }) });
+      return;
+    }
+
+    const table = payload.table ?? '';
+    // An unknown table answers empty rather than erroring: a screen reading a
+    // table this fixture set does not model should render its empty state.
     tables[table] ??= [];
     let rows = tables[table];
 
-    const filters = [...url.searchParams.entries()].filter(([k]) => !CONTROL.has(k));
-    const matches = (row) =>
-      filters.every(([column, expr]) => {
-        const [op, ...rest] = expr.split('.');
-        const verdict = compare(row[column], op, rest.join('.'));
-        if (verdict === null) {
-          unsupported.push(`${table}?${column}=${expr}`);
-          return true;
-        }
-        return verdict;
-      });
-
-    const method = request.method();
-    let body = [];
-    if (method === 'GET' || method === 'HEAD') {
-      body = rows.filter(matches);
-    } else if (method === 'POST') {
-      const posted = JSON.parse(request.postData() || '[]');
-      const incoming = Array.isArray(posted) ? posted : [posted];
-      const merge = (request.headers()['prefer'] ?? '').includes('merge-duplicates');
-      const conflictKey = url.searchParams.get('on_conflict');
-      for (const record of incoming) {
-        const existing = merge && conflictKey
-          ? rows.find((r) => String(r[conflictKey]) === String(record[conflictKey]))
-          : undefined;
-        if (existing) Object.assign(existing, record);
-        else rows.push({ ...record });
+    const test = (row, { column, operator, value }) => {
+      const verdict = compare(row[column], operator, value);
+      if (verdict === null) {
+        unsupported.push(`${table}.${column} ${operator}`);
+        return true;
       }
-      body = incoming.map((record) =>
-        (conflictKey && rows.find((r) => String(r[conflictKey]) === String(record[conflictKey]))) ?? record);
-    } else if (method === 'PATCH') {
-      const patch = JSON.parse(request.postData() || '{}');
-      body = rows.filter(matches);
-      for (const row of body) Object.assign(row, patch);
-    } else if (method === 'DELETE') {
-      body = rows.filter(matches);
-      tables[table] = rows.filter((r) => !body.includes(r));
-      rows = tables[table];
+      return verdict;
+    };
+    const matches = (row) => {
+      const ands = (payload.filters ?? []).every((filter) => test(row, filter));
+      const ors = payload.orFilters?.length ? payload.orFilters.some((filter) => test(row, filter)) : true;
+      return ands && ors;
+    };
+
+    let body = [];
+    let count;
+    switch (payload.operation) {
+      case 'select':
+        body = rows.filter(matches);
+        break;
+      case 'insert':
+      case 'upsert': {
+        const incoming = Array.isArray(payload.body) ? payload.body : [payload.body];
+        const keys = (payload.conflict ?? 'id').split(',').map((key) => key.trim());
+        for (const record of incoming) {
+          const existing = payload.operation === 'upsert'
+            ? rows.find((row) => keys.every((key) => String(row[key]) === String(record[key])))
+            : undefined;
+          if (existing) { if (!payload.ignoreDuplicates) Object.assign(existing, record); }
+          else rows.push({ ...record });
+        }
+        body = incoming.map((record) =>
+          rows.find((row) => keys.every((key) => String(row[key]) === String(record[key]))) ?? record);
+        break;
+      }
+      case 'update':
+        body = rows.filter(matches);
+        for (const row of body) Object.assign(row, payload.body);
+        break;
+      case 'delete':
+        body = rows.filter(matches);
+        tables[table] = rows.filter((row) => !body.includes(row));
+        rows = tables[table];
+        break;
+      default:
+        unsupported.push(`operation ${payload.operation}`);
     }
 
-    const order = url.searchParams.get('order');
-    if (order && body.length) {
-      const [column, direction] = order.split('.');
+    for (const { column, ascending } of payload.orders ?? []) {
       body = [...body].sort((a, b) =>
-        a[column] === b[column] ? 0 : (a[column] > b[column] ? 1 : -1) * (direction === 'desc' ? -1 : 1));
+        a[column] === b[column] ? 0 : (a[column] > b[column] ? 1 : -1) * (ascending ? 1 : -1));
     }
-    const limit = url.searchParams.get('limit');
-    if (limit) body = body.slice(0, Number(limit));
+    if (payload.limit) body = body.slice(0, payload.limit);
 
-    // `.single()` / `.maybeSingle()` ask for one object. Zero rows is PGRST116,
-    // which supabase-js turns into `data: null` for maybeSingle and an error for
-    // single — the same distinction the real API makes.
-    const wantsObject = (request.headers()['accept'] ?? '').includes('vnd.pgrst.object+json');
-    if (wantsObject) {
-      if (body.length === 0) {
-        await route.fulfill({
-          status: 406,
-          contentType: 'application/json',
-          body: JSON.stringify({ code: 'PGRST116', message: 'Results contain 0 rows', details: null, hint: null }),
-        });
+    if (payload.count || payload.head) {
+      count = body.length;
+      if (payload.head) body = [];
+    }
+
+    // `single: 'one'` must match a row and errors otherwise; `'maybe'` returns
+    // null. The endpoint makes that distinction, so the stub must too, or a
+    // suite would pass against behaviour production does not have.
+    if (payload.single) {
+      if (!body[0] && payload.single === 'one') {
+        await route.fulfill({ status: 500, contentType: 'application/json',
+          body: JSON.stringify({ data: null, error: 'Expected exactly one database row, found none' }) });
         return;
       }
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body[0]) });
+      await route.fulfill({ status: 200, contentType: 'application/json',
+        body: JSON.stringify({ data: body[0] ?? null, error: null }) });
       return;
     }
 
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      headers: { 'content-range': `0-${Math.max(body.length - 1, 0)}/${body.length}` },
-      body: JSON.stringify(body),
+      body: JSON.stringify(count === undefined ? { data: body, error: null } : { data: body, count, error: null }),
     });
   });
 

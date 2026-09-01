@@ -159,7 +159,7 @@ export async function createTicket(input: CreateTicketInput): Promise<Ticket> {
     .select('*')
     .single();
   if (error) throw error;
-  return mapDbToTicket(data as TicketRow);
+  return mapDbToTicket(data as unknown as TicketRow);
 }
 
 export interface ListTicketsOptions {
@@ -190,13 +190,13 @@ export async function listTickets(
 
   const { data, error } = await query;
   if (error) throw error;
-  return (data ?? []).map((r) => mapDbToTicket(r as TicketRow));
+  return (data ?? []).map((r) => mapDbToTicket(r as unknown as TicketRow));
 }
 
 export async function getTicket(id: string): Promise<Ticket | null> {
   const { data, error } = await supabase.from(TABLE).select('*').eq('id', id).maybeSingle();
   if (error) throw error;
-  return data ? mapDbToTicket(data as TicketRow) : null;
+  return data ? mapDbToTicket(data as unknown as TicketRow) : null;
 }
 
 async function patchTicket(id: string, patch: Record<string, unknown>): Promise<Ticket> {
@@ -207,7 +207,7 @@ async function patchTicket(id: string, patch: Record<string, unknown>): Promise<
     .select('*')
     .single();
   if (error) throw error;
-  return mapDbToTicket(data as TicketRow);
+  return mapDbToTicket(data as unknown as TicketRow);
 }
 
 /**
@@ -311,7 +311,7 @@ export async function listTicketResponses(
 
   const { data, error } = await query;
   if (error) throw error;
-  return (data ?? []).map((r) => mapDbToResponse(r as TicketResponseRow));
+  return (data ?? []).map((r) => mapDbToResponse(r as unknown as TicketResponseRow));
 }
 
 export interface AddResponseInput {
@@ -358,7 +358,7 @@ export async function addTicketResponse(input: AddResponseInput): Promise<Ticket
     await notifyTicket(input.ticketId, `New reply on ticket ${input.ticketId}`, input.body.slice(0, 140));
   }
 
-  return mapDbToResponse(data as TicketResponseRow);
+  return mapDbToResponse(data as unknown as TicketResponseRow);
 }
 
 // ── Audit + notification ─────────────────────────────────────────────────────
@@ -442,7 +442,7 @@ export async function listTicketLinks(ticketId: string): Promise<TicketLink[]> {
     .eq('ticket_id', ticketId)
     .order('created_at', { ascending: true });
   if (error) throw error;
-  return (data ?? []).map((r) => mapDbToLink(r as TicketLinkRow));
+  return (data ?? []).map((r) => mapDbToLink(r as unknown as TicketLinkRow));
 }
 
 export interface AddTicketLinkInput {
@@ -483,7 +483,7 @@ export async function addTicketLink(input: AddTicketLinkInput): Promise<TicketLi
       input.actor,
     );
   }
-  return mapDbToLink(data as TicketLinkRow);
+  return mapDbToLink(data as unknown as TicketLinkRow);
 }
 
 export async function removeTicketLink(
@@ -518,5 +518,5 @@ export async function listTicketsForObject(
     .in('id', ids)
     .order('created_at', { ascending: false });
   if (err2) throw err2;
-  return (rows ?? []).map((r) => mapDbToTicket(r as TicketRow));
+  return (rows ?? []).map((r) => mapDbToTicket(r as unknown as TicketRow));
 }
