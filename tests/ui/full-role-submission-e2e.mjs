@@ -1,6 +1,20 @@
 #!/usr/bin/env node
-// Full UI-only UAT harness for the procurement lifecycle. It uses the visible
-// role switcher, records every checkpoint, and never writes through an API.
+// Full UI-only UAT **evidence harness** for the procurement lifecycle. It uses
+// the visible role switcher, records every checkpoint, and never writes through
+// an API.
+//
+// Read what it does and does not prove. It walks 60+ checkpoints and screenshots
+// each, but it asserts only two things: that no uncaught page error occurred and
+// that the page rendered something (`#root` has children). It records the
+// heading it found into the manifest without checking it, so a screen that
+// renders the wrong content passes.
+//
+// That makes it a good regression net for crashes and white screens across a
+// wide surface, and a poor one for correctness. Content assertions belong in the
+// focused suites — test:request-detail-ui drives one screen against fixtures and
+// checks actual values. Do not read a green run here as "the lifecycle works".
+//
+// Its output goes to a gitignored directory: a run writes ~5 MB of PNGs.
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { chromium } from 'playwright';
 

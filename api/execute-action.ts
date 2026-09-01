@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getSupabaseAdmin } from './_supabase-admin.js';
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { NeonCompatibleClient } from '../src/lib/neon-compatible-client.js';
 
-const supabase = new Proxy({} as SupabaseClient, {
+const supabase = new Proxy({} as NeonCompatibleClient, {
   get(_target, property: string | symbol) {
     const target = getSupabaseAdmin() as unknown as Record<PropertyKey, unknown>;
     const value = target[property];

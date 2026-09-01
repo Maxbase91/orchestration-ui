@@ -6,11 +6,27 @@ The application historically used Supabase PostgREST directly from React and fro
 
 ## Decision
 
-Use Neon PostgreSQL as a private database and route browser operations through the allowlisted `/api/db` endpoint. The endpoint rejects arbitrary relations, identifiers, SQL, and functions; only application-owned tables/views and the two documented ID functions are available. Existing data modules retain their public function shape through a compatibility client selected by `VITE_DATABASE_PROVIDER=neon`.
+Use Neon PostgreSQL as a private database and route browser operations through the allowlisted `/api/db` endpoint. The endpoint rejects arbitrary relations, identifiers, SQL, and functions; only application-owned tables/views and the two documented ID functions are available. Existing data modules retain their public function shape through a compatibility client. (It was originally selected by `VITE_DATABASE_PROVIDER`; see the update below — that switch is gone.)
 
 Neon is the active R1 database. Keep the current prototype role-switching identity model for simulation and UAT; real authentication and production authorization remain a separate deferred hardening milestone.
 
 Copy all rows from the repository-defined schema with an idempotent, non-destructive migration script. The cutover is immediate with no write freeze, so the migration records a best-effort count/mismatch report and retains Supabase for rollback.
+
+## Update — the rollback window is closed
+
+Supabase is decommissioned. The provider switch is gone: `src/lib/supabase-client.ts` always
+constructs the Neon-backed client, and `api/_supabase-admin.ts` no longer has a Supabase branch. The
+browser client is also no longer cast to `SupabaseClient` — that cast made TypeScript accept any call
+site regardless of what the compatibility client implements, and it hid a missing `.contains()` that
+threw in production every sixty seconds.
+
+Keeping both paths was itself the defect: `import.meta.env.PROD` chose Neon in production and
+Supabase in dev, so no test exercised the client that production ran. Three defects reached users
+through that gap. One client, one code path.
+
+Two things this update does **not** change: `/api/db` still has no authentication (an unfiltered
+DELETE or UPDATE is now refused, which bounds the damage but is not authorization), and ten
+integration suites still target Supabase and are skipped rather than migrated.
 
 ## Consequences
 

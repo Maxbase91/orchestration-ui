@@ -37,6 +37,11 @@ const target = neon(targetUrl, { fetchOptions: { signal: AbortSignal.timeout(300
 
 // Parent records are copied before rows with foreign keys. The ordering also
 // makes a failed run restartable without disabling referential integrity.
+//
+// This list is cross-checked against supabase/schema.sql by test:table-lists.
+// `intake_compliance_records` was missing from it while being written by the
+// live intake path, so 39 rows of intake determination — the evidence the
+// Compliance tab reads — were never copied to Neon and nothing reported it.
 const TABLES = [
   'users', 'suppliers', 'contracts', 'risk_assessments', 'catalogue_items',
   'user_preferences', 'workflow_templates', 'routing_rules', 'ai_agents', 'kpi_data',
@@ -44,7 +49,7 @@ const TABLES = [
   'procurement_categories', 'sla_targets', 'approval_chains', 'requests', 'stage_history',
   'service_descriptions', 'ai_conversations', 'assistant_conversations', 'comments', 'comment_reads',
   'compliance_reports', 'system_integrations', 'form_submissions', 'approval_entries',
-  'notifications', 'workflow_step_details', 'workflow_instances',
+  'notifications', 'workflow_step_details', 'workflow_instances', 'intake_compliance_records',
   'purchase_requisitions', 'request_lines', 'purchase_orders', 'invoices',
   'goods_receipts', 'sourcing_events', 'sourcing_responses', 'tickets',
   'ticket_responses', 'ticket_links', 'audit_entries', 'knowledge_base', 'chat_feedback',

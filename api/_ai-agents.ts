@@ -43,15 +43,20 @@ export async function getAgent(id: string): Promise<AgentRecord | null> {
     return null;
   }
 
+  // Coerced rather than assumed: a database row is untyped values, and the
+  // client no longer pretends otherwise. `status` in particular narrows to the
+  // three the record allows, so an unexpected value from the table reads as
+  // 'disabled' instead of flowing through as an active agent.
+  const status = String(data?.status ?? '');
   const value: AgentRecord | null = data
     ? {
-        id: data.id,
-        name: data.name,
-        type: data.type,
-        status: data.status,
-        description: data.description ?? '',
-        accuracy: data.accuracy ?? 0,
-        lastUpdated: data.last_updated ?? null,
+        id: String(data.id),
+        name: String(data.name),
+        type: String(data.type),
+        status: status === 'active' || status === 'draft' ? status : 'disabled',
+        description: data.description == null ? '' : String(data.description),
+        accuracy: Number(data.accuracy ?? 0),
+        lastUpdated: data.last_updated == null ? null : String(data.last_updated),
       }
     : null;
   cache.set(id, { value, expiresAt: now + CACHE_TTL_MS });

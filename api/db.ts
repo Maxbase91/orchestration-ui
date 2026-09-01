@@ -210,7 +210,26 @@ function parameterValue(value: unknown, column: string, types: Map<string, strin
   return value;
 }
 
+/**
+ * Refuse a DELETE or UPDATE with no filter, before touching the database.
+ *
+ * An unfiltered destructive statement rewrites or empties a whole table. Every
+ * legitimate caller in src/lib/db filters by id, so requiring a filter costs
+ * nothing and removes the worst thing this endpoint can be made to do.
+ *
+ * This is a blast-radius guard, **not** authorization: /api/db still accepts
+ * requests from anyone who can reach the deployment. Real protection needs
+ * authentication, which ADR-0003 defers along with the rest of the identity
+ * model — do not read this guard as that gap being closed.
+ */
+export function assertFilteredWrite(request: Pick<DbRequest, 'operation' | 'filters' | 'orFilters'>): void {
+  if (request.operation !== 'delete' && request.operation !== 'update') return;
+  const filtered = (request.filters?.length ?? 0) > 0 || (request.orFilters?.length ?? 0) > 0;
+  if (!filtered) throw new Error(`An unfiltered ${request.operation} is refused; add a filter`);
+}
+
 export async function executeNeonRequest(request: DbRequest): Promise<unknown> {
+  assertFilteredWrite(request);
   const sql = getNeonClient();
   if (request.operation === 'rpc') {
     if (!request.functionName || !ALLOWED_FUNCTIONS.has(request.functionName)) throw new Error('Unsupported database function');

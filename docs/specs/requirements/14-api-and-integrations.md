@@ -121,7 +121,7 @@ FR14-21 · All other integrations remain simulated with real adapter shapes for 
 | Variable | Purpose |
 |----------|---------|
 | `NEON_DATABASE_URL` | Private Neon connection string (server-only, active R1 provider) |
-| `DATABASE_PROVIDER` | `neon` for the active provider; `supabase` is rollback-only |
+| `NEON_DATABASE_URL` | The private Neon connection. There is no provider switch; Supabase is decommissioned |
 | `SUPABASE_URL` / `SUPABASE_ANON_KEY` | Legacy rollback variables only |
 | `GROQ_API_KEY` | Groq LLM API key |
 | `GEMINI_API_KEY` | Gemini fallback API key |

@@ -14,7 +14,7 @@
 // here rather than in production.
 
 import { readFileSync } from 'node:fs';
-import { castForColumn } from '../../api/db.ts';
+import { assertFilteredWrite, castForColumn } from '../../api/db.ts';
 
 const ROOT = new URL('../../', import.meta.url);
 const SCHEMA = readFileSync(new URL('supabase/schema.sql', ROOT), 'utf8');
@@ -79,6 +79,23 @@ check('a column the schema does not know gets no cast',
 // A null is rendered as the literal NULL rather than a parameter, so a cast on
 // it would be attached to nothing.
 check('null needs no cast', castForColumn(null, 'col', types('col', 'date')) === '');
+
+console.log('\nA destructive statement must name what it touches');
+// Blast-radius guard, not authorization: /api/db has no authentication, so an
+// unfiltered DELETE would empty a table for anyone who can reach the
+// deployment. Every legitimate caller in src/lib/db filters by id.
+const refuses = (request) => {
+  try { assertFilteredWrite(request); return false; } catch { return true; }
+};
+check('an unfiltered delete is refused', refuses({ operation: 'delete', filters: [] }));
+check('an unfiltered update is refused', refuses({ operation: 'update' }));
+check('a filtered delete is allowed',
+  !refuses({ operation: 'delete', filters: [{ column: 'id', operator: 'eq', value: 'X' }] }));
+check('a filtered update is allowed',
+  !refuses({ operation: 'update', filters: [{ column: 'id', operator: 'eq', value: 'X' }] }));
+check('an or-filtered delete is allowed',
+  !refuses({ operation: 'delete', orFilters: [{ column: 'id', operator: 'eq', value: 'X' }] }));
+check('an unfiltered select is untouched', !refuses({ operation: 'select' }));
 
 console.log('');
 if (failures) console.error(`FAILED: ${failures} check(s)`);

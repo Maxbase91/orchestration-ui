@@ -5,9 +5,12 @@ import type { ProcurementProfile } from '@/data/types';
 import { mapDbToProcurementProfile, mapProcurementProfileToDb } from './mappers';
 
 const TABLE = 'procurement_profiles';
+// The profile table is additive, so a deployment that has not applied it yet
+// must not 404 on every checkout. The provider half of this condition is gone
+// with the provider switch: Neon is the only store, so the table is expected
+// unless a deployment explicitly says otherwise.
 const profileStoreEnabled =
-  (import.meta.env.VITE_DATABASE_PROVIDER as string | undefined) === 'neon'
-  || (import.meta.env.VITE_PROCUREMENT_PROFILES_ENABLED as string | undefined) === 'true';
+  (import.meta.env.VITE_PROCUREMENT_PROFILES_ENABLED as string | undefined) !== 'false';
 
 export async function getProcurementProfile(userId: string): Promise<ProcurementProfile | null> {
   // Older Supabase deployments predate the additive profile table. Avoid a

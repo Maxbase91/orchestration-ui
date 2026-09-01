@@ -206,7 +206,8 @@ npm run test:admin-editors        # admin config saves
 npm run walkthrough               # visual QA harness (Playwright) — drives the front door across scenarios + every tab, screenshots to /tmp/fd (no assertions)
 npm run test:ui                   # browser smoke (Playwright) — wizard end-to-end through the determination + config-driven routing steps
 npm run test:e2e-ui               # full-app browser sweep — every route × role, captures console/runtime errors
-npm run test:ui-full              # UI-only UAT sweep with visible role switching and retained screenshot artifacts
+npm run test:ui-full              # evidence harness — 60+ checkpoints screenshotted; asserts only "no crash, not blank"
+              # UI-only UAT sweep with visible role switching and retained screenshot artifacts
 npm run test:ui-lifecycle         # static guard that call-offs, stage actions and invoice transitions stay UI-governed
 npm run test:service-description-ui # browser smoke — /admin/service-description renders all four config areas
 npm run test:intake-guidance-ui   # browser smoke — step-1 single classification block, per-step header panels, the step gate
@@ -228,6 +229,7 @@ npm run backfill:compliance       # one-time data migration, NOT a test — fill
 npm run backfill:catalogue-governance # idempotent data repair — creates/renews catalogue supplier
                                       # contracts and risk assessments and links every catalogue item.
                                       # Requires the service-role key; never creates requests or orders.
+npm run purge:ui-e2e              # remove retained UI-E2E-* lifecycle records (dry run; --apply to delete)
 npm run backfill:neon-catalogue-governance # idempotent Neon-side repair when the source schema
                                            # predates explicit catalogue contract/risk columns.
 ```
@@ -372,24 +374,22 @@ Full descriptions live in `.env.example`.
 
 | Variable | Scope | Required | Notes |
 | --- | --- | --- | --- |
-| `VITE_DATABASE_PROVIDER` | Browser | No | `neon` routes data through `/api/db`; `supabase` is retained only for rollback |
-| `VITE_PROCUREMENT_PROFILES_ENABLED` | Browser | No | Enable only after the additive profile table exists; defaults to `false` |
-| `VITE_SUPABASE_URL` | Browser | Conditional | Required only for the Supabase fallback; omit from the browser in Neon mode |
-| `VITE_SUPABASE_ANON_KEY` | Browser | Conditional | Legacy **anon JWT**, required only for the Supabase fallback |
-| `SUPABASE_URL` | Serverless (`api/`) | Conditional | Required only for Supabase mode/rollback |
-| `SUPABASE_ANON_KEY` | Serverless (`api/`) | Conditional | Required only for Supabase mode/rollback |
-| `SUPABASE_SERVICE_ROLE_KEY` | Serverless (`api/`) | Conditional | Required for Supabase administration/rollback; bypasses RLS. Never prefix with `VITE_` |
-| `DATABASE_PROVIDER` | Serverless (`api/`) | No | `neon` is the active provider; `supabase` is retained only for rollback |
-| `NEON_DATABASE_URL` | Serverless (`api/`) | Yes when Neon is active | Private Neon connection string; never expose with `VITE_` |
+| `VITE_PROCUREMENT_PROFILES_ENABLED` | Browser | No | Defaults to on; set `false` only for a deployment whose schema predates the profile table |
+| `NEON_DATABASE_URL` | Serverless (`api/`) | **Yes** | Private Neon connection string; never expose with `VITE_` |
+| `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | Local only | No | Used by the ten legacy integration suites still targeting Supabase; the application does not read them |
 | `ADMIN_SEED_SECRET` | Serverless (`api/`) | Only for seeding | Shared secret for `api/admin/seed.ts` |
 | `VITE_ASSISTANT_PROVIDER` | Browser | No | `groq` (default) or `mock` for a fully offline assistant |
 | `GROQ_API_KEY` / `GEMINI_API_KEY` | Serverless (`api/`) | For AI classification and assistant | Server-side only, used by `api/ai.ts`, `api/chat.ts`, and `api/chat-intake.ts` |
 | `GROQ_MODEL` | Serverless (`api/`) | No | Groq model override for classifier routes; defaults to `openai/gpt-oss-20b` |
 
-When `DATABASE_PROVIDER=neon` and `VITE_DATABASE_PROVIDER=neon`, the browser uses the private
-`/api/db` boundary. `NEON_DATABASE_URL`/`DATABASE_URL` must be configured only as a server-side
-Vercel variable; do not copy it into a `VITE_` variable. Supabase server variables are retained only
-for rollback/comparison and are not the active R1 database.
+The browser holds **no** database credential: it posts to the allowlisted `/api/db` boundary, and
+there is no provider switch to get wrong. `NEON_DATABASE_URL`/`DATABASE_URL` must be configured only
+as a server-side Vercel variable; never copy it into a `VITE_` variable.
+
+`/api/db` has **no authentication**. An unfiltered `DELETE`/`UPDATE` is refused, which bounds the
+damage, but anyone who can reach the deployment can read and write the allowlisted tables. Role
+switching is a UAT simulation, not an authorization boundary (ADR-0003). Treat this as the open item
+it is before any real pilot.
 
 Two things that reliably break a deploy:
 

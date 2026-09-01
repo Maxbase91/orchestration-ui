@@ -13,6 +13,11 @@ admin mutations. Temporary records are retained with a `UI-E2E-<timestamp>`
 prefix so reviewers can trace the complete request, PR, PO, receipt, invoice
 and payment history.
 
+Retention was deliberate; its end was not defined, so every run added another
+full lifecycle to the shared database and none were ever removed.
+`npm run purge:ui-e2e` deletes them (dry run by default, `--apply` to commit,
+`--older-than <days>` to keep recent evidence).
+
 Payment is an internal simulation: the supplier submits an invoice, Operations
 matches it, Procurement approves it, and Admin marks it scheduled/paid. No
 external ERP, bank or payment-system write is made.

@@ -95,11 +95,17 @@ A `SourceRecord<T>` is `{ data, meta }`. `meta` carries the `sourceSystem`,
 `mode` (`shadow` | `live`), `retrievedAt`, and an optional `freshnessTtlSeconds`,
 so consumers can reason about freshness regardless of where the record came from.
 
-The active R1 implementation is the private Neon-backed own store; Supabase is retained only as a
-rollback/comparison seam. It is never selected implicitly in a Vercel runtime: set
-`DATABASE_PROVIDER=supabase` explicitly for a controlled rollback. The read-only
-`/api/neon-health` dispatcher route reports safe connectivity/error classes without exposing
-connection details.
+The R1 implementation is the private Neon-backed own store. Supabase is decommissioned and there is
+no provider switch. The read-only `/api/neon-health` dispatcher route reports safe connectivity and
+error classes without exposing connection details.
+
+### Where the ports are bypassed today
+
+Server-side handlers — `src/server/api/*` and `api/governed-checkout.ts` — read with raw SQL rather
+than through these ports, because the layer is browser-shaped (`useSourceData`, TanStack hooks) and
+has no server-side connector factory. That is a **gap**, recorded here rather than argued away: the
+ground rule in CLAUDE.md says reads go through the ports, and these do not. Closing it means adding a
+server-side factory that the handlers can call, not adding more direct reads.
 
 ## Consumers on the layer
 

@@ -1,3 +1,9 @@
+// Switches the requester between Simple and Expert intake.
+//
+// Presentation density only: both modes submit through the same shared
+// decisioning helpers and reach the same governance decision (asserted by
+// test:mode-equivalence). This is not an authorization boundary — what a user
+// may do is unchanged by which mode they are in.
 import { Check, SlidersHorizontal, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useExperienceMode } from '@/hooks/use-experience-mode';

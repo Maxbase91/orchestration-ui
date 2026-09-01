@@ -76,8 +76,9 @@ connection configured, run `npm run migrate:supabase-to-neon` and retain its sou
 report, then run `npm run test:neon-live` for read-only schema, relationship, and catalogue-governance
 checks. If the source catalogue predates explicit governance columns, run
 `npm run backfill:neon-catalogue-governance` before that validation. Validate representative request,
-catalogue, contract, risk, PR, PO, audit, ticket, and conversation records before switching
-`DATABASE_PROVIDER` and `VITE_DATABASE_PROVIDER` to `neon`.
+catalogue, contract, risk, PR, PO, audit, ticket, and conversation records. The cutover is complete
+and there is no provider switch left to flip: `NEON_DATABASE_URL` is the only database variable the
+application needs.
 
 For the atomic checkout tranche, run `npm run test:governed-checkout-atomic` and
 `npm run test:policy-config-server` with Neon configured. These are self-cleaning live checks: they
@@ -254,6 +255,18 @@ These are the cases where the wizard could not.
 | TC-REQ-G12 | Step 3, the conversation ends | The assistant says **what was captured** and that the description is carried into risk, the determination and any sourcing. The same close whether or not the LLM is up |
 | TC-REQ-G13 | Open a request, click through **every** workflow step | No screen throws. The step detail pre-populates risk forms from the service description; it used to cast the whole stored record — which carries a quality score, two arrays and two objects beside its nine text sections — to a map of strings and trim every value, so the first non-string member crashed the page with `r?.trim is not a function`. `sectionValuesOf()` narrows at the boundary; `test:intake-guidance` scans `src/` for both the cast and the unguarded walk, and `test:request-detail-ui` drives the real screen against fixtures — it white-screens on the pre-fix code |
 | TC-REQ-G14 | Raise a sourcing event from a request that has a description | Requirements seed from the **text sections only**. Same cast, same crash class, second call site |
+
+### Known gap — ten suites still target Supabase
+
+`admin-editors`, `ai-agents`, `approval-chain-persistence`, `audit`, `backfill-compliance`,
+`derived`, `e2e`, `kpis`, `lifecycle-consistency` and `routing` build their own Supabase client and
+assert against a database that is no longer the system of record. They report **SKIPPED** rather than
+crashing the run, and `@supabase/supabase-js` is kept as a dependency solely so they remain runnable
+against the retained project — removing it would make them permanently unrunnable while still looking
+like ordinary skips.
+
+Each needs rewriting against Neon. Until then their coverage is **not** part of the gate, and the
+counts in a green `npm run test:all` should be read with that in mind.
 
 ### The data layer says what it means (`npm run test:db-casts`, `npm run test:mode-equivalence`, `npm run test:intake-evidence`)
 
@@ -722,6 +735,16 @@ checks remain simulation coverage; authentication and production authorization a
   rather than citing a run id that is not in the repository.
 
 ## UI-only procurement lifecycle run
+
+> **What this proves.** `test:ui-full` is an **evidence harness**, not an assertion suite: across its
+> 60+ checkpoints it checks only that no uncaught page error occurred and that the page rendered
+> something. It records the heading it found without checking it, so a screen showing the wrong
+> content still passes. Use it as a wide net for crashes and white screens; use the focused suites
+> (`test:request-detail-ui` and the integration suites) for correctness.
+
+> **Also covered here:** `test:ui-lifecycle` (`tests/integration/ui-lifecycle-hardening.mjs`) is a
+> static guard that call-offs, stage actions and invoice transitions stay UI-governed — it reads the
+> real sources rather than driving a browser, so it runs offline in the default gate.
 
 `npm run test:ui-full` drives the live Vercel app through the visible role switcher. It covers
 Simple and Expert catalogue checkout, contract call-off, full intake, sourcing, receipt, invoice

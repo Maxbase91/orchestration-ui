@@ -8,6 +8,7 @@ const envExample = readFileSync(new URL('../../.env.example', import.meta.url), 
 const migration = readFileSync(new URL('../../supabase/migrations/migrate-supabase-to-neon.mjs', import.meta.url), 'utf8');
 const schemaApply = readFileSync(new URL('../../supabase/migrations/apply-neon-schema.mjs', import.meta.url), 'utf8');
 const client = readFileSync(new URL('../../src/lib/neon-compatible-client.ts', import.meta.url), 'utf8');
+const browserClient = readFileSync(new URL('../../src/lib/supabase-client.ts', import.meta.url), 'utf8');
 const endpoint = readFileSync(new URL('../../api/db.ts', import.meta.url), 'utf8');
 const schema = readFileSync(new URL('../../supabase/schema.sql', import.meta.url), 'utf8');
 const governedEndpoint = readFileSync(new URL('../../api/governed-checkout.ts', import.meta.url), 'utf8');
@@ -19,15 +20,24 @@ const supabaseAdmin = readFileSync(new URL('../../api/_supabase-admin.ts', impor
 const checks = [
   ['Neon driver dependency is declared', Boolean(packageJson.dependencies?.['@neondatabase/serverless'])],
   ['migration script is registered', packageJson.scripts?.['migrate:supabase-to-neon'] === 'node supabase/migrations/migrate-supabase-to-neon.mjs'],
-  ['server-only Neon variables are documented', envExample.includes('NEON_DATABASE_URL') && envExample.includes('DATABASE_PROVIDER')],
+  // No DATABASE_PROVIDER: the switch is gone with Supabase, and requiring it
+  // here would keep a dead variable documented as if it still did something.
+  ['the private connection is documented and never VITE_-prefixed',
+    envExample.includes('NEON_DATABASE_URL') && !envExample.includes('VITE_NEON') && !envExample.includes('DATABASE_PROVIDER=')],
   ['migration is non-destructive', migration.includes('ON CONFLICT DO NOTHING') && !migration.includes('TRUNCATE') && !migration.includes('DROP TABLE')],
   ['schema resume skips destructive statements', schemaApply.includes('shouldSkip') && schemaApply.includes('destructive/policy statements skipped')],
   ['schema includes checkout fingerprint and policy singleton', schema.includes('idempotency_fingerprint') && schema.includes('procurement_policy_configs')],
   ['atomic checkout and policy routes exist', governedEndpoint.includes('sql.transaction') && policyEndpoint.includes('procurement_policy_configs')],
   ['Neon connection strings are normalized safely', neonFactory.includes('channel_binding') && neonFactory.includes('replace(/^([\'\"])')],
   ['Neon health endpoint classifies safe failure modes', healthEndpoint.includes("return 'dns'") && healthEndpoint.includes("return 'schema'") && healthEndpoint.includes('neon_${kind}')],
-  ['Supabase server fallback is explicit in production', supabaseAdmin.includes('provider !== \'supabase\'') && supabaseAdmin.includes('fail closed')],
+  // The migration is finished, so the invariant inverted: there must be NO
+  // Supabase fallback left. A second data path is what let dev and production
+  // run different clients, which is how three defects reached users unseen.
+  ['no Supabase fallback remains on the server', !supabaseAdmin.includes('@supabase/supabase-js') && !supabaseAdmin.includes('SUPABASE_SERVICE_ROLE_KEY')],
+  ['the browser has one client, not a provider switch', !client.includes('VITE_DATABASE_PROVIDER') && !browserClient.includes('createClient(')],
+  ['a destructive write must be filtered', endpoint.includes('assertFilteredWrite') && endpoint.includes('An unfiltered')],
   ['browser client uses the API endpoint', client.includes("fetch('/api/db'")],
+  ['query parameters are cast to their column type, not to text', endpoint.includes('castForColumn') && !endpoint.includes("return '::text';\n}")],
   ['endpoint has an explicit relation allowlist', endpoint.includes('ALLOWED_RELATIONS') && endpoint.includes('Unsupported database relation')],
   ['endpoint has an explicit function allowlist', endpoint.includes('ALLOWED_FUNCTIONS') && endpoint.includes('Unsupported database function')],
   ['ADR documents the migration decision', existsSync(new URL('../../docs/adr/0003-private-neon-database-migration.md', import.meta.url))],

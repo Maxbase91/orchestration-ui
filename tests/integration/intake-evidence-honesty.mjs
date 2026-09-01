@@ -26,6 +26,7 @@ const SIMPLE = read('src/features/requests/new-request/simple-new-request-page.t
 const EXPERT = read('src/features/requests/new-request/new-request-page.tsx');
 const TYPES = read('src/data/request-compliance.ts');
 const TAB = read('src/features/requests/request-detail/tab-compliance.tsx');
+const PAYMENTS = read('src/features/purchasing/payment-tracker-page.tsx');
 
 let failures = 0;
 const check = (label, ok, detail = '') => {
@@ -62,6 +63,26 @@ check('a not-run SRA is not styled as a warning',
   /'not-run' \?/.test(TAB) || /status === 'not-run'/.test(TAB));
 check('an unperformed duplicate search does not render as "No duplicates"',
   /performed === false/.test(TAB) && /Not checked/.test(TAB));
+
+console.log('\nA simulated action says so where the user can see it');
+// The disclaimer used to live only in a source header and a module README. The
+// buttons write a real status and a real paidDate and move the "Paid" KPI, so a
+// finance user had no way to tell this apart from a real payment release.
+check('the screen carries an internal-tracker notice',
+  /Internal tracker only/.test(PAYMENTS));
+check('the notice says no upstream system is contacted',
+  /no upstream payment or banking system is[\s\S]{0,20}contacted/.test(PAYMENTS));
+check('the confirmation toasts say no payment was sent',
+  (PAYMENTS.match(/no payment sent/g) ?? []).length >= 2);
+
+console.log('\nOne route decides both the recorded channel and its copy');
+// Three surfaces used to disagree: the recommendation card read the channel,
+// while the review and confirmation screens read a route state that was never
+// set to p-card or direct-po.
+check('the compliance label is derived from the recorded channel',
+  /ROUTE_COPY\[effectiveRoute\]/.test(SIMPLE) && /routeFromChannel\(channel\)/.test(SIMPLE));
+check('the confirmation screen names the same path',
+  /setRoute\(effectiveRoute\)/.test(SIMPLE));
 
 console.log('');
 if (failures) console.error(`FAILED: ${failures} check(s)`);

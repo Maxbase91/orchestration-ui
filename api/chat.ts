@@ -1,10 +1,10 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { callLLMWithTools, callLLM, type LLMMessage, type GroqTool } from './_llm.js';
 import { getSupabaseAdmin } from './_supabase-admin.js';
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { NeonCompatibleClient } from '../src/lib/neon-compatible-client.js';
 import { knowledgeBase } from '../src/data/knowledgeBase.js';
 
-const supabase = new Proxy({} as SupabaseClient, {
+const supabase = new Proxy({} as NeonCompatibleClient, {
   get(_target, property: string | symbol) {
     const target = getSupabaseAdmin() as unknown as Record<PropertyKey, unknown>;
     const value = target[property];
@@ -191,7 +191,7 @@ async function execSearchKnowledge(query: string): Promise<string> {
     .select('id, title, body, source, tags');
 
   const pool = dbEntries && dbEntries.length > 0
-    ? (dbEntries as typeof knowledgeBase)
+    ? (dbEntries as unknown as typeof knowledgeBase)
     : knowledgeBase;
 
   const scored = pool.map((entry) => ({ entry, score: scoreEntry(entry, query) }));

@@ -1,3 +1,7 @@
+// Resolves the requester's Simple/Expert mode: a stored preference when set,
+// otherwise the role default. Persisted through user preferences so the choice
+// survives a reload, and normalised so an unrecognised stored value falls back
+// to the default rather than rendering neither surface.
 import { useCallback, useMemo, useState } from 'react';
 import { useAuthStore } from '@/stores/auth-store';
 import { useUpdateUserPreferences, useUserPreferences } from '@/lib/db/hooks/use-user-preferences';

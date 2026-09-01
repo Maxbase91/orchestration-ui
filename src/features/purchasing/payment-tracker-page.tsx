@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Check, Circle } from 'lucide-react';
+import { Check, Circle, Info } from 'lucide-react';
 
 interface InvoiceRow extends Record<string, unknown> {
   id: string;
@@ -199,8 +199,8 @@ export function PaymentTrackerPage() {
       render: (row: InvoiceRow) => {
         const invoice = invoices.find((item) => item.id === row.id);
         if (!invoice) return null;
-        if (invoice.status === 'approved') return <Button size="sm" variant="outline" onClick={() => updateInvoice.mutate({ id: invoice.id, patch: { status: 'scheduled' } }, { onSuccess: () => toast.success(`${invoice.id} scheduled for payment`) })}>Schedule</Button>;
-        if (invoice.status === 'scheduled') return <Button size="sm" onClick={() => updateInvoice.mutate({ id: invoice.id, patch: { status: 'paid', paidDate: new Date().toISOString() } }, { onSuccess: () => toast.success(`${invoice.id} marked paid`) })}>Release</Button>;
+        if (invoice.status === 'approved') return <Button size="sm" variant="outline" onClick={() => updateInvoice.mutate({ id: invoice.id, patch: { status: 'scheduled' } }, { onSuccess: () => toast.success(`${invoice.id} scheduled in the internal tracker (no payment sent)`) })}>Schedule</Button>;
+        if (invoice.status === 'scheduled') return <Button size="sm" onClick={() => updateInvoice.mutate({ id: invoice.id, patch: { status: 'paid', paidDate: new Date().toISOString() } }, { onSuccess: () => toast.success(`${invoice.id} marked paid in the internal tracker (no payment sent)`) })}>Release</Button>;
         return <span className="text-xs text-muted-foreground">No action</span>;
       },
     }] : []),
@@ -229,6 +229,21 @@ export function PaymentTrackerPage() {
           </Select>
         }
       />
+
+      {/* Said on screen, not only in a source comment and a module README. The
+          buttons below write a real status and a real paidDate, and the "Paid"
+          KPI moves — a finance user has no way to tell that apart from a real
+          payment release unless the screen tells them. */}
+      {currentRole === 'admin' && (
+        <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3">
+          <Info className="mt-0.5 size-4 shrink-0 text-amber-600" />
+          <p className="text-xs text-amber-800">
+            <strong>Internal tracker only.</strong> Scheduling and releasing here records the payment
+            state in this platform. No payment is sent, and no upstream payment or banking system is
+            contacted — that execution is an R2 integration.
+          </p>
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-3">
         <KPICard label="Total Pending" value={totalPending} format="currency" />

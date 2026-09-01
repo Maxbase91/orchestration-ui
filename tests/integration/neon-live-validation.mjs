@@ -18,7 +18,7 @@ const expectedTables = [
   'procurement_categories', 'sla_targets', 'approval_chains', 'requests', 'stage_history',
   'service_descriptions', 'ai_conversations', 'assistant_conversations', 'comments', 'comment_reads',
   'compliance_reports', 'system_integrations', 'form_submissions', 'approval_entries',
-  'notifications', 'workflow_step_details', 'workflow_instances',
+  'notifications', 'workflow_step_details', 'workflow_instances', 'intake_compliance_records',
   'purchase_requisitions', 'request_lines', 'purchase_orders', 'invoices',
   'procurement_policy_configs',
   'goods_receipts', 'sourcing_events', 'sourcing_responses', 'tickets',

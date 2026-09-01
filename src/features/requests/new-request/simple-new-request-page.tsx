@@ -357,7 +357,16 @@ export function SimpleNewRequestPage() {
         toast.success('Request and purchase requisition created');
         return;
       }
-      const channel = requestRoute === 'p-card' ? 'p-card' : requestRoute === 'direct-po' ? 'direct-po' : routing.channel;
+      // One route value decides both the recorded channel and the copy shown for
+      // it. `route` state is only ever catalogue / contract / new-request, so the
+      // p-card and direct-po branches here were dead: the record was written
+      // `p-card` while the recommendation card said "Use a purchasing card" and
+      // the review and confirmation screens said "Start a procurement review" —
+      // three surfaces, two answers, for the same request.
+      const channel = routing.channel;
+      // The catalogue and contract routes return above, so by here the recorded
+      // channel is the only thing that decides which path this request is on.
+      const effectiveRoute = routeFromChannel(channel);
       const templateForRequest = selectWorkflowTemplateForCategory(workflowTemplates, requestData.category);
       const approval = selectApprovalChainForValue(approvalChains, requestData.estimatedValue);
       const record: Partial<ProcurementRequest> & { id: string } = {
@@ -381,7 +390,7 @@ export function SimpleNewRequestPage() {
         serviceDescription: requestData.serviceDescription ? { ...requestData.serviceDescription } : undefined,
         compliance: {
           determinedAt: new Date().toISOString(),
-          buyingChannel: { channel, label: ROUTE_COPY[requestRoute].label, reasoning: ROUTE_COPY[requestRoute].detail },
+          buyingChannel: { channel, label: ROUTE_COPY[effectiveRoute].label, reasoning: ROUTE_COPY[effectiveRoute].detail },
           // Recorded as not-run, not as passed. Simple intake does not perform a
           // supplier-risk screen or a duplicate search — it used to store
           // `pass` and "No duplicate demand detected", which a reviewer reads
@@ -397,6 +406,8 @@ export function SimpleNewRequestPage() {
         idempotencyKey: `intake-${id}`,
       });
       queryClient.invalidateQueries({ queryKey: ['requests'] });
+      // So the confirmation names the path the request is actually on.
+      setRoute(effectiveRoute);
       setRequestIdValue(id);
       setPhase('submitted');
       toast.success('Request submitted successfully');
