@@ -1,0 +1,73 @@
+# Apply the intake-compliance recovery to the live database, from the Actions UI.
+#
+# This exists because the repair needs the Neon connection, and the connection
+# lives in the deployment rather than on any one machine. Running it here means
+# nobody has to put a production credential on a laptop to restore 39 rows.
+#
+# Manual trigger only. It WRITES to the live database, so it must never be
+# wired to push or to a schedule.
+#
+# Every statement in the backfill is ON CONFLICT (request_id) DO NOTHING, so a
+# re-run inserts nothing and cannot overwrite a row that is already there.
+
+name: Backfill — intake compliance records
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'verify = report what is missing and change nothing; apply = restore the rows'
+        type: choice
+        default: verify
+        options: [verify, apply]
+        required: true
+
+concurrency:
+  # Two concurrent writers to the same table is never what anyone wants.
+  group: backfill-intake-compliance
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+
+      # A repository *variable* is stored and rendered in plain text and is NOT
+      # masked in logs; only a *secret* is. The connection string carries a
+      # password, so it belongs in Secrets — this prefers the secret and falls
+      # back to the variable, and registers the value as a mask either way so a
+      # stack trace or a driver error cannot print it.
+      - name: Resolve the connection
+        id: conn
+        env:
+          FROM_SECRET: ${{ secrets.NEON_DATABASE_URL }}
+          FROM_VAR: ${{ vars.NEON_DATABASE_URL }}
+        run: |
+          CONN="${FROM_SECRET:-$FROM_VAR}"
+          if [ -z "$CONN" ]; then
+            echo "::error::No connection configured. Add NEON_DATABASE_URL under Settings → Secrets and variables → Actions → Secrets."
+            exit 1
+          fi
+          echo "::add-mask::$CONN"
+          echo "NEON_DATABASE_URL=$CONN" >> "$GITHUB_ENV"
+          if [ -z "$FROM_SECRET" ]; then
+            echo "::warning::NEON_DATABASE_URL came from a repository variable. Variables are plaintext and unmasked by default; move it to Secrets."
+          fi
+
+      - name: Before — which rows are missing
+        continue-on-error: true
+        run: node db/backfills/verify-intake-compliance.mjs
+
+      - name: Apply the recovery
+        if: inputs.mode == 'apply'
+        run: npm run backfill:intake-compliance
+
+      - name: After — every row must be present
+        if: inputs.mode == 'apply'
+        run: node db/backfills/verify-intake-compliance.mjs
