@@ -1,19 +1,12 @@
 #!/usr/bin/env node
 // Read-only live endpoint verification. It checks that normalized Neon scope
 // data is exposed through the server matcher without creating request data.
-import { readFileSync } from 'node:fs';
 import { neon } from '@neondatabase/serverless';
 import { requireConnection, skipLive } from '../lib/live.mjs';
 
-const env = { ...process.env };
-try {
-  for (const line of readFileSync(new URL('../../.env.local', import.meta.url), 'utf8').split('\n')) {
-    const i = line.indexOf('=');
-    if (i > 0 && !line.trimStart().startsWith('#') && !(line.slice(0, i).trim() in env)) env[line.slice(0, i).trim()] = line.slice(i + 1).trim().replace(/^"|"$/g, '');
-  }
-} catch { /* CI supplies environment variables. */ }
+// requireConnection reads .env.local and exports NEON_DATABASE_URL itself; the
+// copy of that loader that used to sit here was a fourth duplicate of it.
 const connectionString = requireConnection('contract-match-api');
-process.env.NEON_DATABASE_URL = connectionString;
 const sql = neon(connectionString);
 const { default: handler } = await import('../../src/server/api/contract-match.ts');
 const response = { statusCode: 200, body: undefined, status(code) { this.statusCode = code; return this; }, json(value) { this.body = value; return this; } };

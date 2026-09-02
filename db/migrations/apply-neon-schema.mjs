@@ -7,22 +7,14 @@
  */
 import { readFileSync } from 'node:fs';
 import { Client } from '@neondatabase/serverless';
+import { requireConnectionOrFail } from '../../tests/lib/live.mjs';
 
-function loadEnv() {
-  const env = { ...process.env };
-  try {
-    for (const line of readFileSync(new URL('../../.env.local', import.meta.url), 'utf8').split('\n')) {
-      const separator = line.indexOf('=');
-      if (separator <= 0 || line.trimStart().startsWith('#')) continue;
-      const key = line.slice(0, separator).trim();
-      if (!(key in env)) env[key] = line.slice(separator + 1).trim().replace(/^"|"$/g, '');
-    }
-  } catch {
-    // CI supplies environment variables directly.
-  }
-  return env;
-}
-
+// Deliberately not db/backfills/split-sql.mjs: that one strips comments and
+// drops the statement terminator, because its output goes straight to the
+// driver. This applier has to *inspect and rewrite* each statement —
+// shouldSkip() and makeIdempotent() below — so it keeps the text as written.
+// Same scanning rules, different contract; do not "unify" them without
+// reading both.
 function splitStatements(source) {
   const statements = [];
   let start = 0;
@@ -97,9 +89,7 @@ function viewName(statement) {
   return match?.[1];
 }
 
-const env = loadEnv();
-const connectionString = env.NEON_DATABASE_URL ?? env.DATABASE_URL;
-if (!connectionString) throw new Error('NEON_DATABASE_URL or DATABASE_URL is required.');
+const connectionString = requireConnectionOrFail('migrate-neon-schema');
 
 const schema = readFileSync(new URL('../schema.sql', import.meta.url), 'utf8');
 const statements = splitStatements(schema);

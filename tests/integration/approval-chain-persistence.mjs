@@ -5,11 +5,10 @@
 import { readFileSync } from 'node:fs';
 import { neonClient } from '../lib/live.mjs';
 
-for (const line of readFileSync(new URL('../../.env.local', import.meta.url), 'utf8').split('\n')) {
-  const match = line.match(/^([A-Z_][A-Z0-9_]*)=(.*)$/);
-  if (match && !process.env[match[1]]) process.env[match[1]] = match[2];
-}
-
+// No hand-rolled .env.local loader here: neonClient hydrates it, and this file's
+// own copy read the file with no try/catch. A machine with .env.local present
+// never saw it; CI, which has none, crashed on ENOENT before the suite could
+// decide to skip — red for four commits while every local run looked fine.
 const sb = await neonClient('approval-chain-persistence');
 let failures = 0;
 function check(name, condition, detail = '') {
@@ -31,9 +30,12 @@ function parseThresholdBand(threshold) {
 const value = 60_000;
 const source = readFileSync(new URL('../../src/features/requests/new-request/step-compliance.tsx', import.meta.url), 'utf8');
 const dbProxy = readFileSync(new URL('../../api/db.ts', import.meta.url), 'utf8');
-check('Neon update proxy binds SET values before filters', dbProxy.includes('const updateWhere = whereClause(request, whereParams, bodyParams.length)'));
+check('Neon update proxy binds SET values before filters', dbProxy.includes('const updateWhere = whereClause(request, whereParams, types, bodyParams.length)'));
 check('Neon update proxy emits typed-safe SQL NULL literals', dbProxy.includes("if (value === null) return 'NULL';"));
-check('Neon filter parameters carry explicit casts', dbProxy.includes('function parameterCast') && dbProxy.includes('${parameterCast(value)}'));
+// castForColumn, not the old parameterCast: a blanket ::text broke every filter
+// on a uuid/date/timestamptz column. test:db-casts covers the behaviour; this
+// only checks the call site still exists.
+check('Neon filter parameters carry column-typed casts', dbProxy.includes('function castForColumn') && dbProxy.includes('castForColumn(value, column, types)'));
 check(
   'wizard persists a configured approval-chain id rather than the routing label',
   source.includes('approvalChain: configuredChain?.id ?? valueBandedChain?.id'),

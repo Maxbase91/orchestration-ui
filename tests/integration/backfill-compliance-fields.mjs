@@ -15,18 +15,15 @@
 // Not registered as `test:*` — this WRITES to the database. Run explicitly:
 //   npm run backfill:compliance
 
-import { readFileSync } from 'node:fs';
 import { deriveComplianceBackfill } from '../../src/lib/procurement/compliance-backfill.ts';
 import { suppliers } from '../../src/data/suppliers.ts';
-import { neonClient } from '../lib/live.mjs';
+import { neonClient, requireConnectionOrFail } from '../lib/live.mjs';
 
-for (const line of readFileSync(new URL('../../.env.local', import.meta.url), 'utf8').split('\n')) {
-  const match = line.match(/^([A-Z_][A-Z0-9_]*)=(.*)$/);
-  if (match && !process.env[match[1]]) {
-    process.env[match[1]] = match[2].replace(/^(['"])(.*)\1$/, '$2');
-  }
-}
-
+// This is a repair, not a suite, so it fails rather than skips when no
+// connection is configured — the rule the db/ backfills already follow. Its own
+// .env.local loader is gone: neonClient hydrates the file, and reading it here
+// without a try/catch turned an absent file into an ENOENT crash.
+requireConnectionOrFail('backfill-compliance');
 const sb = await neonClient('backfill-compliance');
 const suppliersById = new Map(suppliers.map((s) => [s.id, s]));
 

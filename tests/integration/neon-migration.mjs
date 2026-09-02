@@ -59,10 +59,44 @@ const repoRoot = fileURLToPath(new URL('../../', import.meta.url)).replace(/\/$/
 // nothing and says so only in an exit code. `requireConnectionOrFail` exits 1
 // with what to set and where. A script under db/ reaching for the skip helper is
 // the regression this pins.
+//
+// A repair is identified by the npm script that runs it, not by its directory:
+// `backfill:compliance` lives under tests/integration/ and skipped for months
+// because the first version of this check only looked at db/.
+const REPAIR_SCRIPT = /^(backfill|purge|migrate):/;
 const skipHelperUsers = [];
-for (const path of walk(`${repoRoot}/db`)) {
-  if (/\brequireConnection\b(?!OrFail)/.test(readFileSync(path, 'utf8'))) {
-    skipHelperUsers.push(path.slice(repoRoot.length + 1));
+for (const [name, command] of Object.entries(packageJson.scripts ?? {})) {
+  if (!REPAIR_SCRIPT.test(name)) continue;
+  const file = command.split(/\s+/).find((token) => token.endsWith('.mjs'));
+  if (!file || !existsSync(new URL(`../../${file}`, import.meta.url))) continue;
+  const source = readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8');
+  // requireConnectionOrFail is the point; neonClient skips, so a repair that
+  // reaches for it must call requireConnectionOrFail first.
+  const skips = /\brequireConnection\b(?!OrFail)/.test(source) || /\bneonClient\(/.test(source);
+  if (skips && !/requireConnectionOrFail\(/.test(source)) skipHelperUsers.push(`${name} → ${file}`);
+}
+
+// ── nothing hand-rolls .env.local ───────────────────────────────────────────
+//
+// tests/lib/live.mjs reads it inside a try/catch, because CI has no such file.
+// Five scripts had carried their own copy of that loader, and two of those
+// copies had no try/catch: on any machine with a .env.local they behaved
+// identically, and in CI they died on ENOENT before the suite could decide to
+// skip. That kept the pipeline red for four commits while every local run was
+// green — the same "dev and production run different code" shape as the
+// provider switch this file exists to prevent.
+// Matched on the path string in code rather than on `readFileSync`, because the
+// reader can be aliased on import — an earlier version of this check keyed on
+// the function name and a two-line `import { readFileSync as rf }` walked
+// straight past it. Comments are stripped first, so a header may still say
+// which file a suite needs.
+const envReaders = [];
+for (const root of ['tests', 'db']) {
+  for (const path of walk(`${repoRoot}/${root}`)) {
+    const relative = path.slice(repoRoot.length + 1);
+    // live.mjs is the one legitimate reader; this file matches its own pattern.
+    if (relative === 'tests/lib/live.mjs' || relative === 'tests/integration/neon-migration.mjs') continue;
+    if (/\.env\.local/.test(stripComments(readFileSync(path, 'utf8')))) envReaders.push(relative);
   }
 }
 const offenders = [];
@@ -106,6 +140,8 @@ const checks = [
     offenders.length === 0],
   [`a data repair fails rather than skips without a connection${skipHelperUsers.length ? ` — ${skipHelperUsers.join(', ')}` : ''}`,
     skipHelperUsers.length === 0],
+  [`only tests/lib/live.mjs reads .env.local${envReaders.length ? ` — ${envReaders.join(', ')}` : ''}`,
+    envReaders.length === 0],
 ];
 
 let failures = 0;

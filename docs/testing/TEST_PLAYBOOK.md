@@ -73,8 +73,17 @@ they are recorded as unavailable rather than treated as application passes.
 A **suite** without a database skips (exit 3, or a failure under `REQUIRE_LIVE=1`). A **data repair**
 under `db/` does the opposite: it exits 1 and names what to set. The distinction is deliberate and
 guarded — a backfill that skipped would write nothing and report it only in an exit code, which is the
-same dishonesty as recording a check that never ran. `test:neon-migration` fails if a script under
-`db/` reaches for the suites' skip helper.
+same dishonesty as recording a check that never ran. `test:neon-migration` identifies a repair by the
+npm script that runs it — `backfill:*`, `purge:*`, `migrate:*` — and fails if one can skip. It keys on
+the script, not the directory, because `backfill:compliance` lives under `tests/integration/` and an
+earlier version of this check only looked at `db/`.
+
+**Only `tests/lib/live.mjs` reads `.env.local`,** and `test:neon-migration` enforces it. Five scripts
+had carried their own copy of that loader; two had no `try`/`catch`, so on any machine with the file
+present they behaved identically and in CI — which has none — they died on `ENOENT` before the suite
+could decide to skip. That kept the pipeline red for four commits while every local run was green.
+**Run the suite once with `.env.local` moved aside before trusting a green local run**; that is the
+only way to see what CI sees.
 
 A repair is also split on **real** statement boundaries. The Neon HTTP driver has no multi-statement
 mode, so `db/backfills/apply-sql.mjs` sends one statement at a time — and a `;` or `--` inside a

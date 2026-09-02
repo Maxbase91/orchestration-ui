@@ -4,27 +4,10 @@
  * predates explicit contract/risk columns, so those links are resolved from
  * the supplier and governance records already in Neon.
  */
-import { readFileSync } from 'node:fs';
 import { neon } from '@neondatabase/serverless';
+import { requireConnectionOrFail } from '../../tests/lib/live.mjs';
 
-function loadEnv() {
-  const env = { ...process.env };
-  try {
-    for (const line of readFileSync(new URL('../../.env.local', import.meta.url), 'utf8').split('\n')) {
-      const separator = line.indexOf('=');
-      if (separator <= 0 || line.trimStart().startsWith('#')) continue;
-      const key = line.slice(0, separator).trim();
-      if (!(key in env)) env[key] = line.slice(separator + 1).trim().replace(/^"|"$/g, '');
-    }
-  } catch {
-    // CI may provide environment variables directly.
-  }
-  return env;
-}
-
-const env = loadEnv();
-const connectionString = env.NEON_DATABASE_URL ?? env.DATABASE_URL;
-if (!connectionString) throw new Error('NEON_DATABASE_URL or DATABASE_URL is required.');
+const connectionString = requireConnectionOrFail('backfill-neon-catalogue-governance');
 const sql = neon(connectionString, { fetchOptions: { signal: AbortSignal.timeout(10000) } });
 const today = new Date().toISOString().slice(0, 10);
 const contractEnd = '2028-12-31';

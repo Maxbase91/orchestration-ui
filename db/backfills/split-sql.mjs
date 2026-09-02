@@ -60,6 +60,16 @@ export function splitStatements(source) {
       continue;
     }
 
+    // A double-quoted identifier. Rare in a backfill, but `"odd;name"` is a
+    // legal column and must not split either.
+    if (character === '"') {
+      const close = source.indexOf('"', index + 1);
+      const end = close === -1 ? source.length : close + 1;
+      current += source.slice(index, end);
+      index = end;
+      continue;
+    }
+
     // Dollar quoting ($$…$$ or $tag$…$tag$). Nothing in this repo uses it yet;
     // a function body would, and it must not be scanned for quotes or comments.
     const dollarTag = character === '$' ? /^\$[A-Za-z_][A-Za-z0-9_]*\$|^\$\$/.exec(source.slice(index)) : null;
