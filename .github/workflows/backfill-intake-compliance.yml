@@ -38,11 +38,17 @@ jobs:
           cache: npm
       - run: npm ci
 
-      # A repository *variable* is stored and rendered in plain text and is NOT
-      # masked in logs; only a *secret* is. The connection string carries a
-      # password, so it belongs in Secrets — this prefers the secret and falls
-      # back to the variable, and registers the value as a mask either way so a
-      # stack trace or a driver error cannot print it.
+      # Put the connection in Secrets, not Variables. Demonstrated, not
+      # theoretical: run 1 of this workflow was given a repository variable and
+      # the runner printed this step's env: block — including the Neon host and
+      # database name — before ::add-mask:: could execute. The runner echoes a
+      # step's env before running it, so with a variable the first exposure
+      # cannot be prevented from inside the workflow. A secret is masked by the
+      # runner itself and never reaches the log.
+      #
+      # This prefers the secret, falls back to the variable so an existing setup
+      # still works, and masks the value either way — which protects every
+      # subsequent step (they print NEON_DATABASE_URL: ***), just not this one.
       - name: Resolve the connection
         id: conn
         env:
