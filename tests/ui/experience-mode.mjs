@@ -3,6 +3,7 @@
 // The REST surface is stubbed so this test never writes request or production data.
 import { spawn } from 'node:child_process';
 import { chromium } from 'playwright';
+import { installDbStub } from './db-stub.mjs';
 
 const BASE = 'http://localhost:5179';
 const USER = { id: 'u6', name: "James O'Brien", email: 'james.obrien@company.com', role: 'service-owner', department: 'Marketing', initials: 'JO' };
@@ -32,9 +33,23 @@ try {
   await waitForServer();
   browser = await chromium.launch(LAUNCH_OPTS);
   const context = await browser.newContext();
-  await context.route('**/rest/v1/**', async (route) => {
-    const method = route.request().method();
-    await route.fulfill({ status: 200, contentType: 'application/json', body: method === 'GET' ? '[]' : '{}' });
+  // The stub used to intercept `**/rest/v1/**`, the PostgREST path from before
+  // the Neon cutover. The client posts to /api/db, so it caught nothing: every
+  // data call 404'd and the pre-check screen rendered its heading over no
+  // catalogue and no contracts. Two checks here failed for months on that.
+  await installDbStub(context);
+  // The pre-check also calls the server matcher directly. "No contract covers
+  // this" is a legitimate answer and is what sends the screen to its contract
+  // stage — but it has to be the real ContractMatchResponse shape
+  // (src/data/types.ts), because the screen maps `candidates` unguarded.
+  await context.route('**/api/contract-match', async (route) => {
+    await route.fulfill({
+      status: 200, contentType: 'application/json',
+      body: JSON.stringify({
+        sufficient: false, route: 'full-request',
+        missingFields: [], questions: [], candidates: [],
+      }),
+    });
   });
   await context.addInitScript((user) => {
     localStorage.setItem('auth', JSON.stringify({ state: { currentRole: 'service-owner', currentUser: user }, version: 0 }));
@@ -58,11 +73,19 @@ try {
   check('mode switch is visible and labelled', await switcher.isVisible().catch(() => false));
   await switcher.click();
   await page.getByRole('menuitem', { name: /Expert view/ }).click();
-  await page.waitForTimeout(250);
-  check('switching to Expert preserves the route and renders the expert wizard', await page.getByText('New Request', { exact: true }).isVisible().catch(() => false));
+  // The wizard's heading, not any node whose text happens to be "New Request".
+  // `getByText(exact)` matched a breadcrumb span before the reload and nothing
+  // after it, so this check reported the preference lost when the heading was
+  // on screen the whole time. Waits for the element rather than sleeping 250 ms:
+  // with the data stub answering /api/db the switch re-renders behind real
+  // queries, and a sleep long enough today is a flake tomorrow.
+  const expertWizard = page.getByRole('heading', { name: 'New Request', exact: true });
+  await expertWizard.waitFor({ state: 'visible', timeout: 15000 }).catch(() => {});
+  check('switching to Expert preserves the route and renders the expert wizard', await expertWizard.isVisible().catch(() => false));
 
   await page.reload({ waitUntil: 'networkidle' });
-  check('mode preference survives reload', await page.getByText('New Request', { exact: true }).isVisible().catch(() => false));
+  await expertWizard.waitFor({ state: 'visible', timeout: 15000 }).catch(() => {});
+  check('mode preference survives reload', await expertWizard.isVisible().catch(() => false));
   const expertSwitcher = page.locator('button[aria-label*="Experience view"]').first();
   await expertSwitcher.click({ force: true, timeout: 3000 });
   await page.getByRole('menuitem', { name: /Simple view/ }).click({ force: true, timeout: 3000 });

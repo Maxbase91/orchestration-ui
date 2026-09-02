@@ -238,11 +238,16 @@ npm run backfill:neon-catalogue-governance # idempotent repair when the migrated
 `test:ui` uses Playwright. First-time setup: `npm install` then `npx playwright install chromium`.
 It boots the dev server itself and needs `.env.local` with `NEON_DATABASE_URL` set.
 
-`test:request-detail-ui` is the exception: it stubs the data API inside the browser
-(`tests/ui/db-stub.mjs`) and runs with **no credentials and no network**. Use that harness for
-any screen worth checking where the project is unreachable — a suite that can only run against a live
-database does not run in CI or in a sandbox, which is how a render crash on the request detail
-reached production unnoticed.
+Four suites are the exception — `test:request-detail-ui`, `test:experience-mode-ui`,
+`test:service-description-ui` and `test:intake-guidance-ui`. They stub the data API inside the browser
+(`installDbStub()` in `tests/ui/db-stub.mjs`) and run with **no credentials and no network**, so all
+four run in CI. Use that harness for any screen worth checking where the database is unreachable — a
+suite that can only run against a live database does not run in CI or in a sandbox, which is how a
+render crash on the request detail reached production unnoticed.
+
+Stub the boundary the client actually posts to, `/api/db`. `test:experience-mode-ui` intercepted
+`**/rest/v1/**`, the PostgREST path from before the Neon cutover, so it caught nothing and two of its
+checks failed for months against a pre-check screen that was really crashing.
 
 The link-navigation suite uses only visible role and experience-mode controls. It verifies that
 supplier, contract, sourcing, purchase-order and request links land on the intended record instead

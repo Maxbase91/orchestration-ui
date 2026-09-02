@@ -78,6 +78,13 @@ npm script that runs it — `backfill:*`, `purge:*`, `migrate:*` — and fails i
 the script, not the directory, because `backfill:compliance` lives under `tests/integration/` and an
 earlier version of this check only looked at `db/`.
 
+**The offline browser suites must intercept `/api/db`,** the boundary the client
+actually posts to. `test:experience-mode-ui` stubbed `**/rest/v1/**` — the PostgREST path from before
+the Neon cutover — so it caught nothing: every data call 404'd, the pre-check screen rendered a
+heading over no catalogue and no contracts, and two of its checks failed for months against what was
+really a crashing screen. Use `installDbStub()` from `tests/ui/db-stub.mjs`; all four offline browser
+suites now run in CI.
+
 **Only `tests/lib/live.mjs` reads `.env.local`,** and `test:neon-migration` enforces it. Five scripts
 had carried their own copy of that loader; two had no `try`/`catch`, so on any machine with the file
 present they behaved identically and in CI — which has none — they died on `ENOENT` before the suite

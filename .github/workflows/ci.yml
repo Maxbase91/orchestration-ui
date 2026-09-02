@@ -53,6 +53,13 @@ jobs:
       - run: npx playwright install --with-deps chromium
 
       # The offline browser suites drive the real screens against a stubbed
-      # database (tests/ui/postgrest-stub.mjs), so they need no credentials.
+      # database (tests/ui/db-stub.mjs), so they need no credentials. All four
+      # run here: experience-mode was outside the gate and its stub had been
+      # pointed at the retired PostgREST path for months, so two of its checks
+      # failed against a screen that was actually crashing.
       - name: Browser suites
-        run: npm run test:request-detail-ui
+        run: |
+          npm run test:request-detail-ui
+          npm run test:experience-mode-ui
+          npm run test:service-description-ui
+          npm run test:intake-guidance-ui
