@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase-client';
+import { db } from '@/lib/db-client';
 import { getWorkflowTemplate } from '@/lib/db/workflow-templates';
 import { saveComplianceReport } from '@/lib/db/compliance-reports';
 import {
@@ -59,7 +59,7 @@ interface EdgeContext {
 async function needsOnboarding(supplierId: string | null | undefined): Promise<boolean> {
   if (!supplierId) return false;
   try {
-    const { data } = await supabase
+    const { data } = await db
       .from('suppliers')
       .select('id, name, onboarding_status, screening_status, prospective')
       .eq('id', supplierId)
@@ -161,7 +161,7 @@ function getNextNodeIds(
  * intake preview, so what was promised is what is granted.
  */
 async function resolveChainForRequest(requestId: string): Promise<string> {
-  const { data: req } = await supabase
+  const { data: req } = await db
     .from('requests')
     .select('approval_chain, value')
     .eq('id', requestId)
@@ -186,7 +186,7 @@ async function generateApprovalEntries(
   approvalChainName: string,
 ): Promise<void> {
   // Resolve the chain from approval_chains table
-  const { data: chainRows } = await supabase
+  const { data: chainRows } = await db
     .from('approval_chains')
     .select('*')
     .eq('id', approvalChainName)
@@ -194,7 +194,7 @@ async function generateApprovalEntries(
 
   // Fallback: try matching by name
   const { data: chainByName } = !chainRows
-    ? await supabase.from('approval_chains').select('*').ilike('name', `%${approvalChainName}%`).limit(1).maybeSingle()
+    ? await db.from('approval_chains').select('*').ilike('name', `%${approvalChainName}%`).limit(1).maybeSingle()
     : { data: null };
 
   const chain = chainRows ?? chainByName;
@@ -211,14 +211,14 @@ async function generateApprovalEntries(
     // Resolve the step's role to its canonical persona (a switchable role
     // holder), honouring out-of-office delegation on that persona.
     const persona = resolveApprover(step.role);
-    const { data: personaRow } = await supabase
+    const { data: personaRow } = await db
       .from('users')
       .select('is_ooo, delegate_id')
       .eq('id', persona.id)
       .maybeSingle();
     const assigneeId = personaRow?.is_ooo && personaRow.delegate_id ? personaRow.delegate_id : persona.id;
 
-    await supabase.from('approval_entries').insert({
+    await db.from('approval_entries').insert({
       id: `APR-${requestId}-${steps.indexOf(step)}`,
       request_id: requestId,
       approver_id: assigneeId,
@@ -231,7 +231,7 @@ async function generateApprovalEntries(
 
 async function createDefaultApprovalEntry(requestId: string): Promise<void> {
   const persona = resolveApprover('Approver'); // → procurement-manager persona
-  await supabase.from('approval_entries').insert({
+  await db.from('approval_entries').insert({
     id: `APR-${requestId}-0`,
     request_id: requestId,
     approver_id: persona.id,
@@ -325,7 +325,7 @@ async function advanceInstance(
   const nodeMap = new Map(template.nodes.map((n) => [n.id, n]));
 
   // Load request context for decision-node condition evaluation
-  const { data: reqRow } = await supabase
+  const { data: reqRow } = await db
     .from('requests')
     .select('value, category, status, risk_assessment_required, inherent_risk_tier, supplier_id')
     .eq('id', instance.requestId)
@@ -406,7 +406,7 @@ async function advanceInstance(
  */
 async function raiseRiskAssessment(requestId: string): Promise<void> {
   try {
-    const { data: row } = await supabase
+    const { data: row } = await db
       .from('requests')
       .select('id, title, supplier_id, contract_id, category, inherent_risk_tier, owner_id')
       .eq('id', requestId)
@@ -418,7 +418,7 @@ async function raiseRiskAssessment(requestId: string): Promise<void> {
     // The service description is what the assessment is actually about. A
     // failed read is not a reason to skip raising the record — the assessor gets
     // an unassessed-scope note instead of nothing at all.
-    const { data: sowRow } = await supabase
+    const { data: sowRow } = await db
       .from('service_descriptions')
       .select('objective, scope, deliverables, resources, narrative')
       .eq('request_id', requestId)
@@ -450,14 +450,14 @@ async function raiseRiskAssessment(requestId: string): Promise<void> {
 async function generateComplianceReport(requestId: string): Promise<void> {
   try {
     // Skip if a report already exists
-    const { data: existing } = await supabase
+    const { data: existing } = await db
       .from('compliance_reports')
       .select('request_id')
       .eq('request_id', requestId)
       .maybeSingle();
     if (existing) return;
 
-    const { data: req } = await supabase
+    const { data: req } = await db
       .from('requests')
       .select('category, value, supplier_id, buying_channel, title')
       .eq('id', requestId)
@@ -653,7 +653,7 @@ async function initFallbackWorkflow(requestId: string, buyingChannel: string): P
   // `intake` here would make a completed call-off appear stuck and discard the
   // server-authoritative routing decision. Preserve a valid non-intake status;
   // otherwise use the channel's normal first stage for legacy submissions.
-  const { data: requestRow } = await supabase
+  const { data: requestRow } = await db
     .from('requests')
     .select('status')
     .eq('id', requestId)
@@ -672,7 +672,7 @@ async function initFallbackWorkflow(requestId: string, buyingChannel: string): P
 
 /** Check whether all approval entries for a request are approved. */
 export async function areAllApprovalsComplete(requestId: string): Promise<boolean> {
-  const { data: entries } = await supabase
+  const { data: entries } = await db
     .from('approval_entries')
     .select('status')
     .eq('request_id', requestId)

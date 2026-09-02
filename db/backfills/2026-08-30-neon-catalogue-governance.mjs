@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * Idempotent Neon-side catalogue governance repair. The legacy Supabase
- * catalogue predates explicit contract/risk columns, so those links are
- * resolved from the migrated supplier and governance records in Neon.
+ * Idempotent Neon-side catalogue governance repair. The migrated catalogue
+ * predates explicit contract/risk columns, so those links are resolved from
+ * the supplier and governance records already in Neon.
  */
 import { readFileSync } from 'node:fs';
 import { neon } from '@neondatabase/serverless';

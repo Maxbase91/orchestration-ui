@@ -2,7 +2,8 @@
 /**
  * Resume the repository schema on Neon after a partial SQL-editor run.
  * Only additive/idempotent statements are executed; destructive DROP statements
- * and Supabase RLS policies are intentionally skipped for the private database.
+ * and the legacy row-level-security policies are intentionally skipped — they
+ * were never this application's authorization boundary.
  */
 import { readFileSync } from 'node:fs';
 import { Client } from '@neondatabase/serverless';

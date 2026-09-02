@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { callLLM } from '../src/lib/llm.js';
 import { getAgent, isAgentActive } from './_ai-agents.js';
-import { ServerConfigurationError } from './_supabase-admin.js';
+import { ServerConfigurationError } from './_db-admin.js';
 
 const CLASSIFIER_AGENT_ID = 'AI-001';
 
@@ -57,7 +57,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // Load the classifier agent from Supabase so admins can toggle/tune it
+    // Load the classifier agent from the database so admins can toggle/tune it
     // without a code change. When the agent is disabled, return a stub
     // response instead of calling the LLM.
     const agent = await getAgent(CLASSIFIER_AGENT_ID);

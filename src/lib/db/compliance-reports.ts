@@ -1,7 +1,7 @@
 // Data access for the `compliance_reports` table (per-request compliance
 // snapshots). Upserts key on request_id — one report per request, saving
 // replaces the previous snapshot.
-import { supabase } from '@/lib/supabase-client';
+import { db } from '@/lib/db-client';
 import type { ComplianceReport } from '@/data/compliance-reports';
 import { complianceReports as seedReports } from '@/data/compliance-reports';
 import { mapDbToComplianceReport, mapComplianceReportToDb } from './mappers';
@@ -9,7 +9,7 @@ import { mapDbToComplianceReport, mapComplianceReportToDb } from './mappers';
 const TABLE = 'compliance_reports';
 
 export async function listComplianceReports(): Promise<ComplianceReport[]> {
-  const { data, error } = await supabase.from(TABLE).select('*');
+  const { data, error } = await db.from(TABLE).select('*');
   if (error) throw error;
   return (data ?? []).map(mapDbToComplianceReport);
 }
@@ -17,7 +17,7 @@ export async function listComplianceReports(): Promise<ComplianceReport[]> {
 export async function getComplianceReportByRequest(
   requestId: string,
 ): Promise<ComplianceReport | null> {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from(TABLE)
     .select('*')
     .eq('request_id', requestId)
@@ -32,7 +32,7 @@ export async function getComplianceReportByRequest(
 export async function saveComplianceReport(
   report: ComplianceReport,
 ): Promise<ComplianceReport> {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from(TABLE)
     .upsert(mapComplianceReportToDb(report), { onConflict: 'request_id' })
     .select('*')

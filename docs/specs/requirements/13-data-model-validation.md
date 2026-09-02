@@ -127,4 +127,4 @@ submissions. Quality fields are populated by `POST /api/generate-sow` at time of
 
 ## Schema Source
 
-`supabase/schema.sql` remains the portable PostgreSQL schema source for the Neon migration. Apply it to a compatible database, then run the documented Neon migration/validation scripts.
+`db/schema.sql` remains the portable PostgreSQL schema source for the Neon migration. Apply it to a compatible database, then run the documented Neon migration/validation scripts.

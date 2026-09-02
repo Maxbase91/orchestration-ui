@@ -29,9 +29,9 @@ interface AuditRow {
   [key: string]: unknown;
 }
 
-// Static seed examples — shown alongside Supabase-persisted rows for
+// Static seed examples — shown alongside persisted rows for
 // entries that predate the audit_entries table. Drop once sufficient
-// history has accumulated in Supabase.
+// history has accumulated in the database.
 const seedAuditEntries: AuditRow[] = [
   { id: 'AUD-001', timestamp: '2025-01-08T09:15:00Z', user: 'Marcus Johnson', action: 'Submitted', objectType: 'Request', objectId: 'REQ-2024-0014', detail: 'Submitted new request: Org design transformation', ipAddress: '10.0.1.45' },
   { id: 'AUD-002', timestamp: '2025-01-08T09:10:00Z', user: 'Anna Müller', action: 'Approved', objectType: 'Request', objectId: 'REQ-2024-0013', detail: 'Approved Microsoft 365 E5 upgrade', ipAddress: '10.0.1.22' },
@@ -134,7 +134,7 @@ export function AuditLogPage() {
   const [objectTypeFilter, setObjectTypeFilter] = useState('all');
   const [page, setPage] = useState(0);
 
-  // Persisted audit entries come from Supabase; the Zustand session array
+  // Persisted audit entries come from the database; the Zustand session array
   // is kept as an optimistic layer for entries whose round-trip has not
   // yet completed.
   const { data: persistedEntries = [] } = useAuditEntries();
@@ -156,7 +156,7 @@ export function AuditLogPage() {
   );
 
   // Deduplicate optimistic session rows: the Zustand entry has a
-  // client-generated id, the persisted row has the Supabase UUID, but
+  // client-generated id, the persisted row has the database-assigned UUID, but
   // both share (timestamp, userId, action, objectId). Drop the session
   // row once the persisted copy is visible.
   const sessionRows: AuditRow[] = useMemo(() => {

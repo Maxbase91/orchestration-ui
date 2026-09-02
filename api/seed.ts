@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { supabaseQuery } from '../src/lib/supabase.js';
+import { dbQuery } from '../src/lib/db-query.js';
 
 // Seed data inlined for Vercel serverless (can't import Vite app source)
 
@@ -320,7 +320,9 @@ const SERVICE_DESCRIPTIONS = [
   { request_id: 'REQ-2024-0009', objective: 'Conduct a comprehensive cybersecurity audit to identify vulnerabilities, assess risk posture, and provide remediation recommendations aligned with ISO 27001 standards.', scope: 'In scope: network security assessment, application security testing, access control review, incident response evaluation. Out of scope: remediation implementation.', deliverables: '1) Vulnerability assessment report, 2) Penetration testing results, 3) Risk assessment matrix, 4) Remediation roadmap, 5) Executive summary presentation.', timeline: '8 weeks: Scoping (week 1), Assessment (weeks 2-5), Analysis and reporting (weeks 6-7), Executive presentation (week 8).', resources: 'Lead Security Consultant (CISSP), Penetration Tester (OSCP), Security Analyst, GRC Specialist.', acceptance_criteria: 'All critical and high-severity findings documented with remediation guidance.', pricing_model: 'Fixed price for defined scope.', location: 'On-site for network assessment, remote for analysis and reporting.', dependencies: 'Network access credentials provided. Testing windows agreed. Legal authorisation for penetration testing signed.', narrative: 'A comprehensive cybersecurity audit engagement to assess the organisation security posture against ISO 27001 standards.' },
 ];
 
-// Normalize all objects in an array to have the same keys (Supabase requires this)
+// Normalize all objects in an array to have the same keys. Still required, and now
+// by our own endpoint: api/db.ts derives the column list from the *first* row of a
+// multi-row insert, so a later row's extra key is silently dropped.
 function normalizeKeys<T extends Record<string, unknown>>(rows: T[]): T[] {
   const allKeys = new Set<string>();
   for (const row of rows) {
@@ -349,7 +351,7 @@ async function insertBatch<T extends Record<string, unknown>>(table: string, row
   let inserted = 0;
   for (let i = 0; i < normalized.length; i += batchSize) {
     const batch = normalized.slice(i, i + batchSize);
-    const { error } = await supabaseQuery(table, {
+    const { error } = await dbQuery(table, {
       method: 'POST',
       body: batch,
       upsert: true,
@@ -371,7 +373,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     // Check if already seeded (skip unless ?force=true)
     const force = req.query.force === 'true';
-    const { data: existingUsers } = await supabaseQuery<unknown[]>('users', { select: 'id' });
+    const { data: existingUsers } = await dbQuery<unknown[]>('users', { select: 'id' });
     if (!force && Array.isArray(existingUsers) && existingUsers.length > 0) {
       return res.status(200).json({
         message: 'Database already seeded. Add ?force=true to re-seed (inserts will be skipped for existing IDs).',

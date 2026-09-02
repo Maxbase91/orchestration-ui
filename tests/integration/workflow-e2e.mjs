@@ -2,11 +2,11 @@
 // End-to-end integration test for procurement workflow flows.
 //
 // Exercises every user-facing button flow against the deployed Vercel API
-// + live Supabase, then asserts the DB landed in the expected state.
+// + the live own store, then asserts the DB landed in the expected state.
 //
 // Run: `node tests/integration/workflow-e2e.mjs`
-// Env: reads .env.local for SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, and
-//      optional E2E_API_BASE (defaults to the production Vercel deploy).
+// Env: reads .env.local for NEON_DATABASE_URL (or DATABASE_URL) and optional
+//      E2E_API_BASE (defaults to the production Vercel deploy).
 //
 // The suite reports three outcomes per scenario:
 //   PASS           — DB changed as expected after the API call
@@ -16,12 +16,23 @@
 // Exit code is 0 only when there are zero FAILs. NOT_IMPLEMENTED is a
 // reported gap, not a suite failure — it flags what Codex should review.
 
-import { readFileSync } from 'node:fs';
 import { neonClient } from '../lib/live.mjs';
 
 // ── env ────────────────────────────────────────────────────────────
 
 const API_BASE = process.env.E2E_API_BASE ?? 'https://orchestration-ui.vercel.app';
+
+/**
+ * Host only, never the connection string: the report is pasted into issues and
+ * chat, and the URL carries the password. An unparseable value degrades to a
+ * label rather than throwing — this runs inside the report, after the suite has
+ * already produced results worth printing.
+ */
+function dbLabel() {
+  const url = process.env.NEON_DATABASE_URL ?? process.env.DATABASE_URL;
+  if (!url) return 'Neon (private)';
+  try { return new URL(url).host; } catch { return 'Neon (private)'; }
+}
 
 const sb = await neonClient('e2e');
 
@@ -326,7 +337,7 @@ async function scenarioReassignFlow() {
 }
 
 async function scenarioEscalateFlow() {
-  // Mirrors what EscalateDialog now sends: write a notification via supabase
+  // Mirrors what EscalateDialog now sends: write a notification via the data
   // client, and bump the request priority if urgency=critical.
   const { id } = await createTestRequest({ status: 'approval' });
 
@@ -438,7 +449,7 @@ function report() {
   console.log('═'.repeat(72));
   console.log('  E2E WORKFLOW INTEGRATION TEST REPORT');
   console.log(`  API: ${API_BASE}`);
-  console.log(`  DB:  ${SUPABASE_URL}`);
+  console.log(`  DB:  ${dbLabel()}`);
   console.log('═'.repeat(72));
 
   const colour = (o) => ({ PASS: '\x1b[32m', FAIL: '\x1b[31m', NOT_IMPLEMENTED: '\x1b[33m' }[o] + o + '\x1b[0m');

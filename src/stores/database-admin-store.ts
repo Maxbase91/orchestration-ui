@@ -56,7 +56,7 @@ import {
 } from '@/lib/db/sourcing-events';
 
 /**
- * Which entities are backed by Supabase (edits persist across sessions and
+ * Which entities are backed by the database (edits persist across sessions and
  * propagate to every feature page) vs. still session-only local clones of
  * mock data. As each entity is migrated in Wave 1/2/3 it moves into LIVE_ENTITIES.
  */
@@ -110,7 +110,7 @@ interface DatabaseAdminState {
   workflow: WorkflowTemplate[];
   sourcingEvent: SourcingEvent[];
   audit: AuditEntry[];
-  /** Replace an entity's cached list — used by the sync hook to mirror Supabase data into the store. */
+  /** Replace an entity's cached list — used by the sync hook to mirror stored data into the store. */
   syncList: <K extends EntityKey>(key: K, list: EntityRecordMap[K][]) => void;
   update: <K extends EntityKey>(key: K, id: string, patch: Partial<EntityRecordMap[K]>) => Promise<void>;
   create: <K extends EntityKey>(key: K, record: EntityRecordMap[K]) => Promise<void>;
@@ -138,12 +138,12 @@ function makeAuditEntry(
   };
 
   // Fire-and-forget persistence: the Zustand array below still holds the
-  // entry for immediate UI feedback. Supabase will replace the random
+  // entry for immediate UI feedback. The database will replace the random
   // client id with its own UUID when the row is inserted; subsequent
   // reads via useAuditEntries() hit the persisted copy.
   void (async () => {
     try {
-      // Drop the locally-generated id — let Supabase assign a UUID.
+      // Drop the locally-generated id — let the database assign a UUID.
       const { id: _omitId, ...persistable } = entry;
       void _omitId;
       await dbCreateAuditEntry(persistable);
@@ -174,7 +174,7 @@ function localUpdate<K extends EntityKey>(
 }
 
 export const useDatabaseAdminStore = create<DatabaseAdminState>((set, get) => ({
-  // Live entities initialise empty; the sync hook populates them from Supabase.
+  // Live entities initialise empty; the sync hook populates them from the database.
   supplier: [],
   contract: [],
   riskAssessment: [],
@@ -457,7 +457,7 @@ export const useDatabaseAdminStore = create<DatabaseAdminState>((set, get) => ({
     });
   },
   reset: () => {
-    // Only resets session-only entities; Supabase-backed entities are
+    // Only resets session-only entities; database-backed entities are
     // re-synced by the sync hook on next fetch.
     set({
       ...get(),

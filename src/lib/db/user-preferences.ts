@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase-client';
+import { db } from '@/lib/db-client';
 
 const TABLE = 'user_preferences';
 
@@ -9,7 +9,7 @@ export interface UserPrefs {
 }
 
 export async function getUserPreferences(userId: string): Promise<UserPrefs> {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from(TABLE)
     .select('prefs')
     .eq('user_id', userId)
@@ -26,7 +26,7 @@ export async function updateUserPreferences(
   const existing = await getUserPreferences(userId);
   const merged = { ...existing, ...patch };
 
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from(TABLE)
     .upsert(
       { user_id: userId, prefs: merged, updated_at: new Date().toISOString() },

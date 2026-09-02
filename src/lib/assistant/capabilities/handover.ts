@@ -3,7 +3,7 @@
 // Persists through the shared ticket module so the assistant and the Contact
 // Support form write to one store. Previously this appended to an in-memory
 // array while telling the user to track the ticket in Help → Support, which
-// reads Supabase — so the ticket it promised could never be found there.
+// reads the database — so the ticket it promised could never be found there.
 
 import { createTicket as persistTicket } from '@/lib/db/tickets';
 import type { AssistantMessage, AssistantTurn } from '@/data/types';

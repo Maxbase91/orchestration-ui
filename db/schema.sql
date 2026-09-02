@@ -1,5 +1,6 @@
--- Procurement Orchestration Platform — Supabase Schema
--- Run this in the Supabase SQL Editor to create all tables
+-- Procurement Orchestration Platform — PostgreSQL schema
+-- The source of truth for the application-owned model. Apply it to the private
+-- Neon database; `npm run migrate:neon-schema` resumes a partial run.
 
 -- Users (no auth, just identity for role switching)
 CREATE TABLE IF NOT EXISTS users (
@@ -828,9 +829,9 @@ CREATE INDEX IF NOT EXISTS idx_requests_contract ON requests(contract_id) WHERE 
 -- supplier.active_contracts, supplier.total_spend_12m and
 -- contract.linked_request_ids are no longer carried as seeded columns;
 -- these views recompute them on every read so UI surfaces always
--- reflect live data. Views use security_invoker so base-table RLS
--- policies cascade correctly (requires PG 15+, which Supabase projects
--- launched 2023-07 onward satisfy).
+-- reflect live data. Views use security_invoker so base-table row-level
+-- policies cascade correctly. That syntax requires PostgreSQL 15+, which
+-- Neon satisfies.
 
 DROP VIEW IF EXISTS suppliers_with_derived CASCADE;
 CREATE VIEW suppliers_with_derived

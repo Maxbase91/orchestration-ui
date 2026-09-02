@@ -3,7 +3,7 @@
 //
 // Pure and dependency-light on purpose — the serverless routes (api/generate-sow,
 // api/chat-intake) import it as well as the browser, so it must not reach for
-// React, Supabase or anything that only exists in one of those worlds.
+// React, the data client or anything that only exists in one of those worlds.
 //
 // The key design point is that `appliesWhen` stops being a closure. A closure
 // cannot be stored, which is the single reason `ALL_SLOTS` in

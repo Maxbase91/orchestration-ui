@@ -11,9 +11,9 @@
 // than records that accumulate.
 //
 // Usage:
-//   node supabase/backfills/purge-ui-e2e-records.mjs                 # dry run
-//   node supabase/backfills/purge-ui-e2e-records.mjs --apply         # delete
-//   node supabase/backfills/purge-ui-e2e-records.mjs --older-than 7  # keep the last week
+//   node db/backfills/purge-ui-e2e-records.mjs                 # dry run
+//   node db/backfills/purge-ui-e2e-records.mjs --apply         # delete
+//   node db/backfills/purge-ui-e2e-records.mjs --older-than 7  # keep the last week
 
 import { neon } from '@neondatabase/serverless';
 import { requireConnection } from '../../tests/lib/live.mjs';

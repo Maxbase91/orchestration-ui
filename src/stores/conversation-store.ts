@@ -1,9 +1,9 @@
-// AI-assistant conversation history: per-user threads persisted to Supabase
+// AI-assistant conversation history: per-user threads persisted to the database
 // (assistant_conversations), with an in-memory list + active-thread pointer for
 // the chat UI. Not persisted via zustand/persist — the source of truth is the
 // table, reloaded per user via loadConversations.
 import { create } from 'zustand';
-import { supabase } from '@/lib/supabase-client';
+import { db } from '@/lib/db-client';
 import type { ChatMessageData } from '@/data/types';
 
 export interface Conversation {
@@ -46,7 +46,7 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
 
   loadConversations: async (userId: string) => {
     set({ isLoading: true });
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('assistant_conversations')
       .select('*')
       .eq('user_id', userId)
@@ -68,7 +68,7 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
   },
 
   createConversation: async (userId: string) => {
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('assistant_conversations')
       .insert({ user_id: userId, title: 'New conversation', messages: [] })
       .select('id, created_at, updated_at')
@@ -119,7 +119,7 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
     const conv = get().conversations.find((c) => c.id === conversationId);
     if (!conv) return;
 
-    await supabase
+    await db
       .from('assistant_conversations')
       .update({ messages: conv.messages, updated_at: now })
       .eq('id', conversationId)
@@ -133,7 +133,7 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
       ),
     }));
 
-    await supabase
+    await db
       .from('assistant_conversations')
       .update({ title })
       .eq('id', conversationId);
@@ -149,7 +149,7 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
       return { conversations, activeConversationId };
     });
 
-    await supabase.from('assistant_conversations').delete().eq('id', id);
+    await db.from('assistant_conversations').delete().eq('id', id);
   },
 
   getActive: () => {

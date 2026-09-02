@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Verifies the routing-rule evaluator correctly routes requests through
-// the admin-configured rules in Supabase — proves that editing a rule in
+// the admin-configured rules in the own store — proves that editing a rule in
 // the Admin UI changes the buying-channel chosen at intake.
 //
 // Run: node tests/integration/routing-rules.mjs
@@ -104,7 +104,7 @@ async function main() {
   if (error) throw error;
   const rules = (data ?? []).map(mapDbToRoutingRule);
   const active = rules.filter((r) => r.status === 'active');
-  assert(rules.length > 0, 'routing: rules fetched from Supabase', `total=${rules.length} active=${active.length}`);
+  assert(rules.length > 0, 'routing: rules fetched from the database', `total=${rules.length} active=${active.length}`);
 
   // ── Canonical scenarios that should match specific active seed rules ──
   const scenarios = [

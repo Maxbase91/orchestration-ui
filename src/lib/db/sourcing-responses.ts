@@ -14,7 +14,7 @@
 // idempotent, and a partial unique index on (event_id) WHERE awarded makes
 // one-award-per-event structural.
 
-import { supabase } from '@/lib/supabase-client';
+import { db } from '@/lib/db-client';
 import { advanceWorkflow } from '@/lib/workflow/engine';
 import { getWorkflowInstanceForRequest } from './workflow-instances';
 import {
@@ -164,7 +164,7 @@ export async function inviteSuppliers(
     status: 'not-viewed',
   }));
 
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from(TABLE)
     .upsert(rows, { onConflict: 'event_id,supplier_id', ignoreDuplicates: true })
     .select('*');
@@ -182,14 +182,14 @@ export async function inviteSuppliers(
  * listInvitationsForSupplier() instead.
  */
 export async function listAllResponses(): Promise<SourcingResponse[]> {
-  const { data, error } = await supabase.from(TABLE).select('*');
+  const { data, error } = await db.from(TABLE).select('*');
   if (error) throw error;
   return (data ?? []).map((r) => mapRow(r as unknown as ResponseRow));
 }
 
 /** All responses on an event — the buyer-side view. */
 export async function listResponsesForEvent(eventId: string): Promise<SourcingResponse[]> {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from(TABLE)
     .select('*')
     .eq('event_id', eventId)
@@ -208,7 +208,7 @@ export async function listResponsesForEvent(eventId: string): Promise<SourcingRe
  * onto this — those are buyer-side.
  */
 export async function listInvitationsForSupplier(supplierId: string): Promise<SourcingResponse[]> {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from(TABLE)
     .select('*')
     .eq('supplier_id', supplierId)
@@ -218,7 +218,7 @@ export async function listInvitationsForSupplier(supplierId: string): Promise<So
 }
 
 async function patch(id: string, values: Record<string, unknown>): Promise<SourcingResponse> {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from(TABLE)
     .update({ ...values, updated_at: new Date().toISOString() })
     .eq('id', id)

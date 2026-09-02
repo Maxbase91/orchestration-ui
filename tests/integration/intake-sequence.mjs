@@ -4,7 +4,7 @@
 //   2. contract match check
 //   3. only if neither, proceed to chat with mandatory SOW
 //
-// The test runs the pre-check algorithm against live Supabase data with
+// The test runs the pre-check algorithm against live own-store data with
 // realistic titles and asserts on the resulting matches. It also asserts
 // the chat-intake API prompt no longer contains the 'would you like to
 // keep it quick' branch.

@@ -1,5 +1,5 @@
 // Seed data only — not read by the runtime app.
-// KPI data moved to Supabase in Wave 3 (UI uses `@/lib/db/hooks/use-kpi-data`).
+// KPI data moved to the database in Wave 3 (UI uses `@/lib/db/hooks/use-kpi-data`).
 
 import type { KPIDataPoint } from './types.js';
 

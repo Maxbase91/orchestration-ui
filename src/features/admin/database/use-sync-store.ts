@@ -11,9 +11,9 @@ import { useSourcingEvents } from '@/lib/db/hooks/use-sourcing-events';
 import { useDatabaseAdminStore } from '@/stores/database-admin-store';
 
 /**
- * Mirrors React Query data for Supabase-backed entities into the Zustand admin
+ * Mirrors React Query data for database-backed entities into the Zustand admin
  * store so the existing table-view / edit-sheet code can keep reading from the
- * store as its single source of truth. As new entities migrate to Supabase,
+ * store as its single source of truth. As new entities migrate to the database,
  * add their hooks here and extend `LIVE_ENTITIES` in the store.
  */
 export function useSyncAdminStore() {

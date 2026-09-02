@@ -1,6 +1,6 @@
 /**
  * Converts a free-text delivery timeline extracted by the AI intake
- * into a YYYY-MM-DD string suitable for the Supabase DATE column.
+ * into a YYYY-MM-DD string suitable for the DATE column.
  *
  * Handles phrases like:
  *   "end of Q3"         → last day of Q3 relative to current year

@@ -15,7 +15,7 @@ function isActionAllowed(actionType: string, role: Role): boolean {
   return ROLE_ALLOWED_ACTIONS[role]?.includes(actionType) ?? false;
 }
 
-// In-memory activity log — Phase 2 will write to Supabase audit_entries.
+// In-memory activity log — Phase 2 will write to the audit_entries table.
 interface ActivityEntry {
   id: string;
   actionType: string;
@@ -48,7 +48,7 @@ const watcherMap = new Map<string, string[]>();
 // Pending proposed actions awaiting user confirmation.
 const pendingActions = new Map<string, { actionType: string; params: Record<string, unknown> }>();
 
-// User settings stored in-memory (Phase 2 → Supabase users table).
+// User settings stored in-memory (Phase 2 → the users table).
 interface UserSettings {
   delegateId?: string;
   delegateName?: string;

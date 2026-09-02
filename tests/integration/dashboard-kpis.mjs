@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Verifies that the dashboard KPI compute function produces values that
-// line up with the current Supabase contents (no hard-coded snapshots).
+// line up with the current database contents (no hard-coded snapshots).
 //
 // Run: node tests/integration/dashboard-kpis.mjs
 

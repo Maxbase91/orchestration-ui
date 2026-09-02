@@ -1,7 +1,7 @@
 import { Sparkles, User, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { supabase } from '@/lib/supabase-client';
+import { db } from '@/lib/db-client';
 import type { ChatMessageData, ConfirmTurn } from '@/data/types';
 import { TurnChatAnswer } from './turn-chat-answer';
 import { TurnDeepLink } from './turn-deep-link';
@@ -90,7 +90,7 @@ function FeedbackButtons({ messageId }: { messageId: string }) {
   async function handleVote(polarity: 'up' | 'down') {
     if (voted) return;
     setVoted(polarity);
-    await supabase.from('chat_feedback').insert({
+    await db.from('chat_feedback').insert({
       message_id: messageId,
       polarity,
       created_at: new Date().toISOString(),

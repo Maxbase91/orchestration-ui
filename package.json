@@ -76,11 +76,9 @@
     "test:catalogue-ui": "node tests/integration/catalogue-detail-ui.mjs",
     "test:contract-matching": "node --import tsx/esm tests/integration/contract-matching.mjs",
     "test:contract-match-api": "node --import tsx/esm tests/integration/contract-match-api.mjs",
-    "backfill:catalogue-governance": "node supabase/backfills/2026-08-29-catalogue-governance.mjs",
-    "backfill:neon-catalogue-governance": "node supabase/backfills/2026-08-30-neon-catalogue-governance.mjs",
-    "purge:ui-e2e": "node supabase/backfills/purge-ui-e2e-records.mjs",
-    "migrate:supabase-to-neon": "node supabase/migrations/migrate-supabase-to-neon.mjs",
-    "migrate:neon-schema": "node supabase/migrations/apply-neon-schema.mjs",
+    "backfill:neon-catalogue-governance": "node db/backfills/2026-08-30-neon-catalogue-governance.mjs",
+    "purge:ui-e2e": "node db/backfills/purge-ui-e2e-records.mjs",
+    "migrate:neon-schema": "node db/migrations/apply-neon-schema.mjs",
     "test:neon-migration": "node tests/integration/neon-migration.mjs",
     "test:table-lists": "node tests/integration/table-lists.mjs",
     "test:neon-live": "node tests/integration/neon-live-validation.mjs",
@@ -95,7 +93,8 @@
     "test:link-navigation": "node tests/ui/link-navigation-e2e.mjs",
     "test:link-route-integrity": "node tests/integration/link-route-integrity.mjs",
     "walkthrough": "node tests/ui/walkthrough.mjs",
-    "backfill:compliance": "node --import tsx/esm tests/integration/backfill-compliance-fields.mjs"
+    "backfill:compliance": "node --import tsx/esm tests/integration/backfill-compliance-fields.mjs",
+    "backfill:intake-compliance": "node db/backfills/apply-sql.mjs db/backfills/2026-09-02-intake-compliance-records.sql"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -103,7 +102,6 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@hookform/resolvers": "^5.2.2",
     "@neondatabase/serverless": "^1.1.0",
-    "@supabase/supabase-js": "^2.104.0",
     "@tanstack/react-query": "^5.99.2",
     "@tanstack/react-query-devtools": "^5.99.2",
     "@xyflow/react": "^12.10.2",

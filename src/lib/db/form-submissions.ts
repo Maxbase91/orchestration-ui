@@ -1,17 +1,17 @@
-import { supabase } from '@/lib/supabase-client';
+import { db } from '@/lib/db-client';
 import type { FormSubmission } from '@/data/form-submissions';
 import { mapDbToFormSubmission, mapFormSubmissionToDb } from './mappers';
 
 const TABLE = 'form_submissions';
 
 export async function listFormSubmissions(): Promise<FormSubmission[]> {
-  const { data, error } = await supabase.from(TABLE).select('*');
+  const { data, error } = await db.from(TABLE).select('*');
   if (error) throw error;
   return (data ?? []).map(mapDbToFormSubmission);
 }
 
 export async function listSubmissionsByRequest(requestId: string): Promise<FormSubmission[]> {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from(TABLE)
     .select('*')
     .eq('request_id', requestId)
@@ -21,7 +21,7 @@ export async function listSubmissionsByRequest(requestId: string): Promise<FormS
 }
 
 export async function createFormSubmission(record: FormSubmission): Promise<FormSubmission> {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from(TABLE)
     .insert(mapFormSubmissionToDb(record))
     .select('*')

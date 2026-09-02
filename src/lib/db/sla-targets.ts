@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase-client';
+import { db } from '@/lib/db-client';
 
 export interface SlaTarget {
   stage: string;
@@ -9,13 +9,13 @@ export interface SlaTarget {
 const TABLE = 'sla_targets';
 
 export async function listSlaTargets(): Promise<SlaTarget[]> {
-  const { data, error } = await supabase.from(TABLE).select('*').order('stage');
+  const { data, error } = await db.from(TABLE).select('*').order('stage');
   if (error) throw error;
   return (data ?? []) as unknown as SlaTarget[];
 }
 
 export async function upsertSlaTarget(target: SlaTarget): Promise<SlaTarget> {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from(TABLE)
     .upsert(target, { onConflict: 'stage,channel' })
     .select('*')

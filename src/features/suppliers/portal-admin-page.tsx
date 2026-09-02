@@ -83,7 +83,7 @@ const accountColumns: Column<PortalAccount>[] = [
           variant="ghost"
           size="sm"
           disabled
-          title="Password reset ships with Supabase Auth (deferred phase)."
+          title="Password reset ships with the deferred authentication phase."
           onClick={(e) => e.stopPropagation()}
         >
           <KeyRound className="size-3.5" />
@@ -92,7 +92,7 @@ const accountColumns: Column<PortalAccount>[] = [
           variant="ghost"
           size="sm"
           disabled
-          title="Account deactivation ships with Supabase Auth (deferred phase)."
+          title="Account deactivation ships with the deferred authentication phase."
           onClick={(e) => e.stopPropagation()}
         >
           <UserX className="size-3.5 text-red-500" />

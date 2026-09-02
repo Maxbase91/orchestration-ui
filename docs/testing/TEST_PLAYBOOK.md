@@ -71,9 +71,12 @@ they are recorded as unavailable rather than treated as application passes.
 ## Suite NEON — database migration and cutover
 
 Run `npm run test:neon-migration` before any live copy. It verifies the dependency, environment
-contract, non-destructive migration script, API relation/function allowlists, and ADR. With a Neon
-connection configured, run `npm run migrate:supabase-to-neon` and retain its source/target count
-report, then run `npm run test:neon-live` for read-only schema, relationship, and catalogue-governance
+contract, the schema-apply script, API relation/function allowlists, and ADR. It also fails if any
+`Supabase` identifier reappears in `src/`, `api/` or `tests/` — comments are stripped before the scan,
+so a header explaining history is fine and an import, env-var read, client construction or UI string
+is not. Only `neon-migration.mjs` itself is exempt, because its assertions have to name what is
+absent. With a Neon connection
+configured, run `npm run test:neon-live` for read-only schema, relationship, and catalogue-governance
 checks. If the source catalogue predates explicit governance columns, run
 `npm run backfill:neon-catalogue-governance` before that validation. Validate representative request,
 catalogue, contract, risk, PR, PO, audit, ticket, and conversation records. The cutover is complete
@@ -94,18 +97,12 @@ surface for narratives, deliverables and exclusions. Governed checkout must be r
 contract call-off after any scope edit and reject a stale or low-confidence client selection.
 
 Run `npm run test:vercel-functions` before deployment to keep the explicit API surface within the
-Vercel Hobby plan's twelve-function limit; low-volume routes are dispatched through one allowlisted
-catch-all function.
+Vercel Hobby plan's twelve-function limit; low-volume domain routes are rewritten to
+`/api/db?domain=<name>` and dispatched inside `api/db.ts`.
 
-The browser must never contain `DATABASE_URL`, `NEON_DATABASE_URL`, or a service-role key. Supabase
-variables are kept only for the ten legacy suites; Neon is the R1 database.
-
-**Reading the migration report after cutover.** The copy is idempotent and non-destructive, so it can
-be re-run safely, and it now reports the *direction* of any difference. `·  table: source=124
-target=134 (target ahead)` is the expected state — Neon is live and Supabase is frozen, so the target
-accumulates rows the source never saw. Only `✗ … (ROWS MISSING)` means the copy left something
-behind, and only that fails the run. Both used to print as "mismatch", which put thirteen benign
-lines and a real data loss in the same voice.
+The browser must never contain `DATABASE_URL` or `NEON_DATABASE_URL`. It holds no database credential
+at all — it posts to the allowlisted `/api/db` boundary, and there is no second data path to configure
+differently.
 
 ---
 
@@ -202,7 +199,7 @@ and the existing `user_preferences.prefs.requestExperienceMode` JSON key.
 | TC-REQ-19 | Save as Draft mid-wizard | Draft saved + retrievable |
 | TC-REQ-20 | Submit each remaining category (Services, Software, Contingent Labour, Contract Renewal, Supplier Onboarding) | Each routes/submits correctly |
 | TC-REQ-21 | P-card route policy (`npm run test:p-card`) | Low-value eligible goods/services may be routed only when policy allows it; missing/over-limit/material/urgent/high-risk or excluded demands are withheld with reasons; the route remains read/route-only and does not initiate payment |
-| TC-REQ-22 | Catalogue item detail + governed checkout (`npm run test:catalogue-ui`, `npm run test:governed-checkout`) | Catalogue entry points open the selected item; checkout captures fulfilment context; supplier/contract/risk/capacity gates and configurable whole-request auto-approval are enforced. If the deployed database predates the additive PR tables, run `npm run backfill:catalogue-governance` for supplier/contract/risk coverage, then apply the governed-checkout section of `supabase/schema.sql`. |
+| TC-REQ-22 | Catalogue item detail + governed checkout (`npm run test:catalogue-ui`, `npm run test:governed-checkout`) | Catalogue entry points open the selected item; checkout captures fulfilment context; supplier/contract/risk/capacity gates and configurable whole-request auto-approval are enforced. If the deployed database predates the additive PR tables, run `npm run backfill:neon-catalogue-governance` for supplier/contract/risk coverage, then apply the governed-checkout section of `db/schema.sql`. |
 | TC-REQ-22a | Contract call-off completion | The Review request action remains disabled until the individual call-off has a value, need-by/service date, and cost centre; profile defaults fill accounting data where available and the form explains any remaining fields. Validation checks transaction, contract, supplier, risk, and capacity data; approval is a separate budget/authority decision and is only entered when policy or risk requires it. |
 | TC-REQ-23 | Catalogue item route in full UI sweep (`npm run test:e2e-ui`) | `/catalogue/items/:id` renders through the app shell without a white screen or uncaught page error |
 
@@ -262,16 +259,16 @@ These are the cases where the wizard could not.
 | TC-REQ-G13 | Open a request, click through **every** workflow step | No screen throws. The step detail pre-populates risk forms from the service description; it used to cast the whole stored record — which carries a quality score, two arrays and two objects beside its nine text sections — to a map of strings and trim every value, so the first non-string member crashed the page with `r?.trim is not a function`. `sectionValuesOf()` narrows at the boundary; `test:intake-guidance` scans `src/` for both the cast and the unguarded walk, and `test:request-detail-ui` drives the real screen against fixtures — it white-screens on the pre-fix code |
 | TC-REQ-G14 | Raise a sourcing event from a request that has a description | Requirements seed from the **text sections only**. Same cast, same crash class, second call site |
 
-### The Supabase-era suites now run against Neon
+### The legacy-client suites now run against Neon
 
-Ten integration suites plus the interactions browser suite built their own Supabase client and
-asserted against a database that is no longer the system of record — about **1,800 lines, 84 queries**
-outside the gate, skipping on every run.
+Ten integration suites plus the interactions browser suite built their own client against the retired
+project and asserted against a database that is no longer the system of record — about **1,800 lines,
+84 queries** outside the gate, skipping on every run.
 
 Migrating them was a client swap, not a rewrite: every query method they use
 (`from/select/eq/single/filter/update/limit/insert/delete/order/in/maybeSingle/neq/is/like`) is
 implemented by the compatibility client, so the bodies were untouched. `neonClient()` in
-`tests/lib/live.mjs` builds one over the in-process executor — the wiring `api/_supabase-admin.ts`
+`tests/lib/live.mjs` builds one over the in-process executor — the wiring `api/_db-admin.ts`
 already uses — so a test needs no running deployment. `like` had to be added to both the client and
 `/api/db`, which only had `ilike`; `test:db-casts` now pins the whole operator surface on both sides.
 
@@ -281,19 +278,21 @@ already uses — so a test needs no running deployment. `like` had to be added t
 | TC-DB-7 | `REQUIRE_LIVE=1 npm run test:all` on a machine with the credential | They must genuinely pass. This is the check that proves the migration rather than the guard |
 | TC-DB-8 | After a run | No `E2E-*`/`TEST-*` rows survive. These now write to the live Neon store, so their existing self-cleanup matters in a way it did not against a retired project |
 
-`@supabase/supabase-js` stays a dependency: `migrate:supabase-to-neon` and the 2026-08-29 catalogue
-backfill read **from** Supabase and still need it. Nothing in `src/`, `api/` or `tests/` imports it.
+`@supabase/supabase-js` is gone from `package.json`. The two scripts that needed it — the one-way copy
+and the 2026-08-29 catalogue backfill — read *from* the retired project and have been deleted; every
+remaining repair runs against Neon alone. `test:neon-migration` fails if the dependency, the
+environment variables, the server fallback, or the identifier itself returns.
 
 ### The data layer says what it means (`npm run test:db-casts`, `npm run test:mode-equivalence`, `npm run test:intake-evidence`)
 
-Three suites covering the defect classes found when Supabase was retired and the browser client
-stopped being cast to something it is not.
+Three suites covering the defect classes found when the old provider was retired and the browser
+client stopped being cast to something it is not.
 
 | ID | Steps | Expected |
 |---|---|---|
 | TC-DB-1 | Filter any column that is not text | The parameter is cast to the **column's** type. Every string used to be cast `::text`, and PostgreSQL has no implicit text→uuid/date/timestamptz cast — `"valid_until" > $1::text` fails with `operator does not exist: date > text`. Risk-assessment reuse matching threw; assistant conversation writes (uuid keys, no error check) failed silently |
-| TC-DB-2 | Add a column type to `supabase/schema.sql` with no cast mapping | `test:db-casts` fails. The suite reads the types out of the schema, so it cannot go stale |
-| TC-DB-3 | A `.single()` that matches nothing | Errors, as supabase-js did. `.single()` and `.maybeSingle()` were the same request, so a not-found `.single()` returned `{ data: null, error: null }` and callers mapped null instead of throwing |
+| TC-DB-2 | Add a column type to `db/schema.sql` with no cast mapping | `test:db-casts` fails. The suite reads the types out of the schema, so it cannot go stale |
+| TC-DB-3 | A `.single()` that matches nothing | Errors, as the client it replaced did. `.single()` and `.maybeSingle()` were the same request, so a not-found `.single()` returned `{ data: null, error: null }` and callers mapped null instead of throwing |
 | TC-DB-4 | The Mentions widget, and `/admin/ai-analytics` | Both work. `.contains()` had no implementation (TypeError every 60s, silently empty widget) and `select(..., { count, head })` dropped its options (total permanently 0, every row fetched) |
 | TC-DB-5 | An `.or()` fragment that does not parse | Throws. It used to be dropped, and when every fragment was dropped the clause vanished and the query returned the **whole table** |
 | TC-MODE-1 | The same catalogue demand in Simple and Expert | One `GovernedCheckoutDecision`. Expert refused an ambiguous item ("procurement must select one") while Simple matched on lower-cased supplier **name** and picked the latest end date; Expert filtered risk assessments to completed and unexpired, Simple filtered on neither; Simple dropped `shipToLocationId` entirely, so a stored profile silently replaced the requester's chosen delivery location |
@@ -315,9 +314,9 @@ screen against fixtures: no credentials, no network.
 | TC-REQ-D4 | Collapse and reopen every step card | No uncaught error, and specifically no `trim is not a function` — named, so a returning regression says which one |
 | TC-REQ-D5 | The stub's own report | No filter was silently dropped. A filter the stub does not understand would answer the app with rows it never asked for, and the assertions above would be meaningless |
 | TC-REQ-D6 | Request detail, Workflow tab | Shows **one** stepper, not two. The page header's `LifecycleStepper` already shows the full 11-stage timeline on every tab (and deep-links here via `focusStageId`); the tab body used to render an identical "Current Workflow Position" card on top of it — removed. The tab's own content (per-stage detail cards, attached template table, Refer Back/Reassign) is unchanged. Each stage's comment area is now **one** thread, not two — real comments merged with that stage's historical entries (`WorkflowStepDetail.comments`, confirmed dead-write, previously shown a second time in its own box) |
-| TC-REQ-D7 | Request detail, Compliance tab | Single home for every risk/compliance signal: front-door determination (inherent risk, materiality, screening, disposition, sourcing type), intake compliance summary, duplicate check, reused risk assessments, risk flags, the full compliance report, **and the linked supplier's own risk/SRA/screening status** (moved here from Related — Related is linkage-only now). Most seeded requests predate the six front-door fields and show the empty state instead — `npm run backfill:compliance` (one-time, writes to Supabase, not a `test:*`) fills them using the same decisioning functions the live wizard runs (`deriveComplianceBackfill`), for any row missing them, without touching anything else on the row |
+| TC-REQ-D7 | Request detail, Compliance tab | Single home for every risk/compliance signal: front-door determination (inherent risk, materiality, screening, disposition, sourcing type), intake compliance summary, duplicate check, reused risk assessments, risk flags, the full compliance report, **and the linked supplier's own risk/SRA/screening status** (moved here from Related — Related is linkage-only now). Most seeded requests predate the six front-door fields and show the empty state instead — `npm run backfill:compliance` (one-time data repair, not a `test:*`) fills them using the same decisioning functions the live wizard runs (`deriveComplianceBackfill`), for any row missing them, without touching anything else on the row |
 | TC-REQ-D8 | Request detail, header | No longer shows a "latest document" chip — full duplicate of the Documents tab (same `documentsAdded` hook, same fields); Documents tab is the sole home |
-| TC-REQ-D9 | Request detail, Workflow tab, a current stage with a triggered form (`npm run test:request-detail-ui`) | Only `active`-status form templates are offered — `forStage()` used to ignore status entirely, so a `draft` template (e.g. the seeded "Change Request Form") was still offered to requesters. Submitting a triggered form **actually persists** it (`useCreateFormSubmission` → real Supabase insert) — it used to discard everything typed and fake success with local-only state + a toast. After a real submit: the typed values are saved, the form shows as a completed submission on reload (not re-offered), and it stops appearing in the "still to fill out" list |
+| TC-REQ-D9 | Request detail, Workflow tab, a current stage with a triggered form (`npm run test:request-detail-ui`) | Only `active`-status form templates are offered — `forStage()` used to ignore status entirely, so a `draft` template (e.g. the seeded "Change Request Form") was still offered to requesters. Submitting a triggered form **actually persists** it (`useCreateFormSubmission` → a real database insert) — it used to discard everything typed and fake success with local-only state + a toast. After a real submit: the typed values are saved, the form shows as a completed submission on reload (not re-offered), and it stops appearing in the "still to fill out" list |
 | TC-REQ-D10 | Request detail, Documents tab vs Workflow stage cards | The full documents list lives only in Documents — the per-stage "Documents Added" table that duplicated it inside `StepDetailCard` was removed |
 
 ### Supplier is identified once
@@ -513,7 +512,7 @@ not in a component — because RLS is currently `USING (true)`.
 | TC-ADM-02b | Risk-aware routing (`npm run test:routing`) | A `risk_rating`-keyed rule fires when the supplier risk tier is at/above the threshold; supplier risk tier flows into the determination |
 | TC-ADM-02c | Editor ↔ runtime ↔ test panel parity (`npm run test:routing-rule-integrity`) | Every field and operator the editor **offers** is evaluated in production, in both directions. The editor used to offer `contractId`, `riskLevel` and `region` and the operators `contains`, `is_empty`, `is_not_empty`, none of which the evaluator implemented — an unrecognised condition returned `false`, and because a rule requires `conditions.every(...)`, one killed the whole rule. `riskLevel` vs `riskRating` meant the obvious "route on risk" rule was dead on a name mismatch |
 | TC-ADM-02d | The test panel tests what runs | The panel calls the production evaluator. It used to implement its own — including `contractId` and `is_empty`, which production ignored — so it could **confirm a rule that never fired**. Set a priority and a commodity code in the panel; both are now inputs |
-| TC-ADM-02e | A rule that cannot fire looks broken | `/admin/rules` shows a banner listing active rules with an unknown field, an unsupported operator, a malformed `between` (one bound), or no conditions. Each is clickable to the rule. **Live proof this was needed:** RR-001 "High-value IT software" was active, first in evaluation order, described as routing software over €100k to procurement-led, and carried `match_count: 42`. All three of its conditions evaluated false — it had never matched once. Repaired in `supabase/backfills/2026-08-28-rr001-repair.sql`, with `match_count` reset to 0 rather than carrying a history it never had |
+| TC-ADM-02e | A rule that cannot fire looks broken | `/admin/rules` shows a banner listing active rules with an unknown field, an unsupported operator, a malformed `between` (one bound), or no conditions. Each is clickable to the rule. **Live proof this was needed:** RR-001 "High-value IT software" was active, first in evaluation order, described as routing software over €100k to procurement-led, and carried `match_count: 42`. All three of its conditions evaluated false — it had never matched once. Repaired in `db/backfills/2026-08-28-rr001-repair.sql`, with `match_count` reset to 0 rather than carrying a history it never had |
 | TC-ADM-03 | `/admin/forms` Form Builder | Add/configure/reorder fields; live preview; Save persists |
 | TC-ADM-03b | Form status reflects reality | `triggerStages` is metadata shown on the form's card — it is **not** consumed anywhere in the wizard or request-detail, so setting it does not make a form actually appear at those stages yet. `FORM-008` "Change Request Form" is `draft` for exactly this reason (confirmed no consumer of `triggerStages` outside this admin page and its data hooks). Flip a form to `active` only once a stage genuinely renders it |
 | TC-ADM-04 | `/admin/workflows` Designer | All 4 templates render node graphs; add node; Simulate; Save persists |
@@ -561,7 +560,7 @@ not in a component — because RLS is currently `USING (true)`.
 | TC-AI-09 | Regression: a knowledge/lookup query that triggers a tool | Server **executes** the tool (or client suppresses it); user sees a clean grounded answer, **never raw `tool_calls.…` text**; no stall (CHATBOT_TOOLCALL_FIX.md) |
 | TC-AI-10 | Provider parity: same query in `VITE_ASSISTANT_PROVIDER=mock` and `groq` | Equivalent grounded answers + source in both modes |
 | TC-AI-11 | Robustness: slow/empty/erroring 2nd model call (or tiny timeout) | User gets a graceful timeout/fallback message, **never an infinite spinner**; `/api/chat` always terminates (CHATBOT_HANG_FIX.md) |
-| TC-AI-12 | Classifier server configuration (`npm run test:ai-api-config`) | Missing active database/AI server configuration produces `503 { code: "service_unavailable" }`; the Vercel function must not fail at module load or expose configuration details. Supabase variables are rollback-only. |
+| TC-AI-12 | Classifier server configuration (`npm run test:ai-api-config`) | Missing active database/AI server configuration produces `503 { code: "service_unavailable" }`; the Vercel function must not fail at module load or expose configuration details. The suite removes `NEON_DATABASE_URL`/`DATABASE_URL` — the variables the handler actually gates on — so it asserts the 503 rather than passing on a machine that happens to have no connection configured. |
 | TC-AI-13 | `api/chat-intake` import-graph hygiene (`npm run test:api-imports`) | Same principle as TC-AI-12, different mechanism: `api/chat-intake.ts` shipped in production returning a bare `500 FUNCTION_INVOCATION_FAILED` on **every** call — the intake wizard's chat silently ran on its offline fallback the whole time, with no log and no user-visible signal. Root cause was two relative imports inside `demand-conversation.ts` missing their `.js` extension: neither `tsc -b` (bundler-mode resolution) nor `vercel dev` (a lenient dev-server loader) catches this, only Vercel's real per-function build does — confirmed by running `npx vercel build` and inspecting the emitted `.vercel/output/functions/api/chat-intake.func` bundle directly. The test statically walks the import graph of every `api/*.ts` entrypoint and fails on any relative specifier lacking a file extension, so this can't silently reappear. Any change to `api/*.ts` or a module it imports should run this, not just `tsc -b`. |
 
 ## Suite PLT — platform, notifications, settings, help, NFR

@@ -1,5 +1,5 @@
 // Seed data only — not read by the runtime app.
-// Requests moved to Supabase in Wave 1. UI reads via
+// Requests moved to the database in Wave 1. UI reads via
 // `@/lib/db/hooks/use-requests`.
 
 import type { ProcurementRequest } from './types.js';

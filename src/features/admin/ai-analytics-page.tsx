@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { MessageSquare, ThumbsUp, ThumbsDown, TrendingUp } from 'lucide-react';
 import { format, subDays, startOfDay, parseISO } from 'date-fns';
-import { supabase } from '@/lib/supabase-client';
+import { db } from '@/lib/db-client';
 import { PageHeader } from '@/components/shared/page-header';
 import { BarChartWidget } from '@/components/charts/bar-chart-widget';
 import { PieChartWidget } from '@/components/charts/pie-chart-widget';
@@ -78,15 +78,15 @@ export function AIAnalyticsPage() {
       const since = subDays(new Date(), 14).toISOString();
 
       const [{ data: recentConvs }, { count }, { data: fb }] = await Promise.all([
-        supabase
+        db
           .from('assistant_conversations')
           .select('id, title, created_at, messages')
           .gte('created_at', since)
           .order('created_at', { ascending: false }),
-        supabase
+        db
           .from('assistant_conversations')
           .select('*', { count: 'exact', head: true }),
-        supabase
+        db
           .from('chat_feedback')
           .select('polarity, created_at'),
       ]);

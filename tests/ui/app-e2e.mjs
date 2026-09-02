@@ -6,7 +6,7 @@
 // Reports a per-route summary. Fails on uncaught exceptions or white-screens
 // (real bugs); console.errors are listed for assessment, not auto-failed.
 //
-// Run: npm run test:e2e-ui   (requires .env.local with Supabase creds)
+// Run: npm run test:e2e-ui   (requires .env.local with NEON_DATABASE_URL)
 
 import { spawn } from 'node:child_process';
 import { chromium } from 'playwright';

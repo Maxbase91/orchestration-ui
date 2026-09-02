@@ -11,7 +11,7 @@
 // internal notes never reach a requester. RLS is currently "allow all", so a
 // component-level filter would be a display convention, not a boundary.
 
-import { supabase } from '@/lib/supabase-client';
+import { db } from '@/lib/db-client';
 import { createAuditEntry } from './audit-entries';
 import { createNotification } from './notifications';
 import { computeDueAt, isSlaPaused, type TicketSlaTarget } from '@/lib/procurement/ticket-sla';
@@ -99,7 +99,7 @@ function mapDbToResponse(row: TicketResponseRow): TicketResponse {
  * non-sequential ID beats failing the user's submission outright.
  */
 async function nextTicketId(): Promise<string> {
-  const { data, error } = await supabase.rpc('next_ticket_id');
+  const { data, error } = await db.rpc('next_ticket_id');
   if (error || !data) return `TKT-${Date.now().toString().slice(-8)}`;
   return String(data);
 }
@@ -121,7 +121,7 @@ export interface CreateTicketInput {
  * to new tickets without a deploy.
  */
 async function loadTicketSlaTargets(): Promise<TicketSlaTarget[]> {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from('sla_targets')
     .select('channel, hours, days')
     .eq('stage', 'ticket');
@@ -142,7 +142,7 @@ export async function createTicket(input: CreateTicketInput): Promise<Ticket> {
   const targets = await loadTicketSlaTargets();
   const dueAt = computeDueAt(new Date(), input.priority, targets);
 
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from(TABLE)
     .insert({
       id,
@@ -175,7 +175,7 @@ export async function listTickets(
   userName: string,
   opts: ListTicketsOptions = {},
 ): Promise<Ticket[]> {
-  let query = supabase
+  let query = db
     .from(TABLE)
     .select('*')
     .order('created_at', { ascending: false })
@@ -194,13 +194,13 @@ export async function listTickets(
 }
 
 export async function getTicket(id: string): Promise<Ticket | null> {
-  const { data, error } = await supabase.from(TABLE).select('*').eq('id', id).maybeSingle();
+  const { data, error } = await db.from(TABLE).select('*').eq('id', id).maybeSingle();
   if (error) throw error;
   return data ? mapDbToTicket(data as unknown as TicketRow) : null;
 }
 
 async function patchTicket(id: string, patch: Record<string, unknown>): Promise<Ticket> {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from(TABLE)
     .update({ ...patch, updated_at: new Date().toISOString() })
     .eq('id', id)
@@ -301,7 +301,7 @@ export async function listTicketResponses(
   ticketId: string,
   opts: { includeInternal?: boolean } = {},
 ): Promise<TicketResponse[]> {
-  let query = supabase
+  let query = db
     .from(RESPONSES_TABLE)
     .select('*')
     .eq('ticket_id', ticketId)
@@ -327,7 +327,7 @@ export async function addTicketResponse(input: AddResponseInput): Promise<Ticket
     ? input.authorName.split(/\s+/).map((p) => p[0]).join('').slice(0, 2).toUpperCase()
     : undefined;
 
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from(RESPONSES_TABLE)
     .insert({
       id: `TRS-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -436,7 +436,7 @@ function mapDbToLink(row: TicketLinkRow): TicketLink {
 }
 
 export async function listTicketLinks(ticketId: string): Promise<TicketLink[]> {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from(LINKS_TABLE)
     .select('*')
     .eq('ticket_id', ticketId)
@@ -454,7 +454,7 @@ export interface AddTicketLinkInput {
 }
 
 export async function addTicketLink(input: AddTicketLinkInput): Promise<TicketLink> {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from(LINKS_TABLE)
     .insert({
       id: `TLK-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -490,7 +490,7 @@ export async function removeTicketLink(
   linkId: string,
   ctx?: { ticketId: string; actor: { id: string; name: string }; description: string },
 ): Promise<void> {
-  const { error } = await supabase.from(LINKS_TABLE).delete().eq('id', linkId);
+  const { error } = await db.from(LINKS_TABLE).delete().eq('id', linkId);
   if (error) throw error;
   if (ctx) {
     await recordTicketAudit(ctx.ticketId, 'ticket.link.removed', `Unlinked ${ctx.description}`, ctx.actor);
@@ -502,7 +502,7 @@ export async function listTicketsForObject(
   objectType: TicketLinkType,
   objectId: string,
 ): Promise<Ticket[]> {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from(LINKS_TABLE)
     .select('ticket_id')
     .eq('object_type', objectType)
@@ -512,7 +512,7 @@ export async function listTicketsForObject(
   const ids = (data ?? []).map((r) => (r as { ticket_id: string }).ticket_id);
   if (ids.length === 0) return [];
 
-  const { data: rows, error: err2 } = await supabase
+  const { data: rows, error: err2 } = await db
     .from(TABLE)
     .select('*')
     .in('id', ids)

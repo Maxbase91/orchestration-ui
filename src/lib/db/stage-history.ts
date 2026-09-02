@@ -1,17 +1,17 @@
-import { supabase } from '@/lib/supabase-client';
+import { db } from '@/lib/db-client';
 import type { StageHistoryEntry } from '@/data/types';
 import { mapDbToStageHistory } from './mappers';
 
 const TABLE = 'stage_history';
 
 export async function listStageHistory(): Promise<StageHistoryEntry[]> {
-  const { data, error } = await supabase.from(TABLE).select('*').order('entered_at');
+  const { data, error } = await db.from(TABLE).select('*').order('entered_at');
   if (error) throw error;
   return (data ?? []).map(mapDbToStageHistory);
 }
 
 export async function listStageHistoryByRequest(requestId: string): Promise<StageHistoryEntry[]> {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from(TABLE)
     .select('*')
     .eq('request_id', requestId)
@@ -33,7 +33,7 @@ export async function appendStageHistoryEvent(entry: {
   ownerId?: string;
 }): Promise<void> {
   const now = new Date().toISOString();
-  const { error } = await supabase.from(TABLE).insert({
+  const { error } = await db.from(TABLE).insert({
     request_id: entry.requestId,
     stage: entry.stage,
     entered_at: now,

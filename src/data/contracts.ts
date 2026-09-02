@@ -1,6 +1,6 @@
 // Seed data only — not read by the runtime app.
 //
-// Contracts moved to Supabase in Wave 1. UI reads via `@/lib/db/hooks/use-contracts`.
+// Contracts moved to the database in Wave 1. UI reads via `@/lib/db/hooks/use-contracts`.
 // This file remains as the source of truth for `api/admin/seed.ts` to import
 // during database seeding.
 

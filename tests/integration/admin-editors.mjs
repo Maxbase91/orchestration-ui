@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Verifies the four admin editor Save buttons actually round-trip to
-// Supabase (not just fire a toast). Simulates what the UI mutation
+// the database (not just fire a toast). Simulates what the UI mutation
 // hook does: writes a test record via the base-table API and
 // re-reads to confirm persistence.
 //

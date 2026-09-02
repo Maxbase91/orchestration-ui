@@ -1,5 +1,5 @@
 // Seed data only — not read by the runtime app.
-// Routing rules moved to Supabase in Wave 3
+// Routing rules moved to the database in Wave 3
 // (UI uses `@/lib/db/hooks/use-routing-rules`).
 
 import type { RoutingRule } from './types.js';

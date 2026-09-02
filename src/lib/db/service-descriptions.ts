@@ -1,6 +1,6 @@
 // Data access for service_descriptions (the SOW captured during intake), one
 // row per request. Reads flow through use-service-description.ts hooks.
-import { supabase } from '@/lib/supabase-client';
+import { db } from '@/lib/db-client';
 import { mapDbToServiceDescription, type ServiceDescriptionRecord } from './mappers';
 
 const TABLE = 'service_descriptions';
@@ -8,7 +8,7 @@ const TABLE = 'service_descriptions';
 export async function getServiceDescription(
   requestId: string,
 ): Promise<ServiceDescriptionRecord | null> {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from(TABLE)
     .select('*')
     .eq('request_id', requestId)
@@ -43,7 +43,7 @@ export async function saveServiceDescription(
     ...(sow.requiredSections ? { required_sections: sow.requiredSections } : {}),
     ...(sow.captureFlags ? { capture_flags: sow.captureFlags } : {}),
   };
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from(TABLE)
     .upsert(payload, { onConflict: 'request_id' })
     .select('*')

@@ -4,7 +4,7 @@
 // An event is normally raised *from* a procurement request sitting in the
 // sourcing stage — `requestId` is that link. It is nullable because a standing
 // category event (a framework refresh) legitimately has no originating request.
-import { supabase } from '@/lib/supabase-client';
+import { db } from '@/lib/db-client';
 
 /** One scored dimension of an RFx. Weights across an event must total 100. */
 export interface SourcingCriterion {
@@ -96,13 +96,13 @@ function mapToDb(e: Partial<SourcingEvent>): Record<string, unknown> {
 }
 
 export async function listSourcingEvents(): Promise<SourcingEvent[]> {
-  const { data, error } = await supabase.from(TABLE).select('*').order('created_at', { ascending: false });
+  const { data, error } = await db.from(TABLE).select('*').order('created_at', { ascending: false });
   if (error) throw error;
   return (data ?? []).map(mapRow);
 }
 
 export async function getSourcingEvent(id: string): Promise<SourcingEvent | null> {
-  const { data, error } = await supabase.from(TABLE).select('*').eq('id', id).maybeSingle();
+  const { data, error } = await db.from(TABLE).select('*').eq('id', id).maybeSingle();
   if (error) throw error;
   return data ? mapRow(data) : null;
 }
@@ -115,7 +115,7 @@ export async function getSourcingEvent(id: string): Promise<SourcingEvent | null
  * to create the event.
  */
 export async function nextSourcingEventId(): Promise<string> {
-  const { data, error } = await supabase.rpc('next_sourcing_event_id');
+  const { data, error } = await db.rpc('next_sourcing_event_id');
   if (error || !data) return `SRC-${Date.now().toString().slice(-8)}`;
   return String(data);
 }
@@ -130,7 +130,7 @@ export async function createSourcingEvent(
 ): Promise<SourcingEvent> {
   const row = mapToDb(event as Partial<SourcingEvent>);
   if ('id' in event && event.id) row.id = event.id;
-  const { data, error } = await supabase.from(TABLE).insert(row).select('*').single();
+  const { data, error } = await db.from(TABLE).insert(row).select('*').single();
   if (error) throw error;
   return mapRow(data);
 }
@@ -158,7 +158,7 @@ export async function getSourcingEventForSupplier(
   eventId: string,
   supplierId: string,
 ): Promise<SupplierEventView | null> {
-  const { data: invite, error: inviteError } = await supabase
+  const { data: invite, error: inviteError } = await db
     .from('sourcing_responses')
     .select('id')
     .eq('event_id', eventId)
@@ -167,7 +167,7 @@ export async function getSourcingEventForSupplier(
   if (inviteError) throw inviteError;
   if (!invite) return null;
 
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from(TABLE)
     .select('id, title, description, type, status, deadline, requirements')
     .eq('id', eventId)
@@ -189,7 +189,7 @@ export async function getSourcingEventForSupplier(
 
 /** Events raised from a given request — powers the request's Related tab. */
 export async function listSourcingEventsForRequest(requestId: string): Promise<SourcingEvent[]> {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from(TABLE)
     .select('*')
     .eq('request_id', requestId)
@@ -199,7 +199,7 @@ export async function listSourcingEventsForRequest(requestId: string): Promise<S
 }
 
 export async function updateSourcingEvent(id: string, patch: Partial<SourcingEvent>): Promise<SourcingEvent> {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from(TABLE)
     .update(mapToDb(patch))
     .eq('id', id)
@@ -220,6 +220,6 @@ export async function updateSourcingEvent(id: string, patch: Partial<SourcingEve
  * and their submitted bids with it.
  */
 export async function deleteSourcingEvent(id: string): Promise<void> {
-  const { error } = await supabase.from(TABLE).delete().eq('id', id);
+  const { error } = await db.from(TABLE).delete().eq('id', id);
   if (error) throw error;
 }

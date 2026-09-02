@@ -1,26 +1,26 @@
 // CRUD for the `approval_entries` table (individual approval work items).
 // Components read through the use-approvals hooks; row mapping is shared via
 // ./mappers. Lists newest-first by request date.
-import { supabase } from '@/lib/supabase-client';
+import { db } from '@/lib/db-client';
 import type { ApprovalEntry } from '@/data/types';
 import { mapDbToApproval, mapApprovalToDb } from './mappers';
 
 const TABLE = 'approval_entries';
 
 export async function listApprovals(): Promise<ApprovalEntry[]> {
-  const { data, error } = await supabase.from(TABLE).select('*').order('requested_at', { ascending: false });
+  const { data, error } = await db.from(TABLE).select('*').order('requested_at', { ascending: false });
   if (error) throw error;
   return (data ?? []).map(mapDbToApproval);
 }
 
 export async function getApproval(id: string): Promise<ApprovalEntry | null> {
-  const { data, error } = await supabase.from(TABLE).select('*').eq('id', id).maybeSingle();
+  const { data, error } = await db.from(TABLE).select('*').eq('id', id).maybeSingle();
   if (error) throw error;
   return data ? mapDbToApproval(data) : null;
 }
 
 export async function createApproval(record: ApprovalEntry): Promise<ApprovalEntry> {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from(TABLE)
     .insert(mapApprovalToDb(record))
     .select('*')
@@ -30,7 +30,7 @@ export async function createApproval(record: ApprovalEntry): Promise<ApprovalEnt
 }
 
 export async function updateApproval(id: string, patch: Partial<ApprovalEntry>): Promise<ApprovalEntry> {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from(TABLE)
     .update(mapApprovalToDb(patch))
     .eq('id', id)
@@ -41,6 +41,6 @@ export async function updateApproval(id: string, patch: Partial<ApprovalEntry>):
 }
 
 export async function deleteApproval(id: string): Promise<void> {
-  const { error } = await supabase.from(TABLE).delete().eq('id', id);
+  const { error } = await db.from(TABLE).delete().eq('id', id);
   if (error) throw error;
 }

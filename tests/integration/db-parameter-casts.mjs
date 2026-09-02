@@ -9,7 +9,7 @@
 // silently (uuid keys, no error check).
 //
 // The check is offline and exhaustive by construction: it reads the column types
-// out of supabase/schema.sql and asserts the cast helper produces something
+// out of db/schema.sql and asserts the cast helper produces something
 // comparable for each. A new column type in the schema with no mapping shows up
 // here rather than in production.
 
@@ -17,7 +17,7 @@ import { readFileSync } from 'node:fs';
 import { assertFilteredWrite, castForColumn } from '../../api/db.ts';
 
 const ROOT = new URL('../../', import.meta.url);
-const SCHEMA = readFileSync(new URL('supabase/schema.sql', ROOT), 'utf8');
+const SCHEMA = readFileSync(new URL('db/schema.sql', ROOT), 'utf8');
 
 let failures = 0;
 const check = (label, ok, detail = '') => {

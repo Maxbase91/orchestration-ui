@@ -1,7 +1,7 @@
 // Serverless CRUD for ai_conversations: the assistant's per-request scratchpad
 // (captured messages + any structured extraction), keyed by request_id.
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { supabaseQuery } from '../src/lib/supabase.js';
+import { dbQuery } from '../src/lib/db-query.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'GET') {
@@ -22,7 +22,7 @@ async function handleGet(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Missing request_id query param' });
   }
 
-  const { data, error } = await supabaseQuery(
+  const { data, error } = await dbQuery(
     'ai_conversations',
     {
       filters: `request_id=eq.${request_id}`,
@@ -48,7 +48,7 @@ async function handlePost(req: VercelRequest, res: VercelResponse) {
     status: body.status ?? 'in-progress',
   };
 
-  const { data, error } = await supabaseQuery(
+  const { data, error } = await dbQuery(
     'ai_conversations',
     { method: 'POST', body: entry, single: true },
   );
@@ -70,7 +70,7 @@ async function handlePatch(req: VercelRequest, res: VercelResponse) {
 
   const updates = { ...body, updated_at: new Date().toISOString() };
 
-  const { data, error } = await supabaseQuery(
+  const { data, error } = await dbQuery(
     'ai_conversations',
     {
       method: 'PATCH',

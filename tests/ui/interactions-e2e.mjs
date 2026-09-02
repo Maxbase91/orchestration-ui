@@ -5,7 +5,7 @@
 //   2. Admin category create → persists & shows in the table (then deleted).
 //   3. AI assistant → send a message → a response renders (no hang).
 //
-// Run: npm run test:interactions-ui   (requires .env.local with Supabase creds)
+// Run: npm run test:interactions-ui   (requires .env.local with NEON_DATABASE_URL)
 
 import { spawn } from 'node:child_process';
 import { chromium } from 'playwright';

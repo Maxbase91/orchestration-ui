@@ -171,7 +171,7 @@ removed explicitly.
 - [x] Add direct item-navigation regression coverage for Simple and Expert pre-check CTAs.
 - [x] Add legacy-schema compatibility persistence while the additive PR tables are unavailable.
 - [x] Verify 37/37 deployed catalogue items resolve exactly one active contract and valid risk assessment.
-- [ ] Apply the governed-checkout section of `supabase/schema.sql` to the deployed project so PR/line audit records are enabled.
+- [ ] Apply the governed-checkout section of `db/schema.sql` to the deployed project so PR/line audit records are enabled.
 
 # Supabase-to-Neon migration — 2026-08-29
 
@@ -181,7 +181,7 @@ removed explicitly.
 - [x] Add migration ADR, README/runbook updates, and static migration guardrail test.
 - [x] Pass `npm run build`, `npm run lint`, `npm run test:api-imports`, `npm run test:ai-api-config`, and `npm run test:neon-migration`.
 - [x] User created/linked the Neon project and configured a local `NEON_DATABASE_URL` for migration validation.
-- [x] Applied `supabase/schema.sql` to Neon; all 42 repository tables and both documented ID functions exist.
+- [x] Applied `db/schema.sql` to Neon; all 42 repository tables and both documented ID functions exist.
 - [x] Copied all 39 available source tables with zero count mismatches; three legacy source tables (`procurement_profiles`, `purchase_requisitions`, `request_lines`) were absent and remain empty in Neon.
 - [x] Repaired and validated 37/37 catalogue supplier, active-contract, and current-risk links in Neon.
 - [x] Configure `DATABASE_PROVIDER=neon`, `VITE_DATABASE_PROVIDER=neon`, and `NEON_DATABASE_URL` in Vercel, deploy, and run the Neon-backed browser suite before cutover.

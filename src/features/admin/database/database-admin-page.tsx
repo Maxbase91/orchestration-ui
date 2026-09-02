@@ -79,7 +79,7 @@ export function DatabaseAdminPage() {
         <div>
           <p className="font-medium">All tabs are live</p>
           <p className="text-xs">
-            Edits persist to Supabase and reflect on every feature page. All changes are captured in the Audit Log.
+            Edits persist to the database and reflect on every feature page. All changes are captured in the Audit Log.
           </p>
         </div>
       </div>
@@ -90,7 +90,7 @@ export function DatabaseAdminPage() {
             <TabsTrigger key={t.key} value={t.key}>
               {t.label}
               {isLiveEntity(t.key) && (
-                <Database className="ml-1 size-3 text-emerald-600" aria-label="Live (Supabase)" />
+                <Database className="ml-1 size-3 text-emerald-600" aria-label="Live (persisted to the database)" />
               )}
               <CountBadge entity={t.key} />
             </TabsTrigger>

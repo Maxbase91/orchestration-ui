@@ -8,7 +8,7 @@
 // RLS is "allow all", so a component-level filter would be a display convention.
 //
 // Self-contained — mirrors src/lib/db/tickets.ts and src/config/roles.ts against a
-// fake Supabase client. Keep in sync.
+// fake data client. Keep in sync.
 // Run: node tests/integration/tickets.mjs
 
 let failures = 0;

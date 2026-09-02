@@ -41,7 +41,7 @@ async function scenarioInsertAndList() {
   }).select('*').single();
 
   if (insErr) { fail('audit: insert succeeded', insErr.message); return; }
-  assert(!!inserted?.id, 'audit: UUID assigned by Supabase', `id=${inserted?.id}`);
+  assert(!!inserted?.id, 'audit: UUID assigned by the database', `id=${inserted?.id}`);
   assert(inserted.action === 'record.update', 'audit: action persisted');
   assert(inserted.object_type === 'supplier', 'audit: object_type persisted');
   assert(inserted.detail === testDetail, 'audit: detail persisted');

@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase-client';
+import { db } from '@/lib/db-client';
 import type { Supplier } from '@/data/types';
 import { mapDbToSupplier, mapSupplierToDb } from './mappers';
 
@@ -8,19 +8,19 @@ const READ_SOURCE = 'suppliers_with_derived';
 const TABLE = 'suppliers';
 
 export async function listSuppliers(): Promise<Supplier[]> {
-  const { data, error } = await supabase.from(READ_SOURCE).select('*').order('name');
+  const { data, error } = await db.from(READ_SOURCE).select('*').order('name');
   if (error) throw error;
   return (data ?? []).map(mapDbToSupplier);
 }
 
 export async function getSupplier(id: string): Promise<Supplier | null> {
-  const { data, error } = await supabase.from(READ_SOURCE).select('*').eq('id', id).maybeSingle();
+  const { data, error } = await db.from(READ_SOURCE).select('*').eq('id', id).maybeSingle();
   if (error) throw error;
   return data ? mapDbToSupplier(data) : null;
 }
 
 export async function createSupplier(record: Supplier): Promise<Supplier> {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from(TABLE)
     .insert(mapSupplierToDb(record))
     .select('*')
@@ -30,7 +30,7 @@ export async function createSupplier(record: Supplier): Promise<Supplier> {
 }
 
 export async function updateSupplier(id: string, patch: Partial<Supplier>): Promise<Supplier> {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from(TABLE)
     .update(mapSupplierToDb(patch))
     .eq('id', id)
@@ -41,7 +41,7 @@ export async function updateSupplier(id: string, patch: Partial<Supplier>): Prom
 }
 
 export async function deleteSupplier(id: string): Promise<void> {
-  const { error } = await supabase.from(TABLE).delete().eq('id', id);
+  const { error } = await db.from(TABLE).delete().eq('id', id);
   if (error) throw error;
 }
 

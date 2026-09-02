@@ -11,7 +11,7 @@
 // is supposed to have a database says so when it doesn't.
 //
 // `neonClient` below is the other half: the suites that used to build their own
-// Supabase client now get a Neon-backed one with the same query surface, so they
+// legacy client now get a Neon-backed one with the same query surface, so they
 // assert against the system of record instead of skipping forever.
 
 import { readFileSync } from 'node:fs';
@@ -80,9 +80,9 @@ export function hydrateEnv() {
 }
 
 /**
- * A Neon-backed client with the supabase-js query surface.
+ * A Neon-backed client with the legacy query surface the suites were written against.
  *
- * Ten integration suites built their own Supabase client and asserted against a
+ * Ten integration suites built their own client against the retired project and asserted against a
  * database that is no longer the system of record, so they skipped on every run
  * — roughly 1,800 lines of behaviour outside the gate. Every query method they
  * use (from/select/eq/single/filter/update/limit/insert/delete/order/in/
@@ -90,7 +90,7 @@ export function hydrateEnv() {
  * bodies needed no changes: only the construction did.
  *
  * The executor runs in-process rather than posting to /api/db, the same wiring
- * `api/_supabase-admin.ts` uses for server handlers, so a test does not need a
+ * `api/_db-admin.ts` uses for server handlers, so a test does not need a
  * running deployment. Imports are dynamic because they cross into TypeScript —
  * these suites run under `node --import tsx/esm`.
  */

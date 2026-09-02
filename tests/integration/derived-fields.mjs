@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Verifies the Phase-3 Supabase views project live-derived values:
+// Verifies the Phase-3 database views project live-derived values:
 //   supplier.activeContracts  = count of active/expiring contracts
 //   supplier.totalSpend12m    = sum of invoices in last 365 days
 //   contract.linkedRequestIds = array of requests with contract_id = X

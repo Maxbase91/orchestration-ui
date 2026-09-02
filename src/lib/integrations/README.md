@@ -95,8 +95,8 @@ A `SourceRecord<T>` is `{ data, meta }`. `meta` carries the `sourceSystem`,
 `mode` (`shadow` | `live`), `retrievedAt`, and an optional `freshnessTtlSeconds`,
 so consumers can reason about freshness regardless of where the record came from.
 
-The R1 implementation is the private Neon-backed own store. Supabase is decommissioned and there is
-no provider switch. The read-only `/api/neon-health` dispatcher route reports safe connectivity and
+The R1 implementation is the private Neon-backed own store. There is one database and no provider
+switch. The read-only `/api/neon-health` dispatcher route reports safe connectivity and
 error classes without exposing connection details.
 
 ### Where the ports are bypassed today

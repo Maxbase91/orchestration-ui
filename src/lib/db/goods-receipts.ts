@@ -1,7 +1,7 @@
 // Data access for the `goods_receipts` table (receipt confirmations against a
 // purchase order, feeding the three-way match). Line items are stored as a
 // jsonb array on the row rather than a child table.
-import { supabase } from '@/lib/supabase-client';
+import { db } from '@/lib/db-client';
 
 export interface GoodsReceiptLineItem {
   description: string;
@@ -39,13 +39,13 @@ function mapRow(row: Record<string, unknown>): GoodsReceipt {
 }
 
 export async function listGoodsReceiptsForPO(poId: string): Promise<GoodsReceipt[]> {
-  const { data, error } = await supabase.from(TABLE).select('*').eq('po_id', poId).order('received_at');
+  const { data, error } = await db.from(TABLE).select('*').eq('po_id', poId).order('received_at');
   if (error) throw error;
   return (data ?? []).map(mapRow);
 }
 
 export async function createGoodsReceipt(receipt: Omit<GoodsReceipt, 'id' | 'createdAt'>): Promise<GoodsReceipt> {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from(TABLE)
     .insert({
       po_id: receipt.poId,
@@ -63,7 +63,7 @@ export async function createGoodsReceipt(receipt: Omit<GoodsReceipt, 'id' | 'cre
   // previous implementation only inserted a receipt row, so a fully received
   // PO continued to appear as receivable until a later manual refresh or
   // unrelated PO edit.
-  const { error: poError } = await supabase
+  const { error: poError } = await db
     .from('purchase_orders')
     .update({ line_items: receipt.lineItems, status: receipt.status === 'complete' ? 'received' : 'partially-received' })
     .eq('id', receipt.poId);

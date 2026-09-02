@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { supabaseQuery } from '../src/lib/supabase.js';
+import { dbQuery } from '../src/lib/db-query.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -13,7 +13,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // Get current request to find old status
-  const { data: existing, error: fetchError } = await supabaseQuery<{ status: string; owner_id: string; refer_back_count: number }>(
+  const { data: existing, error: fetchError } = await dbQuery<{ status: string; owner_id: string; refer_back_count: number }>(
     'requests',
     { filters: `id=eq.${requestId}`, single: true, select: 'status,owner_id,refer_back_count' },
   );
@@ -34,7 +34,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     updates.refer_back_count = (existing.refer_back_count ?? 0) + 1;
   }
 
-  const { data: updated, error: updateError } = await supabaseQuery(
+  const { data: updated, error: updateError } = await dbQuery(
     'requests',
     {
       method: 'PATCH',
@@ -48,14 +48,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // Complete previous stage_history entry
   if (oldStatus !== newStatus) {
-    await supabaseQuery('stage_history', {
+    await dbQuery('stage_history', {
       method: 'PATCH',
       filters: `request_id=eq.${requestId}&stage=eq.${oldStatus}&completed_at=is.null`,
       body: { completed_at: new Date().toISOString() },
     });
 
     // Add new stage_history entry
-    await supabaseQuery('stage_history', {
+    await dbQuery('stage_history', {
       method: 'POST',
       body: {
         request_id: requestId,

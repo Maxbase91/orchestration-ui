@@ -1,11 +1,11 @@
-// Server-side helper for reading AI agent config from Supabase.
+// Server-side helper for reading AI agent config from the database.
 // Imported by api/ai.ts, api/chat-intake.ts, etc. so every LLM-backed
 // endpoint reflects the admin's edits without a redeploy.
 //
 // Result is memoised for 60 seconds to avoid hitting the DB on every
 // invocation; the cache is process-local and resets on Vercel cold-start.
 
-import { getSupabaseAdmin } from './_supabase-admin.js';
+import { getDbAdmin } from './_db-admin.js';
 
 export interface AgentRecord {
   id: string;
@@ -30,7 +30,7 @@ export async function getAgent(id: string): Promise<AgentRecord | null> {
   const now = Date.now();
   if (hit && hit.expiresAt > now) return hit.value;
 
-  const { data, error } = await getSupabaseAdmin()
+  const { data, error } = await getDbAdmin()
     .from('ai_agents')
     .select('id,name,type,status,description,accuracy,last_updated')
     .eq('id', id)

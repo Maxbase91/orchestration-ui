@@ -12,7 +12,7 @@
 //     drawn nowhere since the wizard was written;
 //   * step 3's Next is disabled until the mandatory floor is met.
 //
-// `test:ui` (the full wizard smoke) cannot complete in a sandbox where Supabase
+// `test:ui` (the full wizard smoke) cannot complete in a sandbox where the database
 // is unreachable — it dies at the catalogue step. This is the narrow,
 // offline-tolerant check, in the same shape as test:service-description-ui:
 // domcontentloaded rather than networkidle, and network errors ignored.
@@ -59,7 +59,7 @@ try {
   page.on('console', (m) => {
     if (m.type() !== 'error') return;
     const text = m.text();
-    if (/supabase|Failed to (load resource|fetch)|net::|ERR_TUNNEL/i.test(text)) return;
+    if (/\/api\/db|Failed to (load resource|fetch)|net::|ERR_TUNNEL/i.test(text)) return;
     pageErrors.push(text);
   });
 
@@ -71,15 +71,32 @@ try {
   await page.getByText('Describe what you need', { exact: true }).waitFor({ timeout: 20000 });
 
   console.log('The wizard explains itself');
-  check('the step header panel renders',
-    (await page.getByText('What we need from you', { exact: true }).count()) > 0);
-  check('and says what happens after the step',
-    (await page.getByText('What happens next', { exact: true }).count()) > 0);
-  // The copy that was dead config for the wizard's whole life.
-  check("the stepper renders each step's description",
+  // The panel leads with the consequence — the one thing no other element on the
+  // screen says. It used to render purpose, what-you-supply and what-happens-next
+  // all at once, which on step 1 was ninety words of chrome above a single box.
+  check('the step header panel leads with the consequence',
+    (await page.getByText(/catalogue item or an existing contract already covers this/).count()) > 0);
+  // Purpose and the supply list are a disclosure now, not the default view.
+  const disclosure = page.getByRole('button', { name: /What you need/ });
+  check('purpose and the supply list are one click away, not on screen',
+    (await disclosure.count()) > 0
+    && (await page.getByText(/you do not pick a category/).count()) === 0);
+  await disclosure.click();
+  check('opening the disclosure reveals both',
+    (await page.getByText(/you do not pick a category/).count()) > 0
+    && (await page.getByText(/pasted brief, or PDF\/DOCX/).count()) > 0);
+  // The toggle relabels itself, so collapsing it is a different locator — and
+  // that relabelling is the affordance telling the reader it is a toggle at all.
+  await page.getByRole('button', { name: /Less/ }).click();
+  check('it collapses again',
+    (await page.getByText(/you do not pick a category/).count()) === 0);
+
+  // The copy that was dead config for the wizard's whole life. Only the current
+  // step's description renders: all seven put fourteen labels across every screen.
+  check("the stepper renders the current step's description",
     (await page.getByText('What do you need?', { exact: true }).count()) > 0);
-  check('the pre-check step is described as a catalogue & contract match',
-    (await page.getByText('Catalogue & contract match', { exact: true }).count()) > 0);
+  check('and not the other steps’ descriptions',
+    (await page.getByText('Catalogue & contract match', { exact: true }).count()) === 0);
 
   console.log('\nStep 1 asks once and shows the demand once');
   check('the free-text prompt is present',

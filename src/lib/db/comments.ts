@@ -1,11 +1,11 @@
-import { supabase } from '@/lib/supabase-client';
+import { db } from '@/lib/db-client';
 import type { Comment } from '@/data/types';
 import { mapDbToComment, mapCommentToDb } from './mappers';
 
 const TABLE = 'comments';
 
 export async function listCommentsByRequest(requestId: string): Promise<Comment[]> {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from(TABLE)
     .select('*')
     .eq('request_id', requestId)
@@ -24,7 +24,7 @@ export async function addComment(input: {
   stage?: string;
   mentions?: string[];
 }): Promise<Comment> {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from(TABLE)
     .insert(
       mapCommentToDb({
@@ -49,7 +49,7 @@ export async function addComment(input: {
  * Used by the dashboard Mentions widget.
  */
 export async function listCommentsMentioning(userId: string, limit = 20): Promise<Comment[]> {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from(TABLE)
     .select('*')
     .contains('mentions', [userId])
@@ -64,7 +64,7 @@ export async function listCommentsMentioning(userId: string, limit = 20): Promis
  * conflicts on the composite PK are ignored.
  */
 export async function markCommentRead(commentId: string, userId: string): Promise<void> {
-  const { error } = await supabase
+  const { error } = await db
     .from('comment_reads')
     .upsert({ comment_id: commentId, user_id: userId, read_at: new Date().toISOString() }, { onConflict: 'comment_id,user_id' });
   if (error) throw error;
@@ -75,7 +75,7 @@ export async function markCommentRead(commentId: string, userId: string): Promis
  * Paired with listCommentsMentioning to compute unread counts.
  */
 export async function listReadCommentIds(userId: string): Promise<Set<string>> {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from('comment_reads')
     .select('comment_id')
     .eq('user_id', userId);

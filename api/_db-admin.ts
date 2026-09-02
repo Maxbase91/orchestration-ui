@@ -2,10 +2,9 @@
 // through the allowlisted query executor. Only import from api/* handlers that
 // require server-side data access.
 //
-// This used to choose between Supabase (service-role key) and Neon on
-// DATABASE_PROVIDER, with a fail-closed branch for a rollback window that is
-// over: Supabase is decommissioned, and a second data path is what let dev and
-// production run different code.
+// This used to choose between two providers on DATABASE_PROVIDER, with a
+// fail-closed branch for a rollback window that is now over. A second data path
+// is what let dev and production run different code, so there is one.
 
 import { NeonCompatibleClient } from '../src/lib/neon-compatible-client.js';
 import { executeNeonRequest } from './db.js';
@@ -28,7 +27,7 @@ export class ServerConfigurationError extends Error {
  * The executor runs the query in-process rather than posting to /api/db, so a
  * server handler does not make an HTTP round trip to its own deployment.
  */
-export function getSupabaseAdmin(): NeonCompatibleClient {
+export function getDbAdmin(): NeonCompatibleClient {
   if (client) return client;
   if (!process.env.NEON_DATABASE_URL && !process.env.DATABASE_URL) throw new ServerConfigurationError();
   client = new NeonCompatibleClient((payload) => executeNeonRequest(payload));

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Browser check for the request detail, run against fixtures rather than a live
-// Supabase project.
+// database.
 //
 // This is the check that was missing. A service description is stored with ten
 // text columns AND a quality score, two arrays and two objects; a call site

@@ -334,7 +334,7 @@ check('a cancelled event is dropped, not filed under Draft',
   KPI_EVENTS.filter((e) => STATUS_TO_STAGE[e.status]).length === KPI_EVENTS.length - 1);
 
 console.log('\nBackfill (idempotent, seeded from the request)');
-// Mirrors supabase/backfills/2026-08-27-sourcing-events.sql.
+// Mirrors db/backfills/2026-08-27-sourcing-events.sql.
 const backfill = (requests, events) =>
   requests
     .filter((r) => r.status === 'sourcing' && !events.some((e) => e.requestId === r.id))

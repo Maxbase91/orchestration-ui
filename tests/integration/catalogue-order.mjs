@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 // The command bar's catalogue result hands off to the governed checkout.
 //
-// This used to simulate the old "Order Now" button's Supabase insert directly,
-// asserting that it wrote a real request row rather than a client-side id. That
-// path is gone twice over: the button was replaced by a hand-off to the
-// catalogue item-detail screen, where governed checkout recomputes the decision
-// server-side (api/governed-checkout.ts, ADR-0002), and Supabase was replaced by
-// Neon. The suite kept its Supabase half behind a `DATABASE_PROVIDER === 'neon'`
+// This used to simulate the old "Order Now" button's insert directly, asserting
+// that it wrote a real request row rather than a client-side id. That path is
+// gone twice over: the button was replaced by a hand-off to the catalogue
+// item-detail screen, where governed checkout recomputes the decision
+// server-side (api/governed-checkout.ts, ADR-0002), and the database was
+// replaced. The suite kept its legacy half behind a `DATABASE_PROVIDER === 'neon'`
 // branch, so once the provider flag went away it fell through to a client it
 // could no longer construct and failed every run.
 //

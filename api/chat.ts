@@ -1,12 +1,12 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { callLLMWithTools, callLLM, type LLMMessage, type GroqTool } from './_llm.js';
-import { getSupabaseAdmin } from './_supabase-admin.js';
+import { getDbAdmin } from './_db-admin.js';
 import type { NeonCompatibleClient } from '../src/lib/neon-compatible-client.js';
 import { knowledgeBase } from '../src/data/knowledgeBase.js';
 
-const supabase = new Proxy({} as NeonCompatibleClient, {
+const db = new Proxy({} as NeonCompatibleClient, {
   get(_target, property: string | symbol) {
-    const target = getSupabaseAdmin() as unknown as Record<PropertyKey, unknown>;
+    const target = getDbAdmin() as unknown as Record<PropertyKey, unknown>;
     const value = target[property];
     return typeof value === 'function' ? value.bind(target) : value;
   },
@@ -185,8 +185,8 @@ function scoreEntry(entry: { title: string; body: string; tags: string[] }, quer
 }
 
 async function execSearchKnowledge(query: string): Promise<string> {
-  // Try Supabase dynamic KB first; fall back to hardcoded array if empty.
-  const { data: dbEntries } = await supabase
+  // Try the stored KB first; fall back to the built-in array if empty.
+  const { data: dbEntries } = await db
     .from('knowledge_base')
     .select('id, title, body, source, tags');
 
@@ -213,7 +213,7 @@ async function execLookupObject(type: string, identifier: string): Promise<strin
   const id = identifier.toUpperCase();
 
   if (type === 'supplier') {
-    const { data } = await supabase
+    const { data } = await db
       .from('suppliers')
       .select('id, name, tier, country, risk_rating, performance_score, total_spend_12m, active_contracts, sra_status, sra_expiry_date, screening_status')
       .or(`id.eq.${id},name.ilike.%${identifier}%`)
@@ -225,7 +225,7 @@ async function execLookupObject(type: string, identifier: string): Promise<strin
   }
 
   if (type === 'request') {
-    const { data } = await supabase
+    const { data } = await db
       .from('requests')
       .select('id, title, status, priority, value, category, requestor_id, owner_id, delivery_date, days_in_stage, is_overdue, buying_channel')
       .eq('id', id)
@@ -236,7 +236,7 @@ async function execLookupObject(type: string, identifier: string): Promise<strin
   }
 
   if (type === 'contract') {
-    const { data } = await supabase
+    const { data } = await db
       .from('contracts')
       .select('id, title, supplier_name, value, status, start_date, end_date, utilisation_percentage, owner_name, department')
       .or(`id.eq.${id},supplier_name.ilike.%${identifier}%`)
@@ -248,7 +248,7 @@ async function execLookupObject(type: string, identifier: string): Promise<strin
   }
 
   if (type === 'po') {
-    const { data } = await supabase
+    const { data } = await db
       .from('purchase_orders')
       .select('id, supplier_name, value, status, delivery_date')
       .eq('id', id)
@@ -259,7 +259,7 @@ async function execLookupObject(type: string, identifier: string): Promise<strin
   }
 
   if (type === 'invoice') {
-    const { data } = await supabase
+    const { data } = await db
       .from('invoices')
       .select('id, supplier_name, amount, status, due_date, match_status, match_variance')
       .eq('id', id)
@@ -270,7 +270,7 @@ async function execLookupObject(type: string, identifier: string): Promise<strin
   }
 
   if (type === 'risk-assessment') {
-    const { data } = await supabase
+    const { data } = await db
       .from('risk_assessments')
       .select('id, title, risk_level, score, status, valid_until, summary')
       .eq('id', id)
@@ -296,7 +296,7 @@ async function execFilterObjects(
   } catch { /* ignore */ }
 
   if (objectType === 'requests') {
-    let q = supabase
+    let q = db
       .from('requests')
       .select('id, title, status, priority, value, is_overdue, days_in_stage, category')
       .order('is_overdue', { ascending: false })
@@ -312,7 +312,7 @@ async function execFilterObjects(
   }
 
   if (objectType === 'suppliers') {
-    let q = supabase
+    let q = db
       .from('suppliers')
       .select('id, name, risk_rating, sra_status, country, tier, performance_score')
       .order('risk_rating', { ascending: false })
@@ -324,7 +324,7 @@ async function execFilterObjects(
   }
 
   if (objectType === 'contracts') {
-    let q = supabase
+    let q = db
       .from('contracts')
       .select('id, title, supplier_name, status, end_date, value, utilisation_percentage')
       .order('end_date', { ascending: true })
@@ -335,7 +335,7 @@ async function execFilterObjects(
   }
 
   if (objectType === 'purchase_orders') {
-    let q = supabase
+    let q = db
       .from('purchase_orders')
       .select('id, supplier_name, value, status, delivery_date, created_at, request_id')
       .order('created_at', { ascending: false })
@@ -343,7 +343,7 @@ async function execFilterObjects(
     // “My latest PO” is requester-scoped, not a global top-N query. The PO
     // owns request_id, so resolve the current persona's request IDs first.
     if (userId) {
-      const { data: ownedRequests } = await supabase.from('requests').select('id').eq('requestor_id', userId);
+      const { data: ownedRequests } = await db.from('requests').select('id').eq('requestor_id', userId);
       const requestIds = (ownedRequests ?? []).map((item) => String((item as { id?: unknown }).id ?? '')).filter(Boolean);
       if (requestIds.length === 0) return JSON.stringify({ found: false, object_type: 'purchase_orders', count: 0, items: [] });
       q = q.in('request_id', requestIds);
@@ -354,7 +354,7 @@ async function execFilterObjects(
   }
 
   if (objectType === 'invoices') {
-    let q = supabase
+    let q = db
       .from('invoices')
       .select('id, supplier_name, amount, status, due_date, match_status, match_variance')
       .order('due_date', { ascending: true })
@@ -373,7 +373,7 @@ async function execRememberPreference(
   value: string,
   userId: string,
 ): Promise<string> {
-  const { data: existing } = await supabase
+  const { data: existing } = await db
     .from('user_preferences')
     .select('prefs')
     .eq('user_id', userId)
@@ -382,7 +382,7 @@ async function execRememberPreference(
   const prefs = ((existing?.prefs as Record<string, unknown>) ?? {});
   prefs[key] = value;
 
-  await supabase
+  await db
     .from('user_preferences')
     .upsert({ user_id: userId, prefs, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
 
@@ -413,15 +413,15 @@ async function execCreateTicket(
   transcript?: string,
 ): Promise<{ ticketId: string }> {
   // Shares the ticket_number_seq sequence with the browser-side ticket module.
-  // The code can't be shared — that module imports the Vite-aliased Supabase
+  // The code can't be shared — that module imports the Vite-aliased browser
   // client — but the sequence must be, or the two intake paths hand out
   // colliding IDs. Reading the latest row (as this did) also raced with itself.
-  const { data: generated } = await supabase.rpc('next_ticket_id');
+  const { data: generated } = await db.rpc('next_ticket_id');
   const ticketId = generated
     ? String(generated)
     : `TKT-${Date.now().toString().slice(-8)}`;
 
-  await supabase.from('tickets').insert({
+  await db.from('tickets').insert({
     id: ticketId,
     summary,
     context,
@@ -598,7 +598,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
   let systemPrompt = SYSTEM_PROMPT;
   if (userId) {
-    const { data: prefRow } = await supabase
+    const { data: prefRow } = await db
       .from('user_preferences')
       .select('prefs')
       .eq('user_id', userId)

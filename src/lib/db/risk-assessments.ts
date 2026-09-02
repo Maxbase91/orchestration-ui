@@ -1,23 +1,23 @@
-import { supabase } from '@/lib/supabase-client';
+import { db } from '@/lib/db-client';
 import type { RiskAssessment } from '@/data/types';
 import { mapDbToRiskAssessment, mapRiskAssessmentToDb } from './mappers';
 
 const TABLE = 'risk_assessments';
 
 export async function listRiskAssessments(): Promise<RiskAssessment[]> {
-  const { data, error } = await supabase.from(TABLE).select('*').order('assessed_at', { ascending: false });
+  const { data, error } = await db.from(TABLE).select('*').order('assessed_at', { ascending: false });
   if (error) throw error;
   return (data ?? []).map(mapDbToRiskAssessment);
 }
 
 export async function getRiskAssessment(id: string): Promise<RiskAssessment | null> {
-  const { data, error } = await supabase.from(TABLE).select('*').eq('id', id).maybeSingle();
+  const { data, error } = await db.from(TABLE).select('*').eq('id', id).maybeSingle();
   if (error) throw error;
   return data ? mapDbToRiskAssessment(data) : null;
 }
 
 export async function createRiskAssessment(record: RiskAssessment): Promise<RiskAssessment> {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from(TABLE)
     .insert(mapRiskAssessmentToDb(record))
     .select('*')
@@ -30,7 +30,7 @@ export async function updateRiskAssessment(
   id: string,
   patch: Partial<RiskAssessment>,
 ): Promise<RiskAssessment> {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from(TABLE)
     .update(mapRiskAssessmentToDb(patch))
     .eq('id', id)
@@ -41,14 +41,14 @@ export async function updateRiskAssessment(
 }
 
 export async function deleteRiskAssessment(id: string): Promise<void> {
-  const { error } = await supabase.from(TABLE).delete().eq('id', id);
+  const { error } = await db.from(TABLE).delete().eq('id', id);
   if (error) throw error;
 }
 
 /**
  * Used by intake validation to surface reusable risk assessments that already
  * cover a supplier or contract. Matches the original synchronous helper in
- * src/data/risk-assessments.ts but backed by Supabase.
+ * src/data/risk-assessments.ts but backed by the database.
  */
 export async function findMatchingRiskAssessments(params: {
   supplierId?: string;
@@ -58,7 +58,7 @@ export async function findMatchingRiskAssessments(params: {
   const { supplierId, contractId, now = new Date() } = params;
   if (!supplierId && !contractId) return [];
 
-  let query = supabase
+  let query = db
     .from(TABLE)
     .select('*')
     .eq('reusable', true)

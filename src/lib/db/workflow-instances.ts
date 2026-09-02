@@ -1,7 +1,7 @@
 // Data access for workflow_instances — the runtime state of a request's
 // attached workflow template (which node(s) it's currently on). One instance
 // per request; getWorkflowInstanceForRequest resolves the latest by created_at.
-import { supabase } from '@/lib/supabase-client';
+import { db } from '@/lib/db-client';
 
 export interface WorkflowInstance {
   id: string;
@@ -35,7 +35,7 @@ export async function createWorkflowInstance(
   currentNodeIds: string[],
   variables: Record<string, unknown> = {},
 ): Promise<WorkflowInstance> {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from(TABLE)
     .insert({ request_id: requestId, template_id: templateId, current_node_ids: currentNodeIds, variables })
     .select('*')
@@ -45,7 +45,7 @@ export async function createWorkflowInstance(
 }
 
 export async function getWorkflowInstanceForRequest(requestId: string): Promise<WorkflowInstance | null> {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from(TABLE)
     .select('*')
     .eq('request_id', requestId)
@@ -65,7 +65,7 @@ export async function updateWorkflowInstance(
   if (patch.status !== undefined) dbPatch.status = patch.status;
   if (patch.variables !== undefined) dbPatch.variables = patch.variables;
 
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from(TABLE)
     .update(dbPatch)
     .eq('id', id)

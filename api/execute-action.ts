@@ -1,10 +1,10 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getSupabaseAdmin } from './_supabase-admin.js';
+import { getDbAdmin } from './_db-admin.js';
 import type { NeonCompatibleClient } from '../src/lib/neon-compatible-client.js';
 
-const supabase = new Proxy({} as NeonCompatibleClient, {
+const db = new Proxy({} as NeonCompatibleClient, {
   get(_target, property: string | symbol) {
-    const target = getSupabaseAdmin() as unknown as Record<PropertyKey, unknown>;
+    const target = getDbAdmin() as unknown as Record<PropertyKey, unknown>;
     const value = target[property];
     return typeof value === 'function' ? value.bind(target) : value;
   },
@@ -69,7 +69,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const detail = buildReadBack(actionType, actionParams ?? {});
 
   // Write to audit_entries
-  await supabase.from('audit_entries').insert({
+  await db.from('audit_entries').insert({
     type: 'ai',
     action: actionType,
     object_type: 'assistant',

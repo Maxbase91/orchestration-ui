@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getSupabaseAdmin, requireAdminSecret } from '../_supabase-admin.js';
+import { getDbAdmin, requireAdminSecret } from '../_db-admin.js';
 import { deriveComplianceBackfill } from '../../src/lib/procurement/compliance-backfill.js';
 
 type DbRow = Record<string, unknown>;
@@ -14,7 +14,7 @@ async function upsert(table: string, rows: DbRow[], conflict?: string): Promise<
   if (rows.length === 0) return 0;
   let total = 0;
   for (const batch of chunks(rows)) {
-    const q = getSupabaseAdmin().from(table).upsert(batch, conflict ? { onConflict: conflict } : undefined);
+    const q = getDbAdmin().from(table).upsert(batch, conflict ? { onConflict: conflict } : undefined);
     const { error } = await q;
     if (error) throw new Error(`${table}: ${error.message}`);
     // The head query intentionally avoids transferring rows; batch size is a
@@ -95,7 +95,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       import('../../src/lib/db/mappers.js'),
     ]);
 
-    // Merge the extras in. Supabase upserts by id, so re-runs are
+    // Merge the extras in. The upsert is keyed by id, so re-runs are
     // idempotent.
     const requestsUnbackfilled = [...requests, ...extraRequests];
     // Fill in the front-door determination fields (inherentRiskTier,

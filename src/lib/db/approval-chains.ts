@@ -2,7 +2,7 @@
 // sequences and their value thresholds). Components read through the
 // use-approval-chains hooks; this module owns the snake_case <-> camelCase
 // row mapping.
-import { supabase } from '@/lib/supabase-client';
+import { db } from '@/lib/db-client';
 
 export interface ApprovalChainStep {
   id: string;
@@ -49,13 +49,13 @@ function mapChainToDb(chain: ApprovalChain): Record<string, unknown> {
 }
 
 export async function listApprovalChains(): Promise<ApprovalChain[]> {
-  const { data, error } = await supabase.from(TABLE).select('*').order('id');
+  const { data, error } = await db.from(TABLE).select('*').order('id');
   if (error) throw error;
   return (data ?? []).map(mapDbToChain);
 }
 
 export async function upsertApprovalChain(chain: ApprovalChain): Promise<ApprovalChain> {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from(TABLE)
     .upsert(mapChainToDb(chain), { onConflict: 'id' })
     .select('*')
@@ -65,6 +65,6 @@ export async function upsertApprovalChain(chain: ApprovalChain): Promise<Approva
 }
 
 export async function deleteApprovalChain(id: string): Promise<void> {
-  const { error } = await supabase.from(TABLE).delete().eq('id', id);
+  const { error } = await db.from(TABLE).delete().eq('id', id);
   if (error) throw error;
 }

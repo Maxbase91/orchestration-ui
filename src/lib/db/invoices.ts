@@ -1,26 +1,26 @@
 // CRUD for the `invoices` table. Components read through the use-invoices
 // hooks; row mapping is shared via ./mappers. Lists newest-first by invoice
 // date.
-import { supabase } from '@/lib/supabase-client';
+import { db } from '@/lib/db-client';
 import type { Invoice } from '@/data/types';
 import { mapDbToInvoice, mapInvoiceToDb } from './mappers';
 
 const TABLE = 'invoices';
 
 export async function listInvoices(): Promise<Invoice[]> {
-  const { data, error } = await supabase.from(TABLE).select('*').order('invoice_date', { ascending: false });
+  const { data, error } = await db.from(TABLE).select('*').order('invoice_date', { ascending: false });
   if (error) throw error;
   return (data ?? []).map(mapDbToInvoice);
 }
 
 export async function getInvoice(id: string): Promise<Invoice | null> {
-  const { data, error } = await supabase.from(TABLE).select('*').eq('id', id).maybeSingle();
+  const { data, error } = await db.from(TABLE).select('*').eq('id', id).maybeSingle();
   if (error) throw error;
   return data ? mapDbToInvoice(data) : null;
 }
 
 export async function createInvoice(record: Invoice): Promise<Invoice> {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from(TABLE)
     .insert(mapInvoiceToDb(record))
     .select('*')
@@ -30,7 +30,7 @@ export async function createInvoice(record: Invoice): Promise<Invoice> {
 }
 
 export async function updateInvoice(id: string, patch: Partial<Invoice>): Promise<Invoice> {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from(TABLE)
     .update(mapInvoiceToDb(patch))
     .eq('id', id)
@@ -41,6 +41,6 @@ export async function updateInvoice(id: string, patch: Partial<Invoice>): Promis
 }
 
 export async function deleteInvoice(id: string): Promise<void> {
-  const { error } = await supabase.from(TABLE).delete().eq('id', id);
+  const { error } = await db.from(TABLE).delete().eq('id', id);
   if (error) throw error;
 }

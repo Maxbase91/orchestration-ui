@@ -6,7 +6,7 @@
 // exactly as it did before it existed. A row overrides only what an admin
 // actually changed.
 
-import { supabase } from '@/lib/supabase-client';
+import { db } from '@/lib/db-client';
 import type { ServiceDescriptionTemplate } from '@/lib/procurement/service-description-config';
 import { DEFAULT_TEMPLATE } from '@/lib/procurement/service-description-defaults';
 
@@ -63,7 +63,7 @@ function mapToDb(t: ServiceDescriptionTemplate): Record<string, unknown> {
 }
 
 export async function listServiceDescriptionTemplates(): Promise<ServiceDescriptionTemplate[]> {
-  const { data, error } = await supabase.from(TABLE).select('*').order('category');
+  const { data, error } = await db.from(TABLE).select('*').order('category');
   if (error) throw error;
   return (data ?? []).map((r) => mapRow(r as Record<string, unknown>));
 }
@@ -75,7 +75,7 @@ export async function listServiceDescriptionTemplates(): Promise<ServiceDescript
 export async function resolveServiceDescriptionTemplate(
   category: string | undefined,
 ): Promise<ServiceDescriptionTemplate> {
-  const { data } = await supabase
+  const { data } = await db
     .from(TABLE)
     .select('*')
     .in('category', [category ?? 'default', 'default'])
@@ -91,7 +91,7 @@ export async function resolveServiceDescriptionTemplate(
 export async function saveServiceDescriptionTemplate(
   template: ServiceDescriptionTemplate,
 ): Promise<ServiceDescriptionTemplate> {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from(TABLE)
     .upsert(mapToDb(template), { onConflict: 'category' })
     .select('*')
@@ -101,6 +101,6 @@ export async function saveServiceDescriptionTemplate(
 }
 
 export async function deleteServiceDescriptionTemplate(category: string): Promise<void> {
-  const { error } = await supabase.from(TABLE).delete().eq('category', category);
+  const { error } = await db.from(TABLE).delete().eq('category', category);
   if (error) throw error;
 }

@@ -10,7 +10,7 @@
 // Deliberately narrow and offline-tolerant: it asserts the four configuration
 // areas mount and the editor stands in with the built-in template when the
 // stored row cannot be read. That last case is the normal one in a sandbox
-// where Supabase is unreachable, and it is exactly the behaviour the page
+// where the database is unreachable, and it is exactly the behaviour the page
 // promises — resolution falls back to the built-in everywhere else, so the
 // editor must show what would actually run rather than a spinner.
 //
@@ -75,18 +75,18 @@ try {
   }, ADMIN);
   const page = await context.newPage();
 
-  // Network errors are expected and ignored: Supabase is unreachable from the
+  // Network errors are expected and ignored: the database is unreachable from the
   // sandbox. Anything else is a real render fault.
   const pageErrors = [];
   page.on('pageerror', (e) => pageErrors.push(String(e)));
   page.on('console', (m) => {
     if (m.type() !== 'error') return;
     const text = m.text();
-    if (/supabase|Failed to (load resource|fetch)|net::|ERR_TUNNEL/i.test(text)) return;
+    if (/\/api\/db|Failed to (load resource|fetch)|net::|ERR_TUNNEL/i.test(text)) return;
     pageErrors.push(text);
   });
 
-  // domcontentloaded, not networkidle: with Supabase unreachable the network
+  // domcontentloaded, not networkidle: with the database unreachable the network
   // never settles, so a networkidle wait can only ever time out here.
   await page.goto(`${BASE}${ROUTE}`, { waitUntil: 'domcontentloaded' });
   await page.getByText('Service Description', { exact: true }).first().waitFor({ timeout: 20000 });

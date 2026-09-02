@@ -3,7 +3,7 @@
 // (role / slaDays / gate / purpose) so a fresh seed reproduces the same
 // governance rather than nodes with no owner.
 //
-// Workflow templates moved to Supabase in Wave 3
+// Workflow templates moved to the database in Wave 3
 // (UI uses `@/lib/db/hooks/use-workflow-templates`).
 
 import type { WorkflowTemplate } from './types.js';

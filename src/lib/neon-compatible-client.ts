@@ -1,6 +1,10 @@
-// Browser-safe compatibility client for the private Neon migration.
-// It preserves the small Supabase query surface used by existing modules while
-// routing every operation through the allowlisted server endpoint.
+// Browser-safe data client for the private Neon store.
+//
+// The query surface it exposes (`from().select().eq()…`) is the small subset of
+// supabase-js that the data modules were written against. The provider is gone;
+// the shape is kept deliberately, so ~50 modules and ten test suites did not
+// have to be rewritten. Every operation routes through the allowlisted
+// /api/db endpoint — this file holds no credential and issues no SQL.
 
 type Filter = { column: string; operator: string; value: unknown };
 type Order = { column: string; ascending: boolean };
@@ -117,7 +121,7 @@ class NeonQueryBuilder<TData = DbRow[]> implements PromiseLike<CompatibilityResu
   // contained here, rather than pushed onto every call site as they were before.
   //
   // `single()` is typed non-null because the endpoint now errors when nothing
-  // matched, exactly as supabase-js does; `maybeSingle()` keeps the null.
+  // matched, as supabase-js did; `maybeSingle()` keeps the null.
   single(): NeonQueryBuilder<DbRow> {
     this.payload.single = 'one';
     return this as unknown as NeonQueryBuilder<DbRow>;

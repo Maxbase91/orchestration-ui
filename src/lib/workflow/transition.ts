@@ -10,7 +10,7 @@
 // Both callers now go through transitionStage(). The stage_history row is not
 // bookkeeping: it IS the lifecycle as far as the UI is concerned.
 
-import { supabase } from '@/lib/supabase-client';
+import { db } from '@/lib/db-client';
 import { updateRequest } from '@/lib/db/requests';
 import type { ProcurementRequest } from '@/data/types';
 import { resolveStageOwnerRole } from './approver-resolution';
@@ -78,7 +78,7 @@ function resolveStageOwner(
 export async function transitionStage(input: TransitionInput): Promise<void> {
   const { requestId, toStage, action, actor, node, notes } = input;
 
-  const { data: existing } = await supabase
+  const { data: existing } = await db
     .from('requests')
     .select('status, owner_id')
     .eq('id', requestId)
@@ -86,7 +86,7 @@ export async function transitionStage(input: TransitionInput): Promise<void> {
 
   const fromStage = (existing as Record<string, unknown> | null)?.status as string | undefined;
   if (fromStage === toStage) {
-    const { data: open } = await supabase
+    const { data: open } = await db
       .from(STAGE_HISTORY)
       .select('id')
       .eq('request_id', requestId)
@@ -104,7 +104,7 @@ export async function transitionStage(input: TransitionInput): Promise<void> {
   // Nothing to close when the request is being recorded as entering the stage
   // it is already in — that is the first-record case above, not a move.
   if (fromStage && fromStage !== toStage) {
-    await supabase
+    await db
       .from(STAGE_HISTORY)
       .update({ completed_at: nowIso })
       .eq('request_id', requestId)
@@ -122,7 +122,7 @@ export async function transitionStage(input: TransitionInput): Promise<void> {
   const slaDeadline =
     node?.slaDays != null ? addBusinessDays(now, node.slaDays).toISOString() : null;
 
-  await supabase.from(STAGE_HISTORY).insert({
+  await db.from(STAGE_HISTORY).insert({
     request_id: requestId,
     stage: toStage,
     entered_at: nowIso,

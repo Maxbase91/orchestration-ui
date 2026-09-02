@@ -1,5 +1,5 @@
 // Seed data only — not read by the runtime app.
-// Catalogue items moved to Supabase in Wave 3
+// Catalogue items moved to the database in Wave 3
 // (UI uses `@/lib/db/hooks/use-catalogue-items`).
 
 export interface CatalogueItem {

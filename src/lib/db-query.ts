@@ -1,16 +1,16 @@
 // Serverless data helper for the handlers that read with a PostgREST-shaped
 // query string (api/workflow-action, api/seed, api/conversations).
 //
-// It used to keep a whole second implementation behind DATABASE_PROVIDER: a
-// direct Supabase REST call with the anon key. That path is gone with Supabase —
-// keeping it meant this file could take a different route to the data than the
-// rest of the server, which is the drift that made dev and production disagree.
-// The query-string shape is retained because those three handlers are written
-// against it; only the destination changed.
+// It once held a whole second implementation — a direct REST call with an anon
+// key — selected by an environment variable. That is gone: keeping it meant this
+// file could take a different route to the data than the rest of the server,
+// which is the drift that made dev and production disagree. The query-string
+// shape is retained because those three handlers are written against it; only
+// the destination changed, to the same Neon executor everything else uses.
 
 import { executeNeonRequest } from '../../api/db.js';
 
-interface SupabaseQueryOptions {
+interface DbQueryOptions {
   method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
   body?: unknown;
   filters?: string;
@@ -21,9 +21,9 @@ interface SupabaseQueryOptions {
   limit?: number;
 }
 
-export async function supabaseQuery<T = unknown>(
+export async function dbQuery<T = unknown>(
   table: string,
-  options: SupabaseQueryOptions = {},
+  options: DbQueryOptions = {},
 ): Promise<{ data: T | null; error: string | null }> {
   const {
     method = 'GET',

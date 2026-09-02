@@ -1,4 +1,4 @@
-// Admin — knowledge base management. CRUD over the Supabase `knowledge_base`
+// Admin — knowledge base management. CRUD over the `knowledge_base`
 // table; entries here override/supplement the built-in KB and are the first
 // source the AI assistant grounds its answers in.
 
@@ -192,12 +192,12 @@ export function KBAdminPage() {
     <div className="space-y-5">
       <PageHeader
         title="Knowledge Base Management"
-        subtitle="Entries in Supabase override the built-in KB. The AI assistant uses these first."
+        subtitle="Stored entries override the built-in KB. The AI assistant uses these first."
       />
 
       {entries.length === 0 && !loading && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          <strong>Built-in KB active.</strong> No entries in Supabase yet — the assistant is using the hardcoded knowledge base. Add entries here to override or supplement it.
+          <strong>Built-in KB active.</strong> No stored entries yet — the assistant is using the built-in knowledge base. Add entries here to override or supplement it.
         </div>
       )}
 

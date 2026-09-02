@@ -1,7 +1,7 @@
 // Data access for the `procurement_categories` table (the admin-editable
 // category taxonomy used across intake and classification). Lists in admin-
 // defined sort_order so display order is data, not code.
-import { supabase } from '@/lib/supabase-client';
+import { db } from '@/lib/db-client';
 
 export interface ProcurementCategory {
   id: string;
@@ -35,7 +35,7 @@ function mapRow(row: Record<string, unknown>): ProcurementCategory {
 }
 
 export async function listProcurementCategories(): Promise<ProcurementCategory[]> {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from(TABLE)
     .select('*')
     .order('sort_order');
@@ -44,7 +44,7 @@ export async function listProcurementCategories(): Promise<ProcurementCategory[]
 }
 
 export async function upsertProcurementCategory(cat: ProcurementCategory): Promise<ProcurementCategory> {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from(TABLE)
     .upsert({
       id: cat.id,
@@ -63,6 +63,6 @@ export async function upsertProcurementCategory(cat: ProcurementCategory): Promi
 }
 
 export async function deleteProcurementCategory(id: string): Promise<void> {
-  const { error } = await supabase.from(TABLE).delete().eq('id', id);
+  const { error } = await db.from(TABLE).delete().eq('id', id);
   if (error) throw error;
 }

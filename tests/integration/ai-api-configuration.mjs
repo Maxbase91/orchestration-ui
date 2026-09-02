@@ -1,10 +1,17 @@
 #!/usr/bin/env node
 // Verifies that the AI endpoint reports missing server configuration as a
 // controlled 503 response instead of failing during Vercel function loading.
+//
+// The variables removed below are the ones the handler actually gates on:
+// api/ai.ts -> getAgent -> getDbAdmin(), which throws ServerConfigurationError
+// when neither connection variable is set. This used to remove SUPABASE_URL and
+// SUPABASE_SERVICE_ROLE_KEY, which nothing has read since the Neon cutover — so
+// the suite only passed on a machine that happened to have no connection
+// configured, and asserted nothing on one that did.
 
 import { readFileSync } from 'node:fs';
 
-const keys = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'];
+const keys = ['NEON_DATABASE_URL', 'DATABASE_URL'];
 const previous = new Map(keys.map((key) => [key, process.env[key]]));
 for (const key of keys) delete process.env[key];
 

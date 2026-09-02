@@ -13,7 +13,7 @@
 // order, described as routing software over EUR 100k to procurement-led, and
 // carried match_count = 42. It had never matched once.
 //
-// `test:routing` needs Supabase credentials; this suite is self-contained and
+// `test:routing` needs a live connection; this suite is self-contained and
 // mirrors src/lib/routing/evaluate-routing-rules.ts. Keep in sync.
 // Run: npm run test:routing-rule-integrity
 

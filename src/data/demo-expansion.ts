@@ -1,6 +1,6 @@
 // Extra seed rows that fill the live dashboards/KPI widgets. Concatenated
 // into the regular seed arrays by api/admin/seed.ts so re-runs are
-// idempotent (Supabase upserts on id).
+// idempotent (the seed upserts on id).
 //
 // Design goals:
 //   - 20 new requests across 2025-02 → 2026-03, mix of channels and

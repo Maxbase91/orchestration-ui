@@ -27,9 +27,9 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  // Nothing is excluded. `src/lib/supabase.ts` and `src/lib/llm.ts` were, which
-  // is why two `response.json()` bodies were walked as `unknown` for months and
-  // a dead Supabase REST implementation sat in the tree unchecked. Both are
-  // clean now; keep them in.
+  // Nothing is excluded. `src/lib/db-query.ts` (then `src/lib/supabase.ts`) and
+  // `src/lib/llm.ts` were, which is why two `response.json()` bodies were walked
+  // as `unknown` for months and a dead REST implementation sat in the tree
+  // unchecked. Both are clean now; keep them in.
   "include": ["src"]
 }

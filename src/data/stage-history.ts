@@ -1,6 +1,6 @@
 // Seed data only — not read by the runtime app.
 //
-// Stage history moved to Supabase in Wave 1. UI reads via
+// Stage history moved to the database in Wave 1. UI reads via
 // `@/lib/db/hooks/use-stage-history`.
 
 import type { StageHistoryEntry } from './types.js';

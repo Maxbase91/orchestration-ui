@@ -1,26 +1,26 @@
 // Data access for the users directory — the canonical identity table the
 // switchable role personas resolve to (see approver-resolution.ts). Reads flow
 // through use-users.ts hooks.
-import { supabase } from '@/lib/supabase-client';
+import { db } from '@/lib/db-client';
 import type { User } from '@/data/types';
 import { mapDbToUser, mapUserToDb } from './mappers';
 
 const TABLE = 'users';
 
 export async function listUsers(): Promise<User[]> {
-  const { data, error } = await supabase.from(TABLE).select('*').order('name');
+  const { data, error } = await db.from(TABLE).select('*').order('name');
   if (error) throw error;
   return (data ?? []).map(mapDbToUser);
 }
 
 export async function getUser(id: string): Promise<User | null> {
-  const { data, error } = await supabase.from(TABLE).select('*').eq('id', id).maybeSingle();
+  const { data, error } = await db.from(TABLE).select('*').eq('id', id).maybeSingle();
   if (error) throw error;
   return data ? mapDbToUser(data) : null;
 }
 
 export async function createUser(record: User): Promise<User> {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from(TABLE)
     .insert(mapUserToDb(record))
     .select('*')
@@ -30,7 +30,7 @@ export async function createUser(record: User): Promise<User> {
 }
 
 export async function updateUser(id: string, patch: Partial<User>): Promise<User> {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from(TABLE)
     .update(mapUserToDb(patch))
     .eq('id', id)
@@ -41,6 +41,6 @@ export async function updateUser(id: string, patch: Partial<User>): Promise<User
 }
 
 export async function deleteUser(id: string): Promise<void> {
-  const { error } = await supabase.from(TABLE).delete().eq('id', id);
+  const { error } = await db.from(TABLE).delete().eq('id', id);
   if (error) throw error;
 }

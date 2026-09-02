@@ -5,7 +5,7 @@ every task. They override general defaults where they differ.
 
 ## What this is
 A standardised procurement orchestration platform: a **front door** (intake → classify → recommend →
-route) plus an **internal AI assistant**. React SPA + Supabase, building toward the R1 scope captured
+route) plus an **internal AI assistant**. React SPA on a private Neon PostgreSQL store, building toward the R1 scope captured
 in `docs/roadmap/R1_BACKLOG_FIT_GAP.md`. This repo is the **foundation for R1**, not a throwaway prototype.
 
 ---
@@ -28,7 +28,7 @@ calling a live system directly. A live connector can replace the own-store one f
 the ports; do not bypass them.
 
 The browser never holds a database credential: it posts to the allowlisted `/api/db` boundary and
-`src/lib/supabase-client.ts` is the one client. **Do not reintroduce a second data path.** Dev and
+`src/lib/db-client.ts` is the one client. **Do not reintroduce a second data path.** Dev and
 production ran different clients once, so nothing tested what production executed, and three defects
 reached users that no local check could reproduce.
 
@@ -78,9 +78,10 @@ A change is not done until **all** of these hold (state explicitly if you delibe
 ## Tech stack
 - **Frontend:** React 19 + Vite 8, TypeScript 6 (strict; `noUnusedLocals`/`noUnusedParameters`),
   React Router 7, Tailwind 4, shadcn/ui, Zustand 5, TanStack Query 5, React Hook Form 7 + Zod 4.
-- **Backend:** private **Neon** PostgreSQL — schema in `supabase/schema.sql` (applied to Neon by
-  `supabase/migrations/apply-neon-schema.mjs`); Vercel serverless functions in `api/`, capped at
-  **12** by the Hobby plan and guarded by `test:vercel-functions`. Supabase is decommissioned.
+- **Backend:** private **Neon** PostgreSQL — schema in `db/schema.sql` (applied to Neon by
+  `db/migrations/apply-neon-schema.mjs`); Vercel serverless functions in `api/`, capped at
+  **12** by the Hobby plan and guarded by `test:vercel-functions`. There is one database and no
+  provider switch.
 - **AI:** assistant via `api/chat.ts` using **Groq + Gemini** (the governed providers — free tier,
   already connected). **Model selection is governed (CLS-G0):** keep Groq + Gemini; do **not**
   add a paid provider (e.g. Claude) or any new model provider without explicit approval.
@@ -93,7 +94,7 @@ npm run lint           # eslint .
 npx tsc -b             # typecheck only (fast DoD gate)
 npm run test:<suite>   # integration tests — see package.json "test:*"
 ```
-Env vars are documented in `.env.example` (Supabase + AI provider keys). Never commit secrets or log
+Env vars are documented in `.env.example` (the Neon connection + AI provider keys). Never commit secrets or log
 tokens/PII; sensitive output (e.g. banking/payment fields) is masked by default and shown only to
 entitled roles.
 

@@ -13,8 +13,9 @@ This document covers the Vercel serverless API endpoints, the AI tool call contr
 ## Serverless Endpoints
 
 Public endpoints remain under `/api/`. The twelve-function Hobby deployment budget is enforced by
-keeping low-volume domain handlers in `src/server/api/` and routing them through the explicit
-allowlisted `api/[...route].ts` dispatcher; this does not change any browser URL.
+keeping low-volume domain handlers in `src/server/api/` and routing them through `api/db.ts`: each has
+a `vercel.json` rewrite to `/api/db?domain=<name>`, and `api/db.ts` dispatches on that allowlisted
+name. This does not change any browser URL. `test:vercel-functions` guards the cap.
 
 | Handler / public path | Method | Purpose |
 |------|--------|---------|
@@ -34,8 +35,13 @@ allowlisted `api/[...route].ts` dispatcher; this does not change any browser URL
 | `api/conversations.ts` | GET/POST | AI conversation history CRUD |
 | `api/seed.ts` | POST | Seed demo data (dev only) |
 | `api/admin/seed.ts` | POST | Admin seed data |
+| `api/db.ts` | POST | The one data boundary the browser reaches: allowlisted relations and functions, column-typed parameters, and the `?domain=` dispatcher for the `src/server/api/` handlers above |
+| `api/generate-sow.ts` | POST | Generate the statement-of-work narrative from the structured service description |
 | `api/_llm.ts` | — | Shared Groq/Gemini LLM helpers (not a route) |
-| `api/_supabase-admin.ts` | — | Compatibility admin adapter; Neon is active, Supabase is rollback-only (not a route) |
+| `api/_db-admin.ts` | — | Privileged server-side data client over the private Neon connection (not a route) |
+| `api/_neon.ts` | — | Neon connection factory and connection-string normalisation (not a route) |
+| `api/_ai-agents.ts` | — | Reads admin-configured AI agent records, memoised per cold start (not a route) |
+| `api/_sd-template.ts` | — | Shared service-description template loading (not a route) |
 
 ---
 
@@ -119,9 +125,7 @@ FR14-21 · All other integrations remain simulated with real adapter shapes for 
 
 | Variable | Purpose |
 |----------|---------|
-| `NEON_DATABASE_URL` | Private Neon connection string (server-only, active R1 provider) |
-| `NEON_DATABASE_URL` | The private Neon connection. There is no provider switch; Supabase is decommissioned |
-| `SUPABASE_URL` / `SUPABASE_ANON_KEY` | Legacy rollback variables only |
+| `NEON_DATABASE_URL` | The private Neon connection (server-only). The one database variable; there is no provider switch |
 | `GROQ_API_KEY` | Groq LLM API key |
 | `GEMINI_API_KEY` | Gemini fallback API key |
 | `VITE_ASSISTANT_PROVIDER` | `mock` or `groq` (client-side) |

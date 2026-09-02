@@ -136,4 +136,4 @@ a stage that will not appear.
     npm run test:onboarding-stage  # the two onboarding gates and the award routing
     npm run test:workflow-steps  # the template-derived lifecycle preview
     npm run test:approval-chain-persistence # selected chain foreign-key persistence
-    npm run test:e2e             # request → approval, end to end (needs Supabase creds)
+    npm run test:e2e             # request → approval, end to end (needs NEON_DATABASE_URL)

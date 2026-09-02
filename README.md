@@ -217,7 +217,7 @@ npm run test:interactions-ui      # interaction E2E — wizard submit, admin sav
 npm run test:home-designs         # alternative home designs (1a/1b/1c) are fully functional + dashboard intact
 npm run test:link-route-integrity # static deep-link contract for active request/dashboard destinations
 npm run test:link-navigation      # deployed role-aware link navigation and requester read-only details
-npm run test:neon-migration       # Neon migration guardrails; live copy requires explicit credentials
+npm run test:neon-migration       # one data path, one client, and no Supabase identifier in src/, api/ or tests/
 npm run test:neon-live            # read-only Neon schema, relationship, and catalogue-governance validation
 # GET /api/neon-health reports safe configuration, DNS, TLS, authentication, connection, and schema classes.
 # …see package.json "test:*" scripts for the full list
@@ -226,17 +226,15 @@ npm run backfill:compliance       # one-time data migration, NOT a test — fill
                                    # determination fields on application-owned `requests` rows that predate
                                    # them, using the same decisioning logic the live wizard runs.
                                    # Only ever fills nulls; safe to re-run.
-npm run backfill:catalogue-governance # idempotent data repair — creates/renews catalogue supplier
-                                      # contracts and risk assessments and links every catalogue item.
-                                      # Requires the service-role key; never creates requests or orders.
+npm run backfill:intake-compliance # restores the 39 intake_compliance_records rows the cutover's
+                                   # copy list omitted. Every statement is ON CONFLICT DO NOTHING.
 npm run purge:ui-e2e              # remove retained UI-E2E-* lifecycle records (dry run; --apply to delete)
-npm run backfill:neon-catalogue-governance # idempotent Neon-side repair when the source schema
-                                           # predates explicit catalogue contract/risk columns.
+npm run backfill:neon-catalogue-governance # idempotent repair when the migrated data predates the
+                                           # explicit catalogue contract/risk columns.
 ```
 
 `test:ui` uses Playwright. First-time setup: `npm install` then `npx playwright install chromium`.
-It boots the dev server itself and needs `.env.local` with the Neon provider configured (or the
-documented Supabase rollback variables).
+It boots the dev server itself and needs `.env.local` with `NEON_DATABASE_URL` set.
 
 `test:request-detail-ui` is the exception: it stubs the data API inside the browser
 (`tests/ui/db-stub.mjs`) and runs with **no credentials and no network**. Use that harness for
@@ -376,7 +374,6 @@ Full descriptions live in `.env.example`.
 | --- | --- | --- | --- |
 | `VITE_PROCUREMENT_PROFILES_ENABLED` | Browser | No | Defaults to on; set `false` only for a deployment whose schema predates the profile table |
 | `NEON_DATABASE_URL` | Serverless (`api/`) | **Yes** | Private Neon connection string; never expose with `VITE_` |
-| `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | Local only | Only to migrate | Read **from** by `migrate:supabase-to-neon` and the catalogue backfill. Nothing in `src/`, `api/` or `tests/` uses them |
 | `ADMIN_SEED_SECRET` | Serverless (`api/`) | Only for seeding | Shared secret for `api/admin/seed.ts` |
 | `VITE_ASSISTANT_PROVIDER` | Browser | No | `groq` (default) or `mock` for a fully offline assistant |
 | `GROQ_API_KEY` / `GEMINI_API_KEY` | Serverless (`api/`) | For AI classification and assistant | Server-side only, used by `api/ai.ts`, `api/chat.ts`, and `api/chat-intake.ts` |
@@ -394,21 +391,13 @@ it is before any real pilot.
 Two things that reliably break a deploy:
 
 - **`VITE_*` variables are baked in at build time, not read at runtime.** Adding or changing one has
-  no effect until you trigger a *new build* — a redeploy from cache keeps the old values. Because
-  `src/lib/supabase-client.ts` throws on module load when they are missing, a build without them
-  ships a bundle that white-screens on first paint.
-- **Use the legacy anon JWT (`eyJhbGciOi…`), not a `sb_publishable_…` key.** The REST helper in
-  `src/lib/supabase.ts` sends the key as `Authorization: Bearer <key>`, which PostgREST rejects
-  unless it is a JWT.
-
-If the Supabase project was provisioned through the Vercel integration, it injects `SUPABASE_URL`
-and `SUPABASE_ANON_KEY` automatically but **not** the `VITE_`-prefixed pair — add those by hand.
-`SUPABASE_SERVICE_ROLE_KEY` is also not injected automatically; configure it in the **Production**
-environment before deploying AI-agent-dependent functions. If it is absent, `/api/ai` now responds
-with a controlled `503 { code: "service_unavailable" }` rather than crashing the function.
-
-> Supabase free-tier projects pause after a period of inactivity, which surfaces in the app as
-> connection timeouts. Restore the project from the Supabase dashboard to bring it back.
+  no effect until you trigger a *new build* — a redeploy from cache keeps the old values.
+- **`NEON_DATABASE_URL` must be set for every environment the deployment runs in**, not just
+  Production. Preview deployments get their own environment; a preview without it serves a UI whose
+  every read fails. Server handlers construct the privileged client lazily
+  (`getDbAdmin()` in `api/_db-admin.ts`) so a missing connection returns a controlled
+  `503 { code: "service_unavailable" }` rather than crashing the function at module load — but the
+  screen is still empty. The `/api/neon-health` route distinguishes a DNS failure from a schema one.
 
 ---
 

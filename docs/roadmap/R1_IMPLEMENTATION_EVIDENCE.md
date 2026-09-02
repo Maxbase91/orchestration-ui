@@ -44,7 +44,7 @@ production authorization.
 |---|---|---|
 | Workflow runtime | Template fallback and several multi-write transitions remain; not every admin node is a fully enforced runtime action. Governed checkout itself is atomic. | Make server-side template execution and transactional transitions the single path. |
 | Connector coverage | `risk-screening`, `category-taxonomy`, and `form-submission` lack own-store ports; some server consumers use the compatibility adapter directly. | Add ports and route all consumers through them. |
-| Assistant and AI governance | Some server paths retain Supabase-shaped access and provider failures can degrade to mock behaviour. | Add explicit Neon repositories, visible fallback state, masking, and metrics. |
+| Assistant and AI governance | Some server paths read the own store with raw SQL rather than through the connector ports, and provider failures can degrade to mock behaviour. | Add explicit Neon repositories, visible fallback state, masking, and metrics. |
 | Supplier/contract lifecycle | Obligations, documents, Q&A and some supplier activity/spend panels are simulated or shallow. | Persist the missing records and expose provenance. |
 | P2P | Receipt, invoice, matching and payment screens are internally modelled but lack full operational depth and upstream execution. | Add tolerance/configuration depth, exception handling and internal reconciliation. |
 | Analytics | Dashboards are live for current internal data, but scheduled reporting and PDF/Excel exports remain incomplete. | Finish export jobs or label them clearly as deferred. |

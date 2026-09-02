@@ -1,5 +1,5 @@
 // Seed data only — not read by the runtime app.
-// AI agents moved to Supabase in Wave 3 (UI uses `@/lib/db/hooks/use-ai-agents`).
+// AI agents moved to the database in Wave 3 (UI uses `@/lib/db/hooks/use-ai-agents`).
 
 import type { AIAgent } from './types.js';
 

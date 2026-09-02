@@ -6,7 +6,7 @@
 // runtime/render failure that `tsc -b` and `npm run build` cannot catch.
 // Also fails on any uncaught page error or console error during the flow.
 //
-// Run: npm run test:ui   (requires .env.local with Supabase creds)
+// Run: npm run test:ui   (requires .env.local with NEON_DATABASE_URL)
 
 import { spawn } from 'node:child_process';
 import { chromium } from 'playwright';
