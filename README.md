@@ -219,6 +219,8 @@ npm run test:link-route-integrity # static deep-link contract for active request
 npm run test:link-navigation      # deployed role-aware link navigation and requester read-only details
 npm run test:neon-migration       # one data path, one client, and no Supabase identifier in src/, api/ or tests/
 npm run test:neon-live            # read-only Neon schema, relationship, and catalogue-governance validation
+npm run test:sql-splitter         # a backfill splits on real statement boundaries — a `;` or `--` inside a
+                                  # quoted string is data, not a boundary
 # GET /api/neon-health reports safe configuration, DNS, TLS, authentication, connection, and schema classes.
 # …see package.json "test:*" scripts for the full list
 

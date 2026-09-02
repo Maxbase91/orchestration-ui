@@ -76,6 +76,15 @@ guarded — a backfill that skipped would write nothing and report it only in an
 same dishonesty as recording a check that never ran. `test:neon-migration` fails if a script under
 `db/` reaches for the suites' skip helper.
 
+A repair is also split on **real** statement boundaries. The Neon HTTP driver has no multi-statement
+mode, so `db/backfills/apply-sql.mjs` sends one statement at a time — and a `;` or `--` inside a
+quoted string is data, not a boundary. `npm run test:sql-splitter` runs offline and pins both halves:
+a naive split cut three JSON payloads containing "exceeds standard threshold; VP approval required"
+in half, which PostgreSQL rejected as `42601 unterminated quoted string`, and a naive comment strip
+would have deleted a `--` line out of the middle of a literal — writing wrong data rather than
+raising. It asserts against the committed backfill, not a fixture: 39 statements, all `INSERT`, all
+quotes balanced.
+
 Run `npm run test:neon-migration` before any live copy. It verifies the dependency, environment
 contract, the schema-apply script, API relation/function allowlists, and ADR. It also fails if any
 `Supabase` identifier reappears in `src/`, `api/` or `tests/` — comments are stripped before the scan,

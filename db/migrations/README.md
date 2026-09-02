@@ -29,3 +29,8 @@ should skip; a data repair someone typed on purpose must not write nothing and c
 connection is read from `NEON_DATABASE_URL` (or `DATABASE_URL`) in the environment, or from
 `.env.local` **in the repository root** — the only `.env.local` these scripts look at, so run
 `npx vercel env pull .env.local` from the repository root rather than from your home directory.
+
+A `.sql` repair goes through `apply-sql.mjs`, which splits it with quote and comment awareness
+(`split-sql.mjs`): the Neon HTTP driver takes one statement at a time, and a `;` or `--` inside a
+quoted string is data rather than a boundary. So write text freely — a semicolon in a JSON payload
+does not need escaping or reformatting. `npm run test:sql-splitter` pins this.

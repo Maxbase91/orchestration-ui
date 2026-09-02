@@ -81,6 +81,7 @@
     "migrate:neon-schema": "node db/migrations/apply-neon-schema.mjs",
     "test:neon-migration": "node tests/integration/neon-migration.mjs",
     "test:table-lists": "node tests/integration/table-lists.mjs",
+    "test:sql-splitter": "node tests/integration/sql-splitter.mjs",
     "test:neon-live": "node tests/integration/neon-live-validation.mjs",
     "test:e2e-ui": "node tests/ui/app-e2e.mjs",
     "test:ui-full": "node tests/ui/full-role-submission-e2e.mjs",

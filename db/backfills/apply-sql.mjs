@@ -11,6 +11,7 @@
 import { readFileSync } from 'node:fs';
 import { neon } from '@neondatabase/serverless';
 import { requireConnectionOrFail } from '../../tests/lib/live.mjs';
+import { splitStatements } from './split-sql.mjs';
 
 const file = process.argv[2];
 if (!file) {
@@ -21,15 +22,11 @@ if (!file) {
 const connectionString = requireConnectionOrFail(`apply-sql ${file}`);
 const sql = neon(connectionString, { fetchOptions: { signal: AbortSignal.timeout(60000) } });
 
-// Strip comments and the BEGIN/COMMIT wrapper: the driver manages the
-// transaction itself via sql.transaction(), and a bare BEGIN would be rejected.
-const statements = readFileSync(file, 'utf8')
-  .split('\n')
-  .filter((line) => !line.trimStart().startsWith('--'))
-  .join('\n')
-  .split(';')
-  .map((statement) => statement.trim())
-  .filter((statement) => statement && !/^(BEGIN|COMMIT)$/i.test(statement));
+// Comments and the BEGIN/COMMIT wrapper are stripped by the splitter, which
+// makes both decisions knowing whether it is inside a quoted string. The driver
+// manages the transaction itself via sql.transaction(); a bare BEGIN would be
+// rejected.
+const statements = splitStatements(readFileSync(file, 'utf8'));
 
 if (statements.length === 0) {
   console.log('Nothing to apply.');
