@@ -16,13 +16,13 @@
 //   node db/backfills/purge-ui-e2e-records.mjs --older-than 7  # keep the last week
 
 import { neon } from '@neondatabase/serverless';
-import { requireConnection } from '../../tests/lib/live.mjs';
+import { requireConnectionOrFail } from '../../tests/lib/live.mjs';
 
 const apply = process.argv.includes('--apply');
 const olderThanIndex = process.argv.indexOf('--older-than');
 const olderThanDays = olderThanIndex === -1 ? 0 : Number(process.argv[olderThanIndex + 1]);
 
-const connectionString = requireConnection('purge-ui-e2e-records');
+const connectionString = requireConnectionOrFail('purge-ui-e2e-records');
 const sql = neon(connectionString, { fetchOptions: { signal: AbortSignal.timeout(30000) } });
 
 const PREFIX = 'UI-E2E-%';

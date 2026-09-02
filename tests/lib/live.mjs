@@ -57,6 +57,39 @@ export function requireConnection(suite) {
   return connectionString;
 }
 
+/**
+ * The connection for an operation a person invoked on purpose — a backfill, a
+ * purge — which must never skip.
+ *
+ * `requireConnection` above is right for a suite: no database, no assertions,
+ * skip. It is wrong for a data repair. A backfill that prints `SKIPPED` and
+ * exits 3 has written nothing, and the only signal saying so is an exit code
+ * nobody reads — so the operator concludes it ran. Same shape as recording a
+ * check that never happened.
+ *
+ * The message names both accepted variables and where the file has to sit,
+ * because `loadEnv` reads `.env.local` from the repository root only: a
+ * `vercel env pull` run from the home directory leaves it somewhere this never
+ * looks.
+ */
+export function requireConnectionOrFail(operation) {
+  const env = loadEnv();
+  const connectionString = env.NEON_DATABASE_URL ?? env.DATABASE_URL;
+  if (!connectionString) {
+    console.error(`FAILED: ${operation} needs a database connection and found none.
+
+  Set NEON_DATABASE_URL (or DATABASE_URL) in the environment, or put it in
+  .env.local in the repository root — that is the only .env.local this reads.
+
+    npx vercel env pull .env.local     # run from the repository root
+
+  Nothing was written.`);
+    process.exit(1);
+  }
+  process.env.NEON_DATABASE_URL = connectionString;
+  return connectionString;
+}
+
 /** Skip when the database is unreachable; rethrow anything that is a real failure. */
 export function skipIfUnreachable(suite, error) {
   const message = error instanceof Error ? error.message : String(error);

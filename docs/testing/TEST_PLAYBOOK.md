@@ -70,6 +70,12 @@ they are recorded as unavailable rather than treated as application passes.
 
 ## Suite NEON — database migration and cutover
 
+A **suite** without a database skips (exit 3, or a failure under `REQUIRE_LIVE=1`). A **data repair**
+under `db/` does the opposite: it exits 1 and names what to set. The distinction is deliberate and
+guarded — a backfill that skipped would write nothing and report it only in an exit code, which is the
+same dishonesty as recording a check that never ran. `test:neon-migration` fails if a script under
+`db/` reaches for the suites' skip helper.
+
 Run `npm run test:neon-migration` before any live copy. It verifies the dependency, environment
 contract, the schema-apply script, API relation/function allowlists, and ADR. It also fails if any
 `Supabase` identifier reappears in `src/`, `api/` or `tests/` — comments are stripped before the scan,

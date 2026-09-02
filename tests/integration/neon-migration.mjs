@@ -51,6 +51,20 @@ function* walk(dir) {
 }
 
 const repoRoot = fileURLToPath(new URL('../../', import.meta.url)).replace(/\/$/, '');
+
+// ── a skip helper belongs to tests, not to data repairs ────────────────────
+//
+// `requireConnection` skips (exit 3) when no connection is configured, which is
+// right for a suite and wrong for a backfill someone typed on purpose: it writes
+// nothing and says so only in an exit code. `requireConnectionOrFail` exits 1
+// with what to set and where. A script under db/ reaching for the skip helper is
+// the regression this pins.
+const skipHelperUsers = [];
+for (const path of walk(`${repoRoot}/db`)) {
+  if (/\brequireConnection\b(?!OrFail)/.test(readFileSync(path, 'utf8'))) {
+    skipHelperUsers.push(path.slice(repoRoot.length + 1));
+  }
+}
 const offenders = [];
 for (const root of SCAN_ROOTS) {
   for (const absolute of walk(`${repoRoot}/${root}`)) {
@@ -90,6 +104,8 @@ const checks = [
   ['ADR documents the migration decision', existsSync(new URL('../../docs/adr/0003-private-neon-database-migration.md', import.meta.url))],
   [`no Supabase identifier remains in src/, api/ or tests/${offenders.length ? ` — ${offenders.join(', ')}` : ''}`,
     offenders.length === 0],
+  [`a data repair fails rather than skips without a connection${skipHelperUsers.length ? ` — ${skipHelperUsers.join(', ')}` : ''}`,
+    skipHelperUsers.length === 0],
 ];
 
 let failures = 0;

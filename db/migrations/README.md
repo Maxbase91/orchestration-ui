@@ -23,3 +23,9 @@ are idempotent repairs that run against Neon alone.
 | `npm run backfill:intake-compliance` | Restores the 39 `intake_compliance_records` rows that the cutover's copy list omitted. Every statement is `ON CONFLICT DO NOTHING`, so it is safe to re-run. |
 | `npm run backfill:neon-catalogue-governance` | Repairs catalogue links where the migrated data predates the governed-checkout columns: creates missing own-store supplier/contract/risk records, then links each existing catalogue item. Never creates requests or orders. |
 | `npm run backfill:compliance` | Fills front-door determination fields on `requests` rows that predate them, using the same decisioning functions the live wizard runs. Only ever fills nulls. |
+
+A repair **fails** when no connection is configured — it does not skip. A test suite with no database
+should skip; a data repair someone typed on purpose must not write nothing and call it a day. The
+connection is read from `NEON_DATABASE_URL` (or `DATABASE_URL`) in the environment, or from
+`.env.local` **in the repository root** — the only `.env.local` these scripts look at, so run
+`npx vercel env pull .env.local` from the repository root rather than from your home directory.

@@ -10,7 +10,7 @@
 
 import { readFileSync } from 'node:fs';
 import { neon } from '@neondatabase/serverless';
-import { requireConnection } from '../../tests/lib/live.mjs';
+import { requireConnectionOrFail } from '../../tests/lib/live.mjs';
 
 const file = process.argv[2];
 if (!file) {
@@ -18,7 +18,7 @@ if (!file) {
   process.exit(2);
 }
 
-const connectionString = requireConnection(`apply-sql ${file}`);
+const connectionString = requireConnectionOrFail(`apply-sql ${file}`);
 const sql = neon(connectionString, { fetchOptions: { signal: AbortSignal.timeout(60000) } });
 
 // Strip comments and the BEGIN/COMMIT wrapper: the driver manages the
