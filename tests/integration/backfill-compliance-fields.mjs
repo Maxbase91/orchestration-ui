@@ -16,11 +16,9 @@
 //   npm run backfill:compliance
 
 import { readFileSync } from 'node:fs';
-import { createClient } from '@supabase/supabase-js';
 import { deriveComplianceBackfill } from '../../src/lib/procurement/compliance-backfill.ts';
 import { suppliers } from '../../src/data/suppliers.ts';
-import { requireLegacySupabase } from '../lib/live.mjs';
-const legacy = requireLegacySupabase('backfill-compliance');
+import { neonClient } from '../lib/live.mjs';
 
 for (const line of readFileSync(new URL('../../.env.local', import.meta.url), 'utf8').split('\n')) {
   const match = line.match(/^([A-Z_][A-Z0-9_]*)=(.*)$/);
@@ -29,11 +27,7 @@ for (const line of readFileSync(new URL('../../.env.local', import.meta.url), 'u
   }
 }
 
-const url = legacy.url;
-const serviceRoleKey = legacy.key;
-if (!url || !serviceRoleKey) throw new Error('Missing Supabase service-role configuration in .env.local.');
-
-const sb = createClient(url, serviceRoleKey, { auth: { persistSession: false } });
+const sb = await neonClient('backfill-compliance');
 const suppliersById = new Map(suppliers.map((s) => [s.id, s]));
 
 const { data: rows, error: selectError } = await sb

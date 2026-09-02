@@ -17,32 +17,13 @@
 // reported gap, not a suite failure — it flags what Codex should review.
 
 import { readFileSync } from 'node:fs';
-import { createClient } from '@supabase/supabase-js';
-import { requireLegacySupabase } from '../lib/live.mjs';
-const legacy = requireLegacySupabase('e2e');
+import { neonClient } from '../lib/live.mjs';
 
 // ── env ────────────────────────────────────────────────────────────
-function loadEnv() {
-  const raw = readFileSync(new URL('../../.env.local', import.meta.url), 'utf8');
-  for (const line of raw.split('\n')) {
-    const m = line.match(/^([A-Z_][A-Z0-9_]*)=(.*)$/);
-    if (m && !process.env[m[1]]) process.env[m[1]] = m[2];
-  }
-}
-loadEnv();
 
-const SUPABASE_URL = legacy.url;
-const SERVICE_KEY = legacy.key;
 const API_BASE = process.env.E2E_API_BASE ?? 'https://orchestration-ui.vercel.app';
 
-if (!SUPABASE_URL || !SERVICE_KEY) {
-  console.error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in .env.local');
-  process.exit(2);
-}
-
-const sb = createClient(SUPABASE_URL, SERVICE_KEY, {
-  auth: { persistSession: false },
-});
+const sb = await neonClient('e2e');
 
 // ── result collector ───────────────────────────────────────────────
 const results = [];

@@ -376,7 +376,7 @@ Full descriptions live in `.env.example`.
 | --- | --- | --- | --- |
 | `VITE_PROCUREMENT_PROFILES_ENABLED` | Browser | No | Defaults to on; set `false` only for a deployment whose schema predates the profile table |
 | `NEON_DATABASE_URL` | Serverless (`api/`) | **Yes** | Private Neon connection string; never expose with `VITE_` |
-| `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | Local only | No | Used by the ten legacy integration suites still targeting Supabase; the application does not read them |
+| `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | Local only | Only to migrate | Read **from** by `migrate:supabase-to-neon` and the catalogue backfill. Nothing in `src/`, `api/` or `tests/` uses them |
 | `ADMIN_SEED_SECRET` | Serverless (`api/`) | Only for seeding | Shared secret for `api/admin/seed.ts` |
 | `VITE_ASSISTANT_PROVIDER` | Browser | No | `groq` (default) or `mock` for a fully offline assistant |
 | `GROQ_API_KEY` / `GEMINI_API_KEY` | Serverless (`api/`) | For AI classification and assistant | Server-side only, used by `api/ai.ts`, `api/chat.ts`, and `api/chat-intake.ts` |

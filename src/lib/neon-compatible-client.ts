@@ -78,6 +78,7 @@ class NeonQueryBuilder<TData = DbRow[]> implements PromiseLike<CompatibilityResu
   gte(column: string, value: unknown): this { return this.addFilter(column, 'gte', value); }
   lt(column: string, value: unknown): this { return this.addFilter(column, 'lt', value); }
   lte(column: string, value: unknown): this { return this.addFilter(column, 'lte', value); }
+  like(column: string, value: unknown): this { return this.addFilter(column, 'like', value); }
   ilike(column: string, value: unknown): this { return this.addFilter(column, 'ilike', value); }
   is(column: string, value: unknown): this { return this.addFilter(column, 'is', value); }
   in(column: string, value: unknown[]): this { return this.addFilter(column, 'in', value); }

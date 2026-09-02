@@ -11,24 +11,9 @@
 // Run: node tests/integration/lifecycle-consistency.mjs
 
 import { readFileSync } from 'node:fs';
-import { createClient } from '@supabase/supabase-js';
-import { requireLegacySupabase } from '../lib/live.mjs';
-const legacy = requireLegacySupabase('lifecycle-consistency');
+import { neonClient } from '../lib/live.mjs';
 
-function loadEnv() {
-  const raw = readFileSync(new URL('../../.env.local', import.meta.url), 'utf8');
-  for (const line of raw.split('\n')) {
-    const m = line.match(/^([A-Z_][A-Z0-9_]*)=(.*)$/);
-    if (m && !process.env[m[1]]) process.env[m[1]] = m[2];
-  }
-}
-loadEnv();
-
-const sb = createClient(
-  legacy.url,
-  legacy.key,
-  { auth: { persistSession: false } },
-);
+const sb = await neonClient('lifecycle-consistency');
 
 const SKIP = {
   'catalogue':          new Set(['validation', 'sourcing', 'contracting']),

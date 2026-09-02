@@ -24,9 +24,13 @@ Keeping both paths was itself the defect: `import.meta.env.PROD` chose Neon in p
 Supabase in dev, so no test exercised the client that production ran. Three defects reached users
 through that gap. One client, one code path.
 
-Two things this update does **not** change: `/api/db` still has no authentication (an unfiltered
-DELETE or UPDATE is now refused, which bounds the damage but is not authorization), and ten
-integration suites still target Supabase and are skipped rather than migrated.
+The ten integration suites that built their own Supabase client now use a Neon-backed one with the
+same query surface (`neonClient()` in `tests/lib/live.mjs`), so ~1,800 lines of behaviour assert
+against the system of record instead of skipping. `@supabase/supabase-js` remains only because the
+migration script reads *from* Supabase.
+
+One thing this update does **not** change: `/api/db` still has no authentication. An unfiltered
+DELETE or UPDATE is refused, which bounds the damage, but that is not authorization.
 
 ## Consequences
 

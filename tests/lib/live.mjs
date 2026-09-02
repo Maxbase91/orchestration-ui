@@ -9,6 +9,10 @@
 // A skip now exits SKIP_EXIT_CODE, which the aggregate runner counts separately
 // from a pass, and REQUIRE_LIVE=1 turns a skip into a failure so a pipeline that
 // is supposed to have a database says so when it doesn't.
+//
+// `neonClient` below is the other half: the suites that used to build their own
+// Supabase client now get a Neon-backed one with the same query surface, so they
+// assert against the system of record instead of skipping forever.
 
 import { readFileSync } from 'node:fs';
 
@@ -61,19 +65,39 @@ export function skipIfUnreachable(suite, error) {
 }
 
 /**
- * Guard for the suites that still create their own Supabase client.
+ * Merge .env.local into process.env, as each suite's own `loadEnv` used to.
  *
- * Supabase was replaced by Neon; these suites assert against a database that is
- * no longer the system of record, and they crashed on a missing key rather than
- * skipping — ten hard failures in every run without credentials. They skip with
- * a reason that names the real work: each needs rewriting against Neon.
+ * Kept because a few suites read unrelated variables (`E2E_API_BASE`) straight
+ * off process.env, and dropping this would silently change which deployment
+ * they talk to.
  */
-export function requireLegacySupabase(suite) {
+export function hydrateEnv() {
   const env = loadEnv();
-  const url = env.SUPABASE_URL ?? env.VITE_SUPABASE_URL;
-  const key = env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) {
-    skipLive(suite, 'still targets Supabase, which Neon replaced — needs migrating to the Neon store');
+  for (const [key, value] of Object.entries(env)) {
+    if (!(key in process.env)) process.env[key] = value;
   }
-  return { url, key };
+  return env;
+}
+
+/**
+ * A Neon-backed client with the supabase-js query surface.
+ *
+ * Ten integration suites built their own Supabase client and asserted against a
+ * database that is no longer the system of record, so they skipped on every run
+ * — roughly 1,800 lines of behaviour outside the gate. Every query method they
+ * use (from/select/eq/single/filter/update/limit/insert/delete/order/in/
+ * maybeSingle/neq/is/like) is implemented by the compatibility client, so the
+ * bodies needed no changes: only the construction did.
+ *
+ * The executor runs in-process rather than posting to /api/db, the same wiring
+ * `api/_supabase-admin.ts` uses for server handlers, so a test does not need a
+ * running deployment. Imports are dynamic because they cross into TypeScript —
+ * these suites run under `node --import tsx/esm`.
+ */
+export async function neonClient(suite) {
+  hydrateEnv();
+  requireConnection(suite);
+  const { executeNeonRequest } = await import('../../api/db.ts');
+  const { NeonCompatibleClient } = await import('../../src/lib/neon-compatible-client.ts');
+  return new NeonCompatibleClient(executeNeonRequest);
 }

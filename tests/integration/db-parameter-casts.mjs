@@ -80,6 +80,21 @@ check('a column the schema does not know gets no cast',
 // it would be attached to nothing.
 check('null needs no cast', castForColumn(null, 'col', types('col', 'date')) === '');
 
+console.log('\nThe operators the suites actually use are implemented');
+// `like` was on neither the client nor the endpoint — only `ilike` — while three
+// cleanup deletes in the migrated suites use it. A missing operator throws at the
+// endpoint rather than silently widening, but the suite still fails.
+const OPERATORS = ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'like', 'ilike', 'is', 'in', 'cs'];
+const ENDPOINT = readFileSync(new URL('api/db.ts', ROOT), 'utf8');
+const CLIENT = readFileSync(new URL('src/lib/neon-compatible-client.ts', ROOT), 'utf8');
+for (const op of OPERATORS) {
+  check(`${op} is handled by the endpoint`, ENDPOINT.includes(`case '${op}':`));
+}
+// The client exposes the named ones as methods; `filter()` covers the rest.
+for (const op of ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'like', 'ilike', 'is', 'in']) {
+  check(`${op} is a client method`, new RegExp(`^\\s+${op}\\(`, 'm').test(CLIENT));
+}
+
 console.log('\nA destructive statement must name what it touches');
 // Blast-radius guard, not authorization: /api/db has no authentication, so an
 // unfiltered DELETE would empty a table for anyone who can reach the

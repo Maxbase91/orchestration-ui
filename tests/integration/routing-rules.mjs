@@ -6,9 +6,7 @@
 // Run: node tests/integration/routing-rules.mjs
 
 import { readFileSync } from 'node:fs';
-import { createClient } from '@supabase/supabase-js';
-import { requireLegacySupabase } from '../lib/live.mjs';
-const legacy = requireLegacySupabase('routing');
+import { neonClient } from '../lib/live.mjs';
 
 // Evaluator mirrors src/lib/routing/evaluate-routing-rules.ts — keep in sync.
 function fieldValue(ctx, field) {
@@ -80,20 +78,7 @@ function resolveRouting(rules, ctx) {
   return { channel: fb.channel, approvalChain: fb.approvalChain, matchedRule: null };
 }
 
-function loadEnv() {
-  const raw = readFileSync(new URL('../../.env.local', import.meta.url), 'utf8');
-  for (const line of raw.split('\n')) {
-    const m = line.match(/^([A-Z_][A-Z0-9_]*)=(.*)$/);
-    if (m && !process.env[m[1]]) process.env[m[1]] = m[2];
-  }
-}
-loadEnv();
-
-const sb = createClient(
-  legacy.url,
-  legacy.key,
-  { auth: { persistSession: false } },
-);
+const sb = await neonClient('routing');
 
 const results = [];
 const pass = (n, d = '') => results.push({ n, o: 'PASS', d });

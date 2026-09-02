@@ -112,6 +112,7 @@ function addFilter(parts: string[], params: unknown[], filter: Filter, types: Ma
     case 'gte': params.push(value); parts.push(`${column} >= $${placeholderOffset + params.length}${cast(value)}`); break;
     case 'lt': params.push(value); parts.push(`${column} < $${placeholderOffset + params.length}${cast(value)}`); break;
     case 'lte': params.push(value); parts.push(`${column} <= $${placeholderOffset + params.length}${cast(value)}`); break;
+    case 'like': params.push(value); parts.push(`${column} LIKE $${placeholderOffset + params.length}${cast(value)}`); break;
     case 'ilike': params.push(value); parts.push(`${column} ILIKE $${placeholderOffset + params.length}${cast(value)}`); break;
     case 'is': parts.push(value === null ? `${column} IS NULL` : `${column} IS NOT NULL`); break;
     case 'cs': {

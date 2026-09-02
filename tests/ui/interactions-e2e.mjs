@@ -8,9 +8,8 @@
 // Run: npm run test:interactions-ui   (requires .env.local with Supabase creds)
 
 import { spawn } from 'node:child_process';
-import { readFileSync } from 'node:fs';
 import { chromium } from 'playwright';
-import { createClient } from '@supabase/supabase-js';
+import { neonClient } from '../lib/live.mjs';
 
 // A deployed base exercises Vercel functions as well as the SPA. Without it,
 // this suite starts Vite for fast UI-only development feedback.
@@ -18,9 +17,9 @@ const BASE = process.env.E2E_UI_BASE ?? 'http://localhost:5173';
 const USE_DEPLOYED_APP = Boolean(process.env.E2E_UI_BASE);
 const ADMIN = { id: 'u11', name: 'Christine Dupont', email: 'christine.dupont@company.com', role: 'admin', department: 'Global Procurement', initials: 'CD' };
 
-const raw = readFileSync(new URL('../../.env.local', import.meta.url), 'utf8');
-for (const l of raw.split('\n')) { const m = l.match(/^([A-Z_][A-Z0-9_]*)=(.*)$/); if (m && !process.env[m[1]]) process.env[m[1]] = m[2]; }
-const sb = createClient(process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+// neonClient hydrates .env.local into process.env, so E2E_UI_BASE above still
+// resolves, and skips the suite cleanly when no database is configured.
+const sb = await neonClient('interactions-ui');
 
 let failures = 0;
 function check(name, cond, detail = '') {

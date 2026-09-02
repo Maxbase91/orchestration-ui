@@ -262,26 +262,27 @@ These are the cases where the wizard could not.
 | TC-REQ-G13 | Open a request, click through **every** workflow step | No screen throws. The step detail pre-populates risk forms from the service description; it used to cast the whole stored record — which carries a quality score, two arrays and two objects beside its nine text sections — to a map of strings and trim every value, so the first non-string member crashed the page with `r?.trim is not a function`. `sectionValuesOf()` narrows at the boundary; `test:intake-guidance` scans `src/` for both the cast and the unguarded walk, and `test:request-detail-ui` drives the real screen against fixtures — it white-screens on the pre-fix code |
 | TC-REQ-G14 | Raise a sourcing event from a request that has a description | Requirements seed from the **text sections only**. Same cast, same crash class, second call site |
 
-### Known gap — ten suites still target Supabase
+### The Supabase-era suites now run against Neon
 
-`admin-editors`, `ai-agents`, `approval-chain-persistence`, `audit`, `backfill-compliance`,
-`derived`, `e2e`, `kpis`, `lifecycle-consistency` and `routing` build their own Supabase client and
-assert against a database that is no longer the system of record. They report **SKIPPED** rather than
-crashing the run, and `@supabase/supabase-js` is kept as a dependency solely so they remain runnable
-against the retained project — removing it would make them permanently unrunnable while still looking
-like ordinary skips.
+Ten integration suites plus the interactions browser suite built their own Supabase client and
+asserted against a database that is no longer the system of record — about **1,800 lines, 84 queries**
+outside the gate, skipping on every run.
 
-Each needs rewriting against Neon. Until then their coverage is **not** part of the gate, and the
-counts in a green `npm run test:all` should be read with that in mind.
-
-### Intake reads as one instruction, not four (`npm run test:unified-intake`)
+Migrating them was a client swap, not a rewrite: every query method they use
+(`from/select/eq/single/filter/update/limit/insert/delete/order/in/maybeSingle/neq/is/like`) is
+implemented by the compatibility client, so the bodies were untouched. `neonClient()` in
+`tests/lib/live.mjs` builds one over the in-process executor — the wiring `api/_supabase-admin.ts`
+already uses — so a test needs no running deployment. `like` had to be added to both the client and
+`/api/db`, which only had `ilike`; `test:db-casts` now pins the whole operator surface on both sides.
 
 | ID | Steps | Expected |
 |---|---|---|
-| TC-REQ-U1 | Expert step 1 | The instruction appears **once**. It used to appear four times above a single input — the stepper, an `h2` repeating the stepper verbatim, the guidance panel's `purpose`, and the input's own helper — roughly ninety words of chrome before the box. The heading is gone, the panel leads with the consequence, and the helper says only what the control does |
-| TC-REQ-U2 | Any step, the blue panel | Shows **what happens next** — the one thing no other element says. Purpose and the supply list are behind a "What you need" toggle, still one click away where they help |
-| TC-REQ-U3 | The stepper | Only the current step carries its description. All seven put fourteen labels across the top of every screen |
-| TC-REQ-U4 | Any intake screen | **No "Helpful guidance from similar requests" card.** It was on five surfaces and was not similar to anything: the query ignored the category, the typed text and the commodity code, ordering by `updated_at` and taking eight rows. Its redaction rewrote every leading capitalised word to "the supplier", so *"Reduce the supplier base for indirect categories"* came back as *"the supplier the supplier base for indirect categories"* — every suggestion opened with it. It re-ran that query on each keystroke, and the no-rows fallback was a truism |
+| TC-DB-6 | `npm run test:all` with `NEON_DATABASE_URL` set | The ten report **passed**, not skipped. Without it they skip cleanly (exit 3) |
+| TC-DB-7 | `REQUIRE_LIVE=1 npm run test:all` on a machine with the credential | They must genuinely pass. This is the check that proves the migration rather than the guard |
+| TC-DB-8 | After a run | No `E2E-*`/`TEST-*` rows survive. These now write to the live Neon store, so their existing self-cleanup matters in a way it did not against a retired project |
+
+`@supabase/supabase-js` stays a dependency: `migrate:supabase-to-neon` and the 2026-08-29 catalogue
+backfill read **from** Supabase and still need it. Nothing in `src/`, `api/` or `tests/` imports it.
 
 ### The data layer says what it means (`npm run test:db-casts`, `npm run test:mode-equivalence`, `npm run test:intake-evidence`)
 

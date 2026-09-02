@@ -3,20 +3,14 @@
 // key selected for its value band, then deletes the isolated test request.
 
 import { readFileSync } from 'node:fs';
-import { createClient } from '@supabase/supabase-js';
-import { requireLegacySupabase } from '../lib/live.mjs';
-const legacy = requireLegacySupabase('approval-chain-persistence');
+import { neonClient } from '../lib/live.mjs';
 
 for (const line of readFileSync(new URL('../../.env.local', import.meta.url), 'utf8').split('\n')) {
   const match = line.match(/^([A-Z_][A-Z0-9_]*)=(.*)$/);
   if (match && !process.env[match[1]]) process.env[match[1]] = match[2];
 }
 
-const url = legacy.url;
-const serviceRoleKey = legacy.key;
-if (!url || !serviceRoleKey) throw new Error('Missing Supabase service-role test configuration.');
-
-const sb = createClient(url, serviceRoleKey, { auth: { persistSession: false } });
+const sb = await neonClient('approval-chain-persistence');
 let failures = 0;
 function check(name, condition, detail = '') {
   if (condition) console.log(`  \x1b[32m✓\x1b[0m ${name}`);
