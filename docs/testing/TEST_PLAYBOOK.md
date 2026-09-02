@@ -98,8 +98,14 @@ Vercel Hobby plan's twelve-function limit; low-volume routes are dispatched thro
 catch-all function.
 
 The browser must never contain `DATABASE_URL`, `NEON_DATABASE_URL`, or a service-role key. Supabase
-variables are retained only for rollback/comparison; Neon is the active R1 database. Because the
-historical cutover had no write freeze, retain the migration mismatch report for audit.
+variables are kept only for the ten legacy suites; Neon is the R1 database.
+
+**Reading the migration report after cutover.** The copy is idempotent and non-destructive, so it can
+be re-run safely, and it now reports the *direction* of any difference. `·  table: source=124
+target=134 (target ahead)` is the expected state — Neon is live and Supabase is frozen, so the target
+accumulates rows the source never saw. Only `✗ … (ROWS MISSING)` means the copy left something
+behind, and only that fails the run. Both used to print as "mismatch", which put thirteen benign
+lines and a real data loss in the same voice.
 
 ---
 

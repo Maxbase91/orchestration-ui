@@ -143,17 +143,34 @@ for (const table of TABLES) {
     await copyBatch(table, rows.slice(index, index + BATCH_SIZE));
   }
   const count = await targetCount(table);
-  const status = count === rows.length ? 'ok' : 'mismatch';
+  // Direction matters, and reporting it as one "mismatch" hid that.
+  //
+  // After cutover the target is the live database and the source is frozen, so
+  // target > source is the normal state — Neon holds rows Supabase never saw.
+  // Only target < source means the copy left something behind, which is the
+  // condition this script exists to catch. Calling both a mismatch put thirteen
+  // benign lines and a real data loss in the same voice.
+  const status = count === rows.length ? 'ok' : count > rows.length ? 'ahead' : 'short';
   report.push({ table, source: rows.length, target: count, status });
-  console.log(`${status === 'ok' ? '✓' : '✗'} ${table}: source=${rows.length} target=${count}`);
+  const mark = status === 'ok' ? '✓' : status === 'ahead' ? '·' : '✗';
+  const note = status === 'ahead' ? ' (target ahead — rows created since cutover)' : status === 'short' ? ' (ROWS MISSING)' : '';
+  console.log(`${mark} ${table}: source=${rows.length} target=${count}${note}`);
 }
 
-const mismatches = report.filter((entry) => entry.status === 'mismatch');
+const short = report.filter((entry) => entry.status === 'short');
+const ahead = report.filter((entry) => entry.status === 'ahead');
 const skippedSource = report.filter((entry) => entry.status === 'skipped-source');
-console.log(`\nCopied ${TABLES.length} tables. ${mismatches.length} count mismatches; ${skippedSource.length} source tables absent.`);
+console.log(`\nCopied ${TABLES.length} tables. ${short.length} with rows missing; ${ahead.length} ahead of the source; ${skippedSource.length} source tables absent.`);
 if (skippedSource.length > 0) {
   console.log(`Source-absent tables (target left empty): ${skippedSource.map((entry) => entry.table).join(', ')}`);
 }
+if (ahead.length > 0) {
+  console.log(`Ahead of source (expected after cutover): ${ahead.map((entry) => entry.table).join(', ')}`);
+}
+if (short.length > 0) {
+  console.error(`ROWS MISSING in: ${short.map((entry) => `${entry.table} (${entry.source - entry.target})`).join(', ')}`);
+}
 // An older Supabase deployment may predate additive governed-checkout tables.
 // Those are an explicit, reviewable migration condition—not a row-count error.
-if (mismatches.length > 0) process.exitCode = 2;
+// Only a target that is genuinely behind fails the run.
+if (short.length > 0) process.exitCode = 2;
