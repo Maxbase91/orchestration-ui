@@ -27,7 +27,6 @@ import {
 } from '@/lib/procurement/demand-conversation';
 import { DEFAULT_SECTIONS } from '@/lib/procurement/service-description-defaults';
 import { UrgencyChannelNote } from './components/urgency-channel-note';
-import { IntakeGuidanceCard } from './components/intake-guidance-card';
 import type {
   ServiceDescription,
   ServiceDescriptionSectionKey,
@@ -462,7 +461,6 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
     () => conversationProgress(progressCtx, undefined, slots),
     [progressCtx, slots],
   );
-  const activeSlot = useMemo(() => determineNextQuestion(progressCtx, undefined, slots)?.slot, [progressCtx, slots]);
 
   // The sections the panel lists, from the resolved template. `asked: false`
   // sections (today, `location`) are GENERATED, never captured — listing them
@@ -879,8 +877,7 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
           <Badge variant="outline" className="text-[10px]">Guided intake</Badge>
         </div>
 
-        {activeSlot && <div className="shrink-0 border-b px-4 py-2"><IntakeGuidanceCard category={category} section={activeSlot.target.kind === 'sow' ? activeSlot.target.field : 'objective'} text={data.title} commodityCode={data.commodityCode} onApply={(value) => { if (activeSlot.target.kind === 'sow') handleSowEdit(activeSlot.target.field, value); else onUpdate({ [activeSlot.target.field]: value }); }} /></div>}
-
+        
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {messages.map((msg, i) => (

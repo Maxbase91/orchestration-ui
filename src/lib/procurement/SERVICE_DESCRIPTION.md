@@ -137,9 +137,10 @@ but extracted values are shown for confirmation before matching. `scope` and `ex
 separate fields, as are `deliverables` and `acceptanceCriteria`; `businessJustification` is retained
 only as a legacy compatibility column and is intentionally empty for new submissions.
 
-`src/lib/procurement/intake-guidance-api.ts` and `src/server/api/intake-guidance.ts` (served at
-`/api/intake-guidance`) provide optional,
-short-lived contextual hints from anonymised completed requests or configured templates. Applying a
-hint is explicit and provenance is retained; a provider or database failure falls back to the
-deterministic question engine and never blocks submission. `workflow/engine.ts` records the first
+There is deliberately **no** "guidance from similar requests" surface. One existed on five intake
+screens and was removed: nothing about it was similar — the query ignored the category, the typed
+text and the commodity code, ordering by `updated_at` — and its redaction replaced every leading
+capitalised word with "the supplier", so a real objective came back as *"the supplier the supplier
+base for indirect categories by a third."* It also re-ran that query on every keystroke. The
+assistant's own questions do this job properly. `workflow/engine.ts` records the first
 actionable stage after completion, so a successful intake does not remain parked in `intake`.

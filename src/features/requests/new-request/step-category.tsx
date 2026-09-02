@@ -24,12 +24,13 @@ import { requestCommodityCandidates } from '@/lib/procurement/commodity-candidat
 import { resolveCommodityCandidates } from '@/lib/procurement/commodity-candidates';
 import { seedServiceDescriptionFromText } from '@/lib/procurement/intake-seed';
 import type { CommodityClassificationCandidate, IntakeAttachment, RequestCategory } from '@/data/types';
-import { IntakeGuidanceCard } from './components/intake-guidance-card';
 import type { ServiceDescription } from './new-request-page';
 
 interface StepCategoryProps {
-  category: string;
-  categoryDescription: string;
+  // No `category`/`categoryDescription` in: this step CLASSIFIES the demand, it
+  // does not receive a classification. Both were required props the component
+  // never read — `category` fed only the removed guidance card, and
+  // `categoryDescription` was never destructured at all.
   /** Original demand text forwarded from the home page — seeds the input. */
   prefill?: string;
   onUpdate: (data: {
@@ -133,7 +134,7 @@ function localClassify(input: string): AIClassification {
   };
 }
 
-export function StepCategory({ category, prefill, onUpdate, onAutoAdvance, onBrowseCatalogue }: StepCategoryProps) {
+export function StepCategory({ prefill, onUpdate, onAutoAdvance, onBrowseCatalogue }: StepCategoryProps) {
   const [inputValue, setInputValue] = useState(prefill ?? '');
   const [loading, setLoading] = useState(false);
   const [aiResult, setAiResult] = useState<AIClassification | null>(null);
@@ -339,16 +340,10 @@ export function StepCategory({ category, prefill, onUpdate, onAutoAdvance, onBro
         <label htmlFor="need-input" className="block text-sm font-medium text-gray-700 mb-1">
           Describe what you need
         </label>
-        <p className="text-xs text-gray-500 mb-2">
-          Press Enter — we&apos;ll find the fastest way to fulfil it: an existing catalogue item, an
-          active contract, or a full request. No need to pick a category.
-        </p>
-        <IntakeGuidanceCard
-          section="objective"
-          text={inputValue}
-          category={category}
-          onApply={(suggestion) => setInputValue((previous) => previous.trim() ? `${previous.trim()} ${suggestion}` : suggestion)}
-        />
+        {/* The step's guidance panel already says what happens to this text and
+            that no category is needed; repeating it here made the same sentence
+            appear twice within one screen. This says only what the control does. */}
+        <p className="text-xs text-gray-500 mb-2">Press Enter when you are done.</p>
         <form onSubmit={handleSubmit} className="relative">
           <Sparkles className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
           <Input

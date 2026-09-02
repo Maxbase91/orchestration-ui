@@ -445,8 +445,6 @@ function ExpertNewRequestPage() {
   );
   const wizardSteps = isCatalogue ? CATALOGUE_STEPS : STEPS;
   const lastStepNumber = wizardSteps[wizardSteps.length - 1].number;
-  const currentStepMeta =
-    wizardSteps.find((s) => s.number === currentStep) ?? STEPS[Math.min(currentStep, STEPS.length) - 1];
 
   const canProceed = (): boolean => {
     switch (currentStep) {
@@ -816,25 +814,23 @@ function ExpertNewRequestPage() {
               >
                 {step.title}
               </span>
-              {/* `description` has been defined on every STEPS entry since the
-                  wizard was written and was rendered nowhere — the stepper drew
-                  the number and the title only. */}
-              <span className="hidden text-center text-[10px] leading-tight text-gray-400 sm:block">
-                {step.description}
-              </span>
+              {/* Only the current step's description. Rendering all seven put
+                  fourteen labels across the top of every screen — wayfinding
+                  turned into a wall of text. The titles still show the whole
+                  path; the detail belongs to where you actually are. */}
+              {step.number === currentStep && (
+                <span className="hidden text-center text-[10px] leading-tight text-gray-500 sm:block">
+                  {step.description}
+                </span>
+              )}
             </div>
           ))}
         </div>
       )}
 
-      {/* Step Title */}
-      {currentStep < 6 && (
-        <div className="border-b border-gray-200 pb-3">
-          <h2 className="text-lg font-semibold text-gray-900">
-            {currentStepMeta.title}: {currentStepMeta.description}
-          </h2>
-        </div>
-      )}
+      {/* No step heading: the stepper directly above already renders this step's
+          title and description, so an `h2` repeating "Describe: What do you
+          need?" was the same words twice within one screen height. */}
 
       {/* Step Content */}
       <div className="rounded-lg border border-gray-200 bg-white p-6">
@@ -845,8 +841,6 @@ function ExpertNewRequestPage() {
         <StepErrorBoundary onReset={handleReset}>
         {currentStep === 1 && (
           <StepCategory
-            category={formData.category}
-            categoryDescription={formData.categoryDescription}
             prefill={categoryPrefill}
             onUpdate={(d) => updateFormData(d)}
             onAutoAdvance={() => setCurrentStep(2)}

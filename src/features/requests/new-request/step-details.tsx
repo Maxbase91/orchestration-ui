@@ -6,7 +6,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { AISuggestionCard } from '@/components/shared/ai-suggestion-card';
 import { getAICommodityCode } from '@/lib/mock-ai';
 import { UrgencyChannelNote } from './components/urgency-channel-note';
-import { IntakeGuidanceCard } from './components/intake-guidance-card';
 
 const COST_CENTRES = [
   { value: 'CC-1001', label: 'CC-1001 Marketing' },
@@ -118,12 +117,6 @@ export function StepDetails({ category, data, onUpdate }: StepDetailsProps) {
         />
       </div>
 
-      <IntakeGuidanceCard
-        section="objective"
-        category={category}
-        text={data.title}
-        onApply={(suggestion) => onUpdate({ title: data.title.trim() ? `${data.title.trim()} ${suggestion}` : suggestion })}
-      />
 
       {/* Supplier is NOT chosen here. It is chosen once, on the determination
           step, where PSL status, screening, risk tier and master-data

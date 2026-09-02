@@ -43,7 +43,6 @@ import { computeDemandSignals } from '@/lib/procurement/demand-signals';
 import { requestContractMatch } from '@/lib/procurement/contract-match-api';
 import type { CatalogueItem } from '@/data/catalogue-items';
 import type { Contract, ContractMatchResponse, Supplier } from '@/data/types';
-import { IntakeGuidanceCard } from './components/intake-guidance-card';
 
 export type PreCheckOutcome = 'catalogue' | 'contract' | 'full-request';
 
@@ -463,12 +462,6 @@ export function StepPreCheck({
         </Button>
       </div>
 
-      <IntakeGuidanceCard
-        section="scope"
-        category={category}
-        text={title}
-        onApply={(suggestion) => { setEnrich((previous) => previous.trim() ? `${previous.trim()} ${suggestion}` : suggestion); onEnrich?.(suggestion); }}
-      />
 
       {!catalogueApplies && decision.ruledOut.catalogue && (
         <p className="flex items-start gap-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600">

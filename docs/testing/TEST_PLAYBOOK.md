@@ -268,6 +268,15 @@ like ordinary skips.
 Each needs rewriting against Neon. Until then their coverage is **not** part of the gate, and the
 counts in a green `npm run test:all` should be read with that in mind.
 
+### Intake reads as one instruction, not four (`npm run test:unified-intake`)
+
+| ID | Steps | Expected |
+|---|---|---|
+| TC-REQ-U1 | Expert step 1 | The instruction appears **once**. It used to appear four times above a single input — the stepper, an `h2` repeating the stepper verbatim, the guidance panel's `purpose`, and the input's own helper — roughly ninety words of chrome before the box. The heading is gone, the panel leads with the consequence, and the helper says only what the control does |
+| TC-REQ-U2 | Any step, the blue panel | Shows **what happens next** — the one thing no other element says. Purpose and the supply list are behind a "What you need" toggle, still one click away where they help |
+| TC-REQ-U3 | The stepper | Only the current step carries its description. All seven put fourteen labels across the top of every screen |
+| TC-REQ-U4 | Any intake screen | **No "Helpful guidance from similar requests" card.** It was on five surfaces and was not similar to anything: the query ignored the category, the typed text and the commodity code, ordering by `updated_at` and taking eight rows. Its redaction rewrote every leading capitalised word to "the supplier", so *"Reduce the supplier base for indirect categories"* came back as *"the supplier the supplier base for indirect categories"* — every suggestion opened with it. It re-ran that query on each keystroke, and the no-rows fallback was a truism |
+
 ### The data layer says what it means (`npm run test:db-casts`, `npm run test:mode-equivalence`, `npm run test:intake-evidence`)
 
 Three suites covering the defect classes found when Supabase was retired and the browser client

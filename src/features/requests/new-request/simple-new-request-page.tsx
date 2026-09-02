@@ -43,7 +43,6 @@ import { StepChatIntake } from './step-chat-intake';
 import { RequesterContextBlock } from './components/requester-context-block';
 import { CatalogueOrderCheckout } from '@/features/catalogue/catalogue-order-checkout';
 import { ContractCallOffCheckout } from './contract-call-off-checkout';
-import { IntakeGuidanceCard } from './components/intake-guidance-card';
 
 type SimplePhase = 'describe' | 'route' | 'details' | 'review' | 'submitted';
 type SimpleRoute = 'catalogue' | 'contract' | 'p-card' | 'direct-po' | 'new-request';
@@ -484,7 +483,7 @@ export function SimpleNewRequestPage() {
       )}
 
       {phase === 'describe' && (
-          <Card><CardContent className="p-6"><StepCategory category={data.category} categoryDescription={data.categoryDescription} prefill={homeDemand} onUpdate={update} onAutoAdvance={() => setPhase('route')} onBrowseCatalogue={() => { update({ category: 'catalogue', categoryDescription: 'Catalogue Purchase', preCheckOutcome: 'catalogue' }); setRoute('catalogue'); setPhase('details'); }} /></CardContent></Card>
+          <Card><CardContent className="p-6"><StepCategory prefill={homeDemand} onUpdate={update} onAutoAdvance={() => setPhase('route')} onBrowseCatalogue={() => { update({ category: 'catalogue', categoryDescription: 'Catalogue Purchase', preCheckOutcome: 'catalogue' }); setRoute('catalogue'); setPhase('details'); }} /></CardContent></Card>
       )}
 
       {phase === 'route' && (
@@ -515,12 +514,6 @@ export function SimpleNewRequestPage() {
 
       {phase === 'review' && (
         <div className="space-y-4">
-          <IntakeGuidanceCard
-            section="review"
-            category={data.category}
-            text={data.title}
-            onApply={(suggestion) => update({ title: data.title.trim() ? `${data.title.trim()} ${suggestion}` : suggestion })}
-          />
           <Card><CardHeader><CardTitle className="flex items-center gap-2 text-base"><CheckCircle className="size-4 text-green-600" />Review your request</CardTitle></CardHeader><CardContent className="space-y-4 text-sm"><div><p className="text-xs font-medium uppercase tracking-wider text-gray-500">What you need</p><p className="mt-1 font-medium text-gray-900">{data.title || 'Procurement request'}</p><p className="mt-1 whitespace-pre-wrap text-gray-600">{data.serviceDescription?.narrative || data.title || 'Details captured from your answers.'}</p></div><div className="rounded-lg border border-blue-100 bg-blue-50/50 p-4"><p className="text-xs font-medium uppercase tracking-wider text-blue-700">Your request will follow</p><p className="mt-1 font-semibold text-gray-900">{routeLabel.label}</p><p className="mt-1 text-xs text-gray-600">{routeLabel.detail}</p></div><div className="grid grid-cols-2 gap-3"><div><p className="text-xs text-gray-500">Estimated value</p><p className="font-medium">{data.currency} {data.estimatedValue.toLocaleString()}</p></div><div><p className="text-xs text-gray-500">Needed by</p><p className="font-medium">{data.deliveryDate || 'To be confirmed'}</p></div></div></CardContent></Card>
           <div className="flex items-center justify-between"><Button variant="ghost" onClick={() => setPhase('details')}><ArrowLeft className="size-4" />Back</Button><div className="flex gap-2"><Button variant="ghost" onClick={() => void saveDraft()} disabled={submitting}><Save className="size-4" />Save for later</Button><Button onClick={() => void submitRequest(data, route)} disabled={submitting}>{submitting ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}Submit request</Button></div></div>
         </div>

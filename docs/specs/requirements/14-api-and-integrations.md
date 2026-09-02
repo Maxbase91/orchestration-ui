@@ -30,7 +30,6 @@ allowlisted `api/[...route].ts` dispatcher; this does not change any browser URL
 | `src/server/api/policy-config.ts` | GET/POST `/api/policy-config` | Load, validate, save, and reset the server-persisted active procurement policy |
 | `src/server/api/intake-upload.ts` | POST `/api/intake-upload` | Validate PDF/DOCX uploads, extract text server-side, and return a confirmation-ready attachment |
 | `src/server/api/commodity-match.ts` | POST `/api/commodity-match` | Resolve specific commodity/service-family candidates with probability and reasons |
-| `src/server/api/intake-guidance.ts` | POST `/api/intake-guidance` | Return anonymised contextual requester hints with deterministic template fallback |
 | `api/execute-action.ts` | POST | Execute confirmed AI action (add_watcher, set_delegate, etc.) |
 | `api/conversations.ts` | GET/POST | AI conversation history CRUD |
 | `api/seed.ts` | POST | Seed demo data (dev only) |

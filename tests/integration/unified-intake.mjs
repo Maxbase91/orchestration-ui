@@ -3,7 +3,7 @@
 
 import { resolveCommodityCandidates } from '../../src/lib/procurement/commodity-candidates.ts';
 import { seedServiceDescriptionFromText } from '../../src/lib/procurement/intake-seed.ts';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 
 let failures = 0;
 function check(name, condition) { if (condition) console.log(`  \x1b[32m✓\x1b[0m ${name}`); else { failures++; console.error(`  \x1b[31m✗\x1b[0m ${name}`); } }
@@ -25,8 +25,15 @@ check('exclusions are distinct from scope in the intake model', /exclusions/.tes
 check('scope prompt does not combine Included and Excluded questions', !readFileSync('src/lib/procurement/demand-conversation.ts', 'utf8').includes('in scope — and anything explicitly out of scope'));
 check('document context carries into the adaptive chat', readFileSync('src/features/requests/new-request/step-chat-intake.tsx', 'utf8').includes('data.serviceDescription ?? {}'));
 check('requester-facing intake does not render a business justification field', !/label.*Business Justification/.test(readFileSync('src/features/requests/new-request/step-chat-intake.tsx', 'utf8')));
-check('upload and guidance API boundaries exist', readFileSync('src/server/api/intake-upload.ts', 'utf8').includes('PDF') && readFileSync('src/server/api/intake-guidance.ts', 'utf8').includes('similar approved request'));
-check('guidance supports classification, route, details and review moments', ['classification', 'route', 'details', 'review'].every((section) => readFileSync('src/server/api/intake-guidance.ts', 'utf8').includes(section)));
+check('upload API boundary exists', readFileSync('src/server/api/intake-upload.ts', 'utf8').includes('PDF'));
+// The "helpful guidance from similar requests" card is gone, along with its
+// endpoint. It was not similar to anything — the query ignored the category,
+// the typed text and the commodity code, and returned the eight most recently
+// updated descriptions — and its redaction rewrote every leading capitalised
+// word to "the supplier", so each suggestion opened with it. It also re-queried
+// the database on every keystroke.
+check('no similar-requests guidance card remains', !existsSync(new URL('../../src/features/requests/new-request/components/intake-guidance-card.tsx', import.meta.url)));
+check('no intake-guidance endpoint remains', !existsSync(new URL('../../src/server/api/intake-guidance.ts', import.meta.url)));
 check('home demand skips the duplicate describe stage and seeds route evaluation', simplePage.includes('const homeDemand') && simplePage.includes("useState<SimplePhase>(() => homeDemand ? 'route' : 'describe')"));
 check('full-request escape cannot inherit the catalogue preview route', simplePage.includes("setRoute('new-request')"));
 check('contract call-off details explain per-call value and timing', simplePage.includes('Contract call-off') && simplePage.includes('contract ceiling is not the value'));

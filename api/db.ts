@@ -8,7 +8,6 @@ import commodityMatch from '../src/server/api/commodity-match.js';
 import contractMatch from '../src/server/api/contract-match.js';
 import contractScope from '../src/server/api/contract-scope.js';
 import contractVocabulary from '../src/server/api/contract-vocabulary.js';
-import intakeGuidance from '../src/server/api/intake-guidance.js';
 import policyConfig from '../src/server/api/policy-config.js';
 import intakeSubmit from '../src/server/api/intake-submit.js';
 import neonHealth from '../src/server/api/neon-health.js';
@@ -27,7 +26,6 @@ async function loadDomainHandler(name: string): Promise<DomainHandler | undefine
     case 'contract-match': return contractMatch;
     case 'contract-scope': return contractScope;
     case 'contract-vocabulary': return contractVocabulary;
-    case 'intake-guidance': return intakeGuidance;
     case 'policy-config': return policyConfig;
     case 'intake-submit': return intakeSubmit;
     case 'neon-health': return neonHealth;
