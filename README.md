@@ -220,6 +220,7 @@ npm run test:approval-chain-persistence # self-cleaning DB check — a value-ban
 npm run test:ai-api-config        # API regression — missing active database/AI server config returns a controlled 503, not a function crash
 npm run test:api-imports          # every api/*.ts function's import graph has explicit file extensions (tsc/vercel dev don't enforce this; Vercel's real build does)
 npm run test:vercel-functions     # keeps the explicit API surface within the Vercel Hobby 12-function budget
+npm run test:workflow-scripts     # every `npm run` call in .github/workflows still names a script that exists in package.json
 npm run test:admin-editors        # admin config saves
 npm run walkthrough               # visual QA harness (Playwright) — drives the front door across scenarios + every tab, screenshots to /tmp/fd (no assertions)
 npm run test:ui                   # browser smoke (Playwright) — wizard end-to-end through the determination + config-driven routing steps
@@ -270,7 +271,7 @@ Stub the boundary the client actually posts to, `/api/db`. That suite (now `test
 `**/rest/v1/**`, the PostgREST path from before the Neon cutover, so it caught nothing and two of its
 checks failed for months against a pre-check screen that was really crashing.
 
-The link-navigation suite uses only visible role and experience-mode controls. It verifies that
+The link-navigation suite uses only visible role controls. It verifies that
 supplier, contract, sourcing, purchase-order and request links land on the intended record instead
 of silently redirecting to Home. Requesters may inspect supplier and contract details read-only;
 operational edits remain restricted to entitled roles.

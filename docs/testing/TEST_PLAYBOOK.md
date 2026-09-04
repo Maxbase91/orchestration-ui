@@ -51,6 +51,7 @@ npm run test:onboarding-stage
 npm run test:unified-intake
 npm run test:intake-guidance
 npm run test:vercel-functions
+npm run test:workflow-scripts
 ```
 
 `npm run test:neon-live` and the atomic Neon integration suite require network
@@ -79,11 +80,13 @@ the script, not the directory, because `backfill:compliance` lives under `tests/
 earlier version of this check only looked at `db/`.
 
 **The offline browser suites must intercept `/api/db`,** the boundary the client
-actually posts to. `test:requester-entry-ui` (then `test:experience-mode-ui`) stubbed `**/rest/v1/**` — the PostgREST path from before
+actually posts to. `test:requester-entry-ui` (and the since-retired experience-mode suite) stubbed `**/rest/v1/**` — the PostgREST path from before
 the Neon cutover — so it caught nothing: every data call 404'd, the pre-check screen rendered a
 heading over no catalogue and no contracts, and two of its checks failed for months against what was
-really a crashing screen. Use `installDbStub()` from `tests/ui/db-stub.mjs`; all four offline browser
-suites now run in CI.
+really a crashing screen. Use `installDbStub()` from `tests/ui/db-stub.mjs`; the offline browser
+suites named in `.github/workflows/ci.yml` run in CI. That list is explicit — the rest of the
+`BROWSER` set in `tests/run-all.mjs` needs a live Neon database or a server on :5173 — so it can
+drift out of `package.json`, and `test:workflow-scripts` is what catches it when it does.
 
 **Only `tests/lib/live.mjs` reads `.env.local`,** and `test:neon-migration` enforces it. Five scripts
 had carried their own copy of that loader; two had no `try`/`catch`, so on any machine with the file
@@ -768,8 +771,7 @@ finding routinely reveals more in the same file. Re-run to convergence.
 ### Link navigation suite
 
 `npm run test:link-route-integrity` checks the active route/link contract statically.
-`npm run test:link-navigation` runs the deployed Playwright checks using the visible role and
-experience-mode controls. It captures before/after screenshots and a manifest under
+`npm run test:link-navigation` runs the deployed Playwright checks using the visible role controls. It captures before/after screenshots and a manifest under
 `docs/testing/artifacts/ui-e2e/<run-id>/`, checks supplier and contract deep links, expiring
 contract rows, read-only requester controls, privileged edit controls, keyboard activation,
 console/runtime errors, and horizontal overflow. A local Vite run may classify `/api/*` failures

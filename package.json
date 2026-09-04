@@ -21,6 +21,7 @@
     "test:assistant-extraction": "node --import tsx/esm tests/integration/assistant-extraction-scope.mjs",
     "test:db-casts": "node --import tsx/esm tests/integration/db-parameter-casts.mjs",
     "test:vercel-functions": "node tests/integration/vercel-function-budget.mjs",
+    "test:workflow-scripts": "node tests/integration/workflow-scripts.mjs",
     "test:approval-chain-persistence": "node --import tsx/esm tests/integration/approval-chain-persistence.mjs",
     "test:intake": "node tests/integration/intake-sequence.mjs",
     "test:intake-submit": "node --import tsx/esm tests/integration/intake-submit.mjs",

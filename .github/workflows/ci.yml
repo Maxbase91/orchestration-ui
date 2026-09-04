@@ -52,14 +52,18 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
 
-      # The offline browser suites drive the real screens against a stubbed
-      # database (tests/ui/db-stub.mjs), so they need no credentials. All four
-      # run here: experience-mode was outside the gate and its stub had been
-      # pointed at the retired PostgREST path for months, so two of its checks
-      # failed against a screen that was actually crashing.
+      # These browser suites drive the real screens against a stubbed database
+      # (tests/ui/db-stub.mjs), so they need no credentials and no dev server.
+      # The rest of the BROWSER set in tests/run-all.mjs is deliberately left
+      # out: it needs a live Neon database or a server on :5173, so running it
+      # here would fail for its infrastructure rather than for the code.
+      #
+      # The list is explicit for that reason, which means it can drift out of
+      # package.json — it did, when the Simple/Expert refactor deleted
+      # test:experience-mode-ui and left the call here, failing three pushes in
+      # a row. `test:workflow-scripts` (in the gate job) now catches that.
       - name: Browser suites
         run: |
           npm run test:request-detail-ui
-          npm run test:experience-mode-ui
           npm run test:service-description-ui
           npm run test:intake-guidance-ui
