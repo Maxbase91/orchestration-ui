@@ -53,6 +53,19 @@ export type ServiceDescriptionSectionKey = Exclude<keyof ServiceDescription, 'ca
 /** Which fulfilment path the demand is on. Drives which steps apply. */
 export type IntakeRouteOutcome = 'catalogue' | 'contract' | 'full-request' | '';
 
+/**
+ * Answers to the criteria-driven risk questions.
+ *
+ * Optional by design: absent means NEVER ASKED, which is a different governance
+ * fact from "answered no". Both used to default to `false`, so a question
+ * nobody put and a question answered in the negative were the same record —
+ * exactly the unearned evidence this codebase forbids.
+ */
+export interface MiniIrqAnswers {
+  privilegedAccess?: boolean;
+  criticalService?: boolean;
+}
+
 export interface IntakeFormData {
   // ── Describe ────────────────────────────────────────────────────────────
   category: string;
@@ -123,7 +136,7 @@ export interface IntakeFormData {
   workflowTemplateId: string;
 
   // ── Risk inputs (asked on Details) ──────────────────────────────────────
-  miniIrq: { privilegedAccess: boolean; criticalService: boolean };
+  miniIrq: MiniIrqAnswers;
 
   // ── Determination output (shown on Review) ──────────────────────────────
   buyingChannelResult: string;
@@ -194,7 +207,8 @@ export const INITIAL_INTAKE_DATA: IntakeFormData = {
   contractTitle: '',
   workflowTemplateId: '',
   buyingChannelResult: '',
-  miniIrq: { privilegedAccess: false, criticalService: false },
+  // Unanswered, not "no". The questions are asked in the conversation.
+  miniIrq: {},
   sraStatus: '',
   policyChecks: [],
   duplicateCheck: null,

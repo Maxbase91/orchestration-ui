@@ -12,6 +12,8 @@ import { useUsers } from '@/lib/db/hooks/use-users';
 import { useAuthStore } from '@/stores/auth-store';
 import { createRequest } from '@/lib/db/requests';
 import { parseDeliveryDate } from '@/lib/parse-delivery-date';
+import { riskSlotsFor } from '@/lib/procurement/residual-question-slots';
+import { descriptionComplete } from './details-sections';
 import { useCostCentres } from '@/lib/db/hooks/use-cost-centres';
 import { useDeliveryLocations } from '@/lib/db/hooks/use-delivery-locations';
 import { initWorkflow } from '@/lib/workflow/engine';
@@ -238,12 +240,34 @@ export function NewRequestPage() {
       // Text sections only: the description also carries capture flags, which
       // are not answers and must not be walked as if they were.
       sow: sectionValuesOf(formData.serviceDescription),
+      risk: formData.miniIrq,
     }),
-    [formData.category, formData.title, formData.estimatedValue, formData.deliveryDate, formData.serviceDescription],
+    [formData.category, formData.title, formData.estimatedValue, formData.deliveryDate, formData.serviceDescription, formData.miniIrq],
+  );
+  // The risk questions are part of the same agenda, so the step gate counts
+  // them: Next used to open with a triggered question still unanswered,
+  // because the switches lived outside the conversation the gate read.
+  const riskSlots = useMemo(
+    () => riskSlotsFor(determination?.residualQuestions ?? []),
+    [determination],
+  );
+  // Reveal the supplier section only once the conversation (and its risk-question
+  // tail) is done: the Details step used to put the chat, a card of risk
+  // switches and supplier selection on screen at once, before the requester had
+  // answered anything.
+  const detailsDescriptionDone = useMemo(
+    () => descriptionComplete({
+      isChatIntakePath,
+      conversationCtx,
+      conversationSlots: [...conversationSlots, ...riskSlots],
+    }),
+    [isChatIntakePath, conversationCtx, conversationSlots, riskSlots],
   );
   const outstanding = useMemo(
-    () => (isChatIntakePath ? outstandingRequiredSlots(conversationCtx, conversationSlots) : []),
-    [isChatIntakePath, conversationCtx, conversationSlots],
+    () => (isChatIntakePath
+      ? outstandingRequiredSlots(conversationCtx, [...conversationSlots, ...riskSlots])
+      : []),
+    [isChatIntakePath, conversationCtx, conversationSlots, riskSlots],
   );
   // Named, not counted: the gate is `title && estimatedValue > 0` on the form
   // paths, and a requester staring at a disabled button needs to know which.
@@ -263,7 +287,7 @@ export function NewRequestPage() {
       data: formData,
       isChatIntakePath,
       conversationCtx,
-      conversationSlots,
+      conversationSlots: [...conversationSlots, ...riskSlots],
       hasDetermination: determination !== null,
     });
 
@@ -557,7 +581,12 @@ export function NewRequestPage() {
   };
 
   return (
-    <div className={cn("mx-auto space-y-6", stepId === 'details' && formData.preCheckOutcome === 'full-request' && !['catalogue', 'contract-renewal', 'supplier-onboarding'].includes(formData.category) ? 'max-w-5xl' : 'max-w-3xl')}>
+    <div
+      // The chat step is two panes, so it earns the width; every other step is a
+      // single column and reads better narrow. This condition used to re-inline
+      // the chat-path predicate a third time rather than reuse the memo.
+      className={cn('mx-auto space-y-6', stepId === 'details' && isChatIntakePath ? 'max-w-6xl' : 'max-w-3xl')}
+    >
       {/* One header. This used to say "Simple requester view" / "New Request" /
           "Create a new procurement request in N steps" depending on a mode the
           requester had to pick first — three framings of one journey. */}
@@ -790,11 +819,20 @@ export function NewRequestPage() {
               serviceDescription: formData.serviceDescription,
             }}
             onUpdate={(d) => updateFormData(d)}
+            // The risk questions are asked as the tail of this conversation
+            // rather than as a card of switches below it. The determination
+            // still decides WHICH are asked; this only carries them in.
+            riskQuestions={determination?.residualQuestions}
+            riskAnswers={formData.miniIrq}
           />
         )}
         {(stepId === 'details' || stepId === 'review') && formData.preCheckOutcome === 'full-request' && (
           <StepCompliance
             section={stepId === 'details' ? 'inputs' : 'conclusions'}
+            // On the chat path the conversation asks them; the card would be a
+            // second place to answer the same question.
+            askRiskQuestions={!isChatIntakePath}
+            revealSupplier={!isChatIntakePath || detailsDescriptionDone}
             requiredSections={formData.sowRequiredSections}
             qualityScore={formData.sowQualityScore}
             supplierProvenance={formData.supplierProvenance}

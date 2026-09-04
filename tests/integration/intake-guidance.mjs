@@ -118,6 +118,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import {
   progressStepsForRoute,
+  stepById,
   stepGuidance,
   stepsForRoute,
   submitStepFor,
@@ -266,10 +267,28 @@ check('no organisation or sector naming in the guidance copy', !BANNED.test(CONF
 // life: defined on every STEPS entry and drawn nowhere.
 check('the wizard renders the header panel', /<StepHeaderPanel/.test(WIZARD_SRC));
 check("the stepper renders each step's description", /stepDescription\(step\.id, route\)/.test(WIZARD_SRC));
-// The gate that stops an LLM short-circuiting the conversation. Asserted by
-// calling it: an empty context cannot pass, a complete one must.
-check('the details gate calls the conversation engine, not its own title-and-value test',
-  /requiredSlotsFilled\(/.test(CONFIG_SRC) && !/requiredSlotsFilled\(/.test(WIZARD_SRC));
+// The gate that stops an LLM short-circuiting the conversation. Now asserted by
+// CALLING it rather than grepping for the helper's name: the predicate moved to
+// `details-sections.ts` (shared with the screen's reveal, so the two cannot
+// disagree) and the grep would have gone quietly false either way. An empty
+// context must not pass; a captured one must. `test:details-progression` covers
+// the risk-question half.
+{
+  const emptyCtx = { category: 'consulting', sow: {} };
+  const fullCtx = {
+    category: 'consulting', title: 'A demand', estimatedValue: 250_000, deliveryDate: '2027-01-15',
+    sow: {
+      objective: 'o', scope: 's', exclusions: 'e', deliverables: 'd', resources: 'r',
+      timeline: 't', acceptanceCriteria: 'a', pricingModel: 'p', dependencies: 'x',
+    },
+  };
+  const gate = (conversationCtx) => stepById('details').canProceed({
+    data: { preCheckOutcome: 'full-request', category: 'consulting', catalogueItems: [], title: '', estimatedValue: 0 },
+    isChatIntakePath: true, conversationCtx, conversationSlots: resolveSlots(), hasDetermination: true,
+  });
+  check('the details gate holds the conversation to its mandatory floor', !gate(emptyCtx));
+  check('a captured conversation passes the details gate', gate(fullCtx));
+}
 
 console.log('\nThe chat is not canned');
 //

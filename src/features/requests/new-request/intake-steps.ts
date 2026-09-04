@@ -24,7 +24,8 @@
 // of the Simple/Expert switch and outlives it, because the rule it enforces is
 // that presentation may not reach into the step order or the gates.
 
-import { requiredSlotsFilled, type DemandConversationContext, type DemandSlot } from '../../../lib/procurement/demand-conversation.js';
+import type { DemandConversationContext, DemandSlot } from '../../../lib/procurement/demand-conversation.js';
+import { descriptionComplete } from './details-sections.js';
 import type { IntakeFormData } from './intake-form-data.js';
 
 /** Which fulfilment path the demand is on. Decides which steps apply. */
@@ -163,8 +164,10 @@ export const INTAKE_STEPS: readonly IntakeStepDefinition[] = [
       // Only on the chat path: the contract-renewal and supplier-onboarding
       // paths render a plain form that never captures the description
       // sections, so holding them to the same floor would block them forever.
+      // The same predicate the screen uses to reveal the last section, so the
+      // gate and the reveal cannot disagree about what "done" means.
       return isChatIntakePath
-        ? requiredSlotsFilled(conversationCtx, conversationSlots)
+        ? descriptionComplete({ isChatIntakePath, conversationCtx, conversationSlots })
         : !!data.title && data.estimatedValue > 0;
     },
   },

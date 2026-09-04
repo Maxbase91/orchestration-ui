@@ -17,6 +17,7 @@
 
 import { getActivePolicyConfig, type PolicyConfig } from './policy-config.js';
 import { slotApplies, type ConfiguredSlot } from './service-description-config.js';
+import type { MiniIrqField, ResidualQuestionId } from './residual-questions.js';
 
 export type DemandSlotId =
   | 'title'
@@ -30,7 +31,11 @@ export type DemandSlotId =
   | 'timeline'
   | 'acceptanceCriteria'
   | 'pricingModel'
-  | 'dependencies';
+  | 'dependencies'
+  // The criteria-driven risk questions, appended to the agenda at runtime from
+  // `determineResidualQuestions`. They are NOT in `ALL_SLOTS` and never in a
+  // stored template — see `residual-question-slots.ts` for why.
+  | ResidualQuestionId;
 
 /** The service-description elements a slot can fill (subset of the full SOW). */
 export interface ServiceDescriptionSlots {
@@ -48,7 +53,10 @@ export interface ServiceDescriptionSlots {
 /** Where a captured answer lands — a top-level request field or a SOW element. */
 export type DemandSlotTarget =
   | { kind: 'request'; field: 'title' | 'estimatedValue' | 'deliveryDate' }
-  | { kind: 'sow'; field: keyof ServiceDescriptionSlots };
+  | { kind: 'sow'; field: keyof ServiceDescriptionSlots }
+  // A yes/no governance answer. Kept distinct from the prose targets because
+  // `false` is a real answer here, not an empty slot — see `isSlotFilled`.
+  | { kind: 'risk'; field: MiniIrqField };
 
 /** Everything the engine reads to decide the next question + carry-forward. */
 export interface DemandConversationContext {
@@ -63,6 +71,15 @@ export interface DemandConversationContext {
   // only to document that they are already known):
   requesterCountry?: string;
   beneficiaryName?: string;
+  /**
+   * Answers to the criteria-driven risk questions.
+   *
+   * Tri-state BY ABSENCE: a key that is not present was never answered. Never
+   * default these to `false` — "not asked" and "answered no" are different
+   * governance facts, and recording the second when the first is true is the
+   * unearned evidence this codebase forbids.
+   */
+  risk?: { privilegedAccess?: boolean; criticalService?: boolean };
 }
 
 export interface DemandSlot {
@@ -72,6 +89,13 @@ export interface DemandSlot {
   required: boolean;
   /** Base question; the LLM may rephrase, the offline fallback uses it verbatim. */
   prompt: string;
+  /**
+   * How the answer is given. Absent means free text, so every built-in slot is
+   * unchanged. `yes-no` renders a choice and disables the text input: a
+   * governance question must be answered by the requester, never extracted from
+   * their prose by a model.
+   */
+  answerType?: 'text' | 'yes-no';
   /** A short, category-specific example appended to the prompt. */
   example?: (ctx: DemandConversationContext) => string;
   /** Slot is part of the agenda only when this returns true (absent ⇒ always). */
@@ -309,6 +333,9 @@ export function resolveSlots(configured?: ConfiguredSlot[]): DemandSlot[] {
 }
 
 function isSlotFilled(slot: DemandSlot, ctx: DemandConversationContext): boolean {
+  // Presence, not truthiness: `false` is an answer. Every other branch below
+  // keeps its `!!value.trim()` semantics, so no existing slot changes.
+  if (slot.target.kind === 'risk') return ctx.risk?.[slot.target.field] !== undefined;
   if (slot.target.kind === 'request') {
     if (slot.target.field === 'estimatedValue') return (ctx.estimatedValue ?? 0) > 0;
     if (slot.target.field === 'title') return !!ctx.title?.trim();

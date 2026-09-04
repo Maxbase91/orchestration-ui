@@ -175,6 +175,38 @@ const INTAKE = read('src/features/requests/new-request/new-request-page.tsx');
 check('the confirmation screen reads the determined channel, not a separate route state',
   /buyingChannelResult: determination\?\.buyingChannelResult/.test(INTAKE));
 
+// ── The risk questionnaire, in the record ──────────────────────────────────
+// Both answers used to default to `false`, so the record could not distinguish
+// a question answered in the negative from one nobody ever put. `risk_flags` is
+// already TEXT[], so carrying the distinction needs no schema change.
+{
+  const triggered = { category: 'consulting', estimatedValue: 400_000 };
+  const silent = recordFor({ ...triggered, miniIrq: {} });
+  const answered = recordFor({ ...triggered, miniIrq: { privilegedAccess: false, criticalService: false } });
+  const yes = recordFor({ ...triggered, miniIrq: { privilegedAccess: true, criticalService: true } });
+
+  check('an unanswered risk question is recorded as not-answered',
+    silent.riskFlags.some((flag) => /^risk-question:.*=not-answered$/.test(flag)));
+  check('it never records an unanswered question as a negative answer',
+    !silent.riskFlags.some((flag) => /^risk-question:.*=no$/.test(flag)));
+  check('a negative answer IS recorded, and distinguishably',
+    answered.riskFlags.some((flag) => /^risk-question:.*=no$/.test(flag))
+    && !answered.riskFlags.some((flag) => /=not-answered$/.test(flag)));
+  check('a positive answer is recorded as such',
+    yes.riskFlags.some((flag) => /^risk-question:.*=yes$/.test(flag)));
+  // The flags mirror the triggered set exactly — no more, no fewer. A record
+  // carrying a question this demand was never asked is as wrong as one omitting
+  // a question it was.
+  const smallDemand = determinationFor({ category: 'goods', estimatedValue: 500 });
+  const smallRecord = buildIntakeComplianceRecord(smallDemand, { determinedAt: '2026-09-01T00:00:00Z' });
+  const recordedIds = smallRecord.riskFlags
+    .filter((flag) => flag.startsWith('risk-question:'))
+    .map((flag) => flag.slice('risk-question:'.length).split('=')[0]).sort();
+  check('the recorded questions are exactly the ones this demand triggered',
+    JSON.stringify(recordedIds) === JSON.stringify(smallDemand.residualQuestions.map((q) => q.id).sort()),
+    `recorded=${recordedIds.join(',')} triggered=${smallDemand.residualQuestions.map((q) => q.id).join(',')}`);
+}
+
 console.log('');
 if (failures) console.error(`FAILED: ${failures} check(s)`);
 else console.log('All intake-evidence checks passed.');

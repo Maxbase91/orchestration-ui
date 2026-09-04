@@ -291,6 +291,61 @@ check('it imports no React and nothing from the feature layer', () => {
   assert.equal(/@\/features\//.test(source), false);
 });
 
+console.log('\nWhat the risk questionnaire established is recorded, including silence');
+
+// Both answers used to default to `false`, so a question nobody put and a
+// question answered in the negative produced the same determination and the
+// same compliance record. A reader could not tell which had happened, which is
+// the unearned evidence this codebase forbids.
+check('an unanswered question is reported as not-answered, never as no', () => {
+  const result = evaluateIntakeDetermination(demand({
+    category: 'consulting', estimatedValue: 400_000, miniIrq: {},
+  }));
+  assert.ok(result.riskQuestionnaire.length > 0, 'this demand should trigger questions');
+  for (const entry of result.riskQuestionnaire) assert.equal(entry.answer, 'not-answered');
+});
+
+check('answering no is distinguishable from not answering', () => {
+  const answered = evaluateIntakeDetermination(demand({
+    category: 'consulting', estimatedValue: 400_000,
+    miniIrq: { privilegedAccess: false, criticalService: false },
+  }));
+  assert.deepEqual(answered.riskQuestionnaire.map((entry) => entry.answer), ['no', 'no']);
+});
+
+check('every triggered question appears in the record, with its rationale', () => {
+  const result = evaluateIntakeDetermination(demand({ category: 'consulting', estimatedValue: 400_000 }));
+  assert.deepEqual(
+    result.riskQuestionnaire.map((entry) => entry.id).sort(),
+    result.residualQuestions.map((question) => question.id).sort(),
+  );
+  for (const entry of result.riskQuestionnaire) assert.ok(entry.reason.trim().length > 0);
+});
+
+// Unanswered must behave exactly as the old `false` default did, or this change
+// would silently re-tier every existing demand.
+check('an unanswered questionnaire determines the same as an explicit no', () => {
+  const strip = (result) => ({ ...result, riskQuestionnaire: undefined });
+  assert.deepEqual(
+    strip(evaluateIntakeDetermination(demand({ miniIrq: {} }))),
+    strip(evaluateIntakeDetermination(demand({ miniIrq: { privilegedAccess: false, criticalService: false } }))),
+  );
+});
+
+// A stale answer used to keep driving the determination after its question
+// stopped applying: say yes to critical-service at a material value, then drop
+// the value, and materiality stayed critical with nothing on screen to explain it.
+check('an answer to a question this demand no longer asks is ignored', () => {
+  const small = evaluateIntakeDetermination(demand({
+    category: 'goods', estimatedValue: 500, miniIrq: { criticalService: true },
+  }));
+  const clean = evaluateIntakeDetermination(demand({ category: 'goods', estimatedValue: 500, miniIrq: {} }));
+  assert.ok(!small.residualQuestions.some((question) => question.field === 'criticalService'),
+    'this demand should not be asked the critical-service question');
+  assert.deepEqual(small.materiality, clean.materiality);
+  assert.ok(!small.riskQuestionnaire.some((entry) => entry.id === 'critical-service'));
+});
+
 console.log(
   failures === 0
     ? '\nAll intake-determination checks passed.'

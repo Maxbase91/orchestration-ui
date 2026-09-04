@@ -81,6 +81,12 @@ function riskFlagsFrom(determination: IntakeDetermination): string[] {
     ...(determination.supplierOnboardingRequired ? ['supplier-onboarding-required'] : []),
     ...(determination.screening.blocking ? ['supplier-screening-blocked'] : []),
     ...(determination.referral.outcome !== 'proceed' ? [`disposition:${determination.referral.outcome}`] : []),
+    // What the risk questionnaire established, per question, including
+    // `not-answered`. Both answers used to default to `false`, so a question
+    // nobody put was indistinguishable from one answered in the negative —
+    // and a reader of this record could not tell which had happened. `risk_flags`
+    // is already TEXT[], so this needs no schema change.
+    ...determination.riskQuestionnaire.map((entry) => `risk-question:${entry.id}=${entry.answer}`),
   ];
 }
 

@@ -40,7 +40,7 @@ export interface UseIntakeDeterminationInput {
   isUrgent: boolean;
   requestTitle?: string;
   serviceDescription?: DeterminationServiceDescription | null;
-  miniIrq: { privilegedAccess: boolean; criticalService: boolean };
+  miniIrq: { privilegedAccess?: boolean; criticalService?: boolean };
   contractId?: string;
 }
 

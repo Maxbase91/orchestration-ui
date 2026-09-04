@@ -31,6 +31,34 @@ it takes no view or density argument, which keeps presentation out of the
 decision as a structural property rather than a promise
 (`test:mode-equivalence`).
 
+## The Details step asks one thing at a time
+
+The step renders in sequence: the requester summary (derived from the profile,
+so it is complete on arrival), then the service-description conversation —
+whose tail is the criteria-driven risk questions — then supplier selection.
+Everything used to be on screen at once, before the requester had answered
+anything.
+
+`details-sections.ts` owns the rule, and it is deliberately trivial: **section
+N+1 is revealed exactly when section N is complete, and the last section's
+completion IS `canProceed('details')`**. `intake-steps.ts` calls the same
+predicate, so a screen that shows a section and a gate that ignores it cannot
+drift apart (`test:details-progression`).
+
+The gate is the mandatory floor (`REQUIRED_SLOT_IDS`) **and** every triggered
+risk question answered — not an empty agenda. The agenda also carries optional
+slots, and the conversation drops one the requester could not answer, so gating
+on it made a declined optional question block the step while the chat said
+"that's everything I need".
+
+Risk questions are `DemandSlot`s with `answerType: 'yes-no'`, appended at
+runtime by `residual-question-slots.ts` from the determination's
+`residualQuestions`. They are never in `ALL_SLOTS` or a stored template —
+`resolveSlots` REPLACES the built-in set when a template row exists, so they
+would silently stop being asked. `false` is a real answer, so `isSlotFilled`
+tests presence rather than truthiness, and an unanswered question is recorded
+as `not-answered` rather than as "no".
+
 ## One UI, progressive disclosure
 
 There is **one** page and one view of it. A `density` prop (`'simple' | 'expert'`)

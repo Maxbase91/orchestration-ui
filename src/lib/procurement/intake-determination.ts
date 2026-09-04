@@ -35,7 +35,7 @@ import { evaluateSupplierData } from './supplier-data.js';
 import { determineContractType, determineSourcingType, type ContractType, type SourcingType } from './determination.js';
 import { runSecondContractCheck, type SecondContractCheckResult } from './second-contract-check.js';
 import { determineApprovalToSource, type ApprovalToSourceResult } from './approval-to-source.js';
-import { determineResidualQuestions, type ResidualQuestion } from './residual-questions.js';
+import { determineResidualQuestions, type ResidualQuestion, type ResidualQuestionId } from './residual-questions.js';
 import { assessOperationalRisk, type OperationalRiskResult } from './operational-risk-assessment.js';
 import { determineReferral, type ReferralResult } from './referral.js';
 import { evaluateScreening, type ScreeningResult } from './screening.js';
@@ -72,7 +72,8 @@ export interface IntakeDeterminationInput {
   requestTitle?: string;
   serviceDescription?: DeterminationServiceDescription | null;
   /** The two inherent-risk attributes a service description cannot reveal. */
-  miniIrq: { privilegedAccess: boolean; criticalService: boolean };
+  /** Absent keys mean the question was never asked — see `riskQuestionnaire`. */
+  miniIrq: { privilegedAccess?: boolean; criticalService?: boolean };
   /** A contract the buy-route step already matched, when there is one. */
   contractId?: string;
   /** Today, as YYYY-MM-DD. Injected so the same inputs always give one answer. */
@@ -108,6 +109,17 @@ export interface IntakeDetermination {
   secondContractCheck: SecondContractCheckResult;
   approvalToSource: ApprovalToSourceResult;
   residualQuestions: ResidualQuestion[];
+  /**
+   * The risk questionnaire as evidence: which questions this demand triggered
+   * and what came back for each. `not-answered` is a first-class value — a
+   * triggered question nobody put must not read as a negative answer.
+   */
+  riskQuestionnaire: {
+    id: ResidualQuestionId;
+    question: string;
+    reason: string;
+    answer: 'yes' | 'no' | 'not-answered';
+  }[];
   referral: ReferralResult;
   screening: ScreeningResult;
   handoffSteps: HandoffStep[];
@@ -215,11 +227,39 @@ export function evaluateIntakeDetermination(input: IntakeDeterminationInput): In
   const supplierRec = suppliers.find((s) => s.id === supplierId);
   const dataSensitivity = inferDataSensitivity(serviceDescription ?? null);
 
+  // Residual questions first, because everything below reads their ANSWERS and
+  // an answer only counts while its question still applies.
+  //
+  // The criteria never read `miniIrq`, so answering one cannot change which are
+  // asked — without that property, appending them to a live agenda would
+  // oscillate. `test:residual-questions` pins it.
+  const residualQuestions = determineResidualQuestions({
+    category,
+    dataSensitivity,
+    estimatedValue,
+    supplierRiskRating: supplierRec?.riskRating,
+  });
+
+  /**
+   * The answers that still apply.
+   *
+   * A stale answer used to keep driving the determination: answer "yes" to the
+   * critical-service question at €150k, then lower the value below the
+   * threshold, and the question disappears from the screen while
+   * `criticalService: true` went on forcing materiality to critical. An answer
+   * to a question this demand no longer asks is not evidence about this demand.
+   */
+  const asked = new Set(residualQuestions.map((question) => question.field));
+  const risk = {
+    privilegedAccess: asked.has('privilegedAccess') ? miniIrq.privilegedAccess : undefined,
+    criticalService: asked.has('criticalService') ? miniIrq.criticalService : undefined,
+  };
+
   const materiality = determineMateriality({
     dataSensitivity,
     riskRating: supplierRec?.riskRating,
     value: estimatedValue,
-    criticalService: miniIrq.criticalService,
+    criticalService: risk.criticalService,
   });
 
   // Inherent-risk cascade — the demand's risk tier (richer than supplier risk
@@ -229,28 +269,35 @@ export function evaluateIntakeDetermination(input: IntakeDeterminationInput): In
     dataSensitivity,
     supplierRiskRating: supplierRec?.riskRating,
     value: estimatedValue,
-    privilegedAccess: miniIrq.privilegedAccess,
-    criticalService: miniIrq.criticalService,
+    privilegedAccess: risk.privilegedAccess,
+    criticalService: risk.criticalService,
   });
 
-  // Residual questions — only the deltas the description leaves open and that
-  // would change the determination; an empty list means nothing to ask.
-  const residualQuestions = determineResidualQuestions({
-    category,
-    dataSensitivity,
-    estimatedValue,
-    supplierRiskRating: supplierRec?.riskRating,
-  });
+  // What the risk questionnaire actually established. A reader of the
+  // compliance record has to be able to tell "we asked and they said no" from
+  // "nobody asked", and the screen and the record read this same array.
+  const riskQuestionnaire = residualQuestions.map((question) => ({
+    id: question.id,
+    question: question.question,
+    reason: question.reason,
+    answer: risk[question.field] === undefined
+      ? ('not-answered' as const)
+      : risk[question.field] ? ('yes' as const) : ('no' as const),
+  }));
 
   // Preliminary operational risk — a per-dimension operational view
   // (continuity, data, concentration, regulatory, access) complementing the
   // single-tier inherent-risk cascade.
   const incumbentRelationship = (supplierRec?.activeContracts ?? 0) > 0 || (supplierRec?.totalSpend12m ?? 0) > 0;
+  // `?? false` only here: the operational dimensions require booleans, and an
+  // unanswered access question yields `access: low` — the same rating it gave
+  // when both fields defaulted to false, but now a visible default rather than
+  // a silent one. What was actually asked is recorded in `riskQuestionnaire`.
   const operationalRisk = assessOperationalRisk({
     dataSensitivity,
     material: materiality.material,
-    criticalService: miniIrq.criticalService,
-    privilegedAccess: miniIrq.privilegedAccess,
+    criticalService: risk.criticalService ?? false,
+    privilegedAccess: risk.privilegedAccess ?? false,
     estimatedValue,
     incumbentRelationship,
   });
@@ -408,6 +455,7 @@ export function evaluateIntakeDetermination(input: IntakeDeterminationInput): In
     secondContractCheck,
     approvalToSource,
     residualQuestions,
+    riskQuestionnaire,
     referral,
     screening,
     handoffSteps,

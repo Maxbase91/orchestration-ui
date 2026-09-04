@@ -1,8 +1,13 @@
 #!/usr/bin/env node
 // Verifies the dynamic demand-conversation engine (INT-03 / INT-10).
 //
-// Self-contained — mirrors src/lib/procurement/demand-conversation.ts. Keep in
-// sync. Run: node tests/integration/demand-conversation.mjs
+// The first half is self-contained — it mirrors
+// src/lib/procurement/demand-conversation.ts and must be kept in sync.
+//
+// The risk-slot section at the bottom deliberately does NOT mirror: it calls
+// the real engine. A mirror of "does `false` count as an answer" would pass
+// while the product got it wrong, and that question is the whole point of the
+// change. Run: node --import tsx/esm tests/integration/demand-conversation.mjs
 
 let failures = 0;
 function check(name, cond, detail = '') {
@@ -152,6 +157,62 @@ for (const slot of ALL_SLOTS.filter((s) => REQUIRED.includes(s.id))) {
 // deliveryDate is optional but unconditional — asked of everyone, so no reason.
 check('an unconditional optional slot carries none',
   ALL_SLOTS.find((s) => s.id === 'deliveryDate').why === undefined);
+
+// ── The risk questions, against the REAL engine ────────────────────────────
+console.log('\nThe risk questions are the tail of the same agenda');
+
+const { buildAgenda, determineNextQuestion, requiredSlotsFilled, resolveSlots, conversationProgress } =
+  await import('../../src/lib/procurement/demand-conversation.ts');
+const { riskSlotsFor } = await import('../../src/lib/procurement/residual-question-slots.ts');
+
+const RISK = riskSlotsFor([
+  { id: 'privileged-access', field: 'privilegedAccess', question: 'Does this engagement grant privileged or system access?', reason: 'consulting engagements often involve system access' },
+]);
+const described = {
+  category: 'consulting',
+  title: 'Target operating model design',
+  estimatedValue: 250_000,
+  // Not required, but the agenda still asks for it — so a fixture that omits it
+  // never reaches the risk tail.
+  deliveryDate: '2027-01-15',
+  sow: {
+    objective: 'Design a target operating model', scope: 'Assessment, design, roadmap',
+    deliverables: 'Report, model, roadmap', resources: 'Partner plus three consultants',
+    timeline: 'Twelve weeks', acceptanceCriteria: 'Steering-group sign-off',
+    pricingModel: 'Fixed price', dependencies: 'Finance availability', exclusions: 'Implementation',
+  },
+};
+const withRisk = [...resolveSlots(), ...RISK];
+
+check('a risk question is asked only after the description is captured',
+  determineNextQuestion({ ...described, sow: {} }, undefined, withRisk)?.slot.target.kind !== 'risk');
+check('once the description is captured, the risk question is what is left',
+  determineNextQuestion(described, undefined, withRisk)?.slot.id === 'privileged-access');
+check('a risk question renders as a choice, not a text box',
+  determineNextQuestion(described, undefined, withRisk)?.slot.answerType === 'yes-no');
+check('the question carries its rationale',
+  /system access/.test(determineNextQuestion(described, undefined, withRisk)?.slot.why ?? ''));
+
+// The load-bearing one. `false` is an ANSWER — "not asked" and "answered no"
+// are different governance facts, and a truthiness test collapses them.
+check('answering NO counts as answered',
+  buildAgenda({ ...described, risk: { privilegedAccess: false } }, undefined, withRisk).length === 0);
+check('answering YES counts as answered',
+  buildAgenda({ ...described, risk: { privilegedAccess: true } }, undefined, withRisk).length === 0);
+check('leaving it unanswered does NOT count',
+  buildAgenda({ ...described, risk: {} }, undefined, withRisk).length === 1);
+check('an absent risk object does not count either',
+  buildAgenda(described, undefined, withRisk).length === 1);
+
+// The description floor is a fixed id list, so it cannot see a per-demand risk
+// question. The step gate ANDs the two for exactly this reason.
+check('the description floor alone does not prove the risk question was answered',
+  requiredSlotsFilled(described, withRisk)
+  && buildAgenda(described, undefined, withRisk).length > 0);
+
+check('progress counts the risk question in its denominator',
+  conversationProgress(described, undefined, withRisk).total
+    > conversationProgress(described, undefined, resolveSlots()).total);
 
 console.log('');
 if (failures) { console.error(`FAILED: ${failures} check(s)`); process.exitCode = 1; }

@@ -10,9 +10,9 @@
 // inherent-risk and materiality cascades as before — only the *visibility* of
 // each question is now driven by criteria instead of always being shown.
 
-import type { DataSensitivity } from './materiality';
-import type { RiskTier } from './risk-segmentation';
-import { DEFAULT_POLICY_CONFIG, getActivePolicyConfig, type PolicyConfig } from './policy-config';
+import type { DataSensitivity } from './materiality.js';
+import type { RiskTier } from './risk-segmentation.js';
+import { DEFAULT_POLICY_CONFIG, getActivePolicyConfig, type PolicyConfig } from './policy-config.js';
 
 export type ResidualQuestionId = 'privileged-access' | 'critical-service';
 

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readFileSync } from 'node:fs';
 // Verifies the configurable service description: that the serialised slot
 // conditions reproduce the hardcoded ones exactly, that the compact narrative
 // composes from the configured sections, and that the sourcing seed is derived
@@ -282,6 +283,22 @@ const DEFAULT_CRITERIA = [
 // does not total 100 would hand the user a broken starting point.
 check('the seeded criteria total 100',
   DEFAULT_CRITERIA.reduce((s, c) => s + c.weight, 0) === 100);
+
+// ── Risk questions stay out of the admin-editable slot set ─────────────────
+// `resolveSlots` REPLACES the built-in set when a template row exists, so a
+// risk question living in `slots` would silently stop being asked for exactly
+// the categories most likely to have a template. And the admin editor gives
+// every slot a `required` switch and an editable prompt — turning off "does
+// this grant privileged access?" would be a change to the inherent-risk
+// cascade dressed as a copy edit.
+{
+  const configSource = readFileSync(new URL('../../src/lib/procurement/service-description-config.ts', import.meta.url), 'utf8');
+  const targetKinds = configSource.slice(configSource.indexOf('interface ConfiguredSlot'), configSource.indexOf('interface ConfiguredSlot') + 600);
+  check('a configured slot cannot target a risk field', !/'risk'/.test(targetKinds));
+  const defaults = readFileSync(new URL('../../src/lib/procurement/service-description-defaults.ts', import.meta.url), 'utf8');
+  check('no default slot is a risk question',
+    !/privileged-access|critical-service/.test(defaults));
+}
 
 console.log(failures === 0 ? '\n\x1b[32mAll checks passed\x1b[0m' : `\n\x1b[31m${failures} check(s) failed\x1b[0m`);
 process.exit(failures === 0 ? 0 : 1);

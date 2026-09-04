@@ -23,6 +23,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { SupplierRecommenderCard } from './components/supplier-recommender-card';
+import type { MiniIrqAnswers } from './intake-form-data';
 
 // Re-exported so consumers that only need the summary shape do not have to know
 // where the determination lives.
@@ -77,8 +78,25 @@ interface StepComplianceProps {
    * from the same determination, and nothing below decides anything. Simple
    * sees the conclusion and what it means; Expert also sees the workings.
    */
-  miniIrq: { privilegedAccess: boolean; criticalService: boolean };
-  onMiniIrqChange: (m: { privilegedAccess: boolean; criticalService: boolean }) => void;
+  /**
+   * Whether this step asks the residual risk questions.
+   *
+   * False on the chat path, where the conversation asks them as its tail — two
+   * places to answer one governance question is how the answers disagree.
+   * The form paths (contract renewal, supplier onboarding) have no conversation,
+   * so the card is still where they are asked.
+   */
+  askRiskQuestions?: boolean;
+  /**
+   * Whether supplier selection is on screen yet.
+   *
+   * False until the conversation is finished, so the requester is asked for one
+   * thing at a time. It is never a *gate* — leaving the supplier open is a
+   * valid answer and sourcing will identify candidates.
+   */
+  revealSupplier?: boolean;
+  miniIrq: MiniIrqAnswers;
+  onMiniIrqChange: (m: MiniIrqAnswers) => void;
 }
 
 /** The supplier's SRA state, in the vocabulary the triage form displays. */
@@ -108,6 +126,8 @@ export function StepCompliance({
   requestTitle,
   determination,
   section,
+  askRiskQuestions = true,
+  revealSupplier = true,
   miniIrq,
   onMiniIrqChange,
 }: StepComplianceProps) {
@@ -187,8 +207,10 @@ export function StepCompliance({
     <div className="space-y-6">
       {section === 'inputs' && (<>
       {/* Mini-IRQ (delta only) — the two inherent-risk attributes that cannot be
-          inferred from the service description. Answers refine the cascade live. */}
-      <Card>
+          inferred from the service description. Answers refine the cascade live.
+          On the chat path the conversation asks these instead, so this renders
+          only for the form-based categories. */}
+      {askRiskQuestions && <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm">Mini risk questionnaire</CardTitle>
           <p className="text-xs text-muted-foreground">
@@ -211,7 +233,7 @@ export function StepCompliance({
                   </label>
                   <Switch
                     id={switchId}
-                    checked={miniIrq[q.field]}
+                    checked={miniIrq[q.field] ?? false}
                     onCheckedChange={(v) => onMiniIrqChange({ ...miniIrq, [q.field]: v })}
                   />
                 </div>
@@ -219,7 +241,7 @@ export function StepCompliance({
             })
           )}
         </CardContent>
-      </Card>
+      </Card>}
 
       </>)}
       {section === 'conclusions' && (<>
@@ -687,7 +709,7 @@ export function StepCompliance({
         <ITSecurityAssessmentSection />
       )}
 
-      <SectionHeader
+      {revealSupplier && <><SectionHeader
         label="Supplier"
         meaning="Who you expect to buy from, if you already know. Leaving it open is fine — sourcing will identify candidates."
       />
@@ -702,7 +724,7 @@ export function StepCompliance({
         selectedSupplierName={supplier}
         supplierProvenance={supplierProvenance}
         onSelect={onSelectSupplier}
-      />
+      /></>}
 
       {/* The workflow is PRE-DEFINED from the input (derived by category in the
           effect above) and attached silently — it is not user-selectable. */}

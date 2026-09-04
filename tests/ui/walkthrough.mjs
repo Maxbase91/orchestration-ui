@@ -78,13 +78,25 @@ async function toFullRequest(page, demand, enrichment) {
 
 // The full-request step is the dynamic demand CONVERSATION — answer each
 // question (value first) until the wizard's Next button unlocks.
-async function answerChat(page, answers) {
-  const input = page.getByPlaceholder('Type your answer...');
+// The conversation now ends with the criteria-driven risk questions, asked as
+// yes/no choices with the text input disabled — so the loop has to press a
+// button when one is pending rather than typing at it forever.
+async function answerChat(page, answers, { answerRiskYes = false } = {}) {
+  const input = page.getByPlaceholder(/Type your answer|Choose Yes or No/);
   const next = page.getByRole('button', { name: /^Next$/ });
-  for (const ans of answers) {
+  const queue = [...answers];
+  for (let turn = 0; turn < answers.length + 6; turn++) {
     if (await next.isEnabled().catch(() => false)) break;
+    const choice = page.getByRole('button', { name: answerRiskYes ? /^Yes$/ : /^No$/ });
+    if (await choice.count()) {
+      await choice.last().click();
+      await new Promise((r) => setTimeout(r, 900));
+      continue;
+    }
+    const answer = queue.shift() ?? answers[answers.length - 1];
     await input.waitFor({ timeout: 8000 });
-    await input.fill(ans);
+    if (await input.isDisabled().catch(() => false)) break;
+    await input.fill(answer);
     await input.press('Enter');
     await new Promise((r) => setTimeout(r, 900));
   }
@@ -97,18 +109,14 @@ async function fullScenario(page, { key, demand, enrichment, answers, toggleCrit
   try {
     await toFullRequest(page, demand, enrichment);
     await page.getByText('Service description', { exact: true }).waitFor({ timeout: 15000 }).catch(() => {});
-    await answerChat(page, answers);
+    // The risk questions are answered inside the conversation now, so this is
+    // one screen where it used to be three (Details → Risk → Determination →
+    // Routing became Details → Review & submit).
+    await answerChat(page, answers, { answerRiskYes: toggleCritical });
     await shot(page, `${key}-1-conversation`);
     const next = page.getByRole('button', { name: /^Next$/ });
-    await next.click();                                                      // → risk
-    await page.getByText('Mini risk questionnaire').waitFor({ timeout: 15000 });
-    if (toggleCritical) await page.locator('#mini-irq-critical').click();
-    await shot(page, `${key}-2-risk`);
-    await page.getByRole('button', { name: /^Next$/ }).click();              // → determination
-    await page.getByText('Buying Channel Classification', { exact: true }).waitFor({ timeout: 15000 });
-    await shot(page, `${key}-3-determination`);
-    await page.getByRole('button', { name: /^Next$/ }).click();              // → routing
-    await page.getByText('Workflow Preview', { exact: true }).waitFor({ timeout: 15000 });
+    await next.click();                                                      // → review & submit
+    await page.getByText('Approval to source', { exact: true }).waitFor({ timeout: 15000 });
     // Let the config queries (template + approval chains) resolve before the shot:
     // a base lifecycle stage proves the template loaded; a "Step N" badge proves
     // the approval chain resolved.

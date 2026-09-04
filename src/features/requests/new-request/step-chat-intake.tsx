@@ -18,6 +18,9 @@ import { formatCurrency } from '@/lib/format';
 import { assessAnswer, type AnswerVerdict } from '@/lib/procurement/answer-quality';
 import { parseDeliveryDate } from '@/lib/parse-delivery-date';
 import { EXTRACTABLE_FIELDS } from './extractable-fields';
+import { riskSlotsFor } from '@/lib/procurement/residual-question-slots';
+import type { MiniIrqField, ResidualQuestion } from '@/lib/procurement/residual-questions';
+import type { MiniIrqAnswers } from './intake-form-data';
 import {
   applicableSlots,
   conversationProgress,
@@ -53,6 +56,15 @@ interface StepChatIntakeProps {
     serviceDescription?: ServiceDescription | null;
   };
   onUpdate: (data: Record<string, unknown>) => void;
+  /**
+   * The criteria-driven risk questions this demand triggers, from the
+   * determination. They are asked HERE, as the tail of the conversation, rather
+   * than as a card of switches below it — a requester answering questions
+   * should not have to notice that two of them live somewhere else.
+   */
+  riskQuestions?: readonly ResidualQuestion[];
+  /** Answers so far. An absent key means the question has not been answered. */
+  riskAnswers?: MiniIrqAnswers;
 }
 
 interface ChatMessage {
@@ -80,6 +92,13 @@ interface ChatMessage {
    * assistant could ground a draft in what they had already said.
    */
   draft?: { slotId: string; text: string };
+  /**
+   * A yes/no governance question, answered by pressing a button.
+   *
+   * Never by typing: the answer is recorded as evidence, and a model that
+   * extracted it from prose would be answering on the requester's behalf.
+   */
+  choice?: { slotId: string; field: MiniIrqField };
 }
 
 /** Mirrors the list on step-details, which this path never renders. */
@@ -96,6 +115,24 @@ interface ChatMessage {
  * So: ask once, openly, and let the first turn extract whatever it can. The
  * remaining questions are then genuinely only the gaps.
  */
+// Stable identities for the optional props: an inline `= []` default would be a
+// new reference each render and destabilise every memo that depends on it.
+const EMPTY_RISK_QUESTIONS: readonly ResidualQuestion[] = [];
+const EMPTY_RISK_ANSWERS: MiniIrqAnswers = {};
+
+/**
+ * The `choice` payload for a question, when it is a yes/no one.
+ *
+ * Every site that appends the next question goes through this. A risk question
+ * rendered without it would leave the requester a disabled input and no way to
+ * answer — the text box is disabled precisely because the buttons are the only
+ * legitimate way in.
+ */
+function choiceFor(slot: DemandSlot | undefined): { choice: { slotId: string; field: MiniIrqField } } | Record<string, never> {
+  if (!slot || slot.answerType !== 'yes-no' || slot.target.kind !== 'risk') return {};
+  return { choice: { slotId: slot.id, field: slot.target.field } };
+}
+
 const OPENING_INVITATION =
   'Tell me about the service you need — in your own words, as much or as little as you like. '
   + "I'll pull out what I can and then only ask about what's missing.";
@@ -126,9 +163,11 @@ function buildContext(
   category: string,
   data: StepChatIntakeProps['data'],
   sow: Partial<ServiceDescription>,
+  risk?: MiniIrqAnswers,
 ): DemandConversationContext {
   return {
     category,
+    risk,
     title: data.title || undefined,
     estimatedValue: data.estimatedValue || undefined,
     deliveryDate: data.deliveryDate || undefined,
@@ -153,6 +192,7 @@ function localFallbackResponse(
   data: StepChatIntakeProps['data'],
   svcDesc: Partial<ServiceDescription>,
   slots: DemandSlot[],
+  risk: MiniIrqAnswers,
 ): {
   extracted: Record<string, unknown>;
   sow: Partial<ServiceDescription>;
@@ -162,6 +202,14 @@ function localFallbackResponse(
   why?: string;
   /** A worked example for `nextQuestion`, shown as a hint beneath it. */
   example?: string;
+  /**
+   * The slot `nextQuestion` belongs to.
+   *
+   * Returned so the caller can tell a yes/no governance question from a prose
+   * one and render the choice. Without it the question arrived as bare text and
+   * the requester got a disabled input with no buttons to press.
+   */
+  nextSlot?: DemandSlot;
   complete: boolean;
 } {
   const extracted: Record<string, unknown> = {};
@@ -169,7 +217,7 @@ function localFallbackResponse(
   let warning: string | undefined;
 
   // Which slot is the user answering right now?
-  const answering = determineNextQuestion(buildContext(category, data, svcDesc), undefined, slots)?.slot;
+  const answering = determineNextQuestion(buildContext(category, data, svcDesc, risk), undefined, slots)?.slot;
   if (answering) {
     if (answering.target.kind === 'request') {
       if (answering.target.field === 'estimatedValue') {
@@ -193,15 +241,18 @@ function localFallbackResponse(
           else warning = 'Please enter a specific need-by date, for example 2026-12-31.';
         } else extracted[answering.target.field] = userText.slice(0, 200);
       }
-    } else {
+    } else if (answering.target.kind === 'sow') {
       sowUpdate[answering.target.field] = userText;
     }
+    // A `risk` slot is never answered here. It is answered by pressing Yes or
+    // No, and the text input is disabled while one is pending — a governance
+    // answer must come from the requester, not from parsing their prose.
   }
 
   // Recompute against the just-captured answer to get the next question.
   const nextData = { ...data, ...(extracted as Partial<StepChatIntakeProps['data']>) };
   const nextSow = { ...svcDesc, ...sowUpdate };
-  const ctx = buildContext(category, nextData, nextSow);
+  const ctx = buildContext(category, nextData, nextSow, risk);
   const complete = isConversationComplete(ctx, undefined, slots);
 
   if (complete) {
@@ -224,6 +275,7 @@ function localFallbackResponse(
     extracted,
     sow: sowUpdate,
     nextQuestion: next?.prompt ?? '',
+    nextSlot: next?.slot,
     why: next?.slot.why,
     // Offline the wording is always the engine's, so the example earns its place.
     example: next?.example,
@@ -342,7 +394,7 @@ function buildWelcomeMessage(
   return { content: parts.join('\n') };
 }
 
-export function StepChatIntake({ category, categoryDescription: _categoryDescription, data, onUpdate }: StepChatIntakeProps) {
+export function StepChatIntake({ category, categoryDescription: _categoryDescription, data, onUpdate, riskQuestions = EMPTY_RISK_QUESTIONS, riskAnswers = EMPTY_RISK_ANSWERS }: StepChatIntakeProps) {
   const { data: suppliers = [] } = useSuppliers();
   // Which questions get asked, and which sections compose the compact narrative,
   // are admin config (/admin/service-description). Resolution is category-first
@@ -363,9 +415,16 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
    * diligence, it is a loop.
    */
   const [skippedSlots, setSkippedSlots] = useState<Set<string>>(() => new Set());
-  const slots = useMemo(
+  // The description slots, then the risk questions. `buildAgenda` preserves
+  // order, so the risk phase falls out as the tail of the same agenda — one
+  // completeness rule, one progress count, no second state machine.
+  const descriptionSlots = useMemo(
     () => configuredSlots.filter((slot) => !skippedSlots.has(slot.id)),
     [configuredSlots, skippedSlots],
+  );
+  const slots = useMemo(
+    () => [...descriptionSlots, ...riskSlotsFor(riskQuestions)],
+    [descriptionSlots, riskQuestions],
   );
   /** Unreadable date answers so far. */
   const dateAttemptsRef = useRef(0);
@@ -392,7 +451,6 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const [isComplete, setIsComplete] = useState(false);
   const [summary, setSummary] = useState('');
   const [error, setError] = useState(false);
   // Long paste/document extraction can pre-populate sections before the chat
@@ -498,12 +556,38 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
   // on category and value. A requester who had answered everything was told
   // they were 57% done and shown five items that were never going to be asked.
   const progressCtx = useMemo(
-    () => buildContext(category, data, svcDesc),
-    [category, data, svcDesc],
+    () => buildContext(category, data, svcDesc, riskAnswers),
+    [category, data, svcDesc, riskAnswers],
   );
   const { total: unifiedTotal, captured: unifiedDone, pct: unifiedPct } = useMemo(
     () => conversationProgress(progressCtx, undefined, slots),
     [progressCtx, slots],
+  );
+
+  /**
+   * Complete when the agenda is empty and the mandatory floor is met.
+   *
+   * Derived, not latched. This was a `useState` set once when the last question
+   * was answered, which cannot represent a question that appears *later*:
+   * selecting a high-risk supplier triggers the critical-service question after
+   * the conversation was already marked done. Reading the agenda every render
+   * re-opens the conversation instead of leaving an unanswered governance
+   * question behind a "complete" banner. It cannot oscillate — the criteria in
+   * `determineResidualQuestions` never read the answers.
+   */
+  const isComplete = useMemo(
+    () => isConversationComplete(progressCtx, undefined, slots) && requiredSlotsFilled(progressCtx, slots),
+    [progressCtx, slots],
+  );
+  /**
+   * The description alone. Generation depends on the description, not on the
+   * risk answers, so the SOW composes as soon as the prose is captured rather
+   * than waiting for two yes/no questions that contribute nothing to it.
+   */
+  const descriptionComplete = useMemo(
+    () => isConversationComplete(progressCtx, undefined, descriptionSlots)
+      && requiredSlotsFilled(progressCtx, descriptionSlots),
+    [progressCtx, descriptionSlots],
   );
 
   // The sections the panel lists, from the resolved template. `asked: false`
@@ -566,7 +650,7 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
       // that slot on the agenda, so the requester is asked again rather than
       // moved on with junk recorded. But only once — see `challenged`.
       const askedSlot = determineNextQuestion(
-        buildContext(category, data, svcDesc), undefined, slots,
+        buildContext(category, data, svcDesc, riskAnswers), undefined, slots,
       )?.slot;
       const verdict = readVerdict(result.answerVerdict)
         ?? assessAnswer(text, askedSlot);
@@ -664,10 +748,9 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
         estimatedValue: (updates.estimatedValue as number) || data.estimatedValue,
         deliveryDate: (updates.deliveryDate as string) || data.deliveryDate,
       };
-      const ctx = buildContext(category, mergedData, mergedSow);
+      const ctx = buildContext(category, mergedData, mergedSow, riskAnswers);
 
       if (isConversationComplete(ctx, undefined, slots) && requiredSlotsFilled(ctx, slots)) {
-        setIsComplete(true);
         setSummary(result.summary ?? 'Service description captured. Ready for supplier identification and compliance.');
         // The deterministic close, not the model's — what was captured and what
         // is done with it are facts the engine holds, so they are stated the
@@ -705,6 +788,7 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
               why: next.slot.why,
               // A generic example only helps when the wording is generic too.
               example: phrased ? undefined : next.example,
+              ...choiceFor(next.slot),
             },
           ]);
         }
@@ -718,7 +802,7 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
       // grounded in what the requester said, and nothing here can write one, so
       // the challenge names the gap and re-asks instead of inventing prose.
       const offlineSlot = determineNextQuestion(
-        buildContext(category, data, svcDesc), undefined, slots,
+        buildContext(category, data, svcDesc, riskAnswers), undefined, slots,
       )?.slot;
       const offlineVerdict = assessAnswer(text, offlineSlot);
       if (offlineSlot && !offlineVerdict.addresses && !challenged.has(offlineSlot.id)) {
@@ -732,7 +816,7 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
       }
       const offlineWeak = Boolean(offlineSlot && !offlineVerdict.addresses);
 
-      const fallback = localFallbackResponse(text, category, data, svcDesc, slots);
+      const fallback = localFallbackResponse(text, category, data, svcDesc, slots, riskAnswers);
 
       if (Object.keys(fallback.extracted).length > 0) {
         onUpdate(fallback.extracted);
@@ -762,7 +846,7 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
       // NEXT one, not the one just abandoned.
       const offlineNext = offlineDate.skipped
         ? determineNextQuestion(
-            buildContext(category, data, svcDesc),
+            buildContext(category, data, svcDesc, riskAnswers),
             undefined,
             slots.filter((slot) => slot.id !== 'deliveryDate'),
           )
@@ -774,17 +858,30 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
           content: `${offlineDate.hint}${offlineNext?.prompt ?? fallback.nextQuestion}`,
           why: offlineNext?.slot.why ?? fallback.why,
           example: offlineNext?.example ?? fallback.example,
+          ...choiceFor(offlineNext?.slot ?? fallback.nextSlot),
         },
       ]);
 
       if (fallback.complete) {
-        setIsComplete(true);
         setSummary('Service description captured. Ready for supplier identification and compliance.');
       }
     } finally {
       setIsTyping(false);
     }
-  }, [inputValue, isTyping, messages, category, data, svcDesc, onUpdate, suppliers, slots, challenged, noteDateAttempt]);
+  }, [inputValue, isTyping, messages, category, data, svcDesc, riskAnswers, onUpdate, suppliers, slots, challenged, noteDateAttempt]);
+
+  /**
+   * True while the conversation is waiting on a yes/no governance answer.
+   *
+   * Disabling the text box rather than hiding it keeps the layout still and
+   * makes the required action obvious — and it is what makes "a model can never
+   * fill a risk slot" structural rather than a prompt instruction: there is no
+   * free-text path into one.
+   */
+  const awaitingChoice = useMemo(() => {
+    const next = determineNextQuestion(progressCtx, undefined, slots);
+    return next?.slot.answerType === 'yes-no';
+  }, [progressCtx, slots]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -876,11 +973,11 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
   // (all components captured). Runs once; no button required.
   const autoGeneratedRef = useRef(false);
   useEffect(() => {
-    if (isComplete && !autoGeneratedRef.current) {
+    if (descriptionComplete && !autoGeneratedRef.current) {
       autoGeneratedRef.current = true;
       generateServiceDescription();
     }
-  }, [isComplete, generateServiceDescription]);
+  }, [descriptionComplete, generateServiceDescription]);
 
   /**
    * Accept a drafted answer as the requester's own.
@@ -917,11 +1014,38 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
       ...prev,
       { role: 'user', content: textValue },
       ...(next
-        ? [{ role: 'assistant' as const, content: next.prompt, why: next.slot.why, example: next.example }]
+        ? [{ role: 'assistant' as const, content: next.prompt, why: next.slot.why, example: next.example, ...choiceFor(next.slot) }]
         : [{ role: 'assistant' as const, content: buildCompletionMessage(nextCtx, slots) }]),
     ]);
-    if (!next) setIsComplete(true);
   }, [slots, svcDesc, onUpdate, category, data]);
+
+  /**
+   * Record a risk answer and move the conversation on.
+   *
+   * Mirrors `acceptDraft`: write through `onUpdate`, append the exchange, and
+   * ask whatever the engine says is next. No endpoint call — the wording comes
+   * from `residual-questions.ts` and there is nothing for a model to add to a
+   * yes/no question except the opportunity to get it wrong.
+   */
+  const answerRiskQuestion = useCallback((field: MiniIrqField, value: boolean, label: string) => {
+    const nextRisk = { ...riskAnswers, [field]: value };
+    onUpdate({ miniIrq: nextRisk });
+    const nextCtx = buildContext(category, data, svcDesc, nextRisk);
+    const next = determineNextQuestion(nextCtx, undefined, slots);
+    setMessages((prev) => [
+      ...prev,
+      { role: 'user', content: label },
+      ...(next
+        ? [{
+            role: 'assistant' as const,
+            content: next.prompt,
+            why: next.slot.why,
+            example: next.example,
+            ...choiceFor(next.slot),
+          }]
+        : [{ role: 'assistant' as const, content: buildCompletionMessage(nextCtx, slots) }]),
+    ]);
+  }, [riskAnswers, onUpdate, category, data, svcDesc, slots]);
 
   const handleSowEdit = useCallback((key: string, value: string) => {
     const updated = {
@@ -941,9 +1065,9 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
     // what it is producing is the right shape for the task — but the shell,
     // the card, the type scale and the AI treatment are now the ones the rest
     // of the product uses (design-document §7.3).
-    <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 lg:h-[calc(100vh-16rem)] lg:max-h-[640px] lg:min-h-[420px]">
+    <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
       {/* The conversation (3/5) */}
-      <Card className="lg:col-span-3 flex flex-col overflow-hidden border-l-2 border-l-blue-400 bg-blue-50/70">
+      <Card className="lg:col-span-3 flex flex-col overflow-hidden border-l-2 border-l-blue-400 bg-blue-50/70 lg:h-[calc(100vh-16rem)] lg:max-h-[640px] lg:min-h-[420px]">
         {/* The AI visual language: blue-tinted surface, sparkle, and a label
             saying what is generating — the same treatment every AI surface in
             the product carries. */}
@@ -1008,6 +1132,27 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
                     >
                       I&apos;ll write it
                     </Button>
+                  </div>
+                )}
+                {/* A yes/no governance question. Two buttons, and the text
+                    input is disabled while one is pending — an answer recorded
+                    as evidence has to come from the requester pressing it, not
+                    from a model reading their prose. The current answer stays
+                    highlighted and is still changeable: it is an input, not a
+                    submission. */}
+                {msg.choice && (
+                  <div className="mt-2 flex gap-2">
+                    {([['Yes', true], ['No', false]] as const).map(([label, value]) => (
+                      <Button
+                        key={label}
+                        size="sm"
+                        variant={riskAnswers[msg.choice!.field] === value ? 'default' : 'outline'}
+                        className="h-7 text-[11px]"
+                        onClick={() => answerRiskQuestion(msg.choice!.field, value, label)}
+                      >
+                        {label}
+                      </Button>
+                    ))}
                   </div>
                 )}
                 {/* Present only on conditional questions — the ones that appear
@@ -1076,18 +1221,25 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={isComplete ? 'Add more details or click Next...' : 'Type your answer...'}
-            disabled={isTyping}
+            placeholder={
+              awaitingChoice ? 'Choose Yes or No above'
+                : isComplete ? 'Add more details or click Next...'
+                  : 'Type your answer...'
+            }
+            disabled={isTyping || awaitingChoice}
             className="flex-1"
           />
-          <Button size="sm" onClick={handleSend} disabled={isTyping || !inputValue.trim()}>
+          <Button size="sm" onClick={handleSend} disabled={isTyping || awaitingChoice || !inputValue.trim()}>
             {isTyping ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
           </Button>
         </div>
       </Card>
 
       {/* What the conversation is producing (2/5) */}
-      <div className="lg:col-span-2 space-y-4 lg:h-full lg:overflow-y-auto lg:pr-1">
+      {/* Sticky, not scrollable. The panel had its own scroll region, so the
+          requester had two things to scroll on one screen and the progress line
+          could be off-screen while they answered. */}
+      <div className="lg:col-span-2 space-y-4 lg:sticky lg:top-6">
         {/* Single service-description panel — the master capture. The request
             key facts and the SOW are one document, not separate tabs. */}
         <Card className="p-4 space-y-4">

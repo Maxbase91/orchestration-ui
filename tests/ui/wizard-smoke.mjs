@@ -101,6 +101,12 @@ try {
     // here and the app falls back gracefully (local classify / local narrative).
     // These are expected in dev and not app errors.
     if (/\/api\//.test(url) && /Failed to load resource/.test(m.text())) return;
+    // Same cause, logged by the app's own catch rather than by the network
+    // layer: the SOW composes from `/api/generate-sow`, which does not exist on
+    // a local Vite server. The chat falls back to a locally composed narrative.
+    // This surfaced here only because generation now fires when the DESCRIPTION
+    // is captured rather than when the whole conversation ends.
+    if (/\[generate-sow\]/.test(m.text())) return;
     consoleErrors.push(m.text());
   });
   page.on('pageerror', (e) => consoleErrors.push(`pageerror: ${e.message}`));
@@ -230,6 +236,63 @@ try {
   await page.waitForTimeout(600);
   check('pressing "Add detail" puts the cursor in the detail box',
     (await page.evaluate(() => document.activeElement?.tagName ?? 'NONE')) === 'TEXTAREA');
+
+  // 3e. THE CHAT PATH. The risk questions used to be a card of switches BELOW
+  //     the conversation, and supplier selection was on screen from the moment
+  //     the step opened — everything visible at once, before the requester had
+  //     answered anything. They are now the tail of the conversation itself,
+  //     asked as yes/no with the text input disabled, and supplier appears only
+  //     once the conversation is done.
+  await page.goto(`${BASE}/requests/new`, { waitUntil: 'networkidle' });
+  await page.locator('#need-input').fill('IT strategy consulting to design a target operating model');
+  await page.locator('#need-input').press('Enter');
+  await page.getByRole('button', { name: /Accept & continue/ }).click();
+  await page.getByText("How you'll buy this", { exact: true }).waitFor({ timeout: 15000 });
+  await page.getByRole('button', { name: /^Start$/ }).last().click();
+  await page.getByPlaceholder(/Type your answer/).waitFor({ timeout: 15000 });
+  check('the chat path opens on the conversation alone',
+    (await page.getByText('Mini risk questionnaire').count()) === 0
+    && (await page.getByText('Selected supplier').count()) === 0);
+
+  // One answer that satisfies whichever slot is asked: prose, a value, a date.
+  const chatAnswer = 'Target operating model design for the IT function, budget 250000 EUR, '
+    + 'needed by 2027-01-15, covering assessment, target design, a roadmap, '
+    + 'accepted at steering-group sign-off, fixed price, depends on finance availability.';
+  let reachedChoice = false;
+  for (let turn = 0; turn < 16; turn++) {
+    if (await page.getByRole('button', { name: /^Yes$/ }).count()) { reachedChoice = true; break; }
+    const field = page.getByPlaceholder(/Type your answer|Choose Yes or No/);
+    if (await field.isDisabled().catch(() => true)) { reachedChoice = true; break; }
+    await field.fill(chatAnswer);
+    await field.press('Enter');
+    await page.waitForTimeout(1200);
+  }
+  check('the conversation reaches its risk questions', reachedChoice);
+  check('a risk question is asked as a choice, not a text box',
+    (await page.getByRole('button', { name: /^Yes$/ }).count()) > 0
+    && (await page.getByRole('button', { name: /^No$/ }).count()) > 0);
+  // The guarantee: there is no free-text path into a governance answer, so a
+  // model cannot fill one by extracting it from the requester's prose.
+  check('the text input is disabled while a choice is pending',
+    (await page.getByPlaceholder(/Choose Yes or No/).count()) > 0);
+  check('the question still carries its rationale',
+    (await page.getByText(/Asked because/).count()) > 0);
+  check('Next is blocked while a triggered risk question is unanswered',
+    !(await page.getByRole('button', { name: /^Next$/ }).isEnabled().catch(() => true)));
+  check('supplier selection is still not on screen', (await page.getByText('Selected supplier').count()) === 0);
+
+  // Answer every risk question, then the last section appears.
+  for (let turn = 0; turn < 6; turn++) {
+    if (await page.getByRole('button', { name: /^Next$/ }).isEnabled().catch(() => false)) break;
+    const no = page.getByRole('button', { name: /^No$/ });
+    if (!(await no.count())) break;
+    await no.last().click();
+    await page.waitForTimeout(1200);
+  }
+  check('supplier selection appears once the conversation is finished',
+    (await page.getByText('Selected supplier').count()) > 0);
+  check('Next opens once every risk question is answered',
+    await page.getByRole('button', { name: /^Next$/ }).isEnabled().catch(() => false));
 
   // 4. Full staged funnel via free text: classify → catalogue (no match) →
   //    enrich → contract (no match) → proceed to full request → risk step.
