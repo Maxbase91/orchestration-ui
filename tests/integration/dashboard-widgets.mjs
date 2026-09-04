@@ -9,7 +9,7 @@
 
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { widgetRegistry, allQuickActions } from '../../src/features/dashboard/widget-registry.tsx';
+import { widgetRegistry, allQuickActions, getDefaultLayout } from '../../src/features/dashboard/widget-registry.tsx';
 
 // The registry is importable (its only import is a type). The barrel is not —
 // it pulls in every widget component, and those are React. So the renderer's
@@ -89,6 +89,30 @@ check('every quick action has a destination or a named action', () => {
   for (const action of allQuickActions) {
     assert.ok(action.to || action.action, `${action.id} does neither`);
   }
+});
+
+console.log('\nDefault layouts name real widgets the role can have');
+// A default layout is just a list of ids. A typo, or an id a role is not
+// entitled to, renders nothing at all — the dashboard skips ids it cannot
+// resolve, so the tile simply is not there and nobody sees an error.
+const ROLES = ['service-owner', 'procurement-manager', 'vendor-manager', 'operations-lead', 'supplier', 'admin'];
+for (const role of ROLES) {
+  check(`${role}'s default layout is resolvable`, () => {
+    const layout = getDefaultLayout(role);
+    assert.ok(layout.length > 0, 'the role opens on an empty dashboard');
+    const unknown = layout.filter((id) => !registryIds.includes(id));
+    assert.deepEqual(unknown, [], `not in the registry: ${unknown.join(', ')}`);
+    const notEntitled = layout.filter(
+      (id) => !widgetRegistry.find((w) => w.id === id).availableTo.includes(role));
+    assert.deepEqual(notEntitled, [], `not available to this role: ${notEntitled.join(', ')}`);
+  });
+}
+
+check('the purchasing and vendor widgets are on a default dashboard, not only in the picker', () => {
+  const defaulted = new Set(ROLES.flatMap((role) => getDefaultLayout(role)));
+  const hidden = ['open-pos', 'invoice-exceptions', 'supplier-onboarding', 'requests-by-stage']
+    .filter((id) => !defaulted.has(id));
+  assert.deepEqual(hidden, [], `reachable only by hunting in "Add Widget": ${hidden.join(', ')}`);
 });
 
 console.log(

@@ -27,7 +27,7 @@
 // the same functions, called the same way. This screen is a thinner presenter
 // over the same answer.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ShoppingCart, FileText, ArrowRight, Check, Loader2, Route, ChevronDown, PenLine } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -155,6 +155,28 @@ export function StepBuyRoute({
   // reads `title + enrich` and the lift had already appended it to the title.
   const [enrich, setEnrich] = useState('');
   const [showEnrich, setShowEnrich] = useState(false);
+  const enrichRef = useRef<HTMLTextAreaElement>(null);
+
+  /**
+   * "Add detail" has to *do* something every time it is pressed.
+   *
+   * It only set `showEnrich`, and the box is already on screen whenever nothing
+   * matched — which is exactly when both Add-detail buttons appear. So in the
+   * common case the button changed a flag that was already satisfied and
+   * nothing moved: to the requester it was simply dead.
+   *
+   * Revealing is not enough on its own either; the box can be below the fold.
+   * Scroll to it and put the cursor in it, so the press always lands somewhere
+   * visible.
+   */
+  const promptForDetail = useCallback(() => {
+    setShowEnrich(true);
+    // After the box has had a chance to mount, if it was not already there.
+    requestAnimationFrame(() => {
+      enrichRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      enrichRef.current?.focus();
+    });
+  }, []);
   /** Detail the requester has actually supplied on this screen. */
   const [detailAdded, setDetailAdded] = useState(false);
   const [showEvidence, setShowEvidence] = useState(false);
@@ -368,7 +390,7 @@ export function StepBuyRoute({
           detail={catalogueChannel.detail}
           timelineDays={hasCatalogue ? timelineByCategory.get('catalogue') : undefined}
           disabledReason={hasCatalogue ? undefined : decision.ruledOut.catalogue}
-          action={hasCatalogue ? undefined : () => setShowEnrich(true)}
+          action={hasCatalogue ? undefined : promptForDetail}
           actionLabel={hasCatalogue ? undefined : 'Add detail'}
         >
           {/* Each match is its own choice. These were plain list items under a
@@ -411,7 +433,7 @@ export function StepBuyRoute({
                   : 'We found possible coverage. One detail settles which contract it is.')
               : decision.ruledOut.contract
           }
-          action={canCallOff ? undefined : () => setShowEnrich(true)}
+          action={canCallOff ? undefined : promptForDetail}
           actionLabel={canCallOff ? undefined : 'Add detail'}
         >
           {/* Each candidate is its own choice. They were plain list items under
@@ -478,6 +500,7 @@ export function StepBuyRoute({
             {clarifyingQuestion ?? `The more specific you are, the better we can match — try ${enrichGuidance(category)}.`}
           </p>
           <Textarea
+            ref={enrichRef}
             className="mt-3"
             rows={3}
             placeholder={enrichGuidance(category)}

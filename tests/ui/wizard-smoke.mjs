@@ -219,6 +219,18 @@ try {
   check('the full-request route is always startable',
     (await page.getByRole('button', { name: /^Start$/ }).count()) > 0);
 
+  // 3c. "Add detail" has to *act*. Both ruled-out routes offer it, but the
+  //     handler only set the flag that reveals the enrichment box — and that box
+  //     already renders whenever nothing matched, which is exactly when the
+  //     buttons appear. So the press was a no-op the requester could see: the
+  //     screen did not move. Focus landing in the box is the observable proof.
+  const addDetail = page.getByRole('button', { name: /^Add detail$/ });
+  check('a ruled-out route offers a way to add detail', (await addDetail.count()) > 0);
+  await addDetail.first().click();
+  await page.waitForTimeout(600);
+  check('pressing "Add detail" puts the cursor in the detail box',
+    (await page.evaluate(() => document.activeElement?.tagName ?? 'NONE')) === 'TEXTAREA');
+
   // 4. Full staged funnel via free text: classify → catalogue (no match) →
   //    enrich → contract (no match) → proceed to full request → risk step.
   await page.goto(`${BASE}/requests/new`, { waitUntil: 'networkidle' });

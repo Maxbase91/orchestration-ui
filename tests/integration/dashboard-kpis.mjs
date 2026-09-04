@@ -90,7 +90,16 @@ async function main() {
 
   // ── Spend YTD (live) equals sum of completed-request values for current year
   const year = String(new Date().getFullYear());
-  const ytdCompleted = all.filter((r) => r.status === 'completed' && (r.updated_at ?? r.created_at ?? '').startsWith(year));
+  // Neon hands back timestamptz as a JS Date, not the ISO string PostgREST
+  // used to return — `.startsWith` on a Date threw and took the whole suite
+  // down. Compare the year off a parsed date instead of the raw value.
+  const completedYear = (r) => {
+    const raw = r.updated_at ?? r.created_at;
+    if (!raw) return '';
+    const parsed = raw instanceof Date ? raw : new Date(raw);
+    return Number.isNaN(parsed.getTime()) ? '' : String(parsed.getFullYear());
+  };
+  const ytdCompleted = all.filter((r) => r.status === 'completed' && completedYear(r) === year);
   const spendYTD = ytdCompleted.reduce((s, r) => s + (r.value ?? 0), 0);
   pass('chart: live spend YTD derivable', `spendYTD=${spendYTD.toLocaleString()} from ${ytdCompleted.length} completed requests`);
   assert(spendYTD >= 0, 'chart: spend YTD non-negative');

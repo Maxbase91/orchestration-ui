@@ -70,7 +70,7 @@ needs a server connector variant — WS-E).
 
 #### UX — Design System & User Journeys — 🟢 Built
 UX-01 component library 🟢; UX-02 journeys 🟢 (**dual-mode requester experience** — adaptive Simple intake and requester dashboard alongside the retained Expert deep links; pilot-gated per user/role); DEC-7 env/rollback 🟡.
-**UX-04 switchable home designs 🟢** — the home (`/`) ships in 4 selectable designs (default Dashboard + three Apple-style layouts 1a/1b/1c), all **fully functional** (front door + quick actions + live KPIs + live demand pipeline), picked from a top-bar toggle and persisted per user (`features/dashboard/home-designs/`, `test:home-designs`). The dashboard is untouched.
+**UX-04 one configurable home 🟢** — the four selectable home designs are **withdrawn and deleted** (`home-designs/`, the switcher, the `homeDesign` preference nothing read, and `test:home-designs`): four layouts of the same data meant four places for a widget to be missing, and users met an inconsistent navigation depending on which one they had picked. There is now one home, configured rather than swapped — each role opens on a default layout that covers its work (including purchase orders, invoice exceptions, supplier onboarding and requests by stage), and the widgets a user adds, removes or reorders **persist** across reloads (`stores/dashboard-store.ts`, `test:dashboard-widgets`, `test:dashboard-ui`).
 
 #### PLT — Sourcing/Award/Contract handoff — 🟢 Built (scope boundary moved, deliberately)
 

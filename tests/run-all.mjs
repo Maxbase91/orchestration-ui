@@ -28,6 +28,7 @@ const BROWSER = new Set([
   'test:ui', 'test:e2e-ui', 'test:ui-full', 'test:walkthrough',
   'test:service-description-ui', 'test:intake-guidance-ui', 'test:request-detail-ui',
   'test:interactions-ui', 'test:catalogue-ui', 'test:experience-mode-ui', 'test:link-navigation',
+  'test:dashboard-ui',
 ]);
 
 // This runner is itself registered as `test:all`; without excluding the

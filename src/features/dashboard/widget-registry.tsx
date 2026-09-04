@@ -76,11 +76,15 @@ export function getDefaultLayout(role: Role): string[] {
   switch (role) {
     // Decluttered defaults — lead with the actionable widget, fewer cards.
     // Users can re-add any widget via "Add Widget" (the registry is unchanged).
-    case 'service-owner': return ['my-requests', 'quick-stats', 'expiring-contracts', 'ai-insights'];
-    case 'procurement-manager': return ['attention-required', 'kpi-open-demand', 'kpi-cycle-time', 'kpi-compliance', 'demand-pipeline', 'ai-insights'];
-    case 'vendor-manager': return ['validation-queue', 'quick-stats', 'mentions', 'supplier-risk', 'recent-activity', 'ai-insights'];
-    case 'operations-lead': return ['workflow-health', 'sla-tracker', 'attention-required', 'mentions', 'ai-insights', 'recent-activity'];
-    case 'admin': return ['system-health', 'quick-stats', 'workflow-health', 'supplier-risk', 'mentions', 'ai-insights'];
+    //
+    // The purchasing and vendor widgets are in the defaults for the roles that
+    // own that work. A widget only reachable through "Add Widget" is one nobody
+    // finds: these four shipped catalogue-only and were, in practice, invisible.
+    case 'service-owner': return ['my-requests', 'requests-by-stage', 'quick-stats', 'expiring-contracts', 'ai-insights'];
+    case 'procurement-manager': return ['attention-required', 'kpi-open-demand', 'kpi-cycle-time', 'kpi-compliance', 'open-pos', 'invoice-exceptions', 'demand-pipeline', 'ai-insights'];
+    case 'vendor-manager': return ['validation-queue', 'supplier-onboarding', 'quick-stats', 'mentions', 'supplier-risk', 'recent-activity', 'ai-insights'];
+    case 'operations-lead': return ['workflow-health', 'sla-tracker', 'attention-required', 'open-pos', 'mentions', 'ai-insights', 'recent-activity'];
+    case 'admin': return ['system-health', 'quick-stats', 'workflow-health', 'supplier-onboarding', 'invoice-exceptions', 'supplier-risk', 'ai-insights'];
     case 'supplier': return ['quick-stats', 'ai-assistant'];
     default: return ['quick-stats', 'my-requests', 'ai-assistant'];
   }

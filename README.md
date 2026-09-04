@@ -221,6 +221,8 @@ npm run test:ui-full              # evidence harness — 60+ checkpoints screens
 npm run test:ui-lifecycle         # static guard that call-offs, stage actions and invoice transitions stay UI-governed
 npm run test:service-description-ui # browser smoke — /admin/service-description renders all four config areas
 npm run test:intake-guidance-ui   # browser smoke — step-1 single classification block, per-step header panels, the step gate
+npm run test:dashboard-ui         # browser smoke — the role's default dashboard covers its work, and adding or
+                                  # removing a widget survives a reload
 npm run test:request-detail-ui    # browser check on fixtures (no credentials, no network) — the request detail renders, every
                                   # workflow step opens, and the risk form pre-populates from the service description
 npm run test:interactions-ui      # interaction E2E — wizard submit, admin save, AI assistant (self-cleaning)
