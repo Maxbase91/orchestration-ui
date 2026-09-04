@@ -113,6 +113,7 @@ export const ALL_SLOTS: DemandSlot[] = [
     target: { kind: 'request', field: 'title' },
     required: true,
     prompt: "What do you need? Describe what you're looking to procure.",
+    why: 'Asked because this one line names the request everywhere it appears afterwards — in approvals, in sourcing and on the record.',
     example: (ctx) => ex(ctx, {
       'contingent-labour': '3 senior Java developers for 6 months',
       software: '200 CRM licences with a service module',
@@ -125,6 +126,7 @@ export const ALL_SLOTS: DemandSlot[] = [
     target: { kind: 'request', field: 'estimatedValue' },
     required: true,
     prompt: "What's the estimated budget for this?",
+    why: 'Asked because the value sets the buying channel, who approves it, and how long it takes — it is the single biggest driver of your route.',
     example: () => '€50,000 or 150k',
   },
   {
@@ -132,6 +134,7 @@ export const ALL_SLOTS: DemandSlot[] = [
     target: { kind: 'request', field: 'deliveryDate' },
     required: false,
     prompt: 'When do you need this delivered or started by?',
+    why: 'Asked because the date decides whether the standard route can make it, and whether an urgent path is worth opening.',
     example: () => 'by end of Q3, or a specific date',
   },
   {
@@ -139,6 +142,7 @@ export const ALL_SLOTS: DemandSlot[] = [
     target: { kind: 'sow', field: 'objective' },
     required: true,
     prompt: "What's the primary objective of this engagement?",
+    why: 'Asked because the objective opens the service description that goes to suppliers — it is what they price against.',
     example: (ctx) => ex(ctx, {
       consulting: 'define a target operating model for the finance function',
       software: 'roll out a new CRM to 200 sales users',
@@ -152,6 +156,7 @@ export const ALL_SLOTS: DemandSlot[] = [
     target: { kind: 'sow', field: 'scope' },
     required: true,
     prompt: 'What is included in the work or purchase?',
+    why: 'Asked because scope is what the risk assessment reads to judge data handling and access, and what a supplier is held to later.',
     example: (ctx) => ex(ctx, {
       consulting: 'current-state assessment, design and roadmap',
       software: 'Sales & Service modules and data migration',
@@ -162,6 +167,7 @@ export const ALL_SLOTS: DemandSlot[] = [
     target: { kind: 'sow', field: 'exclusions' },
     required: false,
     prompt: 'Is anything explicitly excluded or not required?',
+    why: 'Asked because what is out of scope is the half suppliers price optimistically and argue about at delivery.',
     example: (ctx) => ex(ctx, {
       consulting: 'implementation and ongoing managed support',
       software: 'custom reporting beyond the standard modules',
@@ -172,6 +178,7 @@ export const ALL_SLOTS: DemandSlot[] = [
     target: { kind: 'sow', field: 'deliverables' },
     required: true,
     prompt: 'What are the key deliverables?',
+    why: 'Asked because deliverables become the acceptance list — nothing can be signed off against a description that has none.',
     example: (ctx) => ex(ctx, {
       consulting: 'assessment report, target-state design and an implementation roadmap',
       software: 'the configured modules, migrated data and trained users',
@@ -183,6 +190,7 @@ export const ALL_SLOTS: DemandSlot[] = [
     target: { kind: 'sow', field: 'resources' },
     required: true,
     prompt: 'What resources, skills or team size does this need?',
+    why: 'Asked because who does the work drives the risk read: supplier staff needing system access is assessed differently from work done off-site.',
     example: (ctx) => ex(ctx, {
       'contingent-labour': 'role, seniority and headcount',
       consulting: 'an engagement lead and two senior consultants',

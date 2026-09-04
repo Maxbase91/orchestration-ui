@@ -153,37 +153,49 @@ try {
   check('catalogue is the one explicit alternative entry point',
     (await page.getByRole('button', { name: /Browse the catalogue/ }).count()) > 0);
 
-  // 3. Describe a need in free text → the system derives the category and routes
-  //    into the staged pre-check (stage 1 = catalogue, read via the connector
-  //    layer). The contract check must NOT be visible yet.
+  // 3. Describe a need in free text → the system derives the category and shows
+  //    all three ways to buy it at once, recommendation first. The two-stage
+  //    funnel this replaced hid whichever route it had not reached yet, so a
+  //    wrong catalogue match hid the contract check behind a green button
+  //    pointing the other way.
   await page.locator('#need-input').fill('a few standard office laptops for a new starter');
   await page.locator('#need-input').press('Enter');
   await page.getByRole('button', { name: /Accept & continue/ }).click();
   await Promise.race([
-    page.getByText('Catalogue check', { exact: true }).waitFor({ timeout: 15000 }),
-    page.getByText('Pre-check unavailable', { exact: true }).waitFor({ timeout: 15000 }),
+    page.getByText("How you'll buy this", { exact: true }).waitFor({ timeout: 15000 }),
+    page.getByText('We could not check what already exists', { exact: true }).waitFor({ timeout: 15000 }),
   ]);
-  if (await page.getByText('Pre-check unavailable', { exact: true }).count()) {
-    throw new LocalServerlessUnavailable('Local Vite has no serverless API handlers; pre-check is unavailable.');
+  if (await page.getByText('We could not check what already exists', { exact: true }).count()) {
+    throw new LocalServerlessUnavailable('Local Vite has no serverless API handlers; the buy-route check is unavailable.');
   }
-  check('free-text classification routes into pre-check stage 1 (catalogue)', true);
+  check('free-text classification routes into the buy-route screen', true);
   // Regression: a plain product word ("laptops") must surface catalogue items,
   // even though the seed laptop is named by model ("ThinkPad T14 Gen 5").
   check('catalogue items surface for a plain product word (laptops)',
-    (await page.getByText(/match(?:es)? found/).count()) > 0
-    && (await page.getByRole('button', { name: /Order from catalogue/ }).count()) > 0);
-  check('contract check is NOT shown before catalogue is ruled out',
-    (await page.getByText('Contract check', { exact: true }).count()) === 0);
-  // The route must be explainable: which words matched is shown, so a wrong
-  // suggestion is one the requester can see through rather than trust.
-  check('a catalogue match shows the words it matched on',
-    (await page.getByText(/matched on/).count()) > 0);
+    (await page.getByRole('button', { name: /Order this/ }).count()) > 0);
+  // All three routes are visible together, so the requester can compare rather
+  // than being walked through a funnel one gate at a time.
+  check('every way to buy is on the screen at once',
+    (await page.getByText('Order it from the catalogue').count()) > 0
+    && (await page.getByText('Call it off an existing contract').count()) > 0
+    && (await page.getByText('Raise a full request').count()) > 0);
+  check('the recommendation is marked, not just ordered first',
+    (await page.getByText('Recommended', { exact: true }).count()) > 0);
+  // The route must stay explainable — but as an audit trail a buyer opens, not
+  // as annotations a requester has to read past.
+  check('the matched words are evidence behind a disclosure, not on the surface',
+    (await page.getByText(/matched on/).count()) === 0
+    && (await page.getByRole('button', { name: /Why this\?/ }).count()) > 0);
+  await page.getByRole('button', { name: /Why this\?/ }).click();
+  check('the evidence names the words that matched and the rule that decided it',
+    (await page.getByText(/matched on/).count()) > 0
+    && (await page.getByText(/routing rule|default fallback/).count()) > 0);
   // Regression: selecting the suggested item must open its product-details
   // page, preserving the item id for governed checkout, rather than dropping
   // the requester at the catalogue root.
-  await page.getByRole('button', { name: /Order from catalogue/ }).click();
+  await page.getByRole('button', { name: /Order this/ }).first().click();
   await page.waitForURL(`${BASE}/catalogue/items/IT-001`, { timeout: 10000 });
-  check('Order from catalogue opens the selected item detail page',
+  check('ordering the matched item opens its detail page',
     new URL(page.url()).pathname === '/catalogue/items/IT-001');
 
   // 3b. THE REPORTED DEFECT. "business consulting" used to match the catalogue
@@ -194,18 +206,18 @@ try {
   await page.locator('#need-input').fill('I want to buy business consulting');
   await page.locator('#need-input').press('Enter');
   await page.getByRole('button', { name: /Accept & continue/ }).click();
-  await page.getByText('Contract check', { exact: true }).waitFor({ timeout: 15000 });
-  check('a consulting demand skips the catalogue stage entirely', true);
+  await page.getByText("How you'll buy this", { exact: true }).waitFor({ timeout: 15000 });
+  check('a consulting demand is not offered the catalogue', true);
   check('NO catalogue order CTA for a consulting demand',
-    (await page.getByRole('button', { name: /Order from catalogue/ }).count()) === 0);
+    (await page.getByRole('button', { name: /Order this/ }).count()) === 0);
   check('"Business Cards" is never offered for a consulting demand',
     (await page.getByText(/Business Cards/).count()) === 0);
-  check('the skip states its reason rather than silently omitting the stage',
-    (await page.getByText(/Catalogue check skipped/).count()) > 0);
-  check('the catalogue stays reachable if the requester disagrees',
-    (await page.getByRole('button', { name: /Browse the catalogue anyway/ }).count()) > 0);
-  check('a full request is reachable from the contract stage',
-    (await page.getByRole('button', { name: /Proceed to full request/ }).count()) > 0);
+  // A ruled-out route states its reason on the option itself rather than
+  // disappearing — silence is as unhelpful as a wrong suggestion.
+  check('the ruled-out catalogue says why, in place',
+    (await page.getByText(/isn.t fulfilled from the catalogue|No catalogue item covers/).count()) > 0);
+  check('the full-request route is always startable',
+    (await page.getByRole('button', { name: /^Start$/ }).count()) > 0);
 
   // 4. Full staged funnel via free text: classify → catalogue (no match) →
   //    enrich → contract (no match) → proceed to full request → risk step.
@@ -213,39 +225,56 @@ try {
   await page.locator('#need-input').fill('renew our existing vendor contract for another year');
   await page.locator('#need-input').press('Enter');
   await page.getByRole('button', { name: /Accept & continue/ }).click();
-  // contract-renewal is not a catalogue-fulfilled category, so the funnel opens
-  // on the contract stage rather than making the requester dismiss an empty
-  // catalogue card first.
-  await page.getByText('Contract check', { exact: true }).waitFor({ timeout: 15000 });
-  check('a renewal demand opens on the contract stage', true);
-  await page.getByRole('button', { name: /Proceed to full request/ }).last().click();
-  // The parent advances after the pre-check callback; wait for the details
-  // control rather than assuming the React state update is synchronous.
+  await page.getByText("How you'll buy this", { exact: true }).waitFor({ timeout: 15000 });
+  check('a renewal demand reaches the buy-route screen', true);
+  await page.getByRole('button', { name: /^Start$/ }).last().click();
+  // The parent advances after the route callback; wait for the details control
+  // rather than assuming the React state update is synchronous.
   await page.locator('#title').waitFor({ timeout: 10000 });
   await page.locator('#title').fill('Renewal smoke test');
   await page.locator('#value').fill('150000');  // ≥ critical-service threshold so that residual question triggers
-  await page.getByRole('button', { name: /Next/ }).click();              // → step 4 (risk)
+
+  // 4. Details — EVERY input the requester supplies, on one screen: the demand
+  //    form and the risk questions the description could not answer. The risk
+  //    questions used to be a step of their own, four screens after the demand
+  //    they refer to.
   await page.getByText('Mini risk questionnaire').waitFor({ timeout: 15000 });
-  check('risk step renders the mini-IRQ delta capture', true);
-  check('preliminary operational risk assessment renders (RSK-02)',
-    (await page.getByText('Preliminary operational risk', { exact: true }).count()) > 0);
+  check('risk questions are asked on the details step, with the demand', true);
   // The residual questions are criteria-driven (INT-10 stage 5): the
   // critical-service question shows because the spend is material in size, and
   // it states why it's being asked.
   check('residual question is criteria-triggered (shows its rationale)',
     (await page.getByText(/Asked because:/).count()) > 0);
-  await page.locator('#mini-irq-critical').click();                      // toggle on the risk step
+  await page.locator('#mini-irq-critical').click();
 
-  // 5. Step 5 — Determination: channel, contract/sourcing type, materiality,
-  //    inherent risk (driven by the mini-IRQ toggle above), handoff next-steps.
-  await page.getByRole('button', { name: /Next/ }).click();              // → step 5 (determination)
-  await page.getByText('Buying Channel Classification', { exact: true }).waitFor({ timeout: 15000 });
-  check('determination screen renders', true);
+  // 5. Review & submit — EVERY conclusion, and nothing to fill in: the buying
+  //    channel, the risk read, who approves it, and which checks ran. This was
+  //    three separate screens (Risk, Determination, Routing) that had to be
+  //    paged through one at a time.
+  await page.getByRole('button', { name: /Next/ }).click();              // → review
+  // The channel card leads in the requester's words — "Procurement runs a
+  // sourcing exercise", not "Buying Channel Classification: Procurement-Led
+  // Sourcing" with a rule id under it.
+  await page.getByText(/Procurement runs a sourcing exercise|Call it off an existing contract|Raise a purchase order directly|Your team runs this one|Order it from the catalogue|Pay by purchasing card/).first().waitFor({ timeout: 15000 });
+  check('the channel leads in plain language', true);
+  check('the full process is stated before the submit button',
+    (await page.getByText('What happens next:').count()) > 0);
+  check('every group says what it means, not just what it is',
+    (await page.getByText(/The route this request takes from here/).count()) > 0
+    && (await page.getByText(/What the risk read found/).count()) > 0
+    && (await page.getByText(/What was actually checked at intake/).count()) > 0);
+  check('the risk read is stated as a consequence, not a tier',
+    (await page.getByText(/risk assessment is required before this can proceed|No new risk assessment needed|No separate risk assessment is required/).count()) > 0);
+  // Expert still gets the workings, under the plain statement.
+  check('expert density keeps the classification detail',
+    (await page.getByText(/this is classified as:/).count()) > 0);
+  check('review screen renders the determination', true);
   check('demand disposition surfaces (RTE-06: proceed/request-change/refer-back)',
     (await page.getByText(/^(Proceed|Request change|Refer back)$/).count()) > 0);
   check('materiality determination surfaces', (await page.getByText(/Materiality:/).count()) > 0);
   check('supplier screening surfaces (SUP-03)', (await page.getByText(/Supplier screening:/).count()) > 0);
-  check('inherent risk segmentation surfaces', (await page.getByText(/Inherent risk:/).count()) > 0);
+  check('inherent risk segmentation surfaces, once, under Risk',
+    (await page.getByText('Inherent risk', { exact: true }).count()) === 1);
   check('mini-IRQ toggle drove the cascade (critical-service driver appears)', (await page.getByText('Supports a critical service').count()) > 0);
   check('contract-type & sourcing-type surface', (await page.getByText(/Contract type:/).count()) > 0);
   check('next-steps handoff panel renders', (await page.getByText('Next steps', { exact: true }).count()) > 0);
@@ -257,16 +286,17 @@ try {
   // Item 10 — the determination is grouped under scannable section headings
   // (was a flat, unstructured stack of cards).
   check('determination is grouped under section headings (item 10)',
-    (await page.getByText('Decision', { exact: true }).count()) > 0 &&
+    (await page.getByText("How you'll buy", { exact: true }).count()) > 0 &&
+    (await page.getByText('Risk', { exact: true }).count()) > 0 &&
     (await page.getByText('Routing & approvals', { exact: true }).count()) > 0 &&
-    (await page.getByText('Compliance checks', { exact: true }).count()) > 0);
+    (await page.getByText('Checks we ran', { exact: true }).count()) > 0);
 
   // Item 8 — the workflow is predefined from the input; there is NO picker.
   check('NO workflow-template picker on the determination (item 8)',
     (await page.getByText('Which template should this request follow?').count()) === 0);
 
-  // Item 9 — Save as draft is available on the determination step (not just routing).
-  check('Save as Draft is available on the determination (item 9)',
+  // Item 9 — Save as draft is available before submitting.
+  check('Save as Draft is available on the review step (item 9)',
     (await page.getByRole('button', { name: /Save as Draft/ }).count()) > 0);
 
   // The determination is exportable — clicking Export downloads a .md file.
@@ -281,8 +311,6 @@ try {
 
   // Policy checks render only when the Request Validator agent (AI-002) is
   // active (an admin toggle); otherwise the step shows the validator notice.
-  // Assert the policy-check region rendered in a valid state, and when the
-  // validator is active, that the new competitive sourcing + PSL checks are the ones surfaced.
   const dtps = await page.getByText('Competitive sourcing').count();
   const validatorNotice = await page.getByText('Request Validator agent').count();
   check('policy-check region renders (competitive sourcing checks when validator active, else notice)',
@@ -292,15 +320,16 @@ try {
       (await page.getByText('Preferred-supplier routing').count()) > 0);
   }
 
-  // 4c. Routing step (6): the lifecycle, approvals, timeline and reviewers are
-  //     all DERIVED from admin config (items 7+11) — no hardcoded literals. The
-  //     renewal demand (€150k, no supplier) drives both conditional steps.
-  await page.getByRole('button', { name: /Next/ }).click();              // → step 6 (routing)
+  // The routing preview sits on the SAME screen as the determination: the
+  // lifecycle, approvals, timeline and reviewers are all DERIVED from admin
+  // config (items 7+11), with no hardcoded literals. The renewal demand
+  // (€150k, no supplier) drives both conditional steps.
   await page.getByText('Workflow Preview', { exact: true }).waitFor({ timeout: 15000 });
   // Wait for the config queries to resolve: a base lifecycle stage proves the
   // template loaded; the chain caption proves the approval chains resolved.
-  await page.getByText('Validation', { exact: true }).waitFor({ timeout: 15000 });
+  await page.getByText('Validation', { exact: true }).first().waitFor({ timeout: 15000 });
   await page.getByText(/VP-Level chain/).waitFor({ timeout: 15000 });
+  check('routing preview shares the review screen with the determination', true);
   check('routing step renders the workflow preview', true);
   check('lifecycle is template-derived — real stages, not the old "Intake Review by System"',
     (await page.getByText('Intake Review', { exact: true }).count()) === 0
@@ -329,9 +358,9 @@ try {
   await page.locator('#need-input').fill('management consulting to design a target operating model');
   await page.locator('#need-input').press('Enter');
   await page.getByRole('button', { name: /Accept & continue/ }).click();
-  await page.getByText('Contract check', { exact: true }).waitFor({ timeout: 15000 });
-  await page.getByRole('button', { name: /Proceed to full request/ }).click();
-  await page.getByText('Service description components', { exact: true }).waitFor({ timeout: 15000 });
+  await page.getByText("How you'll buy this", { exact: true }).waitFor({ timeout: 15000 });
+  await page.getByRole('button', { name: /^Start$/ }).click();
+  await page.getByText('Service description', { exact: true }).waitFor({ timeout: 15000 });
   check('service-description capture renders (components panel)', true);
 
   // Requester context (who / where) is established in the shell for every path:
@@ -352,8 +381,8 @@ try {
   await page.goto(`${BASE}/requests/new`, { waitUntil: 'networkidle' });
   await page.getByRole('button', { name: /Browse the catalogue/ }).click();
   await page.getByText('Browse Catalogues').waitFor({ timeout: 10000 });
-  check('catalogue fast track omits the Risk & Determination steps',
-    (await page.getByText('Risk & assessment').count()) === 0 &&
+  check('catalogue fast track omits the review step entirely',
+    (await page.getByText('Review & submit').count()) === 0 &&
     (await page.getByText('Determination', { exact: true }).count()) === 0);
   check('catalogue shows the governed checkout header',
     (await page.getByText(/Catalogue request — governed checkout/i).count()) > 0);
@@ -364,7 +393,14 @@ try {
   await placeBtn.first().click();
   await page.locator('#catalogue-recipient').fill('New starter');
   await page.locator('#catalogue-purpose').fill('Provide standard equipment for the new starter.');
-  await page.locator('#catalogue-cost-centre').selectOption('CC-2001');
+  // Derived, not asked — unless the profile genuinely has no default, which is
+  // this fixture's case. The dropdown of five invented cost centres is gone; a
+  // governed order does need an account to charge, so the field appears only
+  // when nothing is known.
+  const costCentreField = page.locator('#catalogue-cost-centre');
+  check('no invented cost-centre picker remains',
+    (await costCentreField.evaluate((el) => el.tagName).catch(() => 'NONE')) !== 'SELECT');
+  if (await costCentreField.count()) await costCentreField.fill('CC-2001');
   const checkoutSubmit = page.getByRole('button', { name: /Review order/ });
   check('shared checkout enables submit after required details', await checkoutSubmit.isEnabled().catch(() => false));
   await checkoutSubmit.click();

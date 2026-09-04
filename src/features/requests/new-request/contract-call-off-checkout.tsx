@@ -62,6 +62,10 @@ export function ContractCallOffCheckout({ contract, mode = 'simple', initialValu
   const locations = profile.approvedShipToLocations;
   const needsServiceDates = (contract?.category ?? '').toLowerCase().includes('service') || (contract?.category ?? '').toLowerCase().includes('consult');
   const validDates = !serviceStartDate || !serviceEndDate || serviceEndDate >= serviceStartDate;
+  // The call-off creates a requisition, so it needs an account to charge, and
+  // the gate agrees with `evaluateGovernedCheckout`. The value is derived from
+  // the requester's profile in the context block above; this only asks when it
+  // is genuinely not known.
   const canSubmit = Boolean(title.trim() && value > 0 && needBy && deliveryLocation && recipient.trim() && purpose.trim() && costCentre && validDates);
 
   const submit = () => {
@@ -100,9 +104,16 @@ export function ContractCallOffCheckout({ contract, mode = 'simple', initialValu
         </div>}
         {!validDates && <p className="text-xs text-red-600">Service end must be on or after service start.</p>}
         <div className="space-y-1.5"><Label htmlFor="calloff-location">Deliver to</Label><div className="relative"><MapPin className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" /><select id="calloff-location" value={deliveryLocation} onChange={(e) => setDeliveryLocation(e.target.value)} className="h-10 w-full appearance-none rounded-md border border-input bg-background px-9 pr-8 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring">{locations.map((location) => <option key={location.id} value={location.id}>{location.label}</option>)}</select><ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" /></div><p className="text-xs text-muted-foreground">Only approved delivery locations are available.</p></div>
+        {!costCentre && (
+          <div className="space-y-1.5">
+            <Label htmlFor="calloff-cost-centre">Cost centre</Label>
+            <Input id="calloff-cost-centre" value={costCentre} onChange={(e) => setCostCentre(e.target.value)} placeholder="The account this is charged to" />
+            <p className="text-[11px] text-gray-500">Your profile has no default cost centre, so this call-off needs one.</p>
+          </div>
+        )}
         <div className="space-y-1.5"><Label htmlFor="calloff-recipient">Who is this for?</Label><Input id="calloff-recipient" value={recipient} onChange={(e) => setRecipient(e.target.value)} placeholder="Person or team receiving the service" /></div>
         <div className="space-y-1.5"><Label htmlFor="calloff-purpose">Business purpose</Label><Textarea id="calloff-purpose" rows={3} value={purpose} onChange={(e) => setPurpose(e.target.value)} placeholder="What outcome is this call-off needed for?" /></div>
-        <div className="space-y-1.5"><Label htmlFor="calloff-cost-centre">Cost centre</Label><Input id="calloff-cost-centre" value={costCentre} onChange={(e) => setCostCentre(e.target.value)} placeholder="e.g. CC-1001" /></div>
+
         {mode === 'expert' && <details className="rounded-lg border border-gray-200"><summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-medium"><CalendarDays className="size-4 text-gray-500" />Contract and governance details</summary><div className="space-y-1 border-t px-4 py-3 text-xs text-gray-600"><p>Supplier: {contract.supplierName} ({contract.supplierId})</p><p>Contract period: {contract.startDate} to {contract.endDate}</p><p>Coverage status: {contract.coverageStatus ?? 'not provided'}</p><p>Governance is rechecked by the server when you submit.</p></div></details>}
         <Button type="button" className="w-full" disabled={!canSubmit} onClick={submit}>Review request</Button>
         {!canSubmit && <p className="text-center text-xs text-muted-foreground">Complete the highlighted call-off details to continue.</p>}

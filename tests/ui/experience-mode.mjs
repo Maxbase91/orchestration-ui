@@ -79,32 +79,58 @@ try {
   // on screen the whole time. Waits for the element rather than sleeping 250 ms:
   // with the data stub answering /api/db the switch re-renders behind real
   // queries, and a sleep long enough today is a flake tomorrow.
+  //
+  // The heading alone is not the contract, though. Simple and Expert are now one
+  // page and differ only in DENSITY, so the assertion also requires the Simple
+  // framing to be gone — a heading that renders in both modes would prove
+  // nothing about which one is active.
   const expertWizard = page.getByRole('heading', { name: 'New Request', exact: true });
   await expertWizard.waitFor({ state: 'visible', timeout: 15000 }).catch(() => {});
-  check('switching to Expert preserves the route and renders the expert wizard', await expertWizard.isVisible().catch(() => false));
+  check('switching to Expert preserves the route and renders the expert wizard',
+    await expertWizard.isVisible().catch(() => false)
+    && (await page.getByText('Simple requester view', { exact: true }).count()) === 0);
 
   await page.reload({ waitUntil: 'networkidle' });
   await expertWizard.waitFor({ state: 'visible', timeout: 15000 }).catch(() => {});
-  check('mode preference survives reload', await expertWizard.isVisible().catch(() => false));
+  check('mode preference survives reload',
+    await expertWizard.isVisible().catch(() => false)
+    && (await page.getByText('Simple requester view', { exact: true }).count()) === 0);
   const expertSwitcher = page.locator('button[aria-label*="Experience view"]').first();
   await expertSwitcher.click({ force: true, timeout: 3000 });
   await page.getByRole('menuitem', { name: /Simple view/ }).click({ force: true, timeout: 3000 });
   await page.waitForTimeout(250);
   check('switching back to Simple renders the adaptive request entry', await page.getByText('Simple requester view', { exact: true }).isVisible().catch(() => false));
 
-  // A demand entered on Simple Home is already the first intake signal. The
-  // route screen should open directly with that text preserved, rather than
-  // sending the requester through the describe/classify screen a second time.
+  // A demand entered on Home is already the first intake signal, and it lands on
+  // the describe step with that text ALREADY CLASSIFIED — the commodity
+  // assessment is the point of that screen, not a duplicate of the home box.
+  // What must never happen is being asked for the text a second time.
   const homeDemand = 'I need a new laptop for a new starter';
   await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
   await page.getByLabel('Describe what you need').fill(homeDemand);
   await page.getByRole('button', { name: /Start with this/ }).click();
   await page.waitForURL(`${BASE}/requests/new?q=${encodeURIComponent(homeDemand)}`, { timeout: 10000 });
   await page.waitForLoadState('networkidle');
-  check('home demand opens directly on route evaluation', await page.getByText('Contract check', { exact: true }).isVisible().catch(() => false));
-  check('home demand is carried into route evaluation', await page.getByText(homeDemand, { exact: true }).isVisible().catch(() => false));
-  check('home demand skips the duplicate describe screen', (await page.getByText('Describe what you need', { exact: true }).count()) === 0);
-  await page.getByRole('button', { name: /Proceed to full request/ }).last().click();
+  const classified = await page.getByText(/suggested commodity or service family/i)
+    .waitFor({ timeout: 15000 }).then(() => true).catch(() => false);
+  check('home demand lands on the commodity assessment, already classified', classified);
+  check('the demand text is carried, not retyped',
+    (await page.getByText(homeDemand).count()) > 0);
+  check('the requester is not asked for the text a second time',
+    (await page.locator('#need-input').inputValue().catch(() => '')) !== ''
+    || (await page.getByText(homeDemand).count()) > 0);
+
+  await page.getByRole('button', { name: /Accept & continue/ }).click();
+  // The buy-route screen only resolves when the catalogue and contract sources
+  // are reachable; this suite's dev server has no serverless handlers, so it
+  // legitimately reports that neither could be checked. Accept either — what is
+  // asserted here is that the demand reached the route decision at all.
+  const reachedRouteScreen = await Promise.race([
+    page.getByText("How you'll buy this", { exact: true }).waitFor({ timeout: 15000 }).then(() => true),
+    page.getByText('We could not check what already exists', { exact: true }).waitFor({ timeout: 15000 }).then(() => true),
+  ]).catch(() => false);
+  check('accepting the classification reaches the buy-route decision', reachedRouteScreen);
+  await page.getByRole('button', { name: /^Start$|^Continue$/ }).last().click();
   check('full-request escape opens the adaptive details path', await page.getByPlaceholder('Type your answer...').isVisible().catch(() => false));
   check('full-request escape does not open catalogue selection', (await page.getByText('Choose your items', { exact: true }).count()) === 0);
 

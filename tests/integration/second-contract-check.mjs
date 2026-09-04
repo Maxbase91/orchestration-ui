@@ -1,8 +1,16 @@
 #!/usr/bin/env node
 // Verifies the second contract check (frameworks/MSAs vs transactable).
 //
-// Self-contained — mirrors src/lib/procurement/second-contract-check.ts. Keep in
-// sync. Run: node tests/integration/second-contract-check.mjs
+// Imports the REAL module. It used to reimplement it, line for line, with the
+// note "keep in sync" — and it drifted in the way a mirror always does: the
+// copy could not catch a defect in the original, because the defect had been
+// copied too. Specifically, `if (input.supplierId && ...)` skipped the supplier
+// filter entirely when no supplier was selected, so a demand with no supplier
+// matched every contract in its category and the determination announced
+// "a usable contract covers this demand" about an agreement with a company
+// nobody had chosen — which then switched off the approval-to-source gate.
+
+import { runSecondContractCheck } from '../../src/lib/procurement/second-contract-check.ts';
 
 let failures = 0;
 function check(name, cond, detail = '') {
@@ -10,34 +18,25 @@ function check(name, cond, detail = '') {
   else { failures++; console.error(`  \x1b[31m✗\x1b[0m ${name}${detail ? ` — ${detail}` : ''}`); }
 }
 
-const UTILISATION_HEADROOM = 95;
-const EXPIRY_BUFFER_DAYS = 60;
-const daysBetween = (a, b) => { const f = Date.parse(a), t = Date.parse(b); return Number.isNaN(f) || Number.isNaN(t) ? Infinity : Math.round((t - f) / 86400000); };
-
-function runSecondContractCheck(input) {
-  const candidates = [];
-  for (const c of input.contracts) {
-    if (input.supplierId && c.supplierId !== input.supplierId) continue;
-    if (input.category && c.category && c.category !== input.category) continue;
-    if (c.status === 'expired' || c.status === 'terminated') continue;
-    if (c.endDate && c.endDate < input.now) continue;
-    const expiringSoon = c.status === 'expiring' || daysBetween(input.now, c.endDate) <= EXPIRY_BUFFER_DAYS;
-    let kind;
-    if (c.isFramework) kind = 'framework';
-    else if (expiringSoon) kind = 'expiring';
-    else if (c.status === 'active' && c.utilisationPercentage < UTILISATION_HEADROOM) kind = 'transactable';
-    else kind = 'framework';
-    candidates.push({ contractId: c.id, title: c.title, kind });
-  }
-  if (candidates.some((c) => c.kind === 'transactable')) return { candidates, recommendation: 'transact' };
-  if (candidates.some((c) => c.kind === 'framework')) return { candidates, recommendation: 'author-sow' };
-  if (candidates.some((c) => c.kind === 'expiring')) return { candidates, recommendation: 'renew' };
-  return { candidates, recommendation: 'new-contract' };
-}
-
 const FAR = '2099-01-01';
 const base = { id: 'C1', title: 'C', supplierId: 'SUP-1', category: 'services', status: 'active', endDate: FAR, utilisationPercentage: 20 };
 const ctx = { supplierId: 'SUP-1', category: 'services', now: '2026-06-23' };
+
+console.log('A category is not coverage');
+// The reported contradiction: three statements on one screen, one of them
+// disabling a governance gate.
+check('no supplier selected → no candidates, and no transact recommendation', (() => {
+  const r = runSecondContractCheck({ category: 'services', now: '2026-06-23', contracts: [base] });
+  return r.candidates.length === 0 && r.recommendation === 'new-contract';
+})());
+check('and it says why, rather than implying nothing exists', (() => {
+  const r = runSecondContractCheck({ category: 'services', now: '2026-06-23', contracts: [base] });
+  return /no supplier is selected/i.test(r.reason);
+})());
+check('a selected supplier still matches its own contract', (() => {
+  const r = runSecondContractCheck({ ...ctx, contracts: [base] });
+  return r.candidates.length === 1 && r.recommendation === 'transact';
+})());
 
 console.log('Classification');
 check('active + headroom → transactable + transact', (() => { const r = runSecondContractCheck({ ...ctx, contracts: [base] }); return r.candidates[0].kind === 'transactable' && r.recommendation === 'transact'; })());

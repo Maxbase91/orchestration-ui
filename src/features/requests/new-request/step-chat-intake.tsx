@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -31,7 +32,7 @@ import type {
   ServiceDescription,
   ServiceDescriptionSectionKey,
   SectionCapture,
-} from './new-request-page';
+} from './intake-form-data';
 
 interface StepChatIntakeProps {
   category: string;
@@ -81,21 +82,22 @@ interface ChatMessage {
 }
 
 /** Mirrors the list on step-details, which this path never renders. */
-const COST_CENTRES = [
-  { value: 'CC-1001', label: 'CC-1001 Marketing' },
-  { value: 'CC-2001', label: 'CC-2001 IT' },
-  { value: 'CC-3001', label: 'CC-3001 Operations' },
-  { value: 'CC-4001', label: 'CC-4001 Finance' },
-  { value: 'CC-5001', label: 'CC-5001 HR' },
-];
-
-const WELCOME_MESSAGES: Record<string, string> = {
-  goods: "Tell me what you need and the outcome you want. I’ll use your description to work out the right route and ask only for missing details.",
-  services: "Tell me what you need and the outcome you want. I’ll use your description to work out the right route and ask only for missing details.",
-  consulting: "Tell me what you need and the outcome you want. I’ll use your description to work out the right route and ask only for missing details.",
-  software: "Tell me what you need and the outcome you want. I’ll use your description to work out the right route and ask only for missing details.",
-  'contingent-labour': "Tell me what you need and the outcome you want. I’ll use your description to work out the right route and ask only for missing details.",
-};
+/**
+ * The opening invitation.
+ *
+ * One open question, deliberately, and the same one for every category. The
+ * conversation used to open on slot #1 whenever the describe step had captured
+ * a title or a value — which it always had — so the requester's first
+ * experience was being asked "What's the primary objective of this engagement?"
+ * with no chance to just say what they wanted. Everything they would have said
+ * in one paragraph had to be dragged out of them one question at a time.
+ *
+ * So: ask once, openly, and let the first turn extract whatever it can. The
+ * remaining questions are then genuinely only the gaps.
+ */
+const OPENING_INVITATION =
+  'Tell me about the service you need — in your own words, as much or as little as you like. '
+  + "I'll pull out what I can and then only ask about what's missing.";
 
 // Key facts captured during intake. Supplier is intentionally NOT here — it is
 // selected later (during compliance / supplier identification), so showing it
@@ -316,28 +318,23 @@ function usableQuestion(text: unknown): string | undefined {
 }
 
 function buildWelcomeMessage(
-  category: string,
   data: StepChatIntakeProps['data'],
-  slots: DemandSlot[],
 ): { content: string; example?: string } {
   const parts: string[] = [];
-  const next = determineNextQuestion(buildContext(category, data, {}), undefined, slots);
 
-  // Acknowledge what's already known.
+  // Acknowledge what's already known, so the requester can see they are not
+  // starting from nothing and does not repeat it.
   if (data.title || data.supplier || data.estimatedValue > 0) {
-    parts.push("Great, I've got some details already:");
+    parts.push("Here's what I have so far:");
     if (data.title) parts.push(`• **${data.title}**`);
     if (data.supplier) parts.push(`• Supplier: ${data.supplier}`);
     if (data.estimatedValue > 0) parts.push(`• Value: €${data.estimatedValue.toLocaleString()}`);
-    // Go straight to the next unanswered question the engine selects instead
-    // of asking "do you want to refine this?".
     parts.push('');
-    parts.push(next?.prompt ?? (WELCOME_MESSAGES[category] ?? WELCOME_MESSAGES.goods));
-  } else {
-    parts.push(WELCOME_MESSAGES[category] ?? WELCOME_MESSAGES.goods);
   }
+  // Always the open invitation, never slot #1: see OPENING_INVITATION.
+  parts.push(OPENING_INVITATION);
 
-  return { content: parts.join('\n'), example: next?.example };
+  return { content: parts.join('\n') };
 }
 
 export function StepChatIntake({ category, categoryDescription: _categoryDescription, data, onUpdate }: StepChatIntakeProps) {
@@ -347,13 +344,46 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
   // with a `default` row and the built-in template beneath, so an empty table
   // behaves exactly as the hardcoded slot set did.
   const { data: sdTemplate } = useServiceDescriptionTemplate(category);
-  const slots = useMemo(() => resolveSlots(sdTemplate?.slots), [sdTemplate]);
-  // The welcome message is computed once, at mount, before the template has
-  // resolved — so it uses the built-in set. That is correct rather than a bug:
-  // re-greeting the requester when the template arrives would restart the
-  // conversation under them, and the two sets ask the same first question.
+  const configuredSlots = useMemo(() => resolveSlots(sdTemplate?.slots), [sdTemplate]);
+  /**
+   * Slots the requester could not answer, dropped from the agenda.
+   *
+   * The need-by date has a parser behind it, so an answer it cannot read is
+   * rejected before it is written — which meant the same question came back
+   * forever. A requester who does not yet know the date had no way past it, and
+   * the conversation could not reach the sections that actually matter.
+   *
+   * This is the same rule the rest of the conversation already follows: push
+   * back once, then take what you are given. Asking a third time is not
+   * diligence, it is a loop.
+   */
+  const [skippedSlots, setSkippedSlots] = useState<Set<string>>(() => new Set());
+  const slots = useMemo(
+    () => configuredSlots.filter((slot) => !skippedSlots.has(slot.id)),
+    [configuredSlots, skippedSlots],
+  );
+  /** Unreadable date answers so far. */
+  const dateAttemptsRef = useRef(0);
+
+  /** One rule for both paths: prompt once, then leave the date open. */
+  const noteDateAttempt = useCallback((invalid: boolean): { hint: string; skipped: boolean } => {
+    if (!invalid) { dateAttemptsRef.current = 0; return { hint: '', skipped: false }; }
+    dateAttemptsRef.current += 1;
+    if (dateAttemptsRef.current >= 2) {
+      setSkippedSlots((prev) => new Set(prev).add('deliveryDate'));
+      dateAttemptsRef.current = 0;
+      return {
+        hint: 'No problem — we will leave the need-by date open and you can add it later.\n\n',
+        skipped: true,
+      };
+    }
+    return { hint: 'Please enter a specific need-by date, for example 2026-12-31.\n\n', skipped: false };
+  }, []);
+  // The opening turn is a fixed invitation rather than the first slot question,
+  // so it does not depend on the template resolving. The LLM may rewrite it in
+  // context (see the opening effect below); if that fails, this stands.
   const [messages, setMessages] = useState<ChatMessage[]>([
-    { role: 'assistant', ...buildWelcomeMessage(category, data, resolveSlots()) },
+    { role: 'assistant', ...buildWelcomeMessage(data) },
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -438,7 +468,16 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
       } catch {
         // Keep the deterministic greeting — see the docstring.
       } finally {
-        if (!cancelled) setIsTyping(false);
+        // Unconditionally. `cancelled` guards writing a MESSAGE into a
+        // conversation the requester may have moved on from — it must not gate
+        // the typing flag, which disables the input.
+        //
+        // Under StrictMode the effect runs, is cleaned up, and runs again on
+        // the same instance. `openedRef` makes the second run a no-op, so the
+        // only call that can clear this flag is the first run's — and it saw
+        // `cancelled === true` from the cleanup. The input stayed disabled
+        // forever and the service-description step could not be used at all.
+        setIsTyping(false);
       }
     })();
 
@@ -627,7 +666,13 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
           { role: 'assistant', content: buildCompletionMessage(ctx, slots) },
         ]);
       } else {
-        const next = determineNextQuestion(ctx, undefined, slots);
+        // Applied before the next question is chosen: saying "we'll leave the
+        // date open" and then asking for the date again is worse than either.
+        const dateOutcome = noteDateAttempt(invalidDateAnswer);
+        const remainingSlots = dateOutcome.skipped
+          ? slots.filter((slot) => slot.id !== 'deliveryDate')
+          : slots;
+        const next = determineNextQuestion(ctx, undefined, remainingSlots);
         if (next) {
           // The ENGINE chooses WHICH slot is asked and when the conversation is
           // done. The assistant chooses the WORDS. Both halves matter: the
@@ -640,11 +685,12 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
           // Guarded: the model's line is used only if it is a plausible single
           // question. Anything else falls back to the canned wording.
           const phrased = usableQuestion(result.nextQuestion);
+          const dateHint = dateOutcome.hint;
           setMessages((prev) => [
             ...prev,
             {
               role: 'assistant',
-              content: `${invalidDateAnswer ? 'Please enter a specific need-by date, for example 2026-12-31.\n\n' : ''}${phrased ?? next.prompt}`,
+              content: `${dateHint}${phrased ?? next.prompt}`,
               why: next.slot.why,
               // A generic example only helps when the wording is generic too.
               example: phrased ? undefined : next.example,
@@ -698,13 +744,25 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
         onUpdate({ serviceDescription: merged });
       }
 
+      // Same give-up rule as the LLM path: the offline extractor rejects an
+      // unreadable date too, and looping there was no better.
+      const offlineDate = noteDateAttempt(Boolean(fallback.warning));
+      // When the date is given up on, the question that follows must be the
+      // NEXT one, not the one just abandoned.
+      const offlineNext = offlineDate.skipped
+        ? determineNextQuestion(
+            buildContext(category, data, svcDesc),
+            undefined,
+            slots.filter((slot) => slot.id !== 'deliveryDate'),
+          )
+        : null;
       setMessages((prev) => [
         ...prev,
         {
           role: 'assistant',
-          content: fallback.warning ? `${fallback.warning}\n\n${fallback.nextQuestion}` : fallback.nextQuestion,
-          why: fallback.why,
-          example: fallback.example,
+          content: `${offlineDate.hint}${offlineNext?.prompt ?? fallback.nextQuestion}`,
+          why: offlineNext?.slot.why ?? fallback.why,
+          example: offlineNext?.example ?? fallback.example,
         },
       ]);
 
@@ -715,7 +773,7 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
     } finally {
       setIsTyping(false);
     }
-  }, [inputValue, isTyping, messages, category, data, svcDesc, onUpdate, suppliers, slots, challenged]);
+  }, [inputValue, isTyping, messages, category, data, svcDesc, onUpdate, suppliers, slots, challenged, noteDateAttempt]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -865,19 +923,29 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
   }, [svcDesc, onUpdate]);
 
   return (
+    // Two panes, but built from the wizard's own primitives. This step used to
+    // render bespoke bordered divs with their own header bar and badge, which
+    // is a large part of why it read as a different application bolted into the
+    // middle of the journey. The layout is still two-up — a conversation beside
+    // what it is producing is the right shape for the task — but the shell,
+    // the card, the type scale and the AI treatment are now the ones the rest
+    // of the product uses (design-document §7.3).
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 lg:h-[calc(100vh-16rem)] lg:max-h-[640px] lg:min-h-[420px]">
-      {/* Chat Area (3/5) */}
-      <div className="lg:col-span-3 flex flex-col rounded-lg border border-gray-200 bg-white overflow-hidden">
-        {/* Chat Header */}
-        <div className="shrink-0 border-b px-4 py-3 flex items-center gap-2">
-          <div className="flex size-6 items-center justify-center rounded-full bg-blue-100">
-            <Sparkles className="size-3.5 text-[#2D5F8A]" />
-          </div>
-          <span className="text-sm font-semibold text-gray-900">Procurement Assistant</span>
-          <Badge variant="outline" className="text-[10px]">Guided intake</Badge>
-        </div>
+      {/* The conversation (3/5) */}
+      <Card className="lg:col-span-3 flex flex-col overflow-hidden border-l-2 border-l-blue-400 bg-blue-50/70">
+        {/* The AI visual language: blue-tinted surface, sparkle, and a label
+            saying what is generating — the same treatment every AI surface in
+            the product carries. */}
+        <CardHeader className="shrink-0 border-b border-blue-100 py-3">
+          <CardTitle className="flex items-center gap-2 text-sm">
+            <div className="flex size-6 items-center justify-center rounded-full bg-blue-100">
+              <Sparkles className="size-3.5 text-[#2D5F8A]" />
+            </div>
+            Procurement assistant
+            <span className="text-[11px] font-normal text-gray-500">AI-guided intake</span>
+          </CardTitle>
+        </CardHeader>
 
-        
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {messages.map((msg, i) => (
@@ -991,7 +1059,7 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
         </div>
 
         {/* Input */}
-        <div className="shrink-0 border-t p-3 flex gap-2">
+        <div className="shrink-0 border-t border-blue-100 bg-white/60 p-3 flex gap-2">
           <Input
             ref={inputRef}
             value={inputValue}
@@ -1005,25 +1073,31 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
             {isTyping ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
           </Button>
         </div>
-      </div>
+      </Card>
 
-      {/* Right Sidebar (2/5) */}
+      {/* What the conversation is producing (2/5) */}
       <div className="lg:col-span-2 space-y-4 lg:h-full lg:overflow-y-auto lg:pr-1">
         {/* Single service-description panel — the master capture. The request
             key facts and the SOW are one document, not separate tabs. */}
-        <div className="rounded-lg border border-gray-200 bg-white p-4 space-y-4">
+        <Card className="p-4 space-y-4">
               {/* Unified progress (request key facts + SOW elements). The panel
                   title is the step heading ("Service description") above. */}
               <div>
-                <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-                  <span>{unifiedDone} of {unifiedTotal} questions answered</span>
-                  <span>{unifiedPct}%</span>
+                <div className="mb-1 flex items-center justify-between text-xs">
+                  <span className="font-medium text-gray-700">
+                    Enough for the risk assessment and sourcing
+                  </span>
+                  <span className="text-gray-500">{unifiedDone} of {unifiedTotal}</span>
                 </div>
-                <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                <div className="h-1.5 overflow-hidden rounded-full bg-gray-100">
                   <div className="h-full rounded-full bg-[#2D5F8A] transition-all duration-500" style={{ width: `${unifiedPct}%` }} />
                 </div>
+                <p className="mt-1.5 text-[11px] text-gray-500">
+                  What you write here is reused across the process — it is what suppliers
+                  price against and what the risk assessment reads.
+                </p>
               </div>
-              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Key facts</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">Key facts</p>
 
               <div className="space-y-2">
                 {FIELD_LABELS.map(({ key, label }) => {
@@ -1039,7 +1113,7 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
                     <div key={key} className="flex items-start gap-2">
                       {filled ? <CheckCircle className="size-3.5 text-green-500 mt-0.5 shrink-0" /> : <Circle className="size-3.5 text-gray-300 mt-0.5 shrink-0" />}
                       <div className="min-w-0 flex-1">
-                        <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wider">{label}</p>
+                        <p className="text-[11px] font-medium uppercase tracking-wider text-gray-500">{label}</p>
                         {editable ? (
                           <input
                             className="w-full rounded border border-transparent bg-transparent px-1 py-0.5 text-xs text-gray-900 transition-colors hover:border-gray-200 focus:border-[#2D5F8A] focus:bg-white focus:outline-none"
@@ -1065,10 +1139,10 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
                   demand); otherwise the supplier is chosen later in compliance. */}
               {data.supplier && (
                 <div className="rounded-md bg-green-50 border border-green-100 px-2 py-1.5">
-                  <p className="text-[9px] font-medium text-green-600 uppercase tracking-wider">
+                  <p className="text-[11px] font-medium uppercase tracking-wider text-green-600">
                     {data.supplierId ? 'Supplier Matched' : 'Supplier Named'}
                   </p>
-                  <p className="text-[11px] text-green-800">{data.supplier}</p>
+                  <p className="text-xs text-green-800">{data.supplier}</p>
                 </div>
               )}
               {/* SERVICE DESCRIPTION — the master document, same panel as the facts above */}
@@ -1078,7 +1152,7 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-1.5">
                   <FileText className="size-3.5 text-[#2D5F8A]" />
-                  <h4 className="text-xs font-semibold text-gray-900">Service description components</h4>
+                  <h4 className="text-sm font-semibold text-gray-900">Service description</h4>
                 </div>
                 <div className="flex items-center gap-1.5">
                   {generating && (
@@ -1213,17 +1287,9 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-[11px]">Cost centre</Label>
-                  <Select value={data.costCentre} onValueChange={(v) => onUpdate({ costCentre: v })}>
-                    <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select…" /></SelectTrigger>
-                    <SelectContent>
-                      {COST_CENTRES.map((c) => (
-                        <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                {/* No cost-centre picker. Derived from the profile and shown
+                    once in the requester-context block above — this panel held
+                    the fourth copy of the same five invented cost centres. */}
               </div>
               <div className="space-y-1.5">
                 <div className="flex items-center gap-2">
@@ -1254,7 +1320,7 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
               <p className="text-xs font-medium text-green-800">Ready for validation</p>
             </div>
           )}
-        </div>
+        </Card>
       </div>
     </div>
   );

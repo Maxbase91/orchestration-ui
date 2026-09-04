@@ -1,8 +1,10 @@
 // Header dropdown for switching between the demo persona roles defined in
 // config/roles. Role drives navigation visibility and entitlements via the
 // auth store; there is no real sign-in in this release.
-import { Check } from 'lucide-react';
+import { Check, MapPin, Settings } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useAuthStore } from '@/stores/auth-store';
+import { useUserLookup, useUsers } from '@/lib/db/hooks/use-users';
 import { roles } from '@/config/roles';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
@@ -15,6 +17,10 @@ import {
 
 export function RoleSwitcher() {
   const { currentRole, currentUser, switchRole } = useAuthStore();
+  // The directory record carries the location; the auth store's user does not.
+  useUsers();
+  const lookupUser = useUserLookup();
+  const location = lookupUser(currentUser.id)?.country;
 
   return (
     <DropdownMenu>
@@ -29,13 +35,41 @@ export function RoleSwitcher() {
             <span className="text-sm font-medium text-text-primary leading-tight">
               {currentUser.name}
             </span>
-            <span className="text-[11px] text-text-muted leading-tight">
+            {/* Role and location together: the location drives country-based
+                routing and is the requester's default "requesting from", so it
+                belongs where they can see it without opening a form. */}
+            <span className="flex items-center gap-1 text-[11px] text-text-muted leading-tight">
               {roles.find((r) => r.id === currentRole)?.label}
+              {location && (
+                <>
+                  <span aria-hidden>·</span>
+                  <MapPin className="size-2.5" aria-hidden />
+                  {location}
+                </>
+              )}
             </span>
           </div>
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-72">
+        <div className="px-2 py-2">
+          <p className="text-sm font-medium text-text-primary">{currentUser.name}</p>
+          <p className="text-xs text-text-muted">{currentUser.email}</p>
+          {location && (
+            <p className="mt-0.5 flex items-center gap-1 text-xs text-text-muted">
+              <MapPin className="size-3" aria-hidden />
+              {location}
+            </p>
+          )}
+        </div>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild className="cursor-pointer">
+          <Link to="/settings" className="flex items-center gap-2">
+            <Settings className="size-3.5" />
+            Profile &amp; settings
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
         <div className="px-2 py-1.5">
           <p className="text-xs font-medium text-text-muted uppercase tracking-wider">
             Switch Role

@@ -4,6 +4,8 @@
 
 import { readFileSync } from 'node:fs';
 import { neonClient } from '../lib/live.mjs';
+import { evaluateIntakeDetermination } from '../../src/lib/procurement/intake-determination.ts';
+import { routingRules } from '../../src/data/routing-rules.ts';
 
 // No hand-rolled .env.local loader here: neonClient hydrates it, and this file's
 // own copy read the file with no try/catch. A machine with .env.local present
@@ -28,7 +30,6 @@ function parseThresholdBand(threshold) {
 }
 
 const value = 60_000;
-const source = readFileSync(new URL('../../src/features/requests/new-request/step-compliance.tsx', import.meta.url), 'utf8');
 const dbProxy = readFileSync(new URL('../../api/db.ts', import.meta.url), 'utf8');
 check('Neon update proxy binds SET values before filters', dbProxy.includes('const updateWhere = whereClause(request, whereParams, types, bodyParams.length)'));
 check('Neon update proxy emits typed-safe SQL NULL literals', dbProxy.includes("if (value === null) return 'NULL';"));
@@ -36,11 +37,6 @@ check('Neon update proxy emits typed-safe SQL NULL literals', dbProxy.includes("
 // on a uuid/date/timestamptz column. test:db-casts covers the behaviour; this
 // only checks the call site still exists.
 check('Neon filter parameters carry column-typed casts', dbProxy.includes('function castForColumn') && dbProxy.includes('castForColumn(value, column, types)'));
-check(
-  'wizard persists a configured approval-chain id rather than the routing label',
-  source.includes('approvalChain: configuredChain?.id ?? valueBandedChain?.id'),
-);
-
 const { data: chains, error: chainsError } = await sb.from('approval_chains').select('id,threshold');
 if (chainsError) throw new Error(chainsError.message);
 const chain = (chains ?? []).find((candidate) => {
@@ -48,6 +44,34 @@ const chain = (chains ?? []).find((candidate) => {
   return value >= min && value < max;
 });
 check('a configured chain covers the test value', Boolean(chain), `value=${value}`);
+
+// The determination must hand back a chain PRIMARY KEY, not the routing rule's
+// human-readable role vocabulary. `requests.approval_chain` is a foreign key,
+// so a label here is a constraint violation waiting to happen. Asserted by
+// running the real determination rather than by grepping the wizard's source:
+// the wizard no longer owns this decision, and a grep would only prove a line
+// of code still exists somewhere.
+const determination = evaluateIntakeDetermination({
+  category: 'services',
+  estimatedValue: value,
+  supplierId: '',
+  isUrgent: false,
+  requestTitle: 'Approval chain band check',
+  serviceDescription: { objective: 'Determining the approval chain for a mid-value demand' },
+  miniIrq: { privilegedAccess: false, criticalService: false },
+  now: new Date().toISOString().slice(0, 10),
+  suppliers: [],
+  contracts: [],
+  matchingRiskAssessments: [],
+  routingRules,
+  approvalChains: (chains ?? []).map((c) => ({ ...c, name: c.id, description: '', steps: [], referencedBy: [] })),
+  validatorAgent: { name: 'Request Validator', status: 'active' },
+});
+check(
+  'the determination selects a configured approval-chain id, not the routing label',
+  determination.approvalChain === chain?.id,
+  `got=${determination.approvalChain} expected=${chain?.id}`,
+);
 
 const { data: user, error: userError } = await sb.from('users').select('id').limit(1).maybeSingle();
 if (userError || !user) throw new Error(userError?.message ?? 'No user row available.');

@@ -80,16 +80,19 @@ export const DEFAULT_SLOTS: ConfiguredSlot[] = [
       goods: '50 height-adjustable desks for the new office',
       default: 'market-research study for APAC expansion',
     },
+    why: 'Asked because this one line names the request everywhere it appears afterwards — in approvals, in sourcing and on the record.',
   },
   {
     id: 'value', targetKind: 'request', targetField: 'estimatedValue', required: true,
     prompt: "What's the estimated budget for this?",
     examples: { default: '€50,000 or 150k' },
+    why: 'Asked because the value sets the buying channel, who approves it, and how long it takes — it is the single biggest driver of your route.',
   },
   {
     id: 'deliveryDate', targetKind: 'request', targetField: 'deliveryDate', required: false,
     prompt: 'When do you need this delivered or started by?',
     examples: { default: 'by end of Q3, or a specific date' },
+    why: 'Asked because the date decides whether the standard route can make it, and whether an urgent path is worth opening.',
   },
   {
     id: 'objective', targetKind: 'sow', targetField: 'objective', required: true,
@@ -102,22 +105,27 @@ export const DEFAULT_SLOTS: ConfiguredSlot[] = [
       goods: 'equip the new office with workstations',
       default: 'the outcome this should achieve',
     },
+    why: 'Asked because the objective opens the service description that goes to suppliers — it is what they price against.',
   },
   {
     id: 'scope', targetKind: 'sow', targetField: 'scope', required: true,
     prompt: 'What is included in the work or purchase?',
+    why: 'Asked because scope is what the risk assessment reads to judge data handling and access, and what a supplier is held to later.',
   },
   {
     id: 'exclusions', targetKind: 'sow', targetField: 'exclusions', required: false,
     prompt: 'Is anything explicitly excluded or not required?',
+    why: 'Asked because what is out of scope is the half suppliers price optimistically and argue about at delivery.',
   },
   {
     id: 'deliverables', targetKind: 'sow', targetField: 'deliverables', required: true,
     prompt: 'What are the key deliverables?',
+    why: 'Asked because deliverables become the acceptance list — nothing can be signed off against a description that has none.',
   },
   {
     id: 'resources', targetKind: 'sow', targetField: 'resources', required: true,
     prompt: 'What resources, skills or team size does this need?',
+    why: 'Asked because who does the work drives the risk read: supplier staff needing system access is assessed differently from work done off-site.',
   },
   {
     id: 'timeline', targetKind: 'sow', targetField: 'timeline', required: false,

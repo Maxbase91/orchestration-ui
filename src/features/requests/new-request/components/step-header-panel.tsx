@@ -16,7 +16,7 @@
 import { useState } from 'react';
 import { ChevronDown, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { StepGuidance } from '../step-guidance';
+import type { StepGuidance } from '../intake-steps';
 
 interface StepHeaderPanelProps {
   guidance: StepGuidance | null;

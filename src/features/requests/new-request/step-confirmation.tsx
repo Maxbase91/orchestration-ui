@@ -1,11 +1,15 @@
 import { CheckCircle2, ArrowRight, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { AISuggestionCard } from '@/components/shared/ai-suggestion-card';
 import { formatCurrency } from '@/lib/format';
 
 interface StepConfirmationProps {
   requestId: string;
+  /**
+   * The steps the determination actually produced, so this screen names the
+   * real path rather than a fixed sentence. Same source as the Review step.
+   */
+  nextSteps?: { label: string; system: string; status: string }[];
   data: {
     title: string;
     category: string;
@@ -22,14 +26,16 @@ interface StepConfirmationProps {
   onReset: () => void;
 }
 
-export function StepConfirmation({ requestId, data, onReset }: StepConfirmationProps) {
+export function StepConfirmation({ requestId, data, nextSteps = [], onReset }: StepConfirmationProps) {
   const navigate = useNavigate();
 
   const summaryItems = [
     { label: 'Request ID', value: requestId },
     { label: 'Title', value: data.title },
-    // Broad category values remain internal routing metadata. Requesters see
-    // the specific commodity/service family instead of a Goods/Services split.
+    // One row, not two. `Classification` and `Commodity` were both bound to
+    // `commodityCodeLabel`, so the same value was listed twice under different
+    // names. Broad category values remain internal routing metadata (ADR-0005);
+    // the requester sees the specific commodity/service family.
     { label: 'Classification', value: data.commodityCodeLabel || 'Being confirmed' },
     { label: 'Supplier', value: data.supplier || 'Not specified' },
     { label: 'Estimated Value', value: formatCurrency(data.estimatedValue, data.currency) },
@@ -37,7 +43,6 @@ export function StepConfirmation({ requestId, data, onReset }: StepConfirmationP
     { label: 'Delivery Date', value: data.deliveryDate || 'Not specified' },
     { label: 'Urgent', value: data.isUrgent ? 'Yes' : 'No' },
     { label: 'Buying Channel', value: data.buyingChannelResult || 'TBD' },
-    { label: 'Commodity', value: data.commodityCodeLabel || 'Not specified' },
   ];
 
   return (
@@ -90,32 +95,42 @@ export function StepConfirmation({ requestId, data, onReset }: StepConfirmationP
         </div>
       )}
 
-      {/* Next steps */}
+      {/* What happens next.
+          Three sentences were removed here, each of which was untrue:
+            - "reviewed by Anna Müller" — a seed persona hardcoded into
+              requester-facing copy. The reviewer is whoever the workflow
+              assigns, and naming a person the product does not know breaks the
+              white-label rule as well as being wrong.
+            - "within 2 business days" — a fixed SLA, while the real one comes
+              from the category configuration.
+            - "You will receive email notifications at each stage transition" —
+              nothing sends email anywhere in the product, and no notification
+              is created on a stage transition either. A requester who believes
+              it stops checking.
+          What replaces them is the determination's own handoff steps: the same
+          list the Review step showed, so the two screens cannot disagree. */}
       <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
         <h3 className="text-sm font-semibold text-gray-900">What happens next?</h3>
-        <ul className="mt-2 space-y-1.5 text-sm text-gray-600">
-          <li>
-            Your request will be reviewed by <span className="font-medium">Anna Müller</span> within{' '}
-            <span className="font-medium">2 business days</span>.
-          </li>
-          <li>You will receive email notifications at each stage transition.</li>
-          <li>You can track progress from your dashboard or the request detail page.</li>
-        </ul>
-      </div>
-
-      {/* AI follow-up */}
-      <AISuggestionCard
-        title="Stay informed"
-        onAccept={() => {
-          // Mock accept - in real app would set up notification
-        }}
-        onDismiss={() => {}}
-      >
-        <p>
-          Would you like me to notify you when this request reaches the approval stage? I can also
-          alert you if any compliance issues arise during processing.
+        {nextSteps.length > 0 ? (
+          <ul className="mt-2 space-y-1.5 text-sm text-gray-600">
+            {nextSteps.map((step) => (
+              <li key={step.label}>
+                <span className="font-medium text-gray-800">{step.label}</span>
+                {' — '}{step.system}
+                {step.status === 'required' && <span className="text-gray-400"> · required</span>}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-2 text-sm text-gray-600">
+            Your request enters its first workflow stage and the assigned owner picks it up.
+          </p>
+        )}
+        <p className="mt-3 text-sm text-gray-600">
+          Track progress on the request itself — there is no email alert, so check back here or from
+          your dashboard.
         </p>
-      </AISuggestionCard>
+      </div>
 
       {/* Actions */}
       <div className="flex items-center justify-center gap-3 pt-2">

@@ -84,7 +84,9 @@ const TOOLS: GroqTool[] = [
     type: 'function',
     function: {
       name: 'start_demand',
-      description: 'Detect buy/procure intent and prepare a deep-link to the New Request wizard.',
+      description:
+        'Detect buy/procure intent and OFFER a pre-filled link to the New Request wizard. '
+        + 'This creates nothing and submits nothing — the requester still has to complete and submit the request themselves.',
       parameters: {
         type: 'object',
         properties: {
@@ -166,7 +168,8 @@ RULES — always follow these:
 6. Buy / procure / hire / engage intent — the user needs goods, services, software, consultants, contractors or staff (e.g. "I need consultants for a promptathon", "we need 50 laptops", "looking to hire a contractor", "engage an agency") → start_demand. This is a PROCUREMENT DEMAND and routes to the New Request wizard — it is NEVER a support ticket, even if the subject, event or item is unfamiliar to you.
 7. create_ticket ONLY when the user EXPLICITLY asks for human help ("I need to speak to someone", "raise a ticket", "put me through to a person", "this isn't working"). Do NOT create a ticket as a fallback for an unrecognised demand, item or question — if you cannot ground an answer, say so plainly and offer search_knowledge or start_demand instead.
 8. User mentions personal info to remember (delegate name, cost centre, department) → remember_preference.
-9. After a tool result, write a concise grounded response using only the returned data. Do not add facts not in the result.`;
+9. After a tool result, write a concise grounded response using only the returned data. Do not add facts not in the result.
+10. NEVER claim that something was done. You do not create, submit, route, raise, place or start anything. After start_demand, say you have PREPARED or OPENED a pre-filled request form and that they complete and submit it — never "your request has been routed", "we'll begin the process", "I've raised it" or any wording implying work is underway. The only exception is create_ticket, which does create a real ticket.`;
 
 // ─── Tool handlers ────────────────────────────────────────────────────────────
 
@@ -451,6 +454,40 @@ const KNOWN_TOOLS = new Set([
 ]);
 
 /** True when content looks like a leaked tool call the model wrote as text. */
+/**
+ * Did the assistant claim it did something it cannot do?
+ *
+ * The assistant proposes; it never executes. After `start_demand` it has
+ * offered a pre-filled form and nothing more — but a model handed a thin tool
+ * result will fill the gap with a plausible completion sentence, and it did:
+ *
+ *     "Your request has been routed to the procurement demand workflow.
+ *      We'll begin the process to acquire a business consultant for you."
+ *
+ * Nothing was routed. Nobody began anything. That output is worse than an
+ * error, because the requester believes it and stops — they think the work is
+ * in hand, and it is not even created.
+ *
+ * The prompt now forbids this and the tool result now states what actually
+ * happened. Neither is a guarantee: an instruction is a request, and a model
+ * that ignores it fails silently. This is the mechanism.
+ *
+ * Deliberately narrow — applied only on the demand path, and only to claims of
+ * COMPLETION. "You can submit it from there" is fine; "it has been submitted"
+ * is not.
+ */
+const FALSE_COMPLETION_CLAIM =
+  /\b(?:has|have|was|were)\s+(?:been\s+)?(?:created|submitted|routed|raised|placed|started|initiated|logged|registered)\b|\b(?:i|we)(?:'ve|'ll| have| will)\s+(?:now\s+)?(?:created|submitted|routed|raised|placed|started|initiated|begin|begun|start|proceed)\b|\byour request (?:is|was) (?:now )?(?:in|with|being)\b/i;
+
+export function claimsWorkAlreadyDone(text: string): boolean {
+  return FALSE_COMPLETION_CLAIM.test(text);
+}
+
+/** What is actually true after `start_demand`, in one sentence. */
+export function demandOfferedMessage(category: string): string {
+  return `I've prepared a pre-filled ${category} request for you — open it below, add anything missing, and submit it when you're ready. Nothing is created or sent until you do.`;
+}
+
 function isToolCallLeak(content: string): boolean {
   if (!content) return false;
   return /(?:tool_calls\.|functions\.)?(?:search_knowledge|lookup_object|filter_objects|propose_action|create_ticket|start_demand|remember_preference)\s*[:(]/i.test(content);
@@ -753,7 +790,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // hang because llmMessages already includes the grounded answer — Groq timed out
       // trying to respond to a conversation that was already complete.
       if (isSSE && hadToolCalls) {
-        const answerText = stripTechnicalSourceMarkers(result.content?.trim() ?? '');
+        const rawAnswer = stripTechnicalSourceMarkers(result.content?.trim() ?? '');
+        // On the demand path the assistant has created nothing; a sentence
+        // saying otherwise is replaced rather than sent.
+        const answerText = demandCategory && claimsWorkAlreadyDone(rawAnswer)
+          ? demandOfferedMessage(demandCategory)
+          : rawAnswer;
         if (answerText && !isToolCallLeak(answerText)) {
           res.write(`data: ${JSON.stringify({ t: 'tok', c: answerText })}\n\n`);
         }
@@ -766,7 +808,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Guard: suppress raw tool-call text that parseTextToolCall couldn't parse
       // (e.g. model wrote tool_calls.NAME(...) but we couldn't extract valid args).
       const rawText = stripTechnicalSourceMarkers(result.content?.trim() ?? '');
-      const text = isToolCallLeak(rawText) ? '' : rawText;
+      const grounded = demandCategory && claimsWorkAlreadyDone(rawText)
+        ? demandOfferedMessage(demandCategory)
+        : rawText;
+      const text = isToolCallLeak(grounded) ? '' : grounded;
       const allTurns: unknown[] = [];
       if (text) allTurns.push({ type: 'chat-answer', content: text });
       allTurns.push(...structuralTurns);
@@ -834,7 +879,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         demandCategory = (args.category as string) ?? 'services';
         demandValue = (args.estimated_value as string) ?? null;
         demandSupplier = (args.supplier as string) ?? null;
-        toolResult = JSON.stringify({ category: demandCategory, deepLinkReady: true });
+        // The result states what HAPPENED, not just that a link exists.
+        // `{ deepLinkReady: true }` gave the model nothing to ground a final
+        // sentence on, and it filled the gap by inventing one: "Your request
+        // has been routed to the procurement demand workflow. We'll begin the
+        // process…" — for a demand where nothing was created, nothing was
+        // routed, and nobody had begun anything. A claim like that is the most
+        // damaging output this assistant can produce, because unlike an error
+        // it is invisible and it is believed.
+        toolResult = JSON.stringify({
+          created: false,
+          submitted: false,
+          routed: false,
+          offered: 'a pre-filled New Request form',
+          category: demandCategory,
+          nextStep: 'The requester opens the form, completes it, and submits it themselves.',
+        });
       } else if (toolName === 'filter_objects') {
         toolResult = await execFilterObjects(
           (args.object_type as string) ?? '',

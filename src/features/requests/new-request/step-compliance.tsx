@@ -1,12 +1,11 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Loader2, Info, ChevronDown, ChevronUp, AlertTriangle, CheckCircle, Sparkles, Circle, MinusCircle, Clock, Recycle, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { ComplianceCheckResult } from './components/compliance-check-result';
 import { formatCurrency } from '@/lib/format';
 import { useSourceData } from '@/lib/integrations';
-import { isPreferredSupplier, competitiveSourcingCheck, preferredSupplierCheck } from '@/lib/procurement/supplier-preference';
-import { inferDataSensitivity, gapsAgainstFinal } from '@/lib/procurement/demand-signals';
+import { gapsAgainstFinal } from '@/lib/procurement/demand-signals';
 
 /** Display names for the description's sections, for the gap message. */
 const SOW_SECTION_LABELS: Record<string, string> = {
@@ -14,93 +13,28 @@ const SOW_SECTION_LABELS: Record<string, string> = {
   timeline: 'Timeline', resources: 'Resources', acceptanceCriteria: 'Acceptance Criteria',
   pricingModel: 'Pricing Model', location: 'Location', dependencies: 'Dependencies',
 };
-import { determineMateriality, type MaterialityResult } from '@/lib/procurement/materiality';
-import { determineInherentRisk, type InherentRiskResult } from '@/lib/procurement/risk-segmentation';
-import { selectReuseOutcome, type ReuseEvaluation } from '@/lib/procurement/risk-reuse';
-import { buildHandoffSteps, type HandoffStep } from '@/lib/procurement/handoff';
-import { evaluateSupplierData } from '@/lib/procurement/supplier-data';
-import { determineContractType, determineSourcingType, type ContractType, type SourcingType } from '@/lib/procurement/determination';
 import { buildDeterminationExport } from '@/lib/procurement/determination-export';
-import { runSecondContractCheck, type SecondContractCheckResult } from '@/lib/procurement/second-contract-check';
-import { determineApprovalToSource, type ApprovalToSourceResult } from '@/lib/procurement/approval-to-source';
-import { determineResidualQuestions, type ResidualQuestion } from '@/lib/procurement/residual-questions';
-import { assessOperationalRisk, type OperationalRiskResult } from '@/lib/procurement/operational-risk-assessment';
-import { determineReferral, type ReferralResult } from '@/lib/procurement/referral';
-import { evaluateScreening, type ScreeningResult } from '@/lib/procurement/screening';
-import type { Supplier, Contract, WorkflowTemplate, RoutingRule } from '@/data/types';
-// Risk-reuse matching stays on its specialised query (reusable + completed +
-// validity-window + supplier/contract); the generic ports do not model that yet.
-import { useMatchingRiskAssessments } from '@/lib/db/hooks/use-risk-assessments';
+import { buyingChannelPlain } from '@/lib/routing/evaluate-routing-rules';
+import type { Supplier, Contract } from '@/data/types';
+import type { ExperienceMode } from '@/lib/experience-mode';
 import { useFormTemplate } from '@/lib/db/hooks/use-form-templates';
-import { useRoutingRules } from '@/lib/db/hooks/use-routing-rules';
-import { useAiAgent } from '@/lib/db/hooks/use-ai-agents';
-import { useWorkflowTemplates } from '@/lib/db/hooks/use-workflow-templates';
-import { useApprovalChains } from '@/lib/db/hooks/use-approval-chains';
-import type { ApprovalChain } from '@/lib/db/approval-chains';
-import { buyingChannelLabel } from '@/lib/routing/evaluate-routing-rules';
-import { resolveDemandChannel } from '@/lib/routing/demand-channel';
-import { isTriageRequired } from '@/lib/procurement/risk-triage';
-import { selectApprovalChainForValue, selectWorkflowTemplateForCategory } from '@/lib/workflow/workflow-steps';
+import type { IntakeDetermination, MatchingRiskAssessmentSummary } from '@/lib/procurement/intake-determination';
 import { DynamicForm } from '@/components/shared/dynamic-form';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { SupplierRecommenderCard } from './components/supplier-recommender-card';
-import type { RiskAssessment } from '@/data/types';
 
-// Stable empty fallbacks defined at module level. Inline `= []` creates a
-// new array reference on every render, which destabilises the useMemo dep
-// array and causes an infinite update loop via onUpdate.
-const EMPTY_SUPPLIERS: Supplier[] = [];
-const EMPTY_CONTRACTS: Contract[] = [];
-const EMPTY_MATCHES: RiskAssessment[] = [];
-const EMPTY_RULES: RoutingRule[] = [];
-const EMPTY_TEMPLATES: WorkflowTemplate[] = [];
-const EMPTY_APPROVAL_CHAINS: ApprovalChain[] = [];
+// Re-exported so consumers that only need the summary shape do not have to know
+// where the determination lives.
+export type { MatchingRiskAssessmentSummary };
 
-export interface MatchingRiskAssessmentSummary {
-  id: string;
-  title: string;
-  riskLevel: RiskAssessment['riskLevel'];
-  category: RiskAssessment['category'];
-  validUntil: string;
-}
-
-interface ComplianceData {
-  buyingChannelResult: string;
-  matchedRuleName?: string;
-  materiality?: MaterialityResult;
-  inherentRisk?: InherentRiskResult;
-  operationalRisk?: OperationalRiskResult;
-  riskOutcome?: ReuseEvaluation;
-  contractType?: { type: ContractType; reason: string };
-  sourcingType?: { type: SourcingType; reason: string };
-  secondContractCheck?: SecondContractCheckResult;
-  approvalToSource?: ApprovalToSourceResult;
-  residualQuestions?: ResidualQuestion[];
-  referral?: ReferralResult;
-  screening?: ScreeningResult;
-  handoffSteps?: HandoffStep[];
-  sraStatus: string;
-  policyChecks: { label: string; passed: boolean; detail: string }[];
-  duplicateCheck: string | null;
-  matchingRiskAssessments: MatchingRiskAssessmentSummary[];
-  validatorAgentStatus?: 'active' | 'draft' | 'disabled' | 'missing';
-  validatorAgentName?: string;
-  workflowTemplateId?: string;
-  /** Determination signals that overlay conditional steps on the Routing
-   *  lifecycle: a risk assessment when none can be reused and the demand is
-   *  triage-worthy/high-risk; vendor onboarding when no/incomplete supplier. */
-  riskAssessmentRequired?: boolean;
-  supplierOnboardingRequired?: boolean;
-}
 
 interface StepComplianceProps {
   category: string;
   estimatedValue: number;
   supplierId: string;
   supplier?: string;
-  isUrgent: boolean;
   serviceDescription?: {
     objective?: string;
     scope?: string;
@@ -122,20 +56,34 @@ interface StepComplianceProps {
   supplierProvenance?: 'named' | 'chosen';
   /** Choosing a supplier. This step is the only place it happens. */
   onSelectSupplier?: (supplier: Supplier) => void;
-  workflowTemplateId?: string;
   requestTitle?: string;
-  /** Which half of the split step to render: the risk assessment or the determination. */
-  phase: 'risk' | 'determination';
+  /**
+   * The determination, computed once by the page. Null while the supplier's
+   * reusable-assessment lookup is still resolving.
+   */
+  determination: IntakeDetermination | null;
+  /**
+   * Which half of this screen to render.
+   *
+   * The split is by KIND, not by screen: `inputs` is everything the requester
+   * is asked for, `conclusions` is everything the platform worked out. It used
+   * to be `'risk' | 'determination'`, which put one question (the mini-IRQ)
+   * on a screen with seven blocks of computed output and no way to tell them
+   * apart — the reported complaint that users could not see what they had to
+   * fill in and what the results meant.
+   */
+  section: 'inputs' | 'conclusions';
+  /**
+   * How much evidence to show. Presentation only: every block here is rendered
+   * from the same determination, and nothing below decides anything. Simple
+   * sees the conclusion and what it means; Expert also sees the workings.
+   */
+  density?: ExperienceMode;
   miniIrq: { privilegedAccess: boolean; criticalService: boolean };
   onMiniIrqChange: (m: { privilegedAccess: boolean; criticalService: boolean }) => void;
-  onUpdate: (data: Partial<ComplianceData>) => void;
 }
 
-/**
- * Derive a data-sensitivity classification from the collected SOW so the
- * risk-triage form can arrive pre-filled. Keyword heuristic — intentionally
- * conservative: unknown sensitive-term = "high" rather than "low".
- */
+/** The supplier's SRA state, in the vocabulary the triage form displays. */
 function mapSraStatus(status: string | undefined): string {
   switch (status) {
     case 'valid': return 'yes-valid';
@@ -149,312 +97,28 @@ function mapSraStatus(status: string | undefined): string {
 
 
 
-function generatePolicyChecks(
-  value: number,
-  category: string,
-  supplierId: string,
-  _isUrgent: boolean,
-  suppliers: Supplier[],
-): { label: string; passed: boolean; detail: string }[] {
-  const supplier = suppliers.find((s) => s.id === supplierId);
-  const checks: { label: string; passed: boolean; detail: string }[] = [];
-
-  checks.push({
-    label: 'Contract required before PO',
-    passed: value < 25000 || (supplier !== undefined && supplier.activeContracts > 0),
-    detail:
-      value < 25000
-        ? 'Value below threshold; PO can proceed without contract'
-        : supplier && supplier.activeContracts > 0
-          ? `Existing contract found with ${supplier.name}`
-          : 'No existing contract found; contract must be executed before PO',
-  });
-
-  checks.push({
-    label: 'Budget approval required',
-    passed: value <= 100000,
-    detail:
-      value > 100000
-        ? `Value (${formatCurrency(value)}) exceeds standard threshold; VP approval required`
-        : 'Within standard approval limits',
-  });
-
-  checks.push({
-    label: 'SRA assessment valid',
-    passed: supplier ? supplier.sraStatus === 'valid' : false,
-    detail: supplier
-      ? supplier.sraStatus === 'valid'
-        ? `SRA valid until ${supplier.sraExpiryDate}`
-        : supplier.sraStatus === 'expiring'
-          ? `SRA expiring on ${supplier.sraExpiryDate}; renewal recommended`
-          : 'SRA assessment required before engagement'
-      : 'Supplier not selected; SRA status unknown',
-  });
-
-  const isPreferred = isPreferredSupplier(supplier);
-  checks.push(competitiveSourcingCheck({ value, category, isPreferred }));
-  checks.push(preferredSupplierCheck({ supplier, isPreferred }));
-
-  return checks;
-}
-
 export function StepCompliance({
   category,
   estimatedValue,
   supplierId,
   supplier,
-  isUrgent,
   serviceDescription,
   requiredSections = [],
   qualityScore,
   supplierProvenance,
   onSelectSupplier,
-  workflowTemplateId,
   requestTitle,
-  phase,
+  determination,
+  section,
+  density = 'expert',
   miniIrq,
   onMiniIrqChange,
-  onUpdate,
 }: StepComplianceProps) {
-  const { data: suppliers = EMPTY_SUPPLIERS } = useSourceData<Supplier>('supplier');
-  const { data: allContracts = EMPTY_CONTRACTS } = useSourceData<Contract>('contract');
-  const { data: matches = EMPTY_MATCHES, isFetched: matchesFetched } = useMatchingRiskAssessments({ supplierId });
-  const { data: routingRules = EMPTY_RULES } = useRoutingRules();
-  const { data: validatorAgent } = useAiAgent('AI-002');
-  const { data: workflowTemplates = EMPTY_TEMPLATES } = useWorkflowTemplates();
-  const { data: approvalChains = EMPTY_APPROVAL_CHAINS } = useApprovalChains();
-
-  // Mini-IRQ (delta only) — lifted to the parent so the answers captured on the
-  // risk step still drive the determination step.
-
-  // A fetch is pending if we have a supplierId and the matching-SRA
-  // lookup hasn't resolved yet. Once resolved (success or error),
-  // matchesFetched flips true. Without a supplierId the query is
-  // disabled, so we treat it as resolved immediately.
-  const loading = Boolean(supplierId) && !matchesFetched;
-
-  // Compose the compliance result purely from inputs. useMemo keeps
-  // the reference stable across re-renders so parent onUpdate doesn't
-  // create a feedback loop.
-  const result = useMemo<ComplianceData | null>(() => {
-    if (loading) return null;
-    const supplierRec = suppliers.find((s) => s.id === supplierId);
-    const dataSensitivity = inferDataSensitivity(serviceDescription ?? null);
-    const materiality = determineMateriality({
-      dataSensitivity,
-      riskRating: supplierRec?.riskRating,
-      value: estimatedValue,
-      criticalService: miniIrq.criticalService,
-    });
-    // Inherent-risk cascade — the demand's risk tier (richer than supplier risk
-    // alone), which drives routing and the assessment outcome. The mini-IRQ
-    // delta answers feed the attributes the SOW cannot reveal.
-    const inherentRisk = determineInherentRisk({
-      dataSensitivity,
-      supplierRiskRating: supplierRec?.riskRating,
-      value: estimatedValue,
-      privilegedAccess: miniIrq.privilegedAccess,
-      criticalService: miniIrq.criticalService,
-    });
-    // Stage-5 residual questions — only the deltas the SD leaves open and that
-    // would change the determination; an empty list means nothing to ask.
-    const residualQuestions = determineResidualQuestions({
-      category,
-      dataSensitivity,
-      estimatedValue,
-      supplierRiskRating: supplierRec?.riskRating,
-    });
-    // Preliminary operational risk assessment — a per-dimension operational view
-    // (continuity, data, concentration, regulatory, access) complementing the
-    // single-tier inherent-risk cascade.
-    const incumbentRelationship = (supplierRec?.activeContracts ?? 0) > 0 || (supplierRec?.totalSpend12m ?? 0) > 0;
-    const operationalRisk = assessOperationalRisk({
-      dataSensitivity,
-      material: materiality.material,
-      criticalService: miniIrq.criticalService,
-      privilegedAccess: miniIrq.privilegedAccess,
-      estimatedValue,
-      incumbentRelationship,
-    });
-    // Structured reuse decision against the third-party risk register —
-    // factors supplier, scope, data class, inherent tier and validity.
-    const riskOutcome = selectReuseOutcome(
-      {
-        supplierId,
-        category,
-        dataSensitivity,
-        inherentTier: inherentRisk.tier,
-        now: new Date().toISOString().slice(0, 10),
-      },
-      matches,
-    );
-    // The same resolver the pre-check calls, so the channel shown on step 2 and
-    // the one determined here cannot drift apart.
-    const routing = resolveDemandChannel(routingRules, {
-      category,
-      value: estimatedValue,
-      supplierId,
-      isUrgent,
-      riskRating: inherentRisk.tier,
-      material: materiality.material,
-    });
-    // `requests.approval_chain` is an FK to approval_chains.id. Routing rules
-    // use human-readable role vocabularies, so persist the actual configured
-    // chain selected by the same value band shown in the routing preview.
-    const configuredChain = approvalChains.find((chain) => chain.id === routing.approvalChain);
-    const valueBandedChain = selectApprovalChainForValue(approvalChains, estimatedValue);
-    const label = buyingChannelLabel(routing.channel);
-    const supplierData = evaluateSupplierData(supplierRec);
-    const handoffSteps = buildHandoffSteps({
-      channel: routing.channel,
-      riskOutcome: riskOutcome.decision,
-      material: materiality.material,
-      supplierDataIssue: !supplierData.complete,
-    });
-    // Second contract check (after the full SD) — surfaces transactable
-    // contracts and frameworks/MSAs against the supplier.
-    const secondContractCheck = runSecondContractCheck({
-      supplierId,
-      category,
-      now: new Date().toISOString().slice(0, 10),
-      contracts: allContracts,
-    });
-    const hasContract = routing.channel === 'framework-call-off' || (supplierRec?.activeContracts ?? 0) > 0;
-    const contractType = determineContractType({
-      channel: routing.channel,
-      category,
-      hasFrameworkOrContract: hasContract,
-      // Scope/headroom signals (DET-08): a material demand on an existing
-      // agreement needs a change; a transactable contract has capacity (SOW),
-      // otherwise the agreement is amended to extend coverage.
-      scopeChange: materiality.material ? 'material' : 'none',
-      withinHeadroom: secondContractCheck.recommendation === 'transact',
-    });
-    const sourcingType = determineSourcingType({
-      channel: routing.channel,
-      category,
-      hasExistingSupplierRelationship: (supplierRec?.activeContracts ?? 0) > 0 || (supplierRec?.totalSpend12m ?? 0) > 0,
-    });
-    // Approval-to-source gate — which pre-sourcing approvals are required
-    // before the demand can move into sourcing. A transactable contract is an
-    // early exit (transact, not source), so no gate applies.
-    const approvalToSource = determineApprovalToSource({
-      estimatedValue,
-      material: materiality.material,
-      inherentTier: inherentRisk.tier,
-      earlyExit: secondContractCheck.recommendation === 'transact',
-    });
-
-    const validatorActive = validatorAgent?.status === 'active';
-    const policyChecks = validatorActive
-      ? generatePolicyChecks(estimatedValue, category, supplierId, isUrgent, suppliers)
-      : [
-          {
-            label: 'Request Validator agent',
-            passed: false,
-            detail: validatorAgent
-              ? `${validatorAgent.name} is currently ${validatorAgent.status}. Enable it in Admin → AI Agents to run policy checks.`
-              : 'AI-002 Request Validator not configured. Enable it in Admin → AI Agents.',
-          },
-        ];
-
-    const matchingRiskAssessments: MatchingRiskAssessmentSummary[] = matches.map((m) => ({
-      id: m.id,
-      title: m.title,
-      riskLevel: m.riskLevel,
-      category: m.category,
-      validUntil: m.validUntil,
-    }));
-
-    if (validatorActive && matchingRiskAssessments.length > 0) {
-      policyChecks.push({
-        label: 'Risk assessment reuse',
-        passed: true,
-        detail: `${matchingRiskAssessments.length} existing risk assessment${matchingRiskAssessments.length > 1 ? 's' : ''} can be reused — no new SRA required at intake.`,
-      });
-    }
-
-    // Supplier screening — surfaced on the determination; a flagged supplier
-    // blocks the demand (refer back).
-    const screening = evaluateScreening(supplierRec?.screeningStatus);
-
-    // Determination signals that drive the Routing step's conditional lifecycle
-    // (item 7+11). A risk assessment is needed when none can be reused and the
-    // demand is triage-worthy or high/critical inherent risk; vendor onboarding
-    // when there is no supplier or its master data is incomplete.
-    const triage = isTriageRequired({
-      supplierSraStatus: supplierRec?.sraStatus,
-      supplierRiskRating: supplierRec?.riskRating,
-      supplierRegistered: !!supplierId,
-      matchingReusableSraCount: matchingRiskAssessments.length,
-      inferredDataSensitivity: dataSensitivity,
-    });
-    const riskAssessmentRequired =
-      matchingRiskAssessments.length === 0 &&
-      (triage.required || inherentRisk.tier === 'high' || inherentRisk.tier === 'critical');
-    const supplierOnboardingRequired = !supplierId || !supplierData.complete;
-
-    // Demand disposition — proceed / request-change / refer-back. Driven by the
-    // completeness, policy and scope signals the determination already computed.
-    const referral = determineReferral({
-      missingMandatory: !requestTitle?.trim() || estimatedValue <= 0,
-      outOfScope: policyChecks.some((c) => !c.passed && /prohibit|permissib|out of scope|blocked/i.test(c.label)),
-      supplierBlocked: screening.blocking,
-      failedPolicyChecks: validatorActive ? policyChecks.filter((c) => !c.passed).length : 0,
-      duplicateDetected: false,
-    });
-
-    return {
-      buyingChannelResult: label,
-      // The slug alongside the label. `buyingChannelResult` is the display form
-      // ("Procurement-Led Sourcing") and was being written straight into
-      // requests.buying_channel, where every consumer keys on the slug — so
-      // getStagesForChannel always missed and fell back to the full lifecycle.
-      buyingChannelSlug: routing.channel,
-      approvalChain: configuredChain?.id ?? valueBandedChain?.id,
-      matchedRuleName: routing.matchedRule?.name,
-      materiality,
-      inherentRisk,
-      operationalRisk,
-      riskOutcome,
-      contractType,
-      sourcingType,
-      secondContractCheck,
-      approvalToSource,
-      residualQuestions,
-      referral,
-      screening,
-      handoffSteps,
-      sraStatus: supplierRec
-        ? `${supplierRec.name}: ${supplierRec.sraStatus}${supplierRec.sraExpiryDate ? ` (expires ${supplierRec.sraExpiryDate})` : ''}`
-        : 'Will be initiated upon submission',
-      policyChecks,
-      duplicateCheck: null,
-      matchingRiskAssessments,
-      validatorAgentStatus: (validatorAgent?.status ?? 'missing') as ComplianceData['validatorAgentStatus'],
-      validatorAgentName: validatorAgent?.name,
-      riskAssessmentRequired,
-      supplierOnboardingRequired,
-    };
-  }, [loading, category, estimatedValue, supplierId, isUrgent, serviceDescription, miniIrq, suppliers, allContracts, matches, routingRules, validatorAgent, requestTitle, approvalChains]);
-
-  // Push the composed result up to the parent whenever the data changes.
-  // We intentionally exclude `onUpdate` from the deps: it's a new arrow
-  // on every parent render, and including it would cause a setState
-  // loop (parent re-renders → new onUpdate → effect fires → parent
-  // re-renders …).
-  useEffect(() => {
-    if (result) onUpdate(result);
-  }, [result]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Default workflow template derived from category whenever the user
-  // hasn't picked one yet. Same onUpdate-exclusion reasoning applies.
-  useEffect(() => {
-    if (workflowTemplateId || workflowTemplates.length === 0) return;
-    const derived = selectWorkflowTemplateForCategory(workflowTemplates, category);
-    if (!derived) return;
-    onUpdate({ workflowTemplateId: derived.id } as Partial<ComplianceData>);
-  }, [workflowTemplateId, workflowTemplates, category]); // eslint-disable-line react-hooks/exhaustive-deps
+  // The supplier directory is still read here: the export and the triage view
+  // name the selected supplier. Every *decision* arrives as a prop.
+  const { data: suppliers = [] } = useSourceData<Supplier>('supplier');
+  const result = determination;
+  const loading = determination === null;
 
   if (loading) {
     return (
@@ -524,7 +188,7 @@ export function StepCompliance({
 
   return (
     <div className="space-y-6">
-      {phase === 'risk' && (<>
+      {section === 'inputs' && (<>
       {/* Mini-IRQ (delta only) — the two inherent-risk attributes that cannot be
           inferred from the service description. Answers refine the cascade live. */}
       <Card>
@@ -560,9 +224,189 @@ export function StepCompliance({
         </CardContent>
       </Card>
 
-      {/* Inherent risk — echoed here so the mini-IRQ answers above show their
-          effect on this step (the full read carries through to the determination). */}
-      {result.inherentRisk && (
+      </>)}
+      {section === 'conclusions' && (<>
+      {/* The determination is exportable — an operator action, not something a
+          requester submitting their own demand reaches for. */}
+      {density === 'expert' && (
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-semibold text-gray-900">Determination</p>
+          <Button variant="outline" size="sm" onClick={handleExport}>
+            <Download className="size-3.5 mr-1.5" /> Export
+          </Button>
+        </div>
+      )}
+
+      {/* Sections the governance read requires that the description does not
+          have. Uses the same list generation was given, so the two cannot
+          disagree about what "required" means. */}
+      {(() => {
+        const gaps = gapsAgainstFinal(
+          requiredSections,
+          (serviceDescription ?? {}) as Record<string, string | undefined>,
+        );
+        if (gaps.length === 0) return null;
+        const labelFor = (id: string) =>
+          SOW_SECTION_LABELS[id] ?? id.replace(/([A-Z])/g, ' $1').toLowerCase();
+        return (
+          <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
+            <p className="text-sm font-medium text-amber-900">
+              The service description is missing {gaps.length} required section
+              {gaps.length === 1 ? '' : 's'}
+            </p>
+            <p className="mt-0.5 text-xs text-amber-800">
+              This demand&apos;s materiality, risk and sourcing make {gaps.length === 1 ? 'it' : 'these'}{' '}
+              mandatory: <strong>{gaps.map(labelFor).join(', ')}</strong>. Go back to the service
+              description to add {gaps.length === 1 ? 'it' : 'them'} — the request can still be
+              submitted, but a reviewer will ask.
+            </p>
+          </div>
+        );
+      })()}
+
+      <SectionHeader
+        label="How you'll buy"
+        meaning="The route this request takes from here, and roughly how long that takes. Everything below follows from it."
+      />
+      {/* Demand disposition — proceed / request-change / refer-back. The
+          headline routing decision: can this demand move to its next step? */}
+      {result.referral && (
+        <div className={`rounded-lg border p-3 ${
+          result.referral.outcome === 'refer-back' ? 'border-red-200 bg-red-50/60'
+            : result.referral.outcome === 'request-change' ? 'border-amber-200 bg-amber-50/60'
+              : 'border-green-200 bg-green-50/60'
+        }`}>
+          <div className="flex items-center gap-2">
+            <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${
+              result.referral.outcome === 'refer-back' ? 'bg-red-100 text-red-700'
+                : result.referral.outcome === 'request-change' ? 'bg-amber-100 text-amber-700'
+                  : 'bg-green-100 text-green-700'
+            }`}>
+              {result.referral.outcome === 'refer-back' ? 'Refer back'
+                : result.referral.outcome === 'request-change' ? 'Request change' : 'Proceed'}
+            </span>
+            <span className="text-xs text-gray-600">{result.referral.reason}</span>
+          </div>
+        </div>
+      )}
+      {/* Buying Channel Classification.
+          Leads in the requester's language and states the whole journey before
+          the submit button — the reported gap: the channel is the single most
+          consequential thing decided here, and it was presented as a
+          classification label with a rule id under it. */}
+      <div className="rounded-lg border border-blue-200 bg-blue-50/60 p-4">
+        <div className="flex items-start gap-2">
+          <Info className="mt-0.5 size-4 shrink-0 text-blue-500" />
+          <div>
+            {(() => {
+              const plain = buyingChannelPlain(result.buyingChannelSlug);
+              return (
+                <>
+                  <p className="text-sm font-semibold text-gray-900">{plain.headline}</p>
+                  <p className="mt-0.5 text-sm text-gray-700">{plain.detail}</p>
+                </>
+              );
+            })()}
+            {/* The full process, before submission, so nobody is surprised by
+                a step after they have committed to the request. */}
+            {result.handoffSteps.length > 0 && (
+              <p className="mt-2 text-xs text-gray-600">
+                <span className="font-medium text-gray-700">What happens next:</span>{' '}
+                {result.handoffSteps.map((step) => step.label).join(' → ')}
+              </p>
+            )}
+            {density === 'expert' && (<>
+            <p className="mt-2 text-sm text-gray-700">
+              Based on value ({formatCurrency(estimatedValue)}), category ({category}), this is classified as:{' '}
+              <span className="font-semibold text-blue-700">{result.buyingChannelResult}</span>
+            </p>
+            <p className="mt-0.5 text-xs text-gray-500">
+              {result.matchedRuleName
+                ? `Matched routing rule: ${result.matchedRuleName}`
+                : 'No admin routing rule matched — using default fallback.'}
+            </p>
+            {result.materiality && (
+              <p className="mt-1 text-sm text-gray-700">
+                Materiality:{' '}
+                <span className={result.materiality.material ? 'font-semibold text-amber-700' : 'font-medium text-gray-600'}>
+                  {result.materiality.material
+                    ? `Material — ${result.materiality.criticality} (regulatory flag raised)`
+                    : 'Not material'}
+                </span>
+                {result.materiality.material && (
+                  <span className="text-xs text-gray-500"> · {result.materiality.reasons.join('; ')}</span>
+                )}
+              </p>
+            )}
+            {result.contractType && result.sourcingType && (
+              <p className="mt-1 text-sm text-gray-700">
+                Contract type: <span className="font-semibold text-gray-900">{result.contractType.type}</span>
+                <span className="text-xs text-gray-500"> ({result.contractType.reason})</span>
+                {' · '}Sourcing: <span className="font-semibold text-gray-900">{result.sourcingType.type}</span>
+                <span className="text-xs text-gray-500"> ({result.sourcingType.reason})</span>
+              </p>
+            )}
+            {/* The inherent tier and its drivers are stated once, under Risk
+                directly below — the same sentence appeared here too, so the
+                screen said it twice. This card keeps only the inputs that are
+                specific to the CHANNEL decision. */}
+            {result.screening && (
+              <p className="mt-1 text-sm text-gray-700">
+                Supplier screening:{' '}
+                <span className={`font-semibold ${
+                  result.screening.blocking ? 'text-red-700'
+                    : result.screening.cleared ? 'text-green-700' : 'text-amber-700'
+                }`}>{result.screening.status}</span>
+                <span className="text-xs text-gray-500"> · {result.screening.message}</span>
+              </p>
+            )}
+            </>)}
+            {/* Simple density still sees anything that BLOCKS the request —
+                hiding a blocker is not a density decision, it is withholding
+                the one thing the requester has to act on. */}
+            {density === 'simple' && result.screening.blocking && (
+              <p className="mt-2 text-sm font-medium text-red-700">
+                {result.screening.message}
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <SectionHeader
+        label="Risk"
+        meaning="What the risk read found, and whether it adds anything to your request."
+      />
+      {/* The risk read, as a consequence rather than a tier.
+          "Inherent risk: medium · Internal data; Moderate contract value" is
+          precise and tells a requester nothing about what happens to their
+          request. This says what it means for them; the tier and its drivers
+          are the workings below. */}
+      <div className="rounded-lg border border-gray-200 bg-white p-4">
+        <p className="text-sm font-medium text-gray-900">
+          {result.riskAssessmentRequired
+            ? 'A risk assessment is required before this can proceed'
+            : result.matchingRiskAssessments.length > 0
+              ? 'No new risk assessment needed'
+              : 'No separate risk assessment is required'}
+        </p>
+        <p className="mt-1 text-sm text-gray-600">
+          {result.riskAssessmentRequired
+            ? 'Nothing for you to do now — the assigned owner runs it, and it happens alongside the rest of the process.'
+            : result.matchingRiskAssessments.length > 0
+              ? `An existing assessment for this supplier covers it (${result.matchingRiskAssessments.length} match${result.matchingRiskAssessments.length === 1 ? '' : 'es'}).`
+              : result.triageReason}
+        </p>
+        {result.supplierOnboardingRequired && (
+          <p className="mt-1.5 text-sm text-gray-600">
+            The supplier also needs onboarding before any contract or order can be raised.
+          </p>
+        )}
+      </div>
+
+      {/* Inherent risk — what the mini-IRQ answers on the previous step
+          produced, stated where every other conclusion is. */}
+      {density === 'expert' && result.inherentRisk && (
         <div className="rounded-lg border border-gray-200 bg-white p-4">
           <p className="text-sm font-medium text-gray-900">Inherent risk</p>
           <p className="mt-1 text-sm text-gray-700">
@@ -582,8 +426,9 @@ export function StepCompliance({
       )}
 
       {/* Preliminary operational risk assessment — per-dimension operational view
-          (continuity, data, concentration, regulatory, access). */}
-      {result.operationalRisk && (
+          (continuity, data, concentration, regulatory, access). The workings
+          behind the sentence above. */}
+      {density === 'expert' && result.operationalRisk && (
         <div className="rounded-lg border border-gray-200 bg-white p-4">
           <div className="flex items-center justify-between gap-3">
             <p className="text-sm font-medium text-gray-900">Preliminary operational risk</p>
@@ -615,128 +460,10 @@ export function StepCompliance({
         </div>
       )}
 
-      </>)}
-      {phase === 'determination' && (<>
-      {/* Determination header — the R1 endpoint is exportable. */}
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold text-gray-900">Determination</p>
-        <Button variant="outline" size="sm" onClick={handleExport}>
-          <Download className="size-3.5 mr-1.5" /> Export
-        </Button>
-      </div>
-
-      {/* Sections the governance read requires that the description does not
-          have. Uses the same list generation was given, so the two cannot
-          disagree about what "required" means. */}
-      {(() => {
-        const gaps = gapsAgainstFinal(
-          requiredSections,
-          (serviceDescription ?? {}) as Record<string, string | undefined>,
-        );
-        if (gaps.length === 0) return null;
-        const labelFor = (id: string) =>
-          SOW_SECTION_LABELS[id] ?? id.replace(/([A-Z])/g, ' $1').toLowerCase();
-        return (
-          <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
-            <p className="text-sm font-medium text-amber-900">
-              The service description is missing {gaps.length} required section
-              {gaps.length === 1 ? '' : 's'}
-            </p>
-            <p className="mt-0.5 text-xs text-amber-800">
-              This demand&apos;s materiality, risk and sourcing make {gaps.length === 1 ? 'it' : 'these'}{' '}
-              mandatory: <strong>{gaps.map(labelFor).join(', ')}</strong>. Go back to the service
-              description to add {gaps.length === 1 ? 'it' : 'them'} — the request can still be
-              submitted, but a reviewer will ask.
-            </p>
-          </div>
-        );
-      })()}
-
-      <SectionHeader label="Decision" />
-      {/* Demand disposition — proceed / request-change / refer-back. The
-          headline routing decision: can this demand move to its next step? */}
-      {result.referral && (
-        <div className={`rounded-lg border p-3 ${
-          result.referral.outcome === 'refer-back' ? 'border-red-200 bg-red-50/60'
-            : result.referral.outcome === 'request-change' ? 'border-amber-200 bg-amber-50/60'
-              : 'border-green-200 bg-green-50/60'
-        }`}>
-          <div className="flex items-center gap-2">
-            <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${
-              result.referral.outcome === 'refer-back' ? 'bg-red-100 text-red-700'
-                : result.referral.outcome === 'request-change' ? 'bg-amber-100 text-amber-700'
-                  : 'bg-green-100 text-green-700'
-            }`}>
-              {result.referral.outcome === 'refer-back' ? 'Refer back'
-                : result.referral.outcome === 'request-change' ? 'Request change' : 'Proceed'}
-            </span>
-            <span className="text-xs text-gray-600">{result.referral.reason}</span>
-          </div>
-        </div>
-      )}
-      {/* Buying Channel Classification */}
-      <div className="rounded-lg border border-blue-200 bg-blue-50/60 p-4">
-        <div className="flex items-start gap-2">
-          <Info className="mt-0.5 size-4 shrink-0 text-blue-500" />
-          <div>
-            <p className="text-sm font-medium text-gray-900">Buying Channel Classification</p>
-            <p className="mt-1 text-sm text-gray-700">
-              Based on value ({formatCurrency(estimatedValue)}), category ({category}), this is classified as:{' '}
-              <span className="font-semibold text-blue-700">{result.buyingChannelResult}</span>
-            </p>
-            <p className="mt-0.5 text-xs text-gray-500">
-              {result.matchedRuleName
-                ? `Matched routing rule: ${result.matchedRuleName}`
-                : 'No admin routing rule matched — using default fallback.'}
-            </p>
-            {result.materiality && (
-              <p className="mt-1 text-sm text-gray-700">
-                Materiality:{' '}
-                <span className={result.materiality.material ? 'font-semibold text-amber-700' : 'font-medium text-gray-600'}>
-                  {result.materiality.material
-                    ? `Material — ${result.materiality.criticality} (regulatory flag raised)`
-                    : 'Not material'}
-                </span>
-                {result.materiality.material && (
-                  <span className="text-xs text-gray-500"> · {result.materiality.reasons.join('; ')}</span>
-                )}
-              </p>
-            )}
-            {result.contractType && result.sourcingType && (
-              <p className="mt-1 text-sm text-gray-700">
-                Contract type: <span className="font-semibold text-gray-900">{result.contractType.type}</span>
-                <span className="text-xs text-gray-500"> ({result.contractType.reason})</span>
-                {' · '}Sourcing: <span className="font-semibold text-gray-900">{result.sourcingType.type}</span>
-                <span className="text-xs text-gray-500"> ({result.sourcingType.reason})</span>
-              </p>
-            )}
-            {result.inherentRisk && (
-              <p className="mt-1 text-sm text-gray-700">
-                Inherent risk:{' '}
-                <span className="font-semibold text-gray-900">{result.inherentRisk.tier}</span>
-                <span className="text-xs text-gray-500"> · {result.inherentRisk.drivers.join('; ')}</span>
-                {result.riskOutcome && (
-                  <span className="text-xs text-gray-500">
-                    {' '}· assessment: <span className="font-medium text-gray-700">{result.riskOutcome.decision}</span> ({result.riskOutcome.reasons[0]})
-                  </span>
-                )}
-              </p>
-            )}
-            {result.screening && (
-              <p className="mt-1 text-sm text-gray-700">
-                Supplier screening:{' '}
-                <span className={`font-semibold ${
-                  result.screening.blocking ? 'text-red-700'
-                    : result.screening.cleared ? 'text-green-700' : 'text-amber-700'
-                }`}>{result.screening.status}</span>
-                <span className="text-xs text-gray-500"> · {result.screening.message}</span>
-              </p>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <SectionHeader label="Routing & approvals" />
+      <SectionHeader
+        label="Routing & approvals"
+        meaning="Who has to agree before this can proceed, and what happens next once they do."
+      />
       {/* Approval to source — the pre-sourcing gate (DET-05): which
           approvals are required before the demand can move into sourcing. */}
       {result.approvalToSource && (
@@ -826,8 +553,6 @@ export function StepCompliance({
         </div>
       )}
 
-      </>)}
-      {phase === 'risk' && (<>
       {/* SRA Status */}
       <div className="rounded-lg border border-gray-200 bg-white p-4">
         <p className="text-sm font-medium text-gray-900">SRA Status</p>
@@ -867,9 +592,10 @@ export function StepCompliance({
         </div>
       )}
 
-      </>)}
-      {phase === 'determination' && (<>
-      <SectionHeader label="Compliance checks" />
+      <SectionHeader
+        label="Checks we ran"
+        meaning="What was actually checked at intake. A check that did not run says so rather than showing as clear."
+      />
       {/* Policy Checks */}
       <div>
         <div className="mb-3 flex items-baseline justify-between">
@@ -905,21 +631,16 @@ export function StepCompliance({
         </div>
       )}
 
-      </>)}
-      {phase === 'risk' && (<>
       {/* Risk Assessment Triage — gated on whether a triage is actually
           required. Pre-filled from the collected SOW when shown. */}
       {(() => {
+        // Read from the determination rather than re-running the gate. This
+        // block used to call `isTriageRequired` again with its own inputs — a
+        // second derivation of a governance answer, free to disagree with the
+        // one the record keeps.
         const selectedSupplier = suppliers.find((s) => s.id === supplierId);
-        const sensitivity = inferDataSensitivity(serviceDescription ?? null);
-        const gate = isTriageRequired({
-          supplierSraStatus: selectedSupplier?.sraStatus,
-          supplierRiskRating: selectedSupplier?.riskRating,
-          supplierRegistered: !!supplierId,
-          matchingReusableSraCount: result.matchingRiskAssessments.length,
-          inferredDataSensitivity: sensitivity,
-        });
-        if (!gate.required) {
+        const sensitivity = result.dataSensitivity;
+        if (!result.triageRequired) {
           return (
             <Card>
               <CardHeader className="pb-3">
@@ -929,7 +650,7 @@ export function StepCompliance({
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-gray-700">{gate.reason} — no new triage needed at intake.</p>
+                <p className="text-sm text-gray-700">{result.triageReason} — no new triage needed at intake.</p>
                 {result.matchingRiskAssessments.length > 0 && (
                   <ul className="mt-2 space-y-1 text-xs text-gray-600">
                     {result.matchingRiskAssessments.map((ra) => (
@@ -953,28 +674,34 @@ export function StepCompliance({
             supplierRegistered={!!supplierId}
             supplierSraStatus={selectedSupplier?.sraStatus}
             inferredDataSensitivity={sensitivity}
-            triageReason={gate.reason}
+            triageReason={result.triageReason}
             reuseCount={result.matchingRiskAssessments.length}
           />
         );
       })()}
 
-      {/* IT Security Assessment (software only) */}
-      {category === 'software' && (
-        <ITSecurityAssessmentSection />
-      )}
-
-      {/* Smart Assessment */}
+      {/* Smart Assessment — a projection of the journey, i.e. workings. */}
+      {density === 'expert' && (
       <SmartAssessmentSection
         supplier={supplier ?? ''}
         supplierId={supplierId}
         category={category}
         estimatedValue={estimatedValue}
       />
+      )}
 
       </>)}
-      {phase === 'determination' && (<>
-      <SectionHeader label="Supplier" />
+      {section === 'inputs' && (<>
+      {/* IT Security Assessment (software only) — a form the requester fills,
+          so it belongs with the questions, not with the findings. */}
+      {category === 'software' && (
+        <ITSecurityAssessmentSection />
+      )}
+
+      <SectionHeader
+        label="Supplier"
+        meaning="Who you expect to buy from, if you already know. Leaving it open is fine — sourcing will identify candidates."
+      />
       {/* THE single supplier surface. Selection used to live in step-details
           while this card only listed recommendations with no way to act on
           them. Everything that should inform the choice — PSL status, screening,
@@ -997,13 +724,24 @@ export function StepCompliance({
 
 /** A small labelled divider that breaks the determination into scannable
  *  sections (item 10 — the screen was a flat, unstructured stack of cards). */
-function SectionHeader({ label }: { label: string }) {
+/**
+ * A group heading, and what the group means.
+ *
+ * The label alone told a requester which pile of cards they were looking at,
+ * never why it mattered. `meaning` is one plain sentence answering "so what
+ * does this mean for me" — the reported gap between seeing a determination and
+ * understanding it.
+ */
+function SectionHeader({ label, meaning }: { label: string; meaning?: string }) {
   return (
-    <div className="flex items-center gap-2 pt-1">
-      <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-        {label}
-      </span>
-      <span className="h-px flex-1 bg-gray-100" />
+    <div className="pt-1">
+      <div className="flex items-center gap-2">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+          {label}
+        </span>
+        <span className="h-px flex-1 bg-gray-100" />
+      </div>
+      {meaning && <p className="mt-1 text-xs text-gray-500">{meaning}</p>}
     </div>
   );
 }

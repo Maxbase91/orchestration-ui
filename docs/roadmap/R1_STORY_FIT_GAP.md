@@ -1,5 +1,9 @@
 # Release 1 — story-level fit/gap and policy defaults
 
+> For the delivery-ready view of the same ground — user stories with
+> acceptance criteria, grouped by feature, with the rules and modules behind
+> each — see [PRODUCT_BACKLOG.md](PRODUCT_BACKLOG.md).
+
 **Status:** traceability record. The living summary is
 [`R1_BACKLOG_FIT_GAP.md`](R1_BACKLOG_FIT_GAP.md); this is the story detail behind it.
 
@@ -55,7 +59,7 @@ hooks, the documented live-swap seam (`src/lib/integrations/README.md`), and own
 **eight objects** (supplier, contract, purchase-request, purchase-order, invoice, risk-assessment,
 catalogue-item, **payment** — supplier banking/payment master, a vendor-data foundation behind the
 ports); covered by `npm run test:connectors` (drift guard pins the object set).
-**Consumers routed:** the front-door catalogue + contract checks (`step-pre-check.tsx`), the
+**Consumers routed:** the front-door catalogue + contract checks (`step-buy-route.tsx`), the
 supplier/contract reads in `step-compliance.tsx` (`useSourceData`), and the **assistant lookups**
 (`src/lib/assistant/capabilities/lookup.ts` now reads suppliers/requests/contracts/POs/invoices/risk
 through `requireConnector(...)` — so the chatbot and front door share one governed source).
@@ -168,16 +172,21 @@ board on the event page remains a labelled mock.
 >
 > **Built (WS-F).** `step-category.tsx` now leads with free text and has **no commodity-category
 > selection at all** — Goods/Services/… are derived metadata, not a choice (the path is catalogue /
-> contract / full request, decided by the funnel), with the catalogue as the one explicit alternative
-> entry. `step-pre-check.tsx` is now a **sequential funnel** (`stage: 'catalogue' → 'contract'`):
-> stage 1 checks the catalogue only; when nothing fits it asks for a short enrichment before stage 2
-> ever computes — **the contract check is gated and never rendered until catalogue is ruled out and
-> enrichment exists** (verified by the UI smoke). Enrichment carries forward into the request. The
-> full SD is reached only when neither early exit fires.
+> contract / full request, decided by the routing decision), with the catalogue as the one explicit
+> alternative entry.
 >
-> **Also built: the funnel now explains itself and shows its consequence.** Every step carries a
-> header panel — what it is for, what it needs from the requester, what happens after
-> (`step-guidance.ts`) — and the stepper renders the per-step `description` that had been defined on
+> **Superseded (2026-09):** the sequential funnel in `step-pre-check.tsx` is now
+> **`step-buy-route.tsx` — one screen showing all three routes at once**, recommendation first. The
+> staging was an implementation detail that became a UI: the requester is answering a single
+> question ("how do I get this?") whose three answers are comparable, and gating them created the
+> failure the funnel was supposed to prevent — a wrong catalogue match hid the contract check behind
+> a large green button pointing the other way. A ruled-out route now states its reason **in place**
+> and stays clickable. Enrichment still carries forward into the request; the decision itself
+> (`decideIntakeRoute`) is unchanged.
+>
+> **Also built: the journey explains itself and shows its consequence.** Every step carries a
+> header panel — what it is for, what it needs from the requester, what happens after (now in
+> `intake-steps.ts`, alongside the step's order and its gate) — and the stepper renders the per-step `description` that had been defined on
 > every step since the wizard was written and drawn nowhere. Step 1 shows **one** classification
 > block (category as the headline, commodity code beneath as the code derived from it, supplier and
 > value labelled *extracted*) instead of the demand three times over plus a 600 ms banner nobody
@@ -209,9 +218,11 @@ and only once it has enough signal):
 | INT-10d | 4 · Full service description | No contract → user completes the full SD (INT-03), the master capture. | — |
 | INT-10e | 5 · Derive + final questions | System derives every downstream element from the SD (category-code, materiality, risk cascade, channel, contract/sourcing type) and asks **only the residual questions** that criteria demand (e.g. mini-IRQ delta when risk is unclear, "how it qualifies" when materiality is borderline). | → Determination screen (the R1 endpoint). |
 
-**Defect to fix as part of this:** the step-2 pre-check (`step-pre-check.tsx`) must not display a
-contract (or catalogue) result on a fresh request before stage gating is satisfied; "no premature
-assertions" is an explicit acceptance criterion.
+**Defect fixed, then superseded:** the staged pre-check must not assert a match it has not earned.
+That still holds — `decideIntakeRoute` gates every route on category eligibility and a naming-word
+match — but it is now enforced in the **decision**, not by hiding a stage. `step-buy-route.tsx`
+shows all three routes with their reasons, so "no premature assertions" means *no route is claimed
+without evidence*, not *no route is visible yet*.
 
 **Acceptance criteria.** (a) ✅ Free text is the only commodity entry — there is **no category grid**;
 the fulfilment path is derived, not chosen, and the catalogue is the one explicit alternative entry.
@@ -265,7 +276,7 @@ SUP-01 permissible supplier 🟡 (PSL soft-preference now in checks) · SUP-02 c
 | DET-01 | Sourcing strategy from SD | 🟡 | Via routing rules; not SD-driven |
 | DET-02 | Threshold treatment & in/out-of-scope routing | 🟢 | Threshold rules exist |
 | DET-03 | Review demand summary (business vs procurement-led) | 🟡 | Partial |
-| DET-04 | **Determination screen** (the R1 endpoint) | 🟢 | Split into two lighter steps — **Risk & assessment** then **Determination** (channel, contract/sourcing type, materiality, Next-steps handoff with system/status/deep-link), and **exportable** (`Export` → structured Markdown download via `determination-export.ts`) |
+| DET-04 | **Determination screen** (the R1 endpoint) | 🟢 | Now the **Review & submit** step of a four-step intake, holding every conclusion and nothing to fill in: channel + indicative timeline, materiality, inherent risk, contract/sourcing type, approval-to-source, Next-steps handoff (system/status/deep-link), the routing/lifecycle preview and approvals, and the checks that ran. **Exportable** (`Export` → structured Markdown via `determination-export.ts`). The risk *questions* moved to Details — every question is asked before any conclusion is shown. The determination itself is a pure module (`lib/procurement/intake-determination.ts`), computed once per intake and shared by both densities |
 | DET-05 | Approval-to-source: pre-sourcing validation gate | 🟢 | `lib/procurement/approval-to-source.ts` — standardised gate: **light** (demand validation + cost-centre) vs **full** (demand validation + intent-to-source + category approval), triggered by value ≥ threshold (POL-01), materiality, or high/critical inherent risk; transactable early exit ⇒ no gate. Surfaced as an "Approval to source" panel on the determination + in the export. Threshold seedable in the CFG sim panel |
 | DET-07 | Sourcing scope determination rules | 🟡 | Partial |
 | DET-08 | Contract type: MSA/SOW/amend/change/renew | 🟢 | `lib/procurement/determination.ts` `determineContractType` — none / renew / SOW / **amend** / **change** / new-MSA. Against an existing agreement the scope/headroom signals decide: material demand → change; extends scope or at capacity → amend; fits with headroom → SOW. Wired from materiality + the second contract check; surfaced on the determination |

@@ -26,7 +26,7 @@ import { useCatalogueItems } from '@/lib/db/hooks/use-catalogue-items';
 import { openAIChat, openAIChatWithPrompt } from '@/features/ai-assistant/ai-chat-controls';
 import { formatCurrency } from '@/lib/format';
 import { decideIntakeRoute } from '@/lib/procurement/intake-routing';
-import { classifyDemandCategory } from '@/lib/procurement/classify';
+import { classifyDemandCategory, matchesDemandCategory } from '@/lib/procurement/classify';
 import { useProcurementCategories } from '@/lib/db/hooks/use-procurement-categories';
 import { DEFAULT_CATEGORY_TAXONOMY } from '@/data/category-taxonomy';
 
@@ -43,11 +43,20 @@ interface AILink {
 }
 
 interface ProposalState {
-  type: 'catalogue' | 'action' | 'options';
+  /**
+   * `identified` names a specific catalogue item and links straight to its
+   * governed checkout. It replaced dropping the requester into the full
+   * catalogue grid and leaving them to find again what the matcher had already
+   * found — while never navigating for them, so a wrong match costs a glance
+   * rather than a wrong order.
+   */
+  type: 'catalogue' | 'identified' | 'action' | 'options';
   message: string;
   catalogueItems: CatalogueItem[];
   links: AILink[];
   agent?: { id?: string; name?: string; status?: string; accuracy?: number };
+  /** The original wording, carried into intake when the match is rejected. */
+  query?: string;
 }
 
 // --- Catalogue categories ---
@@ -140,6 +149,20 @@ function catalogueRoute(
   );
 }
 
+/**
+ * Openers that make a phrase a lookup rather than a demand.
+ *
+ * Deliberately anchored: "find Accenture" is a lookup, "we need to find a
+ * cleaning supplier" is a demand that happens to contain the word.
+ */
+const LOOKUP_OPENERS = /^\s*(find|show|list|open|search|where|which|who|when|how many)\b/;
+
+/** Verbs that state an intent to acquire. Not the only signal — see below. */
+const DEMAND_VERBS = [
+  'buy', 'buying', 'purchase', 'purchasing', 'need', 'want', 'order', 'procure',
+  'hire', 'engage', 'require', 'looking for', 'source ', 'sourcing', 'contract for',
+];
+
 function localClassify(
   query: string,
   catalogueItems: CatalogueItem[],
@@ -156,9 +179,28 @@ function localClassify(
     return { intent: 'catalogue', message: `Found ${n} matching catalogue item${n === 1 ? '' : 's'}.`, links: [] };
   }
 
-  // Buy intent — check if it's a procurement request
-  const buyWords = ['buy', 'buying', 'purchase', 'purchasing', 'need', 'want', 'order', 'procure', 'hire', 'engage'];
-  if (buyWords.some((w) => q.includes(w))) {
+  // An explicit lookup is a lookup, whatever it mentions. Checked first so
+  // "find our cleaning services contract" does not become a demand for
+  // cleaning services just because it names one.
+  if (LOOKUP_OPENERS.test(q)) {
+    for (const [name, path] of Object.entries(SUPPLIER_ROUTES)) {
+      if (q.includes(name)) return { intent: 'navigation', message: `Opening ${name} profile.`, links: [{ label: `${name.charAt(0).toUpperCase() + name.slice(1)} Profile`, path }] };
+    }
+    if (/contract/.test(q)) return { intent: 'navigation', message: 'Opening contracts.', links: [{ label: 'Contracts', path: '/contracts' }] };
+    if (/request/.test(q)) return { intent: 'navigation', message: 'Opening requests.', links: [{ label: 'My Requests', path: '/requests/my' }] };
+    if (/supplier|vendor/.test(q)) return { intent: 'navigation', message: 'Opening supplier directory.', links: [{ label: 'Suppliers', path: '/suppliers' }] };
+    if (/invoice/.test(q)) return { intent: 'navigation', message: 'Opening invoices.', links: [{ label: 'Invoices', path: '/purchasing/invoices' }] };
+  }
+
+  // A demand is a demand whether or not it has a verb in front of it.
+  //
+  // This used to be a hardcoded buy-verb list, which meant the most natural
+  // ways of asking — "business consulting", "IT strategy consulting with
+  // Accenture for 6 months", "cleaning services for the Berlin office" — were
+  // not recognised and went to the chat assistant, which cannot route or
+  // submit anything. Naming something procurable counts, and the category
+  // rules already know what that looks like.
+  if (DEMAND_VERBS.some((w) => q.includes(w)) || matchesDemandCategory(query)) {
     // One classifier. This branch used to carry its own regex cascade — a
     // fifth copy of the category decision, which could disagree with the
     // wizard about the same sentence.
@@ -231,8 +273,12 @@ export function SmartCommandBar() {
     let category = aiResult.category;
 
     // Safety: buying words should never route to navigation
-    const buyWords = ['buy', 'buying', 'purchase', 'purchasing', 'procure', 'acquire', 'engage', 'hire', 'contract for'];
-    if (intent === 'navigation' && buyWords.some((w) => query.toLowerCase().includes(w))) {
+    // Same rule as the local classifier: a model answering "navigation" for
+    // something that states an intent to acquire, or that simply names
+    // something procurable, is answering the wrong question.
+    if (intent === 'navigation'
+      && !LOOKUP_OPENERS.test(query.toLowerCase())
+      && (DEMAND_VERBS.some((w) => query.toLowerCase().includes(w)) || matchesDemandCategory(query))) {
       intent = 'new-request';
     }
 
@@ -248,13 +294,16 @@ export function SmartCommandBar() {
     if (intent === 'catalogue') {
       const decision = catalogueRoute(query, catalogueItems, eligibleCategories, 'catalogue');
       if (decision.route === 'catalogue') {
-        setCatalogueResults(decision.catalogueMatches.map((m) => m.item).slice(0, 9));
-        setShowCatalogue(true);
+        const matched = decision.catalogueMatches.map((m) => m.item);
         setProposal({
-          type: 'catalogue',
-            message: message || 'Found matching catalogue items. Review the order details and submit for governance checks.',
-          catalogueItems: [], links: [],
+          type: 'identified',
+          message: matched.length === 1
+            ? 'This looks like a catalogue item you can order today.'
+            : `This looks like ${matched.length} catalogue items you can order today.`,
+          catalogueItems: matched.slice(0, 3),
+          links: [],
           agent,
+          query,
         });
         return;
       }
@@ -313,8 +362,16 @@ export function SmartCommandBar() {
     const query = input.trim();
     if (!query) return;
 
-    // Fast local check: if not a catalogue match, send to AI overlay immediately
+    // A demand goes into intake. It used to go into the AI chat overlay, which
+    // meant "I want to buy X" — the single thing this box exists for — landed
+    // in a conversation with no route, no classification and no way to submit.
+    // Only lookups and open questions belong to the assistant.
     const localResult = localClassify(query, catalogueItems, eligibleCategories);
+    if (localResult.intent === 'new-request') {
+      navigate(`/requests/new?q=${encodeURIComponent(query)}`);
+      setInput('');
+      return;
+    }
     if (localResult.intent !== 'catalogue') {
       openAIChatWithPrompt(query);
       setInput('');
@@ -439,7 +496,8 @@ export function SmartCommandBar() {
         {/* AI hint */}
         {!proposal && !showCatalogue && !loading && (
           <p className="mt-2 text-center text-xs text-gray-400">
-            Non-catalogue queries are handled by the <span className="font-medium text-[#2D5F8A]">AI assistant</span> →
+            Describe what you need and we&apos;ll route it — or ask a question and the{' '}
+            <span className="font-medium text-[#2D5F8A]">AI assistant</span> takes it →
           </p>
         )}
 
@@ -451,8 +509,58 @@ export function SmartCommandBar() {
           </div>
         )}
 
+        {/* ── IDENTIFIED CATALOGUE ITEM ──
+            Say what was recognised, then hand over a link. Navigating for the
+            requester would be faster and worse: a wrong match would land them
+            in a checkout for the wrong thing. */}
+        {proposal?.type === 'identified' && !showCatalogue && !loading && (
+          <div className="mt-6 max-w-2xl mx-auto space-y-3">
+            <div className="flex items-start gap-2">
+              <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-blue-100 mt-0.5">
+                <Sparkles className="size-3 text-[#2D5F8A]" />
+              </div>
+              <p className="text-sm text-gray-700">{proposal.message}</p>
+            </div>
+            {proposal.catalogueItems.map((item) => (
+              <div
+                key={item.id}
+                className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white p-4"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-gray-900">{item.name}</p>
+                  <p className="mt-0.5 truncate text-xs text-gray-500">
+                    {formatCurrency(item.unitPrice)} / {item.unit} · {item.supplierName} · {item.leadTime}
+                  </p>
+                </div>
+                <Button size="sm" onClick={() => handleLinkClick(`/catalogue/items/${encodeURIComponent(item.id)}`)}>
+                  Order this
+                  <ArrowRight className="size-3.5" />
+                </Button>
+              </div>
+            ))}
+            {/* The correction, always available and never hidden behind the
+                match: the original wording goes with it, so nothing is retyped. */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+              <button
+                type="button"
+                className="text-xs font-medium text-blue-600 hover:underline"
+                onClick={() => handleLinkClick(`/requests/new?q=${encodeURIComponent(proposal.query ?? '')}`)}
+              >
+                Not what you need? Describe it in full →
+              </button>
+              <button
+                type="button"
+                className="text-xs text-gray-500 hover:text-gray-700 hover:underline"
+                onClick={() => { setProposal(null); setCatalogueResults([]); setShowCatalogue(true); }}
+              >
+                Browse the whole catalogue
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* ── PROPOSAL CARD (non-catalogue) ── */}
-        {proposal && !showCatalogue && !loading && (
+        {proposal && proposal.type !== 'identified' && !showCatalogue && !loading && (
           <div className="mt-6 max-w-2xl mx-auto">
             <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-3">
               <div className="flex items-start gap-2">

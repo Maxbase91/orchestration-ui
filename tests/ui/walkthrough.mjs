@@ -96,7 +96,7 @@ async function fullScenario(page, { key, demand, enrichment, answers, toggleCrit
   log(`\n▶ Front door — ${key}`);
   try {
     await toFullRequest(page, demand, enrichment);
-    await page.getByText('Service description components').waitFor({ timeout: 15000 }).catch(() => {});
+    await page.getByText('Service description', { exact: true }).waitFor({ timeout: 15000 }).catch(() => {});
     await answerChat(page, answers);
     await shot(page, `${key}-1-conversation`);
     const next = page.getByRole('button', { name: /^Next$/ });

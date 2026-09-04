@@ -59,8 +59,33 @@ export function runSecondContractCheck(
 ): SecondContractCheckResult {
   const candidates: ContractCandidate[] = [];
 
+  // No supplier, no coverage.
+  //
+  // This check answers "what already covers THIS SUPPLIER". The supplier filter
+  // used to be skipped when no supplier had been chosen — so a demand with no
+  // supplier matched every contract in the category, and the screen declared
+  // "a usable contract covers this demand — transact directly" about an
+  // agreement with a company nobody had selected.
+  //
+  // That was not a cosmetic error. The recommendation feeds
+  // `determineApprovalToSource({ earlyExit: recommendation === 'transact' })`,
+  // so the stray match **switched off the approval-to-source gate** — while the
+  // same screen said "No existing contract found" and "no existing agreement —
+  // a new master agreement is needed". Three contradictory statements, and a
+  // governance gate disabled by a contract the requester never chose.
+  //
+  // A category is not coverage. Until a supplier is selected the honest answer
+  // is that nothing is known to cover this.
+  if (!input.supplierId) {
+    return {
+      candidates: [],
+      recommendation: 'new-contract',
+      reason: 'No supplier is selected yet, so no contract is known to cover this demand.',
+    };
+  }
+
   for (const c of input.contracts) {
-    if (input.supplierId && c.supplierId !== input.supplierId) continue;
+    if (c.supplierId !== input.supplierId) continue;
     if (input.category && c.category && c.category !== input.category) continue;
     if (c.status === 'expired' || c.status === 'terminated') continue;
     if (c.endDate && c.endDate < input.now) continue;

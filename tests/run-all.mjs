@@ -25,7 +25,7 @@ const SUITE_TIMEOUT_MS = 120_000;
 // Needs a browser binary and a dev server, so it runs as its own pass rather
 // than inside the default gate. `npm run test:all -- --browser` includes them.
 const BROWSER = new Set([
-  'test:ui', 'test:e2e-ui', 'test:ui-full', 'test:walkthrough', 'test:home-designs',
+  'test:ui', 'test:e2e-ui', 'test:ui-full', 'test:walkthrough',
   'test:service-description-ui', 'test:intake-guidance-ui', 'test:request-detail-ui',
   'test:interactions-ui', 'test:catalogue-ui', 'test:experience-mode-ui', 'test:link-navigation',
 ]);

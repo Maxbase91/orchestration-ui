@@ -66,6 +66,22 @@ export function classifyDemandCategory(text: string): RequestCategory {
  * its `catalogue` label is a genuine, measured signal. Two questions, two
  * functions, rather than one answer that is wrong for half its callers.
  */
+/**
+ * Did a category rule actually match, or did we fall back to the default?
+ *
+ * `classifyDemandCategory` always answers, because every demand needs a
+ * category — but "it answered" is not "this is a demand". The command bar
+ * needed the difference: it decided what was a demand from a hardcoded list of
+ * buy verbs, so "business consulting", "IT strategy consulting with Accenture"
+ * and "cleaning services for the Berlin office" were not demands and went to
+ * the chat assistant instead of into intake. Naming something procurable is
+ * every bit as much a demand as saying "buy" in front of it.
+ */
+export function matchesDemandCategory(text: string): boolean {
+  const q = text.toLowerCase();
+  return CATEGORY_RULES.some((rule) => rule.pattern.test(q));
+}
+
 export function classifyCommodityCategory(text: string): RequestCategory {
   const q = text.toLowerCase();
   for (const rule of CATEGORY_RULES) {

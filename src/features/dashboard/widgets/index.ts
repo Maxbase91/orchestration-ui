@@ -21,6 +21,10 @@ import { WidgetSupplierRisk } from './widget-supplier-risk';
 import { WidgetQuickStats } from './widget-quick-stats';
 import { WidgetAIAssistant } from './widget-ai-assistant';
 import { WidgetMentions } from './widget-mentions';
+import { WidgetOpenPOs } from './widget-open-pos';
+import { WidgetInvoiceExceptions } from './widget-invoice-exceptions';
+import { WidgetSupplierOnboarding } from './widget-supplier-onboarding';
+import { WidgetRequestsByStage } from './widget-requests-by-stage';
 
 export {
   WidgetMyRequests,
@@ -42,6 +46,10 @@ export {
   WidgetQuickStats,
   WidgetAIAssistant,
   WidgetMentions,
+  WidgetOpenPOs,
+  WidgetInvoiceExceptions,
+  WidgetSupplierOnboarding,
+  WidgetRequestsByStage,
 };
 
 export const widgetComponents: Record<string, React.ComponentType> = {
@@ -64,4 +72,8 @@ export const widgetComponents: Record<string, React.ComponentType> = {
   'quick-stats': WidgetQuickStats,
   'ai-assistant': WidgetAIAssistant,
   'mentions': WidgetMentions,
+  'open-pos': WidgetOpenPOs,
+  'invoice-exceptions': WidgetInvoiceExceptions,
+  'supplier-onboarding': WidgetSupplierOnboarding,
+  'requests-by-stage': WidgetRequestsByStage,
 };

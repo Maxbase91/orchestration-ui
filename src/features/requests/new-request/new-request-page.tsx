@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, Component, type ReactNode, type ErrorInfo } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Save, Send, AlertTriangle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -14,230 +14,49 @@ import { createRequest } from '@/lib/db/requests';
 import { parseDeliveryDate } from '@/lib/parse-delivery-date';
 import { initWorkflow } from '@/lib/workflow/engine';
 import { queryClient } from '@/lib/query-client';
-import type { CommodityClassificationCandidate, IntakeAttachment, RequestCategory, BuyingChannel } from '@/data/types';
-import type { MaterialityResult } from '@/lib/procurement/materiality';
-import type { InherentRiskResult } from '@/lib/procurement/risk-segmentation';
-import type { ScreeningResult } from '@/lib/procurement/screening';
-import type { ReferralResult } from '@/lib/procurement/referral';
-import type { MatchingRiskAssessmentSummary } from './step-compliance';
+import type { RequestCategory, BuyingChannel } from '@/data/types';
+import {
+  INITIAL_INTAKE_DATA,
+  generateRequestId,
+  type IntakeFormData,
+} from './intake-form-data';
+import { useIntakeDetermination } from './use-intake-determination';
+import { useIntakeDeepLink } from './use-intake-deep-link';
+import { buildIntakeComplianceRecord } from '@/lib/procurement/intake-compliance-record';
 import { StepCategory } from './step-category';
 import { StepDetails } from './step-details';
 import { StepChatIntake } from './step-chat-intake';
 import { StepCatalogue } from './step-catalogue';
-import { StepPreCheck } from './step-pre-check';
+import { StepBuyRoute } from './step-buy-route';
 import { StepCompliance } from './step-compliance';
 import { StepRoutingPreview } from './step-routing-preview';
 import { StepConfirmation } from './step-confirmation';
 import { StepHeaderPanel } from './components/step-header-panel';
-import { stepGuidance } from './step-guidance';
-import { classifyCommodityCategory, ROUTE_LIKE_CATEGORY } from '@/lib/procurement/classify';
+import {
+  nextStep,
+  previousStep,
+  progressStepsForRoute,
+  routeFromOutcome,
+  stepById,
+  stepDescription,
+  stepGuidance,
+  stepNumber,
+  submitStepFor,
+  type IntakeStepId,
+} from './intake-steps';
 import { sectionValuesOf } from '@/lib/procurement/service-description-seed';
 import { useServiceDescriptionTemplate } from '@/lib/db/hooks/use-service-description-templates';
-import {
-  outstandingRequiredSlots,
-  requiredSlotsFilled,
-  resolveSlots,
-} from '@/lib/procurement/demand-conversation';
+import { outstandingRequiredSlots, resolveSlots } from '@/lib/procurement/demand-conversation';
 import { RequesterContextBlock } from './components/requester-context-block';
 import type { Contract } from '@/data/types';
 import type { CatalogueItem } from '@/data/catalogue-items';
 import { useExperienceMode } from '@/hooks/use-experience-mode';
-import { SimpleNewRequestPage } from './simple-new-request-page';
 import { getProcurementProfile } from '@/lib/db/procurement-profiles';
 import { evaluateGovernedCheckout, resolveCheckoutRiskAssessment, resolveCheckoutContract } from '@/lib/procurement/governed-checkout';
 import { submitGovernedCheckout } from '@/lib/procurement/submit-governed-checkout';
 import { submitIntake } from '@/lib/procurement/submit-intake';
 import { CatalogueOrderCheckout, type CatalogueOrderDraft } from '@/features/catalogue/catalogue-order-checkout';
 import { ContractCallOffCheckout, type ContractCallOffDraft } from './contract-call-off-checkout';
-
-/**
- * How a section came to be filled.
- *
- * `answered` — the requester wrote it and it addressed the question.
- * `assistant-drafted` — they accepted a draft the assistant proposed after a
- *   challenge, so the words are the assistant's and they approved them.
- * `weak` — challenged once, answered again with something thin, and accepted
- *   anyway. Never a hard block, but never invisible either: a reviewer sees
- *   which parts of a description nobody really wrote.
- */
-export type SectionCapture = 'answered' | 'document-extracted' | 'assistant-drafted' | 'reviewer-edited' | 'weak';
-
-export interface ServiceDescription {
-  objective: string;
-  scope: string;
-  /** Explicit exclusions are kept separate from included scope. */
-  exclusions?: string;
-  deliverables: string;
-  timeline: string;
-  resources: string;
-  acceptanceCriteria: string;
-  pricingModel: string;
-  location: string;
-  dependencies: string;
-  narrative: string; // Full narrative summary
-  /** Per-section provenance — see SectionCapture. Absent for older records. */
-  captureFlags?: Partial<Record<string, SectionCapture>>;
-}
-
-/** The text-bearing members — everything except the provenance map. */
-export type ServiceDescriptionSectionKey = Exclude<keyof ServiceDescription, 'captureFlags'>;
-
-interface RequestFormData {
-  // Step 1
-  category: string;
-  categoryDescription: string;
-  /**
-   * The assistant's read of what kind of demand this is (api/ai.ts `intent`),
-   * carried from step 1 into the step-2 routing decision. Empty when AI-001 is
-   * off or the call failed, in which case the deterministic rules decide.
-   */
-  llmIntent: string;
-  /**
-   * The quality gate and governance read from generation. Previously computed,
-   * shown, and discarded when the wizard unmounted — leaving `quality_score`
-   * null on every row while tab-overview read it.
-   */
-  sowQualityScore?: number;
-  sowQualityChecks?: { section: string; passed: boolean; issue: string | null }[];
-  sowRequiredSections?: string[];
-  sowSignals?: Record<string, unknown>;
-  /**
-   * Whether the supplier was named upstream (extraction, chat match, contract
-   * call-off) or explicitly chosen at the determination. Drives whether the
-   * determination presents it as a suggestion to confirm or a settled choice.
-   */
-  supplierProvenance?: 'named' | 'chosen';
-  // Step 3 (shifted)
-  title: string;
-  supplier: string;
-  supplierId: string;
-  estimatedValue: number;
-  currency: string;
-  businessJustification: string;
-  deliveryDate: string;
-  deliveryLocation: string;
-  isUrgent: boolean;
-  costCentre: string;
-  commodityCode: string;
-  commodityCodeLabel: string;
-  commodityCandidates?: CommodityClassificationCandidate[];
-  commodityClassificationConfirmed?: boolean;
-  attachments?: IntakeAttachment[];
-  serviceDescription: ServiceDescription | null;
-  // Catalogue / contract resolution (Step 2 pre-check)
-  catalogueItems: { itemId: string; name: string; quantity: number; unitPrice: number; supplierId: string }[];
-  preCheckOutcome: 'catalogue' | 'contract' | 'full-request' | '';
-  contractId: string;
-  contractTitle: string;
-  workflowTemplateId: string;
-  // Step 4 (shifted)
-  miniIrq: { privilegedAccess: boolean; criticalService: boolean };
-  buyingChannelResult: string;
-  /**
-   * Determination output, lifted wholesale from the compliance step. Stored on
-   * the request as two flat columns — the wizard holds the nested shape.
-   */
-  sourcingType?: { type: string; reason: string };
-  sraStatus: string;
-  policyChecks: { label: string; passed: boolean; detail: string }[];
-  duplicateCheck: string | null;
-  /**
-   * Determination output that is persisted rather than displayed and dropped.
-   * The wizard lifts the whole result via onUpdate; these are the parts the
-   * request and its compliance record keep.
-   */
-  buyingChannelSlug?: string;
-  approvalChain?: string;
-  matchedRuleName?: string;
-  materiality?: MaterialityResult;
-  inherentRisk?: InherentRiskResult;
-  screening?: ScreeningResult;
-  referral?: ReferralResult;
-  matchingRiskAssessments?: MatchingRiskAssessmentSummary[];
-  // Determination signals that overlay conditional lifecycle steps (item 7+11).
-  riskAssessmentRequired: boolean;
-  supplierOnboardingRequired: boolean;
-  // Step 5 (shifted)
-  additionalReviewers: string[];
-  notes: string;
-  // Requester context (universal — applies to all paths). Country is derived
-  // from the requestor's profile (read-only); beneficiary defaults to self.
-  requesterCountry: string;
-  requesterCountryCode: string;
-  beneficiaryId: string;
-  beneficiaryName: string;
-  beneficiaryCountry: string;
-  beneficiaryCountryCode: string;
-}
-
-const INITIAL_DATA: RequestFormData = {
-  category: '',
-  categoryDescription: '',
-  llmIntent: '',
-  title: '',
-  supplier: '',
-  supplierId: '',
-  estimatedValue: 0,
-  currency: 'EUR',
-  businessJustification: '',
-  deliveryDate: '',
-  deliveryLocation: '',
-  isUrgent: false,
-  costCentre: '',
-  commodityCode: '',
-  commodityCodeLabel: '',
-  commodityCandidates: [],
-  commodityClassificationConfirmed: false,
-  attachments: [],
-  serviceDescription: null,
-  catalogueItems: [],
-  preCheckOutcome: '',
-  contractId: '',
-  contractTitle: '',
-  workflowTemplateId: '',
-  buyingChannelResult: '',
-  miniIrq: { privilegedAccess: false, criticalService: false },
-  sraStatus: '',
-  policyChecks: [],
-  duplicateCheck: null,
-  buyingChannelSlug: undefined,
-  approvalChain: undefined,
-  riskAssessmentRequired: false,
-  supplierOnboardingRequired: false,
-  additionalReviewers: [],
-  notes: '',
-  requesterCountry: '',
-  requesterCountryCode: '',
-  beneficiaryId: '',
-  beneficiaryName: '',
-  beneficiaryCountry: '',
-  beneficiaryCountryCode: '',
-};
-
-const STEPS = [
-  { number: 1, title: 'Describe', description: 'What do you need?' },
-  { number: 2, title: 'Pre-check', description: 'Catalogue & contract match' },
-  { number: 3, title: 'Details', description: 'Service description' },
-  { number: 4, title: 'Risk & assessment', description: 'Risk, IRQ, reuse' },
-  { number: 5, title: 'Determination', description: 'Channel, contract, sourcing' },
-  { number: 6, title: 'Routing', description: 'Routing & approvals' },
-  { number: 7, title: 'Confirmation', description: 'Submitted' },
-];
-
-// Catalogue is a fast track: pre-approved, pre-priced items need no risk,
-// determination or approval routing — just pick and place the order. The
-// wizard jumps Step 3 (Order) straight to Confirmation.
-const CATALOGUE_STEPS = [
-  { number: 1, title: 'Describe', description: 'What do you need?' },
-  { number: 2, title: 'Pre-check', description: 'Catalogue match' },
-  { number: 3, title: 'Order', description: 'Pick items & place the order' },
-  { number: 7, title: 'Confirmation', description: 'Order placed' },
-];
-
-function generateRequestId(): string {
-  const num = Math.floor(1000 + Math.random() * 9000);
-  return `REQ-2025-${num}`;
-}
 
 class StepErrorBoundary extends Component<{ children: ReactNode; onReset: () => void }, { error: Error | null }> {
   state: { error: Error | null } = { error: null };
@@ -260,29 +79,26 @@ class StepErrorBoundary extends Component<{ children: ReactNode; onReset: () => 
   }
 }
 
-const CATEGORY_LABELS: Record<string, string> = {
-  goods: 'Goods', services: 'Services', software: 'Software / IT',
-  consulting: 'Consulting', 'contingent-labour': 'Contingent Labour',
-  'contract-renewal': 'Contract Renewal', 'supplier-onboarding': 'Supplier Onboarding',
-  catalogue: 'Catalogue Purchase',
-};
-
+/**
+ * The intake, for every requester.
+ *
+ * There were two of these: a 1100-line Expert wizard and a 500-line Simple page
+ * with its own phase machine, its own form shape and its own duplicated submit.
+ * They shared step components and decision helpers, but each owned a journey —
+ * which is exactly how they drifted, twice, into producing different governance
+ * outcomes for the same demand (see `tests/integration/mode-equivalence.mjs`).
+ *
+ * Now one engine runs one step config, and `density` decides only how much is
+ * on screen. Nothing below branches on density to change a decision, a gate, a
+ * step, or what is written — and the pure decision layer is never even told
+ * which density it is serving.
+ */
 export function NewRequestPage() {
-  const { mode } = useExperienceMode();
-  return mode === 'simple' ? <SimpleNewRequestPage /> : <ExpertNewRequestPage />;
-}
-
-function ExpertNewRequestPage() {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const { mode: density } = useExperienceMode();
   const navigate = useNavigate();
-  const [currentStep, setCurrentStep] = useState(1);
-  // Original demand text forwarded from the home "What do you need?" box —
-  // captured once so the Step 1 input starts pre-populated (read synchronously
-  // before the deep-link params are cleared).
-  const [categoryPrefill] = useState(() => searchParams.get('q') ?? '');
-  const [formData, setFormData] = useState<RequestFormData>(INITIAL_DATA);
+  const [stepId, setStepId] = useState<IntakeStepId>('describe');
+  const [formData, setFormData] = useState<IntakeFormData>(INITIAL_INTAKE_DATA);
   const [requestId, setRequestId] = useState('');
-  const [initialized, setInitialized] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [catalogueOrder, setCatalogueOrder] = useState<{
     title: string;
@@ -292,12 +108,57 @@ function ExpertNewRequestPage() {
     catalogueItems: { itemId: string; name: string; quantity: number; unitPrice: number; supplierId: string }[];
   } | null>(null);
   const [catalogueCheckoutOpen, setCatalogueCheckoutOpen] = useState(false);
+  /** The profile default, so the context block can say where the value came from. */
+  const [profileCostCentre, setProfileCostCentre] = useState('');
   const { currentUser } = useAuthStore();
   const { data: suppliers = [] } = useSuppliers();
   const { data: contracts = [] } = useContracts();
   const { data: riskAssessments = [] } = useRiskAssessments();
   const { data: catalogueItems = [] } = useCatalogueItems();
   const { data: users = [] } = useUsers();
+
+  // One determination for the whole wizard. It used to be computed inside the
+  // compliance step and mirrored back into form state through `onUpdate`; the
+  // screen and the record it wrote were then two copies of one answer, free to
+  // fall out of step. The steps that show conclusions and the submit that
+  // records them now read the same object.
+  const { determination, derivedWorkflowTemplateId } = useIntakeDetermination({
+    category: formData.category,
+    estimatedValue: formData.estimatedValue,
+    supplierId: formData.supplierId,
+    isUrgent: formData.isUrgent,
+    requestTitle: formData.title,
+    serviceDescription: formData.serviceDescription,
+    miniIrq: formData.miniIrq,
+    contractId: formData.contractId || undefined,
+  });
+
+  // The template the category implies, until the requester picks one. This used
+  // to be an effect inside the compliance step writing back through `onUpdate`.
+  useEffect(() => {
+    if (formData.workflowTemplateId || !derivedWorkflowTemplateId) return;
+    setFormData((prev) => ({ ...prev, workflowTemplateId: derivedWorkflowTemplateId }));
+  }, [formData.workflowTemplateId, derivedWorkflowTemplateId]);
+
+  // Accounting defaults from the requester's stored profile, so a call-off does
+  // not ask for a cost centre they have used every time. Never overwrites a
+  // value already entered. Simple intake had this and Expert did not, which is
+  // the kind of divergence one engine removes by construction.
+  useEffect(() => {
+    let cancelled = false;
+    void getProcurementProfile(currentUser.id).then((profile) => {
+      if (cancelled || !profile) return;
+      setProfileCostCentre(profile.costCentre ?? '');
+      setFormData((prev) => ({
+        ...prev,
+        costCentre: prev.costCentre || profile.costCentre || '',
+        beneficiaryId: prev.beneficiaryId || profile.beneficiaryId || '',
+      }));
+    }).catch(() => {
+      // The form stays usable when the additive profile table is unavailable.
+    });
+    return () => { cancelled = true; };
+  }, [currentUser.id]);
 
   // Auto-derive the requester's country from their profile (read-only). Runs
   // once the directory loads; the user never sets or edits this. It can drive
@@ -314,100 +175,26 @@ function ExpertNewRequestPage() {
     }
   }, [users, currentUser.id, formData.requesterCountry]);
 
-  // Read URL params on mount — skip to Step 2 if pre-filled from home page.
-  // Depend on suppliers so the directory match runs once suppliers load.
-  useEffect(() => {
-    if (initialized) return;
-    if (suppliers.length === 0) return; // wait for suppliers to load before matching
-    setInitialized(true);
+  // Deep links — the home box, the command bar's legacy `step=2` link, and the
+  // return trip from a catalogue item's detail page. Parsing is pure and lives
+  // in `intake-deep-link.ts`; this only applies the result once its data has
+  // loaded and clears the params so a refresh does not replay it.
+  const { prefill: categoryPrefill } = useIntakeDeepLink({
+    suppliers,
+    catalogueItems,
+    onDemand: (link) => {
+      setFormData((prev) => ({ ...prev, ...link.patch }));
+      setStepId(link.step);
+    },
+    onCatalogueOrder: (link) => {
+      setFormData((prev) => ({ ...prev, ...link.patch }));
+      setCatalogueOrder(link.order);
+      setCatalogueCheckoutOpen(true);
+      setStepId('details');
+    },
+  });
 
-    const step = searchParams.get('step');
-    const category = searchParams.get('category');
-
-    if (step === '2' && category) {
-      // Same rule as step 1: a ROUTE is not a category. The command bar builds
-      // this link from the deterministic classifier, which can answer
-      // `catalogue` for a paper-and-toner demand — and `isCatalogue` below keys
-      // the entire wizard off the category, so accepting it here would skip the
-      // funnel exactly as the classifier door did. The pre-check decides the
-      // route; this only fixes what is being bought.
-      const commodityCategory =
-        category === ROUTE_LIKE_CATEGORY ? classifyCommodityCategory(searchParams.get('title') ?? '') : category;
-      const title = searchParams.get('title') ?? '';
-      const supplierName = searchParams.get('supplier') ?? '';
-      const description = searchParams.get('description') ?? '';
-      const value = Number(searchParams.get('value') ?? 0);
-
-      // Match supplier against directory
-      let supplierId = '';
-      let resolvedSupplier = supplierName;
-      if (supplierName) {
-        const matched = suppliers.find((s) =>
-          s.name.toLowerCase().includes(supplierName.toLowerCase()) ||
-          supplierName.toLowerCase().includes(s.name.toLowerCase())
-        );
-        if (matched) {
-          supplierId = matched.id;
-          resolvedSupplier = matched.name;
-        }
-      }
-
-      setFormData((prev) => ({
-        ...prev,
-        category: commodityCategory,
-        categoryDescription: CATEGORY_LABELS[commodityCategory] ?? commodityCategory,
-        title,
-        supplier: resolvedSupplier,
-        supplierId,
-        estimatedValue: value,
-        businessJustification: description,
-      }));
-      // SmartCommandBar deep-links still pass step=2 to mean "skip the
-      // category picker"; since we inserted the pre-check as step 2,
-      // the deep-link lands on the pre-check with pre-populated context.
-      setCurrentStep(2);
-
-      // Clear search params so refresh doesn't re-trigger
-      setSearchParams({}, { replace: true });
-    }
-  }, [searchParams, setSearchParams, initialized, suppliers]);
-
-  // The item-detail page is shared by both experience modes. When an Expert
-  // requester returns from that page, hydrate the selected line directly into
-  // the governed checkout; otherwise the wizard would silently fall back to
-  // step 1 and discard the fulfilment context the requester just confirmed.
-  useEffect(() => {
-    const itemId = searchParams.get('catalogueItem');
-    if (!itemId || catalogueOrder || catalogueItems.length === 0) return;
-    const item = catalogueItems.find((candidate) => candidate.id === itemId);
-    if (!item) return;
-    const quantity = Math.max(1, Number(searchParams.get('quantity') ?? '1'));
-    const needBy = searchParams.get('needBy') ?? '';
-    const purpose = searchParams.get('purpose') ?? '';
-    const deliveryLocation = searchParams.get('deliveryLocation') ?? '';
-    const recipient = searchParams.get('recipient') ?? '';
-    const costCentre = searchParams.get('costCentre') ?? '';
-    const supplier = suppliers.find((candidate) => candidate.id === item.supplierId);
-    const order = {
-      title: item.name,
-      estimatedValue: quantity * item.unitPrice,
-      supplier: supplier?.name ?? item.supplierName,
-      supplierId: item.supplierId,
-      catalogueItems: [{ itemId: item.id, name: item.name, quantity, unitPrice: item.unitPrice, supplierId: item.supplierId }],
-    };
-    setFormData((previous) => ({
-      ...previous,
-      category: 'catalogue', categoryDescription: 'Catalogue Purchase', preCheckOutcome: 'catalogue', buyingChannelResult: 'catalogue',
-      title: item.name, supplier: order.supplier, supplierId: item.supplierId, estimatedValue: order.estimatedValue,
-      deliveryDate: needBy, deliveryLocation, costCentre, beneficiaryName: recipient, businessJustification: purpose,
-    }));
-    setCatalogueOrder(order);
-    setCatalogueCheckoutOpen(true);
-    setCurrentStep(3);
-    setSearchParams({}, { replace: true });
-  }, [catalogueItems, catalogueOrder, searchParams, setSearchParams, suppliers]);
-
-  const updateFormData = useCallback((updates: Partial<RequestFormData>) => {
+  const updateFormData = useCallback((updates: Partial<IntakeFormData>) => {
     setFormData((prev) => ({ ...prev, ...updates }));
   }, []);
 
@@ -417,7 +204,12 @@ function ExpertNewRequestPage() {
   // broad commodity value. A user can explicitly reject a catalogue result
   // and continue as a full request; retaining the category-only fallback here
   // would silently put that choice back into the reduced catalogue wizard.
-  const isCatalogue = formData.preCheckOutcome === 'catalogue';
+  // The journey is keyed off the ROUTE the buy-route step settled, never off
+  // the category: a classifier answering "catalogue" for a paper-and-toner
+  // demand used to put the whole wizard on the fast track before the funnel
+  // had run.
+  const route = routeFromOutcome(formData.preCheckOutcome);
+  const isCatalogue = route === 'catalogue';
 
   // Step 3's floor. The chat path is the only one that captures the service
   // description through the conversation; the catalogue, contract and
@@ -443,47 +235,27 @@ function ExpertNewRequestPage() {
     () => (isChatIntakePath ? outstandingRequiredSlots(conversationCtx, conversationSlots) : []),
     [isChatIntakePath, conversationCtx, conversationSlots],
   );
-  const wizardSteps = isCatalogue ? CATALOGUE_STEPS : STEPS;
-  const lastStepNumber = wizardSteps[wizardSteps.length - 1].number;
+  // Named, not counted: the gate is `title && estimatedValue > 0` on the form
+  // paths, and a requester staring at a disabled button needs to know which.
+  const missingDetailFields = [
+    !formData.title ? 'a title' : null,
+    !(formData.estimatedValue > 0) ? 'an estimated value' : null,
+  ].filter((field): field is string => Boolean(field));
 
-  const canProceed = (): boolean => {
-    switch (currentStep) {
-      case 1:
-        return !!formData.category;
-      case 2:
-        // Pre-check step — user must either pick catalogue/contract or
-        // explicitly choose to proceed to a full request.
-        return !!formData.preCheckOutcome;
-      case 3:
-        if (formData.preCheckOutcome === 'catalogue' || formData.category === 'catalogue') {
-          return formData.catalogueItems.length > 0;
-        }
-        if (formData.preCheckOutcome === 'contract') {
-          return !!formData.contractId;
-        }
-        // The mandatory floor, not `title && value`. `requiredSlotsFilled` —
-        // the guarantee the conversation engine defines to stop an LLM
-        // short-circuiting the conversation — was computed inside the chat step
-        // and never consulted at the gate, so a requester could leave step 3
-        // with two fields and no service description at all.
-        //
-        // Only on the chat path. The contract-renewal and supplier-onboarding
-        // paths render step-details, which never captures the SOW sections at
-        // all, so holding them to the same floor would block them permanently.
-        return isChatIntakePath
-          ? requiredSlotsFilled(conversationCtx, conversationSlots)
-          : !!formData.title && formData.estimatedValue > 0;
-      case 4:
-        // Risk & assessment — always allow proceeding to the determination.
-        return true;
-      case 5:
-        return !!formData.buyingChannelResult;
-      case 6:
-        return true;
-      default:
-        return false;
-    }
-  };
+  const wizardSteps = progressStepsForRoute(route);
+  const submitStepId = submitStepFor(route);
+
+  // One gate per step, defined beside the step it guards. This was a
+  // `switch (currentStep)` that had to be renumbered by hand whenever the step
+  // order changed.
+  const canProceed = (): boolean =>
+    stepById(stepId).canProceed({
+      data: formData,
+      isChatIntakePath,
+      conversationCtx,
+      conversationSlots,
+      hasDetermination: determination !== null,
+    });
 
   // Catalogue orders use the same governed endpoint as Simple mode. The
   // browser can collect a cart, but it must not create a PO directly or claim
@@ -560,7 +332,7 @@ function ExpertNewRequestPage() {
       toast.success('Catalogue request submitted');
       setCatalogueCheckoutOpen(false);
       setRequestId(id);
-      setCurrentStep(7);
+      setStepId('confirmation');
     } catch (e) {
       console.error('Failed to place catalogue order:', e);
       toast.error('Failed to place the order. Please try again.');
@@ -613,19 +385,25 @@ function ExpertNewRequestPage() {
       if (decision.status !== 'approved') await initWorkflow(id, formData.workflowTemplateId, 'framework-call-off');
       queryClient.invalidateQueries({ queryKey: ['requests'] });
       toast.success('Contract call-off submitted');
-      setRequestId(id); setCurrentStep(7);
+      setRequestId(id); setStepId('confirmation');
     } catch (error) {
       toast.error(`Could not submit contract call-off: ${error instanceof Error ? error.message : 'Please try again.'}`);
     } finally { setIsSubmitting(false); }
   };
 
   const handleNext = async () => {
-    if (currentStep === 6) {
+    if (stepId === submitStepId) {
       // Submit
       const id = generateRequestId();
       setIsSubmitting(true);
       try {
         const sow = formData.serviceDescription ?? null;
+        if (!determination) {
+          // Never submit a governed record with no determination behind it:
+          // the compliance row would claim checks that never ran.
+          toast.error('The compliance checks are still running. Please try again in a moment.');
+          return;
+        }
         const parsedDeliveryDate = parseDeliveryDate(formData.deliveryDate);
         if (formData.deliveryDate && !parsedDeliveryDate) {
           toast.error('Please provide a specific need-by date before submitting.');
@@ -638,11 +416,11 @@ function ExpertNewRequestPage() {
             priority: formData.isUrgent ? 'urgent' : 'medium', value: formData.estimatedValue,
             currency: formData.currency, supplierId: formData.supplierId, contractId: formData.contractId || undefined,
             workflowTemplateId: formData.workflowTemplateId || undefined,
-            buyingChannel: (formData.buyingChannelSlug || 'procurement-led') as BuyingChannel,
-            approvalChain: formData.approvalChain, sourcingType: formData.sourcingType?.type,
-            sourcingTypeReason: formData.sourcingType?.reason, inherentRiskTier: formData.inherentRisk?.tier,
-            materialityTier: formData.materiality?.criticality, riskAssessmentRequired: formData.riskAssessmentRequired,
-            screeningOutcome: formData.screening?.status, referralDisposition: formData.referral?.outcome,
+            buyingChannel: (determination?.buyingChannelSlug ?? 'procurement-led') as BuyingChannel,
+            approvalChain: determination?.approvalChain, sourcingType: determination?.sourcingType.type,
+            sourcingTypeReason: determination?.sourcingType.reason, inherentRiskTier: determination?.inherentRisk.tier,
+            materialityTier: determination?.materiality.criticality, riskAssessmentRequired: determination?.riskAssessmentRequired,
+            screeningOutcome: determination?.screening.status, referralDisposition: determination?.referral.outcome,
             commodityCode: formData.commodityCode, commodityCodeLabel: formData.commodityCodeLabel,
             commodityCandidates: formData.commodityCandidates, commodityClassificationConfirmed: formData.commodityClassificationConfirmed,
             attachments: formData.attachments, costCentre: formData.costCentre, budgetOwner: currentUser.name,
@@ -662,23 +440,20 @@ function ExpertNewRequestPage() {
             ...(formData.sowRequiredSections ? { requiredSections: formData.sowRequiredSections } : {}),
             ...(sow.captureFlags ? { captureFlags: sow.captureFlags } : {}),
           } : undefined,
-          compliance: {
-            determinedAt: new Date().toISOString(),
-            buyingChannel: { channel: formData.buyingChannelSlug || 'procurement-led', label: formData.buyingChannelResult || 'Procurement-Led Sourcing', reasoning: formData.matchedRuleName ? `Matched routing rule "${formData.matchedRuleName}".` : 'No routing rule matched; the value-band fallback applied.' },
-            sraCheck: { status: formData.sraStatus.includes('expired') ? 'warning' : 'pass', detail: formData.sraStatus || 'Will be initiated upon submission' },
-            policyChecks: formData.policyChecks, duplicateCheck: { found: false, detail: formData.duplicateCheck ?? 'No duplicate demand detected at intake.' },
-            riskFlags: [ ...(formData.materiality?.material ? ['material'] : []), ...(formData.inherentRisk?.tier ? [`inherent-risk:${formData.inherentRisk.tier}`] : []), ...(formData.riskAssessmentRequired ? ['risk-assessment-required'] : []), ...(formData.supplierOnboardingRequired ? ['supplier-onboarding-required'] : []) ],
-            matchingRiskAssessmentIds: (formData.matchingRiskAssessments ?? []).map((r) => r.id),
-          },
+          // One builder, both densities. It derives the record from the
+          // determination's structured fields rather than from the sentences
+          // this screen displays — the SRA outcome used to be read out of a
+          // rendered label, so a never-assessed supplier recorded a pass.
+          compliance: buildIntakeComplianceRecord(determination, { determinedAt: new Date().toISOString() }),
           workflowTemplateId: formData.workflowTemplateId,
-          buyingChannel: formData.buyingChannelSlug || 'procurement-led',
+          buyingChannel: determination.buyingChannelSlug,
           idempotencyKey: `intake-${id}`,
         });
 
         queryClient.invalidateQueries({ queryKey: ['requests'] });
         toast.success('Request submitted successfully');
         setRequestId(id);
-        setCurrentStep(7);
+        setStepId('confirmation');
       } catch (e) {
         console.error('Failed to persist request:', e);
         // The dispatcher returns safe field-level validation text; surface it
@@ -687,13 +462,15 @@ function ExpertNewRequestPage() {
       } finally {
         setIsSubmitting(false);
       }
-    } else {
-      setCurrentStep((s) => Math.min(s + 1, 7));
+      return;
     }
+    const next = nextStep(stepId, route);
+    if (next !== 'submit') setStepId(next);
   };
 
   const handleBack = () => {
-    setCurrentStep((s) => Math.max(s - 1, 1));
+    const previous = previousStep(stepId, route);
+    if (previous) setStepId(previous);
   };
 
   const handleSaveDraft = async () => {
@@ -718,9 +495,12 @@ function ExpertNewRequestPage() {
         supplierId: formData.supplierId,
         contractId: formData.contractId || undefined,
         workflowTemplateId: formData.workflowTemplateId || undefined,
-        buyingChannel: (formData.buyingChannelResult || 'procurement-led') as BuyingChannel,
-        sourcingType: formData.sourcingType?.type,
-        sourcingTypeReason: formData.sourcingType?.reason,
+        // The slug, not the label. `buyingChannelResult` is the display form
+        // ("Procurement-Led Sourcing") and every consumer of this column keys
+        // on the slug, so a draft saved here routed as an unknown channel.
+        buyingChannel: (determination?.buyingChannelSlug ?? 'procurement-led') as BuyingChannel,
+        sourcingType: determination?.sourcingType.type,
+        sourcingTypeReason: determination?.sourcingType.reason,
         commodityCode: formData.commodityCode,
         commodityCodeLabel: formData.commodityCodeLabel,
         commodityCandidates: formData.commodityCandidates,
@@ -752,52 +532,62 @@ function ExpertNewRequestPage() {
   };
 
   const handleReset = () => {
-    setFormData(INITIAL_DATA);
-    setCurrentStep(1);
+    setFormData(INITIAL_INTAKE_DATA);
+    setStepId('describe');
     setRequestId('');
   };
 
   return (
-    <div className={cn("mx-auto space-y-6", currentStep === 3 && formData.preCheckOutcome === 'full-request' && !['catalogue', 'contract-renewal', 'supplier-onboarding'].includes(formData.category) ? 'max-w-5xl' : 'max-w-3xl')}>
-      {/* Header */}
+    <div className={cn("mx-auto space-y-6", stepId === 'details' && formData.preCheckOutcome === 'full-request' && !['catalogue', 'contract-renewal', 'supplier-onboarding'].includes(formData.category) ? 'max-w-5xl' : 'max-w-3xl')}>
+      {/* Header. Same journey either way — this is the framing, not the flow. */}
       <div>
-        <h1 className="text-xl font-semibold text-gray-900">New Request</h1>
+        {density === 'simple' && (
+          <p className="text-xs font-medium uppercase tracking-wider text-blue-600">Simple requester view</p>
+        )}
+        <h1 className="mt-1 text-xl font-semibold text-gray-900">
+          {density === 'simple' ? 'Start a request' : 'New Request'}
+        </h1>
         <p className="mt-0.5 text-sm text-gray-500">
-          {isCatalogue
-            ? 'Catalogue request — governed checkout'
-            : `Create a new procurement request in ${STEPS.length} steps`}
+          {density === 'simple'
+            ? 'Tell us what you need. We will find the simplest compliant way to handle it.'
+            : isCatalogue
+              ? 'Catalogue request — governed checkout'
+              : `Create a new procurement request in ${wizardSteps.length} steps`}
         </p>
       </div>
 
       {/* Progress Bar */}
-      {currentStep < 6 && (
+      {stepId !== 'confirmation' && (
         <div className="flex items-center gap-1">
-          {wizardSteps.map((step) => (
-            <div key={step.number} className="flex flex-1 flex-col items-center gap-1.5">
+          {wizardSteps.map((step, index) => {
+            const position = index + 1;
+            const current = stepNumber(stepId, route);
+            return (
+            <div key={step.id} className="flex flex-1 flex-col items-center gap-1.5">
               <div className="flex w-full items-center">
                 <div
                   className={cn(
                     'flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-medium transition-colors',
-                    step.number < currentStep
+                    position < current
                       ? 'bg-green-600 text-white'
-                      : step.number === currentStep
+                      : position === current
                         ? 'bg-blue-600 text-white'
                         : 'border-2 border-gray-200 bg-white text-gray-400'
                   )}
                 >
-                  {step.number < currentStep ? (
+                  {position < current ? (
                     <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                     </svg>
                   ) : (
-                    step.number
+                    position
                   )}
                 </div>
-                {step.number < lastStepNumber && (
+                {position < wizardSteps.length && (
                   <div
                     className={cn(
                       'mx-1 h-0.5 flex-1',
-                      step.number < currentStep ? 'bg-green-600' : 'bg-gray-200'
+                      position < current ? 'bg-green-600' : 'bg-gray-200'
                     )}
                   />
                 )}
@@ -805,26 +595,27 @@ function ExpertNewRequestPage() {
               <span
                 className={cn(
                   'text-xs text-center',
-                  step.number === currentStep
+                  position === current
                     ? 'font-semibold text-blue-600'
-                    : step.number < currentStep
+                    : position < current
                       ? 'font-medium text-green-700'
                       : 'text-gray-400'
                 )}
               >
-                {step.title}
+                {step.label}
               </span>
-              {/* Only the current step's description. Rendering all seven put
-                  fourteen labels across the top of every screen — wayfinding
+              {/* Only the current step's description. Rendering all of them put
+                  two labels per step across the top of every screen — wayfinding
                   turned into a wall of text. The titles still show the whole
                   path; the detail belongs to where you actually are. */}
-              {step.number === currentStep && (
+              {position === current && (
                 <span className="hidden text-center text-[10px] leading-tight text-gray-500 sm:block">
-                  {step.description}
+                  {stepDescription(step.id, route)}
                 </span>
               )}
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -837,13 +628,13 @@ function ExpertNewRequestPage() {
         {/* What this step is for, what it needs, and what follows from it. The
             confirmation step carries its own version of this and is excluded in
             the guidance map. */}
-        <StepHeaderPanel guidance={stepGuidance(currentStep, isCatalogue)} />
+        <StepHeaderPanel guidance={stepGuidance(stepId, route) ?? null} />
         <StepErrorBoundary onReset={handleReset}>
-        {currentStep === 1 && (
+        {stepId === 'describe' && (
           <StepCategory
             prefill={categoryPrefill}
             onUpdate={(d) => updateFormData(d)}
-            onAutoAdvance={() => setCurrentStep(2)}
+            onAutoAdvance={() => setStepId('buy-route')}
             onBrowseCatalogue={() => {
               // Direct catalogue entry — the user already knows it's an
               // off-the-shelf item, so skip the funnel and go to the catalogue.
@@ -853,17 +644,19 @@ function ExpertNewRequestPage() {
                 preCheckOutcome: 'catalogue',
                 buyingChannelResult: 'catalogue',
               });
-              setCurrentStep(3);
+              setStepId('details');
             }}
           />
         )}
-        {currentStep === 2 && (
-          <StepPreCheck
+        {stepId === 'buy-route' && (
+          <StepBuyRoute
             title={formData.title || formData.categoryDescription}
+            demandDetail={formData.demandDetail}
             category={formData.category}
             estimatedValue={formData.estimatedValue}
             supplierId={formData.supplierId}
             llmIntent={formData.llmIntent}
+            mode={density}
             onChooseCatalogue={(items: CatalogueItem[]) => {
               const primary = items[0];
               if (!primary) return;
@@ -882,33 +675,36 @@ function ExpertNewRequestPage() {
                 category: formData.category || contract.category.toLowerCase(),
                 buyingChannelResult: 'framework-call-off',
               });
-              setCurrentStep(3);
+              setStepId('details');
             }}
             onProceedToFullRequest={() => {
               updateFormData({ preCheckOutcome: 'full-request' });
-              setCurrentStep(3);
+              setStepId('details');
             }}
             onEnrich={(text) => {
-              // Carry the enrichment forward so the full SD / second contract
-              // check benefit from the extra detail captured at the gate.
+              // Into its own field, never appended to the title. It still
+              // reaches the matcher (passed below), the service description and
+              // the second contract check — without renaming the request.
               updateFormData({
-                title: formData.title ? `${formData.title} — ${text}` : text,
+                demandDetail: formData.demandDetail ? `${formData.demandDetail} ${text}` : text,
               });
             }}
           />
         )}
         {/* Requester context — who / where — established before the per-path
             capture so catalogue / contract / SOW all inherit it. */}
-        {currentStep === 3 && (
+        {stepId === 'details' && (
           <RequesterContextBlock
             requestorId={currentUser.id}
             requesterCountry={formData.requesterCountry}
             beneficiaryId={formData.beneficiaryId}
             beneficiaryName={formData.beneficiaryName}
+            costCentre={formData.costCentre}
+            profileCostCentre={profileCostCentre}
             onUpdate={(d) => updateFormData(d)}
           />
         )}
-        {currentStep === 3 && formData.preCheckOutcome === 'catalogue' && (
+        {stepId === 'details' && formData.preCheckOutcome === 'catalogue' && (
           catalogueCheckoutOpen && catalogueOrder ? (
             <CatalogueOrderCheckout
               item={catalogueItems.find((candidate) => candidate.id === catalogueOrder.catalogueItems[0]?.itemId) ?? catalogueItems[0]!}
@@ -918,7 +714,17 @@ function ExpertNewRequestPage() {
             />
           ) : <StepCatalogue onPlaceOrder={(order) => void submitCatalogueOrder(order)} />
         )}
-        {currentStep === 3 && formData.preCheckOutcome === 'contract' && (
+        {stepId === 'details' && formData.preCheckOutcome === 'contract' && (
+          <div className="mb-4 rounded-lg border border-blue-100 bg-blue-50/40 p-4 text-sm">
+            <p className="font-medium text-blue-900">Contract call-off</p>
+            <p className="mt-0.5 text-blue-800">
+              Confirm the value and timing for this purchase against{' '}
+              {formData.contractTitle || 'the selected contract'}. The contract ceiling is not
+              the value of this individual call-off.
+            </p>
+          </div>
+        )}
+        {stepId === 'details' && formData.preCheckOutcome === 'contract' && (
           <ContractCallOffCheckout
             contract={contracts.find((candidate) => candidate.id === formData.contractId)}
             mode="expert"
@@ -926,17 +732,13 @@ function ExpertNewRequestPage() {
             onSubmit={(draft) => void submitContractCallOff(draft)}
           />
         )}
-        {currentStep === 3 && formData.preCheckOutcome === 'full-request' && formData.category === 'catalogue' && (
-          catalogueCheckoutOpen && catalogueOrder ? (
-            <CatalogueOrderCheckout
-              item={catalogueItems.find((candidate) => candidate.id === catalogueOrder.catalogueItems[0]?.itemId) ?? catalogueItems[0]!}
-              mode="expert"
-              initialValues={{ quantity: catalogueOrder.catalogueItems[0]?.quantity, needBy: formData.deliveryDate, deliveryLocation: formData.deliveryLocation, recipient: formData.beneficiaryName, businessPurpose: formData.businessJustification, costCentre: formData.costCentre }}
-              onSubmit={(draft) => void submitCatalogueOrder(catalogueOrder, draft)}
-            />
-          ) : <StepCatalogue onPlaceOrder={(order) => void submitCatalogueOrder(order)} />
-        )}
-        {currentStep === 3 && formData.preCheckOutcome === 'full-request' && ['contract-renewal', 'supplier-onboarding'].includes(formData.category) && (
+        {/* There is no `full-request && category === 'catalogue'` branch.
+            It rendered the same checkout as the catalogue route above and could
+            never fire: the only action that sets `category: 'catalogue'`
+            (Browse the catalogue) sets `preCheckOutcome: 'catalogue'` in the
+            same call, and ROUTE_LIKE_CATEGORY stops a classifier producing it.
+            A fifth capture variant nobody could reach. */}
+        {stepId === 'details' && formData.preCheckOutcome === 'full-request' && ['contract-renewal', 'supplier-onboarding'].includes(formData.category) && (
           <StepDetails
             category={formData.category}
             data={{
@@ -955,7 +757,7 @@ function ExpertNewRequestPage() {
             onUpdate={(d) => updateFormData(d)}
           />
         )}
-        {currentStep === 3 && formData.preCheckOutcome === 'full-request' && !['catalogue', 'contract-renewal', 'supplier-onboarding'].includes(formData.category) && (
+        {stepId === 'details' && formData.preCheckOutcome === 'full-request' && !['catalogue', 'contract-renewal', 'supplier-onboarding'].includes(formData.category) && (
           <StepChatIntake
             category={formData.category}
             categoryDescription={formData.categoryDescription}
@@ -965,7 +767,10 @@ function ExpertNewRequestPage() {
               supplierId: formData.supplierId,
               estimatedValue: formData.estimatedValue,
               currency: formData.currency,
-              businessJustification: formData.businessJustification,
+              // The detail added at the buy-route step is context the
+              // conversation should not ask for again.
+              businessJustification: [formData.businessJustification, formData.demandDetail]
+                .filter(Boolean).join(' ').trim(),
               deliveryDate: formData.deliveryDate,
               isUrgent: formData.isUrgent,
               costCentre: formData.costCentre,
@@ -976,9 +781,9 @@ function ExpertNewRequestPage() {
             onUpdate={(d) => updateFormData(d)}
           />
         )}
-        {(currentStep === 4 || currentStep === 5) && (
+        {(stepId === 'details' || stepId === 'review') && formData.preCheckOutcome === 'full-request' && (
           <StepCompliance
-            phase={currentStep === 4 ? 'risk' : 'determination'}
+            section={stepId === 'details' ? 'inputs' : 'conclusions'}
             requiredSections={formData.sowRequiredSections}
             qualityScore={formData.sowQualityScore}
             supplierProvenance={formData.supplierProvenance}
@@ -993,30 +798,32 @@ function ExpertNewRequestPage() {
             estimatedValue={formData.estimatedValue}
             supplierId={formData.supplierId}
             supplier={formData.supplier}
-            isUrgent={formData.isUrgent}
             serviceDescription={formData.serviceDescription}
-            workflowTemplateId={formData.workflowTemplateId}
             requestTitle={formData.title}
             miniIrq={formData.miniIrq}
+            determination={determination}
+            density={density}
             onMiniIrqChange={(m) => updateFormData({ miniIrq: m })}
-            onUpdate={(d) => updateFormData(d)}
           />
         )}
-        {currentStep === 6 && (
+        {stepId === 'review' && (
           <StepRoutingPreview
             category={formData.category}
             estimatedValue={formData.estimatedValue}
             workflowTemplateId={formData.workflowTemplateId}
-            riskAssessmentRequired={formData.riskAssessmentRequired}
-            supplierOnboardingRequired={formData.supplierOnboardingRequired}
+            riskAssessmentRequired={determination?.riskAssessmentRequired ?? false}
+            supplierOnboardingRequired={determination?.supplierOnboardingRequired ?? false}
             additionalReviewers={formData.additionalReviewers}
             notes={formData.notes}
             onUpdate={(d) => updateFormData(d)}
           />
         )}
-        {currentStep === 7 && (
+        {stepId === 'confirmation' && (
           <StepConfirmation
             requestId={requestId}
+            // The same handoff steps the Review step showed, so the two screens
+            // cannot disagree about what happens next.
+            nextSteps={determination?.handoffSteps ?? []}
             data={{
               title: formData.title,
               category: formData.category,
@@ -1026,7 +833,7 @@ function ExpertNewRequestPage() {
               costCentre: formData.costCentre,
               deliveryDate: formData.deliveryDate,
               isUrgent: formData.isUrgent,
-              buyingChannelResult: formData.buyingChannelResult,
+              buyingChannelResult: determination?.buyingChannelResult ?? '',
               commodityCodeLabel: formData.commodityCodeLabel,
               catalogueItems: formData.catalogueItems,
             }}
@@ -1037,12 +844,12 @@ function ExpertNewRequestPage() {
       </div>
 
       {/* Navigation */}
-      {currentStep < 7 && (
+      {stepId !== 'confirmation' && (
         <div className="flex items-center justify-between">
           <Button
             variant="ghost"
             onClick={handleBack}
-            disabled={currentStep === 1}
+            disabled={stepId === 'describe'}
           >
             <ArrowLeft className="size-4" />
             Back
@@ -1050,7 +857,7 @@ function ExpertNewRequestPage() {
           <div className="flex items-center gap-2">
             {/* A disabled Next that does not say why is a dead end. Name what is
                 still outstanding, in the requester's terms. */}
-            {currentStep === 3 && outstanding.length > 0 && (
+            {stepId === 'details' && isChatIntakePath && outstanding.length > 0 && (
               <p className="mr-1 max-w-md text-right text-xs text-gray-500">
                 Still needed:{' '}
                 {outstanding
@@ -1059,7 +866,14 @@ function ExpertNewRequestPage() {
                 {' — '}keep answering the assistant.
               </p>
             )}
-            {(currentStep === 5 || currentStep === 6) && (
+            {/* The form paths need the same courtesy: a disabled Next that does
+                not say why is a dead end wherever it appears. */}
+            {stepId === 'details' && !isChatIntakePath && missingDetailFields.length > 0 && (
+              <p className="mr-1 max-w-md text-right text-xs text-gray-500">
+                To review this request, add {missingDetailFields.join(', ')}.
+              </p>
+            )}
+            {(stepId === 'details' || stepId === 'review') && (
               <Button variant="ghost" onClick={handleSaveDraft} disabled={isSubmitting}>
                 <Save className="size-4" />
                 Save as Draft
@@ -1067,12 +881,12 @@ function ExpertNewRequestPage() {
             )}
             {/* Catalogue places the order from the cart itself (single click),
                 so the footer shows no primary action on that step. */}
-            {!(isCatalogue && currentStep === 3) && !(currentStep === 3 && formData.preCheckOutcome === 'contract') && (
+            {!(isCatalogue && stepId === 'details') && !(stepId === 'details' && formData.preCheckOutcome === 'contract') && (
               <Button
                 onClick={handleNext}
                 disabled={!canProceed() || isSubmitting}
               >
-                {currentStep === 6 ? (
+                {stepId === submitStepId ? (
                   isSubmitting ? (
                     <>
                       <Loader2 className="size-4 animate-spin" />

@@ -41,13 +41,15 @@ const DELIVERY_LOCATIONS = [
   { value: 'beneficiary', label: 'The beneficiary’s approved location' },
 ];
 
-const COST_CENTRES = [
-  { value: 'CC-1001', label: 'CC-1001 Marketing' },
-  { value: 'CC-2001', label: 'CC-2001 IT' },
-  { value: 'CC-3001', label: 'CC-3001 Operations' },
-  { value: 'CC-4001', label: 'CC-4001 Finance' },
-  { value: 'CC-5001', label: 'CC-5001 HR' },
-];
+// No invented chart of accounts.
+//
+// This offered five made-up cost centres ("CC-1001 Marketing", …) as if they
+// were the organisation's own. There is no cost-centre reference table —
+// `requests.cost_centre` is free text — so the list was a fabrication shown
+// with the authority of a dropdown, and a requester could only ever pick a
+// wrong one. The cost centre now comes from the requester's profile and is
+// corrected in one place (the requester-context block), which is also what the
+// governed checkout already fell back to.
 
 function dateInDays(days: number): string {
   const date = new Date();
@@ -78,13 +80,13 @@ export function CatalogueOrderCheckout({
   const deliveryLocations = profile?.approvedShipToLocations.length
     ? profile.approvedShipToLocations.map((location) => ({ value: location.id, label: location.label }))
     : DELIVERY_LOCATIONS;
-  const costCentres = profile?.costCentre
-    ? [{ value: profile.costCentre, label: profile.costCentre }, ...COST_CENTRES.filter((centre) => centre.value !== profile.costCentre)]
-    : COST_CENTRES;
   const effectiveDeliveryLocation = deliveryLocation || profile?.defaultShipToLocationId || deliveryLocations[0]?.value || 'office';
   const effectiveCostCentre = costCentre || profile?.costCentre || '';
 
   const total = quantity * item.unitPrice;
+  // A governed order charges to an account, so `evaluateGovernedCheckout`
+  // genuinely requires a cost centre — the client gate must agree with it, or
+  // the button invites a submit that fails.
   const canSubmit = !disabled && quantity > 0 && Boolean(needBy && effectiveDeliveryLocation && recipient.trim() && businessPurpose.trim() && effectiveCostCentre);
 
   const submit = () => {
@@ -137,13 +139,33 @@ export function CatalogueOrderCheckout({
           <Textarea id="catalogue-purpose" rows={3} value={businessPurpose} onChange={(event) => setBusinessPurpose(event.target.value)} placeholder="A short business reason helps us route the request correctly" />
         </div>
 
-        <div className="space-y-1.5">
-          <Label htmlFor="catalogue-cost-centre">Cost centre</Label>
-            <select id="catalogue-cost-centre" value={effectiveCostCentre} onChange={(event) => setCostCentre(event.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring">
-            <option value="">Select cost centre…</option>
-            {costCentres.map((centre) => <option key={centre.value} value={centre.value}>{centre.label}</option>)}
-          </select>
-        </div>
+        {/* Charged to — derived, not asked.
+            This was a dropdown of five invented cost centres ("CC-1001
+            Marketing", …). There is no cost-centre reference table —
+            `requests.cost_centre` is free text — so the list was a fabrication
+            presented with the authority of a picker, and the governed checkout
+            overrode it with the profile default anyway. It is now shown when
+            the profile knows it, and asked only when it does not. */}
+        {profile?.costCentre && !costCentre ? (
+          <p className="text-xs text-gray-500">
+            Charged to <span className="font-medium text-gray-800">{profile.costCentre}</span> from your profile.
+          </p>
+        ) : (
+          <div className="space-y-1.5">
+            <Label htmlFor="catalogue-cost-centre">Cost centre</Label>
+            <Input
+              id="catalogue-cost-centre"
+              value={costCentre}
+              onChange={(event) => setCostCentre(event.target.value)}
+              placeholder="The account this is charged to"
+            />
+            {!profile?.costCentre && (
+              <p className="text-[11px] text-gray-500">
+                Your profile has no default cost centre, so this order needs one.
+              </p>
+            )}
+          </div>
+        )}
 
         <div className="rounded-lg border border-blue-100 bg-blue-50/60 p-4">
           <div className="flex items-start justify-between gap-3">

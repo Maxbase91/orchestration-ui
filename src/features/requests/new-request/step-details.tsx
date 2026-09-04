@@ -7,14 +7,6 @@ import { AISuggestionCard } from '@/components/shared/ai-suggestion-card';
 import { getAICommodityCode } from '@/lib/mock-ai';
 import { UrgencyChannelNote } from './components/urgency-channel-note';
 
-const COST_CENTRES = [
-  { value: 'CC-1001', label: 'CC-1001 Marketing' },
-  { value: 'CC-2001', label: 'CC-2001 IT' },
-  { value: 'CC-3001', label: 'CC-3001 Operations' },
-  { value: 'CC-4001', label: 'CC-4001 Finance' },
-  { value: 'CC-5001', label: 'CC-5001 HR' },
-];
-
 const CATEGORY_TITLES: Record<string, string> = {
   goods: 'Procurement request',
   services: 'Procurement request',
@@ -202,22 +194,9 @@ export function StepDetails({ category, data, onUpdate }: StepDetailsProps) {
         </div>
       </div>
 
-      {/* Cost Centre */}
-      <div className="space-y-1.5">
-        <Label>Cost Centre</Label>
-        <Select value={data.costCentre} onValueChange={(v) => onUpdate({ costCentre: v })}>
-          <SelectTrigger>
-            <SelectValue placeholder="Select cost centre..." />
-          </SelectTrigger>
-          <SelectContent>
-            {COST_CENTRES.map((cc) => (
-              <SelectItem key={cc.value} value={cc.value}>
-                {cc.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      {/* No cost-centre field. It is derived from the requester's profile and
+          shown once, in the requester-context block at the top of this step —
+          this was the THIRD copy of the same five invented cost centres. */}
 
       {/* Commodity Code */}
       <div className="space-y-1.5">

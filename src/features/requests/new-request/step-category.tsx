@@ -24,7 +24,7 @@ import { requestCommodityCandidates } from '@/lib/procurement/commodity-candidat
 import { resolveCommodityCandidates } from '@/lib/procurement/commodity-candidates';
 import { seedServiceDescriptionFromText } from '@/lib/procurement/intake-seed';
 import type { CommodityClassificationCandidate, IntakeAttachment, RequestCategory } from '@/data/types';
-import type { ServiceDescription } from './new-request-page';
+import type { ServiceDescription } from './intake-form-data';
 
 interface StepCategoryProps {
   // No `category`/`categoryDescription` in: this step CLASSIFIES the demand, it

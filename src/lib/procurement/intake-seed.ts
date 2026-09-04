@@ -1,7 +1,7 @@
 // Conservative first-pass extraction for pasted briefs. It deliberately seeds
 // only text the requester supplied; the assistant can enrich missing sections.
 
-import type { ServiceDescription } from '@/features/requests/new-request/new-request-page';
+import type { ServiceDescription } from '@/features/requests/new-request/intake-form-data';
 
 export function seedServiceDescriptionFromText(text: string): Partial<ServiceDescription> {
   const clean = text.replace(/\s+/g, ' ').trim();

@@ -9,10 +9,24 @@
 // evidence — the most damaging failure available to this codebase, because
 // unlike a crash it is invisible and it is believed.
 //
-// This is a source check rather than a behavioural one on purpose: the value is
-// a literal in the submit payload, so the only way to be sure is to read it.
+// It was a source check, because the values were literals in two submit
+// payloads. They are not any more: `buildIntakeComplianceRecord` derives the
+// record from the determination's structured fields, so the honesty properties
+// can be asserted by *calling* the builder over a labelled set of demands.
+// Behavioural assertions survive a rewording; greps do not.
+//
+// The source checks that remain are the ones that must stay source checks: the
+// record type has to be able to express "not run", and the reviewer's screen
+// has to render that differently from "checked, nothing found".
 
 import { readFileSync } from 'node:fs';
+import {
+  buildIntakeComplianceRecord,
+  buildUndeterminedComplianceRecord,
+} from '../../src/lib/procurement/intake-compliance-record.ts';
+import { evaluateIntakeDetermination } from '../../src/lib/procurement/intake-determination.ts';
+import { routingRules } from '../../src/data/routing-rules.ts';
+import { buyingChannelLabel } from '../../src/lib/routing/evaluate-routing-rules.js';
 
 const ROOT = new URL('../../', import.meta.url);
 // Comments are stripped before scanning: a comment that quotes the old literal
@@ -22,8 +36,6 @@ const stripComments = (source) => source
   .replace(/^[ \t]*\/\/.*$/gm, '');
 const read = (path) => stripComments(readFileSync(new URL(path, ROOT), 'utf8'));
 
-const SIMPLE = read('src/features/requests/new-request/simple-new-request-page.tsx');
-const EXPERT = read('src/features/requests/new-request/new-request-page.tsx');
 const TYPES = read('src/data/request-compliance.ts');
 const TAB = read('src/features/requests/request-detail/tab-compliance.tsx');
 const PAYMENTS = read('src/features/purchasing/payment-tracker-page.tsx');
@@ -40,23 +52,83 @@ check("sraCheck has a 'not-run' status distinct from 'not-applicable'",
 check('duplicateCheck records whether a search was performed',
   /performed\?: boolean/.test(TYPES));
 
-console.log('\nSimple intake claims nothing it did not do');
-// The exact literals that were there before, named so a revert is unmistakable.
-check("no hardcoded sraCheck status: 'pass'",
-  !/sraCheck:\s*\{\s*status:\s*'pass'/.test(SIMPLE));
-check('no hardcoded "No duplicate demand detected"',
-  !/No duplicate demand detected/.test(SIMPLE));
-check("the SRA check is recorded as not-run",
-  /sraCheck:\s*\{\s*status:\s*'not-run'/.test(SIMPLE));
-check('the duplicate check is recorded as not performed',
-  /duplicateCheck:\s*\{[^}]*performed:\s*false/.test(SIMPLE));
+// ── Fixtures ────────────────────────────────────────────────────────────────
 
-console.log('\nExpert intake still derives its evidence from real evaluation');
-// The opposite failure would be "fixing" Simple by making Expert lie too.
-check('the SRA status comes from captured state, not a literal',
-  /sraCheck:\s*\{\s*status:\s*formData\.sraStatus/.test(EXPERT));
-check('the policy checks come from captured state',
-  /policyChecks:\s*formData\.policyChecks/.test(EXPERT));
+const supplier = (id, overrides = {}) => ({
+  id, name: `Supplier ${id}`, country: 'Germany', countryCode: 'DE', riskRating: 'low',
+  activeContracts: 1, totalSpend12m: 250000, onboardingStatus: 'completed',
+  sraStatus: 'valid', sraExpiryDate: '2027-01-01', screeningStatus: 'clear',
+  categories: ['services'], tier: 2, duns: '123456789', address: '1 Example Street',
+  primaryContact: 'A. Contact', primaryContactEmail: 'contact@example.com',
+  certifications: [], spendHistory: [], performanceScore: 80, ...overrides,
+});
+const SUPPLIERS = [
+  supplier('SUP-VALID'),
+  supplier('SUP-EXPIRING', { sraStatus: 'expiring', sraExpiryDate: '2026-10-01' }),
+  supplier('SUP-EXPIRED', { sraStatus: 'expired', sraExpiryDate: '2026-01-01' }),
+  supplier('SUP-UNASSESSED', { sraStatus: 'not-assessed', sraExpiryDate: undefined }),
+];
+const chain = (id, threshold) => ({ id, name: id, threshold, description: '', steps: [], referencedBy: [] });
+const APPROVAL_CHAINS = [chain('AC-001', '< €50,000'), chain('AC-002', '> €50,000')];
+
+const determinationFor = (overrides = {}) => evaluateIntakeDetermination({
+  category: 'services', estimatedValue: 8000, supplierId: 'SUP-VALID', isUrgent: false,
+  requestTitle: 'Cleaning services', serviceDescription: { objective: 'Weekly cleaning' },
+  miniIrq: { privilegedAccess: false, criticalService: false }, now: '2026-09-01',
+  suppliers: SUPPLIERS, contracts: [], matchingRiskAssessments: [], routingRules,
+  approvalChains: APPROVAL_CHAINS, validatorAgent: { name: 'Request Validator', status: 'active' },
+  ...overrides,
+});
+const recordFor = (overrides = {}) =>
+  buildIntakeComplianceRecord(determinationFor(overrides), { determinedAt: '2026-09-01T00:00:00Z' });
+
+console.log('\nNo record claims a duplicate search that never ran');
+// Expert used to write `found: false, detail: 'No duplicate demand detected at
+// intake.'` — a sentence describing a search that has never existed.
+for (const [name, overrides] of Object.entries({
+  'a plain demand': {},
+  'a high-value demand': { estimatedValue: 400000 },
+  'a demand with no supplier': { supplierId: '' },
+})) {
+  const record = recordFor(overrides);
+  check(`${name}: the duplicate search is recorded as not performed`,
+    record.duplicateCheck.performed === false, JSON.stringify(record.duplicateCheck));
+  check(`${name}: no record says a duplicate demand was not detected`,
+    !/No duplicate demand detected/.test(record.duplicateCheck.detail), record.duplicateCheck.detail);
+}
+
+console.log('\nThe SRA outcome comes from the supplier record, not a rendered label');
+// Expert derived this with `formData.sraStatus.includes('expired')`, so a
+// never-assessed supplier — whose label contains neither 'expired' nor
+// 'expiring' — recorded a PASS for an assessment that did not exist.
+const SRA_EXPECTATIONS = {
+  'SUP-VALID': 'pass',
+  'SUP-EXPIRING': 'warning',
+  'SUP-EXPIRED': 'fail',
+  'SUP-UNASSESSED': 'fail',
+};
+for (const [supplierId, expected] of Object.entries(SRA_EXPECTATIONS)) {
+  const record = recordFor({ supplierId });
+  check(`${supplierId} records sraCheck '${expected}'`,
+    record.sraCheck.status === expected, `got '${record.sraCheck.status}'`);
+}
+check('no supplier records not-applicable rather than a pass',
+  recordFor({ supplierId: '' }).sraCheck.status === 'not-applicable');
+
+console.log('\nA disabled validator produces findings, not silence');
+// An empty policyChecks array reads to a reviewer as "all clear".
+const unvalidated = recordFor({ validatorAgent: { name: 'Request Validator', status: 'disabled' } });
+check('the disabled validator is reported as a failed check',
+  unvalidated.policyChecks.length === 1 && unvalidated.policyChecks[0].passed === false);
+
+console.log('\nAn intake with no determination asserts nothing at all');
+const undetermined = buildUndeterminedComplianceRecord({
+  determinedAt: '2026-09-01T00:00:00Z', channel: 'direct-po', label: 'Direct PO',
+});
+check('its SRA check is not-run', undetermined.sraCheck.status === 'not-run');
+check('its duplicate search is not performed', undetermined.duplicateCheck.performed === false);
+check('it claims no policy checks', undetermined.policyChecks.length === 0);
+check('it flags no risks it did not assess', undetermined.riskFlags.length === 0);
 
 console.log('\nThe reviewer can see the difference');
 check('a not-run SRA is not styled as a warning',
@@ -78,11 +150,30 @@ check('the confirmation toasts say no payment was sent',
 console.log('\nOne route decides both the recorded channel and its copy');
 // Three surfaces used to disagree: the recommendation card read the channel,
 // while the review and confirmation screens read a route state that was never
-// set to p-card or direct-po.
-check('the compliance label is derived from the recorded channel',
-  /ROUTE_COPY\[effectiveRoute\]/.test(SIMPLE) && /routeFromChannel\(channel\)/.test(SIMPLE));
-check('the confirmation screen names the same path',
-  /setRoute\(effectiveRoute\)/.test(SIMPLE));
+// set to p-card or direct-po. Now the label is derived from the slug by the
+// same function the screens call, so the record cannot name one channel and
+// display another — asserted by comparing them rather than by grepping for the
+// expression that happens to produce them today.
+for (const [name, overrides] of Object.entries({
+  'a low-value demand': { estimatedValue: 3000 },
+  'a high-value demand': { estimatedValue: 400000 },
+  'an urgent demand': { isUrgent: true },
+})) {
+  const record = recordFor(overrides);
+  check(`${name}: the recorded label matches the recorded channel`,
+    record.buyingChannel.label === buyingChannelLabel(record.buyingChannel.channel),
+    `${record.buyingChannel.channel} → "${record.buyingChannel.label}"`);
+  check(`${name}: the reasoning names the rule that decided it`,
+    /routing rule|value-band fallback/.test(record.buyingChannel.reasoning),
+    record.buyingChannel.reasoning);
+}
+
+// There is one page and one recorded channel, so the three surfaces that used
+// to disagree cannot: the confirmation reads the same determination the record
+// was built from.
+const INTAKE = read('src/features/requests/new-request/new-request-page.tsx');
+check('the confirmation screen reads the determined channel, not a separate route state',
+  /buyingChannelResult: determination\?\.buyingChannelResult/.test(INTAKE));
 
 console.log('');
 if (failures) console.error(`FAILED: ${failures} check(s)`);

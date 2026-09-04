@@ -32,6 +32,13 @@ export const widgetRegistry: WidgetConfig[] = [
   { id: 'supplier-risk', title: 'Supplier Risk Alerts', description: 'Suppliers with elevated risk ratings', icon: 'ShieldAlert', size: 'small', availableTo: ['vendor-manager', 'procurement-manager', 'admin'] },
   { id: 'quick-stats', title: 'Monthly Summary', description: 'Requests submitted, approved and completed this month', icon: 'BarChart', size: 'small', availableTo: allRoles },
   { id: 'ai-assistant', title: 'AI Assistant', description: 'Quick access to the procurement AI assistant', icon: 'MessageSquare', size: 'small', availableTo: allRoles },
+  // Purchasing and vendor surfaces — the dashboard had nothing for either, so
+  // a PO waiting on a receipt or an invoice nobody could match was invisible
+  // until someone opened the module.
+  { id: 'open-pos', title: 'Open Purchase Orders', description: 'POs awaiting delivery or closure, overdue first', icon: 'PackageCheck', size: 'medium', availableTo: ['procurement-manager', 'operations-lead', 'admin'] },
+  { id: 'invoice-exceptions', title: 'Invoice Exceptions', description: 'Disputed, unmatched or overdue invoices needing a decision', icon: 'ReceiptText', size: 'medium', availableTo: ['procurement-manager', 'operations-lead', 'admin'] },
+  { id: 'supplier-onboarding', title: 'Suppliers Blocking Work', description: 'Onboarding or screening incomplete — each one gates sourcing, contracting or a PO', icon: 'Building2', size: 'medium', availableTo: ['vendor-manager', 'procurement-manager', 'operations-lead', 'admin'] },
+  { id: 'requests-by-stage', title: 'Requests by Stage', description: 'How many requests sit in each active stage, with a click through', icon: 'ListTodo', size: 'medium', availableTo: allInternal },
   { id: 'mentions', title: 'Mentions', description: 'Comments where someone @-mentioned you, with unread markers', icon: 'AtSign', size: 'medium', availableTo: allInternal },
 ];
 

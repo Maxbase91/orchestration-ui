@@ -9,7 +9,7 @@ the full wizard smoke and atomic intake source checks) and are ready for a
 deployment-backed rerun. Neon live checks remain environment-dependent and
 must be repeated once the configured database hostname is reachable.
 
-**Release documentation:** [R1 roadmap](docs/roadmap/R1_BACKLOG_FIT_GAP.md) · [implementation evidence index](docs/roadmap/R1_IMPLEMENTATION_EVIDENCE.md) · [test playbook](docs/testing/TEST_PLAYBOOK.md)
+**Release documentation:** [product backlog](docs/roadmap/PRODUCT_BACKLOG.md) · [R1 roadmap](docs/roadmap/R1_BACKLOG_FIT_GAP.md) · [implementation evidence index](docs/roadmap/R1_IMPLEMENTATION_EVIDENCE.md) · [test playbook](docs/testing/TEST_PLAYBOOK.md)
 
 ---
 
@@ -19,7 +19,7 @@ R1 is an internally operated system of record backed by private Neon. It owns re
 
 ### Key Capabilities Demonstrated
 
-- **Intelligent Intake** — AI-assisted request wizard that auto-classifies categories, suggests commodity codes, and runs compliance checks
+- **Intelligent Intake** — a four-step AI-assisted wizard that auto-classifies categories, suggests commodity codes, shows every way to buy on one screen, and runs compliance checks — asking everything before concluding anything
 - **Contract-aware intake** — structured scope versions, deliverable/exclusion matching, explainable ranking and adaptive clarification before a call-off
 - **Dual-mode requester experience** — requesters start in a plain-language Simple view with adaptive routing; reviewers retain the full Expert view, with a keyboard-accessible per-user switch
 - **Requester home** — Simple mode focuses the home page on starting a request, tracking the requester’s own active work, and getting help; Expert mode retains configurable dashboards and operational widgets
@@ -41,7 +41,7 @@ R1 is an internally operated system of record backed by private Neon. It owns re
 |--------|-------------|
 | Role-Based Dashboards | 5 tailored dashboards (Service Owner, Procurement Manager, Vendor Manager, Operations Lead, Admin) |
 | Operational home dashboard | Expert users receive one consistent role-based dashboard with live KPIs, pipeline, workload and action widgets. Decorative alternate layouts were retired to avoid confusing users with inconsistent navigation. |
-| New Request Wizard | One shared intake for every demand type: describe or upload a brief, confirm a specific commodity/service family, clarify only missing details, review the recommended route, complete governed fulfilment fields, and submit. Goods/Services is an internal routing value and is never a requester choice. PDF/DOCX text is extracted server-side for confirmation; the structured description keeps Included, Excluded, Deliverables and Acceptance Criteria separate with provenance. The adaptive conversation and contextual guidance are deterministic when AI is unavailable, and completed submissions enter the first actionable workflow stage rather than remaining in intake. Catalogue remains the only visible shortcut; contract and P-card routes are discovered by governance. A demand started from the Simple home entry point carries its text into route evaluation and skips the duplicate describe screen; choosing “Proceed to full request” always opens the adaptive details path. |
+| New Request Wizard | One shared intake for every demand type, in **four steps** — Describe → How you'll buy → Details → Review & submit — on one engine, where **every question is asked before any conclusion is shown**: Details holds everything the requester supplies (service description, residual risk questions, supplier), Review holds everything the platform concluded (buying channel and timeline, risk outcome, approvals, checks that ran). Simple and Expert are **one page**: `density` picks the header framing and how much evidence the Review step shows, never a step, a gate, a decision or what is written — and anything that *blocks* the request is shown in both. The step order, gates and guidance live in one config (`intake-steps.ts`), and `test:mode-equivalence` asserts there is no second intake page to drift. Describe or upload a brief, confirm a specific commodity/service family, clarify only missing details, review the recommended route, complete governed fulfilment fields, and submit. Goods/Services is an internal routing value and is never a requester choice. PDF/DOCX text is extracted server-side for confirmation; the structured description keeps Included, Excluded, Deliverables and Acceptance Criteria separate with provenance. The adaptive conversation and contextual guidance are deterministic when AI is unavailable, and completed submissions enter the first actionable workflow stage rather than remaining in intake. Catalogue remains the only visible shortcut; contract and P-card routes are discovered by governance. A demand started from the Simple home entry point carries its text into route evaluation and skips the duplicate describe screen; choosing “Proceed to full request” always opens the adaptive details path. |
 | Request Detail | Full lifecycle tracker with 7 tabs (Overview, Workflow, Comments, Approvals, Documents, Related, Audit). Validation confirms the request, supplier, contract, risk, and capacity data; approval is the separate budget/authority decision and is only required when policy or risk calls for it. Both stages show the **service description** and its quality score, so a reviewer sees what they are approving |
 | Vendor onboarding | A real conditional stage, not a preview label. **Light onboarding** (supplier record exists and screening has cleared) gates **sourcing** — you cannot invite a supplier that does not exist — and gates **completing the risk assessment**, which hangs off a supplier record. **Full onboarding** gates **contracting** for the awarded supplier only, so paperwork is not demanded up front from vendors who may not win. A supplier named at intake but absent from the directory can be created as a **prospective** record from the wizard |
 | Active Workflows | Kanban board (drag-and-drop), sortable table, Gantt timeline — with system integration badges |
@@ -68,13 +68,13 @@ R1 is an internally operated system of record backed by private Neon. It owns re
 ### Admin & Configuration
 | Screen | Description |
 |--------|-------------|
-| Smart Command Bar | Free-text entry on the home page. A demand the **catalogue genuinely serves** opens the catalogue inline for direct ordering; anything else is handed to the assistant or straight into intake. The catalogue decision is `lib/procurement/intake-routing.ts` — the same category-gated, naming-word decision the wizard's pre-check makes, so both entry points agree |
+| Smart Command Bar | Free-text entry on the home page. A **demand goes straight into intake**, carrying its wording, so classification starts immediately; only lookups and open questions reach the assistant. A demand the **catalogue genuinely serves** is **named** — the matched item, its price and lead time — with a link to its governed checkout and an always-visible "not what you need?" route into full intake; it never navigates on the requester's behalf. The catalogue decision is `lib/procurement/intake-routing.ts` — the same category-gated, naming-word decision the wizard's pre-check makes, so both entry points agree |
 | Routing Rules Engine | 3-panel layout: rule tree, visual IF/THEN editor, test panel. The **editor, the test panel and the runtime share one vocabulary** — every field and operator the editor offers is evaluated in production, and the test panel calls the production evaluator rather than reimplementing it. An **active rule that cannot fire is diagnosed** at the top of the page (unknown field, unsupported operator, malformed `between`, no conditions) instead of silently never matching |
 | Decisioning Thresholds | Edit the governed decisioning thresholds (approval/materiality/risk/sourcing/contract); Save applies them to the live front door; live simulation previews a sample demand's outcome |
 | Service Description | Configure the service description end to end: the **generation prompt** (guidance, system prompt, temperature, token budget, with a preview of the assembled prompt), the **components asked** at intake (question, example, required, and the condition that shows it), **what is generated** (the detailed sections, which are asked vs inferred, and which compose the compact narrative), and **reuse in later steps** (which sections seed a sourcing event's requirements, plus the default evaluation criteria). Per-category with a `default` fallback; stored in Postgres so the serverless generation and intake routes read the same config Generation is **signal-aware**: the capture-time materiality, inherent risk, data sensitivity and sourcing read (`demand-signals.ts`) is passed to the model, and the template's `requiredWhen` conditions say which sections that read makes mandatory — so a material, competitively-sourced engagement is required to cover scope, deliverables and measurable acceptance criteria while a small order is not. The determination reports any required section still missing rather than regenerating the document behind the requester. |
 | Workflow Designer | React Flow canvas with 10 custom node types, drag-from-palette, node configuration, simulation |
 | AI Agent Configuration | Agent library, type-specific config forms, test panel, performance dashboard |
-| Categories | The demand taxonomy: label, description, icon, timeline, active — and **whether the category can be fulfilled from the catalogue**, which gates the intake funnel's catalogue check |
+| Categories | The demand taxonomy: label, description, icon, timeline, active — and **whether the category can be fulfilled from the catalogue**, which gates the buy-route screen's catalogue check |
 | Approval Chains | Visual approval chain editor with threshold configuration |
 | Policy Management | Procurement policy library with expandable full-text preview |
 
@@ -145,7 +145,10 @@ Integration tests run as standalone Node scripts under `tests/integration/`:
 npm run test:all                  # every suite above in one run — pass/skip/fail counted separately
 npm run test:ui:all               # …including the browser suites (needs a Chromium binary)
 npm run test:db-casts             # every query parameter is cast to its column's type, never blindly to text
-npm run test:mode-equivalence     # Simple and Expert reach the same governance decision for the same demand
+npm run test:mode-equivalence     # Simple and Expert reach the same governance decision for the same demand —
+                                  # the determination takes no density argument, and both write an identical compliance record
+npm run test:intake-determination # the intake determination, pinned: determinism (`now` is an input), honesty
+                                  # (no unrun check is recorded as passed) and one derivation of the buying channel
 npm run test:intake-evidence      # a request never carries a compliance check that did not run
 npm run test:e2e                  # end-to-end request → approval workflow
 npm run test:routing              # routing-rule evaluator
@@ -171,12 +174,17 @@ npm run test:ticket-sla           # ticket SLA — targets, due dates, breach/at
 npm run test:approval-to-source   # approval-to-source gate (light vs full pre-sourcing approvals)
 npm run test:residual-questions   # criteria-triggered stage-5 residual questions (mini-IRQ deltas)
 npm run test:demand-conversation  # dynamic intake — answer-driven next question + carry-forward + branching + conditional rationale
-npm run test:intake-guidance      # progress reaches 100%, inferred sections are not outstanding, step-3 floor, per-step guidance copy,
-                                  # and a source scan: no service-description record cast to a map of strings, no unguarded .trim() over its values
+npm run test:intake-guidance      # progress reaches 100%, inferred sections are not outstanding, the Details gate, per-step guidance copy,
+                                  # the four-step config (order, per-route steps, derived submit step), the chat's opening invitation,
+                                  # every question's stated reason, and a source scan: no service-description record cast to a map of
+                                  # strings, no unguarded .trim() over its values
 npm run test:unified-intake        # unified text/PDF/DOCX intake, specific commodity candidates, separate scope/exclusions,
-                                  # contextual guidance boundaries, and no requester-facing Goods/Services choice
+                                  # contextual guidance boundaries, no requester-facing Goods/Services choice, and the
+                                  # deep-link parsers (a route is never taken as a category; fulfilment context survives)
 npm run test:answer-quality       # the deterministic answer judge — placeholder/filler rejected, real answers accepted, slot-aware floor
 npm run test:assistant-intents    # assistant routes procurement demands to intake, not a support ticket
+npm run test:assistant-honesty    # the assistant never claims it did something it did not do — start_demand
+                                  # offers a pre-filled form and says so, and a completion claim is replaced
 npm run test:operational-risk     # preliminary operational risk assessment (per-dimension screen)
 npm run test:classification-eval  # classification eval harness + accuracy baseline (CLS-G1)
 npm run test:demand-signals       # capture-time governance read (materiality/risk/sourcing) + config-driven required sections
@@ -193,6 +201,8 @@ npm run test:intake-submit        # atomic full-demand intake, ISO-date validati
 # Neon-backed live suites report unavailable when the configured database hostname cannot be resolved.
 npm run test:catalogue-ui         # catalogue item detail and checkout entry-point regressions
 npm run test:p-card               # governed P-card eligibility and route-only safety guard
+npm run test:dashboard-widgets    # the widget catalogue and its renderer agree — nothing offered that cannot render,
+                                  # nothing rendered that cannot be reached, every icon mapped
 npm run test:experience-mode      # role defaults, preference normalization, and pilot eligibility contract
 npm run test:screening            # supplier screening — clear / pending / flagged / unknown + blocking
 npm run test:supplier-data        # supplier master-data completeness → remediation handoff (RTE-04)
@@ -214,7 +224,6 @@ npm run test:intake-guidance-ui   # browser smoke — step-1 single classificati
 npm run test:request-detail-ui    # browser check on fixtures (no credentials, no network) — the request detail renders, every
                                   # workflow step opens, and the risk form pre-populates from the service description
 npm run test:interactions-ui      # interaction E2E — wizard submit, admin save, AI assistant (self-cleaning)
-npm run test:home-designs         # alternative home designs (1a/1b/1c) are fully functional + dashboard intact
 npm run test:link-route-integrity # static deep-link contract for active request/dashboard destinations
 npm run test:link-navigation      # deployed role-aware link navigation and requester read-only details
 npm run test:neon-migration       # one data path, one client, and no Supabase identifier in src/, api/ or tests/
@@ -334,8 +343,10 @@ src/
 ├── lib/             # Utilities, formatters, decisioning and AI adapters
 │   ├── db/          # Data-access modules + TanStack Query hooks
 │   ├── integrations/# Standardised source-connector layer (own-store → live swap)
-│   ├── procurement/ # Pure decisioning modules (classify, materiality, risk, determination, governed checkout, …) + service description config (SERVICE_DESCRIPTION.md)
-│   ├── routing/     # Routing-rule evaluator + diagnostics, and the one buying-channel resolver both the pre-check and the determination call
+│   ├── procurement/ # Pure decisioning modules (classify, materiality, risk, intake determination + its
+│   │                #   compliance record, governed checkout, …) + service description config (SERVICE_DESCRIPTION.md)
+│   ├── routing/     # Routing-rule evaluator + diagnostics, and the one buying-channel resolver both the
+│   │                #   buy-route screen and the determination call (plus its plain-English requester copy)
 │   ├── server/api/  # Explicit low-volume API handlers behind the dispatcher
 │   └── workflow/    # Workflow engine, transition primitive, gate model (see its README)
 ├── components/
@@ -344,8 +355,10 @@ src/
 │   ├── shared/      # Reusable components (badges, cards, tables, charts)
 │   └── charts/      # Recharts wrappers
 └── features/        # Feature modules
-    ├── dashboard/   # Role-based dashboards + retired home-designs/ (historical components)
-    ├── requests/    # New request wizard (per-step guidance map + header panel), request detail
+    ├── dashboard/   # Role-based dashboards, the command bar, and the Simple requester home
+    ├── requests/    # Intake — ONE four-step page for both densities (intake-steps.ts owns the order,
+    │                #   gates and guidance; use-intake-determination.ts mounts the determination once;
+    │                #   see its README for the density contract), request detail
     ├── catalogue/   # Item detail and governed catalogue checkout
     ├── workflows/   # Kanban, table, timeline, monitor
     ├── suppliers/   # Directory, profile, portal

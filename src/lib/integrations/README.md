@@ -109,7 +109,7 @@ server-side factory that the handlers can call, not adding more direct reads.
 
 ## Consumers on the layer
 
-The front-door **catalogue and contract checks** (`step-pre-check.tsx`), the
+The front-door **catalogue and contract checks** (`step-buy-route.tsx`), the
 supplier/contract reads in `step-compliance.tsx`, and client-side assistant lookups
 read through `useSourceData`/`requireConnector`. Risk **reuse-matching**
 (`findMatchingRiskAssessments`) and the server-side assistant action path still need

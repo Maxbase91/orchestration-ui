@@ -9,7 +9,6 @@ const checkout = readFileSync(new URL('../../src/features/catalogue/catalogue-or
 const wizard = readFileSync(new URL('../../src/features/requests/new-request/step-catalogue.tsx', import.meta.url), 'utf8');
 const commandBar = readFileSync(new URL('../../src/features/dashboard/components/smart-command-bar.tsx', import.meta.url), 'utf8');
 const requestEntry = readFileSync(new URL('../../src/features/requests/new-request/new-request-page.tsx', import.meta.url), 'utf8');
-const simpleRequestEntry = readFileSync(new URL('../../src/features/requests/new-request/simple-new-request-page.tsx', import.meta.url), 'utf8');
 
 let failures = 0;
 function check(name, condition) {
@@ -25,10 +24,17 @@ check('expert governance details are progressive', /mode === 'expert'/.test(chec
 check('wizard catalogue items deep-link to item details', /navigate\(`\/catalogue\/items\//.test(wizard));
 check('home command-bar items deep-link to item details', /navigate\(`\/catalogue\/items\//.test(commandBar));
 check('expert pre-check order CTA deep-links to item details', /onChooseCatalogue[\s\S]*?navigate\(`\/catalogue\/items\//.test(requestEntry));
-check('simple pre-check order CTA deep-links to item details', /onChooseCatalogue[\s\S]*?navigate\(`\/catalogue\/items\//.test(simpleRequestEntry));
-check('simple checkout uses the atomic governed endpoint', /submitGovernedCheckout/.test(simpleRequestEntry) && !/legacy catalogue persistence/.test(simpleRequestEntry));
+// One page now, so this is asserted once. It used to be checked separately per
+// mode because each mode had its own page that could answer differently.
+check('the buy-route order CTA deep-links to item details', /onChooseCatalogue[\s\S]*?navigate\(`\/catalogue\/items\//.test(requestEntry));
+check('checkout uses the atomic governed endpoint', /submitGovernedCheckout/.test(requestEntry) && !/legacy catalogue persistence/.test(requestEntry));
 check('command-bar catalogue cart does not bypass governed checkout', !/createRequest|createPurchaseOrder/.test(commandBar) && /Review order/.test(commandBar));
-check('catalogue checkout ignores stale contracts when resolving coverage', /isUsableContract/.test(simpleRequestEntry) && /endDate/.test(simpleRequestEntry));
+// Stale-contract filtering lives in the shared resolver, not in a page — which
+// is why this check could previously pass against a page that never mentioned
+// it. `resolveCheckoutContract` is the one place it happens, and
+// test:mode-equivalence pins its behaviour.
+check('catalogue checkout resolves coverage through the shared resolver',
+  /resolveCheckoutContract/.test(requestEntry));
 check('checkout does not claim one-click/no-approval ordering', !/no approval needed/i.test(checkout));
 
 if (failures > 0) process.exitCode = 1;

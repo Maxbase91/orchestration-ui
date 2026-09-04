@@ -29,12 +29,17 @@ The platform's operating model is:
 - **Deferred/R2:** intentionally outside the current internal R1 boundary.
 - **Not production-ready:** prototype controls or security assumptions acceptable for simulation but not real external users.
 
+> The story-level breakdown of these capabilities — epics, features, user
+> stories with acceptance criteria, and the decision rules behind each — is
+> [PRODUCT_BACKLOG.md](PRODUCT_BACKLOG.md). This document tracks *position*;
+> that one is what you hand to a delivery team.
+
 ## Capability matrix
 
 | Area | Built | Partial | Deferred/R2 | Not production-ready |
 |---|---|---|---|---|
-| Front door and requester UX | Unified describe/upload → clarify → route → details → submit journey, specific commodity candidates, Simple/Expert modes, requester home, drafts, status, catalogue item detail | In-flight edit depth, attachment blob storage and richer guidance quality/fallback observability | External guided-buying/punchout | Role switching is simulation-only |
-| Decisioning and governance | Classification, category codes, catalogue/contract checks, risk/materiality, approval-to-source, determination and handoff | Hard PSL, reuse matching, policy governance and richer evidence | External risk feeds and policy services | Authorization is not server-derived |
+| Front door and requester UX | **One four-step intake engine** (Describe → How you'll buy → Details → Review & submit) driving both densities from a single step config, with every question asked before any conclusion is shown; all three buying routes on one screen in requester language with evidence behind a disclosure; a home demand routed straight into intake and a catalogue hit named with a link to its checkout; describe/upload → clarify → route → details → submit journey, specific commodity candidates, requester home, drafts, status, catalogue item detail | In-flight edit depth, attachment blob storage and richer guidance quality/fallback observability | External guided-buying/punchout | Role switching is simulation-only |
+| Decisioning and governance | Classification, category codes, catalogue/contract checks, risk/materiality, approval-to-source, handoff, and the **intake determination as a pure, benchmarked module** — deterministic (`now` injected), density-blind, and the single source of the compliance record both modes write | Hard PSL, reuse matching, policy governance and richer evidence; **no duplicate search exists** and the record says so rather than claiming one ran | External risk feeds and policy services | Authorization is not server-derived |
 | Internal procurement lifecycle | Request → PR → conditional internal PO, request lines, supplier/contract/risk/accounting links; atomic governed checkout with replay-safe idempotency | Recovery reporting for pre-existing partial aggregates and P2P exception depth | ERP/CLM/payment writes | No production identity boundary |
 | Workflow and approvals | Templates, instances, stage history, approval entries, admin configuration | Fallback execution, timers, parallelism and atomic transitions | External orchestration systems | Some controls remain prototype-grade |
 | Suppliers, sourcing and contracts | Supplier directory/profile, onboarding gates, sourcing events, responses, scoring and award | Obligations, documents, Q&A, performance depth and award transactionality | Supplier network, e-signature, live screening | Static/demo records in some panels |

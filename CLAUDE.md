@@ -77,7 +77,9 @@ A change is not done until **all** of these hold (state explicitly if you delibe
 
 ## Tech stack
 - **Frontend:** React 19 + Vite 8, TypeScript 6 (strict; `noUnusedLocals`/`noUnusedParameters`),
-  React Router 7, Tailwind 4, shadcn/ui, Zustand 5, TanStack Query 5, React Hook Form 7 + Zod 4.
+  React Router 7, Tailwind 4, shadcn/ui, Zustand 5, TanStack Query 5. (Forms are
+  plain controlled components — React Hook Form and Zod were listed here but
+  never imported anywhere, and have been removed from the dependencies.)
 - **Backend:** private **Neon** PostgreSQL — schema in `db/schema.sql` (applied to Neon by
   `db/migrations/apply-neon-schema.mjs`); Vercel serverless functions in `api/`, capped at
   **12** by the Hobby plan and guarded by `test:vercel-functions`. There is one database and no

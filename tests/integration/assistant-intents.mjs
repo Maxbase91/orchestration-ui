@@ -176,6 +176,8 @@ const STEP1_SRC = readFileSync(
   new URL('../../src/features/requests/new-request/step-category.tsx', import.meta.url), 'utf8');
 const WIZARD_SRC = readFileSync(
   new URL('../../src/features/requests/new-request/new-request-page.tsx', import.meta.url), 'utf8');
+const DEEP_LINK_SRC = readFileSync(
+  new URL('../../src/features/requests/new-request/intake-deep-link.ts', import.meta.url), 'utf8');
 const ITEMS_SRC = readFileSync(
   new URL('../../src/data/catalogue-items.ts', import.meta.url), 'utf8');
 
@@ -188,8 +190,51 @@ check('step 1 guards a route-shaped classification',
 // The signal is corrected, not discarded: "catalogue" becomes an intent, which
 // the pre-check already honours AND guards.
 check('a route-shaped answer is kept as an intent', /intent = 'catalogue'/.test(STEP1_SRC));
-check('the wizard guards the ?category= link too',
-  /ROUTE_LIKE_CATEGORY/.test(WIZARD_SRC) && /classifyCommodityCategory\(/.test(WIZARD_SRC));
+// The guard moved out of the page into the deep-link parser, where it can be
+// asserted by CALLING it — see test:unified-intake, which parses a
+// `category=catalogue` link and checks the category is re-derived. This keeps
+// the structural half: the page must not parse links itself and reintroduce a
+// second, unguarded reading.
+check('the ?category= link is guarded where it is parsed',
+  /ROUTE_LIKE_CATEGORY/.test(DEEP_LINK_SRC) && /classifyCommodityCategory\(/.test(DEEP_LINK_SRC));
+check('the page does not parse deep links itself',
+  !/searchParams\.get\(/.test(WIZARD_SRC));
+
+console.log('\nA demand goes into intake, not into a chat overlay');
+// The command bar sent everything that was not a catalogue hit to the AI chat
+// overlay — so "I want to buy X", the single thing the box on the home screen
+// exists for, landed in a conversation with no classification, no route and no
+// way to submit. Only lookups and open questions belong to the assistant.
+check('a buy intent navigates into intake',
+  /localResult\.intent === 'new-request'/.test(BAR_SRC)
+  && /navigate\(`\/requests\/new\?q=\$\{encodeURIComponent\(query\)\}`\)/.test(BAR_SRC));
+check('the original wording is carried, so nothing is retyped',
+  /encodeURIComponent\(query\)/.test(BAR_SRC));
+check('only non-demand intents still reach the assistant',
+  /if \(localResult\.intent !== 'catalogue'\) \{\n\s*openAIChatWithPrompt/.test(BAR_SRC));
+
+console.log('\nNaming something procurable is a demand, verb or no verb');
+// It keyed "is this a demand" on a hardcoded buy-verb list, so the most natural
+// ways of asking — "business consulting", "IT strategy consulting with
+// Accenture for 6 months", "cleaning services for the Berlin office" — were not
+// demands and went to the chat assistant, which cannot route or submit.
+check('a demand is recognised by what it names, not only by its verb',
+  /matchesDemandCategory\(/.test(BAR_SRC) && /DEMAND_VERBS/.test(BAR_SRC));
+check('an explicit lookup is still a lookup',
+  /LOOKUP_OPENERS/.test(BAR_SRC) && /\^\\s\*\(find\|show\|list/.test(BAR_SRC));
+check('the classifier can report that no rule matched',
+  /export function matchesDemandCategory/.test(
+    readFileSync(new URL('../../src/lib/procurement/classify.ts', import.meta.url), 'utf8')));
+
+console.log('\nA catalogue hit is named, and never navigated to');
+// Naming the match and handing over a link is the whole correction budget: a
+// wrong match costs a glance rather than a checkout for the wrong thing.
+check('the identified item links to its governed checkout',
+  /type: 'identified'/.test(BAR_SRC) && /\/catalogue\/items\/\$\{encodeURIComponent\(item\.id\)\}/.test(BAR_SRC));
+check('the correction is always offered alongside the match',
+  /Not what you need\? Describe it in full/.test(BAR_SRC));
+check('rejecting the match carries the original wording into intake',
+  /\/requests\/new\?q=\$\{encodeURIComponent\(proposal\.query \?\? ''\)\}/.test(BAR_SRC));
 
 console.log('\nThe naive matcher is gone for good');
 check('no search helper is left in the catalogue data file',

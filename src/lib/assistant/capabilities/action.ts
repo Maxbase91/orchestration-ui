@@ -107,14 +107,19 @@ function buildReadBack(actionType: string, params: Record<string, unknown>, ctx:
       return `Substitute approver **${params.originalApprover}** with **${params.substituteApprover}** on request **${params.requestId}**.`;
     case 'reassign_request':
       return `Reassign request **${params.requestId}** to **${params.newOwner}**.`;
+    // No promises of routing or notification. These six actions are not wired
+    // to an upstream system in this release (ground rule 3: the front door owns
+    // the internal record and defers upstream execution), so a read-back saying
+    // "a task will be routed to the Vendor Management team" is describing
+    // something that will not happen.
     case 'request_risk_reassessment':
-      return `Request a risk reassessment for supplier/contract **${params.subjectId}**. A task will be routed to the Vendor Management team.`;
+      return `Note a risk-reassessment request for supplier/contract **${params.subjectId}**.`;
     case 'request_contract_renewal':
-      return `Raise a contract renewal request for **${params.contractId}**. The contract owner will be notified.`;
+      return `Note a contract renewal request for **${params.contractId}**.`;
     case 'request_po_change':
-      return `Raise a PO change request for **${params.poId}** — ${params.changeDescription ?? 'no description provided'}.`;
+      return `Note a PO change request for **${params.poId}** — ${params.changeDescription ?? 'no description provided'}.`;
     case 'raise_payment_escalation':
-      return `Raise a payment-status escalation for invoice **${params.invoiceId}**. Procurement Operations will be notified.`;
+      return `Note a payment-status escalation for invoice **${params.invoiceId}**.`;
     default:
       return null;
   }
@@ -188,11 +193,24 @@ export function executeAction(turn: ConfirmTurn, ctx: ProviderContext): Assistan
     case 'request_po_change':
     case 'raise_payment_escalation': {
       appendActivity(ctx, actionType, buildReadBack(actionType, params, ctx) ?? actionType, params);
-      const refId = `ACT-${Date.now()}`;
+      // It said: "Task created and routed to the relevant team. Reference:
+      // ACT-1234. You'll be notified when they respond."
+      //
+      // No task was created. Nothing was routed. Nobody will be notified, and
+      // the reference resolved to nothing — `appendActivity` pushes to an
+      // in-memory array that dies with the page and that `getActivityLog` has
+      // no consumer for. A requester reading that sentence stops chasing
+      // something nobody has picked up.
+      //
+      // These actions reach an upstream system in R2. Until they do, the
+      // assistant says what it actually did.
       return [
         {
           type: 'chat-answer',
-          content: `Task created and routed to the relevant team. Reference: **${refId}**. You'll be notified when they respond.`,
+          content:
+            'Noted for this session — but nothing has been sent. This action is not yet connected to '
+            + 'the team that would act on it, so please raise it directly with them from the relevant '
+            + 'record screen.',
         },
       ];
     }

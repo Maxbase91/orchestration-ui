@@ -13,6 +13,9 @@ import { useAuthStore } from '@/stores/auth-store';
 import { useSettingsStore } from '@/stores/settings-store';
 import { useUpdateUserPreferences } from '@/lib/db/hooks/use-user-preferences';
 import { NotificationPreferences } from '@/features/notifications/components/notification-preferences';
+import { ProcurementProfileCard } from './components/procurement-profile-card';
+import { useUserLookup, useUsers } from '@/lib/db/hooks/use-users';
+import { MapPin } from 'lucide-react';
 
 const savedViews = [
   { id: '1', name: 'My Overdue Items', filter: 'status=overdue, owner=me', createdAt: '2024-12-15' },
@@ -23,6 +26,9 @@ const savedViews = [
 
 export function SettingsPage() {
   const { currentUser } = useAuthStore();
+  useUsers();
+  const lookupUser = useUserLookup();
+  const directoryUser = lookupUser(currentUser.id);
   const { currency, setCurrency, matchTolerancePct, setMatchTolerancePct } = useSettingsStore();
   const updatePrefs = useUpdateUserPreferences(currentUser.id);
   const [dateFormat, setDateFormat] = useState('dd/MM/yyyy');
@@ -46,7 +52,7 @@ export function SettingsPage() {
         </TabsList>
 
         {/* Profile */}
-        <TabsContent value="profile">
+        <TabsContent value="profile" className="space-y-4">
           <Card className="max-w-lg p-6">
             <h3 className="mb-4 text-sm font-medium">User Profile</h3>
             <div className="space-y-4">
@@ -68,9 +74,21 @@ export function SettingsPage() {
                   <Label className="text-xs text-muted-foreground">Role</Label>
                   <p className="text-sm">{currentUser.role}</p>
                 </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Location</Label>
+                  {/* Read-only: it comes from the directory record and drives
+                      the "requesting from" on every request, so it is shown
+                      rather than editable here. */}
+                  <p className="flex items-center gap-1 text-sm">
+                    <MapPin className="size-3 text-muted-foreground" aria-hidden />
+                    {directoryUser?.country ?? 'Not set'}
+                  </p>
+                </div>
               </div>
             </div>
           </Card>
+
+          <ProcurementProfileCard userId={currentUser.id} />
         </TabsContent>
 
         {/* Display */}

@@ -24,6 +24,7 @@ docs/
 ## roadmap/ — what to build
 | Doc | What it covers |
 |---|---|
+| [PRODUCT_BACKLOG.md](roadmap/PRODUCT_BACKLOG.md) | **Delivery backlog.** Epics → features → user stories with acceptance criteria, plus the decision rules and modules behind each feature. Written to be lifted straight into a tracker. |
 | [R1_BACKLOG_FIT_GAP.md](roadmap/R1_BACKLOG_FIT_GAP.md) | **Primary roadmap.** Fit/gap of the R1 backlog vs the codebase + the workstream plan. Updated as gaps close. |
 | [R1_IMPLEMENTATION_EVIDENCE.md](roadmap/R1_IMPLEMENTATION_EVIDENCE.md) | **R1 evidence index.** Code, schema, tests, ADRs, and live-validation references for every Built roadmap capability. |
 | [REQUIREMENTS_AND_FIT_GAP.md](roadmap/REQUIREMENTS_AND_FIT_GAP.md) | Capability baseline vs market leaders (Zip, Oro, Ariba), scored against the app. |

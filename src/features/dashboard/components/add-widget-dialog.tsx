@@ -6,6 +6,7 @@ import {
   FileText, TrendingUp, Search, Clock, ShieldCheck, BarChart3, Users,
   AlertTriangle, Sparkles, ClipboardCheck, Activity, Bell, Timer, Monitor,
   FileWarning, ShieldAlert, BarChart, MessageSquare, Plus,
+  PackageCheck, ReceiptText, Building2, ListTodo, AtSign,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -20,6 +21,7 @@ const iconMap: Record<string, LucideIcon> = {
   FileText, TrendingUp, Search, Clock, ShieldCheck, BarChart3, Users,
   AlertTriangle, Sparkles, ClipboardCheck, Activity, Bell, Timer, Monitor,
   FileWarning, ShieldAlert, BarChart, MessageSquare,
+  PackageCheck, ReceiptText, Building2, ListTodo, AtSign,
 };
 
 const sizeLabels: Record<string, string> = {
