@@ -19,9 +19,10 @@
 // EVERY input, Review holds EVERY conclusion, and confirmation is an outcome
 // screen rather than a numbered step nobody can navigate back to.
 //
-// Both experience densities run this same config. It takes no density argument
-// — that absence is what makes "the modes differ only in UI" structural rather
-// than aspirational, and `test:mode-equivalence` asserts it.
+// One config, one journey. It takes no view or density argument, and
+// `test:mode-equivalence` asserts that absence — the guard predates the removal
+// of the Simple/Expert switch and outlives it, because the rule it enforces is
+// that presentation may not reach into the step order or the gates.
 
 import { requiredSlotsFilled, type DemandConversationContext, type DemandSlot } from '../../../lib/procurement/demand-conversation.js';
 import type { IntakeFormData } from './intake-form-data.js';

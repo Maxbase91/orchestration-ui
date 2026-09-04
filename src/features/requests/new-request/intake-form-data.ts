@@ -5,8 +5,8 @@
 // own state. That import direction is what let the two intake implementations
 // drift: each page owned a shape, so nothing forced them to agree on one.
 //
-// Simple and Expert are a UI density decision (ADR-0001), not two products. One
-// form shape is the floor that makes that true.
+// There is one intake and one form shape (ADR-0008, superseding ADR-0001's
+// dual-mode experience). One shape is the floor that keeps it that way.
 
 import type {
   CommodityClassificationCandidate,

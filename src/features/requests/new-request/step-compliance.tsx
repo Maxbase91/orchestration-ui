@@ -16,7 +16,6 @@ const SOW_SECTION_LABELS: Record<string, string> = {
 import { buildDeterminationExport } from '@/lib/procurement/determination-export';
 import { buyingChannelPlain } from '@/lib/routing/evaluate-routing-rules';
 import type { Supplier, Contract } from '@/data/types';
-import type { ExperienceMode } from '@/lib/experience-mode';
 import { useFormTemplate } from '@/lib/db/hooks/use-form-templates';
 import type { IntakeDetermination, MatchingRiskAssessmentSummary } from '@/lib/procurement/intake-determination';
 import { DynamicForm } from '@/components/shared/dynamic-form';
@@ -78,7 +77,6 @@ interface StepComplianceProps {
    * from the same determination, and nothing below decides anything. Simple
    * sees the conclusion and what it means; Expert also sees the workings.
    */
-  density?: ExperienceMode;
   miniIrq: { privilegedAccess: boolean; criticalService: boolean };
   onMiniIrqChange: (m: { privilegedAccess: boolean; criticalService: boolean }) => void;
 }
@@ -110,7 +108,6 @@ export function StepCompliance({
   requestTitle,
   determination,
   section,
-  density = 'expert',
   miniIrq,
   onMiniIrqChange,
 }: StepComplianceProps) {
@@ -228,7 +225,7 @@ export function StepCompliance({
       {section === 'conclusions' && (<>
       {/* The determination is exportable — an operator action, not something a
           requester submitting their own demand reaches for. */}
-      {density === 'expert' && (
+      {(
         <div className="flex items-center justify-between">
           <p className="text-sm font-semibold text-gray-900">Determination</p>
           <Button variant="outline" size="sm" onClick={handleExport}>
@@ -315,7 +312,7 @@ export function StepCompliance({
                 {result.handoffSteps.map((step) => step.label).join(' → ')}
               </p>
             )}
-            {density === 'expert' && (<>
+            {(<>
             <p className="mt-2 text-sm text-gray-700">
               Based on value ({formatCurrency(estimatedValue)}), category ({category}), this is classified as:{' '}
               <span className="font-semibold text-blue-700">{result.buyingChannelResult}</span>
@@ -361,14 +358,6 @@ export function StepCompliance({
               </p>
             )}
             </>)}
-            {/* Simple density still sees anything that BLOCKS the request —
-                hiding a blocker is not a density decision, it is withholding
-                the one thing the requester has to act on. */}
-            {density === 'simple' && result.screening.blocking && (
-              <p className="mt-2 text-sm font-medium text-red-700">
-                {result.screening.message}
-              </p>
-            )}
           </div>
         </div>
       </div>
@@ -406,7 +395,7 @@ export function StepCompliance({
 
       {/* Inherent risk — what the mini-IRQ answers on the previous step
           produced, stated where every other conclusion is. */}
-      {density === 'expert' && result.inherentRisk && (
+      {result.inherentRisk && (
         <div className="rounded-lg border border-gray-200 bg-white p-4">
           <p className="text-sm font-medium text-gray-900">Inherent risk</p>
           <p className="mt-1 text-sm text-gray-700">
@@ -428,7 +417,7 @@ export function StepCompliance({
       {/* Preliminary operational risk assessment — per-dimension operational view
           (continuity, data, concentration, regulatory, access). The workings
           behind the sentence above. */}
-      {density === 'expert' && result.operationalRisk && (
+      {result.operationalRisk && (
         <div className="rounded-lg border border-gray-200 bg-white p-4">
           <div className="flex items-center justify-between gap-3">
             <p className="text-sm font-medium text-gray-900">Preliminary operational risk</p>
@@ -681,7 +670,7 @@ export function StepCompliance({
       })()}
 
       {/* Smart Assessment — a projection of the journey, i.e. workings. */}
-      {density === 'expert' && (
+      {(
       <SmartAssessmentSection
         supplier={supplier ?? ''}
         supplierId={supplierId}

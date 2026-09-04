@@ -210,7 +210,7 @@ was which.
 | 6.1.2 | As a **Developer**, I want density to be structurally incapable of changing a decision. | The decision layer takes no `density`/`mode` parameter and contains no `'simple'`/`'expert'` literal; asserted by reading the module. | 🟢 |
 | 6.1.3 | As a **Developer**, I want no second intake page that can drift. | `simple-new-request-page.tsx` does not exist; density may not branch a step or the submit. | 🟢 |
 | 6.1.4 | As a **Requester**, I want switching view to take effect immediately. | The optimistic selection is a shared module store, so the switcher and the page cannot disagree. | 🟢 |
-| 6.1.5 | As a **Requester**, I want my view preference remembered. | Persisted per user (`user_preferences.prefs.requestExperienceMode`), falling back to the role default. | 🟢 |
+| ~~6.1.5~~ | ~~As a **Requester**, I want my view preference remembered.~~ | **Withdrawn (ADR-0008).** There is one UI, so there is no view to remember. What the switch changed was copy and whether the workings were shown at all; simplification now comes from the role's default dashboard layout. | — |
 
 **Rules** — Density is a **UI density decision, not an authorization boundary**
 (ADR-0001). Route guards and entitlements are unchanged by it.
@@ -310,7 +310,7 @@ from had nowhere to be seen or corrected.
 | Test scope per area | [../testing/TEST_PLAYBOOK.md](../testing/TEST_PLAYBOOK.md) |
 | Functional and UX detail | [../specs/functional-specification.md](../specs/functional-specification.md), [../specs/design-document.md](../specs/design-document.md) |
 | Intake architecture and the density contract | [../../src/features/requests/README.md](../../src/features/requests/README.md) |
-| Decision records | [ADR-0001 dual-mode](../adr/0001-dual-mode-requester-experience.md), [ADR-0002 governed checkout](../adr/0002-governed-catalogue-checkout.md), [ADR-0004 contract scope matching](../adr/0004-contract-scope-matching.md), [ADR-0005 unified intake](../adr/0005-unified-ai-guided-intake.md) |
+| Decision records | [ADR-0001 dual-mode](../adr/0001-dual-mode-requester-experience.md) *(superseded)*, [ADR-0008 one standardised UI](../adr/0008-one-standardised-requester-ui.md), [ADR-0002 governed checkout](../adr/0002-governed-catalogue-checkout.md), [ADR-0004 contract scope matching](../adr/0004-contract-scope-matching.md), [ADR-0005 unified intake](../adr/0005-unified-ai-guided-intake.md) |
 
 > Thresholds quoted here are the **defaults** in `src/lib/procurement/policy-config.ts`.
 > Admin overrides change behaviour without a deploy; the code is the source of truth.

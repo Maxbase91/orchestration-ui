@@ -79,7 +79,7 @@ the script, not the directory, because `backfill:compliance` lives under `tests/
 earlier version of this check only looked at `db/`.
 
 **The offline browser suites must intercept `/api/db`,** the boundary the client
-actually posts to. `test:experience-mode-ui` stubbed `**/rest/v1/**` — the PostgREST path from before
+actually posts to. `test:requester-entry-ui` (then `test:experience-mode-ui`) stubbed `**/rest/v1/**` — the PostgREST path from before
 the Neon cutover — so it caught nothing: every data call 404'd, the pre-check screen rendered a
 heading over no catalogue and no contracts, and two of its checks failed for months against what was
 really a crashing screen. Use `installDbStub()` from `tests/ui/db-stub.mjs`; all four offline browser
@@ -139,25 +139,22 @@ differently.
 
 ## Suite 0 — Smoke & global
 
-### Dual-mode experience checks
+### One-UI requester checks
 
-These checks cover the adaptive requester journey introduced alongside the retained Expert wizard.
-The mode is presentation-only: changing it must never alter the role or the actions available to that
-role. Pilot exposure is controlled by `VITE_SIMPLE_EXPERIENCE_ENABLED`, optional user/role allowlists,
-and the existing `user_preferences.prefs.requestExperienceMode` JSON key.
+The Simple/Expert switch, both forked pages and the pilot flags are gone (ADR-0008). What it
+changed was copy and whether the workings were on the page at all — and it asked the requester to
+choose a view before they could start. These checks cover what replaced it: one journey, evidence
+shown to everyone behind collapsed disclosures, and simplification that comes from the role.
 
 | ID | Steps | Expected |
 |---|---|---|
-| TC-MODE-01 | Sign in as a requester (`service-owner`) and open New Request | Simple view is selected by default; the mode switch is visible and keyboard accessible |
-| TC-MODE-02 | Sign in as procurement, operations, vendor, or admin | Expert view is selected by default and the existing seven-stage wizard is unchanged |
-| TC-MODE-03 | Switch Simple ↔ Expert, refresh, then switch roles | Preference persists for the user; permissions and navigation remain role-driven |
-| TC-MODE-04 | Simple intake: describe catalogue, contract-covered, P-card-eligible, and new needs | One recommended route is shown with a plain-language explanation; only route-specific fields are requested |
-| TC-MODE-05 | Simple intake: use an ineligible P-card category/value | P-card is not offered and the reason is explained; no payment or upstream write occurs |
-| TC-MODE-06 | Simple request detail | Status, owner, due date, value, supplier, summary, route, and next action are visible; internal workflow/approval/configuration controls are absent |
-| TC-MODE-06a | Simple home | A clear Start a request entry point, requester-owned active/recent requests, and help links are shown; Expert customization, pipeline KPIs, and operational widgets are hidden |
-| TC-MODE-06b | Simple home → Start with this | The typed demand opens directly on route evaluation, the original text is visible in the checking context, and the duplicate describe/classify screen is skipped |
-| TC-MODE-07 | Expert request detail deep link | All seven tabs remain available; workflow opens at the current stage and duplicated action/approval/compliance panels are absent |
-| TC-MODE-08 | Resize to 320px and 375px | Sidebar becomes a drawer, menu button is labelled, controls remain reachable, and no horizontal overflow occurs |
+| TC-UI1-01 | Sign in as any role and open New Request | The same four-step journey, with the same heading ("Start a request"). There is **no** experience-view switch anywhere in the shell |
+| TC-UI1-02 | Sign in as a requester (`service-owner`) and open Home | The dashboard, with a layout that covers requester work — their own requests and requests-by-stage, not KPIs. The simplification is the role's default widget set, not a mode (`test:requester-entry-ui`) |
+| TC-UI1-03 | Open a request detail as any role | The tabbed detail. The contract and purchase-order deep links that used to exist only on the removed Simple page are on the Related tab, and the purchase-order link stays role-gated (`test:link-route-integrity`) |
+| TC-UI1-04 | Intake: describe catalogue, contract-covered, P-card-eligible, and new needs | One recommended route with a plain-language explanation; only route-specific fields are requested |
+| TC-UI1-05 | Intake: use an ineligible P-card category/value | P-card is not offered and the reason is explained; no payment or upstream write occurs |
+| TC-UI1-06 | Home command bar → type a demand → Enter | The typed demand opens on the commodity assessment already classified, the original text is visible, and the requester is not asked for it again. This handoff used to belong to the Simple home's demand box (`test:requester-entry-ui`) |
+| TC-UI1-07 | Resize to 320px and 375px | Sidebar becomes a drawer, menu button is labelled, controls remain reachable, and no horizontal overflow occurs |
 
 | ID | Steps | Expected |
 |---|---|---|
@@ -333,9 +330,9 @@ determination for both densities, and no record of a check that never ran.
 | TC-DB-9 | Write `''` to a date, timestamp, numeric, boolean or uuid column | It lands as SQL `NULL`. `''` is a legal value for a text column and for nothing else, so a cleared form control killed the write with `invalid input syntax for type date: ""` — which is how "Save as Draft" failed for any demand with no delivery date. Coerced in `parameterValue`, so every writer is covered rather than the one that was reported; text columns and real values are untouched (`test:db-casts`) |
 | TC-MODE-1 | The same catalogue demand in Simple and Expert | One `GovernedCheckoutDecision`. Expert refused an ambiguous item ("procurement must select one") while Simple matched on lower-cased supplier **name** and picked the latest end date; Expert filtered risk assessments to completed and unexpired, Simple filtered on neither; Simple dropped `shipToLocationId` entirely, so a stored profile silently replaced the requester's chosen delivery location |
 | TC-MODE-2 | The same demand determined in either density | An identical `IntakeDetermination` and a byte-identical compliance record. Simple used to skip the risk and determination screens entirely, deriving its own channel from a *preliminary* signal read that could not see the mini-IRQ, while Expert used the full cascade but never passed P-card eligibility — two channels for one demand, decided by which screen you were on |
-| TC-MODE-3 | Read `src/lib/procurement/intake-determination.ts` | It takes **no** `density`/`mode` parameter and contains no `'simple'`/`'expert'` literal. This is the mechanism behind "the two modes differ only in UI": the decision layer has no way to behave differently, because it is never told which density it is serving |
-| TC-MODE-4 | Look for a second intake page | There is none. `simple-new-request-page.tsx` is gone and one page serves both densities; `density` may not branch a step (`setStepId`) or the submit. Two pages drifted into different governance outcomes twice despite sharing components — there is now nothing to drift |
-| TC-MODE-5 | Switch density on `/requests/new` | The page reflects it immediately. The optimistic selection is a shared module store, so the switcher and the page cannot disagree; when it was per-hook `useState`, the switcher updated instantly while the page waited for the preference write to land |
+| TC-MODE-3 | Read `src/lib/procurement/intake-determination.ts` | It takes **no** `density`/`mode` parameter and contains no `'simple'`/`'expert'` literal. The switch it was written for is gone, but the rule outlives it: presentation may not reach into how a determination is reached |
+| TC-MODE-4 | Look for a second intake page | There is none. `simple-new-request-page.tsx` is gone and one page serves everyone; nothing may branch a step (`setStepId`) or the submit on presentation. Two pages drifted into different governance outcomes twice despite sharing components — there is now nothing to drift |
+| ~~TC-MODE-5~~ | ~~Switch density on `/requests/new`~~ | **Withdrawn (ADR-0008).** There is no switch. Its own defect — the switcher and the page disagreeing while a preference write landed — is one of the reasons it is gone |
 | TC-DASH-1 | Add each purchasing/vendor widget from the picker | **Open Purchase Orders** lists POs awaiting delivery or closure, overdue first, excluding draft and closed. **Invoice Exceptions** lists only invoices needing a decision — disputed, unmatched, variance, overdue — with one reason per row. **Suppliers Blocking Work** lists suppliers whose onboarding or screening gates sourcing/contracting/a PO. **Requests by Stage** counts the active stages and clicks through, excluding terminal states |
 | TC-DASH-2 | Read `widget-registry.tsx` against `widgets/index.ts` | Every id appears in both. An id in the registry alone adds an invisible tile; an id in the renderer alone is unreachable. Every registry icon is in the picker's icon map, or the tile silently falls back to a generic one (`test:dashboard-widgets`) |
 | TC-DASH-3 | Open Home as each role | Every id in the role's default layout resolves to a widget the role is entitled to, and the purchasing/vendor widgets (**Open Purchase Orders**, **Invoice Exceptions**, **Suppliers Blocking Work**, **Requests by Stage**) are on a default dashboard rather than only in the picker. A widget reachable only by hunting in "Add Widget" is one nobody finds — these four shipped that way (`test:dashboard-widgets`, `test:dashboard-ui`) |
@@ -365,7 +362,7 @@ determination for both densities, and no record of a check that never ran.
 | TC-LINK-1 | Open `/requests/new?step=2&category=catalogue&title=a few reams of printer paper` | The category is **re-derived** from what is being bought, never taken as `catalogue`. A route is not a category; accepting it verbatim put the whole wizard on the fast track before the funnel ran. Asserted by calling `parseDemandDeepLink` (`test:unified-intake`) |
 | TC-LINK-2 | Return from a catalogue item detail page with quantity and cost centre | The confirmed fulfilment context survives into the governed checkout. `deliveryLocation` is **not** defaulted — it becomes `shipToLocationId`, which the checkout rejects unless the profile approves it, and the two intake pages defaulted it differently |
 | TC-LINK-3 | An unresolvable `?catalogueItem=` id | Nothing is hydrated. A half-populated checkout is worse than none |
-| TC-DENS-1 | The Review step in Simple, then Expert | Simple shows each group's conclusion and what it means; Expert additionally shows the workings — routing rule id, inherent-risk drivers, per-dimension operational risk, Smart Assessment and the Export action. A **blocking** screening result appears in both |
+| TC-DENS-1 | The Review step | Each group leads with its conclusion and what it means, and the workings — routing rule id, inherent-risk drivers, per-dimension operational risk, Smart Assessment and the Export action — sit under it, collapsed, **for everyone**. They used to render only in the Expert density, so half the users could not see why their demand was routed as it was. A **blocking** screening result is never behind a disclosure |
 | TC-EVID-1 | Submit a request, then open its Compliance tab | The duplicate check reads **Not checked** in grey. Nothing anywhere searches for duplicates, and Expert used to persist `found: false, "No duplicate demand detected at intake."` — a sentence describing a search that has never existed |
 | TC-EVID-2 | Submit with a supplier whose SRA is `not-assessed` | The record reads **fail**, not pass. The outcome used to be derived by string-matching the rendered label (`sraStatus.includes('expired')`), so a never-assessed supplier — whose label contains neither "expired" nor "expiring" — recorded a **pass** for an assessment that did not exist |
 | TC-EVID-3 | Disable the AI-002 Request Validator, then submit | The policy checks contain one failed entry naming the disabled agent, never an empty list. An empty list reads to a reviewer as "all clear" |

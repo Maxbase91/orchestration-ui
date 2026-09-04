@@ -26,7 +26,6 @@ check('low-confidence classification shows one fallback', resolveCommodityCandid
 const seeded = seedServiceDescriptionFromText('We need a new customer analytics platform for the sales team. The work should include implementation, data migration and training. Deliverables include a configured platform and handover report.');
 const intakePage = readFileSync('src/features/requests/new-request/new-request-page.tsx', 'utf8');
 const buyRoutePage = readFileSync('src/features/requests/new-request/step-buy-route.tsx', 'utf8');
-const simpleDetailPage = readFileSync('src/features/requests/request-detail/simple-request-detail-page.tsx', 'utf8');
 const lifecycleStepper = readFileSync('src/features/requests/request-detail/components/lifecycle-stepper.tsx', 'utf8');
 check('long pasted brief seeds objective and scope', Boolean(seeded.objective && seeded.scope));
 check('deliverables remain a distinct section', Boolean(seeded.deliverables));
@@ -55,7 +54,10 @@ check('contract call-off details explain per-call value and timing',
 check('a disabled Next names what is still missing, on every path',
   intakePage.includes('missingDetailFields') && intakePage.includes('To review this request, add')
   && intakePage.includes('Still needed:'));
-check('call-off lifecycle distinguishes compliance validation from budget approval', simpleDetailPage.includes('contract, supplier, risk') && lifecycleStepper.includes('Contract & compliance check') && lifecycleStepper.includes('Budget approval'));
+// The stepper is what actually draws the distinction; the deleted Simple
+// detail page only restated it in prose.
+check('call-off lifecycle distinguishes compliance validation from budget approval',
+  lifecycleStepper.includes('Contract & compliance check') && lifecycleStepper.includes('Budget approval'));
 const intakeForm = readFileSync('src/features/requests/new-request/intake-form-data.ts', 'utf8');
 check('the demand text is title + lifted detail + the draft being typed, each counted once',
   buyRoutePage.includes('[title, demandDetail, enrich]') && buyRoutePage.includes('text: demandText'));

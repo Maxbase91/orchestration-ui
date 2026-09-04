@@ -21,7 +21,7 @@
 //  3. **The evidence moved behind a disclosure.** Matched words, fit
 //     percentages, contract utilisation and routing rule IDs are how a buyer
 //     audits the decision, not how a requester makes one. They are still there,
-//     under "Why this?", and only in the expert density.
+//     under "Why this?", collapsed by default.
 //
 // The DECISION is untouched: `decideIntakeRoute` and `resolveDemandChannel` are
 // the same functions, called the same way. This screen is a thinner presenter
@@ -42,7 +42,6 @@ import { buyingChannelPlain, buyingChannelLabel } from '@/lib/routing/evaluate-r
 import { resolveDemandChannel } from '@/lib/routing/demand-channel';
 import { computeDemandSignals } from '@/lib/procurement/demand-signals';
 import { requestContractMatch } from '@/lib/procurement/contract-match-api';
-import type { ExperienceMode } from '@/lib/experience-mode';
 import type { CatalogueItem } from '@/data/catalogue-items';
 import type { Contract, ContractMatchResponse, Supplier } from '@/data/types';
 
@@ -57,8 +56,6 @@ interface StepBuyRouteProps {
   supplierId: string;
   /** api/ai.ts `intent` from the describe step — authoritative when honourable. */
   llmIntent?: string;
-  /** Presentation density only. Never changes which route is chosen. */
-  mode?: ExperienceMode;
   onChooseCatalogue: (items: CatalogueItem[]) => void;
   onChooseContract: (contract: Contract, supplier: Supplier | undefined) => void;
   onProceedToFullRequest: () => void;
@@ -136,7 +133,7 @@ function RouteOption({
 }
 
 export function StepBuyRoute({
-  title, demandDetail = '', category, estimatedValue, supplierId, llmIntent, mode = 'expert',
+  title, demandDetail = '', category, estimatedValue, supplierId, llmIntent,
   onChooseCatalogue, onChooseContract, onProceedToFullRequest, onEnrich,
 }: StepBuyRouteProps) {
   // Reads go through the standardised source-connector layer (own store today,
@@ -544,7 +541,7 @@ export function StepBuyRoute({
           The audit trail: matched words, fit, utilisation, the routing rule that
           decided it. This is how a buyer checks the decision, not how a
           requester makes one, so it is closed by default and expert-only. */}
-      {mode === 'expert' && (
+      {(
         <div>
           <button
             type="button"

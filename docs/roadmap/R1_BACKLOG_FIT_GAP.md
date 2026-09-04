@@ -90,7 +90,7 @@ Neon validation, catalogue/checkout, sourcing, workflow, assistant, responsive a
 
 ## Related decisions
 
-- [ADR-0001 — dual-mode requester experience](../adr/0001-dual-mode-requester-experience.md)
+- [ADR-0008 — one standardised requester UI](../adr/0008-one-standardised-requester-ui.md) (supersedes [ADR-0001 — dual-mode requester experience](../adr/0001-dual-mode-requester-experience.md))
 - [ADR-0002 — governed catalogue and contract checkout](../adr/0002-governed-catalogue-checkout.md)
 - [ADR-0003 — private Neon database](../adr/0003-private-neon-database-migration.md)
 

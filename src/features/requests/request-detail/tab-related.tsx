@@ -5,6 +5,7 @@ import { useRequestLookup, useRequests } from '@/lib/db/hooks/use-requests';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { useSourcingEventsForRequest } from '@/lib/db/hooks/use-sourcing-events';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useAuthStore } from '@/stores/auth-store';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { Link } from 'react-router-dom';
 import { ExternalLink } from 'lucide-react';
@@ -14,6 +15,8 @@ interface TabRelatedProps {
 }
 
 export function TabRelated({ request }: TabRelatedProps) {
+  const currentRole = useAuthStore((state) => state.currentRole);
+  const canOpenPurchaseOrders = ['procurement-manager', 'operations-lead', 'admin'].includes(currentRole);
   useSuppliers();
   useContracts();
   useRequests();
@@ -44,7 +47,13 @@ export function TabRelated({ request }: TabRelatedProps) {
             <div className="rounded-lg border p-4 space-y-2">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-900">{contract.title}</p>
+                  {/* Deep-linked, not just named. This tab described the linked
+                      contract and PO without offering a way to open either;
+                      the only place a requester could actually follow them was
+                      the separate Simple detail page, now removed. */}
+                  <Link to={`/contracts/${contract.id}`} className="text-sm font-medium text-blue-600 hover:underline">
+                    {contract.title}
+                  </Link>
                   <p className="text-xs text-muted-foreground">{contract.id}</p>
                 </div>
                 <StatusBadge status={contract.status} size="sm" />
@@ -108,9 +117,19 @@ export function TabRelated({ request }: TabRelatedProps) {
             <div className="rounded-lg border p-4 flex items-center gap-3">
               <ExternalLink className="size-4 text-muted-foreground" />
               <div>
-                <p className="text-sm font-medium text-gray-900">{request.poId}</p>
+                {/* Purchase orders stay role-gated: the entitlement came with
+                    the deep link from the removed Simple detail page and is not
+                    lost with it. */}
+                {canOpenPurchaseOrders ? (
+                  <Link to={`/purchasing/orders/${request.poId}`} className="text-sm font-medium text-blue-600 hover:underline">
+                    {request.poId}
+                  </Link>
+                ) : (
+                  <p className="text-sm font-medium text-gray-900">{request.poId}</p>
+                )}
                 <p className="text-xs text-muted-foreground">
                   {formatCurrency(request.value, request.currency)}
+                  {!canOpenPurchaseOrders && ' · Purchase order details are available to operations.'}
                 </p>
               </div>
             </div>

@@ -21,8 +21,8 @@ R1 is an internally operated system of record backed by private Neon. It owns re
 
 - **Intelligent Intake** — a four-step AI-assisted wizard that auto-classifies categories, suggests commodity codes, shows every way to buy on one screen, and runs compliance checks — asking everything before concluding anything
 - **Contract-aware intake** — structured scope versions, deliverable/exclusion matching, explainable ranking and adaptive clarification before a call-off
-- **Dual-mode requester experience** — requesters start in a plain-language Simple view with adaptive routing; reviewers retain the full Expert view, with a keyboard-accessible per-user switch
-- **Requester home** — Simple mode focuses the home page on starting a request, tracking the requester’s own active work, and getting help; Expert mode retains configurable dashboards and operational widgets
+- **One standardised requester experience** — no mode to choose. The evidence behind every determination is available to everyone, collapsed by default, and simplification comes from the role: a requester's default dashboard is their own requests, not KPIs (ADR-0006)
+- **Configurable home** — one dashboard per role, with widgets each user can add, remove and reorder; the layout persists
 - **Workflow Orchestration** — Kanban, table, and timeline views of active procurement workflows with bottleneck detection
 - **System Integration Handovers** — Internal handover records for future SAP Ariba, Coupa Risk, Sirion CLM, and SAP S/4HANA connectors (R2; no external writes)
 - **AI Compliance Agent** — Automated PR compliance reviews with detailed check reports before PO creation
@@ -41,7 +41,7 @@ R1 is an internally operated system of record backed by private Neon. It owns re
 |--------|-------------|
 | Role-Based Dashboards | 5 tailored dashboards (Service Owner, Procurement Manager, Vendor Manager, Operations Lead, Admin) |
 | Operational home dashboard | Expert users receive one consistent role-based dashboard with live KPIs, pipeline, workload and action widgets. Decorative alternate layouts were retired to avoid confusing users with inconsistent navigation. |
-| New Request Wizard | One shared intake for every demand type, in **four steps** — Describe → How you'll buy → Details → Review & submit — on one engine, where **every question is asked before any conclusion is shown**: Details holds everything the requester supplies (service description, residual risk questions, supplier), Review holds everything the platform concluded (buying channel and timeline, risk outcome, approvals, checks that ran). Simple and Expert are **one page**: `density` picks the header framing and how much evidence the Review step shows, never a step, a gate, a decision or what is written — and anything that *blocks* the request is shown in both. The step order, gates and guidance live in one config (`intake-steps.ts`), and `test:mode-equivalence` asserts there is no second intake page to drift. Describe or upload a brief, confirm a specific commodity/service family, clarify only missing details, review the recommended route, complete governed fulfilment fields, and submit. Goods/Services is an internal routing value and is never a requester choice. PDF/DOCX text is extracted server-side for confirmation; the structured description keeps Included, Excluded, Deliverables and Acceptance Criteria separate with provenance. The adaptive conversation and contextual guidance are deterministic when AI is unavailable, and completed submissions enter the first actionable workflow stage rather than remaining in intake. Catalogue remains the only visible shortcut; contract and P-card routes are discovered by governance. A demand started from the Simple home entry point carries its text into route evaluation and skips the duplicate describe screen; choosing “Proceed to full request” always opens the adaptive details path. |
+| New Request Wizard | One shared intake for every demand type, in **four steps** — Describe → How you'll buy → Details → Review & submit — on one engine, where **every question is asked before any conclusion is shown**: Details holds everything the requester supplies (service description, residual risk questions, supplier), Review holds everything the platform concluded (buying channel and timeline, risk outcome, approvals, checks that ran). There is one page and one view of it: the workings behind every conclusion are shown to everyone, collapsed by default, and never a step, a gate, a decision or what is written — anything that *blocks* the request is never hidden. The step order, gates and guidance live in one config (`intake-steps.ts`), and `test:mode-equivalence` asserts there is no second intake page to drift. Describe or upload a brief, confirm a specific commodity/service family, clarify only missing details, review the recommended route, complete governed fulfilment fields, and submit. Goods/Services is an internal routing value and is never a requester choice. PDF/DOCX text is extracted server-side for confirmation; the structured description keeps Included, Excluded, Deliverables and Acceptance Criteria separate with provenance. The adaptive conversation and contextual guidance are deterministic when AI is unavailable, and completed submissions enter the first actionable workflow stage rather than remaining in intake. Catalogue remains the only visible shortcut; contract and P-card routes are discovered by governance. A demand started from the home command bar carries its text into route evaluation and skips the duplicate describe screen; choosing “Proceed to full request” always opens the adaptive details path. |
 | Request Detail | Full lifecycle tracker with 7 tabs (Overview, Workflow, Comments, Approvals, Documents, Related, Audit). Validation confirms the request, supplier, contract, risk, and capacity data; approval is the separate budget/authority decision and is only required when policy or risk calls for it. Both stages show the **service description** and its quality score, so a reviewer sees what they are approving |
 | Vendor onboarding | A real conditional stage, not a preview label. **Light onboarding** (supplier record exists and screening has cleared) gates **sourcing** — you cannot invite a supplier that does not exist — and gates **completing the risk assessment**, which hangs off a supplier record. **Full onboarding** gates **contracting** for the awarded supplier only, so paperwork is not demanded up front from vendors who may not win. A supplier named at intake but absent from the directory can be created as a **prospective** record from the wizard |
 | Active Workflows | Kanban board (drag-and-drop), sortable table, Gantt timeline — with system integration badges |
@@ -208,7 +208,6 @@ npm run test:assistant-extraction # the intake assistant may fill demand facts a
                                   # cost centre or risk answer arrives from the model
 npm run test:dashboard-widgets    # the widget catalogue and its renderer agree — nothing offered that cannot render,
                                   # nothing rendered that cannot be reached, every icon mapped
-npm run test:experience-mode      # role defaults, preference normalization, and pilot eligibility contract
 npm run test:screening            # supplier screening — clear / pending / flagged / unknown + blocking
 npm run test:supplier-data        # supplier master-data completeness → remediation handoff (RTE-04)
 npm run test:approver-resolution  # approval step role → switchable directory rep (one identity namespace)
@@ -256,14 +255,14 @@ npm run backfill:neon-catalogue-governance # idempotent repair when the migrated
 `test:ui` uses Playwright. First-time setup: `npm install` then `npx playwright install chromium`.
 It boots the dev server itself and needs `.env.local` with `NEON_DATABASE_URL` set.
 
-Four suites are the exception — `test:request-detail-ui`, `test:experience-mode-ui`,
+Four suites are the exception — `test:request-detail-ui`, `test:requester-entry-ui`,
 `test:service-description-ui` and `test:intake-guidance-ui`. They stub the data API inside the browser
 (`installDbStub()` in `tests/ui/db-stub.mjs`) and run with **no credentials and no network**, so all
 four run in CI. Use that harness for any screen worth checking where the database is unreachable — a
 suite that can only run against a live database does not run in CI or in a sandbox, which is how a
 render crash on the request detail reached production unnoticed.
 
-Stub the boundary the client actually posts to, `/api/db`. `test:experience-mode-ui` intercepted
+Stub the boundary the client actually posts to, `/api/db`. That suite (now `test:requester-entry-ui`) intercepted
 `**/rest/v1/**`, the PostgREST path from before the Neon cutover, so it caught nothing and two of its
 checks failed for months against a pre-check screen that was really crashing.
 
@@ -368,7 +367,7 @@ src/
     ├── dashboard/   # Role-based dashboards, the command bar, and the Simple requester home
     ├── requests/    # Intake — ONE four-step page for both densities (intake-steps.ts owns the order,
     │                #   gates and guidance; use-intake-determination.ts mounts the determination once;
-    │                #   see its README for the density contract), request detail
+    │                #   see its README), request detail
     ├── catalogue/   # Item detail and governed catalogue checkout
     ├── workflows/   # Kanban, table, timeline, monitor
     ├── suppliers/   # Directory, profile, portal

@@ -9,7 +9,7 @@
 //     the compliance record will say — was reachable only by mounting a wizard
 //     step. Every other decision of this weight in this codebase (routing,
 //     classification, intake routing) is a pure benchmarked module.
-//  2. **Only one density ran it.** Simple intake never mounted the step, so it
+//  2. **Only one of the two intake pages ran it.** Simple intake never mounted the step, so it
 //     wrote `sraCheck: not-run`, `policyChecks: []` while Expert wrote real
 //     results — two governance records for the same demand, decided by which
 //     screen the requester happened to be on.
@@ -18,9 +18,11 @@
 //     determination must never do.
 //
 // So: inputs in, determination out, `now` injected. There is deliberately **no
-// `density` or `mode` parameter anywhere in this module** — that absence is the
-// mechanism by which "the two modes differ only in UI" is true, and
-// `tests/integration/mode-equivalence.mjs` asserts it structurally.
+// `density` or `mode` parameter anywhere in this module**, and
+// `tests/integration/mode-equivalence.mjs` asserts that structurally. The
+// Simple/Expert switch has since been removed entirely, but the rule stands on
+// its own: how a screen presents a determination may not reach into how the
+// determination is reached.
 
 import { formatCurrency } from '../format.js';
 import { isPreferredSupplier, competitiveSourcingCheck, preferredSupplierCheck } from './supplier-preference.js';

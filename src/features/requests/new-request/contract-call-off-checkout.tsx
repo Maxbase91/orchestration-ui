@@ -7,7 +7,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import type { ExperienceMode } from '@/lib/experience-mode';
 import type { Contract, ProcurementProfile } from '@/data/types';
 import { useAuthStore } from '@/stores/auth-store';
 import { useProcurementProfile } from '@/lib/db/hooks/use-procurement-profile';
@@ -29,7 +28,6 @@ export interface ContractCallOffDraft {
 
 interface ContractCallOffCheckoutProps {
   contract?: Contract;
-  mode?: ExperienceMode;
   initialValues?: Partial<ContractCallOffDraft>;
   onSubmit: (draft: ContractCallOffDraft) => void;
 }
@@ -49,7 +47,7 @@ function defaultProfile(): ProcurementProfile {
   return { userId: '', defaultCurrency: 'EUR', approvedShipToLocations: [] };
 }
 
-export function ContractCallOffCheckout({ contract, mode = 'simple', initialValues, onSubmit }: ContractCallOffCheckoutProps) {
+export function ContractCallOffCheckout({ contract, initialValues, onSubmit }: ContractCallOffCheckoutProps) {
   const { currentUser } = useAuthStore();
   const { data: loadedProfile } = useProcurementProfile(currentUser.id);
   const profile = loadedProfile ?? defaultProfile();
@@ -167,7 +165,7 @@ export function ContractCallOffCheckout({ contract, mode = 'simple', initialValu
         <div className="space-y-1.5"><Label htmlFor="calloff-recipient">Who is this for?</Label><Input id="calloff-recipient" value={recipient} onChange={(e) => setRecipient(e.target.value)} placeholder="Person or team receiving the service" /></div>
         <div className="space-y-1.5"><Label htmlFor="calloff-purpose">Business purpose</Label><Textarea id="calloff-purpose" rows={3} value={purpose} onChange={(e) => setPurpose(e.target.value)} placeholder="What outcome is this call-off needed for?" /></div>
 
-        {mode === 'expert' && <details className="rounded-lg border border-gray-200"><summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-medium"><CalendarDays className="size-4 text-gray-500" />Contract and governance details</summary><div className="space-y-1 border-t px-4 py-3 text-xs text-gray-600"><p>Supplier: {contract.supplierName} ({contract.supplierId})</p><p>Contract period: {contract.startDate} to {contract.endDate}</p><p>Coverage status: {contract.coverageStatus ?? 'not provided'}</p><p>Governance is rechecked by the server when you submit.</p></div></details>}
+        {<details className="rounded-lg border border-gray-200"><summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-medium"><CalendarDays className="size-4 text-gray-500" />Contract and governance details</summary><div className="space-y-1 border-t px-4 py-3 text-xs text-gray-600"><p>Supplier: {contract.supplierName} ({contract.supplierId})</p><p>Contract period: {contract.startDate} to {contract.endDate}</p><p>Coverage status: {contract.coverageStatus ?? 'not provided'}</p><p>Governance is rechecked by the server when you submit.</p></div></details>}
         <Button type="button" className="w-full" disabled={!canSubmit} onClick={submit}>Review request</Button>
         {!canSubmit && (
           <p className="text-center text-xs text-muted-foreground">

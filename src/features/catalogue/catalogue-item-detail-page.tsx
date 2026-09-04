@@ -6,15 +6,13 @@ import { ArrowLeft, CheckCircle2, Clock3, ExternalLink, Loader2, ShieldCheck, St
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { useCatalogueItem } from '@/lib/db/hooks/use-catalogue-items';
-import { useExperienceMode } from '@/hooks/use-experience-mode';
 import { CatalogueOrderCheckout, type CatalogueOrderDraft } from './catalogue-order-checkout';
 
 export function CatalogueItemDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { mode } = useExperienceMode();
   const { data: item, isLoading, isError } = useCatalogueItem(id);
 
   if (isLoading) {
@@ -72,27 +70,33 @@ export function CatalogueItemDetailPage() {
 
           {!available ? (
             <Card className="border-amber-200 bg-amber-50/60"><CardContent className="p-5"><p className="text-sm font-medium text-amber-950">This item cannot be ordered right now</p><p className="mt-1 text-sm text-amber-800">The catalogue agreement or fulfilment data needs attention. Procurement must update it before an order can be placed.</p></CardContent></Card>
-          ) : mode === 'simple' ? (
-            <Card className="border-green-100 bg-green-50/50">
-              <CardContent className="flex items-start gap-3 p-5">
-                <ShieldCheck className="mt-0.5 size-5 shrink-0 text-green-700" />
-                <div><p className="text-sm font-medium text-green-950">Approved catalogue item</p><p className="mt-1 text-sm text-green-800">This item is available from an approved supplier agreement. We’ll check the remaining order details before creating your request.</p></div>
-              </CardContent>
-            </Card>
           ) : (
-            <Card>
-              <CardHeader><CardTitle className="text-base">Governance context</CardTitle></CardHeader>
-              <CardContent className="space-y-3 text-sm text-gray-600">
-                <p><span className="font-medium text-gray-900">Supplier:</span> {item.supplierName} ({item.supplierId})</p>
-                <p><span className="font-medium text-gray-900">Catalogue:</span> {item.catalogueName}</p>
-                <p><span className="font-medium text-gray-900">Contract and risk:</span> Resolved and checked as part of request submission.</p>
-                <p><span className="font-medium text-gray-900">Routing:</span> The final approval path depends on total order value and configured policy.</p>
+            /* Both halves of the old Simple/Expert fork, which showed one OR
+               the other. The reassurance is what the reader needs first; the
+               governance context is evidence, so it sits under it, collapsed —
+               available to anyone who wants it rather than to whichever density
+               they happened to be in. */
+            <Card className="border-green-100 bg-green-50/50">
+              <CardContent className="space-y-3 p-5">
+                <div className="flex items-start gap-3">
+                  <ShieldCheck className="mt-0.5 size-5 shrink-0 text-green-700" />
+                  <div><p className="text-sm font-medium text-green-950">Approved catalogue item</p><p className="mt-1 text-sm text-green-800">This item is available from an approved supplier agreement. We’ll check the remaining order details before creating your request.</p></div>
+                </div>
+                <details className="rounded-lg border border-green-200 bg-white/60">
+                  <summary className="cursor-pointer list-none px-3 py-2 text-xs font-medium text-green-900">Governance context</summary>
+                  <div className="space-y-1.5 border-t border-green-200 px-3 py-2 text-xs text-gray-600">
+                    <p><span className="font-medium text-gray-900">Supplier:</span> {item.supplierName} ({item.supplierId})</p>
+                    <p><span className="font-medium text-gray-900">Catalogue:</span> {item.catalogueName}</p>
+                    <p><span className="font-medium text-gray-900">Contract and risk:</span> Resolved and checked as part of request submission.</p>
+                    <p><span className="font-medium text-gray-900">Routing:</span> The final approval path depends on total order value and configured policy.</p>
+                  </div>
+                </details>
               </CardContent>
             </Card>
           )}
         </div>
 
-        <CatalogueOrderCheckout item={item} mode={mode} disabled={!available} onSubmit={continueToRequest} />
+        <CatalogueOrderCheckout item={item} disabled={!available} onSubmit={continueToRequest} />
       </div>
     </div>
   );

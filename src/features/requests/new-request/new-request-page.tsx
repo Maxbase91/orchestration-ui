@@ -52,7 +52,6 @@ import { outstandingRequiredSlots, resolveSlots } from '@/lib/procurement/demand
 import { RequesterContextBlock } from './components/requester-context-block';
 import type { Contract } from '@/data/types';
 import type { CatalogueItem } from '@/data/catalogue-items';
-import { useExperienceMode } from '@/hooks/use-experience-mode';
 import { getProcurementProfile } from '@/lib/db/procurement-profiles';
 import { evaluateGovernedCheckout, resolveCheckoutRiskAssessment, resolveCheckoutContract } from '@/lib/procurement/governed-checkout';
 import { submitGovernedCheckout } from '@/lib/procurement/submit-governed-checkout';
@@ -90,13 +89,13 @@ class StepErrorBoundary extends Component<{ children: ReactNode; onReset: () => 
  * which is exactly how they drifted, twice, into producing different governance
  * outcomes for the same demand (see `tests/integration/mode-equivalence.mjs`).
  *
- * Now one engine runs one step config, and `density` decides only how much is
- * on screen. Nothing below branches on density to change a decision, a gate, a
- * step, or what is written — and the pure decision layer is never even told
- * which density it is serving.
+ * They were unified behind one engine and one step config, with a `density`
+ * prop deciding only how much evidence was on screen. That prop is gone too:
+ * the switch asked the requester to choose a view before they could start, and
+ * what it actually changed was some copy and whether the workings were on the
+ * page at all. The evidence is now there for everyone, collapsed by default.
  */
 export function NewRequestPage() {
-  const { mode: density } = useExperienceMode();
   const navigate = useNavigate();
   const [stepId, setStepId] = useState<IntakeStepId>('describe');
   const [formData, setFormData] = useState<IntakeFormData>(INITIAL_INTAKE_DATA);
@@ -559,20 +558,15 @@ export function NewRequestPage() {
 
   return (
     <div className={cn("mx-auto space-y-6", stepId === 'details' && formData.preCheckOutcome === 'full-request' && !['catalogue', 'contract-renewal', 'supplier-onboarding'].includes(formData.category) ? 'max-w-5xl' : 'max-w-3xl')}>
-      {/* Header. Same journey either way — this is the framing, not the flow. */}
+      {/* One header. This used to say "Simple requester view" / "New Request" /
+          "Create a new procurement request in N steps" depending on a mode the
+          requester had to pick first — three framings of one journey. */}
       <div>
-        {density === 'simple' && (
-          <p className="text-xs font-medium uppercase tracking-wider text-blue-600">Simple requester view</p>
-        )}
-        <h1 className="mt-1 text-xl font-semibold text-gray-900">
-          {density === 'simple' ? 'Start a request' : 'New Request'}
-        </h1>
+        <h1 className="mt-1 text-xl font-semibold text-gray-900">Start a request</h1>
         <p className="mt-0.5 text-sm text-gray-500">
-          {density === 'simple'
-            ? 'Tell us what you need. We will find the simplest compliant way to handle it.'
-            : isCatalogue
-              ? 'Catalogue request — governed checkout'
-              : `Create a new procurement request in ${wizardSteps.length} steps`}
+          {isCatalogue
+            ? 'Catalogue request — governed checkout'
+            : 'Tell us what you need. We will find the simplest compliant way to handle it.'}
         </p>
       </div>
 
@@ -676,7 +670,6 @@ export function NewRequestPage() {
             estimatedValue={formData.estimatedValue}
             supplierId={formData.supplierId}
             llmIntent={formData.llmIntent}
-            mode={density}
             onChooseCatalogue={(items: CatalogueItem[]) => {
               const primary = items[0];
               if (!primary) return;
@@ -728,7 +721,6 @@ export function NewRequestPage() {
           catalogueCheckoutOpen && catalogueOrder ? (
             <CatalogueOrderCheckout
               item={catalogueItems.find((candidate) => candidate.id === catalogueOrder.catalogueItems[0]?.itemId) ?? catalogueItems[0]!}
-              mode="expert"
               initialValues={{ quantity: catalogueOrder.catalogueItems[0]?.quantity, needBy: formData.deliveryDate, deliveryLocation: formData.deliveryLocation, recipient: formData.beneficiaryName, businessPurpose: formData.businessJustification, costCentre: formData.costCentre }}
               onSubmit={(draft) => void submitCatalogueOrder(catalogueOrder, draft)}
             />
@@ -747,7 +739,6 @@ export function NewRequestPage() {
         {stepId === 'details' && formData.preCheckOutcome === 'contract' && (
           <ContractCallOffCheckout
             contract={contracts.find((candidate) => candidate.id === formData.contractId)}
-            mode="expert"
             initialValues={{ title: formData.title || formData.contractTitle, value: formData.estimatedValue, needBy: formData.deliveryDate, recipient: formData.beneficiaryName, purpose: formData.businessJustification, costCentre: formData.costCentre }}
             onSubmit={(draft) => void submitContractCallOff(draft)}
           />
@@ -822,7 +813,6 @@ export function NewRequestPage() {
             requestTitle={formData.title}
             miniIrq={formData.miniIrq}
             determination={determination}
-            density={density}
             onMiniIrqChange={(m) => updateFormData({ miniIrq: m })}
           />
         )}

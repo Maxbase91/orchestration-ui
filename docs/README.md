@@ -37,7 +37,10 @@ docs/
 The unified intake decision and its implementation evidence are recorded in
 [ADR-0005](adr/0005-unified-ai-guided-intake.md) and the [R1 evidence index](roadmap/R1_IMPLEMENTATION_EVIDENCE.md).
 The atomic intake and lifecycle hardening tranche is recorded in
-[ADR-0007](adr/0007-atomic-intake-and-lifecycle-stabilisation.md).
+[ADR-0007](adr/0007-atomic-intake-and-lifecycle-stabilisation.md). The removal of
+the Simple/Expert switch, and why one UI with progressive disclosure replaced it,
+is recorded in [ADR-0008](adr/0008-one-standardised-requester-ui.md) — which
+supersedes [ADR-0001](adr/0001-dual-mode-requester-experience.md).
 
 > Live test status is the `test:*` scripts in `package.json`, not a static doc. See the root [README](../README.md#testing).
 

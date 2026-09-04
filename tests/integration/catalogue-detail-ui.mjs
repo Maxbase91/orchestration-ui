@@ -20,10 +20,14 @@ console.log('Catalogue item detail and governed checkout UI');
 check('dedicated item page is exported', /export function CatalogueItemDetailPage/.test(detail));
 check('item page resolves the selected route id', /useParams<\{ id: string \}>/.test(detail) && /useCatalogueItem\(id\)/.test(detail));
 check('checkout captures fulfilment context', /needBy/.test(checkout) && /deliveryLocation/.test(checkout) && /businessPurpose/.test(checkout) && /costCentre/.test(checkout));
-check('expert governance details are progressive', /mode === 'expert'/.test(checkout) && /aria-expanded/.test(checkout));
+// Progressive, and now for everyone: the workings used to render only in the
+// Expert density, so half the users could not see why an order was routed the
+// way it was. The disclosure stayed; the gate on it went.
+check('governance details are progressive, not mode-gated',
+  /aria-expanded/.test(checkout) && !/mode === 'expert'/.test(checkout));
 check('wizard catalogue items deep-link to item details', /navigate\(`\/catalogue\/items\//.test(wizard));
 check('home command-bar items deep-link to item details', /navigate\(`\/catalogue\/items\//.test(commandBar));
-check('expert pre-check order CTA deep-links to item details', /onChooseCatalogue[\s\S]*?navigate\(`\/catalogue\/items\//.test(requestEntry));
+check('the buy-route order CTA deep-links to item details', /onChooseCatalogue[\s\S]*?navigate\(`\/catalogue\/items\//.test(requestEntry));
 // One page now, so this is asserted once. It used to be checked separately per
 // mode because each mode had its own page that could answer differently.
 check('the buy-route order CTA deep-links to item details', /onChooseCatalogue[\s\S]*?navigate\(`\/catalogue\/items\//.test(requestEntry));

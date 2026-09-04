@@ -67,39 +67,11 @@ try {
   });
 
   await page.goto(`${BASE}/requests/new`, { waitUntil: 'networkidle' });
-  check('requester defaults to Simple view', await page.getByText('Simple requester view', { exact: true }).isVisible().catch(() => false));
-  check('adaptive describe screen renders', await page.getByText('Describe what you need', { exact: true }).isVisible().catch(() => false));
-  const switcher = page.getByRole('button', { name: /Experience view: simple/i });
-  check('mode switch is visible and labelled', await switcher.isVisible().catch(() => false));
-  await switcher.click();
-  await page.getByRole('menuitem', { name: /Expert view/ }).click();
-  // The wizard's heading, not any node whose text happens to be "New Request".
-  // `getByText(exact)` matched a breadcrumb span before the reload and nothing
-  // after it, so this check reported the preference lost when the heading was
-  // on screen the whole time. Waits for the element rather than sleeping 250 ms:
-  // with the data stub answering /api/db the switch re-renders behind real
-  // queries, and a sleep long enough today is a flake tomorrow.
-  //
-  // The heading alone is not the contract, though. Simple and Expert are now one
-  // page and differ only in DENSITY, so the assertion also requires the Simple
-  // framing to be gone — a heading that renders in both modes would prove
-  // nothing about which one is active.
-  const expertWizard = page.getByRole('heading', { name: 'New Request', exact: true });
-  await expertWizard.waitFor({ state: 'visible', timeout: 15000 }).catch(() => {});
-  check('switching to Expert preserves the route and renders the expert wizard',
-    await expertWizard.isVisible().catch(() => false)
-    && (await page.getByText('Simple requester view', { exact: true }).count()) === 0);
-
-  await page.reload({ waitUntil: 'networkidle' });
-  await expertWizard.waitFor({ state: 'visible', timeout: 15000 }).catch(() => {});
-  check('mode preference survives reload',
-    await expertWizard.isVisible().catch(() => false)
-    && (await page.getByText('Simple requester view', { exact: true }).count()) === 0);
-  const expertSwitcher = page.locator('button[aria-label*="Experience view"]').first();
-  await expertSwitcher.click({ force: true, timeout: 3000 });
-  await page.getByRole('menuitem', { name: /Simple view/ }).click({ force: true, timeout: 3000 });
-  await page.waitForTimeout(250);
-  check('switching back to Simple renders the adaptive request entry', await page.getByText('Simple requester view', { exact: true }).isVisible().catch(() => false));
+  check('the describe screen renders', await page.getByText('Describe what you need', { exact: true }).isVisible().catch(() => false));
+  // There is no experience switch to find any more: one UI, so nothing to pick
+  // before the requester can start.
+  check('no experience-view switch is offered',
+    (await page.locator('button[aria-label*="Experience view"]').count()) === 0);
 
   // A demand entered on Home is already the first intake signal, and it lands on
   // the describe step with that text ALREADY CLASSIFIED — the commodity
@@ -107,8 +79,11 @@ try {
   // What must never happen is being asked for the text a second time.
   const homeDemand = 'I need a new laptop for a new starter';
   await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
-  await page.getByLabel('Describe what you need').fill(homeDemand);
-  await page.getByRole('button', { name: /Start with this/ }).click();
+  // The home demand box moved: it was on the separate Simple home page, and the
+  // one home carries the smart command bar instead. The handoff it has to make
+  // is the same one — the text becomes `?q=` on intake, already classified.
+  await page.locator('input[placeholder*="Press Enter"]').fill(homeDemand);
+  await page.locator('input[placeholder*="Press Enter"]').press('Enter');
   await page.waitForURL(`${BASE}/requests/new?q=${encodeURIComponent(homeDemand)}`, { timeout: 10000 });
   await page.waitForLoadState('networkidle');
   const classified = await page.getByText(/suggested commodity or service family/i)
@@ -136,11 +111,14 @@ try {
 
   await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(500);
-  check('Simple home has a clear start-request entry point',
-    await page.getByRole('button', { name: /Start with this/ }).isVisible().catch(() => false)
-      || await page.getByRole('link', { name: /Open full intake/ }).isVisible().catch(() => false));
-  check('Simple home shows requester-focused content', await page.getByText('Your requests', { exact: true }).isVisible().catch(() => false));
-  check('Simple home hides Expert dashboard customization', (await page.getByRole('button', { name: /Customise/ }).count()) === 0);
+  // One home for every role. A requester's default widget layout is their own
+  // requests rather than KPIs, so the simplification that used to come from
+  // picking "Simple" now comes from the role — without asking them to choose.
+  check('home has a clear start-request entry point',
+    await page.locator('input[placeholder*="Press Enter"]').isVisible().catch(() => false)
+      || await page.getByRole('button', { name: /New Request/i }).first().isVisible().catch(() => false));
+  check('home shows the requester their own work',
+    (await page.locator('main').innerText()).toLowerCase().includes('request'));
   await page.setViewportSize({ width: 320, height: 800 });
   // The dashboard starts background query refreshes, so networkidle is not a
   // stable readiness signal once the REST surface is stubbed.
@@ -155,7 +133,7 @@ try {
   check('no uncaught browser errors', errors.length === 0, errors.slice(0, 2).join(' | '));
   await context.close();
 } catch (error) {
-  console.error(`experience-mode-ui errored: ${error.message}`);
+  console.error(`requester-entry-ui errored: ${error.message}`);
   failures++;
 } finally {
   if (browser) await browser.close();
@@ -163,5 +141,5 @@ try {
 }
 console.log('');
 if (failures) console.error(`FAILED: ${failures} check(s)`);
-else console.log('All experience-mode browser checks passed.');
+else console.log('All requester-entry browser checks passed.');
 process.exit(failures === 0 ? 0 : 1);

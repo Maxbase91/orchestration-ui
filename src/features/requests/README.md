@@ -27,26 +27,28 @@ Details.
 the page, so the step that asks the risk questions and the step that shows their
 consequences read the same object rather than each deriving its own. The
 determination itself is pure and lives in `lib/procurement/intake-determination.ts`;
-it takes no density argument, which is what makes "Simple and Expert differ only
-in UI" a structural property rather than a promise (`test:mode-equivalence`).
+it takes no view or density argument, which keeps presentation out of the
+decision as a structural property rather than a promise
+(`test:mode-equivalence`).
 
-## Densities, not modes
+## One UI, progressive disclosure
 
-There is **one** page. `density` (`'simple' | 'expert'`, from
-`hooks/use-experience-mode.ts`) decides only:
+There is **one** page and one view of it. A `density` prop (`'simple' | 'expert'`)
+used to decide the header framing and whether the Review step showed the
+workings at all — the routing rule that decided the channel, the inherent-risk
+drivers, the per-dimension operational risk, the Smart Assessment projection,
+the determination export, and the buy-route "Why this?" disclosure.
 
-- the header framing — "Start a request" vs "New Request";
-- how much **evidence** the Review step shows. Both densities get the
-  conclusion and what it means; Expert additionally gets the workings — the
-  routing rule that decided the channel, the inherent-risk drivers, the
-  per-dimension operational risk, the Smart Assessment projection and the
-  determination export;
-- whether the buy-route screen's "Why this?" disclosure is offered.
+That prop is gone (ADR-0008). All of it is now shown to everyone, **collapsed by
+default**. Simple did not present the evidence differently; it withheld it, and
+a requester who cannot see why their demand was routed a particular way cannot
+challenge it. Progressive disclosure was always the right mechanism — the mode
+toggle was not needed to get it, and it cost the requester a decision about how
+to see the product before they could use it.
 
-Density never picks a step, a gate, a decision, or what is written. Anything
-that **blocks** the request — a screening failure, a missing mandatory field —
-is shown in both: hiding a blocker is not a density decision, it is withholding
-the one thing the requester has to act on.
+What has not changed: presentation never picks a step, a gate, a decision, or
+what is written, and anything that **blocks** the request is never hidden behind
+a disclosure.
 
 Two intake pages existed until this change. They shared step components and
 decision helpers and still drifted twice into different governance outcomes for

@@ -13,13 +13,10 @@ import { TabDocuments } from './tab-documents';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
 import { FileQuestion } from 'lucide-react';
-import { useExperienceMode } from '@/hooks/use-experience-mode';
-import { SimpleRequestDetailPage } from './simple-request-detail-page';
 
 export function RequestDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { data: request } = useRequest(id);
-  const { mode } = useExperienceMode();
   const [activeTab, setActiveTab] = useState('overview');
   const [focusStageId, setFocusStageId] = useState<string | null>(null);
 
@@ -40,8 +37,6 @@ export function RequestDetailPage() {
       </div>
     );
   }
-
-  if (mode === 'simple') return <SimpleRequestDetailPage request={request} />;
 
   return (
     <div className="space-y-6">

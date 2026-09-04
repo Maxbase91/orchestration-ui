@@ -11,7 +11,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import type { ExperienceMode } from '@/lib/experience-mode';
 import type { CatalogueItem } from '@/data/catalogue-items';
 import { useAuthStore } from '@/stores/auth-store';
 import { useProcurementProfile } from '@/lib/db/hooks/use-procurement-profile';
@@ -30,7 +29,6 @@ export interface CatalogueOrderDraft {
 
 interface CatalogueOrderCheckoutProps {
   item: CatalogueItem;
-  mode?: ExperienceMode;
   disabled?: boolean;
   initialValues?: Partial<CatalogueOrderDraft>;
   submitLabel?: string;
@@ -55,7 +53,6 @@ function dateInDays(days: number): string {
 
 export function CatalogueOrderCheckout({
   item,
-  mode = 'simple',
   disabled = false,
   initialValues,
   submitLabel = 'Review order',
@@ -182,7 +179,7 @@ export function CatalogueOrderCheckout({
           <p className="mt-2 text-xs text-blue-800">This item is listed in an approved catalogue. Contract and supplier-risk checks will be recorded with your request.</p>
         </div>
 
-        {mode === 'expert' && (
+        {(
           <div className="rounded-lg border border-gray-200">
             <button type="button" className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm font-medium text-gray-800" aria-expanded={showExpertDetails} onClick={() => setShowExpertDetails((open) => !open)}>
               <span>Governance and routing details</span>

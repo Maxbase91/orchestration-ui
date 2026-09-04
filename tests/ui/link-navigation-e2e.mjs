@@ -32,14 +32,6 @@ async function setRole(page, label) {
   await page.waitForTimeout(700);
 }
 
-async function setExpertMode(page) {
-  const trigger = page.getByRole('button', { name: /Experience view:/i });
-  await trigger.click();
-  const expert = page.getByRole('menuitem', { name: /Expert view/i });
-  if (await expert.count()) await expert.click();
-  await page.waitForTimeout(700);
-}
-
 async function openAndAssert(page, locator, expected, label) {
   await locator.waitFor({ state: 'visible', timeout: 15000 });
   await locator.focus();
@@ -66,7 +58,7 @@ try {
   // now a read-only detail route rather than an authorization redirect.
   await page.goto(`${BASE}/requests/REQ-2025-7833`, { waitUntil: 'networkidle', timeout: 60000 });
   await setRole(page, 'Requestor / End User');
-  await setExpertMode(page);
+  // There is one UI; nothing to switch into before navigating.
   await page.goto(`${BASE}/requests/REQ-2025-7833`, { waitUntil: 'networkidle', timeout: 60000 });
   await page.waitForTimeout(2200);
   const supplierLink = page.getByRole('link', { name: 'Lenovo', exact: true });

@@ -1,5 +1,11 @@
 # ADR 0001: Dual-mode requester experience
 
+> **Superseded by [ADR 0008](0008-one-standardised-requester-ui.md).** The
+> Simple/Expert switch, both forked pages and the pilot flags were removed:
+> what the switch changed was copy and whether the workings were on the page
+> at all, and it asked the requester to choose a view before they could
+> start. Kept for the reasoning that led here.
+
 ## Context
 
 The procurement front door serves occasional requesters and operational reviewers. A single dense

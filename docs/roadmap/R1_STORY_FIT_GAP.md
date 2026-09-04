@@ -69,7 +69,7 @@ category-taxonomy, form-submission); routing **risk reuse-matching** through the
 needs a server connector variant — WS-E).
 
 #### UX — Design System & User Journeys — 🟢 Built
-UX-01 component library 🟢; UX-02 journeys 🟢 (**dual-mode requester experience** — adaptive Simple intake and requester dashboard alongside the retained Expert deep links; pilot-gated per user/role); DEC-7 env/rollback 🟡.
+UX-01 component library 🟢; UX-02 journeys 🟢 (**one standardised requester experience** — ADR-0008 removed the Simple/Expert switch and both forked pages; the evidence that was Expert-only is now shown to everyone, collapsed, and simplification comes from the role's default dashboard rather than a mode the requester had to pick); DEC-7 env/rollback 🟡.
 **UX-04 one configurable home 🟢** — the four selectable home designs are **withdrawn and deleted** (`home-designs/`, the switcher, the `homeDesign` preference nothing read, and `test:home-designs`): four layouts of the same data meant four places for a widget to be missing, and users met an inconsistent navigation depending on which one they had picked. There is now one home, configured rather than swapped — each role opens on a default layout that covers its work (including purchase orders, invoice exceptions, supplier onboarding and requests by stage), and the widgets a user adds, removes or reorders **persist** across reloads (`stores/dashboard-store.ts`, `test:dashboard-widgets`, `test:dashboard-ui`).
 
 #### PLT — Sourcing/Award/Contract handoff — 🟢 Built (scope boundary moved, deliberately)

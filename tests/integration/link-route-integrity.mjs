@@ -6,7 +6,7 @@ import { readFile } from 'node:fs/promises';
 
 const app = await readFile('src/App.tsx', 'utf8');
 const overview = await readFile('src/features/requests/request-detail/tab-overview.tsx', 'utf8');
-const simple = await readFile('src/features/requests/request-detail/simple-request-detail-page.tsx', 'utf8');
+const related = await readFile('src/features/requests/request-detail/tab-related.tsx', 'utf8');
 const expiring = await readFile('src/features/dashboard/widgets/widget-expiring-contracts.tsx', 'utf8');
 
 const checks = [
@@ -16,8 +16,11 @@ const checks = [
   ['sourcing detail route exists', app.includes('path="/sourcing/:id"')],
   ['purchase-order detail route exists', app.includes('path="/purchasing/orders/:id"')],
   ['request overview deep-links supplier by id', overview.includes('`/suppliers/${supplier.id}`')],
-  ['simple request detail deep-links contract by id', simple.includes('`/contracts/${request.contractId}`')],
-  ['simple request detail deep-links PO only through an entitled branch', simple.includes('canOpenPurchaseOrders ?')],
+  // These deep links used to exist only on the separate Simple request-detail
+  // page. That page is gone; the links moved to the Related tab rather than
+  // being lost with it, PO entitlement included.
+  ['request detail deep-links its contract by id', related.includes('`/contracts/${contract.id}`')],
+  ['request detail deep-links its PO only through an entitled branch', related.includes('canOpenPurchaseOrders ?')],
   ['expiring-contract widget deep-links contract by id', expiring.includes('navigate(`/contracts/${c.id}`)')],
 ];
 

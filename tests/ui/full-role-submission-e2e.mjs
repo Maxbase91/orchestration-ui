@@ -69,16 +69,6 @@ async function switchRole(page, roleLabel) {
   await page.waitForTimeout(250);
 }
 
-async function switchMode(page, mode) {
-  const trigger = page.getByRole('button', { name: /Experience view:/i }).first();
-  if (!(await trigger.isVisible().catch(() => false))) return;
-  const text = await trigger.innerText();
-  if (text.toLowerCase().includes(mode)) return;
-  await trigger.click();
-  await page.getByRole('menuitem', { name: new RegExp(`${mode} view`, 'i') }).click();
-  await page.waitForTimeout(250);
-}
-
 async function visit(page, scenario, roleKey, route) {
   console.log(`  route ${roleKey} ${route}`);
   // Supplier portal uses a separate shell without the internal persona menu;
@@ -94,22 +84,25 @@ async function visit(page, scenario, roleKey, route) {
   await checkpoint(page, scenario, roleKey, 'route', `open ${route}`, 'screen renders');
 }
 
-async function fillCatalogue(page, mode) {
+async function fillCatalogue(page) {
   await switchRole(page, ROLES.requester);
-  await switchMode(page, mode);
   await page.goto(`${BASE}/catalogue/items/IT-001`, { waitUntil: 'domcontentloaded', timeout: 20000 });
   await page.waitForTimeout(800);
   await page.getByLabel('Who is this for?').fill('UI-E2E-20260830 laptop recipient');
   await page.getByLabel('What is it needed for?').fill('UI-E2E-20260830 catalogue lifecycle verification');
-  const cost = page.getByLabel('Cost centre');
+  // Both are pickers over the reference tables now, and neither is defaulted
+  // behind the requester, so both have to be chosen for review to enable.
+  const cost = page.getByLabel('Charged to');
   if (await cost.evaluate((el) => el.tagName === 'SELECT').catch(() => false)) await cost.selectOption({ index: 1 });
-  await checkpoint(page, 'catalogue', 'requester', `${mode}-checkout-filled`, 'fill mandatory order details', 'review enabled');
+  const location = page.getByLabel('Deliver to');
+  if (await location.evaluate((el) => el.tagName === 'SELECT').catch(() => false)) await location.selectOption({ index: 1 });
+  await checkpoint(page, 'catalogue', 'requester', 'checkout-filled', 'fill mandatory order details', 'review enabled');
   const review = page.getByRole('button', { name: /Review order/i });
-  if (!(await review.isEnabled().catch(() => false))) throw new Error(`${mode} catalogue review remains disabled`);
+  if (!(await review.isEnabled().catch(() => false))) throw new Error('catalogue review remains disabled');
   if (!LIVE_WRITES) return;
   await review.click();
   await page.waitForTimeout(800);
-  await checkpoint(page, 'catalogue', 'requester', `${mode}-checkout-reviewed`, 'review catalogue order', 'request form retains item details');
+  await checkpoint(page, 'catalogue', 'requester', 'checkout-reviewed', 'review catalogue order', 'request form retains item details');
 }
 
 async function run() {
@@ -155,10 +148,10 @@ async function run() {
   await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded', timeout: 20000 });
   await page.waitForTimeout(500);
 
-  for (const mode of ['simple', 'expert']) {
-    try { await fillCatalogue(page, mode); }
-    catch (error) { findings.push({ scenario: 'catalogue', role: 'requester', stage: `${mode}-checkout`, action: 'fill/review', expected: 'mandatory fields enable review', observedUrl: page.url(), errors: [String(error)] }); }
-  }
+  // One checkout. This ran twice, once per experience mode, when the same
+  // component was mounted with a different `mode` prop.
+  try { await fillCatalogue(page); }
+  catch (error) { findings.push({ scenario: 'catalogue', role: 'requester', stage: 'checkout', action: 'fill/review', expected: 'mandatory fields enable review', observedUrl: page.url(), errors: [String(error)] }); }
 
   // Responsive and keyboard checks are read-only and run after the main paths.
   for (const width of [320, 375]) {
