@@ -33,7 +33,15 @@ interface Props {
    * screening, risk tier, master-data completeness) is computed on this step.
    */
   onSelect?: (supplier: Supplier) => void;
+  /** Other suppliers to invite to sourcing, beside the preferred one. */
+  candidateIds?: readonly string[];
+  onToggleCandidate?: (supplier: Supplier) => void;
+  /** Whether the requester has said they have no supplier in mind. */
+  intent?: 'named' | 'to-be-sourced';
+  onIntentChange?: (intent: 'named' | 'to-be-sourced') => void;
 }
+
+const EMPTY_CANDIDATES: readonly string[] = [];
 
 type SupplierOutcome = 'preferred' | 'recommend-existing' | 'onboard-new';
 
@@ -68,6 +76,7 @@ const RISK_WEIGHT: Record<string, number> = {
 export function SupplierRecommenderCard({
   category, estimatedValue, selectedSupplierId, selectedSupplierName,
   supplierProvenance, onSelect,
+  candidateIds = EMPTY_CANDIDATES, onToggleCandidate, intent = 'named', onIntentChange,
 }: Props) {
   const { data: agent } = useAiAgent('AI-005');
   const createProspective = useCreateProspectiveSupplier();
@@ -187,10 +196,35 @@ export function SupplierRecommenderCard({
                 Taken from your request — confirm or change it here.
               </p>
             )}
-            {!selectedSupplierId && (
+            {!selectedSupplierId && intent === 'named' && (
               <p className="text-[11px] text-gray-500">
-                No supplier selected yet. Pick one, or leave it open to go out to market.
+                No supplier selected yet. Pick one, or say you have none in mind.
               </p>
+            )}
+            {/* An explicit choice, not an empty field. Leaving the supplier
+                blank was the only way to say "go out to market", which reads as
+                something the requester forgot rather than something they
+                decided — and gave them no confirmation it had registered. */}
+            {onIntentChange && (
+              intent === 'to-be-sourced' ? (
+                <div className="mt-2 flex items-center justify-between gap-3 rounded-md border border-blue-100 bg-blue-50/60 px-3 py-2">
+                  <p className="text-xs text-blue-900">
+                    No supplier in mind — sourcing will identify candidates.
+                  </p>
+                  <Button size="sm" variant="ghost" className="h-6 text-[11px]" onClick={() => onIntentChange('named')}>
+                    I do have one
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="mt-2 h-7 text-[11px]"
+                  onClick={() => onIntentChange('to-be-sourced')}
+                >
+                  I have none in mind — go out to market
+                </Button>
+              )
             )}
           </div>
         )}
@@ -260,12 +294,27 @@ export function SupplierRecommenderCard({
                   {onSelect && (
                     supplier.id === selectedSupplierId ? (
                       <span className="flex items-center gap-1 text-xs font-medium text-blue-700">
-                        <CheckCircle className="size-3.5" /> Selected
+                        <CheckCircle className="size-3.5" /> Preferred
                       </span>
                     ) : (
-                      <Button size="sm" variant="outline" onClick={() => onSelect(supplier)}>
-                        Select
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        {/* Several candidates go to sourcing; exactly one is
+                            preferred, because screening, risk reuse and
+                            contract coverage need a single subject. */}
+                        {onToggleCandidate && (
+                          <Button
+                            size="sm"
+                            variant={candidateIds.includes(supplier.id) ? 'secondary' : 'ghost'}
+                            className="h-7 text-[11px]"
+                            onClick={() => onToggleCandidate(supplier)}
+                          >
+                            {candidateIds.includes(supplier.id) ? 'Invited' : 'Also invite'}
+                          </Button>
+                        )}
+                        <Button size="sm" variant="outline" onClick={() => onSelect(supplier)}>
+                          Prefer
+                        </Button>
+                      </div>
                     )
                   )}
                 </div>

@@ -11,6 +11,7 @@ import { useCatalogueItems } from '@/lib/db/hooks/use-catalogue-items';
 import { useUsers } from '@/lib/db/hooks/use-users';
 import { useAuthStore } from '@/stores/auth-store';
 import { createRequest } from '@/lib/db/requests';
+import { saveRequestSupplierCandidates } from '@/lib/db/request-supplier-candidates';
 import { parseDeliveryDate } from '@/lib/parse-delivery-date';
 import { riskSlotsFor } from '@/lib/procurement/residual-question-slots';
 import { descriptionComplete } from './details-sections';
@@ -490,6 +491,26 @@ export function NewRequestPage() {
           idempotencyKey: `intake-${id}`,
         });
 
+        // The alternates, after the request exists. Deliberately not part of the
+        // atomic intake write: a candidate list is a sourcing input, and failing
+        // to record one must not roll back a submitted request. It is upserted
+        // on (request_id, supplier_id), so a retry cannot duplicate rows.
+        const candidates = [
+          ...(formData.supplierId ? [{ requestId: id, supplierId: formData.supplierId, isPreferred: true }] : []),
+          ...formData.supplierCandidateIds
+            .filter((candidateId) => candidateId !== formData.supplierId)
+            .map((candidateId) => ({ requestId: id, supplierId: candidateId, isPreferred: false })),
+        ];
+        try {
+          await saveRequestSupplierCandidates(candidates);
+        } catch (error) {
+          // Say so rather than pretending: the request IS submitted, and a
+          // silent failure here would leave sourcing to discover an empty
+          // candidate list with no explanation.
+          console.error('Failed to record supplier candidates:', error);
+          toast.warning('Request submitted, but the supplier shortlist could not be saved.');
+        }
+
         queryClient.invalidateQueries({ queryKey: ['requests'] });
         toast.success('Request submitted successfully');
         setRequestId(id);
@@ -841,7 +862,28 @@ export function NewRequestPage() {
                 supplier: sup.name,
                 supplierId: sup.id,
                 supplierProvenance: 'chosen',
+                // Choosing a supplier is itself the answer to "do you have one
+                // in mind", so it clears an earlier "go out to market".
+                supplierIntent: 'named',
+                supplierCandidateIds: formData.supplierCandidateIds.filter((id) => id !== sup.id),
               })
+            }
+            supplierCandidateIds={formData.supplierCandidateIds}
+            onToggleSupplierCandidate={(sup) =>
+              updateFormData({
+                supplierIntent: 'named',
+                supplierCandidateIds: formData.supplierCandidateIds.includes(sup.id)
+                  ? formData.supplierCandidateIds.filter((id) => id !== sup.id)
+                  : [...formData.supplierCandidateIds, sup.id],
+              })
+            }
+            supplierIntent={formData.supplierIntent}
+            onSupplierIntentChange={(intent) =>
+              updateFormData(intent === 'to-be-sourced'
+                // An explicit "no supplier" clears any earlier selection, so the
+                // screen and the record cannot disagree about what was decided.
+                ? { supplierIntent: intent, supplier: '', supplierId: '', supplierCandidateIds: [] }
+                : { supplierIntent: intent })
             }
             category={formData.category}
             estimatedValue={formData.estimatedValue}

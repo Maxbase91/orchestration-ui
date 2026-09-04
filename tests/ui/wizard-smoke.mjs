@@ -291,6 +291,22 @@ try {
   }
   check('supplier selection appears once the conversation is finished',
     (await page.getByText('Selected supplier').count()) > 0);
+  // Intake could name exactly one supplier, and "go out to market" was only
+  // expressible by leaving the field blank — which reads as an omission.
+  // The ranked list only renders when the recommender agent is active and the
+  // fixture has suppliers in the category — so assert the CONTRACT (both
+  // actions offered together) rather than that a list happens to be there.
+  const preferCount = await page.getByRole('button', { name: /^Prefer$/ }).count();
+  const inviteCount = await page.getByRole('button', { name: /Also invite/ }).count();
+  check('a recommended supplier can be preferred, and others invited alongside',
+    preferCount === inviteCount, `prefer=${preferCount} invite=${inviteCount}`);
+  check('having no supplier in mind is an explicit choice',
+    (await page.getByRole('button', { name: /I have none in mind/ }).count()) > 0);
+  await page.getByRole('button', { name: /I have none in mind/ }).click();
+  await page.waitForTimeout(600);
+  check('choosing it says so, and is reversible',
+    (await page.getByText(/No supplier in mind — sourcing will identify candidates/).count()) > 0
+    && (await page.getByRole('button', { name: /I do have one/ }).count()) > 0);
   check('Next opens once every risk question is answered',
     await page.getByRole('button', { name: /^Next$/ }).isEnabled().catch(() => false));
 

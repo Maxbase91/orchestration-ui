@@ -201,6 +201,8 @@ npm run test:intake-submit        # atomic full-demand intake, ISO-date validati
 # Neon-backed live suites report unavailable when the configured database hostname cannot be resolved.
 npm run test:catalogue-ui         # catalogue item detail and checkout entry-point regressions
 npm run test:p-card               # governed P-card eligibility and route-only safety guard
+npm run test:supplier-candidates  # several suppliers can go to sourcing while exactly one drives the
+                                  # determination, and "no supplier" is an explicit choice
 npm run test:details-progression  # the Details step reveals one section at a time, and the reveal is the
                                   # same predicate as the step gate — they cannot disagree
 npm run test:reference-data       # cost centres and delivery locations are administered rows the server
@@ -352,7 +354,7 @@ src/
 ├── hooks/           # Custom React hooks
 ├── lib/             # Utilities, formatters, decisioning and AI adapters
 │   ├── db/          # Data-access modules + TanStack Query hooks (incl. the cost-centre and
-│   │                #   delivery-location reference tables)
+│   │                #   delivery-location reference tables, and request supplier candidates)
 │   ├── integrations/# Standardised source-connector layer (own-store → live swap)
 │   ├── procurement/ # Pure decisioning modules (classify, materiality, risk, residual risk questions and
 │   │                #   their conversation-slot adapter, intake determination + its

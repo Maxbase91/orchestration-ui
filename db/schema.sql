@@ -1081,6 +1081,24 @@ CREATE POLICY "sla_targets_all" ON sla_targets FOR ALL USING (true) WITH CHECK (
 -- Ids are the codes already carried by existing requests, requisitions and
 -- purchase orders, so those rows resolve without a backfill. Rows are
 -- deactivated rather than deleted so historic records still resolve a label.
+-- Suppliers a requester named as worth inviting to sourcing.
+--
+-- `requests.supplier_id` holds exactly ONE supplier — the preferred one, which
+-- screening, risk reuse and contract coverage all run against, because the
+-- compliance record has to mean one thing. Intake could therefore capture only
+-- one, so a requester who knew two or three plausible vendors dropped all but
+-- one and re-entered them at the sourcing event. This is the same shape
+-- `sourcing_responses` uses, so sourcing can read it directly.
+CREATE TABLE IF NOT EXISTS request_supplier_candidates (
+  request_id   text NOT NULL,
+  supplier_id  text NOT NULL,
+  is_preferred boolean NOT NULL DEFAULT false,
+  added_at     timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (request_id, supplier_id)
+);
+ALTER TABLE request_supplier_candidates ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "request_supplier_candidates_all" ON request_supplier_candidates FOR ALL USING (true) WITH CHECK (true);
+
 CREATE TABLE IF NOT EXISTS cost_centres (
   id          text PRIMARY KEY,
   label       text NOT NULL,

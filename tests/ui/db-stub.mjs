@@ -154,6 +154,7 @@ export const FIXTURES = {
     assessor_id: 'u11', assessor_name: 'Christine Dupont', assessed_at: '2026-01-01', valid_until: '2027-12-31',
     summary: 'Valid supplier assessment', mitigations: [], reusable: true, linked_request_ids: [],
   }],
+  request_supplier_candidates: [],
   cost_centres: [
     { id: 'CC-ENG-001', label: 'Engineering 1', description: '', owner: '', active: true, sort_order: 1 },
     { id: 'CC-IT-001', label: 'Information Technology 1', description: '', owner: '', active: true, sort_order: 2 },

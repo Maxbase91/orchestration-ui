@@ -65,6 +65,7 @@
     "test:reference-data-ui": "node tests/ui/reference-data-admin.mjs",
     "test:reference-data": "node --import tsx/esm tests/integration/reference-data.mjs",
     "test:screening": "node tests/integration/screening.mjs",
+    "test:supplier-candidates": "node --import tsx/esm tests/integration/supplier-candidates.mjs",
     "test:supplier-data": "node tests/integration/supplier-data.mjs",
     "test:approver-resolution": "node tests/integration/approver-resolution.mjs",
     "test:workflow-steps": "node tests/integration/workflow-steps.mjs",

@@ -56,6 +56,10 @@ interface StepComplianceProps {
   supplierProvenance?: 'named' | 'chosen';
   /** Choosing a supplier. This step is the only place it happens. */
   onSelectSupplier?: (supplier: Supplier) => void;
+  supplierCandidateIds?: readonly string[];
+  onToggleSupplierCandidate?: (supplier: Supplier) => void;
+  supplierIntent?: 'named' | 'to-be-sourced';
+  onSupplierIntentChange?: (intent: 'named' | 'to-be-sourced') => void;
   requestTitle?: string;
   /**
    * The determination, computed once by the page. Null while the supplier's
@@ -123,6 +127,10 @@ export function StepCompliance({
   qualityScore,
   supplierProvenance,
   onSelectSupplier,
+  supplierCandidateIds,
+  onToggleSupplierCandidate,
+  supplierIntent,
+  onSupplierIntentChange,
   requestTitle,
   determination,
   section,
@@ -724,6 +732,10 @@ export function StepCompliance({
         selectedSupplierName={supplier}
         supplierProvenance={supplierProvenance}
         onSelect={onSelectSupplier}
+        candidateIds={supplierCandidateIds}
+        onToggleCandidate={onToggleSupplierCandidate}
+        intent={supplierIntent}
+        onIntentChange={onSupplierIntentChange}
       /></>}
 
       {/* The workflow is PRE-DEFINED from the input (derived by category in the

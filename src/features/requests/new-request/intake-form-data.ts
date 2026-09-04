@@ -95,7 +95,31 @@ export interface IntakeFormData {
   // ── Details ─────────────────────────────────────────────────────────────
   title: string;
   supplier: string;
+  /**
+   * The PREFERRED supplier — the one the determination runs against.
+   *
+   * Screening, risk reuse and contract coverage need a single subject, or the
+   * compliance record stops meaning one thing. Additional candidates are a
+   * sourcing input, not a determination input.
+   */
   supplierId: string;
+  /**
+   * Other suppliers to invite to sourcing, alongside the preferred one.
+   *
+   * Intake could name exactly one supplier, which is wrong for the common case:
+   * a requester who knows two or three plausible vendors had to drop all but one
+   * and re-enter them at the sourcing event.
+   */
+  supplierCandidateIds: string[];
+  /**
+   * Whether a supplier is named at all.
+   *
+   * `to-be-sourced` is an explicit choice, not an empty field. Leaving the
+   * supplier blank was the only way to say "go out to market", which reads as an
+   * omission — and a requester could not tell whether the platform had
+   * understood them or was still waiting.
+   */
+  supplierIntent: 'named' | 'to-be-sourced';
   estimatedValue: number;
   currency: string;
   businessJustification: string;
@@ -186,6 +210,8 @@ export const INITIAL_INTAKE_DATA: IntakeFormData = {
   title: '',
   supplier: '',
   supplierId: '',
+  supplierCandidateIds: [],
+  supplierIntent: 'named',
   estimatedValue: 0,
   currency: 'EUR',
   businessJustification: '',

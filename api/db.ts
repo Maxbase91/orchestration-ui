@@ -46,6 +46,7 @@ const ALLOWED_RELATIONS = new Set([
   'routing_rules', 'catalogue_items', 'ai_agents', 'kpi_data', 'form_templates',
   'intake_compliance_records', 'procurement_profiles', 'audit_entries', 'knowledge_base', 'chat_feedback',
   'sla_targets', 'procurement_categories', 'cost_centres', 'delivery_locations',
+  'request_supplier_candidates',
   'goods_receipts', 'sourcing_events',
   'sourcing_responses', 'tickets', 'ticket_responses', 'ticket_links',
   'service_description_templates',

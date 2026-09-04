@@ -16,6 +16,7 @@ const expectedTables = [
   'user_preferences', 'workflow_templates', 'routing_rules', 'ai_agents', 'kpi_data',
   'form_templates', 'service_description_templates', 'procurement_profiles',
   'procurement_categories', 'cost_centres', 'delivery_locations',
+  'request_supplier_candidates',
   'sla_targets', 'approval_chains', 'requests', 'stage_history',
   'service_descriptions', 'ai_conversations', 'assistant_conversations', 'comments', 'comment_reads',
   'compliance_reports', 'system_integrations', 'form_submissions', 'approval_entries',
