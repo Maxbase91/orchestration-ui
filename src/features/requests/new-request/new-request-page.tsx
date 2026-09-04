@@ -12,6 +12,8 @@ import { useUsers } from '@/lib/db/hooks/use-users';
 import { useAuthStore } from '@/stores/auth-store';
 import { createRequest } from '@/lib/db/requests';
 import { parseDeliveryDate } from '@/lib/parse-delivery-date';
+import { useCostCentres } from '@/lib/db/hooks/use-cost-centres';
+import { useDeliveryLocations } from '@/lib/db/hooks/use-delivery-locations';
 import { initWorkflow } from '@/lib/workflow/engine';
 import { queryClient } from '@/lib/query-client';
 import type { RequestCategory, BuyingChannel } from '@/data/types';
@@ -113,6 +115,15 @@ export function NewRequestPage() {
   const { currentUser } = useAuthStore();
   const { data: suppliers = [] } = useSuppliers();
   const { data: contracts = [] } = useContracts();
+  // The same reference data the server reads when it recomputes the decision.
+  // If the client evaluated against a different list the two decisions would
+  // differ and every submit would come back as a governance mismatch.
+  const { data: allCostCentres = [] } = useCostCentres();
+  const { data: allDeliveryLocations = [] } = useDeliveryLocations();
+  const activeCostCentreIds = useMemo(
+    () => allCostCentres.filter((centre) => centre.active).map((centre) => centre.id), [allCostCentres]);
+  const activeDeliveryLocationIds = useMemo(
+    () => allDeliveryLocations.filter((location) => location.active).map((location) => location.id), [allDeliveryLocations]);
   const { data: riskAssessments = [] } = useRiskAssessments();
   const { data: catalogueItems = [] } = useCatalogueItems();
   const { data: users = [] } = useUsers();
@@ -296,8 +307,11 @@ export function NewRequestPage() {
       const profile = storedProfile ?? {
         userId: currentUser.id, defaultCurrency: formData.currency, costCentre: formData.costCentre,
         budgetOwner: currentUser.name, accountType: 'expense', beneficiaryId: formData.beneficiaryId || currentUser.id,
-        approvedShipToLocations: [{ id: 'office', label: 'Default location' }],
-        defaultShipToLocationId: 'office', defaultCommodityCode: item.commodityCode,
+        // No invented approved list, and no invented default location. This
+        // said `[{ id: 'office' }]` and the server fell back to it when no
+        // profile row existed, so the delivery-location check approved a
+        // location that existed nowhere. `delivery_locations` is the authority.
+        approvedShipToLocations: [], defaultCommodityCode: item.commodityCode,
       };
       const riskAssessment = resolveCheckoutRiskAssessment(riskAssessments, supplier.id, resolved.contract.id);
       const checkout = {
@@ -308,6 +322,7 @@ export function NewRequestPage() {
         purpose: draft.businessPurpose || submittedOrder.title, costCentre: draft.costCentre,
         shipToLocationId: draft.deliveryLocation,
         beneficiaryId: formData.beneficiaryId || currentUser.id, idempotencyKey: `checkout-${id}`,
+        activeCostCentreIds, activeDeliveryLocationIds,
       };
       const decision = evaluateGovernedCheckout(checkout);
       if (!decision.ok) throw new Error(decision.errors.join(' '));
@@ -356,8 +371,9 @@ export function NewRequestPage() {
       const profile = storedProfile ?? {
         userId: currentUser.id, defaultCurrency: formData.currency, costCentre: draft.costCentre,
         budgetOwner: currentUser.name, accountType: 'expense', beneficiaryId: formData.beneficiaryId || currentUser.id,
-        approvedShipToLocations: [{ id: draft.deliveryLocation, label: draft.deliveryLocation }],
-        defaultShipToLocationId: draft.deliveryLocation,
+        // This was strictly worse: it approved whatever the requester had
+        // chosen, by building the approved list out of that same choice.
+        approvedShipToLocations: [],
       };
       const riskAssessment = resolveCheckoutRiskAssessment(riskAssessments, supplier.id, contract.id);
       const line = { description: draft.title, quantity: 1, unit: 'service', unitPrice: draft.value, supplierId: supplier.id, contractId: contract.id, riskAssessmentId: riskAssessment?.id, commodityCode: formData.commodityCode || profile.defaultCommodityCode };
@@ -367,6 +383,7 @@ export function NewRequestPage() {
         serviceEndDate: draft.serviceEndDate || undefined, purpose: draft.purpose, costCentre: draft.costCentre,
         shipToLocationId: draft.deliveryLocation, beneficiaryId: formData.beneficiaryId || currentUser.id,
         idempotencyKey: `checkout-${id}`,
+        activeCostCentreIds, activeDeliveryLocationIds,
       };
       const decision = evaluateGovernedCheckout(checkout);
       if (!decision.ok) throw new Error(decision.errors.join(' '));

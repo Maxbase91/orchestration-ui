@@ -15,6 +15,8 @@ import type { ExperienceMode } from '@/lib/experience-mode';
 import type { CatalogueItem } from '@/data/catalogue-items';
 import { useAuthStore } from '@/stores/auth-store';
 import { useProcurementProfile } from '@/lib/db/hooks/use-procurement-profile';
+import { useCostCentres } from '@/lib/db/hooks/use-cost-centres';
+import { useDeliveryLocations } from '@/lib/db/hooks/use-delivery-locations';
 
 export interface CatalogueOrderDraft {
   itemId: string;
@@ -35,21 +37,15 @@ interface CatalogueOrderCheckoutProps {
   onSubmit: (draft: CatalogueOrderDraft) => void;
 }
 
-const DELIVERY_LOCATIONS = [
-  { value: 'office', label: 'My default office location' },
-  { value: 'home', label: 'My approved home delivery address' },
-  { value: 'beneficiary', label: 'The beneficiary’s approved location' },
-];
-
-// No invented chart of accounts.
+// Cost centre and delivery location are administered reference data.
 //
-// This offered five made-up cost centres ("CC-1001 Marketing", …) as if they
-// were the organisation's own. There is no cost-centre reference table —
-// `requests.cost_centre` is free text — so the list was a fabrication shown
-// with the authority of a dropdown, and a requester could only ever pick a
-// wrong one. The cost centre now comes from the requester's profile and is
-// corrected in one place (the requester-context block), which is also what the
-// governed checkout already fell back to.
+// This screen once offered five invented cost centres ("CC-1001 Marketing", …)
+// and three invented delivery options, presented with the authority of a picker
+// while nothing backed either list. Deleting them was right; replacing them with
+// free text was not — a requester could still type anything, and the governed
+// checkout could only check the field was non-empty. Both now come from
+// `cost_centres` and `delivery_locations`, which the server validates against,
+// so what the picker offers is exactly what will be accepted.
 
 function dateInDays(days: number): string {
   const date = new Date();
@@ -77,10 +73,13 @@ export function CatalogueOrderCheckout({
   const [costCentre, setCostCentre] = useState(initialValues?.costCentre ?? '');
   const [showExpertDetails, setShowExpertDetails] = useState(false);
 
-  const deliveryLocations = profile?.approvedShipToLocations.length
-    ? profile.approvedShipToLocations.map((location) => ({ value: location.id, label: location.label }))
-    : DELIVERY_LOCATIONS;
-  const effectiveDeliveryLocation = deliveryLocation || profile?.defaultShipToLocationId || deliveryLocations[0]?.value || 'office';
+  const { data: allCostCentres = [] } = useCostCentres();
+  const { data: allLocations = [] } = useDeliveryLocations();
+  const deliveryLocations = allLocations.filter((location) => location.active);
+  const costCentres = allCostCentres.filter((centre) => centre.active);
+  // No silent fallback to the first row: defaulting to whatever happened to be
+  // top of the list submitted a location the requester never chose.
+  const effectiveDeliveryLocation = deliveryLocation || profile?.defaultShipToLocationId || '';
   const effectiveCostCentre = costCentre || profile?.costCentre || '';
 
   const total = quantity * item.unitPrice;
@@ -134,11 +133,16 @@ export function CatalogueOrderCheckout({
           <div className="relative">
             <MapPin className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
             <select id="catalogue-delivery-location" value={effectiveDeliveryLocation} onChange={(event) => setDeliveryLocation(event.target.value)} className="h-10 w-full appearance-none rounded-md border border-input bg-background px-9 pr-8 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring">
-              {deliveryLocations.map((location) => <option key={location.value} value={location.value}>{location.label}</option>)}
+              {/* An explicit placeholder when nothing matches: a `<select>`
+                  whose value is not among its options displays the FIRST
+                  option's label, so the screen would name a location the
+                  requester never picked. */}
+              {!deliveryLocations.some((location) => location.id === effectiveDeliveryLocation) && <option value="">Select a delivery location…</option>}
+              {deliveryLocations.map((location) => <option key={location.id} value={location.id}>{location.label}</option>)}
             </select>
             <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
           </div>
-          <p className="text-xs text-muted-foreground">Only approved delivery locations are available.</p>
+          <p className="text-xs text-muted-foreground">{deliveryLocations.length === 0 ? 'No delivery locations are configured — ask an administrator to add one.' : 'Only active delivery locations can be chosen.'}</p>
         </div>
 
         <div className="space-y-1.5">
@@ -151,33 +155,21 @@ export function CatalogueOrderCheckout({
           <Textarea id="catalogue-purpose" rows={3} value={businessPurpose} onChange={(event) => setBusinessPurpose(event.target.value)} placeholder="A short business reason helps us route the request correctly" />
         </div>
 
-        {/* Charged to — derived, not asked.
-            This was a dropdown of five invented cost centres ("CC-1001
-            Marketing", …). There is no cost-centre reference table —
-            `requests.cost_centre` is free text — so the list was a fabrication
-            presented with the authority of a picker, and the governed checkout
-            overrode it with the profile default anyway. It is now shown when
-            the profile knows it, and asked only when it does not. */}
-        {profile?.costCentre && !costCentre ? (
-          <p className="text-xs text-gray-500">
-            Charged to <span className="font-medium text-gray-800">{profile.costCentre}</span> from your profile.
+        <div className="space-y-1.5">
+          <Label htmlFor="catalogue-cost-centre">Charged to</Label>
+          <select
+            id="catalogue-cost-centre"
+            value={effectiveCostCentre}
+            onChange={(event) => setCostCentre(event.target.value)}
+            className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {!costCentres.some((centre) => centre.id === effectiveCostCentre) && <option value="">Select a cost centre…</option>}
+            {costCentres.map((centre) => <option key={centre.id} value={centre.id}>{centre.id} · {centre.label}</option>)}
+          </select>
+          <p className="text-[11px] text-gray-500">
+            {profile?.costCentre ? 'From your profile — change it for this order if needed.' : 'Your profile has no default cost centre, so this order needs one.'}
           </p>
-        ) : (
-          <div className="space-y-1.5">
-            <Label htmlFor="catalogue-cost-centre">Cost centre</Label>
-            <Input
-              id="catalogue-cost-centre"
-              value={costCentre}
-              onChange={(event) => setCostCentre(event.target.value)}
-              placeholder="The account this is charged to"
-            />
-            {!profile?.costCentre && (
-              <p className="text-[11px] text-gray-500">
-                Your profile has no default cost centre, so this order needs one.
-              </p>
-            )}
-          </div>
-        )}
+        </div>
 
         <div className="rounded-lg border border-blue-100 bg-blue-50/60 p-4">
           <div className="flex items-start justify-between gap-3">

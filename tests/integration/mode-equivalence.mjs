@@ -124,6 +124,10 @@ function checkoutFor(mode) {
     // The field Simple used to omit: with a stored profile present, leaving it
     // out silently substituted the profile default for the requester's choice.
     shipToLocationId: 'office',
+    // Both pages read the same reference tables and hand the evaluator the same
+    // active ids, so a divergence here would be a divergence in the decision.
+    activeCostCentreIds: ['CC-1'],
+    activeDeliveryLocationIds: ['office'],
     idempotencyKey: `checkout-${mode}`,
   };
 }
@@ -136,10 +140,17 @@ check('simple and expert produce the same decision for the same demand', () => {
   assert.equal(simple.ok, true);
 });
 
-check('the delivery location must be one the profile approves', () => {
+check('the delivery location must be an active row in the reference table', () => {
   const off = { ...checkoutFor('simple'), shipToLocationId: 'somewhere-else' };
-  const decision = evaluateGovernedCheckout(off);
-  assert.equal(decision.ok, false);
+  assert.equal(evaluateGovernedCheckout(off).ok, false);
+  // And the profile cannot vouch for it: this used to be checked against
+  // `approvedShipToLocations`, which the browser supplied.
+  const vouched = {
+    ...checkoutFor('simple'),
+    profile: { ...profile, approvedShipToLocations: [{ id: 'somewhere-else', label: 'Anywhere' }] },
+    shipToLocationId: 'somewhere-else',
+  };
+  assert.equal(evaluateGovernedCheckout(vouched).ok, false);
 });
 
 // ── The determination cannot know which density it is serving ───────────────

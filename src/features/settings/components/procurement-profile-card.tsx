@@ -19,6 +19,8 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getProcurementProfile, upsertProcurementProfile } from '@/lib/db/procurement-profiles';
 import type { ProcurementProfile } from '@/data/types';
+import { useCostCentres } from '@/lib/db/hooks/use-cost-centres';
+import { useDeliveryLocations } from '@/lib/db/hooks/use-delivery-locations';
 
 const CURRENCIES = ['EUR', 'USD', 'GBP'];
 
@@ -28,6 +30,10 @@ interface ProcurementProfileCardProps {
 
 export function ProcurementProfileCard({ userId }: ProcurementProfileCardProps) {
   const [profile, setProfile] = useState<ProcurementProfile | null>(null);
+  const { data: allCostCentres = [] } = useCostCentres();
+  const { data: allLocations = [] } = useDeliveryLocations();
+  const costCentres = allCostCentres.filter((centre) => centre.active);
+  const locations = allLocations.filter((location) => location.active);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -91,12 +97,19 @@ export function ProcurementProfileCard({ userId }: ProcurementProfileCardProps) 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <Label htmlFor="profile-cost-centre">Cost centre</Label>
-          <Input
-            id="profile-cost-centre"
-            value={profile.costCentre ?? ''}
-            placeholder="The account your requests charge to"
-            onChange={(event) => patch({ costCentre: event.target.value })}
-          />
+          {/* Administered reference data, not free text: the governed checkout
+              rejects a cost centre that is not an active row, so typing one
+              here could set a default that no order could ever use. */}
+          <Select value={profile.costCentre ?? ''} onValueChange={(value) => patch({ costCentre: value })}>
+            <SelectTrigger id="profile-cost-centre">
+              <SelectValue placeholder={costCentres.length === 0 ? 'None configured' : 'Select a cost centre…'} />
+            </SelectTrigger>
+            <SelectContent>
+              {costCentres.map((centre) => (
+                <SelectItem key={centre.id} value={centre.id}>{centre.id} · {centre.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="profile-currency">Default currency</Label>
@@ -132,27 +145,25 @@ export function ProcurementProfileCard({ userId }: ProcurementProfileCardProps) 
         <Select
           value={profile.defaultShipToLocationId ?? ''}
           onValueChange={(value) => patch({ defaultShipToLocationId: value })}
-          disabled={profile.approvedShipToLocations.length === 0}
+          disabled={locations.length === 0}
         >
           <SelectTrigger id="profile-ship-to">
-            <SelectValue placeholder={
-              profile.approvedShipToLocations.length === 0
-                ? 'No approved locations on your profile'
-                : 'Select a location…'
-            } />
+            <SelectValue placeholder={locations.length === 0 ? 'None configured' : 'Select a location…'} />
           </SelectTrigger>
           <SelectContent>
-            {profile.approvedShipToLocations.map((location) => (
+            {locations.map((location) => (
               <SelectItem key={location.id} value={location.id}>{location.label}</SelectItem>
             ))}
           </SelectContent>
         </Select>
-        {/* Approved ship-to locations are governance data, not a preference:
-            a governed checkout REJECTS a delivery location the profile does not
-            approve, so they are set by an administrator rather than typed here. */}
+        {/* Delivery locations are governance data, not a preference: a governed
+            checkout REJECTS a location that is not an active row, so they are
+            maintained by an administrator rather than typed here. This list used
+            to come from `approvedShipToLocations` on the profile — which nothing
+            ever populated, so the control was permanently disabled. */}
         <p className="text-[11px] text-muted-foreground">
-          Approved locations are maintained by your administrator — an order cannot be delivered
-          anywhere else.
+          Locations are maintained by your administrator — an order cannot be delivered anywhere
+          else.
         </p>
       </div>
 

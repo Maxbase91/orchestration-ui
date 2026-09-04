@@ -51,6 +51,8 @@ import { NewEventPage } from '@/features/sourcing/new-event-page'
 import { SourcingTemplatesPage } from '@/features/sourcing/sourcing-templates-page'
 import { PortalAdminPage } from '@/features/suppliers/portal-admin-page'
 import { ApprovalChainsPage } from '@/features/admin/approval-chains-page'
+import { CostCentresPage } from '@/features/admin/cost-centres-page';
+import { DeliveryLocationsPage } from '@/features/admin/delivery-locations-page';
 import { CategoriesPage } from '@/features/admin/categories-page'
 import { ServiceDescriptionPage } from '@/features/admin/service-description-page'
 import { SlaTargetsPage } from '@/features/admin/sla-targets-page'
@@ -174,6 +176,8 @@ export function App() {
             {/* Admin — admin only */}
             <Route element={<RequireRole roles={['admin']} />}>
               <Route path="/admin/categories" element={<CategoriesPage />} />
+              <Route path="/admin/cost-centres" element={<CostCentresPage />} />
+              <Route path="/admin/delivery-locations" element={<DeliveryLocationsPage />} />
               <Route path="/admin/sla-targets" element={<SlaTargetsPage />} />
               <Route path="/admin/database" element={<DatabaseAdminPage />} />
               <Route path="/admin/rules" element={<RoutingRulesPage />} />

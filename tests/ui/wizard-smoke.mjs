@@ -415,14 +415,32 @@ try {
     (await page.getByText(/Complete the highlighted/).count()) === 0);
   await page.locator('#catalogue-recipient').fill('New starter');
   await page.locator('#catalogue-purpose').fill('Provide standard equipment for the new starter.');
-  // Derived, not asked — unless the profile genuinely has no default, which is
-  // this fixture's case. The dropdown of five invented cost centres is gone; a
-  // governed order does need an account to charge, so the field appears only
-  // when nothing is known.
+  // A picker again — but every option is an active row of `cost_centres`, not
+  // the five invented entries ("CC-1001 Marketing", …) this screen once offered
+  // with the authority of a dropdown and nothing behind it. Free text was the
+  // wrong correction: the requester could type anything and the governed
+  // checkout could only check the field was non-empty.
   const costCentreField = page.locator('#catalogue-cost-centre');
-  check('no invented cost-centre picker remains',
-    (await costCentreField.evaluate((el) => el.tagName).catch(() => 'NONE')) !== 'SELECT');
-  if (await costCentreField.count()) await costCentreField.fill('CC-2001');
+  check('the cost centre is chosen from the reference table',
+    (await costCentreField.evaluate((el) => el.tagName).catch(() => 'NONE')) === 'SELECT');
+  const offered = await costCentreField.evaluate(
+    (el) => [...el.options].map((option) => option.value).filter(Boolean)).catch(() => []);
+  check('every cost centre offered is a seeded row, not an invented one',
+    offered.length > 0 && offered.every((id) => /^CC-/.test(id)), `offered=${offered.join(', ')}`);
+  check('no invented cost centre is offered',
+    !offered.some((id) => /^CC-1001$|Marketing/.test(id)));
+  if (offered.length) await costCentreField.selectOption(offered[0]);
+  // The delivery location is no longer silently defaulted to an invented
+  // "office": the requester either has one on their profile or picks one. The
+  // old fallback submitted a location nobody had chosen, which the server then
+  // had no way to reject because it was validating against a list the browser
+  // supplied.
+  const locationField = page.locator('#catalogue-delivery-location');
+  const locationOptions = await locationField.evaluate(
+    (el) => [...el.options].map((option) => option.value).filter(Boolean)).catch(() => []);
+  check('delivery locations come from the reference table', locationOptions.length > 0,
+    `offered=${locationOptions.join(', ')}`);
+  if (locationOptions.length) await locationField.selectOption(locationOptions[0]);
   const checkoutSubmit = page.getByRole('button', { name: /Review order/ });
   check('shared checkout enables submit after required details', await checkoutSubmit.isEnabled().catch(() => false));
   await checkoutSubmit.click();

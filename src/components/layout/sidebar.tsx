@@ -83,6 +83,9 @@ import {
   CalendarPlus,
   SlidersHorizontal,
   type LucideIcon,
+  Wallet,
+  MapPin,
+  Tag,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { navigation, type NavItem, type NavGroup } from '@/config/navigation';
@@ -173,6 +176,9 @@ const iconMap: Record<string, LucideIcon> = {
   LayoutTemplate,
   Files,
   CalendarPlus,
+  Wallet,
+  MapPin,
+  Tag,
 };
 
 function getIcon(name: string): LucideIcon {

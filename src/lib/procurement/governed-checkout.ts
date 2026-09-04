@@ -24,6 +24,22 @@ export interface GovernedCheckoutInput {
   contract: Contract;
   riskAssessment?: RiskAssessment;
   profile: ProcurementProfile;
+  /**
+   * The reference data both checks below are made against — active rows from
+   * `cost_centres` and `delivery_locations`.
+   *
+   * These are inputs rather than reads so the evaluator stays pure and the
+   * server can supply its OWN copy. The delivery-location check used to run
+   * against `profile.approvedShipToLocations`, which nothing ever populated and
+   * which `api/governed-checkout.ts` fell back to taking from the browser when
+   * no profile row existed — so it approved whatever it was handed. A check
+   * that cannot fail is not a check.
+   *
+   * Undefined means the caller could not load them; both checks then fail
+   * closed rather than passing on absent evidence.
+   */
+  activeCostCentreIds?: readonly string[];
+  activeDeliveryLocationIds?: readonly string[];
   currency?: string;
   needByDate?: string;
   serviceStartDate?: string;
@@ -142,14 +158,19 @@ export function evaluateGovernedCheckout(
   else if (!riskAssessment) warnings.push('No linked supplier or contract risk assessment was found; risk review is required.');
   else if (riskReviewRequired) warnings.push('The linked risk assessment is expired or incomplete; risk review is required.');
   const shipToLocationId = input.shipToLocationId ?? input.profile.defaultShipToLocationId;
-  const validShipTo = input.profile.approvedShipToLocations.some((location) => location.id === shipToLocationId);
-  if (!shipToLocationId || !validShipTo) errors.push('Choose an approved delivery location.');
+  if (!shipToLocationId) errors.push('Choose a delivery location.');
+  else if (!input.activeDeliveryLocationIds?.includes(shipToLocationId)) {
+    errors.push('That delivery location is not active — choose one from the list.');
+  }
   const purpose = input.purpose.trim();
   if (!purpose) errors.push('Provide a short business purpose.');
   const resolvedCostCentre = input.costCentre ?? input.profile.costCentre;
   const resolvedBudgetOwner = input.budgetOwner ?? input.profile.budgetOwner;
   const resolvedAccountType = input.accountType ?? input.profile.accountType;
   if (!resolvedCostCentre) errors.push('A cost centre is required.');
+  else if (!input.activeCostCentreIds?.includes(resolvedCostCentre)) {
+    errors.push('That cost centre is not active — choose one from the list.');
+  }
   if (!resolvedBudgetOwner) errors.push('A budget owner is required.');
   if (!resolvedAccountType) errors.push('An account type is required.');
   const approvalRequired = totalValue >= config.catalogueAutoApprovalThreshold;

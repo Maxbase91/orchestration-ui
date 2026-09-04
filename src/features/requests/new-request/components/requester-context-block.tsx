@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { MapPin, UserRound, Pencil, RotateCcw, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import { useUserLookup, useUsers } from '@/lib/db/hooks/use-users';
 import { UserAutocomplete } from './user-autocomplete';
+import { useCostCentres } from '@/lib/db/hooks/use-cost-centres';
 
 interface RequesterContextBlockProps {
   requestorId: string;
@@ -46,6 +46,13 @@ export function RequesterContextBlock({
   const lookupUser = useUserLookup();
   const [changing, setChanging] = useState(false);
   const [editingCostCentre, setEditingCostCentre] = useState(false);
+  const { data: allCostCentres = [] } = useCostCentres();
+  const costCentres = allCostCentres.filter((centre) => centre.active);
+  // Show the account's label, not just its code — "CC-ENG-001" alone tells the
+  // requester nothing about what they are charging.
+  const effectiveCostCentre = costCentre || profileCostCentre || '';
+  const matchedCentre = allCostCentres.find((centre) => centre.id === effectiveCostCentre);
+  const costCentreLabel = matchedCentre ? `${matchedCentre.id} · ${matchedCentre.label}` : effectiveCostCentre;
 
   const requestor = lookupUser(requestorId);
   const country = requesterCountry || requestor?.country;
@@ -133,21 +140,25 @@ export function RequesterContextBlock({
             <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Charged to</p>
             {editingCostCentre ? (
               <div className="mt-1 space-y-1.5">
-                <Input
+                {/* A picker, not free text: the governed checkout rejects a cost
+                    centre that is not an active row, so a typed one could only
+                    fail at submit. */}
+                <select
                   autoFocus
-                  className="h-7 text-sm"
-                  value={costCentre ?? ''}
-                  placeholder="Cost centre"
+                  className="h-7 w-full rounded-md border border-input bg-background px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  value={costCentre || profileCostCentre || ''}
                   aria-label="Cost centre"
-                  onChange={(event) => onUpdate({ costCentre: event.target.value })}
+                  onChange={(event) => { onUpdate({ costCentre: event.target.value }); setEditingCostCentre(false); }}
                   onBlur={() => setEditingCostCentre(false)}
-                  onKeyDown={(event) => { if (event.key === 'Enter') setEditingCostCentre(false); }}
-                />
+                >
+                  {!costCentres.some((centre) => centre.id === (costCentre || profileCostCentre)) && <option value="">Select a cost centre…</option>}
+                  {costCentres.map((centre) => <option key={centre.id} value={centre.id}>{centre.id} · {centre.label}</option>)}
+                </select>
               </div>
             ) : (
               <div className="flex flex-wrap items-center gap-2">
                 <p className="text-sm font-medium text-gray-900">
-                  {costCentre || profileCostCentre || 'Not set on your profile'}
+                  {costCentreLabel || 'Not set on your profile'}
                 </p>
                 {!costCentre && profileCostCentre && (
                   <Badge variant="outline" className="text-[9px]">from your profile</Badge>

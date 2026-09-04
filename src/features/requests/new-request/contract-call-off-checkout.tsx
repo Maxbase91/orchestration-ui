@@ -11,6 +11,8 @@ import type { ExperienceMode } from '@/lib/experience-mode';
 import type { Contract, ProcurementProfile } from '@/data/types';
 import { useAuthStore } from '@/stores/auth-store';
 import { useProcurementProfile } from '@/lib/db/hooks/use-procurement-profile';
+import { useCostCentres } from '@/lib/db/hooks/use-cost-centres';
+import { useDeliveryLocations } from '@/lib/db/hooks/use-delivery-locations';
 import { cn } from '@/lib/utils';
 
 export interface ContractCallOffDraft {
@@ -38,13 +40,13 @@ function dateInDays(days: number): string {
   return date.toISOString().slice(0, 10);
 }
 
+// A requester with no stored profile simply has no defaults — the pickers are
+// then empty rather than pre-filled. This used to invent
+// `{ id: 'office', label: 'Default location' }`, which is why the screen named
+// a delivery location nobody had chosen and why the governed checkout was
+// handed a location that existed nowhere.
 function defaultProfile(): ProcurementProfile {
-  return {
-    userId: '',
-    defaultCurrency: 'EUR',
-    approvedShipToLocations: [{ id: 'office', label: 'Default location' }],
-    defaultShipToLocationId: 'office',
-  };
+  return { userId: '', defaultCurrency: 'EUR', approvedShipToLocations: [] };
 }
 
 export function ContractCallOffCheckout({ contract, mode = 'simple', initialValues, onSubmit }: ContractCallOffCheckoutProps) {
@@ -70,7 +72,14 @@ export function ContractCallOffCheckout({ contract, mode = 'simple', initialValu
   const [chosenCostCentre, setCostCentre] = useState(initialValues?.costCentre || '');
   const deliveryLocation = chosenLocation || profile.defaultShipToLocationId || '';
   const costCentre = chosenCostCentre || profile.costCentre || '';
-  const locations = profile.approvedShipToLocations;
+  // Both lists are administered reference data, and the server rejects anything
+  // that is not an active row — so the picker offers exactly what will be
+  // accepted. `approvedShipToLocations` on the profile is no longer consulted:
+  // nothing ever populated it, and the browser supplied it to the check.
+  const { data: allCostCentres = [] } = useCostCentres();
+  const { data: allLocations = [] } = useDeliveryLocations();
+  const locations = allLocations.filter((location) => location.active);
+  const costCentres = allCostCentres.filter((centre) => centre.active);
 
   const needsServiceDates = (contract?.category ?? '').toLowerCase().includes('service') || (contract?.category ?? '').toLowerCase().includes('consult');
   const validDates = !serviceStartDate || !serviceEndDate || serviceEndDate >= serviceStartDate;
@@ -135,16 +144,26 @@ export function ContractCallOffCheckout({ contract, mode = 'simple', initialValu
               look empty. */}
           {!locations.some((location) => location.id === deliveryLocation) && <option value="">Select a delivery location…</option>}
           {locations.map((location) => <option key={location.id} value={location.id}>{location.label}</option>)}
-        </select><ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" /></div><p className="text-xs text-muted-foreground">{locations.length === 0 ? 'No delivery locations are available on your profile — ask an administrator to add one.' : 'Only approved delivery locations are available.'}</p></div>
-        {/* Gated on the PROFILE, not on the current value: keyed on `!costCentre`
-            the field unmounted on the first character typed into it. */}
-        {!profile.costCentre && (
-          <div className="space-y-1.5">
-            <Label htmlFor="calloff-cost-centre">Cost centre</Label>
-            <Input id="calloff-cost-centre" value={costCentre} onChange={(e) => setCostCentre(e.target.value)} aria-invalid={!costCentre} className={cn(!costCentre && 'border-red-300')} placeholder="The account this is charged to" />
-            <p className="text-[11px] text-gray-500">Your profile has no default cost centre, so this call-off needs one.</p>
-          </div>
-        )}
+        </select><ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" /></div><p className="text-xs text-muted-foreground">{locations.length === 0 ? 'No delivery locations are configured — ask an administrator to add one.' : 'Only active delivery locations can be chosen.'}</p></div>
+        {/* Always shown, and always a picker. It used to be free text that
+            appeared only when the profile had no default — so the one requester
+            who had to supply it was also the one given no list to pick from. */}
+        <div className="space-y-1.5">
+          <Label htmlFor="calloff-cost-centre">Charged to</Label>
+          <select
+            id="calloff-cost-centre"
+            value={costCentre}
+            onChange={(e) => setCostCentre(e.target.value)}
+            aria-invalid={!costCentre}
+            className={cn('h-10 w-full rounded-md border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring', costCentre ? 'border-input' : 'border-red-300')}
+          >
+            {!costCentres.some((centre) => centre.id === costCentre) && <option value="">Select a cost centre…</option>}
+            {costCentres.map((centre) => <option key={centre.id} value={centre.id}>{centre.id} · {centre.label}</option>)}
+          </select>
+          <p className="text-[11px] text-gray-500">
+            {profile.costCentre ? 'From your profile — change it for this call-off if needed.' : 'Your profile has no default cost centre, so this call-off needs one.'}
+          </p>
+        </div>
         <div className="space-y-1.5"><Label htmlFor="calloff-recipient">Who is this for?</Label><Input id="calloff-recipient" value={recipient} onChange={(e) => setRecipient(e.target.value)} placeholder="Person or team receiving the service" /></div>
         <div className="space-y-1.5"><Label htmlFor="calloff-purpose">Business purpose</Label><Textarea id="calloff-purpose" rows={3} value={purpose} onChange={(e) => setPurpose(e.target.value)} placeholder="What outcome is this call-off needed for?" /></div>
 

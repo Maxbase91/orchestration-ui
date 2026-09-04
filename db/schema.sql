@@ -1071,6 +1071,38 @@ ALTER TABLE sla_targets ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "sla_targets_all" ON sla_targets FOR ALL USING (true) WITH CHECK (true);
 
 -- Admin-managed procurement categories
+-- Reference data: the accounts a request can be charged to and the places an
+-- order can be delivered to. Both were free text (or, worse, a hardcoded list
+-- in a component) until the governed checkout needed something real to check
+-- against: `evaluateGovernedCheckout` could only assert the cost centre was
+-- non-empty, and it validated the delivery location against a list the browser
+-- supplied. Administered rows make both checks enforceable server-side.
+--
+-- Ids are the codes already carried by existing requests, requisitions and
+-- purchase orders, so those rows resolve without a backfill. Rows are
+-- deactivated rather than deleted so historic records still resolve a label.
+CREATE TABLE IF NOT EXISTS cost_centres (
+  id          text PRIMARY KEY,
+  label       text NOT NULL,
+  description text NOT NULL DEFAULT '',
+  owner       text NOT NULL DEFAULT '',
+  active      boolean NOT NULL DEFAULT true,
+  sort_order  int NOT NULL DEFAULT 0
+);
+ALTER TABLE cost_centres ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "cost_centres_all" ON cost_centres FOR ALL USING (true) WITH CHECK (true);
+
+CREATE TABLE IF NOT EXISTS delivery_locations (
+  id           text PRIMARY KEY,
+  label        text NOT NULL,
+  address      text NOT NULL DEFAULT '',
+  country_code text NOT NULL DEFAULT '',
+  active       boolean NOT NULL DEFAULT true,
+  sort_order   int NOT NULL DEFAULT 0
+);
+ALTER TABLE delivery_locations ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "delivery_locations_all" ON delivery_locations FOR ALL USING (true) WITH CHECK (true);
+
 CREATE TABLE IF NOT EXISTS procurement_categories (
   id            text PRIMARY KEY,
   label         text NOT NULL,

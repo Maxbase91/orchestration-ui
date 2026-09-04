@@ -61,6 +61,8 @@
     "test:operational-risk": "node tests/integration/operational-risk.mjs",
     "test:classification-eval": "node tests/integration/classification-eval.mjs",
     "test:referral": "node tests/integration/referral.mjs",
+    "test:reference-data-ui": "node tests/ui/reference-data-admin.mjs",
+    "test:reference-data": "node --import tsx/esm tests/integration/reference-data.mjs",
     "test:screening": "node tests/integration/screening.mjs",
     "test:supplier-data": "node tests/integration/supplier-data.mjs",
     "test:approver-resolution": "node tests/integration/approver-resolution.mjs",

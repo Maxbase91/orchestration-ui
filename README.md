@@ -201,6 +201,9 @@ npm run test:intake-submit        # atomic full-demand intake, ISO-date validati
 # Neon-backed live suites report unavailable when the configured database hostname cannot be resolved.
 npm run test:catalogue-ui         # catalogue item detail and checkout entry-point regressions
 npm run test:p-card               # governed P-card eligibility and route-only safety guard
+npm run test:reference-data       # cost centres and delivery locations are administered rows the server
+                                  # validates against — an absent or retired one is rejected, and absent
+                                  # reference data fails closed rather than passing
 npm run test:assistant-extraction # the intake assistant may fill demand facts and nothing else — no buying route,
                                   # cost centre or risk answer arrives from the model
 npm run test:dashboard-widgets    # the widget catalogue and its renderer agree — nothing offered that cannot render,
@@ -223,6 +226,8 @@ npm run test:ui-full              # evidence harness — 60+ checkpoints screens
 npm run test:ui-lifecycle         # static guard that call-offs, stage actions and invoice transitions stay UI-governed
 npm run test:service-description-ui # browser smoke — /admin/service-description renders all four config areas
 npm run test:intake-guidance-ui   # browser smoke — step-1 single classification block, per-step header panels, the step gate
+npm run test:reference-data-ui    # browser smoke — admin maintains cost centres and delivery locations, and
+                                  # a retired row disappears from every requester picker
 npm run test:dashboard-ui         # browser smoke — the role's default dashboard covers its work, and adding or
                                   # removing a widget survives a reload
 npm run test:request-detail-ui    # browser check on fixtures (no credentials, no network) — the request detail renders, every
@@ -345,7 +350,8 @@ src/
 ├── stores/          # Zustand state stores
 ├── hooks/           # Custom React hooks
 ├── lib/             # Utilities, formatters, decisioning and AI adapters
-│   ├── db/          # Data-access modules + TanStack Query hooks
+│   ├── db/          # Data-access modules + TanStack Query hooks (incl. the cost-centre and
+│   │                #   delivery-location reference tables)
 │   ├── integrations/# Standardised source-connector layer (own-store → live swap)
 │   ├── procurement/ # Pure decisioning modules (classify, materiality, risk, intake determination + its
 │   │                #   compliance record, governed checkout, …) + service description config (SERVICE_DESCRIPTION.md)
@@ -367,7 +373,8 @@ src/
     ├── workflows/   # Kanban, table, timeline, monitor
     ├── suppliers/   # Directory, profile, portal
     ├── approvals/   # Approval queue, delegation
-    ├── admin/       # Rules, workflow designer, AI agents, service description config
+    ├── admin/       # Rules, workflow designer, AI agents, service description config, and the
+    │                #   cost-centre / delivery-location reference data the checkout validates against
     ├── sourcing/    # Events, evaluation centre (picker + per-event scoring and award)
     ├── contracts/   # Register, detail
     ├── purchasing/  # PO, invoice, three-way match

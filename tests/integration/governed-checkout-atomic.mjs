@@ -37,6 +37,17 @@ const contract = (await sql.query('SELECT * FROM contracts WHERE id = $1', [item
 const supplier = (await sql.query('SELECT * FROM suppliers WHERE id = $1', [item.supplier_id]))[0];
 const risk = (await sql.query('SELECT * FROM risk_assessments WHERE id = $1', [item.risk_assessment_id]))[0];
 const user = users[0];
+// Read the reference data the server will validate against rather than inventing
+// values: the checkout now rejects a cost centre or delivery location that is
+// not an active row, so a hardcoded 'TEST' fails the way it should.
+const [referenceCostCentre] = await sql.query('SELECT id FROM cost_centres WHERE active = true ORDER BY sort_order LIMIT 1');
+const [referenceLocation] = await sql.query('SELECT id FROM delivery_locations WHERE active = true ORDER BY sort_order LIMIT 1');
+if (!referenceCostCentre || !referenceLocation) {
+  console.log('No active cost centre or delivery location is seeded; run the admin seed.');
+  process.exit(3);
+}
+const REFERENCE_COST_CENTRE = String(referenceCostCentre.id);
+const REFERENCE_LOCATION = String(referenceLocation.id);
 if (!contract || !supplier || !risk) skipLive('governed-checkout-atomic', 'catalogue governance seed incomplete');
 
 const suffix = Date.now().toString(36);
@@ -45,11 +56,15 @@ const requisitionId = `PR-${requestId}`;
 const idempotencyKey = `IDEMP-${suffix}`;
 const payload = {
   requestId, requisitionId,
-  request: { id: requestId, title: `Atomic checkout ${suffix}`, description: 'Atomic checkout integration test', category: 'catalogue', priority: 'low', requestorId: user.id, ownerId: user.id, buyingChannel: 'catalogue', businessJustification: 'Automated atomic checkout verification', costCentre: 'TEST', budgetOwner: user.name, commodityCode: item.commodity_code ?? '', commodityCodeLabel: item.commodity_code ?? '' },
+  request: { id: requestId, title: `Atomic checkout ${suffix}`, description: 'Atomic checkout integration test', category: 'catalogue', priority: 'low', requestorId: user.id, ownerId: user.id, buyingChannel: 'catalogue', businessJustification: 'Automated atomic checkout verification', costCentre: REFERENCE_COST_CENTRE, budgetOwner: user.name, commodityCode: item.commodity_code ?? '', commodityCodeLabel: item.commodity_code ?? '' },
   checkout: {
     route: 'catalogue', idempotencyKey, currency: 'EUR', needByDate: '2099-01-01', purpose: 'Automated atomic checkout verification',
     supplier: { id: supplier.id }, contract: { id: contract.id }, riskAssessment: { id: risk.id },
-    profile: { userId: user.id, defaultCurrency: 'EUR', costCentre: 'TEST', budgetOwner: user.name, accountType: 'expense', beneficiaryId: user.id, approvedShipToLocations: [{ id: 'office', label: 'Office' }], defaultShipToLocationId: 'office' },
+    // A real cost centre and a real delivery location: the server reads the
+    // reference tables itself and rejects anything that is not an active row,
+    // so 'TEST' and a profile-vouched location no longer pass. That rejection
+    // is the point of the check — see test:governed-checkout.
+    profile: { userId: user.id, defaultCurrency: 'EUR', costCentre: REFERENCE_COST_CENTRE, budgetOwner: user.name, accountType: 'expense', beneficiaryId: user.id, approvedShipToLocations: [], defaultShipToLocationId: REFERENCE_LOCATION },
   },
   lines: [{ id: `LINE-${suffix}`, requestId, description: item.name, quantity: 1, unit: item.unit, unitPrice: item.unit_price, supplierId: supplier.id, contractId: contract.id, catalogueItemId: item.id, riskAssessmentId: risk.id, commodityCode: item.commodity_code ?? '', deliveryDate: '2099-01-01' }],
 };

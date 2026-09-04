@@ -222,6 +222,8 @@ export const navigation: NavGroup[] = [
     items: [
       { id: 'database', label: 'Database', icon: 'Database', path: '/admin/database', visibleTo: ['admin'] },
       { id: 'categories', label: 'Categories', icon: 'Tag', path: '/admin/categories', visibleTo: ['admin'] },
+      { id: 'cost-centres', label: 'Cost Centres', icon: 'Wallet', path: '/admin/cost-centres', visibleTo: ['admin'] },
+      { id: 'delivery-locations', label: 'Delivery Locations', icon: 'MapPin', path: '/admin/delivery-locations', visibleTo: ['admin'] },
       { id: 'sla-targets', label: 'SLA Targets', icon: 'Timer', path: '/admin/sla-targets', visibleTo: ['admin'] },
       { id: 'routing-rules', label: 'Routing Rules', icon: 'Route', path: '/admin/rules', visibleTo: ['admin'] },
       { id: 'decisioning-thresholds', label: 'Decisioning Thresholds', icon: 'SlidersHorizontal', path: '/admin/thresholds', visibleTo: ['admin'] },

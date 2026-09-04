@@ -64,6 +64,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       { catalogueItems },
       { workflowStepDetails },
       { DEFAULT_CATEGORY_TAXONOMY },
+      { DEFAULT_COST_CENTRES },
+      { DEFAULT_DELIVERY_LOCATIONS },
       { extraRequests, extraStageHistory, extraInvoices, extraComments, extraApprovals, extraPurchaseOrders },
       mappers,
     ] = await Promise.all([
@@ -91,6 +93,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       import('../../src/data/catalogue-items.js'),
       import('../../src/data/workflow-step-details.js'),
       import('../../src/data/category-taxonomy.js'),
+      import('../../src/data/cost-centres.js'),
+      import('../../src/data/delivery-locations.js'),
       import('../../src/data/demo-expansion.js'),
       import('../../src/lib/db/mappers.js'),
     ]);
@@ -360,6 +364,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         timeline_days: c.timelineDays,
         sort_order: c.sortOrder,
         active: c.active,
+      })),
+      'id',
+    );
+
+    // 25. Cost centres and delivery locations (reference data). Both are
+    // enforced by the governed checkout, so an empty table means no order can
+    // be placed — they are seeded from the canonical defaults for that reason,
+    // and the cost-centre ids are the codes existing requests already carry.
+    counts.cost_centres = await upsert(
+      'cost_centres',
+      DEFAULT_COST_CENTRES.map((centre) => ({
+        id: centre.id,
+        label: centre.label,
+        description: centre.description,
+        owner: centre.owner,
+        active: centre.active,
+        sort_order: centre.sortOrder,
+      })),
+      'id',
+    );
+    counts.delivery_locations = await upsert(
+      'delivery_locations',
+      DEFAULT_DELIVERY_LOCATIONS.map((location) => ({
+        id: location.id,
+        label: location.label,
+        address: location.address,
+        country_code: location.countryCode,
+        active: location.active,
+        sort_order: location.sortOrder,
       })),
       'id',
     );

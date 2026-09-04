@@ -217,12 +217,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
 
     const supplierId = assertString(checkout.supplier?.id, 'supplierId');
     const contractId = assertString(checkout.contract?.id, 'contractId');
-    const [supplierRows, contractRows, profileRows, catalogueRows, riskRows, policy] = await Promise.all([
+    const [supplierRows, contractRows, profileRows, catalogueRows, riskRows, costCentreRows, locationRows, policy] = await Promise.all([
       queryRows(sql, 'SELECT * FROM suppliers WHERE id = $1', [supplierId]),
       queryRows(sql, 'SELECT * FROM contracts WHERE id = $1', [contractId]),
       queryRows(sql, 'SELECT * FROM procurement_profiles WHERE user_id = $1', [assertString(checkout.profile?.userId, 'profile.userId')]),
       queryRows(sql, 'SELECT * FROM catalogue_items WHERE id = ANY($1::text[])', [lines.map((line) => line.catalogueItemId).filter((id): id is string => typeof id === 'string')]),
       queryRows(sql, 'SELECT * FROM risk_assessments WHERE contract_id = $1 OR supplier_id = $2', [contractId, supplierId]),
+      // The reference data the cost-centre and delivery-location checks are made
+      // against, read HERE rather than taken from the request body. The
+      // delivery-location check used to run against the profile the browser
+      // sent when no stored profile existed, so it approved whatever it was
+      // given; a check that cannot fail is not a check.
+      queryRows(sql, 'SELECT id FROM cost_centres WHERE active = true'),
+      queryRows(sql, 'SELECT id FROM delivery_locations WHERE active = true'),
       loadPolicy(sql),
     ]);
     const supplier = supplierRows[0] ? mapDbToSupplier(supplierRows[0]) : null;
@@ -287,6 +294,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       ...checkout, lines: authoritativeLines, supplier, contract,
       ...(riskAssessment ? { riskAssessment } : {}), profile,
       ...(scopeEvidence ? { contractMatch: scopeEvidence } : {}),
+      activeCostCentreIds: costCentreRows.map((row) => String(row.id)),
+      activeDeliveryLocationIds: locationRows.map((row) => String(row.id)),
       now: new Date(),
     };
     const decision = evaluateGovernedCheckout(authoritative, policy);

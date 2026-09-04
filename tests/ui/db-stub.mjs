@@ -154,6 +154,16 @@ export const FIXTURES = {
     assessor_id: 'u11', assessor_name: 'Christine Dupont', assessed_at: '2026-01-01', valid_until: '2027-12-31',
     summary: 'Valid supplier assessment', mitigations: [], reusable: true, linked_request_ids: [],
   }],
+  cost_centres: [
+    { id: 'CC-ENG-001', label: 'Engineering 1', description: '', owner: '', active: true, sort_order: 1 },
+    { id: 'CC-IT-001', label: 'Information Technology 1', description: '', owner: '', active: true, sort_order: 2 },
+    { id: 'CC-RETIRED-001', label: 'Retired centre', description: '', owner: '', active: false, sort_order: 3 },
+  ],
+  delivery_locations: [
+    { id: 'office', label: 'Head office', address: '', country_code: '', active: true, sort_order: 1 },
+    { id: 'warehouse', label: 'Central warehouse', address: '', country_code: '', active: true, sort_order: 2 },
+    { id: 'closed-site', label: 'Closed site', address: '', country_code: '', active: false, sort_order: 3 },
+  ],
   procurement_categories: [
     { id: 'goods', label: 'Goods', description: 'Physical products', active: true, timeline_days: 5, sort_order: 1, catalogue_eligible: true },
     { id: 'consulting', label: 'Consulting', description: 'Advisory services', active: true, timeline_days: 15, sort_order: 2, catalogue_eligible: false },
