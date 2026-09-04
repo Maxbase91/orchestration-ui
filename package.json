@@ -18,6 +18,7 @@
     "test:ai-api-config": "node --import tsx/esm tests/integration/ai-api-configuration.mjs",
     "test:api-imports": "node tests/integration/api-import-extensions.mjs",
     "test:api-domain-routing": "node tests/integration/api-domain-routing.mjs",
+    "test:assistant-extraction": "node --import tsx/esm tests/integration/assistant-extraction-scope.mjs",
     "test:db-casts": "node --import tsx/esm tests/integration/db-parameter-casts.mjs",
     "test:vercel-functions": "node tests/integration/vercel-function-budget.mjs",
     "test:approval-chain-persistence": "node --import tsx/esm tests/integration/approval-chain-persistence.mjs",

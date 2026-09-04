@@ -84,10 +84,22 @@ export function CatalogueOrderCheckout({
   const effectiveCostCentre = costCentre || profile?.costCentre || '';
 
   const total = quantity * item.unitPrice;
-  // A governed order charges to an account, so `evaluateGovernedCheckout`
-  // genuinely requires a cost centre — the client gate must agree with it, or
-  // the button invites a submit that fails.
-  const canSubmit = !disabled && quantity > 0 && Boolean(needBy && effectiveDeliveryLocation && recipient.trim() && businessPurpose.trim() && effectiveCostCentre);
+  // Name what is missing rather than referring to a highlight that does not
+  // exist. "Complete the highlighted order details" left a requester with a
+  // dead button and nothing to act on when the blocking field was one the
+  // screen had derived rather than asked for.
+  const missing = [
+    !(quantity > 0) && 'a quantity',
+    !needBy && 'a need-by date',
+    !effectiveDeliveryLocation && 'a delivery location',
+    !recipient.trim() && 'who it is for',
+    !businessPurpose.trim() && 'a business purpose',
+    // A governed order charges to an account, so `evaluateGovernedCheckout`
+    // genuinely requires a cost centre — the client gate must agree with it, or
+    // the button invites a submit that fails.
+    !effectiveCostCentre && 'a cost centre',
+  ].filter((entry): entry is string => typeof entry === 'string');
+  const canSubmit = !disabled && missing.length === 0;
 
   const submit = () => {
     if (!canSubmit) return;
@@ -196,7 +208,7 @@ export function CatalogueOrderCheckout({
         )}
 
         <Button type="button" className="w-full" disabled={!canSubmit} onClick={submit}>{disabled ? 'Unavailable for ordering' : submitLabel}</Button>
-        {!canSubmit && <p className="text-center text-xs text-muted-foreground">Complete the highlighted order details to continue.</p>}
+        {!canSubmit && !disabled && <p className="text-center text-xs text-muted-foreground">Still needed: {missing.join(', ')}.</p>}
       </CardContent>
     </Card>
   );

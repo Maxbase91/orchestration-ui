@@ -11,6 +11,7 @@ import type { ExperienceMode } from '@/lib/experience-mode';
 import type { Contract, ProcurementProfile } from '@/data/types';
 import { useAuthStore } from '@/stores/auth-store';
 import { useProcurementProfile } from '@/lib/db/hooks/use-procurement-profile';
+import { cn } from '@/lib/utils';
 
 export interface ContractCallOffDraft {
   title: string;
@@ -55,18 +56,41 @@ export function ContractCallOffCheckout({ contract, mode = 'simple', initialValu
   const [needBy, setNeedBy] = useState(initialValues?.needBy ?? dateInDays(14));
   const [serviceStartDate, setServiceStartDate] = useState(initialValues?.serviceStartDate ?? '');
   const [serviceEndDate, setServiceEndDate] = useState(initialValues?.serviceEndDate ?? '');
-  const [deliveryLocation, setDeliveryLocation] = useState(initialValues?.deliveryLocation ?? profile.defaultShipToLocationId ?? '');
   const [recipient, setRecipient] = useState(initialValues?.recipient ?? '');
   const [purpose, setPurpose] = useState(initialValues?.purpose ?? '');
-  const [costCentre, setCostCentre] = useState(initialValues?.costCentre ?? profile.costCentre ?? '');
+  // These two hold only what the requester explicitly chose; the effective
+  // value falls back to the profile on every render. Seeding them through a
+  // `useState` initialiser meant a profile that resolved *after* first render
+  // never reached the fields, so whether the defaults applied depended on
+  // whether the query happened to be cached. Deriving removes the race, and
+  // `||` rather than `??` because these fields arrive as '' rather than
+  // undefined — `'' ?? profile.costCentre` is the empty string, so the profile
+  // fallback never fired and the screen asked for what it already knew.
+  const [chosenLocation, setDeliveryLocation] = useState(initialValues?.deliveryLocation || '');
+  const [chosenCostCentre, setCostCentre] = useState(initialValues?.costCentre || '');
+  const deliveryLocation = chosenLocation || profile.defaultShipToLocationId || '';
+  const costCentre = chosenCostCentre || profile.costCentre || '';
   const locations = profile.approvedShipToLocations;
+
   const needsServiceDates = (contract?.category ?? '').toLowerCase().includes('service') || (contract?.category ?? '').toLowerCase().includes('consult');
   const validDates = !serviceStartDate || !serviceEndDate || serviceEndDate >= serviceStartDate;
-  // The call-off creates a requisition, so it needs an account to charge, and
-  // the gate agrees with `evaluateGovernedCheckout`. The value is derived from
-  // the requester's profile in the context block above; this only asks when it
-  // is genuinely not known.
-  const canSubmit = Boolean(title.trim() && value > 0 && needBy && deliveryLocation && recipient.trim() && purpose.trim() && costCentre && validDates);
+  // The gate has to be able to say what it wants. It used to be one opaque
+  // boolean under the words "complete the highlighted details", with nothing
+  // highlighted — so a call-off blocked by a field the screen was not showing
+  // (a cost centre inherited as empty, or a delivery location whose stored id
+  // is not in the approved list) looked complete and simply would not submit.
+  const missing = [
+    !title.trim() && 'a description',
+    !(value > 0) && 'a call-off value',
+    !needBy && 'a need-by date',
+    !deliveryLocation && 'a delivery location',
+    !recipient.trim() && 'who it is for',
+    !purpose.trim() && 'a business purpose',
+    // The call-off creates a requisition, so it needs an account to charge, and
+    // this agrees with `evaluateGovernedCheckout`.
+    !costCentre && 'a cost centre',
+  ].filter((entry): entry is string => typeof entry === 'string');
+  const canSubmit = missing.length === 0 && validDates;
 
   const submit = () => {
     if (!canSubmit) return;
@@ -103,11 +127,21 @@ export function ContractCallOffCheckout({ contract, mode = 'simple', initialValu
           <div className="space-y-1.5"><Label htmlFor="calloff-end">Service end</Label><Input id="calloff-end" type="date" value={serviceEndDate} onInput={(e) => setServiceEndDate(e.currentTarget.value)} /></div>
         </div>}
         {!validDates && <p className="text-xs text-red-600">Service end must be on or after service start.</p>}
-        <div className="space-y-1.5"><Label htmlFor="calloff-location">Deliver to</Label><div className="relative"><MapPin className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" /><select id="calloff-location" value={deliveryLocation} onChange={(e) => setDeliveryLocation(e.target.value)} className="h-10 w-full appearance-none rounded-md border border-input bg-background px-9 pr-8 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring">{locations.map((location) => <option key={location.id} value={location.id}>{location.label}</option>)}</select><ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" /></div><p className="text-xs text-muted-foreground">Only approved delivery locations are available.</p></div>
-        {!costCentre && (
+        <div className="space-y-1.5"><Label htmlFor="calloff-location">Deliver to</Label><div className="relative"><MapPin className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" /><select id="calloff-location" value={deliveryLocation} onChange={(e) => setDeliveryLocation(e.target.value)} aria-invalid={!deliveryLocation} className={cn('h-10 w-full appearance-none rounded-md border bg-background px-9 pr-8 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring', deliveryLocation ? 'border-input' : 'border-red-300')}>
+          {/* Without an option matching the current value, the browser displays
+              the FIRST option's label while the value stays empty — the screen
+              names a location that was never selected and the gate blocks with
+              no visible reason. An explicit placeholder makes the empty state
+              look empty. */}
+          {!locations.some((location) => location.id === deliveryLocation) && <option value="">Select a delivery location…</option>}
+          {locations.map((location) => <option key={location.id} value={location.id}>{location.label}</option>)}
+        </select><ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" /></div><p className="text-xs text-muted-foreground">{locations.length === 0 ? 'No delivery locations are available on your profile — ask an administrator to add one.' : 'Only approved delivery locations are available.'}</p></div>
+        {/* Gated on the PROFILE, not on the current value: keyed on `!costCentre`
+            the field unmounted on the first character typed into it. */}
+        {!profile.costCentre && (
           <div className="space-y-1.5">
             <Label htmlFor="calloff-cost-centre">Cost centre</Label>
-            <Input id="calloff-cost-centre" value={costCentre} onChange={(e) => setCostCentre(e.target.value)} placeholder="The account this is charged to" />
+            <Input id="calloff-cost-centre" value={costCentre} onChange={(e) => setCostCentre(e.target.value)} aria-invalid={!costCentre} className={cn(!costCentre && 'border-red-300')} placeholder="The account this is charged to" />
             <p className="text-[11px] text-gray-500">Your profile has no default cost centre, so this call-off needs one.</p>
           </div>
         )}
@@ -116,7 +150,13 @@ export function ContractCallOffCheckout({ contract, mode = 'simple', initialValu
 
         {mode === 'expert' && <details className="rounded-lg border border-gray-200"><summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-medium"><CalendarDays className="size-4 text-gray-500" />Contract and governance details</summary><div className="space-y-1 border-t px-4 py-3 text-xs text-gray-600"><p>Supplier: {contract.supplierName} ({contract.supplierId})</p><p>Contract period: {contract.startDate} to {contract.endDate}</p><p>Coverage status: {contract.coverageStatus ?? 'not provided'}</p><p>Governance is rechecked by the server when you submit.</p></div></details>}
         <Button type="button" className="w-full" disabled={!canSubmit} onClick={submit}>Review request</Button>
-        {!canSubmit && <p className="text-center text-xs text-muted-foreground">Complete the highlighted call-off details to continue.</p>}
+        {!canSubmit && (
+          <p className="text-center text-xs text-muted-foreground">
+            {missing.length > 0
+              ? `Still needed: ${missing.join(', ')}.`
+              : 'Service end must be on or after service start.'}
+          </p>
+        )}
       </CardContent>
     </Card>
   );

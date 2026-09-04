@@ -199,13 +199,29 @@ export function castForColumn(value: unknown, column: string, types: Map<string,
   }
 }
 
-function parameterValue(value: unknown, column: string, types: Map<string, string>): unknown {
+// An empty string is a legal value for a text column and for nothing else.
+// Postgres rejects it everywhere it has to parse the value first — a cleared
+// date control produces `''` and the write dies with `invalid input syntax for
+// type date: ""`, which is how "Save as Draft" failed for any demand without a
+// delivery date. Every write goes through `parameterValue`, so the coercion
+// belongs here rather than in each of the callers that happens to remember.
+// Filters are untouched: `whereClause` does not use this function, so
+// `.eq(column, '')` still asks the question it asked before.
+const EMPTY_STRING_IS_NULL = new Set([
+  'date', 'timestamp with time zone', 'timestamp without time zone',
+  'time with time zone', 'time without time zone',
+  'uuid', 'boolean',
+  'integer', 'bigint', 'smallint', 'numeric', 'double precision', 'real',
+]);
+
+export function parameterValue(value: unknown, column: string, types: Map<string, string>): unknown {
   // The Neon driver treats a JavaScript array parameter as a PostgreSQL array;
   // JSONB writes therefore need explicit serialization or [] becomes {}.
   const type = types.get(column);
   if ((type === 'jsonb' || type === 'json') && value !== null && value !== undefined && typeof value !== 'string') {
     return JSON.stringify(value);
   }
+  if (value === '' && type && EMPTY_STRING_IS_NULL.has(type)) return null;
   return value;
 }
 

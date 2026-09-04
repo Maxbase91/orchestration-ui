@@ -17,6 +17,7 @@ import { getAICommodityCode } from '@/lib/mock-ai';
 import { formatCurrency } from '@/lib/format';
 import { assessAnswer, type AnswerVerdict } from '@/lib/procurement/answer-quality';
 import { parseDeliveryDate } from '@/lib/parse-delivery-date';
+import { EXTRACTABLE_FIELDS } from './extractable-fields';
 import {
   applicableSlots,
   conversationProgress,
@@ -184,8 +185,12 @@ function localFallbackResponse(
           // A date slot must carry a real date forward. Keeping a prose answer
           // here made the review appear complete and later persisted unusable
           // text into a DATE column.
-          extracted.deliveryDate = parseDeliveryDate(userText) ?? '';
-          if (!extracted.deliveryDate) warning = 'Please enter a specific need-by date, for example 2026-12-31.';
+          // Leave the field absent rather than writing '' when the answer is
+          // not a date — the LLM path already deletes the key, and an empty
+          // string reaches the DATE column as a value Postgres cannot parse.
+          const parsed = parseDeliveryDate(userText);
+          if (parsed) extracted.deliveryDate = parsed;
+          else warning = 'Please enter a specific need-by date, for example 2026-12-31.';
         } else extracted[answering.target.field] = userText.slice(0, 200);
       }
     } else {
@@ -592,6 +597,12 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
       let invalidDateAnswer = false;
       if (result.extracted) {
         for (const [key, value] of Object.entries(result.extracted)) {
+          // Only these fields may come from the model. The loop used to copy
+          // every key it was handed straight into the wizard's form state, so a
+          // response naming `preCheckOutcome`, `costCentre` or `miniIrq` would
+          // set it with nothing in the way — a governance answer nobody gave.
+          // The prompt asks the model not to; this is what stops it.
+          if (!EXTRACTABLE_FIELDS.has(key)) continue;
           if (value !== undefined && value !== null && value !== '' && value !== 0) {
             updates[key] = value;
           }

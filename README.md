@@ -201,6 +201,8 @@ npm run test:intake-submit        # atomic full-demand intake, ISO-date validati
 # Neon-backed live suites report unavailable when the configured database hostname cannot be resolved.
 npm run test:catalogue-ui         # catalogue item detail and checkout entry-point regressions
 npm run test:p-card               # governed P-card eligibility and route-only safety guard
+npm run test:assistant-extraction # the intake assistant may fill demand facts and nothing else — no buying route,
+                                  # cost centre or risk answer arrives from the model
 npm run test:dashboard-widgets    # the widget catalogue and its renderer agree — nothing offered that cannot render,
                                   # nothing rendered that cannot be reached, every icon mapped
 npm run test:experience-mode      # role defaults, preference normalization, and pilot eligibility contract

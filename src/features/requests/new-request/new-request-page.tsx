@@ -509,7 +509,10 @@ export function NewRequestPage() {
         costCentre: formData.costCentre,
         budgetOwner: '',
         businessJustification: undefined,
-        deliveryDate: formData.deliveryDate,
+        // A draft is saved from whatever is on screen, so this can still be
+        // blank or half-typed. Normalise it the way the three submit paths do
+        // rather than handing the raw field to a DATE column.
+        deliveryDate: parseDeliveryDate(formData.deliveryDate) ?? undefined,
         isUrgent: formData.isUrgent,
         daysInStage: 0,
         isOverdue: false,

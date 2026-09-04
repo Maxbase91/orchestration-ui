@@ -403,6 +403,16 @@ try {
   const placeBtn = page.getByRole('button', { name: /Review order/ });
   check('catalogue cart shows a Review order action', (await placeBtn.count()) > 0);
   await placeBtn.first().click();
+  // A blocked checkout must say what it wants. It used to read "Complete the
+  // highlighted order details to continue" with nothing highlighted, so a
+  // requester whose blocking field was derived rather than asked for had a dead
+  // button and nothing to act on.
+  const blockedHint = await page.getByText(/Still needed:/).first().textContent().catch(() => '');
+  check('a blocked checkout names the fields it is waiting for',
+    /Still needed:/.test(blockedHint) && /who it is for|a business purpose|a cost centre/.test(blockedHint),
+    `hint was: ${blockedHint || '(absent)'}`);
+  check('the blocked checkout no longer points at a highlight that does not exist',
+    (await page.getByText(/Complete the highlighted/).count()) === 0);
   await page.locator('#catalogue-recipient').fill('New starter');
   await page.locator('#catalogue-purpose').fill('Provide standard equipment for the new starter.');
   // Derived, not asked — unless the profile genuinely has no default, which is

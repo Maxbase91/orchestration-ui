@@ -14,7 +14,7 @@
 // here rather than in production.
 
 import { readFileSync } from 'node:fs';
-import { assertFilteredWrite, castForColumn } from '../../api/db.ts';
+import { assertFilteredWrite, castForColumn, parameterValue } from '../../api/db.ts';
 
 const ROOT = new URL('../../', import.meta.url);
 const SCHEMA = readFileSync(new URL('db/schema.sql', ROOT), 'utf8');
@@ -96,6 +96,30 @@ for (const op of ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'like', 'ilike', 'is', 
 }
 
 console.log('\nA destructive statement must name what it touches');
+console.log('\nAn empty string reaches a non-text column as NULL');
+// A cleared form control produces '', which is a legal value for a text column
+// and for nothing else. "Save as Draft" on a demand with no delivery date died
+// with `invalid input syntax for type date: ""` — the write path passed the raw
+// field through and PostgreSQL was asked to parse '' as a DATE. Fixing it in
+// `parameterValue` covers every writer, not just the one that was reported.
+for (const [ddl, dataType] of Object.entries(DDL_TO_INFORMATION_SCHEMA)) {
+  if (dataType === 'text' || dataType === 'ARRAY' || dataType === 'jsonb') continue;
+  check(`'' becomes NULL for a ${ddl} column`,
+    parameterValue('', 'col', types('col', dataType)) === null,
+    `got ${JSON.stringify(parameterValue('', 'col', types('col', dataType)))}`);
+}
+check("'' is preserved for a TEXT column", parameterValue('', 'col', types('col', 'text')) === '');
+check("'' is preserved for a column of unknown type", parameterValue('', 'col', new Map()) === '');
+// Only the empty string is coerced: a real value must still reach the column.
+check('a real date is untouched', parameterValue('2026-09-04', 'col', types('col', 'date')) === '2026-09-04');
+check('zero is untouched', parameterValue(0, 'col', types('col', 'numeric')) === 0);
+check('false is untouched', parameterValue(false, 'col', types('col', 'boolean')) === false);
+// jsonb serialisation must survive the new branch.
+check('a jsonb object is still serialised',
+  parameterValue({ a: 1 }, 'col', types('col', 'jsonb')) === '{"a":1}');
+check('a jsonb empty string is left alone (a valid JSON string payload)',
+  parameterValue('', 'col', types('col', 'jsonb')) === '');
+
 // Blast-radius guard, not authorization: /api/db has no authentication, so an
 // unfiltered DELETE would empty a table for anyone who can reach the
 // deployment. Every legitimate caller in src/lib/db filters by id.
