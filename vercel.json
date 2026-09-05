@@ -1,10 +1,6 @@
 {
   "rewrites": [
     {
-      "source": "/api/requests/:id",
-      "destination": "/api/requests/[id]"
-    },
-    {
       "source": "/api/commodity-match",
       "destination": "/api/db?domain=commodity-match"
     },

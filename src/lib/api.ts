@@ -4,10 +4,8 @@
 // helpers here.
 //
 // Retained:
-// - apiWorkflowAction: multi-table transactional status change (requests +
-//   stage_history) — lives server-side for atomicity.
-// - apiSaveConversation: persists chat-intake transcripts; paired with the
-//   LLM calls in api/ai.ts + api/chat-intake.ts.
+// - apiWorkflowAction: multi-table status change (requests + stage_history) —
+//   lives server-side so both writes commit together.
 
 export async function apiWorkflowAction(data: {
   requestId: string;
@@ -24,27 +22,5 @@ export async function apiWorkflowAction(data: {
   if (!res.ok) {
     const err = await res.json();
     throw new Error(err.error ?? 'Failed to execute workflow action');
-  }
-}
-
-export async function apiSaveConversation(data: {
-  requestId: string;
-  messages: unknown[];
-  category: string;
-  status: string;
-}): Promise<void> {
-  const res = await fetch('/api/conversations', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      request_id: data.requestId,
-      messages: data.messages,
-      category: data.category,
-      status: data.status,
-    }),
-  });
-  if (!res.ok) {
-    const err = await res.json();
-    throw new Error(err.error ?? 'Failed to save conversation');
   }
 }

@@ -1,5 +1,5 @@
-// Serverless data helper for the handlers that read with a PostgREST-shaped
-// query string (api/workflow-action, api/seed, api/conversations).
+// Serverless data helper for the handler that reads with a PostgREST-shaped
+// query string (api/workflow-action — the last one).
 //
 // It once held a whole second implementation — a direct REST call with an anon
 // key — selected by an environment variable. That is gone: keeping it meant this

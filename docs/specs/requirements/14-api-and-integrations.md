@@ -32,9 +32,7 @@ name. This does not change any browser URL. `test:vercel-functions` guards the c
 | `src/server/api/intake-upload.ts` | POST `/api/intake-upload` | Validate PDF/DOCX uploads, extract text server-side, and return a confirmation-ready attachment |
 | `src/server/api/commodity-match.ts` | POST `/api/commodity-match` | Resolve specific commodity/service-family candidates with probability and reasons |
 | `api/execute-action.ts` | POST | Execute confirmed AI action (add_watcher, set_delegate, etc.) |
-| `api/conversations.ts` | GET/POST | AI conversation history CRUD |
-| `api/seed.ts` | POST | Seed demo data (dev only) |
-| `api/admin/seed.ts` | POST | Admin seed data |
+| `api/admin/seed.ts` | POST | Seed demo data — the only seed path, authenticated with `x-admin-secret` |
 | `api/db.ts` | POST | The one data boundary the browser reaches: allowlisted relations and functions, column-typed parameters, and the `?domain=` dispatcher for the `src/server/api/` handlers above |
 | `api/generate-sow.ts` | POST | Generate the statement-of-work narrative from the structured service description |
 | `api/_llm.ts` | — | Shared Groq/Gemini LLM helpers (not a route) |
