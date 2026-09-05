@@ -41,6 +41,10 @@ export const groqProvider: AssistantProvider = {
         body: JSON.stringify({
           actionType: turn.actionType,
           actionParams: turn.actionParams,
+          // api/chat.ts already mints this per proposal; forwarding it lets the
+          // endpoint use it as the audit row's primary key, so confirming twice
+          // collides and replays instead of running the action again.
+          actionId: turn.actionId,
           userId: ctx.currentUser.id,
           userName: ctx.currentUser.name,
           role: ctx.role,

@@ -31,7 +31,7 @@ name. This does not change any browser URL. `test:vercel-functions` guards the c
 | `src/server/api/policy-config.ts` | GET/POST `/api/policy-config` | Load, validate, save, and reset the server-persisted active procurement policy |
 | `src/server/api/intake-upload.ts` | POST `/api/intake-upload` | Validate PDF/DOCX uploads, extract text server-side, and return a confirmation-ready attachment |
 | `src/server/api/commodity-match.ts` | POST `/api/commodity-match` | Resolve specific commodity/service-family candidates with probability and reasons |
-| `api/execute-action.ts` | POST | Execute confirmed AI action (add_watcher, set_delegate, etc.) |
+| `api/execute-action.ts` | POST | Execute a confirmed assistant action. Seven write a real record (delegate/OOO on `users`, reassignment on `requests` + `stage_history`, and four "request X" actions as SLA-bearing tickets), each audited in the same transaction. `add_watcher` and `approver_substitution` have no store and return an explicit refusal rather than claiming success. |
 | `api/admin/seed.ts` | POST | Seed demo data — the only seed path, authenticated with `x-admin-secret` |
 | `api/db.ts` | POST | The one data boundary the browser reaches: allowlisted relations and functions, column-typed parameters, and the `?domain=` dispatcher for the `src/server/api/` handlers above |
 | `api/generate-sow.ts` | POST | Generate the statement-of-work narrative from the structured service description |
