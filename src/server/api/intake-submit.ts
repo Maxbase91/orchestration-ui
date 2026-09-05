@@ -2,7 +2,7 @@
 // request, but only this dispatcher-routed handler decides the initial stage
 // and commits the request's related records together.
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getNeonClient, isMissingRelation } from '../../../api/_neon.js';
+import { getNeonClient } from '../../../api/_neon.js';
 
 type JsonRecord = Record<string, unknown>;
 type IntakePayload = {
@@ -41,15 +41,18 @@ function optionalIsoDate(value: unknown, field: string): string | null {
 
 function json(value: unknown): string { return JSON.stringify(value ?? null); }
 
-function stageFor(request: JsonRecord, approvalThreshold: number): { status: string; stage: string } {
-  // Every completed intake enters the shared validation gate first. Risk,
-  // approval, and sourcing are downstream decisions made after validation;
-  // selecting them here made the lifecycle skip required data-quality checks.
-  // Keep the threshold argument for API compatibility with existing callers.
-  void request;
-  void approvalThreshold;
-  return { status: 'validation', stage: 'validation' };
-}
+/**
+ * The stage every completed intake enters.
+ *
+ * Risk, approval and sourcing are downstream decisions taken after validation;
+ * choosing between them here made the lifecycle skip required data-quality
+ * checks. This was a function taking a request and an approval threshold and
+ * voiding both — so the branches that read its result (an approval_entries
+ * insert, a risk/approval/sourcing workflow node, a policy query per
+ * submission) were unreachable while still reading as live routing. A constant
+ * says what is true and cannot be mistaken for a decision.
+ */
+const INITIAL_STAGE = { status: 'validation', stage: 'validation' } as const;
 
 function cleanRow(row: JsonRecord): JsonRecord {
   return Object.fromEntries(Object.entries(row).filter(([, value]) => value !== undefined));
@@ -78,17 +81,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     const now = new Date().toISOString();
     const templateId = payload.workflowTemplateId || String(request.workflowTemplateId || 'WF-001');
     const sql = getNeonClient();
-    let approvalThreshold = 10_000;
-    try {
-      const policyRows = await sql.query('SELECT config FROM procurement_policy_configs WHERE singleton_key = $1', ['default']) as Array<JsonRecord>;
-      const configured = Number((policyRows[0]?.config as JsonRecord | undefined)?.approvalFullThreshold);
-      if (Number.isFinite(configured) && configured > 0) approvalThreshold = configured;
-    } catch (error) {
-      // The additive policy table may not exist on an older branch; shipped
-      // defaults keep intake available while the migration is applied.
-      if (!isMissingRelation(error)) throw error;
-    }
-    const stage = stageFor({ ...request, value, buyingChannel }, approvalThreshold);
+    // The approval threshold was read here on every submission and then
+    // discarded — a database round trip per intake feeding a decision that is
+    // not taken at this point in the lifecycle.
+    const stage = INITIAL_STAGE;
 
     // The client keeps one request id for a submission attempt. Reusing that
     // id makes retries safe without adding a second idempotency column to the
@@ -110,12 +106,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       const historyCount = Number(lifecycle[0]?.history_count ?? 0);
       const workflowCount = Number(lifecycle[0]?.workflow_count ?? 0);
       if (String(existing[0].status) === 'intake' && historyCount === 0 && workflowCount === 0) {
-        const repairedStage = stageFor({
-          buyingChannel: existing[0].buying_channel,
-          value: existing[0].value,
-          approvalChain: existing[0].approval_chain,
-          riskAssessmentRequired: existing[0].risk_assessment_required,
-        }, approvalThreshold);
+        const repairedStage = INITIAL_STAGE;
         const repairNow = new Date().toISOString();
         const repairQueries = [
           sql.query('UPDATE requests SET status = $1, updated_at = $2 WHERE id = $3', [repairedStage.status, repairNow, id]),
@@ -184,16 +175,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     }
     const stageRow = { request_id: id, stage: stage.stage, entered_at: now, owner_id: request.ownerId ?? requestorId, action: 'submitted', notes: 'Initial actionable stage selected by the server.' };
     queries.push(sql.query('INSERT INTO stage_history (request_id, stage, entered_at, owner_id, action, notes) VALUES ($1, $2, $3, $4, $5, $6)', Object.values(stageRow)));
-    const workflowRow = { id: `WI-${id}`, request_id: id, template_id: templateId, current_node_ids: json([stage.stage === 'risk' ? 'n14' : stage.stage === 'approval' ? 'n5' : stage.stage === 'sourcing' ? 'n6' : 'n3']), status: 'running', variables: json({ submittedBy: requestorId }), created_at: now, updated_at: now };
+    const workflowRow = { id: `WI-${id}`, request_id: id, template_id: templateId, current_node_ids: json(['n3']), status: 'running', variables: json({ submittedBy: requestorId }), created_at: now, updated_at: now };
     queries.push(sql.query(`INSERT INTO workflow_instances (${Object.keys(workflowRow).join(', ')}) VALUES (${Object.keys(workflowRow).map((_, i) => `$${i + 1}`).join(', ')})`, Object.values(workflowRow)));
-    if (stage.stage === 'approval') {
-      // Keep the approval queue populated in the same transaction as the
-      // request. The persona is simulation-only until authentication lands.
-      queries.push(sql.query(
-        'INSERT INTO approval_entries (id, request_id, approver_id, approver_name, approver_role, status, requested_at) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-        [`APR-${id}-0`, id, 'u1', 'Anna Müller', 'Procurement Manager', 'pending', now],
-      ));
-    }
     await sql.transaction(queries);
     res.status(201).json({ requestId: id, status: stage.status, stage: stage.stage });
     return;

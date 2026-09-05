@@ -158,8 +158,17 @@ class NeonQueryBuilder<TData = DbRow[]> implements PromiseLike<CompatibilityResu
   private async execute(): Promise<CompatibilityResult<TData>> {
     try {
       if (this.executor) {
-        const data = await this.executor(this.payload);
-        return { data: data as TData, error: null };
+        const result = await this.executor(this.payload);
+        // A counted select comes back as { rows, count }. The fetch branch below
+        // unwraps that envelope via the endpoint's response; this one used to
+        // return it whole as `data`, so the same client handed back two
+        // different shapes depending on which constructor was used — exactly
+        // the divergence this file's header exists to prevent.
+        if (result && typeof result === 'object' && 'rows' in result && 'count' in result) {
+          const { rows, count } = result as { rows: unknown; count: number };
+          return { data: rows as TData, error: null, count };
+        }
+        return { data: result as TData, error: null };
       }
       const response = await fetch('/api/db', {
         method: 'POST',
