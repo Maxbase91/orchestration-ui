@@ -143,7 +143,7 @@ export async function callLLM(options: LLMOptions): Promise<string> {
   const geminiKey = process.env.GEMINI_API_KEY;
   if (geminiKey) {
     try {
-      const result = await callGemini(geminiKey, messages, temperature, maxTokens);
+      const result = await callGemini(geminiKey, messages, temperature, maxTokens, jsonMode);
       if (result) return result;
     } catch (e) {
       console.warn('Gemini also failed:', e);
@@ -274,11 +274,29 @@ export async function callLLMStreaming(
   }
 }
 
+/**
+ * Gemini's generation config for a call.
+ *
+ * responseMimeType was hardcoded to application/json here while jsonMode was
+ * threaded only into the Groq path, so a caller asking for prose got prose from
+ * Groq and a JSON blob from Gemini. api/chat.ts's plain-language fallback is
+ * exactly that caller: when Groq's tool-calling failed and the request fell
+ * through to Gemini, the user was shown raw JSON as their chat answer.
+ */
+export function geminiGenerationConfig(temperature: number, maxTokens: number, jsonMode: boolean): Record<string, unknown> {
+  return {
+    temperature,
+    maxOutputTokens: maxTokens,
+    responseMimeType: jsonMode ? 'application/json' : 'text/plain',
+  };
+}
+
 async function callGemini(
   apiKey: string,
   messages: LLMMessage[],
   temperature: number,
   maxTokens: number,
+  jsonMode: boolean,
 ): Promise<string | null> {
   // Convert OpenAI-style messages to Gemini format
   const systemInstruction = messages
@@ -295,11 +313,7 @@ async function callGemini(
 
   const body: Record<string, unknown> = {
     contents,
-    generationConfig: {
-      temperature,
-      maxOutputTokens: maxTokens,
-      responseMimeType: 'application/json',
-    },
+    generationConfig: geminiGenerationConfig(temperature, maxTokens, jsonMode),
   };
 
   if (systemInstruction) {
