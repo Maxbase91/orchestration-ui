@@ -136,6 +136,25 @@ check('an or-filtered delete is allowed',
   !refuses({ operation: 'delete', orFilters: [{ column: 'id', operator: 'eq', value: 'X' }] }));
 check('an unfiltered select is untouched', !refuses({ operation: 'select' }));
 
+// ── Multi-row writes take the union of every row's columns ──────────────────
+// The column list used to come from rows[0] alone, so a key only later rows
+// carried was silently dropped. api/admin/seed.ts hits this in shipped data:
+// three of its thirty-five request fixtures set sla_deadline and the first does
+// not, so that column has never been written for them.
+const dispatcher = readFileSync(new URL('api/db.ts', ROOT), 'utf8');
+check('insert columns are the union of every row',
+  /new Set\(rows\.flatMap\(\(row\) => Object\.keys\(row\)\)\)/.test(dispatcher));
+check('the first-row-only column list is gone',
+  !/const columns = Object\.keys\(rows\[0\]\)/.test(dispatcher));
+// A key a row does not have is that column's DEFAULT, not NULL: NULL would
+// override the column default for every row that simply omitted the key.
+check('a key a row omits falls back to the column default',
+  /if \(!\(column in row\)\) return 'DEFAULT';/.test(dispatcher));
+// The update path builds its own WHERE with a placeholder offset; the shared
+// one above it was computed for every operation and then discarded.
+check('the discarded update where-clause is gone',
+  /request\.operation === 'select' \|\| request\.operation === 'delete'/.test(dispatcher));
+
 console.log('');
 if (failures) console.error(`FAILED: ${failures} check(s)`);
 else console.log('All parameter-cast checks passed.');

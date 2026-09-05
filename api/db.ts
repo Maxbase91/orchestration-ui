@@ -257,7 +257,11 @@ export async function executeNeonRequest(request: DbRequest): Promise<unknown> {
   const relation = quoteIdentifier(request.table);
   const types = await columnTypes(request.table);
   const params: unknown[] = [];
-  const where = whereClause(request, params, types);
+  // Only select and delete consume this. The update path builds its own below,
+  // with a placeholder offset, and used to compute this one first and discard it.
+  const where = (request.operation === 'select' || request.operation === 'delete')
+    ? whereClause(request, params, types)
+    : '';
   if (request.operation === 'select') {
     const order = (request.orders ?? []).map((item) => `${quoteIdentifier(item.column)} ${item.ascending ? 'ASC' : 'DESC'}`).join(', ');
     const suffix = `${where}${order ? ` ORDER BY ${order}` : ''}${request.limit ? ` LIMIT ${Math.max(1, Math.min(request.limit, 2000))}` : ''}`;
@@ -282,12 +286,30 @@ export async function executeNeonRequest(request: DbRequest): Promise<unknown> {
     return request.single ? (rows[0] ?? null) : rows;
   }
   const rows = bodyRows(request.body);
-  
-  const columns = Object.keys(rows[0]);
+
+  // The UNION of every row's keys, not just the first row's. A multi-row INSERT
+  // has one column list, and deriving it from rows[0] silently dropped any
+  // column a later row carried and the first did not — api/admin/seed.ts hits
+  // this today: three of its thirty-five request fixtures set sla_deadline and
+  // the first does not, so that value has never reached the database. The only
+  // guard against it lived inside the deleted api/seed.ts, as a workaround in
+  // the caller rather than a rule at the boundary.
+  const columns = [...new Set(rows.flatMap((row) => Object.keys(row)))];
   if (columns.length === 0 || columns.some((column) => !IDENTIFIER.test(column))) throw new Error('Invalid database write columns');
   const quotedColumns = columns.map(quoteIdentifier).join(', ');
   const bodyParams: unknown[] = [];
   const valueGroups = () => rows.map((row) => `(${columns.map((column) => {
+    // A key this row does not have is "not specified", which is the column's
+    // own DEFAULT — not NULL, which would override it (a batch where one row
+    // omitted `status` would write NULL over tickets.status DEFAULT 'open').
+    //
+    // Residual, deliberate: under ON CONFLICT DO UPDATE the SET list is per
+    // statement, so EXCLUDED.col for such a row carries that default rather
+    // than leaving the stored value alone. For the seed — an idempotent
+    // restore of fixture data — writing what the fixture says is the intended
+    // behaviour; a caller wanting to leave columns untouched should omit them
+    // from every row in the batch, not just some.
+    if (!(column in row)) return 'DEFAULT';
     const value = parameterValue(row[column], column, types);
     // A bare NULL has no type for the Neon HTTP protocol to infer. Emitting
     // the SQL NULL literal preserves nullable updates/inserts and avoids the
