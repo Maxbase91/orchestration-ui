@@ -10,6 +10,15 @@ assert.equal(parseDeliveryDate('the team will deliver a report and training mate
 assert.match(parseDeliveryDate('by December 2026') ?? '', /^2026-12-31$/);
 const endpoint = readFileSync('src/server/api/intake-submit.ts', 'utf8');
 const dispatcher = readFileSync('api/db.ts', 'utf8');
+
+// A retry of an already-submitted request replays. The client validates the
+// response shape, and the replay branch used to omit `stage` — so a retry threw
+// 'invalid_response' and the wizard reported an error for a submission that had
+// succeeded. Both the server's branches and the client's guard are pinned here.
+assert.match(endpoint, /stage: String\(existing\[0\]\.status\)/);
+assert.match(endpoint, /replay: true/);
+const client = readFileSync('src/lib/procurement/submit-intake.ts', 'utf8');
+assert.match(client, /!body\.stage/);
 assert.match(endpoint, /sql\.transaction\(queries\)/);
 assert.match(endpoint, /invalid_date/);
 assert.match(endpoint, /missing_required_field/);

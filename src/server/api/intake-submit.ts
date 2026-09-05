@@ -126,7 +126,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
         res.status(200).json({ requestId: id, status: repairedStage.status, stage: repairedStage.stage, repaired: true });
         return;
       }
-      res.status(200).json({ requestId: String(existing[0].id), status: String(existing[0].status), replay: true });
+      // `stage` is part of the contract src/lib/procurement/submit-intake.ts
+      // validates: without it a legitimate retry threw 'invalid_response', the
+      // wizard showed an error toast and never advanced to confirmation — for a
+      // submission that had in fact succeeded. The request's current status IS
+      // its stage here; the repair branch above already returns both.
+      res.status(200).json({
+        requestId: String(existing[0].id),
+        status: String(existing[0].status),
+        stage: String(existing[0].status),
+        replay: true,
+      });
       return;
     }
 
