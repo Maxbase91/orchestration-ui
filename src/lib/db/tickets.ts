@@ -15,6 +15,7 @@ import { db } from '@/lib/db-client';
 import { createAuditEntry } from './audit-entries';
 import { createNotification } from './notifications';
 import { computeDueAt, isSlaPaused, type TicketSlaTarget } from '@/lib/procurement/ticket-sla';
+import { createTicketWith, loadTicketSlaTargetsWith, type CreateTicketInput } from './tickets-core';
 import type {
   Ticket,
   TicketLink,
@@ -91,75 +92,17 @@ function mapDbToResponse(row: TicketResponseRow): TicketResponse {
   };
 }
 
-/**
- * Next ticket ID from the Postgres sequence.
- *
- * Falls back to a timestamp-suffixed ID if the RPC is unavailable — an
- * environment provisioned before the sequence existed. A collision-free but
- * non-sequential ID beats failing the user's submission outright.
- */
-async function nextTicketId(): Promise<string> {
-  const { data, error } = await db.rpc('next_ticket_id');
-  if (error || !data) return `TKT-${Date.now().toString().slice(-8)}`;
-  return String(data);
-}
+// The write itself lives in tickets-core.ts so the serverless handlers can
+// share it; this file supplies the browser client and the domain mapping.
+export type { CreateTicketInput } from './tickets-core.js';
 
-export interface CreateTicketInput {
-  summary: string;
-  context: string;
-  createdBy: string;
-  category?: string;
-  priority?: string;
-  source?: 'form' | 'assistant';
-  /** Verbatim conversation, when raised from the assistant. */
-  transcript?: string;
-}
-
-/**
- * SLA targets for tickets, from the shared sla_targets table (stage 'ticket',
- * channel = priority). Read at create time so a target changed in admin applies
- * to new tickets without a deploy.
- */
 async function loadTicketSlaTargets(): Promise<TicketSlaTarget[]> {
-  const { data, error } = await db
-    .from('sla_targets')
-    .select('channel, hours, days')
-    .eq('stage', 'ticket');
-  if (error || !data) return [];
-  return data
-    .map((r) => {
-      const row = r as { channel: string; hours: number | null; days: number | null };
-      // `hours` wins where set; `days` is the table's original unit and still
-      // the fallback for a row that predates ticket SLAs.
-      const hours = row.hours ?? (row.days != null ? row.days * 24 : null);
-      return hours != null ? { channel: row.channel, hours } : null;
-    })
-    .filter((t): t is TicketSlaTarget => t !== null);
+  return loadTicketSlaTargetsWith(db);
 }
 
 export async function createTicket(input: CreateTicketInput): Promise<Ticket> {
-  const id = await nextTicketId();
-  const targets = await loadTicketSlaTargets();
-  const dueAt = computeDueAt(new Date(), input.priority, targets);
-
-  const { data, error } = await db
-    .from(TABLE)
-    .insert({
-      id,
-      summary: input.summary,
-      context: input.context,
-      status: 'open',
-      created_by: input.createdBy,
-      source: input.source ?? 'form',
-      due_at: dueAt,
-      ...(input.category ? { category: input.category } : {}),
-      ...(input.priority ? { priority: input.priority } : {}),
-      ...(input.transcript ? { transcript: input.transcript } : {}),
-    })
-    .select('*')
-    .single();
-  if (error) throw error;
-  return mapDbToTicket(data as unknown as TicketRow);
+  const row = await createTicketWith(db, input);
+  return mapDbToTicket(row as unknown as TicketRow);
 }
 
 export interface ListTicketsOptions {

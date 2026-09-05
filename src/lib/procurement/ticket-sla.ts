@@ -8,7 +8,7 @@
 // in hours because "within 4 hours" is the promise the submission toast makes,
 // and the table's original `days` column cannot express it.
 
-import type { Ticket, TicketStatus } from '@/data/types';
+import type { Ticket, TicketStatus } from '../../data/types.js';
 
 /** Fallback when `sla_targets` has no row for a priority — never leave a ticket unbounded. */
 export const DEFAULT_TICKET_SLA_HOURS = 8;

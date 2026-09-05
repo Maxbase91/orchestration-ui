@@ -2,6 +2,8 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { callLLMWithTools, callLLM, type LLMMessage, type GroqTool } from './_llm.js';
 import { getDbAdmin } from './_db-admin.js';
 import type { NeonCompatibleClient } from '../src/lib/neon-compatible-client.js';
+import { createTicketWith } from '../src/lib/db/tickets-core.js';
+import { mergePreferences } from '../src/lib/db/user-preferences-core.js';
 import { knowledgeBase } from '../src/data/knowledgeBase.js';
 
 const db = new Proxy({} as NeonCompatibleClient, {
@@ -376,19 +378,9 @@ async function execRememberPreference(
   value: string,
   userId: string,
 ): Promise<string> {
-  const { data: existing } = await db
-    .from('user_preferences')
-    .select('prefs')
-    .eq('user_id', userId)
-    .maybeSingle();
-
-  const prefs = ((existing?.prefs as Record<string, unknown>) ?? {});
-  prefs[key] = value;
-
-  await db
-    .from('user_preferences')
-    .upsert({ user_id: userId, prefs, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
-
+  // Shared with the browser path rather than a second read-merge-upsert
+  // against the same table.
+  await mergePreferences(db, userId, { [key]: value });
   return JSON.stringify({ remembered: true, key, value });
 }
 
@@ -415,26 +407,19 @@ async function execCreateTicket(
   userName: string,
   transcript?: string,
 ): Promise<{ ticketId: string }> {
-  // Shares the ticket_number_seq sequence with the browser-side ticket module.
-  // The code can't be shared — that module imports the Vite-aliased browser
-  // client — but the sequence must be, or the two intake paths hand out
-  // colliding IDs. Reading the latest row (as this did) also raced with itself.
-  const { data: generated } = await db.rpc('next_ticket_id');
-  const ticketId = generated
-    ? String(generated)
-    : `TKT-${Date.now().toString().slice(-8)}`;
-
-  await db.from('tickets').insert({
-    id: ticketId,
+  // One implementation, shared with the browser path via tickets-core. This
+  // used to be a second copy — written that way because src/lib/db/tickets.ts
+  // imports the Vite-aliased browser client — and it had drifted: it set no
+  // due_at, so every assistant-raised ticket had no SLA while form-raised ones
+  // did. Going through the core is what fixes that.
+  const row = await createTicketWith(db, {
     summary,
     context,
-    status: 'open',
-    created_by: userName || userId,
+    createdBy: userName || userId,
     source: 'assistant',
     ...(transcript ? { transcript } : {}),
   });
-
-  return { ticketId };
+  return { ticketId: String(row.id) };
 }
 
 // ─── Text-based tool-call parser ─────────────────────────────────────────────

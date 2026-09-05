@@ -1,39 +1,18 @@
+// Browser-side user preferences. The read/merge lives in
+// user-preferences-core.ts so the serverless handlers share one implementation
+// rather than keeping a second copy of the same upsert.
 import { db } from '@/lib/db-client';
+import { mergePreferences, readPreferences, type UserPrefs } from './user-preferences-core';
 
-const TABLE = 'user_preferences';
-
-export interface UserPrefs {
-  currency?: string;
-  notifications?: Record<string, unknown>;
-  [key: string]: unknown;
-}
+export type { UserPrefs };
 
 export async function getUserPreferences(userId: string): Promise<UserPrefs> {
-  const { data, error } = await db
-    .from(TABLE)
-    .select('prefs')
-    .eq('user_id', userId)
-    .maybeSingle();
-  if (error) throw error;
-  return (data?.prefs as UserPrefs) ?? {};
+  return readPreferences(db, userId);
 }
 
 export async function updateUserPreferences(
   userId: string,
   patch: Partial<UserPrefs>,
 ): Promise<UserPrefs> {
-  // Read existing prefs first so we merge rather than overwrite
-  const existing = await getUserPreferences(userId);
-  const merged = { ...existing, ...patch };
-
-  const { data, error } = await db
-    .from(TABLE)
-    .upsert(
-      { user_id: userId, prefs: merged, updated_at: new Date().toISOString() },
-      { onConflict: 'user_id' },
-    )
-    .select('prefs')
-    .single();
-  if (error) throw error;
-  return (data.prefs as UserPrefs) ?? merged;
+  return mergePreferences(db, userId, patch);
 }
