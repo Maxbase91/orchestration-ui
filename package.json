@@ -20,6 +20,7 @@
     "test:api-domain-routing": "node tests/integration/api-domain-routing.mjs",
     "test:assistant-extraction": "node --import tsx/esm tests/integration/assistant-extraction-scope.mjs",
     "test:db-casts": "node --import tsx/esm tests/integration/db-parameter-casts.mjs",
+    "test:checkout-gates": "node --import tsx/esm tests/integration/governed-checkout-gates.mjs",
     "test:workflow-atomic": "node --import tsx/esm tests/integration/workflow-action-atomic.mjs",
     "test:vercel-functions": "node tests/integration/vercel-function-budget.mjs",
     "test:workflow-scripts": "node tests/integration/workflow-scripts.mjs",

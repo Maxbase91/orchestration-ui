@@ -3,7 +3,7 @@
 // eligible candidates with the existing Groq → Gemini provider chain.
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getNeonClient } from '../../../api/_neon.js';
+import { getNeonClient, isMissingRelation } from '../../../api/_neon.js';
 import { callLLM } from '../../lib/llm.js';
 import { matchContractScopes, type ContractMatchInput, type ContractMatchScope } from '../../lib/procurement/contract-matching.js';
 import type { ContractMatchCandidate, ContractScopeDeliverable, ContractScopeExclusion } from '../../data/types.js';
@@ -16,22 +16,25 @@ function text(value: unknown): string { return typeof value === 'string' ? value
 function dateText(value: unknown): string { return value instanceof Date ? value.toISOString().slice(0, 10) : text(value).slice(0, 10); }
 function errorMessage(error: unknown): string { return error instanceof Error ? error.message : 'Contract matching failed.'; }
 
+/** A caller-fixable payload problem — the only failure whose text is safe to return. */
+class ContractMatchInputError extends Error {}
+
 function validateInput(body: unknown): ContractMatchInput {
-  if (!isRecord(body)) throw new Error('A contract match request is required.');
+  if (!isRecord(body)) throw new ContractMatchInputError('A contract match request is required.');
   const value = (key: string): unknown => body[key];
   const requestText = value('text');
-  if (typeof requestText !== 'string' || !requestText.trim()) throw new Error('text is required.');
-  if (requestText.length > 5000) throw new Error('text is too long.');
+  if (typeof requestText !== 'string' || !requestText.trim()) throw new ContractMatchInputError('text is required.');
+  if (requestText.length > 5000) throw new ContractMatchInputError('text is too long.');
   const optionalText = ['category', 'supplierId', 'needByDate', 'serviceStartDate', 'serviceEndDate', 'geography', 'businessUnit'];
-  for (const key of optionalText) if (value(key) !== undefined && typeof value(key) !== 'string') throw new Error(`${key} must be a string.`);
+  for (const key of optionalText) if (value(key) !== undefined && typeof value(key) !== 'string') throw new ContractMatchInputError(`${key} must be a string.`);
   for (const key of ['needByDate', 'serviceStartDate', 'serviceEndDate']) {
     const item = value(key);
-    if (typeof item === 'string' && item && !/^\d{4}-\d{2}-\d{2}$/.test(item)) throw new Error(`${key} must use YYYY-MM-DD.`);
+    if (typeof item === 'string' && item && !/^\d{4}-\d{2}-\d{2}$/.test(item)) throw new ContractMatchInputError(`${key} must use YYYY-MM-DD.`);
   }
   const estimatedValue = value('estimatedValue');
-  if (estimatedValue !== undefined && (typeof estimatedValue !== 'number' || !Number.isFinite(estimatedValue) || estimatedValue < 0)) throw new Error('estimatedValue must be a non-negative number.');
+  if (estimatedValue !== undefined && (typeof estimatedValue !== 'number' || !Number.isFinite(estimatedValue) || estimatedValue < 0)) throw new ContractMatchInputError('estimatedValue must be a non-negative number.');
   const clarificationAnswers = value('clarificationAnswers');
-  if (clarificationAnswers !== undefined && (!isRecord(clarificationAnswers) || Object.keys(clarificationAnswers).length > 3 || Object.values(clarificationAnswers).some((item) => typeof item !== 'string' || item.length > 1000))) throw new Error('clarificationAnswers must contain at most three short text values.');
+  if (clarificationAnswers !== undefined && (!isRecord(clarificationAnswers) || Object.keys(clarificationAnswers).length > 3 || Object.values(clarificationAnswers).some((item) => typeof item !== 'string' || item.length > 1000))) throw new ContractMatchInputError('clarificationAnswers must contain at most three short text values.');
   return {
     text: requestText, category: text(value('category')) || undefined, supplierId: text(value('supplierId')) || undefined,
     estimatedValue: typeof estimatedValue === 'number' ? estimatedValue : undefined,
@@ -111,7 +114,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     const sql = getNeonClient();
     let scopes: ContractMatchScope[];
     try { scopes = await loadContractMatchScopes(sql); } catch (error) {
-      if (/contract_scope_versions|does not exist|relation/i.test(errorMessage(error))) { res.status(200).json({ sufficient: true, route: 'full-request', missingFields: ['contract coverage data'], questions: [], candidates: [] }); return; }
+      // Only an absent table degrades, and it degrades to the most-governed
+      // route while naming what is missing. The old message match on
+      // /does not exist|relation/i also caught permission and connection
+      // failures, answering 200 to a read that never happened.
+      if (isMissingRelation(error)) { res.status(200).json({ sufficient: true, route: 'full-request', missingFields: ['contract coverage data'], questions: [], candidates: [] }); return; }
       throw error;
     }
     const result = matchContractScopes(input, scopes);
@@ -119,6 +126,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     if (result.route === 'contract' && result.candidates[0]?.confidence === 'low') result.route = 'clarify';
     res.status(200).json(result);
   } catch (error) {
-    res.status(400).json({ error: errorMessage(error), code: 'validation_error' });
+    // validateInput throws for a bad payload; everything else reaching here is
+    // ours, and its message can name columns and constraints. Only the former
+    // is the caller's fault, and only the former is safe to echo back.
+    if (error instanceof ContractMatchInputError) {
+      res.status(400).json({ error: error.message, code: 'validation_error' });
+      return;
+    }
+    console.error('[contract-match]', errorMessage(error));
+    res.status(500).json({ error: 'Contract matching is unavailable.', code: 'contract_match_failed' });
   }
 }

@@ -24,6 +24,22 @@ export function getNeonClient(): ReturnType<typeof neon> {
 }
 
 /**
+ * Is this error "the additive migration has not been applied here"?
+ *
+ * The additive tables (policy config, contract scope) are read by handlers that
+ * must keep working on a deployment one migration behind. That tolerance used to
+ * be a message match on `/does not exist|relation/i`, which is far wider than the
+ * case it names: "permission denied for relation x" and several connection
+ * errors contain "relation" too, so a real failure was swallowed as a missing
+ * table and the caller carried on as though the read had simply come back empty.
+ * SQLSTATE says it exactly — 42P01 undefined_table, 42703 undefined_column.
+ */
+export function isMissingRelation(error: unknown): boolean {
+  const code = (error as { code?: unknown } | null)?.code;
+  return code === '42P01' || code === '42703';
+}
+
+/**
  * Run a query and get rows back.
  *
  * `sql.query()` is typed as `any[][] | Record<string, any>[] | FullQueryResults`

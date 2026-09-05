@@ -2,7 +2,7 @@
 // request, but only this dispatcher-routed handler decides the initial stage
 // and commits the request's related records together.
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getNeonClient } from '../../../api/_neon.js';
+import { getNeonClient, isMissingRelation } from '../../../api/_neon.js';
 
 type JsonRecord = Record<string, unknown>;
 type IntakePayload = {
@@ -86,7 +86,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     } catch (error) {
       // The additive policy table may not exist on an older branch; shipped
       // defaults keep intake available while the migration is applied.
-      if (!/procurement_policy_configs|does not exist|relation/i.test(error instanceof Error ? error.message : '')) throw error;
+      if (!isMissingRelation(error)) throw error;
     }
     const stage = stageFor({ ...request, value, buyingChannel }, approvalThreshold);
 

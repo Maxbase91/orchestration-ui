@@ -378,7 +378,7 @@ export interface PurchaseRequisition {
   approvalRequired: boolean;
   riskReviewRequired: boolean;
   contractAmendmentRequired: boolean;
-  contractScopeVersionId?: string;
+  contractScopeVersionId?: string | null;
   contractMatchScore?: number;
   contractMatchReasons?: string[];
   contractMatchAlgorithmVersion?: string;

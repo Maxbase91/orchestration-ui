@@ -52,9 +52,14 @@ export interface GovernedCheckoutInput {
   beneficiaryId?: string;
   /** Client-generated key for retries of the same checkout. */
   idempotencyKey?: string;
-  /** Server-generated match evidence carried from the pre-check for audit. */
+  /**
+   * Server-generated match evidence carried from the pre-check for audit.
+   * `scopeVersionId` is null when the scope data could not be read: the record
+   * then says the coverage check did not run, rather than leaving a blank that
+   * reads the same as "ran and matched nothing".
+   */
   contractMatch?: {
-    scopeVersionId: string;
+    scopeVersionId: string | null;
     score: number;
     reasons: string[];
     inputFingerprint: string;
@@ -83,7 +88,7 @@ export interface GovernedCheckoutDecision {
     shipToLocationId?: string;
     beneficiaryId?: string;
     commodityCodes: string[];
-    contractScopeVersionId?: string;
+    contractScopeVersionId?: string | null;
     contractMatchScore?: number;
     contractMatchReasons?: string[];
     contractMatchInputFingerprint?: string;

@@ -2,7 +2,7 @@
 // request → PR → line → conditional PO writes happen behind this endpoint.
 import { createHash } from 'node:crypto';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getNeonClient, queryRows, type DbRow } from './_neon.js';
+import { getNeonClient, isMissingRelation, queryRows, type DbRow } from './_neon.js';
 import {
   evaluateGovernedCheckout,
   type GovernedCheckoutInput,
@@ -75,13 +75,33 @@ function fingerprint(payload: CheckoutPayload): string {
   return createHash('sha256').update(JSON.stringify(stable(normalized))).digest('hex');
 }
 
+/**
+ * Merge a stored policy row over the shipped defaults, key by key.
+ *
+ * This used to reject the whole row if any single key was absent and fall back
+ * to DEFAULT_POLICY_CONFIG entirely. That turned adding one field to
+ * PolicyConfig into a silent reversion of every admin-configured threshold: the
+ * stored row predates the new key, the guard fires, and live checkout starts
+ * deciding on shipped defaults with nothing logged. Taking each key on its own
+ * merits keeps the configured values and defaults only what is genuinely
+ * missing — which is what the spread below always did on its own.
+ *
+ * A key whose stored type does not match the default's is also defaulted, so a
+ * hand-edited row cannot feed a string threshold into a numeric comparison.
+ */
 function configFromRow(row: DbRow | undefined): PolicyConfig {
   const value = row?.config;
   if (!isRecord(value)) return DEFAULT_POLICY_CONFIG;
-  const candidate = value as Partial<PolicyConfig>;
-  const keys = Object.keys(DEFAULT_POLICY_CONFIG) as (keyof PolicyConfig)[];
-  if (keys.some((key) => candidate[key] === undefined)) return DEFAULT_POLICY_CONFIG;
-  return { ...DEFAULT_POLICY_CONFIG, ...candidate } as PolicyConfig;
+  const candidate = value as Record<string, unknown>;
+  const merged = { ...DEFAULT_POLICY_CONFIG } as Record<string, unknown>;
+  for (const [key, fallback] of Object.entries(DEFAULT_POLICY_CONFIG)) {
+    const stored = candidate[key];
+    if (stored === undefined || stored === null) continue;
+    if (Array.isArray(fallback) !== Array.isArray(stored)) continue;
+    if (typeof stored !== typeof fallback) continue;
+    merged[key] = stored;
+  }
+  return merged as unknown as PolicyConfig;
 }
 
 async function loadPolicy(sql: ReturnType<typeof getNeonClient>): Promise<PolicyConfig> {
@@ -90,8 +110,10 @@ async function loadPolicy(sql: ReturnType<typeof getNeonClient>): Promise<Policy
     return configFromRow(rows[0]);
   } catch (error) {
     // The policy table is additive. A deployment that has not run the migration
-    // still uses shipped defaults rather than making checkout unusable.
-    if (/procurement_policy_configs|does not exist|relation/i.test(errorMessage(error))) return DEFAULT_POLICY_CONFIG;
+    // still uses shipped defaults rather than making checkout unusable. Anything
+    // else — a permissions or connection failure — must surface, not quietly
+    // hand this checkout a different rulebook than the admin configured.
+    if (isMissingRelation(error)) return DEFAULT_POLICY_CONFIG;
     throw error;
   }
 }
@@ -256,39 +278,73 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     // by the category carried in the browser payload. Catalogue lines inherit
     // their linked contract scope and still persist the evidence for audit.
     let scopeEvidence: GovernedCheckoutInput['contractMatch'] | undefined;
+    const scopeInput = {
+      text: [checkout.purpose, ...authoritativeLines.map((line) => line.description)].filter(Boolean).join(' '),
+      category: request.category ?? undefined,
+      supplierId,
+      estimatedValue: authoritativeLines.reduce((sum, line) => sum + line.quantity * line.unitPrice, 0),
+      needByDate: checkout.needByDate,
+      serviceStartDate: checkout.serviceStartDate,
+      serviceEndDate: checkout.serviceEndDate,
+    };
+    // Only the READ is allowed to fail softly, and only for a missing table.
+    // The gate below used to sit inside this try: any error the catch swallowed
+    // skipped the check entirely and wrote a requisition whose scope evidence
+    // was silently null — a call-off approved because the check crashed, which
+    // is the one outcome a mandatory gate must never have.
+    let scopes: Awaited<ReturnType<typeof loadContractMatchScopes>>;
+    let scopeDataAvailable = true;
     try {
-      const scopeInput = {
-        text: [checkout.purpose, ...authoritativeLines.map((line) => line.description)].filter(Boolean).join(' '),
-        category: request.category ?? undefined,
-        supplierId,
-        estimatedValue: authoritativeLines.reduce((sum, line) => sum + line.quantity * line.unitPrice, 0),
-        needByDate: checkout.needByDate,
-        serviceStartDate: checkout.serviceStartDate,
-        serviceEndDate: checkout.serviceEndDate,
-      };
-      const scopes = (await loadContractMatchScopes(sql)).filter((scope) => scope.contractId === contractId);
-      const match = matchContractScopes(scopeInput, scopes);
-      const selected = match.candidates.find((candidate) => candidate.contractId === contractId);
-      if (checkout.route === 'contract-call-off' && (!selected || match.route !== 'contract')) {
+      scopes = (await loadContractMatchScopes(sql)).filter((scope) => scope.contractId === contractId);
+    } catch (error) {
+      if (!isMissingRelation(error)) throw error;
+      scopeDataAvailable = false;
+      scopes = [];
+    }
+
+    const match = matchContractScopes(scopeInput, scopes);
+    const selected = scopeDataAvailable
+      ? match.candidates.find((candidate) => candidate.contractId === contractId)
+      : undefined;
+
+    if (checkout.route === 'contract-call-off') {
+      // A call-off is a claim that an existing contract already covers this
+      // demand. Without scope data that claim cannot be checked, so it cannot
+      // be accepted — the requester is sent down the full-request route rather
+      // than being waved through on an unverified assertion.
+      if (!scopeDataAvailable) {
+        throw new CheckoutError('Contract coverage cannot be verified right now, so this call-off cannot be accepted. Continue as a new request.', 'contract_scope_unavailable', 503);
+      }
+      if (!selected || match.route !== 'contract') {
         throw new CheckoutError('The selected contract does not confidently cover this demand. Add more scope detail or continue as a new request.', 'contract_match_required', 409);
       }
-      if (selected) {
-        scopeEvidence = {
-          scopeVersionId: selected.scopeVersionId,
-          score: selected.score,
-          reasons: selected.reasons,
-          inputFingerprint: matchFingerprint(scopeInput.text),
-          algorithmVersion: 'contract-match-v1',
-        };
-      }
-      if (checkout.contractMatch && scopeEvidence && (checkout.contractMatch.scopeVersionId !== scopeEvidence.scopeVersionId || Math.abs(checkout.contractMatch.score - scopeEvidence.score) > 0.001)) {
-        throw new CheckoutError('The contract match changed while you were reviewing the request.', 'governance_mismatch', 409);
-      }
-    } catch (error) {
-      if (error instanceof CheckoutError) throw error;
-      if (!/contract_scope_versions|does not exist|relation/i.test(errorMessage(error))) throw error;
-      // Older environments can still process existing catalogue checkouts;
-      // they remain auditable through the linked contract but have no scope evidence.
+    }
+
+    if (selected) {
+      scopeEvidence = {
+        scopeVersionId: selected.scopeVersionId,
+        score: selected.score,
+        reasons: selected.reasons,
+        inputFingerprint: matchFingerprint(scopeInput.text),
+        algorithmVersion: 'contract-match-v1',
+      };
+    } else if (!scopeDataAvailable) {
+      // Record that the check did not run. Leaving the evidence null reads
+      // identically to "ran and found nothing", and a blank where a check
+      // belongs is worse than no record at all.
+      scopeEvidence = {
+        scopeVersionId: null,
+        score: 0,
+        reasons: ['Contract scope data was unavailable; coverage was not evaluated.'],
+        inputFingerprint: matchFingerprint(scopeInput.text),
+        algorithmVersion: 'not-evaluated',
+      };
+    }
+
+    if (checkout.contractMatch && scopeEvidence && scopeDataAvailable
+      && (checkout.contractMatch.scopeVersionId !== scopeEvidence.scopeVersionId
+        || Math.abs(checkout.contractMatch.score - scopeEvidence.score) > 0.001)) {
+      throw new CheckoutError('The contract match changed while you were reviewing the request.', 'governance_mismatch', 409);
     }
     const authoritative: GovernedCheckoutInput = {
       ...checkout, lines: authoritativeLines, supplier, contract,
