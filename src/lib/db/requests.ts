@@ -7,6 +7,23 @@ import { mapDbToRequest, mapRequestToDb } from './mappers';
 
 const TABLE = 'requests';
 
+/**
+ * Next request id from the Postgres sequence, mirroring nextTicketId().
+ *
+ * Replaces a `REQ-2025-` + 4-random-digit generator: 9,000 ids across all
+ * users, and a collision was not a duplicate-key error but a silent discard —
+ * intake-submit found the existing row and replayed it back.
+ *
+ * The fallback is deliberately shaped NOT to match the sequence's high-water
+ * pattern (^REQ-\d{4}-(\d+)$). One that did match would set the sequence to a
+ * timestamp on the next schema apply and burn ten thousand ids.
+ */
+export async function nextRequestId(): Promise<string> {
+  const { data, error } = await db.rpc('next_request_id');
+  if (error || !data) return `REQ-${new Date().getFullYear()}-T${Date.now().toString(36)}`;
+  return String(data);
+}
+
 export async function listRequests(): Promise<ProcurementRequest[]> {
   const { data, error } = await db.from(TABLE).select('*').order('created_at', { ascending: false });
   if (error) throw error;

@@ -242,10 +242,17 @@ export async function installDbStub(target, overrides = {}) {
     const payload = JSON.parse(route.request().postData() || '{}');
 
     if (payload.operation === 'rpc') {
-      // Only the two id sequences are exposed; a deterministic value keeps
-      // generated ids stable across a run.
+      // Per-function shapes, not `${name}-1`: request ids are now minted here
+      // rather than in the wizard, so the confirmation screen renders whatever
+      // this returns and a generic value would make an assertion on it
+      // meaningless. Deterministic, so ids stay stable across a run.
+      const sequences = {
+        next_request_id: 'REQ-2026-09001',
+        next_ticket_id: 'TKT-9001',
+        next_sourcing_event_id: 'SRC-9001',
+      };
       await route.fulfill({ status: 200, contentType: 'application/json',
-        body: JSON.stringify({ data: `${payload.functionName}-1`, error: null }) });
+        body: JSON.stringify({ data: sequences[payload.functionName] ?? `${payload.functionName}-1`, error: null }) });
       return;
     }
 

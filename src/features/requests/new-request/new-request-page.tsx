@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo, Component, type ReactNode, type ErrorInfo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef, Component, type ReactNode, type ErrorInfo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Save, Send, AlertTriangle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -10,7 +10,7 @@ import { useRiskAssessments } from '@/lib/db/hooks/use-risk-assessments';
 import { useCatalogueItems } from '@/lib/db/hooks/use-catalogue-items';
 import { useUsers } from '@/lib/db/hooks/use-users';
 import { useAuthStore } from '@/stores/auth-store';
-import { createRequest } from '@/lib/db/requests';
+import { createRequest, nextRequestId } from '@/lib/db/requests';
 import { saveRequestSupplierCandidates } from '@/lib/db/request-supplier-candidates';
 import { parseDeliveryDate } from '@/lib/parse-delivery-date';
 import { riskSlotsFor } from '@/lib/procurement/residual-question-slots';
@@ -22,7 +22,6 @@ import { queryClient } from '@/lib/query-client';
 import type { RequestCategory, BuyingChannel } from '@/data/types';
 import {
   INITIAL_INTAKE_DATA,
-  generateRequestId,
   type IntakeFormData,
 } from './intake-form-data';
 import { useIntakeDetermination } from './use-intake-determination';
@@ -103,6 +102,19 @@ export function NewRequestPage() {
   const [stepId, setStepId] = useState<IntakeStepId>('describe');
   const [formData, setFormData] = useState<IntakeFormData>(INITIAL_INTAKE_DATA);
   const [requestId, setRequestId] = useState('');
+  // One id per submission attempt, held in a ref rather than state: a double
+  // click resolves both handlers before a state update could land, and two ids
+  // for one demand is the failure this exists to prevent. Nothing renders it.
+  //
+  // Kept on failure so a retry reuses it — the server's intake replay branch
+  // and the governed checkout's idempotency key both derive from it, and a
+  // fresh id on every attempt is what made those replays unreachable. Cleared
+  // on success so the next demand mints its own.
+  const attemptIdRef = useRef<string | null>(null);
+  const claimRequestId = useCallback(async () => {
+    attemptIdRef.current ??= await nextRequestId();
+    return attemptIdRef.current;
+  }, []);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [catalogueOrder, setCatalogueOrder] = useState<{
     title: string;
@@ -311,7 +323,7 @@ export function NewRequestPage() {
       setCatalogueCheckoutOpen(true);
       return;
     }
-    const id = generateRequestId();
+    const id = await claimRequestId();
     const submittedOrder = {
       ...order,
       estimatedValue: draft.quantity * (order.catalogueItems[0]?.unitPrice ?? 0),
@@ -389,7 +401,7 @@ export function NewRequestPage() {
     const supplier = suppliers.find((candidate) => candidate.id === contract.supplierId);
     if (!supplier) { toast.error('The contract supplier could not be resolved.'); return; }
     setIsSubmitting(true);
-    const id = generateRequestId();
+    const id = await claimRequestId();
     try {
       const storedProfile = await getProcurementProfile(currentUser.id).catch(() => null);
       const profile = storedProfile ?? {
@@ -426,7 +438,7 @@ export function NewRequestPage() {
       if (decision.status !== 'approved') await initWorkflow(id, formData.workflowTemplateId, 'framework-call-off');
       queryClient.invalidateQueries({ queryKey: ['requests'] });
       toast.success('Contract call-off submitted');
-      setRequestId(id); setStepId('confirmation');
+      attemptIdRef.current = null; setRequestId(id); setStepId('confirmation');
     } catch (error) {
       toast.error(`Could not submit contract call-off: ${error instanceof Error ? error.message : 'Please try again.'}`);
     } finally { setIsSubmitting(false); }
@@ -435,7 +447,7 @@ export function NewRequestPage() {
   const handleNext = async () => {
     if (stepId === submitStepId) {
       // Submit
-      const id = generateRequestId();
+      const id = await claimRequestId();
       setIsSubmitting(true);
       try {
         const sow = formData.serviceDescription ?? null;
@@ -513,6 +525,7 @@ export function NewRequestPage() {
 
         queryClient.invalidateQueries({ queryKey: ['requests'] });
         toast.success('Request submitted successfully');
+        attemptIdRef.current = null;
         setRequestId(id);
         setStepId('confirmation');
       } catch (e) {
@@ -539,7 +552,7 @@ export function NewRequestPage() {
       toast.error('Cannot save draft without a title.');
       return;
     }
-    const id = generateRequestId();
+    const id = await nextRequestId();
     setIsSubmitting(true);
     try {
       await createRequest({

@@ -269,15 +269,3 @@ export const CATEGORY_LABELS: Record<string, string> = {
   catalogue: 'Catalogue Purchase',
 };
 
-/**
- * The request id both submit paths use.
- *
- * Known weakness, carried over deliberately rather than changed under a
- * refactor: this is regenerated per attempt and both idempotency keys derive
- * from it, so a retry gets a new key and the 9000-value space can collide.
- * Fixing it is a data-layer change, not a UI one.
- */
-export function generateRequestId(): string {
-  const num = Math.floor(1000 + Math.random() * 9000);
-  return `REQ-2025-${num}`;
-}

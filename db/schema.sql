@@ -1465,3 +1465,35 @@ ALTER TABLE suppliers
 
 CREATE INDEX IF NOT EXISTS suppliers_prospective_idx
   ON suppliers(prospective, onboarding_status);
+
+-- ── Sequence-backed request ids ─────────────────────────────────────────────
+-- Replaces `REQ-2025-` + Math.random()*9000 in the wizard: 9,000 possible ids
+-- across every user, hardcoded to 2025, and by the birthday bound more likely
+-- to collide than not after ~112 requests. A collision was not a duplicate-key
+-- error — intake-submit found the existing row and replayed it, so the new
+-- submission was silently discarded and the requester was handed back somebody
+-- else's request id, whose requisition and PO the checkout would then return.
+--
+-- Anchored high-water pattern, like next_sourcing_event_id() and unlike
+-- next_ticket_id()'s regexp_replace(id,'\D','','g'): this table also holds
+-- test aggregates (TEST-ATOMIC-*, TEST-EXEC-*) whose digits that expression
+-- would read as an astronomical number and burn the sequence. A non-matching
+-- id yields NULL, which MAX ignores.
+--
+-- The number is global rather than per-year — the year in the rendered id is
+-- decorative, and resetting it at a year boundary would reintroduce the
+-- collision this exists to remove. GREATEST includes the sequence's own
+-- last_value so re-applying this file can never rewind and re-issue a number.
+--
+-- Padded to 5, not 4: the shipped data already reaches REQ-2025-9970, so a
+-- 4-wide lpad overflows to five characters within 29 requests and ids stop
+-- sorting lexicographically — the break next_ticket_id()'s comment warns about.
+CREATE SEQUENCE IF NOT EXISTS request_number_seq AS bigint START WITH 1;
+SELECT setval('request_number_seq', GREATEST(
+  (SELECT COALESCE(MAX(substring(id from '^REQ-\d{4}-(\d+)$')::bigint), 0) FROM requests),
+  (SELECT last_value FROM request_number_seq),
+  1));
+
+CREATE OR REPLACE FUNCTION next_request_id() RETURNS TEXT
+LANGUAGE sql VOLATILE SET search_path = public AS
+$$ SELECT 'REQ-' || to_char(now(), 'YYYY') || '-' || lpad(nextval('request_number_seq')::text, 5, '0') $$;

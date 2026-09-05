@@ -52,7 +52,7 @@ const ALLOWED_RELATIONS = new Set([
   'service_description_templates',
 ]);
 
-const ALLOWED_FUNCTIONS = new Set(['next_ticket_id', 'next_sourcing_event_id']);
+const ALLOWED_FUNCTIONS = new Set(['next_ticket_id', 'next_sourcing_event_id', 'next_request_id']);
 const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const columnTypeCache = new Map<string, Map<string, string>>();
 

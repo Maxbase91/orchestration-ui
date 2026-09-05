@@ -528,6 +528,17 @@ try {
   check('confirmation lists the catalogue items',
     (await page.getByText(/Catalogue Items/).count()) > 0);
 
+  // The id on this screen is now minted by the database, not by the wizard.
+  // The stub answers next_request_id with REQ-2026-09001, so seeing that value
+  // proves the RPC was actually called — a client-generated id could not
+  // produce it. Before this change the wizard rolled its own 4-digit random id.
+  const confirmationBody = await page.locator('body').innerText();
+  check('the request id came from the database sequence',
+    /REQ-2026-09001/.test(confirmationBody),
+    `confirmation text did not contain the sequence id`);
+  check('no client-generated REQ-2025 id is minted any more',
+    !/REQ-2025-\d{4}\b/.test(confirmationBody));
+
   // 6. No runtime errors surfaced during the flow.
   check('no console / page errors during flow', consoleErrors.length === 0,
     consoleErrors.slice(0, 3).join(' | '));
