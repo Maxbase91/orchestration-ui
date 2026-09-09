@@ -42,7 +42,9 @@ depends on, reads from, or can be pointed at Supabase any more:
   (`migrate:supabase-to-neon`) and the 2026-08-29 catalogue backfill — read *from* the retired project
   and are deleted. Every remaining data repair runs against Neon alone.
 - The directory is `db/`, not `supabase/`. `src/lib/supabase-client.ts` is `src/lib/db-client.ts`,
-  `src/lib/supabase.ts` is `src/lib/db-query.ts`, and `api/_supabase-admin.ts` is `api/_db-admin.ts`.
+  `src/lib/supabase.ts` became `src/lib/db-query.ts`, and `api/_supabase-admin.ts` is `api/_db-admin.ts`.
+  `db-query.ts` has since been removed: it was a second, PostgREST-shaped query dialect over the same
+  Neon executor, and its last caller moved onto `sql.transaction`.
 - `SUPABASE_*` and `VITE_SUPABASE_*` are gone from `.env.example` and from the deployment's
   documented variables. `NEON_DATABASE_URL` is the only database variable.
 - The 39 `intake_compliance_records` rows the copy list omitted were exported as committed SQL

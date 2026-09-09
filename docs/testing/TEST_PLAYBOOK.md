@@ -8,6 +8,49 @@ and its [implementation evidence index](../roadmap/R1_IMPLEMENTATION_EVIDENCE.md
 
 > **Deployment note (30 Aug 2026):** the current live alias is `https://orchestration-ui.vercel.app` and the latest verified deployment is commit `0bf9a93`.
 
+## 2026-09-05 correctness and de-duplication tranche
+
+Eleven confirmed defects, and the duplicated code several of them lived in. The
+theme was two of everything: two seed endpoints, two query dialects, two ticket
+writers, two preference writers.
+
+Removed outright: `/api/seed` (unauthenticated, upserted demo rows straight over
+the production store, no caller), `/api/conversations` (no caller), and
+`src/lib/db-query.ts` (a second PostgREST-shaped dialect over the same executor).
+
+Behaviour that changed and needs re-testing by hand:
+
+| ID | Steps | Expected |
+|----|-------|----------|
+| TC-WFA-01 | Drag a card between columns on the Kanban board | The card moves and stays moved after a refresh. The request's timeline shows the new stage; the previous stage is closed |
+| TC-WFA-02 | Reassign a request from its detail page | Owner changes AND the timeline records the handover. Previously the reassignment was recorded nowhere, because the stage had not moved |
+| TC-WFA-03 | Reassign to the current owner (no change) | Succeeds, and writes no timeline entry — a handover that did not happen is not recorded |
+| TC-AST-01 | Ask the assistant to set an approval delegate, confirm it | Reply names the delegate; Settings shows it; the audit log has the entry. Previously the reply said "Done" and nothing at all was written |
+| TC-AST-02 | Ask the assistant to raise a contract renewal, confirm it | Reply names a real `TKT-` id with a due time, and says nothing was sent to the contract system. The ticket appears in the support queue **with an SLA** |
+| TC-AST-03 | Ask the assistant to add a watcher | It says plainly that watchers do not exist yet and that nothing was recorded, and points at the request timeline. No audit entry |
+| TC-AST-04 | Ask the assistant to substitute an approver | Refuses, explains that it would erase who was originally asked, points at Delegate on the approval card |
+| TC-REQ-90 | Submit a new request; note the id on the confirmation screen | Id is `REQ-YYYY-NNNNN` from the database sequence, five digits. Never a `REQ-2025-nnnn` four-digit value |
+| TC-REQ-91 | Submit, then submit the same attempt again (double click, or retry after a timeout) | Reaches the confirmation screen both times with the SAME id. Previously the retry showed "The server did not confirm the submitted request" for a submission that had succeeded, and minted a second id |
+| TC-CHK-20 | Complete a contract call-off | Unchanged when scope data is readable. If the scope read fails the call-off is refused rather than accepted with blank evidence |
+
+Automated coverage added with it — all live-database suites:
+
+```bash
+npm run test:workflow-atomic     # transitions commit with their stage history, or not at all
+npm run test:checkout-gates      # a governed check cannot be skipped by its own read failing
+npm run test:execute-action      # an assistant action writes a real record, or says it cannot
+npm run test:shared-core         # one ticket/preference writer for browser and server
+npm run test:request-id          # ids come from the sequence, monotonic, no collisions
+npm run test:llm-json-mode       # the prose fallback returns prose on both providers
+npm run test:ui                  # confirmation screen shows the sequence id
+```
+
+CI now sets `NEON_DATABASE_URL` and `REQUIRE_LIVE=1`, so these gate a push
+instead of reporting SKIPPED. They write fixtures and clean up after
+themselves; a run killed midway can leave `TEST-*` rows behind.
+
+---
+
 ## 2026-08-31 lifecycle stabilisation tranche
 
 Full-intake submissions enter the shared `validation` stage before any risk,

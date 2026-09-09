@@ -197,6 +197,12 @@ npm run test:policy-config        # central decisioning thresholds (defaults pin
 npm run test:policy-config-server # Neon policy singleton save/load/validation (self-cleaning)
 npm run test:governed-checkout    # contract/risk/capacity gates and PR/PO routing decisions
 npm run test:governed-checkout-atomic # atomic Neon request → PR → lines → conditional PO, replay/conflict/concurrency
+npm run test:checkout-gates       # a governed check cannot be skipped by the failure of its own data read
+npm run test:workflow-atomic      # workflow transitions commit with their stage history, or not at all
+npm run test:execute-action       # a confirmed assistant action writes a real record, or says it cannot
+npm run test:shared-core          # browser and server write tickets/preferences through one implementation
+npm run test:request-id           # request ids come from the database sequence, not Math.random()
+npm run test:llm-json-mode        # the prose fallback returns prose on both LLM providers
 npm run test:intake-submit        # atomic full-demand intake, ISO-date validation and first-stage selection
 # Neon-backed live suites report unavailable when the configured database hostname cannot be resolved.
 npm run test:catalogue-ui         # catalogue item detail and checkout entry-point regressions
@@ -298,7 +304,11 @@ Switch between:
 ## Seed and demo data
 
 The internal Neon store is pre-loaded with representative seed data for demos and UAT. Typed local
-fixtures remain available for offline UI tests:
+fixtures remain available for offline UI tests.
+
+Seeding goes through **one** authenticated route — `POST /api/admin/seed` with an `x-admin-secret`
+header (see `ADMIN_SEED_SECRET` below). An unauthenticated `/api/seed` endpoint that upserted a
+smaller, duplicated fixture set over the same tables has been removed.
 
 | Entity | Count |
 |--------|-------|
@@ -347,7 +357,7 @@ freshness). See `src/lib/integrations/README.md` and the [R1 evidence index](doc
 ## Project Structure
 
 ```
-api/                 # Vercel entrypoints; low-volume routes use api/[...route].ts
+api/                 # Vercel entrypoints; the small domain handlers route through api/db.ts?domain=
 src/
 ├── config/          # Theme, navigation, roles
 ├── data/            # Typed seed/fallback fixtures used by offline tests
@@ -355,7 +365,11 @@ src/
 ├── hooks/           # Custom React hooks
 ├── lib/             # Utilities, formatters, decisioning and AI adapters
 │   ├── db/          # Data-access modules + TanStack Query hooks (incl. the cost-centre and
-│   │                #   delivery-location reference tables, and request supplier candidates)
+│   │                #   delivery-location reference tables, and request supplier candidates).
+│   │                #   *-core.ts modules take the client as a parameter so the serverless
+│   │                #   handlers share one implementation with the browser..
+│   │                #   *-core.ts modules take the client as a parameter so the serverless
+│   │                #   handlers share one implementation with the browser.
 │   ├── integrations/# Standardised source-connector layer (own-store → live swap)
 │   ├── procurement/ # Pure decisioning modules (classify, materiality, risk, residual risk questions and
 │   │                #   their conversation-slot adapter, intake determination + its

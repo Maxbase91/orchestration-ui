@@ -35,10 +35,24 @@ jobs:
       - name: Build
         run: npm run build
 
-      # Suites needing a live Neon database report SKIPPED (exit 3) and are
-      # counted separately — never as passes. Set NEON_DATABASE_URL and
-      # REQUIRE_LIVE=1 on a branch with a test database to make them mandatory.
+      # The suites that assert governed writes need a real database, so CI
+      # points at the Neon branch and REQUIRE_LIVE=1 turns a skip into a
+      # failure — otherwise the strongest assertions in the repo would report
+      # SKIPPED (exit 3) on every push and gate nothing.
+      #
+      # Two things to know:
+      #   - This needs the NEON_DATABASE_URL repository secret. Without it the
+      #     run fails rather than silently skipping, which is the point.
+      #   - These suites WRITE. They insert TEST-*/E2E-* fixtures and delete
+      #     them again, but a run that dies midway leaves rows behind, and two
+      #     concurrent runs can overlap. Fixture ids carry a
+      #     Date.now().toString(36) suffix, which narrows that window without
+      #     closing it. Move to a dedicated Neon test branch before this
+      #     database matters to anyone.
       - name: Tests
+        env:
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+          REQUIRE_LIVE: '1'
         run: npm run test:all
 
   browser:

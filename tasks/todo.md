@@ -1,5 +1,37 @@
 # Intake / determination / workflow bug tracker — fix one by one
 
+## Correctness and de-duplication tranche — 2026-09-05
+
+Full-codebase review; eleven confirmed defects plus the duplication they lived in.
+
+- [x] Delete `/api/seed` (unauthenticated, upserted over the production store) and `/api/conversations` (no caller).
+- [x] Make workflow transitions atomic; record an owner-only change; delete `src/lib/db-query.ts`.
+- [x] Stop the governed checkout skipping the contract-match gate when its own scope read fails; stop a stored policy row reverting wholesale.
+- [x] Thread `jsonMode` into the Gemini path so the prose fallback returns prose.
+- [x] One ticket writer and one preference writer for browser and server (assistant tickets were being created with no SLA).
+- [x] Make confirmed assistant actions write a real record, or say plainly that they cannot.
+- [x] Request ids from a Postgres sequence, minted once per attempt.
+- [x] Union insert columns at the write boundary.
+- [x] Remove the dead intake routing branches; unify the compatibility client's two result shapes.
+- [x] Docs, playbook, capability matrix; CI pointed at the live database.
+
+### Follow-ups this tranche deliberately did not take
+
+- **Draft-then-submit mints two request ids.** Sharing one would be a regression: a saved draft has
+  `status = 'draft'`, so the submission falls into `intake-submit`'s replay branch and reports
+  "submitted" for a row that stays a draft with no stage history, workflow instance or compliance
+  record. The real fix teaches the endpoint to *promote* a draft — a server-authoritative write with
+  its own semantics.
+- **`next_ticket_id`'s fallback can burn its own sequence.** `TKT-${Date.now().toString().slice(-8)}`
+  matches the schema's `regexp_replace(id,'\D','','g')` high-water expression, so one degraded-mode
+  ticket sets `ticket_number_seq` to an eight-digit number on the next schema apply. `next_request_id`
+  was given a fallback shaped not to match its own pattern; the ticket one still needs it.
+- **`ai_conversations` is now written by nothing** — its only writer was the deleted endpoint. Confirm
+  no reader before removing the table or its `ALLOWED_RELATIONS` entry.
+- **CI writes to the production Neon branch.** Deliberate for now; move to a dedicated test branch
+  before this database matters to anyone.
+
+
 ## UX complexity review — 2026-08-29
 
 - [x] Review Claude Code changes since the previous QA pass.

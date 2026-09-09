@@ -100,14 +100,21 @@ check('the policy config has keys to merge in the first place', () => {
 
 console.log('\nThe other two swallow sites were narrowed with it');
 
+// The loose pattern must be gone everywhere. Where a handler still needs to
+// tolerate an unmigrated table it must use the shared SQLSTATE helper; where
+// the tolerance itself was removed (intake-submit's discarded policy read went
+// with the dead approval-threshold branch) there is nothing left to narrow.
 for (const [label, path] of [
   ['intake-submit', 'src/server/api/intake-submit.ts'],
   ['contract-match', 'src/server/api/contract-match.ts'],
+  ['governed-checkout', 'api/governed-checkout.ts'],
 ]) {
-  check(`${label} uses SQLSTATE, not a message match`, () => {
+  check(`${label} has no message-matched relation swallow`, () => {
     const source = read(path);
     if (/does not exist\|relation/.test(source)) throw new Error('message match still present');
-    if (!source.includes('isMissingRelation')) throw new Error('does not use the shared helper');
+    if (/catch[\s\S]{0,200}?relation/i.test(source) && !source.includes('isMissingRelation')) {
+      throw new Error('swallows on a relation mention without the shared helper');
+    }
   });
 }
 check('contract-match no longer returns every failure as a 400 validation_error', () => {
