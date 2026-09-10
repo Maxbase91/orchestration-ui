@@ -117,14 +117,56 @@ try {
   await sql.query('DELETE FROM request_lines WHERE request_id = $1', [requestId]);
   await sql.query('DELETE FROM purchase_requisitions WHERE request_id = $1', [requestId]);
   await sql.query('DELETE FROM requests WHERE id = $1', [requestId]);
+  // ── A checkout that needs approval creates its approvers ────────────────
+  // It used to create none, so the request sat in `approval` with an empty
+  // Approvals tab and nobody able to move it. The quantity is sized to clear
+  // the auto-approval threshold while staying inside the contract's remaining
+  // capacity — over it and the checkout is correctly refused before any of
+  // this matters.
+  const remaining = Number(contract.value) * (1 - Number(contract.utilisation_percentage) / 100);
+  const bigQty = Math.max(2, Math.floor(Math.min(remaining * 0.4, 60000) / Number(item.unit_price)));
+  const approvalId = `${requestId}-APPROVAL`;
+  const approvalPayload = {
+    ...payload,
+    requestId: approvalId,
+    requisitionId: `${requisitionId}-APPROVAL`,
+    request: { ...payload.request, id: approvalId },
+    checkout: { ...payload.checkout, idempotencyKey: `${idempotencyKey}-APPROVAL` },
+    lines: [{ ...payload.lines[0], id: `${payload.lines[0].id}-APPROVAL`, requestId: approvalId, quantity: bigQty }],
+    decision: undefined,
+  };
+  const needsApproval = await invoke(approvalPayload);
+  check('a checkout above the threshold succeeds and waits for approval',
+    needsApproval.statusCode === 200 && needsApproval.body?.request?.status === 'approval',
+    `${needsApproval.statusCode} ${needsApproval.body?.request?.status ?? JSON.stringify(needsApproval.body)}`);
+
+  const entries = await sql.query(
+    'SELECT step_order, approver_role, assignment_mode, approver_name, approver_id, status FROM approval_entries WHERE request_id = $1 ORDER BY step_order',
+    [approvalId]);
+  check('it created its approval entries', entries.length > 0, `${entries.length} entries`);
+  check('the steps are ordered from one',
+    entries.every((e, i) => e.step_order === i + 1), JSON.stringify(entries.map((e) => e.step_order)));
+  check('every entry starts pending', entries.every((e) => e.status === 'pending'));
+  check('each entry says how it is assigned',
+    entries.every((e) => e.assignment_mode === 'role' || e.assignment_mode === 'person'),
+    JSON.stringify(entries.map((e) => e.assignment_mode)));
+  check('a person-assigned entry names a real user',
+    entries.filter((e) => e.assignment_mode === 'person').every((e) => Boolean(e.approver_id)),
+    JSON.stringify(entries));
+  check('the category manager step names the category\'s managers',
+    entries.some((e) => e.approver_role === 'Category Manager' && /\w/.test(String(e.approver_name))),
+    JSON.stringify(entries.map((e) => `${e.approver_role}: ${e.approver_name}`)));
+
   const concurrentPayload = { ...payload, requestId: `${requestId}-CONCURRENT`, requisitionId: `${requisitionId}-CONCURRENT`, checkout: { ...payload.checkout, idempotencyKey: `${idempotencyKey}-CONCURRENT` }, lines: [{ ...payload.lines[0], requestId: `${requestId}-CONCURRENT`, id: `${payload.lines[0].id}-CONCURRENT` }] };
   const concurrent = await Promise.all([invoke(concurrentPayload), invoke(concurrentPayload)]);
   check('concurrent submissions return one aggregate', concurrent.every((result) => result.statusCode === 200 && result.body?.requisition?.id === concurrentPayload.requisitionId), JSON.stringify(concurrent));
+  await sql.query('DELETE FROM approval_entries WHERE request_id LIKE $1', [`${requestId}%`]);
   await sql.query('DELETE FROM purchase_orders WHERE request_id = $1', [concurrentPayload.requestId]);
   await sql.query('DELETE FROM request_lines WHERE request_id = $1', [concurrentPayload.requestId]);
   await sql.query('DELETE FROM purchase_requisitions WHERE request_id = $1', [concurrentPayload.requestId]);
   await sql.query('DELETE FROM requests WHERE id = $1', [concurrentPayload.requestId]);
 } finally {
+  await sql.query('DELETE FROM approval_entries WHERE request_id LIKE $1', [`${requestId}%`]);
   await sql.query('DELETE FROM purchase_orders WHERE request_id LIKE $1', [`${requestId}%`]);
   await sql.query('DELETE FROM request_lines WHERE request_id LIKE $1', [`${requestId}%`]);
   await sql.query('DELETE FROM purchase_requisitions WHERE request_id LIKE $1', [`${requestId}%`]);

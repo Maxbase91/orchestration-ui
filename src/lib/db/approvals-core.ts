@@ -6,8 +6,10 @@
 // privileged in-process one, and src/lib/db/* imports the '@/'-aliased client
 // that Vercel cannot resolve at runtime. Relative '.js' specifiers only.
 import type { NeonCompatibleClient, DbRow } from '../neon-compatible-client.js';
+import { selectApprovalChainForValue } from '../workflow/workflow-steps.js';
 import {
   deriveApprovals,
+  withContractOwnerStep,
   type ApprovalSources,
   type ChainStep,
   type DerivedApproval,
@@ -16,6 +18,8 @@ import {
 
 export interface ApprovalRequestContext {
   requestId: string;
+  /** 'contract-call-off' prepends the contract owner to the chain. */
+  route?: string | null;
   /** The request's category, which decides who the category managers are. */
   category?: string | null;
   /** Set for a call-off, so the contract's owner can be asked. */
@@ -61,6 +65,25 @@ export async function loadApprovalSources(
   };
 }
 
+/**
+ * Which approval chain applies: the one the determination pinned, else the band
+ * the value falls into, else the standard chain.
+ *
+ * The last fallback is deliberate. A request whose value matches no configured
+ * band still has to be approved by somebody, and no entries at all is the
+ * failure this whole change exists to remove.
+ */
+export async function resolveChainId(
+  client: NeonCompatibleClient,
+  explicitChain: string | null | undefined,
+  value: number,
+): Promise<string> {
+  if (explicitChain) return explicitChain;
+  const { data } = await client.from('approval_chains').select('id, threshold');
+  const chains = ((data ?? []) as DbRow[]).map((row) => ({ id: String(row.id), threshold: String(row.threshold ?? '') }));
+  return selectApprovalChainForValue(chains, value)?.id ?? 'chain-1';
+}
+
 /** The chain a request's value falls into, by stored threshold band. */
 export async function loadChainSteps(
   client: NeonCompatibleClient,
@@ -88,6 +111,17 @@ export function approvalRows(requestId: string, derived: DerivedApproval[], now:
   }));
 }
 
+/** Derive a request's approvals without writing them, for a caller with its own transaction. */
+export async function deriveApprovalsFor(
+  client: NeonCompatibleClient,
+  context: ApprovalRequestContext,
+  chainId: string | null | undefined,
+): Promise<DerivedApproval[]> {
+  const steps = withContractOwnerStep(await loadChainSteps(client, chainId), context.route);
+  if (steps.length === 0) return [];
+  return deriveApprovals(steps, await loadApprovalSources(client, context));
+}
+
 /**
  * Derive and persist a request's approval entries.
  *
@@ -103,7 +137,7 @@ export async function createApprovalsFor(
   const existing = await client.from('approval_entries').select('id').eq('request_id', context.requestId);
   if (((existing.data ?? []) as DbRow[]).length > 0) return [];
 
-  const steps = await loadChainSteps(client, chainId);
+  const steps = withContractOwnerStep(await loadChainSteps(client, chainId), context.route);
   if (steps.length === 0) return [];
 
   const sources = await loadApprovalSources(client, context);

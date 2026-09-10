@@ -117,7 +117,7 @@ function byRole(step: ChainStep, order: number, label?: string): DerivedApproval
  * every chain. It comes first: there is no point asking finance to approve a
  * draw-down the contract owner has not accepted.
  */
-export function withContractOwnerStep(steps: ChainStep[], route: string | undefined): ChainStep[] {
+export function withContractOwnerStep(steps: ChainStep[], route: string | null | undefined): ChainStep[] {
   if (route !== 'contract-call-off') return steps;
   if (steps.some((step) => step.role === 'Contract Owner')) return steps;
   return [{ id: 'contract-owner', role: 'Contract Owner' }, ...steps];

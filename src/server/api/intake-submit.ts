@@ -3,6 +3,8 @@
 // and commits the request's related records together.
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getNeonClient } from '../../../api/_neon.js';
+import { getDbAdmin } from '../../../api/_db-admin.js';
+import { approvalRows, deriveApprovalsFor, resolveChainId } from '../../lib/db/approvals-core.js';
 
 type JsonRecord = Record<string, unknown>;
 type IntakePayload = {
@@ -173,6 +175,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       const complianceRow = cleanRow({ request_id: id, determined_at: compliance.determinedAt ?? now, buying_channel: json(compliance.buyingChannel ?? {}), sra_check: json(compliance.sraCheck ?? {}), policy_checks: json(compliance.policyChecks ?? []), duplicate_check: json(compliance.duplicateCheck ?? {}), risk_flags: Array.isArray(compliance.riskFlags) ? compliance.riskFlags : [], matching_risk_assessment_ids: Array.isArray(compliance.matchingRiskAssessmentIds) ? compliance.matchingRiskAssessmentIds : [] });
       queries.push(sql.query(`INSERT INTO intake_compliance_records (${Object.keys(complianceRow).join(', ')}) VALUES (${Object.keys(complianceRow).map((_, i) => `$${i + 1}`).join(', ')})`, Object.values(complianceRow)));
     }
+    // Every intake enters validation, and validation is an approval gate: the
+    // category's manager confirms the demand is permissible and correctly
+    // classified before anything downstream runs. Derived from the records, so
+    // the person named is one the directory actually holds responsible.
+    const approvals = await deriveApprovalsFor(
+      getDbAdmin(),
+      { requestId: id, category, costCentre, contractId: (request.contractId as string) ?? null },
+      await resolveChainId(getDbAdmin(), (request.approvalChain as string) ?? null, value),
+    );
+    for (const row of approvalRows(id, approvals, now)) {
+      const columns = Object.keys(row);
+      queries.push(sql.query(
+        `INSERT INTO approval_entries (${columns.join(', ')}) VALUES (${columns.map((_, i) => `$${i + 1}`).join(', ')})`,
+        Object.values(row),
+      ));
+    }
+
     const stageRow = { request_id: id, stage: stage.stage, entered_at: now, owner_id: request.ownerId ?? requestorId, action: 'submitted', notes: 'Initial actionable stage selected by the server.' };
     queries.push(sql.query('INSERT INTO stage_history (request_id, stage, entered_at, owner_id, action, notes) VALUES ($1, $2, $3, $4, $5, $6)', Object.values(stageRow)));
     const workflowRow = { id: `WI-${id}`, request_id: id, template_id: templateId, current_node_ids: json(['n3']), status: 'running', variables: json({ submittedBy: requestorId }), created_at: now, updated_at: now };

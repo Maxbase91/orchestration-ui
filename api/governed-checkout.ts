@@ -24,6 +24,8 @@ import {
 import type { ProcurementProfile, PurchaseOrder, PurchaseRequisition, ProcurementRequest, RequestLine, RiskAssessment } from '../src/data/types.js';
 import { loadContractMatchScopes } from '../src/server/api/contract-match.js';
 import { matchContractScopes } from '../src/lib/procurement/contract-matching.js';
+import { getDbAdmin } from './_db-admin.js';
+import { approvalRows, deriveApprovalsFor, resolveChainId } from '../src/lib/db/approvals-core.js';
 
 type CheckoutPayload = {
   request?: Partial<ProcurementRequest>;
@@ -386,6 +388,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     if (!decision.ok) throw new CheckoutError(decision.errors.join(' '), 'governance_rejected', 422);
     const now = new Date().toISOString();
     const entry = lifecycleEntry(checkout.route, decision.status);
+
+    // Who has to agree, derived from the records rather than a role→persona
+    // map. A checkout that needs approval used to write no entries at all, so
+    // the request sat in `approval` with an empty Approvals tab and nobody able
+    // to move it. Derived before the transaction opens because it reads the
+    // directory, the category's managers and the contract owner.
+    const approvals = decision.approvalRequired
+      ? await deriveApprovalsFor(
+          getDbAdmin(),
+          {
+            requestId,
+            route: checkout.route,
+            category: request.category ?? null,
+            contractId: contract.id,
+            costCentre: decision.resolved.costCentre ?? null,
+          },
+          await resolveChainId(getDbAdmin(), request.approvalChain ?? null, decision.totalValue),
+        )
+      : [];
     const reqData = requestDb(request, { id: requestId, requisitionId, decision, now, templateId: entry.templateId, stage: entry.stage });
     const requisitionData: Record<string, unknown> = {
       id: requisitionId, request_id: requestId, route: checkout.route, status: decision.status,
@@ -447,6 +468,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
          JSON.stringify({ route: checkout.route, submittedBy: request.requestorId ?? null }), now],
       ),
     ];
+
+    for (const row of approvalRows(requestId, approvals, now)) {
+      const columns = Object.keys(row);
+      queries.push(sql.query(
+        `INSERT INTO approval_entries (${columns.join(', ')}) VALUES (${columns.map((_, i) => `$${i + 1}`).join(', ')})`,
+        Object.values(row),
+      ));
+    }
+
     if (decision.status === 'approved') {
       const po = { id: String(payload?.poId ?? `PO-${requestId}`), supplier_id: supplier.id, supplier_name: supplier.name, value: decision.totalValue, status: 'submitted', created_at: now, delivery_date: checkout.needByDate ?? '', contract_id: contract.id, request_id: requestId, requisition_id: requisitionId, risk_assessment_id: decision.resolved.riskAssessmentId ?? null, cost_centre: decision.resolved.costCentre ?? null, budget_owner: decision.resolved.budgetOwner ?? null, account_type: decision.resolved.accountType ?? null, ship_to_location_id: decision.resolved.shipToLocationId ?? null, beneficiary_id: decision.resolved.beneficiaryId ?? null, line_items: JSON.stringify(linesForInsert.map((line) => ({ description: line.description, quantity: line.quantity, unitPrice: line.unitPrice, received: 0 }))) };
       const poColumns = Object.keys(po); const poValues = Object.values(po);
