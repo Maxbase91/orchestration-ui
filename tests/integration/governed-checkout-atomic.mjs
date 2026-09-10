@@ -82,6 +82,37 @@ try {
   const staleDecisionPayload = { ...payload, requestId: `${requestId}-STALE`, requisitionId: `${requisitionId}-STALE`, checkout: { ...payload.checkout, idempotencyKey: `${idempotencyKey}-STALE` }, lines: [{ ...payload.lines[0], requestId: `${requestId}-STALE`, id: `${payload.lines[0].id}-STALE` }], decision: { ok: true, totalValue: 1, currency: 'EUR', approvalRequired: false, riskReviewRequired: false, contractAmendmentRequired: false, status: 'approved', errors: [], warnings: [], resolved: { supplierId: supplier.id, contractId: contract.id, commodityCodes: [] } } };
   const stale = await invoke(staleDecisionPayload);
   check('stale client decision is rejected', stale.statusCode === 409 && stale.body?.code === 'governance_mismatch', JSON.stringify(stale));
+  // ── The lifecycle records ───────────────────────────────────────────────
+  // A checkout used to write request + requisition + lines + PO and stop,
+  // leaving no workflow instance, no stage history and no template. The
+  // request then had a purchase order but nothing describing where it was or
+  // how it got there, so the Workflow tab rendered placeholders, Approvals was
+  // empty, and no action could advance it.
+  const [req] = await sql.query('SELECT status, workflow_template_id FROM requests WHERE id = $1', [requestId]);
+  check('the request runs a workflow template', Boolean(req?.workflow_template_id),
+    `workflow_template_id is ${req?.workflow_template_id}`);
+
+  const instances = await sql.query('SELECT template_id, current_node_ids, status FROM workflow_instances WHERE request_id = $1', [requestId]);
+  check('a workflow instance exists', instances.length === 1, `${instances.length} instances`);
+  check('it is running on a real template node',
+    instances[0]?.status === 'running' && /^n\d+$/.test(String((instances[0]?.current_node_ids ?? [])[0])),
+    JSON.stringify(instances[0]?.current_node_ids));
+  check('it runs the template the request names',
+    instances[0]?.template_id === req?.workflow_template_id,
+    `${instances[0]?.template_id} vs ${req?.workflow_template_id}`);
+
+  const history = await sql.query(
+    'SELECT stage, action, completed_at FROM stage_history WHERE request_id = $1 ORDER BY entered_at, stage', [requestId]);
+  check('the history records the journey, not just the endpoint', history.length >= 2, `${history.length} rows`);
+  check('intake is recorded and already closed',
+    history.some((h) => h.stage === 'intake' && h.completed_at), JSON.stringify(history));
+  check('the request sits in the stage its status names',
+    history.some((h) => h.stage === req?.status && !h.completed_at),
+    `status ${req?.status}, open ${JSON.stringify(history.filter((h) => !h.completed_at).map((h) => h.stage))}`);
+  check('exactly one stage is open',
+    history.filter((h) => !h.completed_at).length === 1,
+    `${history.filter((h) => !h.completed_at).length} open`);
+
   await sql.query('DELETE FROM purchase_orders WHERE request_id = $1', [requestId]);
   await sql.query('DELETE FROM request_lines WHERE request_id = $1', [requestId]);
   await sql.query('DELETE FROM purchase_requisitions WHERE request_id = $1', [requestId]);

@@ -149,17 +149,43 @@ function assertString(value: unknown, name: string): string {
   return value;
 }
 
-function requestDb(request: Partial<ProcurementRequest>, fields: { id: string; requisitionId: string; decision: GovernedCheckoutDecision; now: string }): { columns: string[]; values: unknown[] } {
+/**
+ * The workflow template and start node a governed checkout enters.
+ *
+ * A checkout used to create a request, requisition, lines and PO and then
+ * stop: no workflow instance, no stage history, no template. Every catalogue
+ * and call-off request in the store has `workflow_instances = 0`, which is why
+ * the Workflow tab rendered a wall of grey placeholders, the Approvals tab was
+ * empty, and the request could not progress — there was no lifecycle to
+ * progress. The records are now written in the same transaction as the rest.
+ *
+ * Node ids come from the seeded templates: WF-002 "Catalogue Purchase" runs
+ * n1 start → n2 auto-validate → n3 value check → n4 manager approval →
+ * n5 auto-PO → n6 PO created → n7 receipt, and WF-001 "Standard Procurement"
+ * carries the full lifecycle a call-off can land anywhere in.
+ */
+function lifecycleEntry(route: string, status: GovernedCheckoutDecision['status']): {
+  templateId: string; nodeId: string; stage: ProcurementRequest['status'];
+} {
+  if (route === 'catalogue') {
+    // A catalogue order has no sourcing, contracting or risk stage to enter;
+    // anything that is not auto-approved waits at manager approval.
+    if (status === 'approved') return { templateId: 'WF-002', nodeId: 'n6', stage: 'po' };
+    return { templateId: 'WF-002', nodeId: 'n4', stage: 'approval' };
+  }
+  switch (status) {
+    case 'approved': return { templateId: 'WF-001', nodeId: 'n8', stage: 'po' };
+    case 'risk-review': return { templateId: 'WF-001', nodeId: 'n14', stage: 'risk' };
+    case 'contract-amendment-required': return { templateId: 'WF-001', nodeId: 'n7', stage: 'contracting' };
+    default: return { templateId: 'WF-001', nodeId: 'n5', stage: 'approval' };
+  }
+}
+
+function requestDb(request: Partial<ProcurementRequest>, fields: { id: string; requisitionId: string; decision: GovernedCheckoutDecision; now: string; templateId: string; stage: ProcurementRequest['status'] }): { columns: string[]; values: unknown[] } {
   // The first actionable stage is part of the persisted request state. Keeping
   // every checkout in `intake` made a completed catalogue request appear
   // stuck even when the policy had already created its internal PO.
-  const lifecycleStatus: ProcurementRequest['status'] = fields.decision.status === 'approved'
-    ? 'po'
-    : fields.decision.status === 'pending-approval'
-      ? 'approval'
-      : fields.decision.status === 'risk-review'
-        ? 'risk'
-        : 'contracting';
+  const lifecycleStatus = fields.stage;
   const data: Record<string, unknown> = {
     id: fields.id,
     title: request.title ?? 'Procurement request',
@@ -180,6 +206,7 @@ function requestDb(request: Partial<ProcurementRequest>, fields: { id: string; r
     beneficiary_id: fields.decision.resolved.beneficiaryId ?? request.beneficiaryId ?? null,
     beneficiary_name: request.beneficiaryName ?? null, beneficiary_country: request.beneficiaryCountry ?? null,
     beneficiary_country_code: request.beneficiaryCountryCode ?? null,
+    workflow_template_id: fields.templateId,
     fulfilment_status: fields.decision.status, created_at: fields.now, updated_at: fields.now,
   };
   return { columns: Object.keys(data), values: Object.values(data) };
@@ -358,7 +385,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     if (!sameDecision(payload?.decision, decision)) throw new CheckoutError('The governance decision changed; review the checkout and submit again.', 'governance_mismatch', 409);
     if (!decision.ok) throw new CheckoutError(decision.errors.join(' '), 'governance_rejected', 422);
     const now = new Date().toISOString();
-    const reqData = requestDb(request, { id: requestId, requisitionId, decision, now });
+    const entry = lifecycleEntry(checkout.route, decision.status);
+    const reqData = requestDb(request, { id: requestId, requisitionId, decision, now, templateId: entry.templateId, stage: entry.stage });
     const requisitionData: Record<string, unknown> = {
       id: requisitionId, request_id: requestId, route: checkout.route, status: decision.status,
       supplier_id: decision.resolved.supplierId, contract_id: decision.resolved.contractId,
@@ -393,6 +421,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       // requests.requisition_id is an FK to the PR, so it is linked only
       // after both parent rows exist inside the same transaction.
       sql.query('UPDATE requests SET requisition_id = $1, updated_at = $2 WHERE id = $3', [requisitionId, now, requestId]),
+      // The lifecycle records. Without these the request has a PO but nothing
+      // that describes where it is or how it got there, so no screen can show
+      // its progress and no action can advance it.
+      //
+      // Two rows, because a checkout is a journey and not a destination: intake
+      // is entered and completed by the act of submitting, and the request then
+      // sits in whatever stage the decision put it in. Writing only the final
+      // stage would also collide with the auto-PO row below on the table's
+      // (request_id, stage, entered_at) natural key.
+      sql.query(
+        'INSERT INTO stage_history (request_id, stage, entered_at, completed_at, owner_id, action, notes) VALUES ($1, $2, $3, $3, $4, $5, $6)',
+        [requestId, 'intake', now, request.ownerId ?? request.requestorId ?? null, 'submitted',
+         checkout.route === 'catalogue' ? 'Catalogue order placed through governed checkout.' : 'Contract call-off raised through governed checkout.'],
+      ),
+      sql.query(
+        'INSERT INTO stage_history (request_id, stage, entered_at, owner_id, action, notes) VALUES ($1, $2, $3, $4, $5, $6)',
+        [requestId, entry.stage, now, request.ownerId ?? request.requestorId ?? null, 'advanced',
+         decision.approvalRequired ? 'Awaiting approval before the order is raised.' : 'Met the auto-approval policy.'],
+      ),
+      sql.query(
+        `INSERT INTO workflow_instances (id, request_id, template_id, current_node_ids, status, variables, created_at, updated_at)
+         VALUES ($1, $2, $3, $4::jsonb, $5, $6::jsonb, $7, $7)`,
+        [`WI-${requestId}`, requestId, entry.templateId, JSON.stringify([entry.nodeId]), 'running',
+         JSON.stringify({ route: checkout.route, submittedBy: request.requestorId ?? null }), now],
+      ),
     ];
     if (decision.status === 'approved') {
       const po = { id: String(payload?.poId ?? `PO-${requestId}`), supplier_id: supplier.id, supplier_name: supplier.name, value: decision.totalValue, status: 'submitted', created_at: now, delivery_date: checkout.needByDate ?? '', contract_id: contract.id, request_id: requestId, requisition_id: requisitionId, risk_assessment_id: decision.resolved.riskAssessmentId ?? null, cost_centre: decision.resolved.costCentre ?? null, budget_owner: decision.resolved.budgetOwner ?? null, account_type: decision.resolved.accountType ?? null, ship_to_location_id: decision.resolved.shipToLocationId ?? null, beneficiary_id: decision.resolved.beneficiaryId ?? null, line_items: JSON.stringify(linesForInsert.map((line) => ({ description: line.description, quantity: line.quantity, unitPrice: line.unitPrice, received: 0 }))) };
@@ -400,6 +453,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       queries.push(sql.query(`INSERT INTO purchase_orders (${poColumns.join(', ')}) VALUES (${poValues.map((_, index) => `$${index + 1}`).join(', ')}) RETURNING *`, poValues));
       queries.push(sql.query('UPDATE requests SET po_id = $1, fulfilment_status = $2, updated_at = $3 WHERE id = $4', [po.id, 'po-created', now, requestId]));
       queries.push(sql.query('UPDATE purchase_requisitions SET status = $1, updated_at = $2 WHERE id = $3', ['po-created', now, requisitionId]));
+      // The request is already in `po` from the row above — this records which
+      // order was raised there, rather than opening a second row for the same
+      // stage at the same instant.
+      queries.push(sql.query(
+        'UPDATE stage_history SET notes = $1 WHERE request_id = $2 AND stage = $3 AND completed_at IS NULL',
+        [`Purchase order ${po.id} raised automatically — the checkout met the auto-approval policy.`, requestId, 'po'],
+      ));
     }
     await sql.transaction(queries);
     const saved = await queryRows(sql, 'SELECT * FROM purchase_requisitions WHERE id = $1', [requisitionId]);

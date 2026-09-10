@@ -108,6 +108,7 @@
     "test:link-navigation": "node tests/ui/link-navigation-e2e.mjs",
     "test:link-route-integrity": "node tests/integration/link-route-integrity.mjs",
     "walkthrough": "node tests/ui/walkthrough.mjs",
+    "backfill:checkout-lifecycle": "node --import tsx/esm db/backfills/2026-09-10-checkout-lifecycle-records.mjs",
     "backfill:compliance": "node --import tsx/esm tests/integration/backfill-compliance-fields.mjs",
     "backfill:intake-compliance": "node db/backfills/apply-sql.mjs db/backfills/2026-09-02-intake-compliance-records.sql"
   },
