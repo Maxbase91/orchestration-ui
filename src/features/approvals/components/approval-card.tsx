@@ -30,6 +30,9 @@ import { getStatusLabel } from '@/lib/status';
 import { useUserLookup, useUsers } from '@/lib/db/hooks/use-users';
 import { useUpdateApproval } from '@/lib/db/hooks/use-approvals';
 import { useAuthStore } from '@/stores/auth-store';
+import { useQueryClient } from '@tanstack/react-query';
+import { canActOnApproval } from '@/lib/procurement/approval-derivation';
+import { recordApprovalDecision } from '@/lib/workflow/approval-decision';
 import type { ProcurementRequest, ApprovalEntry } from '@/data/types';
 
 interface ApprovalCardProps {
@@ -74,9 +77,14 @@ export function ApprovalCard({
   const [showOOOWarning, setShowOOOWarning] = useState(false);
 
   const { data: users = [] } = useUsers();
-  const { currentUser } = useAuthStore();
+  const { currentUser, currentRole } = useAuthStore();
+  const queryClient = useQueryClient();
   // Only the assigned approver can act (matches the request-detail Approvals tab).
-  const isCurrentUserApprover = approval.approverId === currentUser.id;
+  const isCurrentUserApprover = canActOnApproval(
+    { assignmentMode: approval.assignmentMode, approverId: approval.approverId,
+      delegatedTo: approval.delegatedTo, role: approval.approverRole, status: approval.status },
+    { id: currentUser.id, role: currentRole },
+  ) || approval.status !== 'pending';
   const lookupUser = useUserLookup();
   const requestor = lookupUser(request.requestorId);
   const priorityCfg = priorityConfig[request.priority] ?? priorityConfig.medium;
@@ -88,14 +96,26 @@ export function ApprovalCard({
     ? lookupUser(oooApprover.delegateId)
     : undefined;
 
+  // Through the shared path: this card used to stamp the entry and advance
+  // nothing, so approving the last outstanding step left the request parked in
+  // `approval` while the queue showed it as done.
+  const decide = async (decision: 'approved' | 'rejected', comments?: string) => {
+    const result = await recordApprovalDecision({
+      approval, request, decision, comments,
+      actor: { id: currentUser.id, name: currentUser.name },
+    });
+    for (const key of [['approvals'], ['requests'], ['stage-history'], ['audit-entries'], ['workflow-instances']]) {
+      queryClient.invalidateQueries({ queryKey: key });
+    }
+    return result;
+  };
+
   const handleApprove = async () => {
     try {
-      await updateApproval.mutateAsync({
-        id: approval.id,
-        patch: { status: 'approved', respondedAt: new Date().toISOString() },
-      });
+      const result = await decide('approved');
       onActionComplete('approved');
-      toast.success(`${request.id} approved`, { description: request.title });
+      toast.success(result.advanced ? `${request.id} approved and moved on` : `${request.id} — your approval is recorded`,
+        { description: result.advanced ? request.title : `${result.outstanding} approver(s) still to go.` });
     } catch (err) {
       toast.error(`Approve failed: ${err instanceof Error ? err.message : 'unknown'}`);
     }
@@ -104,12 +124,9 @@ export function ApprovalCard({
   const handleReject = async () => {
     if (!comment.trim()) return;
     try {
-      await updateApproval.mutateAsync({
-        id: approval.id,
-        patch: { status: 'rejected', respondedAt: new Date().toISOString(), comments: comment },
-      });
+      await decide('rejected', comment);
       onActionComplete('rejected');
-      toast.error(`${request.id} rejected`, { description: request.title });
+      toast.error(`${request.id} rejected`, { description: 'It goes back to the requester with your reason.' });
       setExpandedAction(null);
       setComment('');
     } catch (err) {

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Check, X, RotateCcw, UserPlus, ArrowUpRight, Ban, ShoppingCart, Loader2, Gavel, ArrowRight } from 'lucide-react';
+import { canActOnApproval } from '@/lib/procurement/approval-derivation';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { ProcurementRequest } from '@/data/types';
@@ -106,11 +107,23 @@ export function ActionButtons({ request }: ActionButtonsProps) {
 
   const isTerminal = request.status === 'completed' || request.status === 'cancelled';
   const isApprovalStage = request.status === 'approval';
-  // Current user's own pending approval entry on this request, if any.
-  const myPendingApproval = byRequest(request.id).find(
-    (a) => a.approverId === currentUser.id && a.status === 'pending',
-  );
-  const canApprove = isApprovalStage || Boolean(myPendingApproval);
+  // The entry this user may actually act on — their own, one delegated to them,
+  // or one open to a role they hold. Steps run in order, so only the earliest
+  // outstanding one is live.
+  //
+  // This used to be `isApprovalStage || …`, which offered Approve to every
+  // persona whenever a request sat in the approval stage. Clicking it stamped
+  // nothing (there was no matching entry), advanced nothing (approvals were
+  // still outstanding), and reported success anyway — the reported case of
+  // approving as Anna Müller while Dr. Katrin Bauer was the one asked.
+  const myPendingApproval = byRequest(request.id)
+    .filter((a) => a.status === 'pending')
+    .sort((a, b) => (a.stepOrder ?? 0) - (b.stepOrder ?? 0))
+    .find((a) => canActOnApproval(
+      { assignmentMode: a.assignmentMode, approverId: a.approverId, delegatedTo: a.delegatedTo, role: a.approverRole, status: a.status },
+      { id: currentUser.id, role: currentRole },
+    ));
+  const canApprove = Boolean(myPendingApproval);
   const canManageRequest = ['procurement-manager', 'vendor-manager', 'operations-lead', 'admin'].includes(currentRole)
     || (currentRole === 'service-owner' && request.requestorId === currentUser.id);
 
@@ -124,6 +137,11 @@ export function ActionButtons({ request }: ActionButtonsProps) {
     } as const;
 
     const config = actionMap[confirmAction];
+    // Whether the request actually moved. An approval that is not the last one
+    // stamps an entry and leaves the request where it is, and saying
+    // "Request approved successfully" for that is how a click that changed
+    // nothing came to look like one that did.
+    let advanced = confirmAction !== 'approve';
 
     try {
       // If the user has a pending approval entry, stamp it first so
@@ -135,6 +153,10 @@ export function ActionButtons({ request }: ActionButtonsProps) {
           patch: {
             status: confirmAction === 'approve' ? 'approved' : 'rejected',
             respondedAt: new Date().toISOString(),
+            // Who responded is not always who was asked: a delegate acting for
+            // someone out of office, or any holder of a role-assigned step.
+            decidedBy: currentUser.id,
+            decidedByName: currentUser.name,
           },
         });
       }
@@ -145,6 +167,7 @@ export function ActionButtons({ request }: ActionButtonsProps) {
         await advanceWorkflow(request.id, config.action);
       } else if (confirmAction === 'approve' && isApprovalStage) {
         const allDone = await areAllApprovalsComplete(request.id);
+        advanced = allDone;
         if (allDone) {
           // Governed call-offs can be created without a workflow instance.
           // In that fallback path `advanceWorkflow` has nothing to advance,
@@ -174,7 +197,14 @@ export function ActionButtons({ request }: ActionButtonsProps) {
       queryClient.invalidateQueries({ queryKey: ['approvals'] });
 
       if (confirmAction === 'approve') {
-        toast.success(config.successMsg);
+        if (advanced) {
+          toast.success(config.successMsg);
+        } else {
+          const outstanding = byRequest(request.id).filter((a) => a.status === 'pending').length;
+          toast.success(outstanding === 1
+            ? 'Your approval is recorded. One more approver to go.'
+            : `Your approval is recorded. ${outstanding} approvers still to go.`);
+        }
       } else if (confirmAction === 'reject') {
         toast.error(config.successMsg);
       } else {

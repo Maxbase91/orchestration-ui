@@ -163,6 +163,13 @@ export interface ApprovalEntry {
   respondedAt?: string;
   comments?: string;
   delegatedTo?: string;
+  /** Position in the chain — steps run in order. */
+  stepOrder?: number;
+  /** 'role' means any holder of approverRole may act; 'person' names one. */
+  assignmentMode?: 'person' | 'role';
+  /** Who actually responded, which is not always the person asked. */
+  decidedBy?: string;
+  decidedByName?: string;
 }
 
 export interface AuditEntry {

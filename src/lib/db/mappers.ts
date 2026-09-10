@@ -987,6 +987,10 @@ export function mapDbToApproval(row: DbRecord): ApprovalEntry {
     respondedAt: (row.responded_at ?? row.respondedAt) as string | undefined,
     comments: row.comments as string | undefined,
     delegatedTo: (row.delegated_to ?? row.delegatedTo) as string | undefined,
+    stepOrder: (row.step_order ?? row.stepOrder) as number | undefined,
+    assignmentMode: (row.assignment_mode ?? row.assignmentMode ?? 'person') as ApprovalEntry['assignmentMode'],
+    decidedBy: (row.decided_by ?? row.decidedBy) as string | undefined,
+    decidedByName: (row.decided_by_name ?? row.decidedByName) as string | undefined,
   };
 }
 
@@ -1002,6 +1006,10 @@ export function mapApprovalToDb(a: Partial<ApprovalEntry>): DbRecord {
   if (a.respondedAt !== undefined) out.responded_at = a.respondedAt;
   if (a.comments !== undefined) out.comments = a.comments;
   if (a.delegatedTo !== undefined) out.delegated_to = a.delegatedTo;
+  if (a.stepOrder !== undefined) out.step_order = a.stepOrder;
+  if (a.assignmentMode !== undefined) out.assignment_mode = a.assignmentMode;
+  if (a.decidedBy !== undefined) out.decided_by = a.decidedBy;
+  if (a.decidedByName !== undefined) out.decided_by_name = a.decidedByName;
   return out;
 }
 

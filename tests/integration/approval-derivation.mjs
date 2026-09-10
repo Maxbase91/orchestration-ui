@@ -132,6 +132,51 @@ check('a role nobody is mapped to is actionable by nobody', () => {
   assert.equal(canActOnApproval(entry, anna), false);
 });
 
+console.log('\nEvery surface decides the same way');
+
+const { readFileSync } = await import('node:fs');
+const stripComments = (src) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^[ \t]*\/\/.*$/gm, '');
+const read = (path) => stripComments(readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8'));
+
+const SURFACES = [
+  ['request header', 'src/features/requests/request-detail/components/action-buttons.tsx'],
+  ['approvals tab', 'src/features/requests/request-detail/tab-approvals.tsx'],
+  ['approvals queue', 'src/features/approvals/components/approval-card.tsx'],
+];
+for (const [label, path] of SURFACES) {
+  check(`${label} gates on canActOnApproval`, () => {
+    assert.match(read(path), /canActOnApproval/, 'does not use the shared gate');
+  });
+}
+check('the header no longer offers Approve on stage alone', () => {
+  const source = read('src/features/requests/request-detail/components/action-buttons.tsx');
+  assert.doesNotMatch(source, /const canApprove = isApprovalStage \|\|/,
+    'any persona can still approve any request sitting in the approval stage');
+});
+for (const [label, path] of SURFACES.slice(1)) {
+  check(`${label} records the decision through the shared path`, () => {
+    assert.match(read(path), /recordApprovalDecision/, 'stamps the entry without advancing the request');
+  });
+}
+check('a decision records who actually responded', () => {
+  const source = read('src/lib/workflow/approval-decision.ts');
+  assert.match(source, /decidedBy: actor\.id/);
+  assert.match(source, /decidedByName: actor\.name/);
+});
+check('a decision writes to the timeline and the audit log', () => {
+  const source = read('src/lib/workflow/approval-decision.ts');
+  assert.match(source, /transitionStage/, 'nothing reaches stage history');
+  assert.match(source, /createAuditEntry/, 'nothing reaches the audit log');
+});
+check('a rejection refers back rather than cancelling', () => {
+  const source = read('src/lib/workflow/approval-decision.ts');
+  assert.match(source, /toStage: 'intake'/);
+  assert.match(source, /'referred-back'/);
+});
+check('a rejection must carry a reason', () => {
+  assert.match(read('src/lib/workflow/approval-decision.ts'), /A rejection needs a reason/);
+});
+
 console.log('\nAgainst the live directory');
 
 loadEnv();

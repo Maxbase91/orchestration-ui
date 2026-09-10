@@ -9,6 +9,9 @@ import { Bell, Check, X, MessageSquare } from 'lucide-react';
 import { formatDate } from '@/lib/format';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/stores/auth-store';
+import { useQueryClient } from '@tanstack/react-query';
+import { canActOnApproval } from '@/lib/procurement/approval-derivation';
+import { recordApprovalDecision } from '@/lib/workflow/approval-decision';
 
 interface TabApprovalsProps {
   request: ProcurementRequest;
@@ -19,6 +22,12 @@ export function TabApprovals({ request }: TabApprovalsProps) {
   const { byRequest } = useApprovalLookup();
   const approvals = byRequest(request.id);
   const currentUser = useAuthStore((s) => s.currentUser);
+  const currentRole = useAuthStore((s) => s.currentRole);
+  // Steps run in order, so only the earliest outstanding one is live — showing
+  // Approve on a later step would let it be decided out of sequence.
+  const liveStepOrder = approvals
+    .filter((approval) => approval.status === 'pending')
+    .sort((a, b) => (a.stepOrder ?? 0) - (b.stepOrder ?? 0))[0]?.stepOrder;
 
   if (approvals.length === 0) {
     return (
@@ -45,8 +54,15 @@ export function TabApprovals({ request }: TabApprovalsProps) {
               <ApprovalRow
                 key={approval.id}
                 approval={approval}
-                requestTitle={request.title}
-                isCurrentUserApprover={approval.approverId === currentUser.id}
+                request={request}
+                isCurrentUserApprover={
+                  (approval.stepOrder ?? 0) === (liveStepOrder ?? 0)
+                  && canActOnApproval(
+                    { assignmentMode: approval.assignmentMode, approverId: approval.approverId,
+                      delegatedTo: approval.delegatedTo, role: approval.approverRole, status: approval.status },
+                    { id: currentUser.id, role: currentRole },
+                  )
+                }
               />
             ))}
           </div>
@@ -58,24 +74,42 @@ export function TabApprovals({ request }: TabApprovalsProps) {
 
 interface ApprovalRowProps {
   approval: ApprovalEntry;
-  requestTitle: string;
+  request: ProcurementRequest;
   isCurrentUserApprover: boolean;
 }
 
-function ApprovalRow({ approval, requestTitle, isCurrentUserApprover }: ApprovalRowProps) {
+function ApprovalRow({ approval, request, isCurrentUserApprover }: ApprovalRowProps) {
+  const requestTitle = request.title;
+  const currentUser = useAuthStore((s) => s.currentUser);
+  const queryClient = useQueryClient();
   const updateApproval = useUpdateApproval();
   const [expanded, setExpanded] = useState<'reject' | 'request-info' | null>(null);
   const [comment, setComment] = useState('');
 
   const canAct = isCurrentUserApprover && approval.status === 'pending';
 
+  // All three approval surfaces go through recordApprovalDecision: this one
+  // used to stamp the entry and advance nothing, so approving the last
+  // outstanding step flipped a badge and left the request in `approval`.
+  async function decide(decision: 'approved' | 'rejected', comments?: string) {
+    const result = await recordApprovalDecision({
+      approval, request, decision, comments,
+      actor: { id: currentUser.id, name: currentUser.name },
+    });
+    queryClient.invalidateQueries({ queryKey: ['approvals'] });
+    queryClient.invalidateQueries({ queryKey: ['requests'] });
+    queryClient.invalidateQueries({ queryKey: ['stage-history'] });
+    queryClient.invalidateQueries({ queryKey: ['audit-entries'] });
+    queryClient.invalidateQueries({ queryKey: ['workflow-instances'] });
+    return result;
+  }
+
   async function handleApprove() {
     try {
-      await updateApproval.mutateAsync({
-        id: approval.id,
-        patch: { status: 'approved', respondedAt: new Date().toISOString() },
-      });
-      toast.success(`Approved — ${requestTitle}`);
+      const result = await decide('approved');
+      toast.success(result.advanced
+        ? `Approved — ${requestTitle} has moved on.`
+        : `Your approval is recorded. ${result.outstanding} still to go on ${requestTitle}.`);
     } catch (err) {
       toast.error(`Approve failed: ${err instanceof Error ? err.message : 'unknown'}`);
     }
@@ -84,11 +118,8 @@ function ApprovalRow({ approval, requestTitle, isCurrentUserApprover }: Approval
   async function handleReject() {
     if (!comment.trim()) return;
     try {
-      await updateApproval.mutateAsync({
-        id: approval.id,
-        patch: { status: 'rejected', respondedAt: new Date().toISOString(), comments: comment },
-      });
-      toast.error(`Rejected — ${requestTitle}`);
+      await decide('rejected', comment);
+      toast.error(`Rejected — ${requestTitle} goes back to the requester with your reason.`);
       setExpanded(null);
       setComment('');
     } catch (err) {
