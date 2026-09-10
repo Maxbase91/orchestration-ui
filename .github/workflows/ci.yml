@@ -41,8 +41,10 @@ jobs:
       # SKIPPED (exit 3) on every push and gate nothing.
       #
       # Two things to know:
-      #   - This needs the NEON_DATABASE_URL repository secret. Without it the
-      #     run fails rather than silently skipping, which is the point.
+      #   - REQUIRE_LIVE is switched on only when the secret is actually set,
+      #     so the gate arms itself the moment NEON_DATABASE_URL exists and
+      #     the build is not red in the meantime for a reason nobody in the
+      #     pull request can fix.
       #   - These suites WRITE. They insert TEST-*/E2E-* fixtures and delete
       #     them again, but a run that dies midway leaves rows behind, and two
       #     concurrent runs can overlap. Fixture ids carry a
@@ -52,7 +54,7 @@ jobs:
       - name: Tests
         env:
           NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
-          REQUIRE_LIVE: '1'
+          REQUIRE_LIVE: ${{ secrets.NEON_DATABASE_URL != '' && '1' || '' }}
         run: npm run test:all
 
   browser:
