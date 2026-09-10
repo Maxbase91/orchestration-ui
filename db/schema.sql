@@ -1497,3 +1497,51 @@ SELECT setval('request_number_seq', GREATEST(
 CREATE OR REPLACE FUNCTION next_request_id() RETURNS TEXT
 LANGUAGE sql VOLATILE SET search_path = public AS
 $$ SELECT 'REQ-' || to_char(now(), 'YYYY') || '-' || lpad(nextval('request_number_seq')::text, 5, '0') $$;
+
+-- ── Category managers ───────────────────────────────────────────────────────
+-- Who is responsible for demand in a category, maintained in admin rather than
+-- derived from a role mapping. A category can have more than one manager: an
+-- approval step naming "Category Manager" is open to any of them, and the first
+-- to respond decides. Only existing directory users can be assigned, which the
+-- foreign key enforces rather than leaving to the UI.
+--
+-- This replaces resolving every functional role to one of six switchable
+-- personas. That collapse is why the review screen could name a real person as
+-- the approver and then leave nobody able to act as them.
+CREATE TABLE IF NOT EXISTS category_managers (
+  category_id TEXT NOT NULL REFERENCES procurement_categories(id) ON DELETE CASCADE,
+  user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  assigned_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (category_id, user_id)
+);
+ALTER TABLE category_managers ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "category_managers_all" ON category_managers;
+CREATE POLICY "category_managers_all" ON category_managers FOR ALL USING (true) WITH CHECK (true);
+
+CREATE INDEX IF NOT EXISTS category_managers_user_idx ON category_managers(user_id);
+
+-- ── Approval entries: role-based assignment and who actually decided ────────
+-- An entry could only ever name one person, and nothing recorded who acted on
+-- it. Approving showed a success toast while writing nothing at all.
+--
+-- assignment_mode 'role' means the entry belongs to a role and any holder may
+-- act; 'person' means it names one approver. decided_by is the user who really
+-- responded, which is not always approver_id — a delegate acting for someone
+-- out of office is the case that made the distinction necessary.
+ALTER TABLE approval_entries ADD COLUMN IF NOT EXISTS step_order      INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE approval_entries ADD COLUMN IF NOT EXISTS assignment_mode TEXT    NOT NULL DEFAULT 'person';
+ALTER TABLE approval_entries ADD COLUMN IF NOT EXISTS decided_by      TEXT;
+ALTER TABLE approval_entries ADD COLUMN IF NOT EXISTS decided_by_name TEXT;
+
+CREATE INDEX IF NOT EXISTS approval_entries_request_step_idx
+  ON approval_entries(request_id, step_order);
+
+-- ── Service description columns that existed only in the database ───────────
+-- src/server/api/intake-submit.ts writes all three, and they were added to the
+-- live store without ever reaching this file. A fresh environment provisioned
+-- from schema.sql would lack them, and because that insert sits inside the
+-- atomic intake transaction, every submission carrying a service description
+-- would fail and roll the whole thing back.
+ALTER TABLE service_descriptions ADD COLUMN IF NOT EXISTS signals           JSONB;
+ALTER TABLE service_descriptions ADD COLUMN IF NOT EXISTS required_sections TEXT[];
+ALTER TABLE service_descriptions ADD COLUMN IF NOT EXISTS capture_flags     JSONB;

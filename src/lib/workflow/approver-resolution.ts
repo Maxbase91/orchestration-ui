@@ -9,28 +9,12 @@
 
 import type { Role } from '@/config/roles';
 
-/** Chain/functional role → system role. */
-export const CHAIN_ROLE_TO_SYSTEM_ROLE: Record<string, Role> = {
-  'Budget Owner': 'service-owner',
-  'Business Requestor': 'service-owner',
-  'Category Manager': 'procurement-manager',
-  'Procurement Manager': 'procurement-manager',
-  'Procurement Lead': 'procurement-manager',
-  Finance: 'procurement-manager',
-  'Finance Approver': 'procurement-manager',
-  'VP Procurement': 'admin',
-  CFO: 'admin',
-  Board: 'admin',
-  Approver: 'procurement-manager',
-  'New Approver': 'procurement-manager',
-  'Supplier Manager': 'vendor-manager',
-  'Operations Lead': 'operations-lead',
-  // Owns the risk stage. Third-party risk sits with vendor management here.
-  'Third-party risk': 'vendor-manager',
-  Legal: 'procurement-manager',
-  'Accounts Payable': 'operations-lead',
-  'Procurement Ops': 'operations-lead',
-};
+// The role map lives in src/lib/procurement/approval-derivation.ts so the
+// serverless handlers share one definition with the browser engine; re-exported
+// here because this module's callers have always imported it from this path.
+import { CHAIN_ROLE_TO_SYSTEM_ROLE } from '@/lib/procurement/approval-derivation';
+
+export { CHAIN_ROLE_TO_SYSTEM_ROLE };
 
 /**
  * The canonical switchable user for each system role — these are real rows in
