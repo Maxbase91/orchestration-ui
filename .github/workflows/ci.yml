@@ -41,10 +41,12 @@ jobs:
       # SKIPPED (exit 3) on every push and gate nothing.
       #
       # Two things to know:
-      #   - REQUIRE_LIVE is switched on only when the secret is actually set,
-      #     so the gate arms itself the moment NEON_DATABASE_URL exists and
-      #     the build is not red in the meantime for a reason nobody in the
-      #     pull request can fix.
+      #   - REQUIRE_LIVE is set unconditionally, on purpose. Making it
+      #     conditional on the secret being present would mean that removing or
+      #     renaming the secret silently disarms the gate and CI goes green
+      #     having tested nothing — the same "a check that did not run reported
+      #     as clear" failure this repo refuses everywhere else. If the secret
+      #     is missing the build should fail and say so.
       #   - These suites WRITE. They insert TEST-*/E2E-* fixtures and delete
       #     them again, but a run that dies midway leaves rows behind, and two
       #     concurrent runs can overlap. Fixture ids carry a
@@ -54,7 +56,7 @@ jobs:
       - name: Tests
         env:
           NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
-          REQUIRE_LIVE: ${{ secrets.NEON_DATABASE_URL != '' && '1' || '' }}
+          REQUIRE_LIVE: '1'
         run: npm run test:all
 
   browser:
