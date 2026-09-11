@@ -21,7 +21,7 @@ import { toast } from 'sonner';
 import type { ProcurementRequest } from '@/data/types';
 import { createNotification } from '@/lib/db/notifications';
 import { useUpdateRequest } from '@/lib/db/hooks/use-requests';
-import { queryClient } from '@/lib/query-client';
+import { invalidateRequestViews, queryClient } from '@/lib/query-client';
 import { appendStageHistoryEvent } from '@/lib/db/stage-history';
 import { useAuthStore } from '@/stores/auth-store';
 
@@ -77,9 +77,7 @@ export function EscalateDialog({ open, onOpenChange, request }: EscalateDialogPr
       if (urgency === 'critical' && request.priority !== 'urgent') {
         await updateRequest.mutateAsync({ id: request.id, patch: { priority: 'urgent', isUrgent: true } });
       }
-      await queryClient.invalidateQueries({ queryKey: ['notifications'] });
-      await queryClient.invalidateQueries({ queryKey: ['requests'] });
-      await queryClient.invalidateQueries({ queryKey: ['stage-history'] });
+      invalidateRequestViews(queryClient);
       toast.success(`Request escalated to ${levelLabel}`);
       setLevel('');
       setUrgency('');

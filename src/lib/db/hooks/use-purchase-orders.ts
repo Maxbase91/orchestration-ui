@@ -2,6 +2,7 @@
 // ['purchase-orders'] prefix; usePurchaseOrderLookup resolves by-contract/
 // by-supplier joins from the cached list.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { invalidateRequestViews } from '@/lib/query-client';
 import type { PurchaseOrder } from '@/data/types';
 import {
   listPurchaseOrders,
@@ -54,8 +55,14 @@ export function useCreatePurchaseOrder() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (record: PurchaseOrder) => createPurchaseOrder(record),
-    onSuccess: () => {
+    onSuccess: (_data, record) => {
       qc.invalidateQueries({ queryKey: KEYS.all });
+      // A PO belongs to a request, and raising one changes what that request's
+      // screens should show. This refreshed the order list and nothing else, so
+      // the request the PO was raised against kept its previous state until a
+      // reload — the page navigates away, which is the only reason it was not
+      // obvious.
+      if (record.requestId) invalidateRequestViews(qc);
     },
   });
 }

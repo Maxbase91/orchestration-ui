@@ -23,7 +23,7 @@ import { useUsers } from '@/lib/db/hooks/use-users';
 import { toast } from 'sonner';
 import type { ProcurementRequest } from '@/data/types';
 import { apiWorkflowAction } from '@/lib/api';
-import { queryClient } from '@/lib/query-client';
+import { invalidateRequestViews, queryClient } from '@/lib/query-client';
 
 interface ReassignDialogProps {
   open: boolean;
@@ -51,7 +51,7 @@ export function ReassignDialog({ open, onOpenChange, request }: ReassignDialogPr
         ownerId: userId,
         notes: reason,
       });
-      await queryClient.invalidateQueries({ queryKey: ['requests'] });
+      invalidateRequestViews(queryClient);
       toast.success(`Request reassigned to ${user?.name ?? 'user'}`);
       setUserId('');
       setReason('');

@@ -31,6 +31,7 @@ import { useUserLookup, useUsers } from '@/lib/db/hooks/use-users';
 import { useUpdateApproval } from '@/lib/db/hooks/use-approvals';
 import { useAuthStore } from '@/stores/auth-store';
 import { useQueryClient } from '@tanstack/react-query';
+import { invalidateRequestViews } from '@/lib/query-client';
 import { canActOnApproval } from '@/lib/procurement/approval-derivation';
 import { recordApprovalDecision } from '@/lib/workflow/approval-decision';
 import type { ProcurementRequest, ApprovalEntry } from '@/data/types';
@@ -104,9 +105,7 @@ export function ApprovalCard({
       approval, request, decision, comments,
       actor: { id: currentUser.id, name: currentUser.name },
     });
-    for (const key of [['approvals'], ['requests'], ['stage-history'], ['audit-entries'], ['workflow-instances']]) {
-      queryClient.invalidateQueries({ queryKey: key });
-    }
+    invalidateRequestViews(queryClient);
     return result;
   };
 

@@ -17,7 +17,7 @@ import { useDroppable } from '@dnd-kit/core';
 import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/lib/format';
 import { apiWorkflowAction } from '@/lib/api';
-import { queryClient } from '@/lib/query-client';
+import { invalidateRequestViews, queryClient } from '@/lib/query-client';
 import type { ProcurementRequest, RequestStatus } from '@/data/types';
 import { WorkflowCard } from './components/workflow-card';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
@@ -161,8 +161,7 @@ export function KanbanView({ requests, onCardClick }: KanbanViewProps) {
       .then(() => {
         // Refresh request list + the affected request's stage history so the
         // UI reflects the new server state everywhere, not just this component.
-        queryClient.invalidateQueries({ queryKey: ['requests'] });
-        queryClient.invalidateQueries({ queryKey: ['stage-history'] });
+        invalidateRequestViews(queryClient);
       })
       .catch(() => {
         // Revert the optimistic move on failure.

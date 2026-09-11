@@ -23,7 +23,7 @@ import {
 import type { ProcurementRequest, RequestStatus } from '@/data/types';
 import { toast } from 'sonner';
 import { apiWorkflowAction } from '@/lib/api';
-import { queryClient } from '@/lib/query-client';
+import { invalidateRequestViews, queryClient } from '@/lib/query-client';
 
 // Only pre-PO stages are valid return targets — once a PO exists, backing out
 // is a different (commercial) process, not a referral.
@@ -68,8 +68,7 @@ export function ReferBackDialog({ open, onOpenChange, request }: ReferBackDialog
         newStatus: step as RequestStatus,
         notes,
       });
-      await queryClient.invalidateQueries({ queryKey: ['requests'] });
-      await queryClient.invalidateQueries({ queryKey: ['stage-history'] });
+      invalidateRequestViews(queryClient);
       toast.success(`Request ${request.id} referred back to ${step}`);
       setStep('');
       setReason('');

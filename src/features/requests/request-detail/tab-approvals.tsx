@@ -10,6 +10,7 @@ import { formatDate } from '@/lib/format';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/stores/auth-store';
 import { useQueryClient } from '@tanstack/react-query';
+import { invalidateRequestViews } from '@/lib/query-client';
 import { canActOnApproval } from '@/lib/procurement/approval-derivation';
 import { recordApprovalDecision } from '@/lib/workflow/approval-decision';
 
@@ -96,11 +97,7 @@ function ApprovalRow({ approval, request, isCurrentUserApprover }: ApprovalRowPr
       approval, request, decision, comments,
       actor: { id: currentUser.id, name: currentUser.name },
     });
-    queryClient.invalidateQueries({ queryKey: ['approvals'] });
-    queryClient.invalidateQueries({ queryKey: ['requests'] });
-    queryClient.invalidateQueries({ queryKey: ['stage-history'] });
-    queryClient.invalidateQueries({ queryKey: ['audit-entries'] });
-    queryClient.invalidateQueries({ queryKey: ['workflow-instances'] });
+    invalidateRequestViews(queryClient);
     return result;
   }
 

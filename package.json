@@ -21,6 +21,7 @@
     "test:assistant-extraction": "node --import tsx/esm tests/integration/assistant-extraction-scope.mjs",
     "test:db-casts": "node --import tsx/esm tests/integration/db-parameter-casts.mjs",
     "test:lifecycle-e2e": "node --import tsx/esm tests/integration/request-lifecycle-e2e.mjs",
+    "test:refresh": "node tests/integration/refresh-after-action.mjs",
     "test:request-id": "node --import tsx/esm tests/integration/request-id-sequence.mjs",
     "test:execute-action": "node --import tsx/esm tests/integration/execute-action.mjs",
     "test:shared-core": "node --import tsx/esm tests/integration/shared-db-core.mjs",

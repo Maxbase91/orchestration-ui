@@ -19,7 +19,7 @@ import {
   sectionValuesOf,
 } from '@/lib/procurement/service-description-seed';
 import { useSupplierLookup } from '@/lib/db/hooks/use-suppliers';
-import { queryClient } from '@/lib/query-client';
+import { invalidateRequestViews, queryClient } from '@/lib/query-client';
 import { ReferBackDialog } from './refer-back-dialog';
 import { ReassignDialog } from './reassign-dialog';
 import { EscalateDialog } from './escalate-dialog';
@@ -211,9 +211,7 @@ export function ActionButtons({ request }: ActionButtonsProps) {
 
       // Refetch so the request header, lifecycle stepper, workflow tab and
       // audit tab all reflect the new status without requiring a page reload.
-      queryClient.invalidateQueries({ queryKey: ['requests'] });
-      queryClient.invalidateQueries({ queryKey: ['stage-history'] });
-      queryClient.invalidateQueries({ queryKey: ['approvals'] });
+      invalidateRequestViews(queryClient);
 
       if (confirmAction === 'approve') {
         if (advanced) {
@@ -288,11 +286,7 @@ export function ActionButtons({ request }: ActionButtonsProps) {
         });
       }
 
-      queryClient.invalidateQueries({ queryKey: ['requests'] });
-      queryClient.invalidateQueries({ queryKey: ['stage-history'] });
-      queryClient.invalidateQueries({ queryKey: ['approvals'] });
-      queryClient.invalidateQueries({ queryKey: ['workflow-instances'] });
-      queryClient.invalidateQueries({ queryKey: ['compliance-reports'] });
+      invalidateRequestViews(queryClient);
       toast.success(`${request.id} moved on from ${request.status}`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Could not advance the request');
