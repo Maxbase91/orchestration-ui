@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Check, X, RotateCcw, UserPlus, ArrowUpRight, Ban, ShoppingCart, Loader2, Gavel, ArrowRight } from 'lucide-react';
 import { canActOnApproval } from '@/lib/procurement/approval-derivation';
+import { useRequestSupplierCandidates } from '@/lib/db/hooks/use-request-supplier-candidates';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { ProcurementRequest } from '@/data/types';
@@ -84,6 +85,7 @@ export function ActionButtons({ request }: ActionButtonsProps) {
   // The stage gate. `node` is the template node the request is sitting on, which
   // carries the role that owns it and whether leaving it needs a human.
   const { data: template } = useWorkflowTemplate(request.workflowTemplateId);
+  const { data: shortlist = [] } = useRequestSupplierCandidates(request.id);
   const currentNode: TemplateNode | undefined = template?.nodes.find(
     (n) => (n as TemplateNode).type === 'stage' && nodeToStatus(n.label) === request.status,
   );
@@ -369,19 +371,33 @@ export function ActionButtons({ request }: ActionButtonsProps) {
         criteria: seededCriteria,
       });
 
-      // Seed the incumbent as the first invitation when the request already
-      // names a supplier — they are the one party certain to be in scope.
-      const supplier = lookupSupplier(request.supplierId);
-      if (supplier) {
+      // Invite the shortlist the requester actually named, not just the
+      // incumbent. request_supplier_candidates was written at submission and
+      // read by nothing, so every supplier chosen beyond the first was captured
+      // and then lost — the buyer re-keyed them into the event by hand.
+      //
+      // The named supplier is included because the determination screened
+      // against them; the rest come from the shortlist. Deduplicated, because a
+      // requester can name the same supplier both ways.
+      const invitees = new Map<string, { id: string; name: string }>();
+      const named = lookupSupplier(request.supplierId);
+      if (named) invitees.set(named.id, { id: named.id, name: named.name });
+      for (const candidate of shortlist) {
+        const supplier = lookupSupplier(candidate.supplierId);
+        if (supplier) invitees.set(supplier.id, { id: supplier.id, name: supplier.name });
+      }
+      if (invitees.size > 0) {
         await inviteSuppliers.mutateAsync({
           eventId: id,
-          suppliers: [{ id: supplier.id, name: supplier.name }],
+          suppliers: [...invitees.values()],
           actor: { id: currentUser.id, name: currentUser.name },
         });
       }
 
       setEventDialogOpen(false);
-      toast.success(`Sourcing event ${id} created`);
+      toast.success(invitees.size > 1
+        ? `Sourcing event ${id} created — ${invitees.size} suppliers invited from the shortlist`
+        : `Sourcing event ${id} created`);
       navigate(`/sourcing/${id}`);
     } catch (e) {
       console.error(e);

@@ -99,6 +99,45 @@ check('a failed candidate write reports itself instead of failing silently', () 
   assert.ok(/toast\.(warning|error)/.test(block.slice(0, 600)), 'a failure is never surfaced');
 });
 
+// ── The shortlist is read, editable, and reaches sourcing ──────────────────
+// It was written at submission and read by nothing: listRequestSupplierCandidates
+// had no callers at all, so every supplier a requester named beyond the first
+// was captured and then lost, and the buyer re-keyed them into the event.
+
+check('the shortlist can be read, added to and removed from', () => {
+  const module = readFileSync(new URL('../../src/lib/db/request-supplier-candidates.ts', import.meta.url), 'utf8');
+  for (const fn of ['listRequestSupplierCandidates', 'addRequestSupplierCandidate', 'removeRequestSupplierCandidate']) {
+    assert.ok(new RegExp(`export async function ${fn}`).test(module), `${fn} is missing`);
+  }
+});
+
+check('something actually reads it', () => {
+  const hook = readFileSync(new URL('../../src/lib/db/hooks/use-request-supplier-candidates.ts', import.meta.url), 'utf8');
+  assert.ok(/listRequestSupplierCandidates/.test(hook), 'the hook does not read the list');
+});
+
+check('the request screen shows and edits it', () => {
+  const tab = readFileSync(new URL('../../src/features/requests/request-detail/tab-related.tsx', import.meta.url), 'utf8');
+  assert.ok(/useRequestSupplierCandidates/.test(tab), 'the shortlist is not shown on the request');
+  assert.ok(/useAddRequestSupplierCandidate/.test(tab), 'suppliers cannot be added after submission');
+  assert.ok(/useRemoveRequestSupplierCandidate/.test(tab), 'suppliers cannot be removed after submission');
+});
+
+check('creating a sourcing event invites the whole shortlist', () => {
+  const actions = readFileSync(new URL('../../src/features/requests/request-detail/components/action-buttons.tsx', import.meta.url), 'utf8');
+  const block = actions.slice(actions.indexOf('createEvent.mutateAsync'));
+  assert.ok(/shortlist/.test(block.slice(0, 2400)), 'the event still invites only the named supplier');
+  assert.ok(/invitees/.test(block.slice(0, 2400)), 'invitations are not deduplicated');
+});
+
+check('removing a candidate does not withdraw an invitation already sent', () => {
+  // An invitation is a thing that happened; withdrawing it is a separate act
+  // with its own record.
+  const module = readFileSync(new URL('../../src/lib/db/request-supplier-candidates.ts', import.meta.url), 'utf8');
+  const block = module.slice(module.indexOf('removeRequestSupplierCandidate'));
+  assert.doesNotMatch(block, /sourcing_responses/, 'removal reaches into the sourcing event');
+});
+
 console.log(failures === 0
   ? '\nAll supplier-candidate checks passed.'
   : `\n${failures} supplier-candidate check(s) failed.`);

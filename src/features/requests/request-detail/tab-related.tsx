@@ -1,4 +1,11 @@
+import { useState } from 'react';
 import type { ProcurementRequest } from '@/data/types';
+import { Button } from '@/components/ui/button';
+import {
+  useAddRequestSupplierCandidate,
+  useRemoveRequestSupplierCandidate,
+  useRequestSupplierCandidates,
+} from '@/lib/db/hooks/use-request-supplier-candidates';
 import { useSupplierLookup, useSuppliers } from '@/lib/db/hooks/use-suppliers';
 import { useContractLookup, useContracts } from '@/lib/db/hooks/use-contracts';
 import { useRequestLookup, useRequests } from '@/lib/db/hooks/use-requests';
@@ -24,6 +31,18 @@ export function TabRelated({ request }: TabRelatedProps) {
   const { byId: lookupContract, bySupplier: contractsBySupplier } = useContractLookup();
   const { bySupplier: requestsBySupplier } = useRequestLookup();
   const { data: sourcingEvents = [] } = useSourcingEventsForRequest(request.id);
+  const { data: shortlist = [] } = useRequestSupplierCandidates(request.id);
+  const addCandidate = useAddRequestSupplierCandidate(request.id);
+  const removeCandidate = useRemoveRequestSupplierCandidate(request.id);
+  const allSuppliers = useSuppliers().data ?? [];
+  const [adding, setAdding] = useState('');
+  // The named supplier is already shown above; the shortlist is everyone else
+  // who goes to sourcing.
+  const shortlisted = shortlist.filter((candidate) => candidate.supplierId !== request.supplierId);
+  const addable = allSuppliers.filter((supplierRow) =>
+    supplierRow.id !== request.supplierId
+    && !shortlist.some((candidate) => candidate.supplierId === supplierRow.id));
+  const eventPublished = sourcingEvents.some((event) => event.status !== 'draft');
   const supplier = lookupSupplier(request.supplierId);
   const contract = lookupContract(request.contractId);
 
@@ -37,6 +56,69 @@ export function TabRelated({ request }: TabRelatedProps) {
 
   return (
     <div className="space-y-6">
+      {/* The shortlist that goes to sourcing. Editable after submission because
+          category management routinely adds suppliers the requester did not
+          know about — fixing it at intake meant re-keying them into the event. */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Suppliers for sourcing ({shortlisted.length + (supplier ? 1 : 0)})</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            {eventPublished
+              ? 'A sourcing event has already been published — invitations are managed on the event.'
+              : 'Everyone here is invited when a sourcing event is created from this request.'}
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {supplier && (
+            <div className="flex items-center justify-between rounded-md border px-3 py-2">
+              <span className="text-sm">{supplier.name}</span>
+              <span className="text-xs text-muted-foreground">Named on the request</span>
+            </div>
+          )}
+          {shortlisted.map((candidate) => {
+            const candidateSupplier = lookupSupplier(candidate.supplierId);
+            return (
+              <div key={candidate.supplierId} className="flex items-center justify-between rounded-md border px-3 py-2">
+                <span className="text-sm">{candidateSupplier?.name ?? candidate.supplierId}</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={eventPublished || removeCandidate.isPending}
+                  onClick={() => removeCandidate.mutate(candidate.supplierId)}
+                >
+                  Remove
+                </Button>
+              </div>
+            );
+          })}
+          {!supplier && shortlisted.length === 0 && (
+            <p className="text-sm text-muted-foreground">No suppliers shortlisted yet.</p>
+          )}
+          {!eventPublished && addable.length > 0 && (
+            <div className="flex items-center gap-2 pt-1">
+              <select
+                className="h-9 flex-1 rounded-md border px-2 text-sm"
+                value={adding}
+                onChange={(event) => setAdding(event.target.value)}
+                aria-label="Add a supplier to the shortlist"
+              >
+                <option value="">Add a supplier…</option>
+                {addable.map((supplierRow) => (
+                  <option key={supplierRow.id} value={supplierRow.id}>{supplierRow.name}</option>
+                ))}
+              </select>
+              <Button
+                size="sm"
+                disabled={!adding || addCandidate.isPending}
+                onClick={() => { addCandidate.mutate(adding); setAdding(''); }}
+              >
+                Add
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Linked Contract */}
       {contract && (
         <Card>

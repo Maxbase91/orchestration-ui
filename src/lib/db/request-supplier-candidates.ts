@@ -1,9 +1,14 @@
 // Data access for `request_supplier_candidates` — the suppliers a requester
 // named as worth inviting to sourcing.
 //
-// `requests.supplier_id` holds exactly one supplier, the preferred one that the
-// determination runs against; these are the alternates. Written once, when the
-// request is created, and read by sourcing.
+// `requests.supplier_id` holds the supplier the determination screened against;
+// this table is the shortlist that goes to sourcing. It stayed editable after
+// submission on purpose — category management routinely adds suppliers the
+// requester did not know about, and a shortlist fixed at intake would mean
+// re-keying them into the event instead.
+//
+// It was written at submission and read by nothing at all until now, so every
+// supplier a requester picked beyond the first was captured and then lost.
 import { db } from '@/lib/db-client';
 
 export interface RequestSupplierCandidate {
@@ -42,5 +47,29 @@ export async function saveRequestSupplierCandidates(
     })),
     { onConflict: 'request_id,supplier_id' },
   );
+  if (error) throw error;
+}
+
+/** Add one supplier to a request's shortlist. Idempotent on the composite key. */
+export async function addRequestSupplierCandidate(
+  requestId: string,
+  supplierId: string,
+): Promise<void> {
+  await saveRequestSupplierCandidates([{ requestId, supplierId, isPreferred: false }]);
+}
+
+/**
+ * Remove one supplier from a request's shortlist.
+ *
+ * Deliberately not cascading to a sourcing event that already invited them: an
+ * invitation is a thing that happened, and withdrawing it is a separate act
+ * with its own record.
+ */
+export async function removeRequestSupplierCandidate(
+  requestId: string,
+  supplierId: string,
+): Promise<void> {
+  const { error } = await db.from(TABLE).delete()
+    .eq('request_id', requestId).eq('supplier_id', supplierId);
   if (error) throw error;
 }
