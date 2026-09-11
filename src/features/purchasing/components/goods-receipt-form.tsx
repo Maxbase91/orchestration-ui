@@ -16,10 +16,16 @@ interface LineItem {
 
 interface GoodsReceiptFormProps {
   lineItems: LineItem[];
-  onConfirm?: (receivedQuantities: number[]) => void;
+  /**
+   * Required. It was optional, and po-detail-page.tsx mounted the form without
+   * it — so Confirm Receipt rendered, enabled, and called nothing at all. A
+   * control that cannot do its job should not compile, let alone ship.
+   */
+  onConfirm: (receivedQuantities: number[]) => void;
+  saving?: boolean;
 }
 
-export function GoodsReceiptForm({ lineItems, onConfirm }: GoodsReceiptFormProps) {
+export function GoodsReceiptForm({ lineItems, onConfirm, saving }: GoodsReceiptFormProps) {
   const [quantities, setQuantities] = useState<number[]>(lineItems.map((li) => li.received));
 
   const updateQuantity = (index: number, value: number) => {
@@ -81,7 +87,7 @@ export function GoodsReceiptForm({ lineItems, onConfirm }: GoodsReceiptFormProps
           </tbody>
         </table>
         <div className="mt-4 flex justify-end">
-          <Button size="sm" onClick={() => onConfirm?.(quantities)}>
+          <Button size="sm" disabled={saving} onClick={() => onConfirm(quantities)}>
             <Check className="size-3.5" />
             Confirm Receipt
           </Button>

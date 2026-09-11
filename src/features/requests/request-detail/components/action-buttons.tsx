@@ -87,12 +87,29 @@ export function ActionButtons({ request }: ActionButtonsProps) {
   const currentNode: TemplateNode | undefined = template?.nodes.find(
     (n) => (n as TemplateNode).type === 'stage' && nodeToStatus(n.label) === request.status,
   );
+  // Who may leave each gated stage.
+  //
   // Approval and sourcing have their own dedicated actions below, so the generic
-  // gate action would duplicate them.
-  const roleCanAdvanceStage =
-    (request.status === 'risk' && ['vendor-manager', 'admin'].includes(currentRole))
-    || (request.status === 'validation' && ['operations-lead', 'procurement-manager', 'admin'].includes(currentRole))
-    || (request.status === 'onboarding' && ['vendor-manager', 'procurement-manager', 'admin'].includes(currentRole));
+  // gate action would duplicate them. `po` is absent on purpose: a request
+  // leaves it when goods are actually received, not when somebody presses a
+  // button saying they were — see createGoodsReceipt.
+  //
+  // contracting, receipt, invoice and payment were all missing, so the advance
+  // button never rendered for any role including admin and every request that
+  // reached `po` stopped there permanently. gateActionLabel has carried the
+  // wording for these four the whole time ("Goods received", "Invoice matched",
+  // "Payment released"); there was simply no role allowed to use it.
+  const STAGE_ADVANCERS: Record<string, string[]> = {
+    risk: ['vendor-manager', 'admin'],
+    validation: ['operations-lead', 'procurement-manager', 'admin'],
+    onboarding: ['vendor-manager', 'procurement-manager', 'admin'],
+    contracting: ['procurement-manager', 'admin'],
+    // Receipting and payment are operations work, not category work.
+    receipt: ['operations-lead', 'procurement-manager', 'admin'],
+    invoice: ['operations-lead', 'admin'],
+    payment: ['operations-lead', 'admin'],
+  };
+  const roleCanAdvanceStage = (STAGE_ADVANCERS[request.status] ?? []).includes(currentRole);
   const showGateAction =
     !isTerminalStatus(request.status) &&
     request.status !== 'approval' &&

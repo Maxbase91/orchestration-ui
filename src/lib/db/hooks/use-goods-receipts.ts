@@ -23,6 +23,12 @@ export function useCreateGoodsReceipt() {
       // The receipt changes the PO status and line quantities, so the queue
       // must refresh immediately instead of waiting for a full page reload.
       qc.invalidateQueries({ queryKey: ['purchase-orders'] });
+      // A full receipt now moves the request out of `po` and writes a stage
+      // history row, so the request screens have to refetch as well — without
+      // this the lifecycle stepper still shows the old stage until a reload.
+      qc.invalidateQueries({ queryKey: ['requests'] });
+      qc.invalidateQueries({ queryKey: ['stage-history'] });
+      qc.invalidateQueries({ queryKey: ['workflow-instances'] });
     },
   });
 }

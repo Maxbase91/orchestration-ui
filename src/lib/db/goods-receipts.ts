@@ -2,6 +2,7 @@
 // purchase order, feeding the three-way match). Line items are stored as a
 // jsonb array on the row rather than a child table.
 import { db } from '@/lib/db-client';
+import { advanceOnReceipt } from './receipts-core';
 
 export interface GoodsReceiptLineItem {
   description: string;
@@ -68,5 +69,21 @@ export async function createGoodsReceipt(receipt: Omit<GoodsReceipt, 'id' | 'cre
     .update({ line_items: receipt.lineItems, status: receipt.status === 'complete' ? 'received' : 'partially-received' })
     .eq('id', receipt.poId);
   if (poError) throw poError;
+
+  // A full receipt moves the request on. The receipt is the event — asking
+  // someone to record it and then also press "Goods received" makes the
+  // lifecycle depend on a second action nobody has a reason to take, which is
+  // how requests came to sit in `po` with everything received.
+  //
+  // A partial receipt deliberately does not: the PO reads partially-received
+  // and the request stays where it is until the rest arrives.
+  if (receipt.requestId) {
+    await advanceOnReceipt(db, {
+      requestId: receipt.requestId,
+      receivedBy: receipt.receivedBy,
+      receiptStatus: receipt.status === 'complete' ? 'complete' : 'partial',
+    });
+  }
   return mapRow(data);
 }
+

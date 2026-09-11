@@ -11,6 +11,9 @@ import { ProcessStepper, type Step } from '@/components/shared/process-stepper';
 import { usePurchaseOrder } from '@/lib/db/hooks/use-purchase-orders';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { GoodsReceiptForm } from './components/goods-receipt-form';
+import { useCreateGoodsReceipt } from '@/lib/db/hooks/use-goods-receipts';
+import { useAuthStore } from '@/stores/auth-store';
+import { toast } from 'sonner';
 import { useComplianceReport } from '@/lib/db/hooks/use-compliance-reports';
 import { ComplianceReportCard } from '@/components/shared/compliance-report-card';
 
@@ -30,6 +33,40 @@ export function PODetailPage() {
   const navigate = useNavigate();
   const { data: po } = usePurchaseOrder(id);
   const { data: complianceReport } = useComplianceReport(po?.requestId);
+  const currentUser = useAuthStore((state) => state.currentUser);
+  const createReceipt = useCreateGoodsReceipt();
+
+  /**
+   * Record what actually arrived.
+   *
+   * A receipt covering every ordered quantity is complete and moves the request
+   * out of `po`; anything less leaves it there and marks the PO partially
+   * received. The quantities already say which it is, so nobody is asked.
+   */
+  async function handleReceipt(received: number[]) {
+    if (!po) return;
+    const lineItems = po.lineItems.map((line, index) => ({
+      ...line,
+      received: received[index] ?? line.received,
+    }));
+    const complete = lineItems.every((line) => Number(line.received) >= Number(line.quantity));
+    try {
+      await createReceipt.mutateAsync({
+        poId: po.id,
+        requestId: po.requestId,
+        receivedBy: currentUser.name,
+        receivedAt: new Date().toISOString(),
+        notes: '',
+        lineItems,
+        status: complete ? 'complete' : 'partial',
+      });
+      toast.success(complete
+        ? `Receipt recorded in full${po.requestId ? ` — ${po.requestId} has moved on.` : '.'}`
+        : 'Partial receipt recorded. The request stays open until the rest arrives.');
+    } catch (error) {
+      toast.error(`Could not record the receipt: ${error instanceof Error ? error.message : 'unknown'}`);
+    }
+  }
 
   if (!po) {
     return (
@@ -120,7 +157,11 @@ export function PODetailPage() {
       </Card>
 
       {po.status !== 'closed' && (
-        <GoodsReceiptForm lineItems={po.lineItems} />
+        <GoodsReceiptForm
+          lineItems={po.lineItems}
+          saving={createReceipt.isPending}
+          onConfirm={handleReceipt}
+        />
       )}
 
       <Card>
