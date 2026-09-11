@@ -13,6 +13,8 @@ import { useComplianceReport } from '@/lib/db/hooks/use-compliance-reports';
 import { useIntakeCompliance } from '@/lib/db/hooks/use-intake-compliance';
 import { useRiskAssessmentLookup, useRiskAssessments } from '@/lib/db/hooks/use-risk-assessments';
 import { useSuppliers, useSupplierLookup } from '@/lib/db/hooks/use-suppliers';
+import { useContractLookup, useContracts } from '@/lib/db/hooks/use-contracts';
+import { useRequisitionForRequest } from '@/lib/db/hooks/use-purchase-requisitions';
 import { ComplianceReportCard } from '@/components/shared/compliance-report-card';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -86,7 +88,16 @@ export function TabCompliance({ request }: TabComplianceProps) {
     },
   ].filter((d) => d.value);
 
-  const hasContent = report || intake || determination.length > 0 || supplier;
+  // A catalogue order or call-off has a requisition and often no compliance
+  // report, so the contract position is content in its own right — without it
+  // those requests showed the empty state on the tab that is supposed to
+  // justify their governance.
+  const { data: requisition } = useRequisitionForRequest(request.id);
+  useContracts();
+  const { byId: lookupContract } = useContractLookup();
+  const contract = lookupContract(requisition?.contractId);
+
+  const hasContent = report || intake || determination.length > 0 || supplier || requisition;
 
   if (!hasContent) {
     return (
@@ -103,6 +114,66 @@ export function TabCompliance({ request }: TabComplianceProps) {
 
   return (
     <div className="space-y-4">
+      {/* The contract the spend was called off against, and the evidence that
+          the match was checked. All of this is written by the governed checkout
+          and was rendered nowhere — including on the tab whose job is to
+          explain the decision. */}
+      {requisition && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <ShieldCheck className="size-4" />
+              Contract position
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <div className="flex justify-between gap-4">
+              <span className="text-muted-foreground">Called off against</span>
+              {requisition.contractId ? (
+                <Link to={`/contracts/${requisition.contractId}`} className="text-blue-600 hover:underline">
+                  {contract?.title ?? requisition.contractId}
+                </Link>
+              ) : <span className="text-muted-foreground">No contract</span>}
+            </div>
+            {requisition.contractScopeVersionId ? (
+              <>
+                <div className="flex justify-between gap-4">
+                  <span className="text-muted-foreground">Scope version checked</span>
+                  <span className="font-mono text-xs">{requisition.contractScopeVersionId}</span>
+                </div>
+                {requisition.contractMatchScore != null && (
+                  <div className="flex justify-between gap-4">
+                    <span className="text-muted-foreground">Match score</span>
+                    <span className="font-mono text-xs">{requisition.contractMatchScore.toFixed(2)}</span>
+                  </div>
+                )}
+              </>
+            ) : (
+              // Saying the check did not run is the point: a blank here reads
+              // exactly like a check that ran and found nothing.
+              <div className="flex justify-between gap-4">
+                <span className="text-muted-foreground">Coverage check</span>
+                <span className="text-amber-700">
+                  {requisition.contractMatchAlgorithmVersion === 'not-evaluated'
+                    ? 'Did not run — scope data was unavailable'
+                    : 'Not evaluated for this route'}
+                </span>
+              </div>
+            )}
+            {(requisition.contractMatchReasons ?? []).length > 0 && (
+              <div className="pt-1">
+                <p className="text-muted-foreground text-xs mb-1">Why it matched</p>
+                <ul className="list-disc pl-4 text-xs space-y-0.5">
+                  {(requisition.contractMatchReasons ?? []).map((reason, index) => (
+                    <li key={index}>{reason}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {determination.length > 0 && (
         <Card>
           <CardHeader className="pb-3">

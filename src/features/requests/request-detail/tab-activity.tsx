@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { MessageSquare, GitBranch, ShieldCheck, Bell, AtSign } from 'lucide-react';
 import { formatDate } from '@/lib/format';
 import { getStatusLabel } from '@/lib/status';
+import { StageCommentComposer } from './components/stage-comment-composer';
 
 type ActivityKind = 'comment' | 'stage' | 'audit' | 'notification';
 
@@ -128,6 +129,10 @@ export function TabActivity({ request }: TabActivityProps) {
     }
   }, [entries, filter, currentUser.name]);
 
+  // A closed request keeps its history readable but takes no new comment —
+  // there is no longer anyone working it for a comment to reach.
+  const isTerminal = request.status === 'completed' || request.status === 'cancelled';
+
   const filterChips: { id: Filter; label: string; count: number }[] = [
     { id: 'all',      label: 'All',        count: entries.length },
     { id: 'comments', label: 'Comments',   count: entries.filter((e) => e.kind === 'comment').length },
@@ -196,6 +201,21 @@ export function TabActivity({ request }: TabActivityProps) {
               );
             })}
           </ol>
+        )}
+
+        {/* The only comment composer in the app used to be mounted on the
+            Workflow tab's current-stage card, and only while that stage was
+            open — so a completed or cancelled request could not be commented
+            on at all, and the tab actually labelled for comments took none.
+            Same component, reused: it already handles @mentions. */}
+        {!isTerminal && (
+          <div className="mt-4 border-t pt-4">
+            <StageCommentComposer
+              requestId={request.id}
+              stage={request.status}
+              stageLabel={getStatusLabel(request.status)}
+            />
+          </div>
         )}
       </CardContent>
     </Card>

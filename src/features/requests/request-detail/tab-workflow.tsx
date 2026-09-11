@@ -15,6 +15,8 @@ import { StageCommentComposer } from './components/stage-comment-composer';
 import { useCommentsByRequest } from '@/lib/db/hooks/use-comments';
 import { SystemIntegrationTimeline } from '@/components/shared/system-integration-timeline';
 import { formatDate } from '@/lib/format';
+import { Link } from 'react-router-dom';
+import { useSourcingEventsForRequest } from '@/lib/db/hooks/use-sourcing-events';
 
 interface TabWorkflowProps {
   request: ProcurementRequest;
@@ -168,8 +170,26 @@ export function TabWorkflow({ request, focusStageId }: TabWorkflowProps) {
     return stepDetails.find((d) => d.stage === stageId);
   };
 
-  // Determine which stages to show cards for
-  const visibleStages = LIFECYCLE_STAGES.map((stage) => {
+  // Determine which stages to show cards for.
+  //
+  // LIFECYCLE_STAGES is the union of every stage any route can visit, and all
+  // eleven were rendered for every request — the ones a route never touches as
+  // stripped grey cards carrying a label and nothing else. A catalogue order
+  // traverses six stages, so five of its eleven rows were placeholders for
+  // things that will never happen: the reported "lots of empty lines".
+  //
+  // A stage earns its row by being one this route actually visits, or by having
+  // happened. The second half matters for a request that was referred back or
+  // re-routed: it visited a stage its current channel no longer lists, and
+  // dropping that row would erase history rather than tidy it.
+  const { data: sourcingEvents = [] } = useSourcingEventsForRequest(request.id);
+
+  const stagesForThisRoute = LIFECYCLE_STAGES.filter((stage) =>
+    !isStageSkippedForChannel(request.buyingChannel, stage.id)
+    || stageEntries.has(stage.id)
+    || request.status === stage.id);
+
+  const visibleStages = stagesForThisRoute.map((stage) => {
     const entry = stageEntries.get(stage.id);
     const isStageCompleted = completedStages.has(stage.id);
     const isCurrent = request.status === stage.id;
@@ -311,6 +331,24 @@ export function TabWorkflow({ request, focusStageId }: TabWorkflowProps) {
                 cardRefs.current[stage.id] = el;
               }}
             >
+              {/* The sourcing event this stage is actually running, reachable
+                  from the stage itself. The link existed only on the Related
+                  tab, which is the wrong place to look for the thing the
+                  request is doing right now. */}
+              {stage.id === 'sourcing' && sourcingEvents.length > 0 && (
+                <div className="mb-2 flex flex-wrap items-center gap-2 text-xs">
+                  <span className="text-muted-foreground">Sourcing event:</span>
+                  {sourcingEvents.map((event) => (
+                    <Link
+                      key={event.id}
+                      to={`/sourcing/${event.id}`}
+                      className="font-medium text-blue-600 hover:underline"
+                    >
+                      {event.id} — {event.status}
+                    </Link>
+                  ))}
+                </div>
+              )}
               <StepDetailCard
                 stage={stage.id}
                 stageLabel={stage.label}
