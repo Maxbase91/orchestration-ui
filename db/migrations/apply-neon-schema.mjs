@@ -2,8 +2,7 @@
 /**
  * Resume the repository schema on Neon after a partial SQL-editor run.
  * Only additive/idempotent statements are executed; destructive DROP statements
- * and the legacy row-level-security policies are intentionally skipped — they
- * were never this application's authorization boundary.
+ * are intentionally skipped.
  */
 import { readFileSync } from 'node:fs';
 import { Client } from '@neondatabase/serverless';
@@ -74,8 +73,12 @@ function stripComments(statement) {
 function shouldSkip(statement) {
   const sql = stripComments(statement);
   if (/^(DROP\s|ALTER\s+TABLE\s+\S+\s+DROP\s)/i.test(sql)) return true;
-  if (/^CREATE\s+POLICY\s/i.test(sql)) return true;
-  if (/^ALTER\s+TABLE\s+\S+\s+ENABLE\s+ROW\s+LEVEL\s+SECURITY/i.test(sql)) return true;
+  // The row-level-security skips that used to sit here are gone with the
+  // statements they skipped (2026-09-12). They had been silently discarding
+  // 131 lines of schema.sql, which is why the live database carried RLS on one
+  // table while the file described 47 — a skip in the applier is a schema the
+  // file describes and no environment ever gets, so it is worth being wary of
+  // adding another.
   return false;
 }
 

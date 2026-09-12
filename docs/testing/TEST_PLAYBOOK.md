@@ -34,9 +34,9 @@ or an integrity defect that survives adding authentication.
 above is scoping and integrity, not authorization. Approval eligibility
 (`canActOnApproval`) is still enforced only in React, and `workflow-action`
 validates that a stage exists, not that this request may enter it next. The
-schema still carries 47 `ENABLE ROW LEVEL SECURITY` statements whose policies
-are all `USING (true)` — Supabase scaffolding that reads as access control and
-enforces nothing.
+Supabase row-level-security scaffolding has since been removed
+(`npm run backfill:drop-rls`, ADR-0003); `test:schema-drift` fails if a policy
+returns to `db/schema.sql` or to the live database.
 
 **A test that polluted the store.** `test:derived` deleted its fixtures with a
 pattern match and never read the error. The new write guard refuses a pattern

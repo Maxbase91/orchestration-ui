@@ -243,7 +243,7 @@ npm run test:ai-agents            # agent registry shape and activation rules
 npm run test:api-domain-routing   # every vercel.json rewrite reaches a real ?domain= handler
 npm run test:catalogue-order      # a catalogue order carries what the cXML hand-off requires
 npm run test:intake-quick-fixes   # scroll reset, date parsing, contract selectability and the removed filler copy
-npm run test:schema-drift         # db/schema.sql matches the live database's information_schema
+npm run test:schema-drift         # db/schema.sql matches the live database's information_schema, and row-level security stays removed
 npm run test:table-lists          # hand-maintained relation lists match db/schema.sql
 npm run test:requester-entry-ui   # browser smoke (stubbed) — requester entry screen renders and fits 320px
 npm run walkthrough               # visual QA harness (Playwright) — drives the front door across scenarios + every tab, screenshots to /tmp/fd (no assertions)

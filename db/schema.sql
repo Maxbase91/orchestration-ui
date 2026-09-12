@@ -189,9 +189,6 @@ CREATE TABLE IF NOT EXISTS comment_reads (
   PRIMARY KEY (comment_id, user_id)
 );
 
-ALTER TABLE comment_reads ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Allow all" ON comment_reads;
-CREATE POLICY "Allow all" ON comment_reads FOR ALL USING (true) WITH CHECK (true);
 
 CREATE INDEX IF NOT EXISTS idx_comments_stage ON comments(stage);
 CREATE INDEX IF NOT EXISTS idx_comment_reads_user ON comment_reads(user_id);
@@ -704,88 +701,24 @@ DO $$ BEGIN
     FOREIGN KEY (approver_id) REFERENCES users(id) ON DELETE SET NULL;
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
--- Enable RLS with open access (no auth)
-ALTER TABLE suppliers ENABLE ROW LEVEL SECURITY;
-ALTER TABLE contracts ENABLE ROW LEVEL SECURITY;
-ALTER TABLE purchase_orders ENABLE ROW LEVEL SECURITY;
-ALTER TABLE invoices ENABLE ROW LEVEL SECURITY;
-ALTER TABLE users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE requests ENABLE ROW LEVEL SECURITY;
-ALTER TABLE stage_history ENABLE ROW LEVEL SECURITY;
-ALTER TABLE service_descriptions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE ai_conversations ENABLE ROW LEVEL SECURITY;
-ALTER TABLE assistant_conversations ENABLE ROW LEVEL SECURITY;
-ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
-ALTER TABLE compliance_reports ENABLE ROW LEVEL SECURITY;
-ALTER TABLE system_integrations ENABLE ROW LEVEL SECURITY;
-ALTER TABLE form_submissions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE approval_entries ENABLE ROW LEVEL SECURITY;
-ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
-ALTER TABLE risk_assessments ENABLE ROW LEVEL SECURITY;
-ALTER TABLE form_templates ENABLE ROW LEVEL SECURITY;
-ALTER TABLE intake_compliance_records ENABLE ROW LEVEL SECURITY;
-ALTER TABLE ai_agents ENABLE ROW LEVEL SECURITY;
-ALTER TABLE kpi_data ENABLE ROW LEVEL SECURITY;
-ALTER TABLE workflow_templates ENABLE ROW LEVEL SECURITY;
-ALTER TABLE routing_rules ENABLE ROW LEVEL SECURITY;
-ALTER TABLE catalogue_items ENABLE ROW LEVEL SECURITY;
-ALTER TABLE workflow_step_details ENABLE ROW LEVEL SECURITY;
-ALTER TABLE audit_entries ENABLE ROW LEVEL SECURITY;
 
--- Policies are recreated idempotently so this script can be re-run.
-DROP POLICY IF EXISTS "Allow all" ON suppliers;
-DROP POLICY IF EXISTS "Allow all" ON contracts;
-DROP POLICY IF EXISTS "Allow all" ON purchase_orders;
-DROP POLICY IF EXISTS "Allow all" ON invoices;
-DROP POLICY IF EXISTS "Allow all" ON users;
-DROP POLICY IF EXISTS "Allow all" ON requests;
-DROP POLICY IF EXISTS "Allow all" ON stage_history;
-DROP POLICY IF EXISTS "Allow all" ON service_descriptions;
-DROP POLICY IF EXISTS "Allow all" ON ai_conversations;
-DROP POLICY IF EXISTS "Allow all" ON assistant_conversations;
-DROP POLICY IF EXISTS "Allow all" ON comments;
-DROP POLICY IF EXISTS "Allow all" ON compliance_reports;
-DROP POLICY IF EXISTS "Allow all" ON system_integrations;
-DROP POLICY IF EXISTS "Allow all" ON form_submissions;
-DROP POLICY IF EXISTS "Allow all" ON approval_entries;
-DROP POLICY IF EXISTS "Allow all" ON notifications;
-DROP POLICY IF EXISTS "Allow all" ON risk_assessments;
-DROP POLICY IF EXISTS "Allow all" ON form_templates;
-DROP POLICY IF EXISTS "Allow all" ON intake_compliance_records;
-DROP POLICY IF EXISTS "Allow all" ON ai_agents;
-DROP POLICY IF EXISTS "Allow all" ON kpi_data;
-DROP POLICY IF EXISTS "Allow all" ON workflow_templates;
-DROP POLICY IF EXISTS "Allow all" ON routing_rules;
-DROP POLICY IF EXISTS "Allow all" ON catalogue_items;
-DROP POLICY IF EXISTS "Allow all" ON workflow_step_details;
-DROP POLICY IF EXISTS "Allow all" ON audit_entries;
+-- Row-level security was removed on 2026-09-12.
+--
+-- This file used to enable RLS on 47 tables and create a policy for each, every
+-- one of them `FOR ALL USING (true) WITH CHECK (true)`. That is Supabase
+-- scaffolding that outlived the migration to Neon (ADR-0003): the application
+-- connects as the table owner, so PostgreSQL does not apply RLS to it anyway,
+-- and an open policy would admit every row if it did. Nothing was enforced, and
+-- db/migrations/apply-neon-schema.mjs had been skipping all of it for so long
+-- that only one table in the live database still carried it.
+--
+-- It is gone rather than left in place because a control that looks real and is
+-- not is worse than none: it stops the next reader looking. Access control for
+-- this platform is the identity model ADR-0003 defers. If RLS becomes the
+-- mechanism for it, it comes back here as policies that restrict something,
+-- written against a role the application does not own —
+-- db/backfills/2026-09-12-drop-supabase-rls.mjs cleared the live database.
 
-CREATE POLICY "Allow all" ON suppliers FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all" ON contracts FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all" ON purchase_orders FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all" ON invoices FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all" ON users FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all" ON requests FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all" ON stage_history FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all" ON service_descriptions FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all" ON ai_conversations FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all" ON assistant_conversations FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all" ON comments FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all" ON compliance_reports FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all" ON system_integrations FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all" ON form_submissions FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all" ON approval_entries FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all" ON notifications FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all" ON risk_assessments FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all" ON form_templates FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all" ON intake_compliance_records FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all" ON ai_agents FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all" ON kpi_data FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all" ON workflow_templates FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all" ON routing_rules FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all" ON catalogue_items FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all" ON workflow_step_details FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all" ON audit_entries FOR ALL USING (true) WITH CHECK (true);
 
 -- Indexes for common queries
 CREATE INDEX IF NOT EXISTS idx_requests_status ON requests(status);
@@ -829,9 +762,11 @@ CREATE INDEX IF NOT EXISTS idx_requests_contract ON requests(contract_id) WHERE 
 -- supplier.active_contracts, supplier.total_spend_12m and
 -- contract.linked_request_ids are no longer carried as seeded columns;
 -- these views recompute them on every read so UI surfaces always
--- reflect live data. Views use security_invoker so base-table row-level
--- policies cascade correctly. That syntax requires PostgreSQL 15+, which
--- Neon satisfies.
+-- reflect live data. They keep security_invoker: it costs nothing, and it
+-- means the views resolve with the caller's own privileges rather than the
+-- definer's if this database ever gains a role that is not the owner. (It was
+-- originally here so base-table RLS policies would cascade; those policies were
+-- removed above.) The syntax requires PostgreSQL 15+, which Neon satisfies.
 
 DROP VIEW IF EXISTS suppliers_with_derived CASCADE;
 CREATE VIEW suppliers_with_derived
@@ -884,9 +819,6 @@ CREATE TABLE IF NOT EXISTS knowledge_base (
   updated_at  timestamptz NOT NULL DEFAULT now()
 );
 
-ALTER TABLE knowledge_base ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Allow all" ON knowledge_base;
-CREATE POLICY "Allow all" ON knowledge_base FOR ALL USING (true) WITH CHECK (true);
 
 -- ── User preferences (session memory) ────────────────────────────────────────
 
@@ -896,9 +828,6 @@ CREATE TABLE IF NOT EXISTS user_preferences (
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
-ALTER TABLE user_preferences ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Allow all" ON user_preferences;
-CREATE POLICY "Allow all" ON user_preferences FOR ALL USING (true) WITH CHECK (true);
 
 -- ── Governed catalogue / contract checkout ──────────────────────────────────
 -- A requisition is the platform-owned audit record between intake and a PO.
@@ -1003,15 +932,6 @@ ALTER TABLE catalogue_items ADD COLUMN IF NOT EXISTS risk_assessment_id TEXT;
 ALTER TABLE catalogue_items ADD COLUMN IF NOT EXISTS commodity_code TEXT;
 ALTER TABLE catalogue_items ADD COLUMN IF NOT EXISTS available BOOLEAN NOT NULL DEFAULT true;
 
-ALTER TABLE procurement_profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE purchase_requisitions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE request_lines ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "governed_checkout_profiles" ON procurement_profiles;
-DROP POLICY IF EXISTS "governed_checkout_requisitions" ON purchase_requisitions;
-DROP POLICY IF EXISTS "governed_checkout_lines" ON request_lines;
-CREATE POLICY "governed_checkout_profiles" ON procurement_profiles FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "governed_checkout_requisitions" ON purchase_requisitions FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "governed_checkout_lines" ON request_lines FOR ALL USING (true) WITH CHECK (true);
 CREATE INDEX IF NOT EXISTS request_lines_request_idx ON request_lines(request_id);
 CREATE INDEX IF NOT EXISTS request_lines_requisition_idx ON request_lines(requisition_id);
 CREATE INDEX IF NOT EXISTS purchase_requisitions_status_idx ON purchase_requisitions(status);
@@ -1025,9 +945,6 @@ CREATE TABLE IF NOT EXISTS chat_feedback (
   created_at  timestamptz NOT NULL DEFAULT now()
 );
 
-ALTER TABLE chat_feedback ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Allow all" ON chat_feedback;
-CREATE POLICY "Allow all" ON chat_feedback FOR ALL USING (true) WITH CHECK (true);
 
 -- ── Tables added in June 2026 sessions ───────────────────────────────────────
 
@@ -1043,8 +960,6 @@ CREATE TABLE IF NOT EXISTS workflow_instances (
   updated_at       timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_workflow_instances_request ON workflow_instances(request_id);
-ALTER TABLE workflow_instances ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "wf_instances_all" ON workflow_instances FOR ALL USING (true) WITH CHECK (true);
 
 -- Approval chains configuration
 CREATE TABLE IF NOT EXISTS approval_chains (
@@ -1057,8 +972,6 @@ CREATE TABLE IF NOT EXISTS approval_chains (
   created_at    timestamptz NOT NULL DEFAULT now(),
   updated_at    timestamptz NOT NULL DEFAULT now()
 );
-ALTER TABLE approval_chains ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "approval_chains_all" ON approval_chains FOR ALL USING (true) WITH CHECK (true);
 
 -- SLA targets per stage/channel
 CREATE TABLE IF NOT EXISTS sla_targets (
@@ -1067,8 +980,6 @@ CREATE TABLE IF NOT EXISTS sla_targets (
   days    int  NOT NULL,
   PRIMARY KEY (stage, channel)
 );
-ALTER TABLE sla_targets ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "sla_targets_all" ON sla_targets FOR ALL USING (true) WITH CHECK (true);
 
 -- Admin-managed procurement categories
 -- Reference data: the accounts a request can be charged to and the places an
@@ -1096,8 +1007,6 @@ CREATE TABLE IF NOT EXISTS request_supplier_candidates (
   added_at     timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (request_id, supplier_id)
 );
-ALTER TABLE request_supplier_candidates ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "request_supplier_candidates_all" ON request_supplier_candidates FOR ALL USING (true) WITH CHECK (true);
 
 CREATE TABLE IF NOT EXISTS cost_centres (
   id          text PRIMARY KEY,
@@ -1107,8 +1016,6 @@ CREATE TABLE IF NOT EXISTS cost_centres (
   active      boolean NOT NULL DEFAULT true,
   sort_order  int NOT NULL DEFAULT 0
 );
-ALTER TABLE cost_centres ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "cost_centres_all" ON cost_centres FOR ALL USING (true) WITH CHECK (true);
 
 CREATE TABLE IF NOT EXISTS delivery_locations (
   id           text PRIMARY KEY,
@@ -1118,8 +1025,6 @@ CREATE TABLE IF NOT EXISTS delivery_locations (
   active       boolean NOT NULL DEFAULT true,
   sort_order   int NOT NULL DEFAULT 0
 );
-ALTER TABLE delivery_locations ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "delivery_locations_all" ON delivery_locations FOR ALL USING (true) WITH CHECK (true);
 
 CREATE TABLE IF NOT EXISTS procurement_categories (
   id            text PRIMARY KEY,
@@ -1135,8 +1040,6 @@ CREATE TABLE IF NOT EXISTS procurement_categories (
   -- costs one click; a false one routed a consulting demand to business cards.
   catalogue_eligible boolean NOT NULL DEFAULT false
 );
-ALTER TABLE procurement_categories ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "categories_all" ON procurement_categories FOR ALL USING (true) WITH CHECK (true);
 
 -- Goods receipts for three-way match
 CREATE TABLE IF NOT EXISTS goods_receipts (
@@ -1150,8 +1053,6 @@ CREATE TABLE IF NOT EXISTS goods_receipts (
   status      text NOT NULL DEFAULT 'complete',
   created_at  timestamptz NOT NULL DEFAULT now()
 );
-ALTER TABLE goods_receipts ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "gr_all" ON goods_receipts FOR ALL USING (true) WITH CHECK (true);
 
 -- Sourcing events (RFx)
 CREATE TABLE IF NOT EXISTS sourcing_events (
@@ -1170,8 +1071,6 @@ CREATE TABLE IF NOT EXISTS sourcing_events (
   created_at      timestamptz NOT NULL DEFAULT now(),
   updated_at      timestamptz NOT NULL DEFAULT now()
 );
-ALTER TABLE sourcing_events ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "sourcing_events_all" ON sourcing_events FOR ALL USING (true) WITH CHECK (true);
 
 -- Sourcing responses (per-supplier per-event)
 CREATE TABLE IF NOT EXISTS sourcing_responses (
@@ -1183,8 +1082,6 @@ CREATE TABLE IF NOT EXISTS sourcing_responses (
   response_date date,
   created_at    timestamptz NOT NULL DEFAULT now()
 );
-ALTER TABLE sourcing_responses ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "sourcing_responses_all" ON sourcing_responses FOR ALL USING (true) WITH CHECK (true);
 
 -- Support tickets — raised from the Contact Support form and from the assistant's
 -- handover capability. The platform's own store is the system of record; there is
@@ -1204,9 +1101,6 @@ CREATE TABLE IF NOT EXISTS tickets (
   category   TEXT,
   priority   TEXT DEFAULT 'medium'
 );
-ALTER TABLE tickets ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "allow all" ON tickets;
-CREATE POLICY "allow all" ON tickets FOR ALL USING (true) WITH CHECK (true);
 
 -- Ownership, lifecycle and SLA fields for the support inbox.
 ALTER TABLE tickets ADD COLUMN IF NOT EXISTS owner_id    TEXT REFERENCES users(id);
@@ -1242,9 +1136,6 @@ CREATE TABLE IF NOT EXISTS ticket_responses (
   is_internal     BOOLEAN NOT NULL DEFAULT false,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-ALTER TABLE ticket_responses ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "ticket_responses_all" ON ticket_responses;
-CREATE POLICY "ticket_responses_all" ON ticket_responses FOR ALL USING (true) WITH CHECK (true);
 
 CREATE INDEX IF NOT EXISTS ticket_responses_ticket_idx ON ticket_responses(ticket_id, created_at);
 CREATE INDEX IF NOT EXISTS tickets_queue_idx ON tickets(status, owner_id, created_at DESC);
@@ -1268,9 +1159,6 @@ CREATE TABLE IF NOT EXISTS ticket_links (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (ticket_id, object_type, object_id)
 );
-ALTER TABLE ticket_links ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "ticket_links_all" ON ticket_links;
-CREATE POLICY "ticket_links_all" ON ticket_links FOR ALL USING (true) WITH CHECK (true);
 
 CREATE INDEX IF NOT EXISTS ticket_links_ticket_idx ON ticket_links(ticket_id);
 CREATE INDEX IF NOT EXISTS ticket_links_object_idx ON ticket_links(object_type, object_id);
@@ -1514,9 +1402,6 @@ CREATE TABLE IF NOT EXISTS category_managers (
   assigned_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (category_id, user_id)
 );
-ALTER TABLE category_managers ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "category_managers_all" ON category_managers;
-CREATE POLICY "category_managers_all" ON category_managers FOR ALL USING (true) WITH CHECK (true);
 
 CREATE INDEX IF NOT EXISTS category_managers_user_idx ON category_managers(user_id);
 

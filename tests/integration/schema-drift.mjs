@@ -177,6 +177,58 @@ for (const [label, ok, detail] of parserChecks) {
   else { failures += 1; console.error(`  \x1b[31m✗\x1b[0m ${label} — ${detail}`); }
 }
 
+// ── Row-level security stays gone ───────────────────────────────────────────
+// schema.sql carried 47 `ENABLE ROW LEVEL SECURITY` statements and 47 policies,
+// all `FOR ALL USING (true) WITH CHECK (true)` — Supabase scaffolding that
+// enforced nothing and read as access control. Removed 2026-09-12. Two ways it
+// could come back: someone re-adds the statements to the file, or someone
+// applies a policy straight to the database. Both are checked.
+//
+// This is not a rule against RLS. It is a rule against an *open* policy, which
+// is the shape that looks like a control and is not. A policy that genuinely
+// restricts something will fail this check, and the person adding it should
+// update the check and say so in the ADR.
+console.log('\nRow-level security is not back');
+
+const rlsInFile = [...schema.matchAll(/^\s*(?:CREATE\s+POLICY|ALTER\s+TABLE\s+\S+\s+ENABLE\s+ROW\s+LEVEL\s+SECURITY)/gim)];
+if (rlsInFile.length === 0) {
+  console.log('  \x1b[32m✓\x1b[0m db/schema.sql declares no policies and enables RLS on nothing');
+} else {
+  failures += 1;
+  console.error(`  \x1b[31m✗\x1b[0m db/schema.sql has ${rlsInFile.length} RLS statement(s) again`);
+}
+
+const livePolicies = await sql`SELECT tablename, policyname FROM pg_policies WHERE schemaname = 'public'`;
+const liveRls = await sql`
+  SELECT c.relname AS tablename FROM pg_class c
+  JOIN pg_namespace n ON n.oid = c.relnamespace
+  WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.relrowsecurity
+`;
+if (livePolicies.length === 0) {
+  console.log('  \x1b[32m✓\x1b[0m the live database has no policies');
+} else {
+  failures += 1;
+  console.error(`  \x1b[31m✗\x1b[0m the live database has ${livePolicies.length} polic(ies): `
+    + livePolicies.map((r) => `${r.tablename}.${r.policyname}`).join(', '));
+}
+if (liveRls.length === 0) {
+  console.log('  \x1b[32m✓\x1b[0m no live table has RLS enabled');
+} else {
+  failures += 1;
+  console.error(`  \x1b[31m✗\x1b[0m RLS is enabled on: ${liveRls.map((r) => r.tablename).join(', ')}`);
+}
+
+// The applier used to discard every RLS statement, which is how the file came
+// to describe 47 tables while the database carried one. A skip is a schema
+// nobody gets, so the guard checks those rules went with the statements.
+const applier = readFileSync(new URL('../../db/migrations/apply-neon-schema.mjs', import.meta.url), 'utf8');
+if (!/CREATE\\s\+POLICY/.test(applier) && !/ENABLE\\s\+ROW/.test(applier)) {
+  console.log('  \x1b[32m✓\x1b[0m the applier no longer skips RLS statements');
+} else {
+  failures += 1;
+  console.error('  \x1b[31m✗\x1b[0m apply-neon-schema.mjs still skips RLS statements silently');
+}
+
 if (failures > 0) {
   console.error(`\nschema-drift: ${failures} check(s) failed.`);
   process.exit(1);

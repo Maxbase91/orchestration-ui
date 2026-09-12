@@ -61,5 +61,17 @@ What this update does **not** change, again: `/api/db` still has no authenticati
 - Neon credentials stay server-only (`NEON_DATABASE_URL`/`DATABASE_URL`).
 - The browser requires no database variable at all: it posts to `/api/db` and holds no credential.
 - The retired provider's row-level-security policies were never treated as application authorization; API authorization must be added when real authentication is introduced.
+- **Update, 12 September 2026 — that scaffolding is now removed.** `db/schema.sql` had
+  kept 47 `ENABLE ROW LEVEL SECURITY` statements and 47 matching policies, every one
+  `FOR ALL USING (true) WITH CHECK (true)`. They enforced nothing (the application
+  connects as the table owner, and an open policy admits every row regardless), and
+  `apply-neon-schema.mjs` had been skipping all of them, so the file described 47
+  RLS-enabled tables while the live database carried one. A security review found the
+  gap between what the schema appeared to assert and what existed. The statements are
+  deleted, `db/backfills/2026-09-12-drop-supabase-rls.mjs` cleared the live database,
+  the applier's skip rules went with them, and `test:schema-drift` fails if either the
+  file or the database grows a policy back. If RLS later becomes the mechanism for the
+  authorization this ADR defers, it returns as policies that restrict something,
+  written against a role the application does not own.
 - The no-freeze cutover did miss writes: one table was absent from the copy list and 39 rows were left behind. They are recovered from committed SQL, and `test:table-lists` now requires every difference between the schema, the `/api/db` allowlist and the live guard to be declared.
 - The migration was intentionally limited to schema and tables owned by this repository. Any object outside it was not carried over, and the source is no longer reachable from this repository.
