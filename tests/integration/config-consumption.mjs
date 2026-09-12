@@ -136,6 +136,25 @@ if (/useUpsertSlaTarget|upsert\.mutateAsync/.test(slaPage)) {
   bad('the SLA page does not claim to set stage SLAs', 'it writes sla_targets again, which no countdown reads');
 } else ok('the SLA page reads the templates rather than writing a table nothing reads');
 
+// ── An edit buffer must be released when the save lands ─────────────────────
+// Three pages held `const x = editedX ?? serverX`. The buffer is deliberate —
+// a refetch should not discard in-session edits — but none of them cleared it
+// on success, so once it was non-null it shadowed the refetch for the rest of
+// the session: the save persisted and the screen kept rendering the stale local
+// row. /admin/approvals already released it; these did not.
+console.log('\nEdit buffers are released on save');
+for (const [file, release] of [
+  ['src/features/admin/routing-rules/routing-rules-page.tsx', /setEditedRules\(null\)/],
+  ['src/features/admin/forms/form-builder-page.tsx', /setEditedForms\(null\)/],
+  ['src/features/admin/ai-agents/ai-agents-page.tsx', /setEditedAgents\(null\)/],
+]) {
+  const source = readFileSync(new URL(file, ROOT), 'utf8');
+  const shadows = /const \w+ = edited\w+ \?\? server\w+;/.test(source);
+  if (!shadows) continue;               // pattern gone entirely — also fine
+  if (release.test(source)) ok(`${file.split('/').pop()} releases its buffer`);
+  else bad(`${file.split('/').pop()} releases its buffer`, 'the shadow is never cleared, so a saved row renders stale');
+}
+
 // ── Live: no request sits in a stage its channel skips ──────────────────────
 const env = loadEnv();
 const connection = env.NEON_DATABASE_URL ?? env.DATABASE_URL;

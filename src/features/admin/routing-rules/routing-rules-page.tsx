@@ -14,6 +14,12 @@ export function RoutingRulesPage() {
   // list shows live, and from the first edit onwards local state owns it so a
   // refetch cannot discard in-session work. Replaces a seed-once effect, which
   // cost an extra render and showed an empty list until the copy landed.
+  //
+  // The buffer is released on a successful save (onSaved below). Without that
+  // it shadowed the refetch permanently: the save persisted, the invalidation
+  // refetched, and the screen kept showing the stale local row for the rest of
+  // the session. /admin/approvals already worked this way; these three pages
+  // did not.
   const [editedRules, setEditedRules] = useState<RoutingRule[] | null>(null);
   const rules = editedRules ?? serverRules;
 
@@ -95,7 +101,7 @@ export function RoutingRulesPage() {
           {/* Keyed by rule id: selecting a different rule remounts the editor
               with that rule's values, instead of an effect copying eight
               fields across on every change. */}
-          <RuleEditorPanel key={selectedRule?.id ?? 'none'} rule={selectedRule} />
+          <RuleEditorPanel key={selectedRule?.id ?? 'none'} rule={selectedRule} onSaved={() => setEditedRules(null)} />
         </div>
         {/* Right panel - 25% */}
         <div className="w-1/4 min-w-[240px]">

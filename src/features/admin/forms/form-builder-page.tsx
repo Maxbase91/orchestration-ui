@@ -245,6 +245,10 @@ export function FormBuilderPage() {
     if (!selectedForm) return;
     try {
       await saveFormTemplate.mutateAsync(selectedForm);
+      // Release the edit buffer so the refetched template is what renders.
+      // Without this, `editedForms ?? serverForms` shadowed the invalidation
+      // permanently and the screen kept showing the local copy all session.
+      setEditedForms(null);
       toast.success(`Form "${selectedForm.name}" saved.`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'unknown';

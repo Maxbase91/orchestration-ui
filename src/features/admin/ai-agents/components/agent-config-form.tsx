@@ -28,9 +28,11 @@ const AGENT_TYPES = [
 interface AgentConfigFormProps {
   agent: AIAgent;
   onClose: () => void;
+  /** Called after the agent persists, so the page can drop its edit buffer. */
+  onSaved?: () => void;
 }
 
-export function AgentConfigForm({ agent, onClose }: AgentConfigFormProps) {
+export function AgentConfigForm({ agent, onClose, onSaved }: AgentConfigFormProps) {
   const [name, setName] = useState(agent.name);
   const [description, setDescription] = useState(agent.description);
   const [type, setType] = useState(agent.type);
@@ -57,7 +59,9 @@ export function AgentConfigForm({ agent, onClose }: AgentConfigFormProps) {
     };
     try {
       await saveAiAgent.mutateAsync(updated);
-      toast.success(`Agent "${name}" configuration saved.`);
+      // Release the page's edit buffer so the refetched agent renders.
+      onSaved?.();
+      toast.success(`Agent "${name}" saved.`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'unknown';
       toast.error(`Save failed: ${msg}`);

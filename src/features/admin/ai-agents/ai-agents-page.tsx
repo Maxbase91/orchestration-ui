@@ -63,6 +63,7 @@ export function AIAgentsPage() {
             <AgentConfigForm
               agent={selectedAgent}
               onClose={() => setSelectedAgent(null)}
+              onSaved={() => setEditedAgents(null)}
             />
             <AgentTestPanel agent={selectedAgent} />
           </div>

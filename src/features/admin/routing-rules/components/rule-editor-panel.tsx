@@ -73,6 +73,15 @@ const CHANNEL_LABELS: Record<string, string> = {
 
 interface RuleEditorPanelProps {
   rule: RoutingRule | null;
+  /**
+   * Called after the rule is persisted, so the page can drop its edit buffer.
+   *
+   * Without this the page's `editedRules ?? serverRules` shadowed the refetch
+   * forever: the save landed and the invalidation refetched, but the screen
+   * kept rendering the local copy for the rest of the session, so a second
+   * editor would have seen the new value and this one never would.
+   */
+  onSaved?: () => void;
 }
 
 /**
@@ -86,7 +95,7 @@ interface RuleEditorPanelProps {
  * whenever the rules array was replaced, since a new array identity re-ran it
  * even for the same rule.
  */
-export function RuleEditorPanel({ rule }: RuleEditorPanelProps) {
+export function RuleEditorPanel({ rule, onSaved }: RuleEditorPanelProps) {
   const [name, setName] = useState(rule?.name ?? '');
   const [status, setStatus] = useState<'active' | 'draft' | 'disabled'>(rule?.status ?? 'draft');
   const [conditions, setConditions] = useState<{ field: string; operator: string; value: string }[]>(
@@ -146,6 +155,9 @@ export function RuleEditorPanel({ rule }: RuleEditorPanelProps) {
     };
     try {
       await saveRoutingRule.mutateAsync(updated);
+      // Let the page release its edit buffer so the refetched rule is what
+      // renders from here on.
+      onSaved?.();
       toast.success(`Rule "${name}" saved.`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'unknown';
