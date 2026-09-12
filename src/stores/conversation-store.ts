@@ -3,7 +3,13 @@
 // the chat UI. Not persisted via zustand/persist — the source of truth is the
 // table, reloaded per user via loadConversations.
 import { create } from 'zustand';
-import { db } from '@/lib/db-client';
+import {
+  createConversation as dbCreateConversation,
+  deleteConversation as dbDeleteConversation,
+  listConversations,
+  renameConversation,
+  saveConversationMessages,
+} from '@/lib/db/assistant-conversations';
 import type { ChatMessageData } from '@/data/types';
 
 export interface Conversation {
@@ -28,17 +34,6 @@ interface ConversationStore {
   getActive: () => Conversation | null;
 }
 
-function rowToConversation(row: Record<string, unknown>): Conversation {
-  return {
-    id: row.id as string,
-    userId: row.user_id as string,
-    title: row.title as string,
-    messages: (row.messages as ChatMessageData[]) ?? [],
-    createdAt: row.created_at as string,
-    updatedAt: row.updated_at as string,
-  };
-}
-
 export const useConversationStore = create<ConversationStore>((set, get) => ({
   conversations: [],
   activeConversationId: null,
@@ -46,19 +41,14 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
 
   loadConversations: async (userId: string) => {
     set({ isLoading: true });
-    const { data, error } = await db
-      .from('assistant_conversations')
-      .select('*')
-      .eq('user_id', userId)
-      .order('updated_at', { ascending: false });
-
-    if (error) {
-      console.error('Failed to load conversations:', error.message);
+    let conversations: Conversation[];
+    try {
+      conversations = await listConversations(userId);
+    } catch (error) {
+      console.error('Failed to load conversations:', error instanceof Error ? error.message : error);
       set({ isLoading: false });
       return;
     }
-
-    const conversations = (data ?? []).map(rowToConversation);
     // Keep whatever thread is already active (e.g. the one just created); only
     // default to the most recent thread on a fresh load.
     const activeConversationId =
@@ -68,33 +58,29 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
   },
 
   createConversation: async (userId: string) => {
-    const { data, error } = await db
-      .from('assistant_conversations')
-      .insert({ user_id: userId, title: 'New conversation', messages: [] })
-      .select('id, created_at, updated_at')
-      .single();
-
-    if (error || !data) {
-      console.error('Failed to create conversation:', error?.message);
+    let created: Awaited<ReturnType<typeof dbCreateConversation>>;
+    try {
+      created = await dbCreateConversation(userId);
+    } catch (error) {
+      console.error('Failed to create conversation:', error instanceof Error ? error.message : error);
       return '';
     }
 
-    const id = data.id as string;
     const newConv: Conversation = {
-      id,
+      id: created.id,
       userId,
       title: 'New conversation',
       messages: [],
-      createdAt: data.created_at as string,
-      updatedAt: data.updated_at as string,
+      createdAt: created.createdAt,
+      updatedAt: created.updatedAt,
     };
 
     set((state) => ({
       conversations: [newConv, ...state.conversations],
-      activeConversationId: id,
+      activeConversationId: created.id,
     }));
 
-    return id;
+    return created.id;
   },
 
   setActive: (id: string) => {
@@ -119,11 +105,7 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
     const conv = get().conversations.find((c) => c.id === conversationId);
     if (!conv) return;
 
-    await db
-      .from('assistant_conversations')
-      .update({ messages: conv.messages, updated_at: now })
-      .eq('id', conversationId)
-      .eq('user_id', userId);
+    await saveConversationMessages(conversationId, userId, conv.messages, now);
   },
 
   setTitle: async (conversationId: string, title: string) => {
@@ -133,13 +115,15 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
       ),
     }));
 
-    await db
-      .from('assistant_conversations')
-      .update({ title })
-      .eq('id', conversationId);
+    // Scope the write to the thread's owner. The store already knows it, and
+    // the title update was the one conversation write that filtered on id
+    // alone.
+    const owner = get().conversations.find((c) => c.id === conversationId)?.userId;
+    if (owner) await renameConversation(conversationId, owner, title);
   },
 
   deleteConversation: async (id: string) => {
+    const owner = get().conversations.find((c) => c.id === id)?.userId;
     set((state) => {
       const conversations = state.conversations.filter((c) => c.id !== id);
       const activeConversationId =
@@ -149,7 +133,7 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
       return { conversations, activeConversationId };
     });
 
-    await db.from('assistant_conversations').delete().eq('id', id);
+    if (owner) await dbDeleteConversation(id, owner);
   },
 
   getActive: () => {

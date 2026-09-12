@@ -10,6 +10,10 @@
 // Both callers now go through transitionStage(). The stage_history row is not
 // bookkeeping: it IS the lifecycle as far as the UI is concerned.
 
+// Uses db-client directly rather than src/lib/db modules: see the Known
+// exceptions note in src/lib/db/README.md. Closing the open stage_history row
+// before opening its replacement is an ordering constraint that a per-entity
+// module cannot express.
 import { db } from '@/lib/db-client';
 import { updateRequest } from '@/lib/db/requests';
 import type { ProcurementRequest } from '@/data/types';

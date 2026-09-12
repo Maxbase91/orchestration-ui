@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { MessageSquare, ThumbsUp, ThumbsDown, TrendingUp } from 'lucide-react';
 import { format, subDays, startOfDay, parseISO } from 'date-fns';
-import { db } from '@/lib/db-client';
+import { listAllConversations } from '@/lib/db/assistant-conversations';
+import { listChatFeedback } from '@/lib/db/chat-feedback';
 import { PageHeader } from '@/components/shared/page-header';
 import { BarChartWidget } from '@/components/charts/bar-chart-widget';
 import { PieChartWidget } from '@/components/charts/pie-chart-widget';
@@ -77,23 +78,23 @@ export function AIAnalyticsPage() {
     void (async () => {
       const since = subDays(new Date(), 14).toISOString();
 
-      const [{ data: recentConvs }, { count }, { data: fb }] = await Promise.all([
-        db
-          .from('assistant_conversations')
-          .select('id, title, created_at, messages')
-          .gte('created_at', since)
-          .order('created_at', { ascending: false }),
-        db
-          .from('assistant_conversations')
-          .select('*', { count: 'exact', head: true }),
-        db
-          .from('chat_feedback')
-          .select('polarity, created_at'),
-      ]);
+      const [all, fb] = await Promise.all([listAllConversations(), listChatFeedback()]);
 
-      setConvs((recentConvs ?? []) as unknown as ConvRow[]);
-      setTotalConvs(count ?? 0);
-      setFeedback((fb ?? []) as unknown as FeedbackRow[]);
+      // One read instead of two against the same table: the second call asked
+      // only for a count, which is the length of the list already fetched.
+      const recent = all.filter((conversation) => conversation.createdAt >= since);
+
+      setConvs(recent.map((conversation) => ({
+        id: conversation.id,
+        title: conversation.title,
+        created_at: conversation.createdAt,
+        messages: conversation.messages,
+      })) as unknown as ConvRow[]);
+      setTotalConvs(all.length);
+      setFeedback(fb.map((entry) => ({
+        polarity: entry.polarity,
+        created_at: entry.createdAt,
+      })) as unknown as FeedbackRow[]);
       setLoading(false);
     })();
   }, []);

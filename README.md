@@ -384,10 +384,9 @@ src/
 ├── stores/          # Zustand state stores
 ├── hooks/           # Custom React hooks
 ├── lib/             # Utilities, formatters, decisioning and AI adapters
-│   ├── db/          # Data-access modules + TanStack Query hooks (incl. the cost-centre and
-│   │                #   delivery-location reference tables, and request supplier candidates).
-│   │                #   *-core.ts modules take the client as a parameter so the serverless
-│   │                #   handlers share one implementation with the browser.
+│   ├── db/          # Data-access modules + TanStack Query hooks — one module per relation,
+│   │                #   and the only place db-client is imported (see its README for the
+│   │                #   layer rule, the *-core.ts pattern and the two known exceptions).
 │   ├── integrations/# Standardised source-connector layer (own-store → live swap)
 │   ├── procurement/ # Pure decisioning modules (classify, materiality, risk, residual risk questions and
 │   │                #   their conversation-slot adapter, intake determination + its

@@ -1,7 +1,7 @@
 import { Sparkles, User, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { db } from '@/lib/db-client';
+import { recordChatFeedback } from '@/lib/db/chat-feedback';
 import type { ChatMessageData, ConfirmTurn } from '@/data/types';
 import { TurnChatAnswer } from './turn-chat-answer';
 import { TurnDeepLink } from './turn-deep-link';
@@ -90,11 +90,14 @@ function FeedbackButtons({ messageId }: { messageId: string }) {
   async function handleVote(polarity: 'up' | 'down') {
     if (voted) return;
     setVoted(polarity);
-    await db.from('chat_feedback').insert({
-      message_id: messageId,
-      polarity,
-      created_at: new Date().toISOString(),
-    });
+    try {
+      await recordChatFeedback(messageId, polarity);
+    } catch (error) {
+      // The vote is already reflected in the button; a failed write should not
+      // throw out of a click handler. It used to swallow the error silently by
+      // never reading it at all.
+      console.error('Could not record feedback:', error instanceof Error ? error.message : error);
+    }
   }
 
   return (

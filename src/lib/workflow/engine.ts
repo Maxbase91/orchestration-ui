@@ -1,3 +1,21 @@
+// The workflow engine: it starts a request's workflow instance and moves it
+// from one node to the next.
+//
+// `initWorkflow` picks the template for a request's route and opens an
+// instance at its first node. `advanceWorkflow` decides which node comes next
+// from the template's edges and the request's own signals, generating the
+// approval entries for an approval node through the one shared derivation
+// (`createApprovalsFor`) rather than resolving approvers itself — two
+// derivations is exactly the defect this file used to carry.
+// `areAllApprovalsComplete` is the gate the approval node advances on.
+//
+// The stage a request is *in* is `transition.ts`'s job; this module decides
+// where it goes.
+//
+// Uses db-client directly rather than src/lib/db modules: see the Known
+// exceptions note in src/lib/db/README.md. The sequence here is ordered and
+// multi-table, and belongs behind a server endpoint like api/workflow-action.ts
+// rather than being scattered across per-entity modules.
 import { db } from '@/lib/db-client';
 import { createApprovalsFor } from '@/lib/db/approvals-core';
 import { getWorkflowTemplate } from '@/lib/db/workflow-templates';
