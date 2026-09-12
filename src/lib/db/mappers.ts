@@ -629,6 +629,9 @@ export function mapDbToRequestLine(row: DbRecord): RequestLine {
     riskAssessmentId: (row.risk_assessment_id ?? row.riskAssessmentId) as string | undefined,
     commodityCode: (row.commodity_code ?? row.commodityCode) as string | undefined,
     deliveryDate: (row.delivery_date ?? row.deliveryDate) as string | undefined,
+    supplierPartId: (row.supplier_part_id ?? row.supplierPartId) as string | undefined,
+    unitOfMeasureCode: (row.unit_of_measure_code ?? row.unitOfMeasureCode) as string | undefined,
+    lineNumber: row.line_number != null ? Number(row.line_number) : undefined,
   };
 }
 
@@ -912,6 +915,8 @@ export function mapDbToPurchaseOrder(row: DbRecord): PurchaseOrder {
     shipToLocationId: (row.ship_to_location_id ?? row.shipToLocationId) as string | undefined,
     beneficiaryId: (row.beneficiary_id ?? row.beneficiaryId) as string | undefined,
     lineItems: (row.line_items ?? row.lineItems ?? []) as PurchaseOrder['lineItems'],
+    ownerId: (row.owner_id ?? row.ownerId) as string | undefined,
+    ownerName: (row.owner_name ?? row.ownerName) as string | undefined,
   };
 }
 
@@ -934,6 +939,8 @@ export function mapPurchaseOrderToDb(p: Partial<PurchaseOrder>): DbRecord {
   if (p.shipToLocationId !== undefined) out.ship_to_location_id = p.shipToLocationId;
   if (p.beneficiaryId !== undefined) out.beneficiary_id = p.beneficiaryId;
   if (p.lineItems !== undefined) out.line_items = p.lineItems;
+  if (p.ownerId !== undefined) out.owner_id = p.ownerId;
+  if (p.ownerName !== undefined) out.owner_name = p.ownerName;
   return out;
 }
 

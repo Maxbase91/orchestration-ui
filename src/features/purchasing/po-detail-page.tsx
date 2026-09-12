@@ -12,6 +12,10 @@ import { usePurchaseOrder } from '@/lib/db/hooks/use-purchase-orders';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { GoodsReceiptForm } from './components/goods-receipt-form';
 import { useCreateGoodsReceipt } from '@/lib/db/hooks/use-goods-receipts';
+import { useRequisitionForRequest } from '@/lib/db/hooks/use-purchase-requisitions';
+import { useRequestLinesForRequest } from '@/lib/db/hooks/use-request-lines';
+import { useUserLookup } from '@/lib/db/hooks/use-users';
+import { orderReadiness } from '@/lib/procurement/order-readiness';
 import { useAuthStore } from '@/stores/auth-store';
 import { toast } from 'sonner';
 import { useComplianceReport } from '@/lib/db/hooks/use-compliance-reports';
@@ -35,6 +39,26 @@ export function PODetailPage() {
   const { data: complianceReport } = useComplianceReport(po?.requestId);
   const currentUser = useAuthStore((state) => state.currentUser);
   const createReceipt = useCreateGoodsReceipt();
+  const { data: lines = [] } = useRequestLinesForRequest(po?.requestId);
+  const { data: requisition } = useRequisitionForRequest(po?.requestId);
+  const owner = useUserLookup()(po?.ownerId);
+  const readiness = orderReadiness(
+    {
+      currency: requisition?.currency,
+      supplierId: po?.supplierId,
+      costCentre: requisition?.costCentre ?? po?.costCentre,
+      shipToLocationId: requisition?.shipToLocationId ?? po?.shipToLocationId,
+    },
+    lines.map((line) => ({
+      lineNumber: line.lineNumber,
+      description: line.description,
+      quantity: line.quantity,
+      unitPrice: line.unitPrice,
+      supplierPartId: line.supplierPartId,
+      unitOfMeasureCode: line.unitOfMeasureCode,
+      commodityCode: line.commodityCode,
+    })),
+  );
 
   /**
    * Record what actually arrived.
@@ -156,6 +180,25 @@ export function PODetailPage() {
         </CardContent>
       </Card>
 
+      {/* Whether this order could actually be handed off. A downstream system
+          rejects a line without a part number, a unit-of-measure code or a
+          classification, and the first anyone knew of that was at the boundary. */}
+      {!readiness.ready && (
+        <Card>
+          <CardHeader><CardTitle className="text-sm text-amber-700">Not ready to hand off</CardTitle></CardHeader>
+          <CardContent className="space-y-1 text-sm">
+            {readiness.gaps.map((gap, index) => (
+              <div key={index} className="flex gap-2">
+                <span className="text-muted-foreground shrink-0">
+                  {gap.line === null ? 'Order' : `Line ${gap.line}`}
+                </span>
+                <span><span className="font-medium">{gap.field}</span> — {gap.detail}</span>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
       {po.status !== 'closed' && (
         <GoodsReceiptForm
           lineItems={po.lineItems}
@@ -171,6 +214,10 @@ export function PODetailPage() {
           <div className="flex justify-between"><span className="text-muted-foreground">Delivery Date</span><span>{formatDate(po.deliveryDate)}</span></div>
           {po.contractId && <div className="flex justify-between"><span className="text-muted-foreground">Contract</span><span className="text-blue-600 cursor-pointer" onClick={() => navigate(`/contracts/${po.contractId}`)}>{po.contractId}</span></div>}
           {po.requestId && <div className="flex justify-between"><span className="text-muted-foreground">Request</span><span>{po.requestId}</span></div>}
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Owner</span>
+            <span>{owner?.name ?? po.ownerName ?? <span className="text-muted-foreground">Unassigned</span>}</span>
+          </div>
         </CardContent>
       </Card>
     </div>

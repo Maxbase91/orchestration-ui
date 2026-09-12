@@ -214,11 +214,27 @@ function requestDb(request: Partial<ProcurementRequest>, fields: { id: string; r
   return { columns: Object.keys(data), values: Object.values(data) };
 }
 
-function lineSql(lines: RequestLine[], requestId: string, requisitionId: string): { sql: string; values: unknown[] } {
-  const columns = ['id', 'request_id', 'requisition_id', 'description', 'quantity', 'unit', 'unit_price', 'supplier_id', 'contract_id', 'catalogue_item_id', 'risk_assessment_id', 'commodity_code', 'delivery_date'];
+/**
+ * The line rows, carrying what a downstream order needs.
+ *
+ * supplier_part_id, unit_of_measure_code and line_number are snapshotted from
+ * the catalogue item rather than joined at hand-off time: re-pricing or
+ * re-coding an item must not rewrite an order already placed. Without them a
+ * catalogue order could supply description, quantity, price and currency and
+ * nothing else, which is not enough to produce a valid cXML OrderRequest —
+ * SupplierPartID, UnitOfMeasure and the line ordinal are all required.
+ */
+function lineSql(
+  lines: RequestLine[],
+  requestId: string,
+  requisitionId: string,
+  itemsById: Map<string, { supplierPartId?: string | null; unitOfMeasureCode?: string | null; commodityCode?: string | null }>,
+): { sql: string; values: unknown[] } {
+  const columns = ['id', 'request_id', 'requisition_id', 'description', 'quantity', 'unit', 'unit_price', 'supplier_id', 'contract_id', 'catalogue_item_id', 'risk_assessment_id', 'commodity_code', 'delivery_date', 'supplier_part_id', 'unit_of_measure_code', 'line_number'];
   const values: unknown[] = [];
-  const groups = lines.map((line) => {
-    const row = [line.id, requestId, requisitionId, line.description, line.quantity, line.unit, line.unitPrice, line.supplierId, line.contractId, line.catalogueItemId ?? null, line.riskAssessmentId ?? null, line.commodityCode ?? null, line.deliveryDate ?? null];
+  const groups = lines.map((line, index) => {
+    const item = line.catalogueItemId ? itemsById.get(line.catalogueItemId) : undefined;
+    const row = [line.id, requestId, requisitionId, line.description, line.quantity, line.unit, line.unitPrice, line.supplierId, line.contractId, line.catalogueItemId ?? null, line.riskAssessmentId ?? null, line.commodityCode ?? item?.commodityCode ?? null, line.deliveryDate ?? null, item?.supplierPartId ?? null, item?.unitOfMeasureCode ?? null, index + 1];
     return `(${row.map((value) => { values.push(value); return `$${values.length}`; }).join(', ')})`;
   });
   return { sql: `INSERT INTO request_lines (${columns.join(', ')}) VALUES ${groups.join(', ')} RETURNING *`, values };
@@ -432,7 +448,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     const reqValues = Object.values(requisitionData);
     const reqPlaceholders = reqValues.map((_, index) => `$${index + 1}`).join(', ');
     const linesForInsert = lines.map((line, index) => ({ ...line, requestId, requisitionId, ...(authoritativeLines[index].item ? { description: authoritativeLines[index].description, unit: authoritativeLines[index].unit, unitPrice: authoritativeLines[index].unitPrice, supplierId: authoritativeLines[index].supplierId, contractId: authoritativeLines[index].contractId ?? contract.id, catalogueItemId: authoritativeLines[index].item?.id, riskAssessmentId: riskAssessment?.id, commodityCode: authoritativeLines[index].commodityCode } : {}) }));
-    const lineInsert = lineSql(linesForInsert, requestId, requisitionId);
+    // The catalogue rows already read above carry the procurement identity.
+    const identityByItem = new Map(catalogueRows.map((row) => [String(row.id), {
+      supplierPartId: row.supplier_part_id as string | null,
+      unitOfMeasureCode: row.unit_of_measure_code as string | null,
+      commodityCode: row.commodity_code as string | null,
+    }]));
+    const lineInsert = lineSql(linesForInsert, requestId, requisitionId, identityByItem);
     const requestInsert = `INSERT INTO requests (${reqData.columns.join(', ')}) VALUES (${reqData.values.map((_, index) => `$${index + 1}`).join(', ')}) RETURNING *`;
     const requisitionInsert = `INSERT INTO purchase_requisitions (${reqColumns.join(', ')}) VALUES (${reqPlaceholders}) RETURNING *`;
     const queries = [
@@ -478,7 +500,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     }
 
     if (decision.status === 'approved') {
-      const po = { id: String(payload?.poId ?? `PO-${requestId}`), supplier_id: supplier.id, supplier_name: supplier.name, value: decision.totalValue, status: 'submitted', created_at: now, delivery_date: checkout.needByDate ?? '', contract_id: contract.id, request_id: requestId, requisition_id: requisitionId, risk_assessment_id: decision.resolved.riskAssessmentId ?? null, cost_centre: decision.resolved.costCentre ?? null, budget_owner: decision.resolved.budgetOwner ?? null, account_type: decision.resolved.accountType ?? null, ship_to_location_id: decision.resolved.shipToLocationId ?? null, beneficiary_id: decision.resolved.beneficiaryId ?? null, line_items: JSON.stringify(linesForInsert.map((line) => ({ description: line.description, quantity: line.quantity, unitPrice: line.unitPrice, received: 0 }))) };
+      const po = { id: String(payload?.poId ?? `PO-${requestId}`), supplier_id: supplier.id, supplier_name: supplier.name,
+        // Who is handling this order. There was no owner concept at all, so the
+        // screens had nothing to show and read as unassigned; budget_owner is
+        // free text and answers a different question.
+        owner_id: request.ownerId ?? request.requestorId ?? null,
+        owner_name: request.beneficiaryName ?? null, value: decision.totalValue, status: 'submitted', created_at: now, delivery_date: checkout.needByDate ?? '', contract_id: contract.id, request_id: requestId, requisition_id: requisitionId, risk_assessment_id: decision.resolved.riskAssessmentId ?? null, cost_centre: decision.resolved.costCentre ?? null, budget_owner: decision.resolved.budgetOwner ?? null, account_type: decision.resolved.accountType ?? null, ship_to_location_id: decision.resolved.shipToLocationId ?? null, beneficiary_id: decision.resolved.beneficiaryId ?? null, line_items: JSON.stringify(linesForInsert.map((line) => ({ description: line.description, quantity: line.quantity, unitPrice: line.unitPrice, received: 0 }))) };
       const poColumns = Object.keys(po); const poValues = Object.values(po);
       queries.push(sql.query(`INSERT INTO purchase_orders (${poColumns.join(', ')}) VALUES (${poValues.map((_, index) => `$${index + 1}`).join(', ')}) RETURNING *`, poValues));
       queries.push(sql.query('UPDATE requests SET po_id = $1, fulfilment_status = $2, updated_at = $3 WHERE id = $4', [po.id, 'po-created', now, requestId]));

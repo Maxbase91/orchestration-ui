@@ -172,7 +172,65 @@ try {
     if (result.movedTo) throw new Error(`p-card has no receipt stage but moved to ${result.movedTo}`);
   });
 
-  console.log('\n4. Every stage after this one has somebody who can leave it');
+  console.log('\n4. The order carries what a hand-off needs');
+
+  const { orderReadiness } = await import('../../src/lib/procurement/order-readiness.ts');
+  const [savedLine] = await sql.query(
+    'SELECT line_number, description, quantity, unit_price, supplier_part_id, unit_of_measure_code, commodity_code FROM request_lines WHERE request_id = $1 ORDER BY line_number', [requestId]);
+  const [savedReq] = await sql.query(
+    'SELECT currency, cost_centre, ship_to_location_id, supplier_id FROM purchase_requisitions WHERE request_id = $1', [requestId]);
+
+  check('the line has an ordinal, not just an id', () => {
+    if (savedLine?.line_number == null) throw new Error('line_number is null — cXML ItemOut requires one');
+  });
+  check('it carries the supplier part number', () => {
+    if (!savedLine?.supplier_part_id) throw new Error('SupplierPartID is mandatory and absent');
+  });
+  check('it carries a unit-of-measure code, not just a word', () => {
+    if (!savedLine?.unit_of_measure_code) throw new Error('no UN/CEFACT code');
+    if (String(savedLine.unit_of_measure_code).length > 4) {
+      throw new Error(`"${savedLine.unit_of_measure_code}" looks like a display word, not a code`);
+    }
+  });
+  check('it carries a commodity classification', () => {
+    if (!savedLine?.commodity_code) throw new Error('no UNSPSC to classify the line');
+  });
+
+  const readiness = orderReadiness(
+    { currency: savedReq?.currency, supplierId: savedReq?.supplier_id,
+      costCentre: savedReq?.cost_centre, shipToLocationId: savedReq?.ship_to_location_id },
+    [{ lineNumber: savedLine?.line_number, description: savedLine?.description,
+       quantity: Number(savedLine?.quantity), unitPrice: Number(savedLine?.unit_price),
+       supplierPartId: savedLine?.supplier_part_id, unitOfMeasureCode: savedLine?.unit_of_measure_code,
+       commodityCode: savedLine?.commodity_code }]);
+  check('the order reports itself ready to hand off', () => {
+    if (!readiness.ready) throw new Error(readiness.gaps.map((g) => `${g.line ?? 'order'}/${g.field}`).join(', '));
+  });
+
+  const [savedPo] = await sql.query('SELECT owner_id FROM purchase_orders WHERE request_id = $1', [requestId]);
+  check('the purchase order has an owner', () => {
+    if (!savedPo?.owner_id) throw new Error('unassigned — there was no owner concept at all before');
+  });
+
+  console.log('\n   The readiness rule on its own');
+  check('a line with no part number is not ready', () => {
+    const result = orderReadiness({ currency: 'EUR', supplierId: 'S', costCentre: 'C', shipToLocationId: 'L' },
+      [{ lineNumber: 1, description: 'x', quantity: 1, unitPrice: 1, unitOfMeasureCode: 'EA', commodityCode: '44000000' }]);
+    if (result.ready) throw new Error('a missing SupplierPartID passed');
+  });
+  check('a line with a zero quantity is not ready', () => {
+    const result = orderReadiness({ currency: 'EUR', supplierId: 'S', costCentre: 'C', shipToLocationId: 'L' },
+      [{ lineNumber: 1, description: 'x', quantity: 0, unitPrice: 1, supplierPartId: 'P', unitOfMeasureCode: 'EA', commodityCode: '4' }]);
+    if (result.ready) throw new Error('a zero quantity passed');
+  });
+  check('a zero unit price is allowed', () => {
+    // A free line is a real thing; a missing price is not.
+    const result = orderReadiness({ currency: 'EUR', supplierId: 'S', costCentre: 'C', shipToLocationId: 'L' },
+      [{ lineNumber: 1, description: 'x', quantity: 1, unitPrice: 0, supplierPartId: 'P', unitOfMeasureCode: 'EA', commodityCode: '4' }]);
+    if (!result.ready) throw new Error(result.gaps.map((g) => g.field).join(', '));
+  });
+
+  console.log('\n5. Every stage after this one has somebody who can leave it');
 
   const { readFileSync } = await import('node:fs');
   const actions = readFileSync(new URL('../../src/features/requests/request-detail/components/action-buttons.tsx', import.meta.url), 'utf8');

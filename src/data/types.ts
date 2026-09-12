@@ -317,6 +317,9 @@ export interface PurchaseOrder {
   shipToLocationId?: string;
   beneficiaryId?: string;
   lineItems: { description: string; quantity: number; unitPrice: number; received: number }[];
+  /** Who is handling this order. There was no owner concept at all before. */
+  ownerId?: string;
+  ownerName?: string;
 }
 
 /** Lifecycle of the internal requisition that precedes PO creation. */
@@ -347,6 +350,12 @@ export interface RequestLine {
   riskAssessmentId?: string;
   commodityCode?: string;
   deliveryDate?: string;
+  /** Snapshotted from the catalogue item so a later re-code cannot rewrite a placed order. */
+  supplierPartId?: string;
+  /** UN/CEFACT code (EA, PK). `unit` stays the display word. */
+  unitOfMeasureCode?: string;
+  /** Line ordinal — a downstream order requires one, and an id is not it. */
+  lineNumber?: number;
 }
 
 /** Profile defaults keep checkout short while preserving routing inputs. */

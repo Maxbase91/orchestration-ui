@@ -1545,3 +1545,37 @@ CREATE INDEX IF NOT EXISTS approval_entries_request_step_idx
 ALTER TABLE service_descriptions ADD COLUMN IF NOT EXISTS signals           JSONB;
 ALTER TABLE service_descriptions ADD COLUMN IF NOT EXISTS required_sections TEXT[];
 ALTER TABLE service_descriptions ADD COLUMN IF NOT EXISTS capture_flags     JSONB;
+
+-- ── What a purchase order needs to leave the platform ───────────────────────
+-- Measured against the cXML OrderRequest a downstream system expects: every
+-- line requires quantity, lineNumber, SupplierPartID, UnitPrice, Description
+-- and UnitOfMeasure, with Classification (UNSPSC) where the buyer configures
+-- it. A catalogue order could supply description, quantity, price and currency
+-- and none of the rest, so it could not have produced a valid order.
+--
+-- These live on the catalogue item, not on the request: a part number and a
+-- unit of measure are properties of the thing being bought, and asking a
+-- requester for them would be asking the wrong person.
+ALTER TABLE catalogue_items ADD COLUMN IF NOT EXISTS supplier_part_id      TEXT;
+-- UN/CEFACT code (EA, PK, BX). `unit` stays the display word — "bag" reads
+-- better on screen than "BG", and the code is what leaves the building.
+ALTER TABLE catalogue_items ADD COLUMN IF NOT EXISTS unit_of_measure_code  TEXT;
+
+-- Snapshotted onto the line at checkout rather than joined at hand-off time,
+-- so re-pricing or re-coding an item cannot rewrite an order already placed.
+ALTER TABLE request_lines ADD COLUMN IF NOT EXISTS supplier_part_id     TEXT;
+ALTER TABLE request_lines ADD COLUMN IF NOT EXISTS unit_of_measure_code TEXT;
+-- cXML ItemOut requires a line ordinal. The primary key is an opaque id, which
+-- is not the same thing and is not ordered.
+ALTER TABLE request_lines ADD COLUMN IF NOT EXISTS line_number          INTEGER;
+
+-- A call-off normally cites the contract line it draws down, not just the
+-- contract. Suggested from the contract's scope rather than typed.
+ALTER TABLE purchase_requisitions ADD COLUMN IF NOT EXISTS contract_line_item TEXT;
+
+-- ── Purchase order ownership ────────────────────────────────────────────────
+-- There was no owner concept for a PO at all — the nearest field was
+-- budget_owner, which is free text and answers a different question. "Who is
+-- handling this order" had no answer, which is what showed as unassigned.
+ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS owner_id   TEXT REFERENCES users(id);
+ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS owner_name TEXT;
