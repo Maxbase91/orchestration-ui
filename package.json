@@ -118,7 +118,8 @@
     "backfill:category-managers": "node --import tsx/esm db/backfills/2026-09-10-category-managers.mjs",
     "backfill:checkout-lifecycle": "node --import tsx/esm db/backfills/2026-09-10-checkout-lifecycle-records.mjs",
     "backfill:compliance": "node --import tsx/esm tests/integration/backfill-compliance-fields.mjs",
-    "backfill:intake-compliance": "node db/backfills/apply-sql.mjs db/backfills/2026-09-02-intake-compliance-records.sql"
+    "backfill:intake-compliance": "node db/backfills/apply-sql.mjs db/backfills/2026-09-02-intake-compliance-records.sql",
+    "test:assistant-boundary": "node --import tsx/esm tests/integration/assistant-boundary.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

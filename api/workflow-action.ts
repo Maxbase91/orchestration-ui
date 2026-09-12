@@ -13,6 +13,25 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Workflow action failed.';
 }
 
+/**
+ * The stages a request can be moved to. Mirrors RequestStatus in
+ * src/data/types.ts — duplicated rather than imported because that module
+ * pulls the whole domain-type graph into a serverless cold start.
+ *
+ * The endpoint used to write any non-empty string straight into
+ * requests.status, so a typo — or a caller inventing one — left a request in a
+ * stage no screen knows how to render and no transition can leave. The
+ * client's stage machine (src/lib/workflow) has never had a server
+ * counterpart; this is the minimum half of it, and it is a validity check, not
+ * a legality check: it says the stage exists, not that this request may go
+ * there next. See the security assessment for the rest.
+ */
+const REQUEST_STATUSES = new Set([
+  'draft', 'intake', 'validation', 'approval', 'risk', 'onboarding', 'sourcing',
+  'contracting', 'po', 'receipt', 'invoice', 'payment', 'completed', 'cancelled',
+  'referred-back',
+]);
+
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed', code: 'method_not_allowed' });
@@ -26,6 +45,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   if (typeof requestId !== 'string' || typeof action !== 'string' || typeof newStatus !== 'string'
     || !requestId.trim() || !action.trim() || !newStatus.trim()) {
     res.status(400).json({ error: 'requestId, action and newStatus are required.', code: 'validation_error' });
+    return;
+  }
+  if (!REQUEST_STATUSES.has(newStatus.trim())) {
+    res.status(400).json({ error: 'That is not a stage a request can be in.', code: 'unknown_stage' });
     return;
   }
 

@@ -1,7 +1,11 @@
 // Confirm-before-act card for assistant-proposed actions (R1 boundary: the
 // assistant proposes, the user confirms — no action runs without this step).
-// Renders the read-back of what will happen so the user approves the exact
-// intent, not a paraphrase.
+//
+// `turn.readBack` is built server-side from the action and its parameters
+// (api/_action-description.ts), not written by the model, so the sentence and
+// the queued write cannot disagree. The resolved targets are listed under it
+// because a plausible sentence about the wrong record is the failure this card
+// exists to catch.
 import { ShieldCheck, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { ConfirmTurn } from '@/data/types';
@@ -25,6 +29,16 @@ export function TurnConfirm({ turn, onConfirm, onCancel, disabled }: Props) {
       <p className="text-[13px] text-gray-800 whitespace-pre-wrap leading-relaxed">
         {turn.readBack}
       </p>
+      {turn.facts && turn.facts.length > 0 && (
+        <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[12px]">
+          {turn.facts.map((fact) => (
+            <div key={fact.label} className="contents">
+              <dt className="text-amber-800/80">{fact.label}</dt>
+              <dd className="text-gray-900 font-medium break-words">{fact.value}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
       <div className="flex gap-2">
         <Button
           size="sm"

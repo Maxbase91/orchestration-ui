@@ -688,7 +688,14 @@ export interface DeepLinkTurn {
 
 export interface ConfirmTurn {
   type: 'confirm';
+  /**
+   * What the action will do, built server-side from `actionType` and
+   * `actionParams` (api/_action-description.ts). Not the model's wording — the
+   * card must describe the write that is actually queued.
+   */
   readBack: string;
+  /** The resolved targets behind the sentence, so a wrong subject is visible. */
+  facts?: Array<{ label: string; value: string }>;
   actionType: string;
   actionParams: Record<string, unknown>;
   actionId: string;

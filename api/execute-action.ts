@@ -125,7 +125,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     ? actionParams as Params
     : {};
   const actor = text(userId) || 'unknown';
-  const actorName = text(userName) || 'Unknown User';
+  // The caller sends a display name alongside the id, and the audit row used
+  // to record it verbatim — so the trail named whoever the request claimed,
+  // and two calls with the same id could be attributed to different people.
+  // Resolve it from the directory instead and keep the claimed name only when
+  // the id is unknown, so an audit row is never silently attributed to a
+  // person who is not the one the id identifies.
+  let actorName = text(userName) || 'Unknown User';
+  if (actor !== 'unknown') {
+    const [known] = await queryRows(getNeonClient(), 'SELECT name FROM users WHERE id = $1', [actor]);
+    if (known?.name) actorName = String(known.name);
+  }
 
   const plan = planAction(type, params);
   if (!plan) {
@@ -242,7 +252,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     } catch (error) {
       // A repeated confirmation collides on the audit id. The action already
       // ran the first time, so report what it did rather than an error.
-      if (id && /duplicate key|unique constraint/i.test(errorMessage(error))) { answer(res, reply); return; }
+      // A repeated confirmation collides on the audit id — but so does a
+      // caller who supplies an id already in the table, and the whole batch
+      // rolls back either way. Reporting success on the collision alone told
+      // the user an action had run when nothing had. Confirm the existing row
+      // is the same action by the same actor before saying so.
+      if (id && /duplicate key|unique constraint/i.test(errorMessage(error))) {
+        const [prior] = await queryRows(
+          sql, 'SELECT action, object_id, user_id FROM audit_entries WHERE id = $1', [id],
+        );
+        if (prior && String(prior.action) === plan.action && String(prior.user_id) === actor
+          && String(prior.object_id) === objectId) {
+          answer(res, reply);
+          return;
+        }
+        res.status(409).json({ error: 'That confirmation could not be recorded, so nothing was changed.', code: 'audit_conflict' });
+        return;
+      }
       throw error;
     }
     answer(res, reply);

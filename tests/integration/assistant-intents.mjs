@@ -82,8 +82,13 @@ check('provider function citation markers are stripped before display',
   chatSrc.includes('stripTechnicalSourceMarkers') && chatSrc.includes('functions\\.)?') && chatSrc.includes('["\']source["\']'));
 check('plain source markers are stripped before display', chatSrc.includes('source\\s*】'));
 check('provider source result markers are stripped before display', chatSrc.includes('source\\s*:\\s*(?:functions\\.)?') && chatSrc.includes('(?:\\s+result)?'));
-check('most-recent PO lookup is requester-scoped and date-ordered',
-  chatSrc.includes("eq('requestor_id', userId)") && chatSrc.includes("order('created_at', { ascending: false })"));
+// Scoping now goes through the shared ownedRequestIds() helper, which matches
+// the requester *or* the owner — the same rule the requests and invoice
+// branches use, rather than the requester-only test this pinned before.
+check('most-recent PO lookup is scoped to the caller and date-ordered',
+  chatSrc.includes('ownedRequestIds(userId)') && chatSrc.includes("order('created_at', { ascending: false })"));
+check('the caller scope is requester or owner',
+  chatSrc.includes('`requestor_id.eq.${userId},owner_id.eq.${userId}`'));
 check('most-recent PO answers bypass model list selection',
   chatSrc.includes('latestPOQuestion') && chatSrc.includes("execFilterObjects('purchase_orders', undefined, 1, userId)"));
 

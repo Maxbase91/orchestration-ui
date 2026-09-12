@@ -21,12 +21,31 @@ const assert = (cond, n, d) => (cond ? pass(n, d) : fail(n, d));
 
 const PREFIX = 'E2E-DRV-';
 
+/**
+ * Remove this suite's fixtures.
+ *
+ * It used to delete with `.like('id', 'E2E-DRV-%')` and ignore the result. A
+ * pattern match is not a filter /api/db accepts for a destructive write — an
+ * unauthenticated endpoint should not take "everything starting with" as a
+ * delete predicate — so the calls were refused, and because nothing read the
+ * error the suite left one contract behind per run. They accumulated in the
+ * live store until test:neon-live started failing on contracts with no scope
+ * metadata, which is how this was found.
+ *
+ * Selecting is unrestricted, so the prefix search happens in the read and the
+ * delete names the exact ids it found. The error is checked now.
+ */
 async function cleanup() {
   // Requests first (they reference contracts), then invoices, then
   // contracts. FK on delete for some is SET NULL which is fine.
-  await sb.from('requests').delete().like('id', `${PREFIX}%`);
-  await sb.from('invoices').delete().like('id', `${PREFIX}%`);
-  await sb.from('contracts').delete().like('id', `${PREFIX}%`);
+  for (const table of ['requests', 'invoices', 'contracts']) {
+    const { data, error: readError } = await sb.from(table).select('id').like('id', `${PREFIX}%`);
+    if (readError) throw new Error(`cleanup could not list ${table}: ${readError.message}`);
+    const ids = (data ?? []).map((row) => row.id).filter(Boolean);
+    if (ids.length === 0) continue;
+    const { error } = await sb.from(table).delete().in('id', ids);
+    if (error) throw new Error(`cleanup could not delete ${ids.length} ${table}: ${error.message}`);
+  }
 }
 
 async function pickTestSupplier() {
