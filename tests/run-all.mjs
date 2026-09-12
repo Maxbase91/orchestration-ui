@@ -36,16 +36,30 @@ const BROWSER = new Set([
   'test:dashboard-ui', 'test:reference-data-ui',
 ]);
 
+// Suites that call a third party. Kept out of the default gate because a
+// per-commit check must not depend on someone else's uptime: `test:models` asks
+// Groq and Gemini what they currently serve, so an outage at either would
+// redden a pull request that has nothing to do with them. What it guards
+// against — a model id retired out from under us — is a periodic concern, not a
+// per-commit one, so run it deliberately: `npm run test:models`, or
+// `npm run test:all -- --external`.
+//
+// It also needs GROQ_API_KEY / GEMINI_API_KEY, which CI does not carry; without
+// them it can check nothing, which is how it failed the first time it ran there.
+const EXTERNAL = new Set(['test:models']);
+
 // This runner is itself registered as `test:all`; without excluding the
 // aggregates, discovery finds them and the run recurses into itself.
 const AGGREGATE = new Set(['test:all', 'test:ui:all']);
 
 const includeBrowser = process.argv.includes('--browser');
+const includeExternal = process.argv.includes('--external');
 const scripts = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).scripts;
 const suites = Object.keys(scripts)
   .filter((name) => name.startsWith('test:'))
   .filter((name) => !AGGREGATE.has(name))
   .filter((name) => includeBrowser || !BROWSER.has(name))
+  .filter((name) => includeExternal || !EXTERNAL.has(name))
   .sort();
 
 const passed = [];
