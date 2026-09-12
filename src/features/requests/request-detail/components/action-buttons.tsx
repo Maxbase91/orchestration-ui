@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Check, X, RotateCcw, UserPlus, ArrowUpRight, Ban, ShoppingCart, Loader2, Gavel, ArrowRight } from 'lucide-react';
 import { canActOnApproval } from '@/lib/procurement/approval-derivation';
+import { useIsCategoryManager } from '@/lib/db/hooks/use-category-managers';
 import { useRequestSupplierCandidates } from '@/lib/db/hooks/use-request-supplier-candidates';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -103,7 +104,9 @@ export function ActionButtons({ request }: ActionButtonsProps) {
   // "Payment released"); there was simply no role allowed to use it.
   const STAGE_ADVANCERS: Record<string, string[]> = {
     risk: ['vendor-manager', 'admin'],
-    validation: ['operations-lead', 'procurement-manager', 'admin'],
+    // `validation` is deliberately absent: it is owned by the category manager
+    // assigned to this request's category, not by a system role. See
+    // canAdvanceValidation below.
     onboarding: ['vendor-manager', 'procurement-manager', 'admin'],
     contracting: ['procurement-manager', 'admin'],
     // Receipting and payment are operations work, not category work.
@@ -111,7 +114,20 @@ export function ActionButtons({ request }: ActionButtonsProps) {
     invoice: ['operations-lead', 'admin'],
     payment: ['operations-lead', 'admin'],
   };
-  const roleCanAdvanceStage = (STAGE_ADVANCERS[request.status] ?? []).includes(currentRole);
+  // Validation asks the category manager whether the demand is complete and
+  // correctly routed, and WF-001's n3 names "Category Manager" as its role.
+  // There is no such system role — it is an assignment in `category_managers`
+  // — so the gate read a hardcoded list of operations-lead/procurement-manager
+  // /admin instead. The screen therefore named a role that could not act, the
+  // person actually accountable for the category had no button, and REQ-2025-9362
+  // sat in validation for seven days against a three-day SLA with nobody able
+  // to see why. Admin keeps a way through so a request cannot strand when a
+  // category has no manager assigned.
+  const isCategoryManager = useIsCategoryManager(currentUser.id, request.category);
+  const canAdvanceValidation = request.status === 'validation'
+    && (isCategoryManager || currentRole === 'admin');
+  const roleCanAdvanceStage = canAdvanceValidation
+    || (STAGE_ADVANCERS[request.status] ?? []).includes(currentRole);
   const showGateAction =
     !isTerminalStatus(request.status) &&
     request.status !== 'approval' &&

@@ -16,14 +16,24 @@ import type { BuyingChannel, RequestStatus } from '@/data/types';
  *                         executed as a framework, just a call-off)
  *   - p-card:             route to the approved P-card process after review;
  *                         this platform does not execute payment
- *   - procurement-led:    full 9-stage flow (intake → payment)
+ *   - procurement-led:    full flow (intake → payment)
+ *
+ * `validation` is on the procurement-led path only. It is the category
+ * manager's check that the demand is complete, correctly categorised and
+ * routed to the right channel — a question that only has an answer when the
+ * demand is going to market. A catalogue order takes its category and supplier
+ * from the item; a framework call-off takes them from the contract, which was
+ * validated when it was signed. Asking a category manager to re-validate those
+ * is a queue with nothing in it to decide, and it is why requests sat in
+ * validation for days: every channel entered a stage most of them had no use
+ * for.
  */
 const STAGES_BY_CHANNEL: Record<BuyingChannel, RequestStatus[]> = {
   catalogue:            ['intake', 'approval', 'po', 'receipt', 'invoice', 'payment'],
-  'direct-po':          ['intake', 'validation', 'approval', 'po', 'receipt', 'invoice', 'payment'],
-  'business-led':       ['intake', 'validation', 'risk', 'onboarding', 'approval', 'po', 'receipt', 'invoice', 'payment'],
-  'framework-call-off': ['intake', 'validation', 'risk', 'onboarding', 'approval', 'po', 'receipt', 'invoice', 'payment'],
-  'p-card':             ['intake', 'validation', 'approval'],
+  'direct-po':          ['intake', 'approval', 'po', 'receipt', 'invoice', 'payment'],
+  'business-led':       ['intake', 'risk', 'onboarding', 'approval', 'po', 'receipt', 'invoice', 'payment'],
+  'framework-call-off': ['intake', 'risk', 'onboarding', 'approval', 'po', 'receipt', 'invoice', 'payment'],
+  'p-card':             ['intake', 'approval'],
   // `risk` sits after validation and is entered only when the intake triage
   // required one — see the conditional edge in WF-001. It appears in the stage
   // list so the stepper can render it as skipped rather than omitting it.

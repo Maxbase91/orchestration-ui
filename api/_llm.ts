@@ -1,7 +1,16 @@
 // Shared LLM helper — tries Groq first, falls back to Gemini
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+// The fallback model, named rather than buried in the URL so every model id in
+// this file sits in one place and `test:models` can check it is still served.
+//
+// Was `gemini-2.0-flash`, which Google shut down on 2026-06-01 — so the Gemini
+// fallback had been dead for three months and nothing caught it: GEMINI_API_KEY
+// is absent from local .env files, so the path never ran outside production,
+// where it only fires when Groq is already failing. That is the worst place for
+// a silent second failure.
+export const GEMINI_MODEL = 'gemini-3.8-flash';
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 // The Gemini body, only as deep as the fields read below. `response.json()` is
 // `unknown`, and this file sat outside every tsconfig until api/ gained one, so

@@ -55,6 +55,15 @@ export interface FormTemplate {
   createdBy: string;
 }
 
+// Stage placement was reviewed on 2026-09-12 (see
+// db/backfills/2026-09-12-form-stage-placement.mjs for the per-form reasoning).
+// Two are `disabled` rather than deleted, so the templates and any historic
+// submissions stay readable: FORM-001 asks only what the intake triage and the
+// supplier record already answer, and FORM-007 duplicates the goods-receipt
+// mechanism that actually advances the request.
+//
+// `triggerStages` must contain RequestStatus values — FORM-003 sat on
+// `supplier-onboarding` for months and never fired once. `test:forms` checks it.
 export const formTemplates: FormTemplate[] = [
   // ── 1. Risk Assessment Triage ──────────────────────────────────────
   {
@@ -62,7 +71,7 @@ export const formTemplates: FormTemplate[] = [
     name: 'Risk Assessment Triage',
     description:
       'Quick triage to determine whether a full Supplier Risk Assessment (SRA) is required for this engagement.',
-    status: 'active',
+    status: 'disabled',
     category: 'Risk',
     triggerStages: ['validation'],
     version: '1.2',
@@ -170,7 +179,7 @@ export const formTemplates: FormTemplate[] = [
       'Comprehensive supplier risk assessment for engagements that exceed the triage thresholds.',
     status: 'active',
     category: 'Risk',
-    triggerStages: ['validation'],
+    triggerStages: ['risk'],
     version: '2.0',
     lastModified: '2024-12-01T14:30:00Z',
     createdBy: 'u1',
@@ -317,7 +326,7 @@ export const formTemplates: FormTemplate[] = [
       'Captures key vendor master data required for supplier registration in the ERP system.',
     status: 'active',
     category: 'Procurement',
-    triggerStages: ['supplier-onboarding'],
+    triggerStages: ['onboarding'],
     version: '1.0',
     lastModified: '2024-10-05T11:00:00Z',
     createdBy: 'u9',
@@ -618,7 +627,7 @@ export const formTemplates: FormTemplate[] = [
       'Security review for software, SaaS and cloud-based procurement to ensure compliance with IT security policies.',
     status: 'active',
     category: 'Risk',
-    triggerStages: ['validation'],
+    triggerStages: ['risk'],
     triggerConditions: [
       { field: 'category', operator: 'equals', value: 'software' },
     ],
@@ -742,7 +751,7 @@ export const formTemplates: FormTemplate[] = [
     name: 'Goods Receipt Confirmation',
     description:
       'Confirms receipt and inspection of physical goods against the purchase order.',
-    status: 'active',
+    status: 'disabled',
     category: 'Operations',
     triggerStages: ['receipt'],
     version: '1.0',
