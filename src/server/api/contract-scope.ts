@@ -8,6 +8,15 @@ type Row = Record<string, unknown>;
 const isRecord = (value: unknown): value is Row => Boolean(value && typeof value === 'object' && !Array.isArray(value));
 const strings = (value: unknown): string[] => Array.isArray(value) && value.every((item) => typeof item === 'string') ? value : [];
 const text = (value: unknown): string => typeof value === 'string' ? value.trim() : '';
+/**
+ * A payload `validate` refuses. Split out from every other failure because the
+ * catch used to answer 400 with `error.message` whatever threw — so a Postgres
+ * error naming a table, a constraint or a conflicting row value was handed
+ * straight back to the caller. Only what the caller can fix is echoed.
+ */
+class ContractScopeInputError extends Error {
+  constructor(message: string) { super(message); this.name = 'ContractScopeInputError'; }
+}
 const errorText = (error: unknown): string => error instanceof Error ? error.message : 'Contract coverage is unavailable.';
 function mapVersion(row: Row): Row {
   return {
@@ -22,17 +31,17 @@ function mapDeliverable(row: Row): Row { return { id: String(row.id), scopeVersi
 function mapExclusion(row: Row): Row { return { id: String(row.id), scopeVersionId: String(row.scope_version_id), term: text(row.term), reason: text(row.reason) || undefined }; }
 
 function validate(body: unknown): { contractId: string; scope: Row; deliverables: Row[]; exclusions: Row[] } {
-  if (!isRecord(body) || !text(body.contractId) || !isRecord(body.scope)) throw new Error('contractId and scope are required.');
+  if (!isRecord(body) || !text(body.contractId) || !isRecord(body.scope)) throw new ContractScopeInputError('contractId and scope are required.');
   const scope = body.scope;
-  if (!text(scope.effectiveFrom) || !text(scope.scopeNarrative) || !text(scope.serviceFamily)) throw new Error('Effective date, service family, and scope narrative are required.');
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(text(scope.effectiveFrom)) || (text(scope.effectiveTo) && !/^\d{4}-\d{2}-\d{2}$/.test(text(scope.effectiveTo)))) throw new Error('Scope dates must use YYYY-MM-DD.');
-  if (text(scope.effectiveTo) && text(scope.effectiveTo) < text(scope.effectiveFrom)) throw new Error('Scope end date cannot precede its start date.');
-  if (scope.status !== undefined && !['draft', 'active', 'superseded'].includes(text(scope.status))) throw new Error('Invalid scope status.');
-  for (const field of ['eligibleCategories', 'geographies', 'businessUnits', 'callOffRequirements']) if (!Array.isArray(scope[field]) || !strings(scope[field]).every(Boolean)) throw new Error(`${field} must be a list of text values.`);
+  if (!text(scope.effectiveFrom) || !text(scope.scopeNarrative) || !text(scope.serviceFamily)) throw new ContractScopeInputError('Effective date, service family, and scope narrative are required.');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text(scope.effectiveFrom)) || (text(scope.effectiveTo) && !/^\d{4}-\d{2}-\d{2}$/.test(text(scope.effectiveTo)))) throw new ContractScopeInputError('Scope dates must use YYYY-MM-DD.');
+  if (text(scope.effectiveTo) && text(scope.effectiveTo) < text(scope.effectiveFrom)) throw new ContractScopeInputError('Scope end date cannot precede its start date.');
+  if (scope.status !== undefined && !['draft', 'active', 'superseded'].includes(text(scope.status))) throw new ContractScopeInputError('Invalid scope status.');
+  for (const field of ['eligibleCategories', 'geographies', 'businessUnits', 'callOffRequirements']) if (!Array.isArray(scope[field]) || !strings(scope[field]).every(Boolean)) throw new ContractScopeInputError(`${field} must be a list of text values.`);
   const deliverables = Array.isArray(body.deliverables) ? body.deliverables.filter(isRecord) : [];
-  if (deliverables.length === 0 || deliverables.some((item) => !text(item.name))) throw new Error('At least one deliverable is required.');
+  if (deliverables.length === 0 || deliverables.some((item) => !text(item.name))) throw new ContractScopeInputError('At least one deliverable is required.');
   const exclusions = Array.isArray(body.exclusions) ? body.exclusions.filter(isRecord) : [];
-  if (exclusions.some((item) => !text(item.term))) throw new Error('Exclusion terms must be text values.');
+  if (exclusions.some((item) => !text(item.term))) throw new ContractScopeInputError('Exclusion terms must be text values.');
   return { contractId: text(body.contractId), scope, deliverables, exclusions };
 }
 
@@ -69,6 +78,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     await sql.transaction(queries);
     res.status(200).json({ id: versionId, savedAt: now });
   } catch (error) {
-    res.status(400).json({ error: errorText(error), code: 'contract_scope_error' });
+    if (error instanceof ContractScopeInputError) {
+      res.status(400).json({ error: error.message, code: 'validation_error' });
+      return;
+    }
+    console.error('[contract-scope]', errorText(error));
+    res.status(500).json({ error: 'Contract coverage is unavailable.', code: 'contract_scope_failed' });
   }
 }

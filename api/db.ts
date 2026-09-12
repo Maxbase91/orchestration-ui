@@ -53,6 +53,27 @@ const ALLOWED_RELATIONS = new Set([
 ]);
 
 const ALLOWED_FUNCTIONS = new Set(['next_ticket_id', 'next_sourcing_event_id', 'next_request_id']);
+/**
+ * A request this endpoint refuses on its own terms — an unknown relation, a
+ * bad identifier, a write with no narrowing filter.
+ *
+ * These describe the *request* and are safe to hand back, so the caller can
+ * see what it got wrong. Anything else reaching the catch came from Postgres,
+ * whose messages name tables, columns, constraints and — in a unique or
+ * foreign-key violation — the conflicting row value itself
+ * (`Key (email)=(...) already exists`). Returning those turned the endpoint
+ * into a read oracle for data the query never selected, so they are logged
+ * and answered with a generic sentence and a code.
+ */
+export class DbRequestError extends Error {
+  readonly code: string;
+  constructor(message: string, code: string) {
+    super(message);
+    this.name = 'DbRequestError';
+    this.code = code;
+  }
+}
+
 const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const columnTypeCache = new Map<string, Map<string, string>>();
 
@@ -81,7 +102,7 @@ export interface DbRequest {
 }
 
 function quoteIdentifier(value: string): string {
-  if (!IDENTIFIER.test(value)) throw new Error('Invalid database identifier');
+  if (!IDENTIFIER.test(value)) throw new DbRequestError('Invalid database identifier', 'invalid_identifier');
   return `"${value}"`;
 }
 
@@ -132,7 +153,7 @@ function addFilter(parts: string[], params: unknown[], filter: Filter, types: Ma
       parts.push(`${column} IN (${placeholders.join(', ')})`);
       break;
     }
-    default: throw new Error(`Unsupported filter operator: ${filter.operator}`);
+    default: throw new DbRequestError(`Unsupported filter operator: ${filter.operator}`, 'unsupported_operator');
   }
 }
 
@@ -148,7 +169,7 @@ function whereClause(request: DbRequest, params: unknown[], types: Map<string, s
 function bodyRows(body: unknown): Record<string, unknown>[] {
   const rows = Array.isArray(body) ? body : [body];
   if (rows.length === 0 || rows.some((row) => !row || typeof row !== 'object' || Array.isArray(row))) {
-    throw new Error('Database writes require object records');
+    throw new DbRequestError('Database writes require object records', 'invalid_body');
   }
   return rows as Record<string, unknown>[];
 }
@@ -228,32 +249,68 @@ export function parameterValue(value: unknown, column: string, types: Map<string
 }
 
 /**
- * Refuse a DELETE or UPDATE with no filter, before touching the database.
+ * Refuse a DELETE or UPDATE that does not narrow to specific rows.
  *
  * An unfiltered destructive statement rewrites or empties a whole table. Every
- * legitimate caller in src/lib/db filters by id, so requiring a filter costs
- * nothing and removes the worst thing this endpoint can be made to do.
+ * legitimate caller in src/lib/db filters by a value it holds — an id, a
+ * request id, a category — so requiring one costs nothing and removes the
+ * worst thing this endpoint can be made to do.
+ *
+ * Testing only that a filter is *present* was not enough: `neq` with a null
+ * value and `is` with any non-null value both compile to `col IS NOT NULL`
+ * (addFilter above), which matches every row with a value in that column. So
+ * `{operation:'delete', table:'audit_entries', filters:[{column:'id',
+ * operator:'neq', value:null}]}` satisfied a presence check and emptied the
+ * table. The guard therefore asks which operator was used, not how many
+ * filters were supplied: only an equality or a set membership against a real
+ * value can select a bounded set of rows.
+ *
+ * An or-group counts only when *every* clause in it narrows — an OR widens, so
+ * one open clause opens the whole group.
  *
  * This is a blast-radius guard, **not** authorization: /api/db still accepts
  * requests from anyone who can reach the deployment. Real protection needs
  * authentication, which ADR-0003 defers along with the rest of the identity
  * model — do not read this guard as that gap being closed.
  */
+function narrowsToRows(filter: Filter): boolean {
+  switch (filter.operator) {
+    // Equality against a real value. `eq` with null becomes IS NULL, which is
+    // a whole-partition predicate, not a row selector.
+    case 'eq': return filter.value !== null && filter.value !== undefined;
+    // Membership in a caller-supplied set. An empty array compiles to FALSE,
+    // which is harmless but selects nothing, so it need not count either.
+    case 'in':
+    case 'cs': return Array.isArray(filter.value) && filter.value.length > 0;
+    // Everything else — neq, is, the range operators, like/ilike — can match
+    // an unbounded share of the table and never counts on its own.
+    default: return false;
+  }
+}
+
 export function assertFilteredWrite(request: Pick<DbRequest, 'operation' | 'filters' | 'orFilters'>): void {
   if (request.operation !== 'delete' && request.operation !== 'update') return;
-  const filtered = (request.filters?.length ?? 0) > 0 || (request.orFilters?.length ?? 0) > 0;
-  if (!filtered) throw new Error(`An unfiltered ${request.operation} is refused; add a filter`);
+  const orGroup = request.orFilters ?? [];
+  const narrowed = (request.filters ?? []).some(narrowsToRows)
+    || (orGroup.length > 0 && orGroup.every(narrowsToRows));
+  if (!narrowed) {
+    throw new DbRequestError(
+      `A ${request.operation} must be narrowed by an eq, in or cs filter on a real value; `
+      + 'a filter that matches every row is refused',
+      'unfiltered_write',
+    );
+  }
 }
 
 export async function executeNeonRequest(request: DbRequest): Promise<unknown> {
   assertFilteredWrite(request);
   const sql = getNeonClient();
   if (request.operation === 'rpc') {
-    if (!request.functionName || !ALLOWED_FUNCTIONS.has(request.functionName)) throw new Error('Unsupported database function');
+    if (!request.functionName || !ALLOWED_FUNCTIONS.has(request.functionName)) throw new DbRequestError('Unsupported database function', 'unsupported_function');
     const rows = await queryRows(sql, `SELECT ${quoteIdentifier(request.functionName)}() AS value`);
     return rows[0]?.value ?? null;
   }
-  if (!request.table || !ALLOWED_RELATIONS.has(request.table)) throw new Error('Unsupported database relation');
+  if (!request.table || !ALLOWED_RELATIONS.has(request.table)) throw new DbRequestError('Unsupported database relation', 'unsupported_relation');
   const relation = quoteIdentifier(request.table);
   const types = await columnTypes(request.table);
   const params: unknown[] = [];
@@ -277,8 +334,8 @@ export async function executeNeonRequest(request: DbRequest): Promise<unknown> {
     }
     const rows = await queryRows(sql, `SELECT ${selectList(request.select)} FROM ${relation}${suffix}`, params);
     if (!request.single) return rows;
-    if (rows.length > 1) throw new Error('Expected at most one database row');
-    if (!rows[0] && request.single === 'one') throw new Error('Expected exactly one database row, found none');
+    if (rows.length > 1) throw new DbRequestError('Expected at most one database row', 'not_single');
+    if (!rows[0] && request.single === 'one') throw new DbRequestError('Expected exactly one database row, found none', 'not_found');
     return rows[0] ?? null;
   }
   if (request.operation === 'delete') {
@@ -295,7 +352,7 @@ export async function executeNeonRequest(request: DbRequest): Promise<unknown> {
   // guard against it lived inside the deleted api/seed.ts, as a workaround in
   // the caller rather than a rule at the boundary.
   const columns = [...new Set(rows.flatMap((row) => Object.keys(row)))];
-  if (columns.length === 0 || columns.some((column) => !IDENTIFIER.test(column))) throw new Error('Invalid database write columns');
+  if (columns.length === 0 || columns.some((column) => !IDENTIFIER.test(column))) throw new DbRequestError('Invalid database write columns', 'invalid_columns');
   const quotedColumns = columns.map(quoteIdentifier).join(', ');
   const bodyParams: unknown[] = [];
   const valueGroups = () => rows.map((row) => `(${columns.map((column) => {
@@ -372,6 +429,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Database request failed';
     console.error('[neon-db]', message);
-    res.status(500).json({ data: null, error: message });
+    // A refusal is the caller's to fix and says nothing about the data; a
+    // database error is logged above and never echoed (see DbRequestError).
+    if (error instanceof DbRequestError) {
+      res.status(400).json({ data: null, error: message, code: error.code });
+      return;
+    }
+    res.status(500).json({ data: null, error: 'Database request failed.', code: 'database_error' });
   }
 }

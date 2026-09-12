@@ -130,7 +130,7 @@ const checks = [
   // which is how three defects reached users unseen.
   ['no Supabase fallback remains on the server', !dbAdmin.includes('@supabase/supabase-js') && !dbAdmin.includes('SUPABASE_SERVICE_ROLE_KEY')],
   ['the browser has one client, not a provider switch', !client.includes('VITE_DATABASE_PROVIDER') && !browserClient.includes('createClient(')],
-  ['a destructive write must be filtered', endpoint.includes('assertFilteredWrite') && endpoint.includes('An unfiltered')],
+  ['a destructive write must narrow to rows', endpoint.includes('assertFilteredWrite') && endpoint.includes('narrowsToRows')],
   ['browser client uses the API endpoint', client.includes("fetch('/api/db'")],
   ['query parameters are cast to their column type, not to text', endpoint.includes('castForColumn') && !endpoint.includes("return '::text';\n}")],
   ['endpoint has an explicit relation allowlist', endpoint.includes('ALLOWED_RELATIONS') && endpoint.includes('Unsupported database relation')],

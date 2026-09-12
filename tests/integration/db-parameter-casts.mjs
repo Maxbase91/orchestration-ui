@@ -136,6 +136,56 @@ check('an or-filtered delete is allowed',
   !refuses({ operation: 'delete', orFilters: [{ column: 'id', operator: 'eq', value: 'X' }] }));
 check('an unfiltered select is untouched', !refuses({ operation: 'select' }));
 
+// The guard used to test only that a filter was *present*. Two operators
+// satisfy that and still match every row: `neq` with a null value and `is`
+// with any non-null value both compile to `col IS NOT NULL`. So a delete
+// carrying one filter emptied the table — the exact outcome the guard exists
+// to prevent. These are the checks that give it teeth.
+check('a neq-null delete is refused (it compiles to IS NOT NULL)',
+  refuses({ operation: 'delete', filters: [{ column: 'id', operator: 'neq', value: null }] }));
+check('an is-not-null update is refused',
+  refuses({ operation: 'update', filters: [{ column: 'id', operator: 'is', value: 'x' }] }));
+check('an eq-null delete is refused (IS NULL selects a partition, not a row)',
+  refuses({ operation: 'delete', filters: [{ column: 'owner_id', operator: 'eq', value: null }] }));
+check('a range-only delete is refused',
+  refuses({ operation: 'delete', filters: [{ column: 'created_at', operator: 'gt', value: '2000-01-01' }] }));
+check('an ilike-only update is refused',
+  refuses({ operation: 'update', filters: [{ column: 'title', operator: 'ilike', value: '%' }] }));
+// An OR widens, so one open clause opens the whole group.
+check('an or-group with one open clause is refused',
+  refuses({ operation: 'delete', orFilters: [
+    { column: 'id', operator: 'eq', value: 'X' },
+    { column: 'id', operator: 'neq', value: null },
+  ] }));
+// What real callers do must still pass.
+check('an in-filtered delete is allowed',
+  !refuses({ operation: 'delete', filters: [{ column: 'id', operator: 'in', value: ['A', 'B'] }] }));
+check('an empty in-list does not count as narrowing',
+  refuses({ operation: 'delete', filters: [{ column: 'id', operator: 'in', value: [] }] }));
+// src/lib/workflow/transition.ts closes a stage with eq + is(completed_at,null),
+// and src/lib/db/notifications.ts marks all read with eq(is_read,false). Both
+// carry a real eq, so both still pass.
+check('eq combined with is-null is allowed',
+  !refuses({ operation: 'update', filters: [
+    { column: 'request_id', operator: 'eq', value: 'REQ-1' },
+    { column: 'completed_at', operator: 'is', value: null },
+  ] }));
+check('eq on a false value is allowed',
+  !refuses({ operation: 'update', filters: [{ column: 'is_read', operator: 'eq', value: false }] }));
+
+// ── Database errors are not echoed to the caller ────────────────────────────
+// A Postgres unique-violation message embeds the conflicting row value
+// (`Key (email)=(...) already exists`), so returning error.message made the
+// endpoint a read oracle for data the query never selected.
+check('the endpoint has a request-error class',
+  /export class DbRequestError extends Error/.test(readFileSync(new URL('api/db.ts', ROOT), 'utf8')));
+check('a database error is answered generically',
+  /res\.status\(500\)\.json\(\{ data: null, error: 'Database request failed\.', code: 'database_error' \}\)/
+    .test(readFileSync(new URL('api/db.ts', ROOT), 'utf8')));
+check('the raw message is no longer returned',
+  !/res\.status\(500\)\.json\(\{ data: null, error: message \}\)/
+    .test(readFileSync(new URL('api/db.ts', ROOT), 'utf8')));
+
 // ── Multi-row writes take the union of every row's columns ──────────────────
 // The column list used to come from rows[0] alone, so a key only later rows
 // carried was silently dropped. api/admin/seed.ts hits this in shipped data:

@@ -26,5 +26,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       await sql.query('INSERT INTO procurement_service_families (id,label,aliases) VALUES ($1,$2,$3::jsonb) ON CONFLICT (id) DO UPDATE SET label=EXCLUDED.label,aliases=EXCLUDED.aliases,active=true,updated_at=now()', [text(body.id), text(body.label), JSON.stringify(list(body.aliases))]);
     }
     res.status(200).json({ saved: true, id: text(body.id) });
-  } catch (error) { res.status(500).json({ error: error instanceof Error ? error.message : 'Vocabulary is unavailable.', code: 'vocabulary_unavailable' }); }
+  } catch (error) {
+    // Postgres messages name tables, constraints and conflicting row values;
+    // this endpoint upserts on a primary key, so echoing one would report back
+    // rows the caller never selected. Log it, answer with the code.
+    console.error('[contract-vocabulary]', error instanceof Error ? error.message : String(error));
+    res.status(500).json({ error: 'Vocabulary is unavailable.', code: 'vocabulary_unavailable' });
+  }
 }

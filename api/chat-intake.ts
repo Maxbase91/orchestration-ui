@@ -132,7 +132,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json(JSON.parse(content));
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Unknown error';
+    // The message here is the provider/parse failure chain built in
+    // src/lib/llm.ts, which carries upstream response bodies. It belongs in
+    // the log, not in the answer.
     console.error('Chat intake error:', msg);
-    return res.status(502).json({ error: msg });
+    return res.status(502).json({ error: 'The intake assistant is unavailable.', code: 'intake_assistant_unavailable' });
   }
 }
