@@ -90,11 +90,16 @@ A change is not done until **all** of these hold (state explicitly if you delibe
   tries **Groq** and falls back to **Gemini**. There were two copies of that helper until
   2026-09-12, silently on different models; keep it at one.
 
-  Two Groq models, both pinned in `api/_llm.ts` and both asserted by `test:ai-api-config`:
+  Three model ids, all pinned in `api/_llm.ts`, all checked against what the providers
+  actually serve by `test:models` — `gemini-2.0-flash` was shut down on 2026-06-01 and sat
+  in the code for three months because nothing asked. Two Groq models, both also asserted
+  by `test:ai-api-config`:
   `GROQ_TOOL_MODEL` (`openai/gpt-oss-120b`) for the assistant, which needs tool-calling, and
   `DEFAULT_GROQ_MODEL` (`openai/gpt-oss-20b`) for the four single-shot callers. Only the
   second has an env override (`GROQ_MODEL`) — deliberately, so a deployment cannot change the
-  assistant's model without a code review.
+  assistant's model without a code review. `GEMINI_MODEL` (`gemini-3.8-flash`) is the
+  fallback. Standing instruction: run the **latest free** model on each provider;
+  `npm run test:models` prints what each currently serves.
 
   **Model selection is governed (CLS-G0)**, which means: Groq and Gemini are the only
   providers, and the model ids are a product decision rather than an implementation detail.

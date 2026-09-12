@@ -10,6 +10,29 @@ and its [implementation evidence index](../roadmap/R1_IMPLEMENTATION_EVIDENCE.md
 > commit is whatever `main` last pushed green — read it from the Actions run rather than
 > from here, because a pinned hash in a doc goes stale silently.
 
+## 2026-09-12 lifecycle and forms placement
+
+**Scope: `npm run test:forms`, `npm run test:models`.**
+
+Investigating a request stuck in validation for seven days found three
+definitions of who owns that stage — the template's role label, a hardcoded
+list in the UI, and the `category_managers` table — none of which agreed. The
+gate now reads the assignment; validation itself runs only on the
+procurement-led path, since a catalogue item and a framework contract carry the
+categorisation the stage exists to check.
+
+Forms were matched to a request by stage alone, so every request in validation
+rendered 22 fields of risk questionnaire whose completion changed nothing —
+`form_submissions` is empty across the whole store. All eight templates were
+reviewed and placed where they can be answered; two were retired (one asks only
+what the intake triage and supplier record already hold, the other duplicates
+the goods-receipt mechanism that actually advances the request), and one had
+been sitting on a stage id that does not exist, so it had never fired.
+
+`test:forms` pins both defect classes against the seed data and the live table.
+`test:models` asks Groq and Gemini what they serve and fails on a pinned id that
+is gone — the check that was missing when `gemini-2.0-flash` was shut down.
+
 ## 2026-09-12 security assessment tranche
 
 A full-codebase security review of the `/api/db` boundary, the assistant's
