@@ -177,6 +177,30 @@ check('a rejection must carry a reason', () => {
   assert.match(read('src/lib/workflow/approval-decision.ts'), /A rejection needs a reason/);
 });
 
+console.log('\nOne derivation, everywhere approvers are decided');
+
+check('the engine no longer resolves approvers itself', () => {
+  const engine = read('src/lib/workflow/engine.ts');
+  assert.doesNotMatch(engine, /resolveApprover\(step\.role\)/,
+    'a request entering approval through the engine gets the six-persona collapse back');
+  assert.match(engine, /createApprovalsFor/, 'the engine does not use the shared derivation');
+});
+check('the engine does not substitute a delegate for the person asked', () => {
+  const engine = read('src/lib/workflow/engine.ts');
+  assert.doesNotMatch(engine, /approver_id: assigneeId/,
+    'replacing approver_id with the delegate erases who was accountable');
+});
+check('a chain that resolves to nothing still leaves someone able to act', () => {
+  const engine = read('src/lib/workflow/engine.ts');
+  assert.match(engine, /assignment_mode: 'role'/, 'the fallback entry names a persona nobody may hold');
+});
+check('the review preview promises what the write path delivers', () => {
+  const preview = read('src/features/requests/new-request/step-routing-preview.tsx');
+  assert.doesNotMatch(preview, /resolveApprover/,
+    'the preview resolves personas and dedupes them, so it under-reports the real chain');
+  assert.match(preview, /useDerivedApprovers/);
+});
+
 console.log('\nAgainst the live directory');
 
 loadEnv();

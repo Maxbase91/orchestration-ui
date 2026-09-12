@@ -8,7 +8,7 @@ import { useWorkflowTemplate, useWorkflowTemplates } from '@/lib/db/hooks/use-wo
 import { useApprovalChains } from '@/lib/db/hooks/use-approval-chains';
 import { useProcurementCategories } from '@/lib/db/hooks/use-procurement-categories';
 import { useUsers } from '@/lib/db/hooks/use-users';
-import { resolveApprover } from '@/lib/workflow/approver-resolution';
+import { useDerivedApprovers } from '@/lib/db/hooks/use-derived-approvers';
 import {
   composeWorkflowSteps,
   selectApprovalChainForValue,
@@ -75,16 +75,23 @@ export function StepRoutingPreview({
     () => selectApprovalChainForValue(chains, estimatedValue),
     [chains, estimatedValue],
   );
-  const approvers = useMemo(() => {
-    const out: { id: string; name: string; roles: string[] }[] = [];
-    for (const step of approvalChain?.steps ?? []) {
-      const resolved = resolveApprover(step.role);
-      const existing = out.find((a) => a.id === resolved.id);
-      if (existing) existing.roles.push(step.role);
-      else out.push({ id: resolved.id, name: resolved.name, roles: [step.role] });
-    }
-    return out;
-  }, [approvalChain]);
+  // The approvers this request will actually be given, from the same derivation
+  // the write path uses. This used to resolve each step to one of six personas
+  // and then dedupe by persona, so a chain whose roles all map to
+  // procurement-manager collapsed to a single name — a promise the request did
+  // not keep, and the reason the screen could name someone nobody could act as.
+  const { data: derived = [] } = useDerivedApprovers(
+    { requestId: 'preview', category },
+    approvalChain?.id,
+  );
+  const approvers = useMemo(
+    () => derived.map((entry) => ({
+      id: entry.approverId ?? `role:${entry.role}`,
+      name: entry.approverName,
+      roles: [entry.role],
+    })),
+    [derived],
+  );
 
   // Timeline ← the category's configured SLA (admin-editable).
   const matchedCategory = useMemo(

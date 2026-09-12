@@ -1,4 +1,5 @@
 import { db } from '@/lib/db-client';
+import { createApprovalsFor } from '@/lib/db/approvals-core';
 import { getWorkflowTemplate } from '@/lib/db/workflow-templates';
 import { saveComplianceReport } from '@/lib/db/compliance-reports';
 import {
@@ -9,7 +10,6 @@ import {
 } from '@/lib/db/workflow-instances';
 import type { Supplier, WorkflowTemplate } from '@/data/types';
 import { getStagesForChannel } from './buying-channel-stages';
-import { resolveApprover } from './approver-resolution';
 import { transitionStage } from './transition';
 import { onboardingRequired } from './onboarding-stage';
 import { ensureRiskAssessment } from './risk-stage';
@@ -181,64 +181,63 @@ async function resolveChainForRequest(requestId: string): Promise<string> {
   return 'chain-1';
 }
 
+/**
+ * Create a request's approval entries when the engine advances it into the
+ * approval stage.
+ *
+ * This used to be a second implementation of approver resolution, and it
+ * outlived the first: it collapsed every functional role to one of six
+ * switchable personas, wrote no step_order or assignment_mode, and substituted
+ * an out-of-office approver's delegate into approver_id — erasing the record of
+ * who was actually accountable. A request that reached `approval` through the
+ * engine therefore got the old behaviour back, while one created at checkout
+ * got the new. Same table, two shapes, depending on how the request got there.
+ *
+ * It delegates now. createApprovalsFor derives from the records (the category's
+ * managers, the contract owner, the cost centre), leaves a step open to its
+ * role where several people hold it, and records a delegate rather than
+ * replacing the person asked. It also returns early when entries already exist,
+ * so an engine transition cannot duplicate what the checkout already wrote.
+ */
 async function generateApprovalEntries(
   requestId: string,
   approvalChainName: string,
 ): Promise<void> {
-  // Resolve the chain from approval_chains table
-  const { data: chainRows } = await db
-    .from('approval_chains')
-    .select('*')
-    .eq('id', approvalChainName)
+  const { data: request } = await db
+    .from('requests')
+    .select('category, contract_id, cost_centre, buying_channel')
+    .eq('id', requestId)
     .maybeSingle();
 
-  // Fallback: try matching by name
-  const { data: chainByName } = !chainRows
-    ? await db.from('approval_chains').select('*').ilike('name', `%${approvalChainName}%`).limit(1).maybeSingle()
-    : { data: null };
+  const row = request as Record<string, unknown> | null;
+  const created = await createApprovalsFor(db, {
+    requestId,
+    category: (row?.category as string) ?? null,
+    contractId: (row?.contract_id as string) ?? null,
+    costCentre: (row?.cost_centre as string) ?? null,
+    route: (row?.buying_channel as string) === 'framework-call-off' ? 'contract-call-off' : null,
+  }, approvalChainName);
 
-  const chain = chainRows ?? chainByName;
-  if (!chain) {
-    console.warn(`[engine] approval chain not found: ${approvalChainName}`);
-    // Fall through — create one default entry for procurement-manager
-    await createDefaultApprovalEntry(requestId);
-    return;
+  // No chain resolved to any step. Somebody still has to decide, so the request
+  // gets one entry open to the approver role rather than none at all — but it
+  // is a role, not a persona, so whoever holds it can act.
+  if (created.length === 0) {
+    const { data: existing } = await db
+      .from('approval_entries').select('id').eq('request_id', requestId);
+    if (((existing as unknown[]) ?? []).length === 0) {
+      await db.from('approval_entries').insert({
+        id: `APR-${requestId}-1`,
+        request_id: requestId,
+        step_order: 1,
+        assignment_mode: 'role',
+        approver_id: null,
+        approver_name: 'Any Approver',
+        approver_role: 'Approver',
+        status: 'pending',
+        requested_at: new Date().toISOString(),
+      });
+    }
   }
-
-  const steps = (chain.steps as { id: string; role: string }[]) ?? [];
-
-  for (const step of steps) {
-    // Resolve the step's role to its canonical persona (a switchable role
-    // holder), honouring out-of-office delegation on that persona.
-    const persona = resolveApprover(step.role);
-    const { data: personaRow } = await db
-      .from('users')
-      .select('is_ooo, delegate_id')
-      .eq('id', persona.id)
-      .maybeSingle();
-    const assigneeId = personaRow?.is_ooo && personaRow.delegate_id ? personaRow.delegate_id : persona.id;
-
-    await db.from('approval_entries').insert({
-      id: `APR-${requestId}-${steps.indexOf(step)}`,
-      request_id: requestId,
-      approver_id: assigneeId,
-      approver_name: persona.name,
-      approver_role: step.role,
-      status: 'pending',
-    });
-  }
-}
-
-async function createDefaultApprovalEntry(requestId: string): Promise<void> {
-  const persona = resolveApprover('Approver'); // → procurement-manager persona
-  await db.from('approval_entries').insert({
-    id: `APR-${requestId}-0`,
-    request_id: requestId,
-    approver_id: persona.id,
-    approver_name: persona.name,
-    approver_role: 'Approval',
-    status: 'pending',
-  });
 }
 
 // ── Core engine functions ─────────────────────────────────────────────────────
