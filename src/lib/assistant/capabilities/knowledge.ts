@@ -1,4 +1,4 @@
-import { knowledgeBase } from '@/data/knowledgeBase';
+import { knowledgeBase } from '@/data/knowledge-base';
 import type { AssistantTurn, KnowledgeEntry } from '@/data/types';
 
 // Grounded policy Q&A: the assistant answers from the knowledge base by

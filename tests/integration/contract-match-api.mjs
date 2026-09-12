@@ -8,7 +8,7 @@ import { requireConnection, skipLive } from '../lib/live.mjs';
 // copy of that loader that used to sit here was a fourth duplicate of it.
 const connectionString = requireConnection('contract-match-api');
 const sql = neon(connectionString);
-const { default: handler } = await import('../../src/server/api/contract-match.ts');
+const { default: handler } = await import('../../api/_domains/contract-match.ts');
 const response = { statusCode: 200, body: undefined, status(code) { this.statusCode = code; return this; }, json(value) { this.body = value; return this; } };
 const rows = await sql.query(`SELECT c.category FROM contracts c JOIN contract_scope_versions sv ON sv.contract_id = c.id WHERE sv.completeness = 'complete' LIMIT 1`);
 if (!rows[0]) skipLive('contract-match-api', 'no complete contract scope');

@@ -32,7 +32,7 @@ The browser never holds a database credential: it posts to the allowlisted `/api
 production ran different clients once, so nothing tested what production executed, and three defects
 reached users that no local check could reproduce.
 
-**Known gap:** the server-side handlers (`src/server/api/*`, `api/governed-checkout.ts`) read with raw
+**Known gap:** the server-side handlers (`api/_domains/*`, `api/governed-checkout.ts`) read with raw
 SQL rather than through the connector ports, because the port layer is browser-shaped
 (TanStack hooks) and has no server-side factory. Closing that is real work, not a licence to add more
 direct reads.

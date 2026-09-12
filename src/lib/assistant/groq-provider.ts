@@ -4,7 +4,7 @@
 // assistant keeps working offline or when the API is misconfigured.
 import type { AssistantMessage, ConfirmTurn, AssistantTurn } from '@/data/types';
 import type { AssistantProvider, ProviderContext } from './provider';
-import { mockProvider } from './mockProvider';
+import { mockProvider } from './mock-provider';
 
 export const groqProvider: AssistantProvider = {
   async respond(messages: AssistantMessage[], ctx: ProviderContext): Promise<AssistantTurn[]> {

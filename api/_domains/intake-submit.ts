@@ -2,9 +2,9 @@
 // request, but only this dispatcher-routed handler decides the initial stage
 // and commits the request's related records together.
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getNeonClient } from '../../../api/_neon.js';
-import { getDbAdmin } from '../../../api/_db-admin.js';
-import { approvalRows, deriveApprovalsFor, resolveChainId } from '../../lib/db/approvals-core.js';
+import { getNeonClient } from '../_neon.js';
+import { getDbAdmin } from '../_db-admin.js';
+import { approvalRows, deriveApprovalsFor, resolveChainId } from '../../src/lib/db/approvals-core.js';
 
 type JsonRecord = Record<string, unknown>;
 type IntakePayload = {

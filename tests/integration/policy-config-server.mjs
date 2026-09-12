@@ -9,7 +9,7 @@ const env = loadEnv();
 const connectionString = requireConnection('policy-config-server');
 process.env.NEON_DATABASE_URL = connectionString;
 const sql = neon(connectionString);
-const { default: handler } = await import('../../src/server/api/policy-config.ts');
+const { default: handler } = await import('../../api/_domains/policy-config.ts');
 
 function invoke(method, body) {
   let statusCode = 200; let responseBody;

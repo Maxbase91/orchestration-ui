@@ -13,7 +13,7 @@ This document covers the Vercel serverless API endpoints, the AI tool call contr
 ## Serverless Endpoints
 
 Public endpoints remain under `/api/`. The twelve-function Hobby deployment budget is enforced by
-keeping low-volume domain handlers in `src/server/api/` and routing them through `api/db.ts`: each has
+keeping low-volume domain handlers in `api/_domains/` and routing them through `api/db.ts`: each has
 a `vercel.json` rewrite to `/api/db?domain=<name>`, and `api/db.ts` dispatches on that allowlisted
 name. This does not change any browser URL. `test:vercel-functions` guards the cap.
 
@@ -24,16 +24,16 @@ name. This does not change any browser URL. `test:vercel-functions` guards the c
 | `api/ai.ts` | POST | Context-specific AI responses (approval card, supplier summary, etc.) |
 | `api/workflow-action.ts` | POST | Advance request stage, record stage history |
 | `api/governed-checkout.ts` | POST | Server-authoritative catalogue/contract checkout; atomic request → PR → lines → conditional internal PO with replay-safe idempotency |
-| `src/server/api/intake-submit.ts` | POST `/api/intake-submit` | Validate complete adaptive intake and atomically persist request, structured description, compliance, stage history, workflow instance and initial approval entry; server selects the first actionable stage |
-| `src/server/api/contract-match.ts` | POST `/api/contract-match` | Effective-dated, explainable contract-scope matching with clarification questions and safe AI reranking |
-| `src/server/api/contract-scope.ts` | GET/POST `/api/contract-scope` | Procurement maintenance of contract coverage versions, deliverables and exclusions |
-| `src/server/api/contract-vocabulary.ts` | GET/POST `/api/contract-vocabulary` | Controlled service-family and deliverable vocabulary for scope administration |
-| `src/server/api/policy-config.ts` | GET/POST `/api/policy-config` | Load, validate, save, and reset the server-persisted active procurement policy |
-| `src/server/api/intake-upload.ts` | POST `/api/intake-upload` | Validate PDF/DOCX uploads, extract text server-side, and return a confirmation-ready attachment |
-| `src/server/api/commodity-match.ts` | POST `/api/commodity-match` | Resolve specific commodity/service-family candidates with probability and reasons |
+| `api/_domains/intake-submit.ts` | POST `/api/intake-submit` | Validate complete adaptive intake and atomically persist request, structured description, compliance, stage history, workflow instance and initial approval entry; server selects the first actionable stage |
+| `api/_domains/contract-match.ts` | POST `/api/contract-match` | Effective-dated, explainable contract-scope matching with clarification questions and safe AI reranking |
+| `api/_domains/contract-scope.ts` | GET/POST `/api/contract-scope` | Procurement maintenance of contract coverage versions, deliverables and exclusions |
+| `api/_domains/contract-vocabulary.ts` | GET/POST `/api/contract-vocabulary` | Controlled service-family and deliverable vocabulary for scope administration |
+| `api/_domains/policy-config.ts` | GET/POST `/api/policy-config` | Load, validate, save, and reset the server-persisted active procurement policy |
+| `api/_domains/intake-upload.ts` | POST `/api/intake-upload` | Validate PDF/DOCX uploads, extract text server-side, and return a confirmation-ready attachment |
+| `api/_domains/commodity-match.ts` | POST `/api/commodity-match` | Resolve specific commodity/service-family candidates with probability and reasons |
 | `api/execute-action.ts` | POST | Execute a confirmed assistant action. Seven write a real record (delegate/OOO on `users`, reassignment on `requests` + `stage_history`, and four "request X" actions as SLA-bearing tickets), each audited in the same transaction. `add_watcher` and `approver_substitution` have no store and return an explicit refusal rather than claiming success. |
 | `api/admin/seed.ts` | POST | Seed demo data — the only seed path, authenticated with `x-admin-secret` |
-| `api/db.ts` | POST | The one data boundary the browser reaches: allowlisted relations and functions, column-typed parameters, and the `?domain=` dispatcher for the `src/server/api/` handlers above |
+| `api/db.ts` | POST | The one data boundary the browser reaches: allowlisted relations and functions, column-typed parameters, and the `?domain=` dispatcher for the `api/_domains/` handlers above |
 | `api/generate-sow.ts` | POST | Generate the statement-of-work narrative from the structured service description |
 | `api/_llm.ts` | — | Shared Groq/Gemini LLM helpers (not a route) |
 | `api/_db-admin.ts` | — | Privileged server-side data client over the private Neon connection (not a route) |

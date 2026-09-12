@@ -1,5 +1,5 @@
-import { mockProvider } from './mockProvider';
-import { groqProvider } from './groqProvider';
+import { mockProvider } from './mock-provider';
+import { groqProvider } from './groq-provider';
 import type { AssistantProvider } from './provider';
 
 export const provider: AssistantProvider =

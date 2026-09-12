@@ -23,7 +23,24 @@ interface GeminiResponse {
 // the `openai/` segment is just the open-weight model's name, the request goes
 // to api.groq.com with GROQ_API_KEY exactly as before. Chosen over
 // `qwen/qwen3.6-27b` because the assistant depends on tool-calling.
-const GROQ_MODEL = 'openai/gpt-oss-120b';
+//
+// Two models, deliberately. The assistant needs tool-calling and runs on the
+// larger one; the four single-shot handlers (ai, chat-intake, generate-sow, the
+// contract-match rerank) ask for one completion and ran on the 20b model in the
+// second copy of this helper that used to live at src/lib/llm.ts. Merging the
+// two copies must not quietly move those four onto a different model — model
+// selection is governed (CLS-G0) — so the difference is a parameter now instead
+// of a fork, and each caller states which it wants.
+const GROQ_TOOL_MODEL = 'openai/gpt-oss-120b';
+
+/**
+ * The single-shot completion model. An env override keeps a future Groq
+ * retirement deploy-free — Groq retires hosted models on a rolling schedule and
+ * a retired id returns 404, which reads like an outage rather than a config
+ * problem.
+ */
+export const DEFAULT_GROQ_MODEL = 'openai/gpt-oss-20b';
+const COMPLETION_MODEL = process.env.GROQ_MODEL ?? DEFAULT_GROQ_MODEL;
 
 export interface LLMMessage {
   role: 'system' | 'user' | 'assistant' | 'tool';
@@ -74,7 +91,7 @@ export async function callLLMWithTools(
   const timer = setTimeout(() => controller.abort(), 15000);
 
   const body = {
-    model: GROQ_MODEL,
+    model: GROQ_TOOL_MODEL,
     messages,
     tools,
     tool_choice: 'auto',
@@ -123,20 +140,34 @@ interface LLMOptions {
   temperature?: number;
   maxTokens?: number;
   jsonMode?: boolean;
+  /** Defaults to the single-shot completion model; see GROQ_TOOL_MODEL above. */
+  model?: string;
 }
 
 export async function callLLM(options: LLMOptions): Promise<string> {
   const { messages, temperature = 0.3, maxTokens = 1024, jsonMode = true } = options;
+  const model = options.model ?? COMPLETION_MODEL;
+  // Which provider failed and why. `All LLM providers failed` on its own cannot
+  // distinguish an unset key from a retired model id returning 404, and both
+  // present to the user as the same dead endpoint. Kept from the copy this
+  // merged in. The chain is for the server log — api/chat-intake.ts returns a
+  // generic sentence, because it carries upstream response bodies.
+  const errors: string[] = [];
 
   // Try Groq first
   const groqKey = process.env.GROQ_API_KEY;
   if (groqKey) {
     try {
-      const result = await callGroq(groqKey, messages, temperature, maxTokens, jsonMode);
+      const result = await callGroq(groqKey, messages, temperature, maxTokens, jsonMode, model);
       if (result) return result;
+      errors.push('Groq returned null');
     } catch (e) {
-      console.warn('Groq failed, trying Gemini fallback:', e);
+      const msg = e instanceof Error ? e.message : String(e);
+      errors.push(`Groq: ${msg}`);
+      console.warn('Groq failed, trying Gemini fallback:', msg);
     }
+  } else {
+    errors.push('GROQ_API_KEY not set');
   }
 
   // Fallback to Gemini
@@ -145,12 +176,17 @@ export async function callLLM(options: LLMOptions): Promise<string> {
     try {
       const result = await callGemini(geminiKey, messages, temperature, maxTokens, jsonMode);
       if (result) return result;
+      errors.push('Gemini returned null');
     } catch (e) {
-      console.warn('Gemini also failed:', e);
+      const msg = e instanceof Error ? e.message : String(e);
+      errors.push(`Gemini: ${msg}`);
+      console.warn('Gemini also failed:', msg);
     }
+  } else {
+    errors.push('GEMINI_API_KEY not set');
   }
 
-  throw new Error('All LLM providers failed');
+  throw new Error(`All LLM providers failed: ${errors.join('; ')}`);
 }
 
 async function callGroq(
@@ -159,9 +195,10 @@ async function callGroq(
   temperature: number,
   maxTokens: number,
   jsonMode: boolean,
+  model: string,
 ): Promise<string | null> {
   const body: Record<string, unknown> = {
-    model: GROQ_MODEL,
+    model,
     messages,
     temperature,
     max_tokens: maxTokens,
@@ -212,7 +249,7 @@ export async function callLLMStreaming(
   if (!groqKey) throw new Error('GROQ_API_KEY not set');
 
   const body: Record<string, unknown> = {
-    model: GROQ_MODEL,
+    model: GROQ_TOOL_MODEL,
     messages,
     stream: true,
     max_tokens: 1024,

@@ -101,7 +101,7 @@ error classes without exposing connection details.
 
 ### Where the ports are bypassed today
 
-Server-side handlers — `src/server/api/*` and `api/governed-checkout.ts` — read with raw SQL rather
+Server-side handlers — `api/_domains/*` and `api/governed-checkout.ts` — read with raw SQL rather
 than through these ports, because the layer is browser-shaped (`useSourceData`, TanStack hooks) and
 has no server-side connector factory. That is a **gap**, recorded here rather than argued away: the
 ground rule in CLAUDE.md says reads go through the ports, and these do not. Closing it means adding a
@@ -131,7 +131,7 @@ The own-store connectors keep a `freshnessTtlSeconds` per object so a live
 implementation can honour the same freshness expectations.
 
 Contract matching is a domain read layered over the own-store contract connector: the browser calls
-`/api/contract-match`, implemented by `src/server/api/contract-match.ts`, which loads effective-dated scope versions, deliverables and exclusions from
+`/api/contract-match`, implemented by `api/_domains/contract-match.ts`, which loads effective-dated scope versions, deliverables and exclusions from
 Neon and applies deterministic eligibility before optional Groq/Gemini reranking. Governed checkout
 repeats that read server-side, so a client preview cannot authorize a call-off. A future CLM connector
 can replace the source records without changing the matcher or its consumers.

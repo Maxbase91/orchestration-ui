@@ -8,7 +8,7 @@ import { parseDeliveryDate } from '../../src/lib/parse-delivery-date.ts';
 assert.match(parseDeliveryDate('2026-12-31') ?? '', /^2026-12-31$/);
 assert.equal(parseDeliveryDate('the team will deliver a report and training materials'), null);
 assert.match(parseDeliveryDate('by December 2026') ?? '', /^2026-12-31$/);
-const endpoint = readFileSync('src/server/api/intake-submit.ts', 'utf8');
+const endpoint = readFileSync('api/_domains/intake-submit.ts', 'utf8');
 const dispatcher = readFileSync('api/db.ts', 'utf8');
 
 // A retry of an already-submitted request replays. The client validates the

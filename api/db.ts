@@ -4,13 +4,13 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getNeonClient, queryRows } from './_neon.js';
-import commodityMatch from '../src/server/api/commodity-match.js';
-import contractMatch from '../src/server/api/contract-match.js';
-import contractScope from '../src/server/api/contract-scope.js';
-import contractVocabulary from '../src/server/api/contract-vocabulary.js';
-import policyConfig from '../src/server/api/policy-config.js';
-import intakeSubmit from '../src/server/api/intake-submit.js';
-import neonHealth from '../src/server/api/neon-health.js';
+import commodityMatch from './_domains/commodity-match.js';
+import contractMatch from './_domains/contract-match.js';
+import contractScope from './_domains/contract-scope.js';
+import contractVocabulary from './_domains/contract-vocabulary.js';
+import policyConfig from './_domains/policy-config.js';
+import intakeSubmit from './_domains/intake-submit.js';
+import neonHealth from './_domains/neon-health.js';
 
 type DomainHandler = (req: VercelRequest, res: VercelResponse) => void | Promise<void>;
 
@@ -31,7 +31,7 @@ async function loadDomainHandler(name: string): Promise<DomainHandler | undefine
     case 'neon-health': return neonHealth;
     // Keep document parser dependencies out of the common cold-start path;
     // only the upload request loads PDF/DOCX parsing code.
-    case 'intake-upload': return (await import('../src/server/api/intake-upload.js')).default;
+    case 'intake-upload': return (await import('./_domains/intake-upload.js')).default;
     default: return undefined;
   }
 }

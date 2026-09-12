@@ -1422,7 +1422,7 @@ CREATE INDEX IF NOT EXISTS approval_entries_request_step_idx
   ON approval_entries(request_id, step_order);
 
 -- ── Service description columns that existed only in the database ───────────
--- src/server/api/intake-submit.ts writes all three, and they were added to the
+-- api/_domains/intake-submit.ts writes all three, and they were added to the
 -- live store without ever reaching this file. A fresh environment provisioned
 -- from schema.sql would lack them, and because that insert sits inside the
 -- atomic intake transaction, every submission carrying a service description

@@ -1,8 +1,8 @@
 // Server-owned procurement policy configuration. This endpoint is deliberately
 // domain-specific so checkout and browser previews read the same Neon row.
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getNeonClient } from '../../../api/_neon.js';
-import { DEFAULT_POLICY_CONFIG, resolvePolicyConfig, type PolicyConfig } from '../../lib/procurement/policy-config.js';
+import { getNeonClient } from '../_neon.js';
+import { DEFAULT_POLICY_CONFIG, resolvePolicyConfig, type PolicyConfig } from '../../src/lib/procurement/policy-config.js';
 
 const KEYS: (keyof PolicyConfig)[] = [
   'catalogueAutoApprovalThreshold', 'approvalFullThreshold', 'materialityValueThreshold',

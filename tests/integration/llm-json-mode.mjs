@@ -51,8 +51,17 @@ check('callLLM passes jsonMode to callGemini', () => {
   }
 });
 check('callLLM passes jsonMode to callGroq', () => {
-  if (!/callGroq\(groqKey, messages, temperature, maxTokens, jsonMode\)/.test(llm)) {
+  // Matches jsonMode in the argument list rather than the whole list: callGroq
+  // gained a trailing `model` when the second copy of this helper
+  // (src/lib/llm.ts) was merged in, and pinning the exact arity made this fail
+  // for a change that has nothing to do with JSON mode.
+  if (!/callGroq\(groqKey, messages, temperature, maxTokens, jsonMode[,)]/.test(llm)) {
     throw new Error('the primary call drops it');
+  }
+});
+check('callGroq is told which model to use', () => {
+  if (!/callGroq\(groqKey, messages, temperature, maxTokens, jsonMode, model\)/.test(llm)) {
+    throw new Error('the model is not threaded through, so both callers share one');
   }
 });
 check('responseMimeType is no longer hardcoded', () => {

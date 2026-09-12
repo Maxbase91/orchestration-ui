@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { callLLM } from '../src/lib/llm.js';
+import { callLLM } from './_llm.js';
 import { getAgent, isAgentActive } from './_ai-agents.js';
 import { ServerConfigurationError } from './_db-admin.js';
 

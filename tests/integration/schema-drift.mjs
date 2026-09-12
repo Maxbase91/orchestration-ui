@@ -3,7 +3,7 @@
 //
 // It did not. signals, required_sections and capture_flags were added to
 // service_descriptions in the live store and never reached this file, while
-// src/server/api/intake-submit.ts wrote all three. Nothing failed, because the
+// api/_domains/intake-submit.ts wrote all three. Nothing failed, because the
 // columns were there — but a fresh environment provisioned from schema.sql
 // would have lacked them, and since that insert sits inside the atomic intake
 // transaction, every submission carrying a service description would have

@@ -1,7 +1,7 @@
 // Read-only Neon connectivity diagnostics routed through the existing API
 // dispatcher. It reports safe failure classes without exposing credentials.
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getNeonClient, NeonConfigurationError } from '../../../api/_neon.js';
+import { getNeonClient, NeonConfigurationError } from '../_neon.js';
 
 function classify(error: unknown): string {
   if (error instanceof NeonConfigurationError) return 'configuration';

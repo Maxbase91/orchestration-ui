@@ -3,10 +3,10 @@
 // eligible candidates with the existing Groq → Gemini provider chain.
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getNeonClient, isMissingRelation } from '../../../api/_neon.js';
-import { callLLM } from '../../lib/llm.js';
-import { matchContractScopes, type ContractMatchInput, type ContractMatchScope } from '../../lib/procurement/contract-matching.js';
-import type { ContractMatchCandidate, ContractScopeDeliverable, ContractScopeExclusion } from '../../data/types.js';
+import { getNeonClient, isMissingRelation } from '../_neon.js';
+import { callLLM } from '../_llm.js';
+import { matchContractScopes, type ContractMatchInput, type ContractMatchScope } from '../../src/lib/procurement/contract-matching.js';
+import type { ContractMatchCandidate, ContractScopeDeliverable, ContractScopeExclusion } from '../../src/data/types.js';
 
 type Row = Record<string, unknown>;
 

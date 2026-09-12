@@ -18,9 +18,9 @@ const browserClient = readFileSync(new URL('../../src/lib/db-client.ts', import.
 const endpoint = readFileSync(new URL('../../api/db.ts', import.meta.url), 'utf8');
 const schema = readFileSync(new URL('../../db/schema.sql', import.meta.url), 'utf8');
 const governedEndpoint = readFileSync(new URL('../../api/governed-checkout.ts', import.meta.url), 'utf8');
-const policyEndpoint = readFileSync(new URL('../../src/server/api/policy-config.ts', import.meta.url), 'utf8');
+const policyEndpoint = readFileSync(new URL('../../api/_domains/policy-config.ts', import.meta.url), 'utf8');
 const neonFactory = readFileSync(new URL('../../api/_neon.ts', import.meta.url), 'utf8');
-const healthEndpoint = readFileSync(new URL('../../src/server/api/neon-health.ts', import.meta.url), 'utf8');
+const healthEndpoint = readFileSync(new URL('../../api/_domains/neon-health.ts', import.meta.url), 'utf8');
 const dbAdmin = readFileSync(new URL('../../api/_db-admin.ts', import.meta.url), 'utf8');
 
 // ── the name must not come back in code ────────────────────────────────────

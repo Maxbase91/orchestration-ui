@@ -7,7 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { PageHeader } from '@/components/shared/page-header';
 import { useAuthStore } from '@/stores/auth-store';
 import { useConversationStore, type Conversation } from '@/stores/conversation-store';
-import { useAssistant } from '@/lib/assistant/useAssistant';
+import { useAssistant } from '@/lib/assistant/use-assistant';
 import type { ChatMessageData } from '@/data/types';
 import { MessagePane } from '@/features/ai-assistant/components/message-pane';
 import { ChatInput } from '@/features/ai-assistant/components/chat-input';

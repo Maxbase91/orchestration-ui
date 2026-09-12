@@ -103,7 +103,7 @@ stated in procurement's vocabulary, four steps after it became knowable.
 - **P-card eligibility** (`pCardEnabled`, max €5,000, categories `goods`/`services`, never `software`/`consulting`/`contingent-labour`/renewals/onboarding, never when urgent, material, or high/critical risk) is an *input to routing*, not a separate opinion.
 - Contract call-off needs a **primary signal** — supplier match, category match, or ≥2 keyword hits — plus remaining capacity ≥5%.
 
-**Technical** — `src/features/requests/new-request/step-buy-route.tsx` (presenter only), `src/lib/routing/demand-channel.ts`, `src/lib/routing/evaluate-routing-rules.ts`, `src/lib/routing/p-card.ts`, `src/server/api/contract-match.ts`, served at `/api/contract-match` by a `vercel.json` rewrite (ADR-0004).
+**Technical** — `src/features/requests/new-request/step-buy-route.tsx` (presenter only), `src/lib/routing/demand-channel.ts`, `src/lib/routing/evaluate-routing-rules.ts`, `src/lib/routing/p-card.ts`, `api/_domains/contract-match.ts`, served at `/api/contract-match` by a `vercel.json` rewrite (ADR-0004).
 
 ---
 
@@ -241,7 +241,7 @@ claims they had not earned.
 - The assistant **proposes**; it never executes an upstream write (ground rule 2). `create_ticket` is the only tool that creates a real record, and it is the only one permitted to say so.
 - A false completion claim is the most damaging output available to this product: unlike an error it is invisible, it is believed, and the requester stops chasing work nobody has picked up.
 
-**Technical** — `src/lib/procurement/intake-compliance-record.ts`, `submit-intake.ts`, `src/server/api/intake-submit.ts`, `src/data/request-compliance.ts`, `api/chat.ts` (`claimsWorkAlreadyDone`, `demandOfferedMessage`), `src/lib/assistant/capabilities/action.ts`.
+**Technical** — `src/lib/procurement/intake-compliance-record.ts`, `submit-intake.ts`, `api/_domains/intake-submit.ts`, `src/data/request-compliance.ts`, `api/chat.ts` (`claimsWorkAlreadyDone`, `demandOfferedMessage`), `src/lib/assistant/capabilities/action.ts`.
 
 ---
 
@@ -290,7 +290,7 @@ from had nowhere to be seen or corrected.
 | OB-1 | Duplicate-demand search at intake | The compliance record currently has to say no search ran. A real search closes a governance gap rather than documenting it. | M |
 | OB-2 | Service-owner confirmation of risk-assessment reuse (RSK-05) | A reuse decision is proposed and recorded without the owner ever accepting it. | S |
 | OB-3 | Collision-safe request ids and stable idempotency keys | A retry currently gets a new key, defeating replay protection. | S |
-| OB-5 | Server-side reads through the connector ports | `src/server/api/*` and `api/governed-checkout.ts` read with raw SQL because the port layer is browser-shaped (TanStack hooks) with no server factory. | L |
+| OB-5 | Server-side reads through the connector ports | `api/_domains/*` and `api/governed-checkout.ts` read with raw SQL because the port layer is browser-shaped (TanStack hooks) with no server factory. | L |
 | OB-6 | Editable in-flight requests | Once submitted, a requester cannot revise scope without a refer-back. | M |
 | OB-7 | Attachment blob storage | Uploads are extracted to text; the original file is not retained. | M |
 | OB-9 | A duplicate-search, or drop the field | Tracked as OB-1; noted here because `duplicateCheck` is the last compliance field with no producer. | M |

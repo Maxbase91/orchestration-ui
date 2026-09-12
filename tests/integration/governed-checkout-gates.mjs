@@ -105,8 +105,8 @@ console.log('\nThe other two swallow sites were narrowed with it');
 // the tolerance itself was removed (intake-submit's discarded policy read went
 // with the dead approval-threshold branch) there is nothing left to narrow.
 for (const [label, path] of [
-  ['intake-submit', 'src/server/api/intake-submit.ts'],
-  ['contract-match', 'src/server/api/contract-match.ts'],
+  ['intake-submit', 'api/_domains/intake-submit.ts'],
+  ['contract-match', 'api/_domains/contract-match.ts'],
   ['governed-checkout', 'api/governed-checkout.ts'],
 ]) {
   check(`${label} has no message-matched relation swallow`, () => {
@@ -118,7 +118,7 @@ for (const [label, path] of [
   });
 }
 check('contract-match no longer returns every failure as a 400 validation_error', () => {
-  const source = read('src/server/api/contract-match.ts');
+  const source = read('api/_domains/contract-match.ts');
   if (!source.includes('ContractMatchInputError')) throw new Error('no typed validation error');
   if (!source.includes('contract_match_failed')) throw new Error('no internal-failure code');
 });

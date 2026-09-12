@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { callLLM } from '../src/lib/llm.js';
+import { callLLM } from './_llm.js';
 import {
   determineNextQuestion,
   buildAgenda,

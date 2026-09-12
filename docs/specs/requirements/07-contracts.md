@@ -88,5 +88,5 @@ fingerprint on the requisition. Client-side previews never authorize a call-off.
 - `src/features/contracts/contract-register-page.tsx`
 - `src/features/contracts/renewals-page.tsx`
 - `src/lib/db/contracts.ts`
-- `src/lib/procurement/contract-matching.ts` and `src/server/api/contract-match.ts` (served at `/api/contract-match`)
-- `src/server/api/contract-scope.ts` (Coverage & Matching administration, served at `/api/contract-scope`)
+- `src/lib/procurement/contract-matching.ts` and `api/_domains/contract-match.ts` (served at `/api/contract-match`)
+- `api/_domains/contract-scope.ts` (Coverage & Matching administration, served at `/api/contract-scope`)

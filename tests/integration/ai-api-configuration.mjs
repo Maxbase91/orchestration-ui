@@ -9,7 +9,7 @@
 // the suite only passed on a machine that happened to have no connection
 // configured, and asserted nothing on one that did.
 
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 
 const keys = ['NEON_DATABASE_URL', 'DATABASE_URL'];
 const previous = new Map(keys.map((key) => [key, process.env[key]]));
@@ -39,9 +39,22 @@ if (!ok) {
   console.error(`Expected controlled 503, got status=${statusCode} body=${JSON.stringify(responseBody)}`);
   process.exit(1);
 }
-const llmSource = readFileSync(new URL('../../src/lib/llm.ts', import.meta.url), 'utf8');
+// There used to be two copies of this helper — api/_llm.ts and src/lib/llm.ts —
+// each with its own hardcoded Groq model, so the assistant and the four
+// single-shot handlers silently ran on different ones. They are merged; the
+// difference is now an explicit parameter, and both models are pinned here
+// because model selection is governed (CLS-G0).
+const llmSource = readFileSync(new URL('../../api/_llm.ts', import.meta.url), 'utf8');
 if (!llmSource.includes("DEFAULT_GROQ_MODEL = 'openai/gpt-oss-20b'")) {
-  console.error('Expected the current Groq replacement model to be configured.');
+  console.error('Expected the current single-shot Groq model to be configured.');
   process.exit(1);
 }
-console.log('AI missing-configuration response is a controlled 503 and uses the current Groq model.');
+if (!llmSource.includes("GROQ_TOOL_MODEL = 'openai/gpt-oss-120b'")) {
+  console.error('Expected the current tool-calling Groq model to be configured.');
+  process.exit(1);
+}
+if (existsSync(new URL('../../src/lib/llm.ts', import.meta.url))) {
+  console.error('src/lib/llm.ts is back — there must be one LLM helper, in api/.');
+  process.exit(1);
+}
+console.log('AI missing-configuration response is a controlled 503; one LLM helper, both Groq models pinned.');

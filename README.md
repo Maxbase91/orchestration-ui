@@ -374,7 +374,10 @@ freshness). See `src/lib/integrations/README.md` and the [R1 evidence index](doc
 ## Project Structure
 
 ```
-api/                 # Vercel entrypoints; the small domain handlers route through api/db.ts?domain=
+api/                 # Vercel entrypoints. `_`-prefixed modules are shared code, not routes,
+│                    #   so they do not count against the 12-function Hobby cap.
+├── _domains/        # Low-volume handlers dispatched by api/db.ts?domain=, with the
+│                    #   public paths rewritten in vercel.json
 src/
 ├── config/          # Theme, navigation, roles
 ├── data/            # Domain types (types.ts) + seed fixtures for api/admin/seed.ts (see its README)
@@ -393,7 +396,6 @@ src/
 │   │                #   buy-route screen and the determination call (plus its plain-English requester copy)
 │   ├── assistant/   # Assistant providers, intents and capability handlers
 │   └── workflow/    # Workflow engine, transition primitive, gate model (see its README)
-├── server/api/      # Explicit low-volume API handlers behind the api/db.ts?domain= dispatcher
 ├── components/
 │   ├── ui/          # shadcn/ui primitives
 │   ├── layout/      # App shell, sidebar, topbar, portal layout

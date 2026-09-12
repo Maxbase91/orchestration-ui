@@ -4,7 +4,7 @@ import { getDbAdmin } from './_db-admin.js';
 import type { NeonCompatibleClient } from '../src/lib/neon-compatible-client.js';
 import { createTicketWith } from '../src/lib/db/tickets-core.js';
 import { mergePreferences } from '../src/lib/db/user-preferences-core.js';
-import { knowledgeBase } from '../src/data/knowledgeBase.js';
+import { knowledgeBase } from '../src/data/knowledge-base.js';
 import { actionSubjects, describeAction } from './_action-description.js';
 
 const db = new Proxy({} as NeonCompatibleClient, {

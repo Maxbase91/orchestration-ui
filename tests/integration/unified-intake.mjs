@@ -33,7 +33,7 @@ check('exclusions are distinct from scope in the intake model', /exclusions/.tes
 check('scope prompt does not combine Included and Excluded questions', !readFileSync('src/lib/procurement/demand-conversation.ts', 'utf8').includes('in scope — and anything explicitly out of scope'));
 check('document context carries into the adaptive chat', readFileSync('src/features/requests/new-request/step-chat-intake.tsx', 'utf8').includes('data.serviceDescription ?? {}'));
 check('requester-facing intake does not render a business justification field', !/label.*Business Justification/.test(readFileSync('src/features/requests/new-request/step-chat-intake.tsx', 'utf8')));
-check('upload API boundary exists', readFileSync('src/server/api/intake-upload.ts', 'utf8').includes('PDF'));
+check('upload API boundary exists', readFileSync('api/_domains/intake-upload.ts', 'utf8').includes('PDF'));
 // The "helpful guidance from similar requests" card is gone, along with its
 // endpoint. It was not similar to anything — the query ignored the category,
 // the typed text and the commodity code, and returned the eight most recently
@@ -41,7 +41,7 @@ check('upload API boundary exists', readFileSync('src/server/api/intake-upload.t
 // word to "the supplier", so each suggestion opened with it. It also re-queried
 // the database on every keystroke.
 check('no similar-requests guidance card remains', !existsSync(new URL('../../src/features/requests/new-request/components/intake-guidance-card.tsx', import.meta.url)));
-check('no intake-guidance endpoint remains', !existsSync(new URL('../../src/server/api/intake-guidance.ts', import.meta.url)));
+check('no intake-guidance endpoint remains', !existsSync(new URL('../../api/_domains/intake-guidance.ts', import.meta.url)));
 // The home box already asked what they need; asking again on the describe step
 // was friction that also used to discard the text. The classification runs on
 // the prefill and advances on its own.
