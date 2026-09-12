@@ -104,6 +104,38 @@ for (const field of ['confidenceThreshold', 'selectedInputs', 'humanOverride', '
 }
 if (failures === 0) ok('no unsent configuration control');
 
+// ── One source for stage SLAs, and no reads of the inert columns ────────────
+// Three columns told the same story badly: `sla_deadline` was set only on a
+// stage *change* (130 of 136 requests had none), `is_overdue` was written false
+// and never set true, and `days_in_stage` is written 0 and never incremented.
+// Anything comparing against the last two reported nothing, forever — the
+// Workflows "over SLA" filter, the Stuck Requests table, and the AI Insights
+// count all sat at zero. The template owns stage SLAs; overdue is derived from
+// the deadline.
+console.log('\nStage SLAs have one source');
+const mappers = readFileSync(new URL('src/lib/db/mappers.ts', ROOT), 'utf8');
+if (/result\.isOverdue = ms !== null/.test(mappers)) ok('isOverdue is derived from the deadline');
+else bad('isOverdue is derived', 'the mapper passes the stored column through again');
+
+for (const [file, label] of [
+  ['src/features/workflows/active-workflows-page.tsx', 'the over-SLA filter'],
+  ['src/features/workflows/components/stuck-requests-table.tsx', 'the stuck table'],
+]) {
+  const source = readFileSync(new URL(file, ROOT), 'utf8');
+  // A comparison against daysInStage is the dead-column pattern; a comment
+  // mentioning it is fine.
+  const code = source.split('\n').filter((line) => !line.trim().startsWith('//')).join('\n');
+  if (/daysInStage\s*[<>]/.test(code)) {
+    bad(`${label} does not compare daysInStage`, 'days_in_stage is never incremented, so the comparison never fires');
+  }
+}
+if (failures === 0) ok('no surface compares against days_in_stage');
+
+const slaPage = readFileSync(new URL('src/features/admin/sla-targets-page.tsx', ROOT), 'utf8');
+if (/useUpsertSlaTarget|upsert\.mutateAsync/.test(slaPage)) {
+  bad('the SLA page does not claim to set stage SLAs', 'it writes sla_targets again, which no countdown reads');
+} else ok('the SLA page reads the templates rather than writing a table nothing reads');
+
 // ── Live: no request sits in a stage its channel skips ──────────────────────
 const env = loadEnv();
 const connection = env.NEON_DATABASE_URL ?? env.DATABASE_URL;

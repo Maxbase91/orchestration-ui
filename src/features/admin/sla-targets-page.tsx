@@ -1,80 +1,101 @@
-// Admin — SLA targets. Sets the max days per workflow stage (default channel);
-// these thresholds drive the overdue flags and SLA countdowns shown on
-// requests, dashboards, and bottleneck views.
-
-import { Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
+// Admin — stage SLAs, read-only, sourced from the workflow templates.
+//
+// This page used to write `sla_targets` and its subtitle said the values
+// "drive the overdue flags and SLA countdowns". They did not. Every countdown
+// reads `requests.sla_deadline`, which transition.ts computes from the workflow
+// template node's `slaDays`; the table was read only by four chart components
+// that recomputed locally against numbers nothing else used. Editing this grid
+// changed nothing anyone would see.
+//
+// The template won that contest — an SLA is a property of a stage, and the
+// stage is defined in the Workflow Designer. So the page shows what the
+// templates say and sends you there to change it, rather than offering an input
+// that writes to a column no consumer reads.
+import { Loader2, ExternalLink } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { useSlaTargets, useUpsertSlaTarget } from '@/lib/db/hooks/use-sla-targets';
-import type { SlaTarget } from '@/lib/db/sla-targets';
+import { Button } from '@/components/ui/button';
+import { useStageSlas } from '@/lib/db/hooks/use-stage-slas';
+import { useWorkflowTemplates } from '@/lib/db/hooks/use-workflow-templates';
 
 const STAGE_LABELS: Record<string, string> = {
-  intake: 'Intake', validation: 'Validation', approval: 'Approval',
+  intake: 'Intake', validation: 'Validation', risk: 'Risk Assessment',
+  onboarding: 'Vendor Onboarding', approval: 'Approval',
   sourcing: 'Sourcing', contracting: 'Contracting', po: 'PO Creation',
   receipt: 'Goods Receipt', invoice: 'Invoice', payment: 'Payment',
 };
 
 export function SlaTargetsPage() {
-  const { data: targets = [], isLoading } = useSlaTargets();
-  const upsert = useUpsertSlaTarget();
-
-  async function handleChange(stage: string, days: number) {
-    if (isNaN(days) || days < 1) return;
-    try {
-      await upsert.mutateAsync({ stage, channel: 'default', days });
-      toast.success(`SLA for ${STAGE_LABELS[stage] ?? stage} updated to ${days} days`);
-    } catch (e) {
-      console.error(e);
-      toast.error('Failed to update SLA target');
-    }
-  }
-
-  const orderedStages = Object.keys(STAGE_LABELS);
+  const { data: slas, isLoading } = useStageSlas();
+  const { data: templates = [] } = useWorkflowTemplates();
 
   if (isLoading) return (
     <div className="flex items-center justify-center py-16 gap-2 text-muted-foreground">
-      <Loader2 className="size-5 animate-spin" /> <span className="text-sm">Loading SLA targets…</span>
+      <Loader2 className="size-5 animate-spin" /> <span className="text-sm">Loading stage SLAs…</span>
     </div>
   );
+
+  const templateName = (id: string) => templates.find((t) => t.id === id)?.name ?? id;
+  const byTemplate = new Map<string, typeof slas>();
+  for (const sla of slas) {
+    byTemplate.set(sla.templateId, [...(byTemplate.get(sla.templateId) ?? []), sla]);
+  }
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="SLA Targets"
-        subtitle="Set the maximum days allowed per workflow stage before a request is flagged as overdue"
+        title="Stage SLAs"
+        subtitle="How many working days each stage allows, as defined by the workflow templates"
       />
 
-      <Card className="max-w-lg">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm">Default SLA (days) per stage</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {orderedStages.map((stage) => {
-            // Stages without a stored target fall back to 5 days, the platform default.
-            const current = (targets as SlaTarget[]).find((t) => t.stage === stage && t.channel === 'default')?.days ?? 5;
-            return (
-              <div key={stage} className="flex items-center justify-between gap-4">
-                <span className="text-sm font-medium text-gray-700 w-36">{STAGE_LABELS[stage]}</span>
-                <div className="flex items-center gap-2">
-                  {/* No save button: values persist on blur, and Enter just blurs. */}
-                  <Input
-                    type="number"
-                    min={1}
-                    max={90}
-                    defaultValue={current}
-                    className="h-8 w-20 text-sm text-center"
-                    onBlur={(e) => handleChange(stage, parseInt(e.target.value))}
-                    onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-                  />
-                  <span className="text-xs text-muted-foreground">days</span>
-                </div>
+      <div className="flex items-start gap-2 rounded-md border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700">
+        <div className="flex-1">
+          <p className="font-medium">Set in the Workflow Designer</p>
+          <p className="text-xs text-muted-foreground">
+            An SLA belongs to the stage that has it, so it is edited on the workflow node
+            alongside that stage&apos;s role and gate. A request&apos;s deadline is calculated in
+            working days from the moment it enters the stage.
+          </p>
+        </div>
+        <Button asChild variant="outline" size="sm">
+          <Link to="/admin/workflows">
+            Workflow Designer <ExternalLink className="ml-1.5 size-3.5" />
+          </Link>
+        </Button>
+      </div>
+
+      {byTemplate.size === 0 && (
+        <Card className="max-w-2xl">
+          <CardContent className="py-8 text-center text-sm text-muted-foreground">
+            No workflow template defines a stage SLA yet. Add one to a stage node in the
+            Workflow Designer and it will appear here.
+          </CardContent>
+        </Card>
+      )}
+
+      {[...byTemplate.entries()].map(([templateId, stages]) => (
+        <Card key={templateId} className="max-w-2xl">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm">
+              {templateName(templateId)}{' '}
+              <span className="font-mono text-xs font-normal text-muted-foreground">{templateId}</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {stages.map((sla) => (
+              <div key={`${templateId}-${sla.stage}`} className="flex items-center justify-between gap-4 border-b border-gray-100 pb-2 last:border-0 last:pb-0">
+                <span className="text-sm font-medium text-gray-700">
+                  {STAGE_LABELS[sla.stage] ?? sla.stage}
+                </span>
+                <span className="text-sm tabular-nums text-gray-900">
+                  {sla.days} <span className="text-xs text-muted-foreground">working days</span>
+                </span>
               </div>
-            );
-          })}
-        </CardContent>
-      </Card>
+            ))}
+          </CardContent>
+        </Card>
+      ))}
     </div>
   );
 }

@@ -2,8 +2,8 @@
 // target (admin-configured) drawn as a reference line, so breaches are visible
 // at a glance rather than read off a table.
 import { useMemo } from 'react';
-import { useSlaTargets } from '@/lib/db/hooks/use-sla-targets';
-import { resolveSla } from '@/lib/db/sla-targets';
+import { useStageSlas } from '@/lib/db/hooks/use-stage-slas';
+import { stageSlaDays } from '@/lib/workflow/stage-sla';
 import {
   BarChart,
   Bar,
@@ -46,7 +46,7 @@ interface BottleneckChartProps {
 }
 
 export function BottleneckChart({ requests }: BottleneckChartProps) {
-  const { data: slaTargets = [] } = useSlaTargets();
+  const { data: slaTargets } = useStageSlas();
 
   const data = useMemo(() => {
     return STAGE_ORDER.map((stage) => {
@@ -56,7 +56,7 @@ export function BottleneckChart({ requests }: BottleneckChartProps) {
           ? stageRequests.reduce((sum, r) => sum + r.daysInStage, 0) /
             stageRequests.length
           : 0;
-      const slaTarget = resolveSla(slaTargets, stage);
+      const slaTarget = (stageSlaDays(slaTargets, stage) ?? 0);
 
       return {
         name: STAGE_LABELS[stage],
@@ -68,7 +68,7 @@ export function BottleneckChart({ requests }: BottleneckChartProps) {
     });
   }, [requests, slaTargets]);
 
-  const globalSlaTarget = resolveSla(slaTargets, 'approval'); // representative line
+  const globalSlaTarget = (stageSlaDays(slaTargets, 'approval') ?? 0); // representative line
 
   return (
     <div className="rounded-md border bg-white p-4 shadow-sm">

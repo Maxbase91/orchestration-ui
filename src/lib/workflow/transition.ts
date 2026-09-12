@@ -19,6 +19,7 @@ import { updateRequest } from '@/lib/db/requests';
 import type { ProcurementRequest } from '@/data/types';
 import { resolveStageOwnerRole } from './approver-resolution';
 import type { TemplateNode } from './node-config';
+import { slaDeadlineFor } from './business-days';
 
 const STAGE_HISTORY = 'stage_history';
 
@@ -36,16 +37,6 @@ export interface TransitionInput {
 }
 
 /** Business days out from now, as an ISO timestamp. Weekends do not consume SLA. */
-export function addBusinessDays(from: Date, days: number): Date {
-  const out = new Date(from.getTime());
-  let remaining = Math.max(0, Math.floor(days));
-  while (remaining > 0) {
-    out.setDate(out.getDate() + 1);
-    const day = out.getDay();
-    if (day !== 0 && day !== 6) remaining--;
-  }
-  return out;
-}
 
 /**
  * Who owns the stage being entered.
@@ -123,8 +114,7 @@ export async function transitionStage(input: TransitionInput): Promise<void> {
 
   // sla_deadline was never populated by anything before this. The countdown on
   // the request header and the Stuck/bottleneck views have always read it.
-  const slaDeadline =
-    node?.slaDays != null ? addBusinessDays(now, node.slaDays).toISOString() : null;
+  const slaDeadline = slaDeadlineFor(now, node?.slaDays);
 
   await db.from(STAGE_HISTORY).insert({
     request_id: requestId,

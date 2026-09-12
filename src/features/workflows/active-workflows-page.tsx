@@ -7,8 +7,6 @@ import { FilterBar, type FilterConfig } from '@/components/shared/filter-bar';
 import { Button } from '@/components/ui/button';
 import { useRequests } from '@/lib/db/hooks/use-requests';
 import { useAuthStore } from '@/stores/auth-store';
-import { useSlaTargets } from '@/lib/db/hooks/use-sla-targets';
-import { resolveSla } from '@/lib/db/sla-targets';
 import { KanbanView } from './kanban-view';
 import { TableView } from './table-view';
 import { TimelineView } from './timeline-view';
@@ -86,11 +84,14 @@ export function ActiveWorkflowsPage() {
   const [activeFilters, setActiveFilters] = useState<Record<string, string | string[]>>({});
   const [quickFilter, setQuickFilter] = useState<string | null>(null);
   const { data: requests = [] } = useRequests();
-  const { data: slaTargets = [] } = useSlaTargets();
   const navigate = useNavigate();
 
-  function isOverSla(r: { status: string; daysInStage: number }) {
-    return r.daysInStage > resolveSla(slaTargets, r.status);
+  // Was `daysInStage > resolveSla(...)`. `days_in_stage` is written 0 at
+  // creation and 0 on every transition and nothing increments it, so this
+  // filter matched nothing, ever. `isOverdue` is derived from the stage's real
+  // deadline (src/lib/db/mappers.ts).
+  function isOverSla(r: { isOverdue?: boolean }) {
+    return Boolean(r.isOverdue);
   }
 
   // Base set: active requests only

@@ -26,6 +26,8 @@ import { loadContractMatchScopes } from './_domains/contract-match.js';
 import { matchContractScopes } from '../src/lib/procurement/contract-matching.js';
 import { getDbAdmin } from './_db-admin.js';
 import { approvalRows, deriveApprovalsFor, resolveChainId } from '../src/lib/db/approvals-core.js';
+import { nodeIdForStatus } from '../src/lib/workflow/node-config.js';
+import { slaDeadlineFor } from '../src/lib/workflow/business-days.js';
 
 type CheckoutPayload = {
   request?: Partial<ProcurementRequest>;
@@ -161,29 +163,30 @@ function assertString(value: unknown, name: string): string {
  * empty, and the request could not progress — there was no lifecycle to
  * progress. The records are now written in the same transaction as the rest.
  *
- * Node ids come from the seeded templates: WF-002 "Catalogue Purchase" runs
- * n1 start → n2 auto-validate → n3 value check → n4 manager approval →
- * n5 auto-PO → n6 PO created → n7 receipt, and WF-001 "Standard Procurement"
- * carries the full lifecycle a call-off can land anywhere in.
+ * Which template and which stage is a routing decision and belongs here. The
+ * *node id* does not: it used to be six literals (n4, n5, n6, n7, n8, n14) read
+ * off the seeded templates, so reshaping or renaming anything in the Workflow
+ * Designer left the server writing ids that no longer meant what it thought.
+ * The node is resolved from the stored template by stage — see nodeIdForStatus.
  */
 function lifecycleEntry(route: string, status: GovernedCheckoutDecision['status']): {
-  templateId: string; nodeId: string; stage: ProcurementRequest['status'];
+  templateId: string; stage: ProcurementRequest['status'];
 } {
   if (route === 'catalogue') {
     // A catalogue order has no sourcing, contracting or risk stage to enter;
     // anything that is not auto-approved waits at manager approval.
-    if (status === 'approved') return { templateId: 'WF-002', nodeId: 'n6', stage: 'po' };
-    return { templateId: 'WF-002', nodeId: 'n4', stage: 'approval' };
+    if (status === 'approved') return { templateId: 'WF-002', stage: 'po' };
+    return { templateId: 'WF-002', stage: 'approval' };
   }
   switch (status) {
-    case 'approved': return { templateId: 'WF-001', nodeId: 'n8', stage: 'po' };
-    case 'risk-review': return { templateId: 'WF-001', nodeId: 'n14', stage: 'risk' };
-    case 'contract-amendment-required': return { templateId: 'WF-001', nodeId: 'n7', stage: 'contracting' };
-    default: return { templateId: 'WF-001', nodeId: 'n5', stage: 'approval' };
+    case 'approved': return { templateId: 'WF-001', stage: 'po' };
+    case 'risk-review': return { templateId: 'WF-001', stage: 'risk' };
+    case 'contract-amendment-required': return { templateId: 'WF-001', stage: 'contracting' };
+    default: return { templateId: 'WF-001', stage: 'approval' };
   }
 }
 
-function requestDb(request: Partial<ProcurementRequest>, fields: { id: string; requisitionId: string; decision: GovernedCheckoutDecision; now: string; templateId: string; stage: ProcurementRequest['status'] }): { columns: string[]; values: unknown[] } {
+function requestDb(request: Partial<ProcurementRequest>, fields: { id: string; requisitionId: string; decision: GovernedCheckoutDecision; now: string; templateId: string; stage: ProcurementRequest['status']; slaDeadline: string | null }): { columns: string[]; values: unknown[] } {
   // The first actionable stage is part of the persisted request state. Keeping
   // every checkout in `intake` made a completed catalogue request appear
   // stuck even when the policy had already created its internal PO.
@@ -204,6 +207,9 @@ function requestDb(request: Partial<ProcurementRequest>, fields: { id: string; r
     business_justification: request.businessJustification ?? request.description ?? '',
     delivery_date: request.deliveryDate ?? null, is_urgent: request.isUrgent ?? false,
     days_in_stage: 0, is_overdue: false, refer_back_count: 0,
+    // From the template node for the stage being entered — see the SLA note in
+    // src/lib/workflow/business-days.ts.
+    sla_deadline: fields.slaDeadline,
     requester_country: request.requesterCountry ?? null, requester_country_code: request.requesterCountryCode ?? null,
     beneficiary_id: fields.decision.resolved.beneficiaryId ?? request.beneficiaryId ?? null,
     beneficiary_name: request.beneficiaryName ?? null, beneficiary_country: request.beneficiaryCountry ?? null,
@@ -405,6 +411,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     const now = new Date().toISOString();
     const entry = lifecycleEntry(checkout.route, decision.status);
 
+    // The node and its SLA come from the stored template, not from literals.
+    // A template with no node for this stage still gets a request and a stage
+    // row — only the workflow instance is skipped, because an instance pointing
+    // at a node that does not exist is harder to detect than a missing one.
+    const [entryTemplate] = await queryRows(
+      sql, 'SELECT nodes FROM workflow_templates WHERE id = $1', [entry.templateId],
+    );
+    const entryNodes = Array.isArray(entryTemplate?.nodes)
+      ? entryTemplate.nodes as Array<{ id: string; type?: string; label?: string; slaDays?: number }>
+      : [];
+    const entryNodeId = nodeIdForStatus(entryNodes, entry.stage);
+    const entrySlaDeadline = slaDeadlineFor(new Date(now), entryNodes.find((n) => n.id === entryNodeId)?.slaDays);
+
     // Who has to agree, derived from the records rather than a role→persona
     // map. A checkout that needs approval used to write no entries at all, so
     // the request sat in `approval` with an empty Approvals tab and nobody able
@@ -423,7 +442,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
           await resolveChainId(getDbAdmin(), request.approvalChain ?? null, decision.totalValue),
         )
       : [];
-    const reqData = requestDb(request, { id: requestId, requisitionId, decision, now, templateId: entry.templateId, stage: entry.stage });
+    const reqData = requestDb(request, { id: requestId, requisitionId, decision, now, templateId: entry.templateId, stage: entry.stage, slaDeadline: entrySlaDeadline });
     const requisitionData: Record<string, unknown> = {
       id: requisitionId, request_id: requestId, route: checkout.route, status: decision.status,
       supplier_id: decision.resolved.supplierId, contract_id: decision.resolved.contractId,
@@ -483,12 +502,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
         [requestId, entry.stage, now, request.ownerId ?? request.requestorId ?? null, 'advanced',
          decision.approvalRequired ? 'Awaiting approval before the order is raised.' : 'Met the auto-approval policy.'],
       ),
-      sql.query(
+      ...(entryNodeId ? [sql.query(
         `INSERT INTO workflow_instances (id, request_id, template_id, current_node_ids, status, variables, created_at, updated_at)
          VALUES ($1, $2, $3, $4::jsonb, $5, $6::jsonb, $7, $7)`,
-        [`WI-${requestId}`, requestId, entry.templateId, JSON.stringify([entry.nodeId]), 'running',
+        [`WI-${requestId}`, requestId, entry.templateId, JSON.stringify([entryNodeId]), 'running',
          JSON.stringify({ route: checkout.route, submittedBy: request.requestorId ?? null }), now],
-      ),
+      )] : []),
     ];
 
     for (const row of approvalRows(requestId, approvals, now)) {

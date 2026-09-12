@@ -125,7 +125,8 @@
     "backfill:form-stages": "node db/backfills/2026-09-12-form-stage-placement.mjs",
     "test:forms": "node --import tsx/esm tests/integration/form-placement.mjs",
     "backfill:initial-stage": "node --import tsx/esm db/backfills/2026-09-13-channel-initial-stage.mjs",
-    "test:config-consumption": "node --import tsx/esm tests/integration/config-consumption.mjs"
+    "test:config-consumption": "node --import tsx/esm tests/integration/config-consumption.mjs",
+    "backfill:sla-deadlines": "node --import tsx/esm db/backfills/2026-09-13-sla-deadlines.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

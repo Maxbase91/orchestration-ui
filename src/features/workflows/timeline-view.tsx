@@ -1,8 +1,8 @@
 import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/lib/format';
 import type { ProcurementRequest, RequestStatus } from '@/data/types';
-import { useSlaTargets } from '@/lib/db/hooks/use-sla-targets';
-import { resolveSla, type SlaTarget } from '@/lib/db/sla-targets';
+import { useStageSlas } from '@/lib/db/hooks/use-stage-slas';
+import { stageSlaDays, type StageSla } from '@/lib/workflow/stage-sla';
 import {
   Tooltip,
   TooltipContent,
@@ -43,7 +43,7 @@ function getStageIndex(status: RequestStatus): number {
  * Completed stages get a base width, current stage uses actual daysInStage,
  * future stages are gray placeholders.
  */
-function getStageSegments(request: ProcurementRequest, slaTargets: SlaTarget[]) {
+function getStageSegments(request: ProcurementRequest, slaTargets: StageSla[]) {
   const currentIdx = getStageIndex(request.status as RequestStatus);
   const baseDays = 3;
 
@@ -62,7 +62,7 @@ function getStageSegments(request: ProcurementRequest, slaTargets: SlaTarget[]) 
       state = 'future';
     }
 
-    const slaThreshold = resolveSla(slaTargets, stage);
+    const slaThreshold = (stageSlaDays(slaTargets, stage) ?? 0);
     const isLong = state !== 'future' && days > slaThreshold;
 
     return { stage, days, state, isLong };
@@ -74,7 +74,7 @@ interface TimelineViewProps {
 }
 
 export function TimelineView({ requests }: TimelineViewProps) {
-  const { data: slaTargets = [] } = useSlaTargets();
+  const { data: slaTargets } = useStageSlas();
   // Only show active (non-draft, non-completed, non-cancelled) requests
   const activeRequests = requests.filter(
     (r) =>

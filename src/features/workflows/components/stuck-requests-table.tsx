@@ -15,8 +15,9 @@ import {
 } from '@/components/ui/table';
 import { Send, AlertTriangle, UserPlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useSlaTargets } from '@/lib/db/hooks/use-sla-targets';
-import { resolveSla } from '@/lib/db/sla-targets';
+import { daysPastDeadline } from '@/lib/workflow/business-days';
+import { stageSlaDays } from '@/lib/workflow/stage-sla';
+import { useStageSlas } from '@/lib/db/hooks/use-stage-slas';
 
 interface StuckRequestsTableProps {
   requests: ProcurementRequest[];
@@ -25,15 +26,16 @@ interface StuckRequestsTableProps {
 export function StuckRequestsTable({ requests }: StuckRequestsTableProps) {
   useUsers();
   const lookupUser = useUserLookup();
-  const { data: slaTargets = [] } = useSlaTargets();
+  const { data: stageSlas } = useStageSlas();
 
-  function slaDays(req: ProcurementRequest): number {
-    return resolveSla(slaTargets, req.status);
-  }
-
+  // Was `daysInStage > resolveSla(...)`, which never matched: `days_in_stage`
+  // is written 0 and never incremented, so this table showed its empty state
+  // whatever was actually stuck. Overdue is derived from the stage deadline,
+  // and the worst offender leads.
+  const overdueBy = (r: ProcurementRequest) => daysPastDeadline(r.slaDeadline) ?? 0;
   const stuckRequests = requests
-    .filter((r) => r.daysInStage > slaDays(r))
-    .sort((a, b) => b.daysInStage - a.daysInStage);
+    .filter((r) => r.isOverdue)
+    .sort((a, b) => overdueBy(b) - overdueBy(a));
 
   if (stuckRequests.length === 0) {
     return (
@@ -70,8 +72,10 @@ export function StuckRequestsTable({ requests }: StuckRequestsTableProps) {
         <TableBody>
           {stuckRequests.map((req) => {
             const owner = lookupUser(req.ownerId);
-            const sla = slaDays(req);
-            const daysOverdue = req.daysInStage - sla;
+            // Days past the stage deadline. `daysInStage` is not usable here —
+            // it is written 0 and never incremented.
+            const daysOverdue = overdueBy(req);
+            const sla = stageSlaDays(stageSlas, req.status, req.workflowTemplateId) ?? '—';
 
             return (
               <TableRow key={req.id}>
@@ -96,7 +100,7 @@ export function StuckRequestsTable({ requests }: StuckRequestsTableProps) {
                         : 'text-amber-600',
                     )}
                   >
-                    {req.daysInStage}
+                    {daysOverdue}
                   </span>
                 </TableCell>
                 <TableCell className="text-center text-sm text-muted-foreground">

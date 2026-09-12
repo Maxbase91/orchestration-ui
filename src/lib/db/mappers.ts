@@ -4,6 +4,7 @@
 // NodeNext ESM mode.
 import type { ServiceDescriptionRecord } from '../../data/types.js';
 export type { ServiceDescriptionRecord };
+import { deadlineMs } from '../workflow/business-days.js';
 import type {
   ProcurementRequest,
   Comment,
@@ -532,6 +533,25 @@ export function mapDbToRequest(row: DbRecord): ProcurementRequest {
   for (const key of ['value', 'daysInStage', 'referBackCount']) {
     if (result[key] !== undefined && result[key] !== null) result[key] = Number(result[key]);
   }
+
+  // `isOverdue` is derived, not read.
+  //
+  // The `is_overdue` column is written `false` when a request is created and
+  // `false` again on every stage transition, and nothing has ever set it true —
+  // there is no cron. So every consumer of it reported zero permanently: the
+  // Workflows table's overdue column, the AI Insights widget's "N overdue"
+  // count, the connector's filter, and the assistant, which offers `is_overdue`
+  // as a query filter and sorts by it.
+  //
+  // The deadline itself is real (`sla_deadline`, set from the workflow template
+  // node when the stage opens), and openSlaState() already classifies against
+  // it for the countdowns. Deriving here means one mechanism instead of two and
+  // a value that is correct the moment it becomes true, with no job to run and
+  // no staleness window. The stored column is left alone — writing it would
+  // just recreate the second source.
+  const ms = deadlineMs(result.slaDeadline);
+  result.isOverdue = ms !== null && ms <= Date.now();
+
   return result as unknown as ProcurementRequest;
 }
 

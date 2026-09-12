@@ -346,13 +346,22 @@ async function execFilterObjects(
   } catch { /* ignore */ }
 
   if (objectType === 'requests') {
+    // Overdue is the deadline being in the past, not the `is_overdue` column.
+    // That column is written false at creation and false on every transition and
+    // nothing ever sets it true, so filtering or sorting on it answered "no
+    // overdue requests" however many there were. `sla_deadline` is real — the
+    // workflow template sets it when the stage opens.
+    const nowIso = new Date().toISOString();
     let q = db
       .from('requests')
-      .select('id, title, status, priority, value, is_overdue, days_in_stage, category')
-      .order('is_overdue', { ascending: false })
+      .select('id, title, status, priority, value, sla_deadline, days_in_stage, category')
+      // Earliest deadline first, so the most overdue leads. Postgres sorts
+      // NULLs last on ASC, which puts requests with no deadline at the end
+      // rather than pretending they are the most urgent.
+      .order('sla_deadline', { ascending: true })
       .order('days_in_stage', { ascending: false })
       .limit(cap);
-    if (filters.is_overdue === true) q = q.eq('is_overdue', true);
+    if (filters.is_overdue === true) q = q.lt('sla_deadline', nowIso);
     if (filters.status) q = q.eq('status', filters.status as string);
     if (filters.priority) q = q.eq('priority', filters.priority as string);
     if (filters.category) q = q.eq('category', filters.category as string);
@@ -361,7 +370,13 @@ async function execFilterObjects(
     // model's to choose.
     if (userId) q = q.or(`requestor_id.eq.${userId},owner_id.eq.${userId}`);
     const { data } = await q;
-    return JSON.stringify({ found: !!data?.length, object_type: 'requests', count: data?.length ?? 0, items: data ?? [] });
+    // Hand the model a boolean rather than a date to reason about.
+    const items = (data ?? []).map((row) => {
+      const record = row as Record<string, unknown>;
+      const deadline = typeof record.sla_deadline === 'string' ? record.sla_deadline : null;
+      return { ...record, overdue: deadline !== null && deadline <= nowIso };
+    });
+    return JSON.stringify({ found: items.length > 0, object_type: 'requests', count: items.length, items });
   }
 
   if (objectType === 'suppliers') {

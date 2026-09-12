@@ -7,6 +7,7 @@ import { getDbAdmin } from '../_db-admin.js';
 import { approvalRows, deriveApprovalsFor, resolveChainId } from '../../src/lib/db/approvals-core.js';
 import { firstActionableStage } from '../../src/lib/workflow/buying-channel-stages.js';
 import { nodeIdForStatus } from '../../src/lib/workflow/node-config.js';
+import { slaDeadlineFor } from '../../src/lib/workflow/business-days.js';
 
 type JsonRecord = Record<string, unknown>;
 type IntakePayload = {
@@ -92,10 +93,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     const now = new Date().toISOString();
     const templateId = payload.workflowTemplateId || String(request.workflowTemplateId || 'WF-001');
     const sql = getNeonClient();
+
+    // The stage's SLA, from the template node the request is about to enter.
+    //
+    // `sla_deadline` was set only by transitionStage(), so a request got one on
+    // its first stage *change* and never at creation — 130 of 136 requests in
+    // the live store had none, which meant no countdown, and nothing that could
+    // ever be overdue. The template owns stage SLAs, so the deadline is read
+    // from the same node the workflow instance starts on.
+    const [templateRow] = await queryRows(
+      sql, 'SELECT nodes FROM workflow_templates WHERE id = $1', [templateId],
+    );
+    const templateNodes = Array.isArray(templateRow?.nodes)
+      ? templateRow.nodes as Array<{ id: string; type?: string; label?: string; slaDays?: number }>
+      : [];
     // The approval threshold was read here on every submission and then
     // discarded — a database round trip per intake feeding a decision that is
     // not taken at this point in the lifecycle.
     const stage = initialStage(buyingChannel, Boolean(request.riskAssessmentRequired));
+    const startNodeId = nodeIdForStatus(templateNodes, stage.status);
 
     // The client keeps one request id for a submission attempt. Reusing that
     // id makes retries safe without adding a second idempotency column to the
@@ -156,6 +172,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       attachments: json(request.attachments ?? []), cost_centre: costCentre, budget_owner: request.budgetOwner ?? null,
       business_justification: null, delivery_date: deliveryDate, is_urgent: request.isUrgent ?? false, days_in_stage: 0,
       is_overdue: false, refer_back_count: 0, workflow_template_id: templateId, requester_country: request.requesterCountry ?? null,
+      sla_deadline: slaDeadlineFor(new Date(now), templateNodes.find((n) => n.id === startNodeId)?.slaDays),
       requester_country_code: request.requesterCountryCode ?? null, beneficiary_id: beneficiaryId,
       beneficiary_name: request.beneficiaryName ?? null, beneficiary_country: request.beneficiaryCountry ?? null,
       beneficiary_country_code: request.beneficiaryCountryCode ?? null, created_at: now, updated_at: now,
@@ -213,11 +230,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     // pointing at a node that does not exist: the engine's fallback can open a
     // correct instance later, and a wrong pointer is harder to detect than a
     // missing one.
-    const [templateRow] = await queryRows(
-      sql, 'SELECT nodes FROM workflow_templates WHERE id = $1', [templateId],
-    );
-    const templateNodes = Array.isArray(templateRow?.nodes) ? templateRow.nodes as Array<{ id: string; type?: string; label?: string }> : [];
-    const startNodeId = nodeIdForStatus(templateNodes, stage.status);
     if (!startNodeId) {
       console.warn(`[intake-submit] ${templateId} has no '${stage.status}' node; no workflow instance written for ${id}.`);
     }
