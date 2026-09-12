@@ -251,11 +251,3 @@ export const notifications: Notification[] = [
     relatedId: 'INV-010',
   },
 ];
-
-export function getUnreadNotifications(): Notification[] {
-  return notifications.filter((n) => !n.isRead);
-}
-
-export function getNotificationsByType(type: Notification['type']): Notification[] {
-  return notifications.filter((n) => n.type === type);
-}

@@ -335,16 +335,3 @@ export const formSubmissions: FormSubmission[] = [
     },
   },
 ];
-
-export function getSubmissionsForRequest(requestId: string): FormSubmission[] {
-  return formSubmissions.filter((s) => s.requestId === requestId);
-}
-
-export function getSubmissionForStage(
-  requestId: string,
-  stage: string,
-): FormSubmission[] {
-  return formSubmissions.filter(
-    (s) => s.requestId === requestId && s.stage === stage,
-  );
-}

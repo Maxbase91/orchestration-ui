@@ -114,11 +114,3 @@ export const comments: Comment[] = [
   { id: 'CMT-059', requestId: 'REQ-2024-0025', authorId: 'u1', authorName: 'AI Assistant', authorInitials: 'AI', content: 'Commodity code verified: 25172500 (Automotive sensor components) matches description. Bosch is a registered supplier for this commodity. No framework agreement found — direct PO channel recommended.', timestamp: '2024-12-15T10:30:00Z', isInternal: true },
   { id: 'CMT-060', requestId: 'REQ-2024-0031', authorId: 'u3', authorName: 'AI Assistant', authorInitials: 'AI', content: 'Spend analysis: Current Salesforce spend is €420K/year. This expansion would increase to €960K/year. Recommend negotiating multi-year agreement for additional 8-12% discount based on market benchmarks.', timestamp: '2024-12-01T10:30:00Z', isInternal: true },
 ];
-
-export function getCommentsByRequestId(requestId: string): Comment[] {
-  return comments.filter((c) => c.requestId === requestId);
-}
-
-export function getInternalComments(requestId: string): Comment[] {
-  return comments.filter((c) => c.requestId === requestId && c.isInternal);
-}

@@ -900,14 +900,3 @@ export const formTemplates: FormTemplate[] = [
 export function getFormTemplate(id: string): FormTemplate | undefined {
   return formTemplates.find((t) => t.id === id);
 }
-
-export function getFormsForStage(
-  stage: string,
-  category?: string,
-): FormTemplate[] {
-  return formTemplates.filter((t) => {
-    const stageMatch = t.triggerStages.includes(stage);
-    const categoryMatch = category ? t.category === category : true;
-    return stageMatch && categoryMatch && t.status === 'active';
-  });
-}

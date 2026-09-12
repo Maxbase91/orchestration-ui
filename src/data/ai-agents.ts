@@ -65,11 +65,3 @@ export const aiAgents: AIAgent[] = [
     description: 'Reviews purchase requisitions before PO creation. Validates budget availability, contract coverage, supplier compliance status, and policy adherence. Produces a compliance report with pass/fail decision and detailed findings.',
   },
 ];
-
-export function getAgentById(id: string): AIAgent | undefined {
-  return aiAgents.find((a) => a.id === id);
-}
-
-export function getActiveAgents(): AIAgent[] {
-  return aiAgents.filter((a) => a.status === 'active');
-}

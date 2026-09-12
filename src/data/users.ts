@@ -23,11 +23,3 @@ export const users: User[] = [
   { id: 'u12', name: 'Henrik Larsson', email: 'henrik.larsson@company.com', role: 'admin', department: 'Global Procurement', initials: 'HL', isOOO: false, country: 'Sweden', countryCode: 'SE' },
   { id: 'u13', name: 'David Schneider', email: 'david.schneider@accenture.com', role: 'supplier', department: 'Accenture (External)', initials: 'DS', isOOO: false, country: 'Switzerland', countryCode: 'CH' },
 ];
-
-export function getUserById(id: string): User | undefined {
-  return users.find((u) => u.id === id);
-}
-
-export function getUsersByRole(role: string): User[] {
-  return users.filter((u) => u.role === role);
-}

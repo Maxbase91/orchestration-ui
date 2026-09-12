@@ -310,15 +310,3 @@ export const contracts: Contract[] = [
     linkedRequestIds: ['REQ-2024-0014'],
   },
 ];
-
-export function getContractById(id: string): Contract | undefined {
-  return contracts.find((c) => c.id === id);
-}
-
-export function getContractsByStatus(status: Contract['status']): Contract[] {
-  return contracts.filter((c) => c.status === status);
-}
-
-export function getContractsBySupplier(supplierId: string): Contract[] {
-  return contracts.filter((c) => c.supplierId === supplierId);
-}

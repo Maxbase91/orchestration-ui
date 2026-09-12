@@ -272,7 +272,3 @@ complianceReports.push(
     recommendation: 'Proceed with VP approval. Request supplier review of licence count before signature.',
   },
 );
-
-export function getComplianceReport(requestId: string): ComplianceReport | undefined {
-  return complianceReports.find((r) => r.requestId === requestId);
-}

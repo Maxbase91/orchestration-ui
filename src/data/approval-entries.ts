@@ -375,15 +375,3 @@ export const approvalEntries: ApprovalEntry[] = [
     comments: 'Approved. Note: request was subsequently cancelled.',
   },
 ];
-
-export function getApprovalsByRequestId(requestId: string): ApprovalEntry[] {
-  return approvalEntries.filter((a) => a.requestId === requestId);
-}
-
-export function getPendingApprovals(): ApprovalEntry[] {
-  return approvalEntries.filter((a) => a.status === 'pending');
-}
-
-export function getApprovalsByApprover(approverId: string): ApprovalEntry[] {
-  return approvalEntries.filter((a) => a.approverId === approverId);
-}

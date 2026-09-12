@@ -946,11 +946,3 @@ export const requests: ProcurementRequest[] = [
 export function getRequestById(id: string): ProcurementRequest | undefined {
   return requests.find((r) => r.id === id);
 }
-
-export function getRequestsByStatus(status: ProcurementRequest['status']): ProcurementRequest[] {
-  return requests.filter((r) => r.status === status);
-}
-
-export function getRequestsByOwner(ownerId: string): ProcurementRequest[] {
-  return requests.filter((r) => r.ownerId === ownerId);
-}

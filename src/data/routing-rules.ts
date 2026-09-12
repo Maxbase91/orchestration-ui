@@ -173,11 +173,3 @@ export const routingRules: RoutingRule[] = [
     category: 'Risk Management',
   },
 ];
-
-export function getActiveRules(): RoutingRule[] {
-  return routingRules.filter((r) => r.status === 'active');
-}
-
-export function getRuleById(id: string): RoutingRule | undefined {
-  return routingRules.find((r) => r.id === id);
-}

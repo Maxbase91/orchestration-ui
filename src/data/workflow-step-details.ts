@@ -761,11 +761,3 @@ export const workflowStepDetails: WorkflowStepDetail[] = [
     slaStatus: 'at-risk',
   },
 ];
-
-export function getStepDetailsForRequest(requestId: string): WorkflowStepDetail[] {
-  return workflowStepDetails.filter((d) => d.requestId === requestId);
-}
-
-export function getStepDetail(requestId: string, stage: string): WorkflowStepDetail | undefined {
-  return workflowStepDetails.find((d) => d.requestId === requestId && d.stage === stage);
-}

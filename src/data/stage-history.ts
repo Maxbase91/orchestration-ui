@@ -260,7 +260,3 @@ export const stageHistory: StageHistoryEntry[] = [
   { requestId: 'REQ-2024-0035', stage: 'sourcing', enteredAt: '2024-10-10T11:00:00Z', completedAt: '2024-12-20T11:00:00Z', ownerId: 'u4' },
   { requestId: 'REQ-2024-0035', stage: 'cancelled', enteredAt: '2024-12-20T11:00:00Z', ownerId: 'u4', action: 'cancelled', notes: 'Decision to build in-house audit capability' },
 ];
-
-export function getStageHistoryByRequestId(requestId: string): StageHistoryEntry[] {
-  return stageHistory.filter((e) => e.requestId === requestId);
-}

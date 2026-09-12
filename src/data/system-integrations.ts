@@ -234,11 +234,3 @@ export const systemIntegrations: SystemIntegration[] = [
     detail: 'RFP for cleaning services timed out — no response from Ariba after 30 days. Manual resubmission required.',
   },
 ];
-
-export function getIntegrationsForRequest(requestId: string): SystemIntegration[] {
-  return systemIntegrations.filter((i) => i.requestId === requestId);
-}
-
-export function getIntegrationsBySystem(system: ExternalSystem): SystemIntegration[] {
-  return systemIntegrations.filter((i) => i.system === system);
-}

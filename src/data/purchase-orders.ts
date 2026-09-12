@@ -212,11 +212,3 @@ export const purchaseOrders: PurchaseOrder[] = [
     ],
   },
 ];
-
-export function getPurchaseOrderById(id: string): PurchaseOrder | undefined {
-  return purchaseOrders.find((po) => po.id === id);
-}
-
-export function getPurchaseOrdersByStatus(status: PurchaseOrder['status']): PurchaseOrder[] {
-  return purchaseOrders.filter((po) => po.status === status);
-}

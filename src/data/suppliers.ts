@@ -683,10 +683,6 @@ export const suppliers: Supplier[] = [
   },
 ];
 
-export function getSupplierById(id: string): Supplier | undefined {
-  return suppliers.find((s) => s.id === id);
-}
-
 export function getSuppliersByRisk(risk: Supplier['riskRating']): Supplier[] {
   return suppliers.filter((s) => s.riskRating === risk);
 }

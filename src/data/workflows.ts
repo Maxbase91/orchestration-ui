@@ -142,7 +142,3 @@ export const workflowTemplates: WorkflowTemplate[] = [
     ],
   },
 ];
-
-export function getWorkflowById(id: string): WorkflowTemplate | undefined {
-  return workflowTemplates.find((w) => w.id === id);
-}

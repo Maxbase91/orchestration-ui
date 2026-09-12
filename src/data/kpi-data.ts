@@ -161,11 +161,3 @@ export const kpiData: KPIDataPoint[] = [
     requestsSubmitted: 15,
   },
 ];
-
-export function getKPIByMonth(month: string): KPIDataPoint | undefined {
-  return kpiData.find((k) => k.month === month);
-}
-
-export function getLatestKPI(): KPIDataPoint {
-  return kpiData[kpiData.length - 1];
-}

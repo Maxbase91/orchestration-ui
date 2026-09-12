@@ -179,15 +179,3 @@ export const invoices: Invoice[] = [
     matchVariance: 15000,
   },
 ];
-
-export function getInvoiceById(id: string): Invoice | undefined {
-  return invoices.find((inv) => inv.id === id);
-}
-
-export function getInvoicesByStatus(status: Invoice['status']): Invoice[] {
-  return invoices.filter((inv) => inv.status === status);
-}
-
-export function getInvoicesBySupplier(supplierId: string): Invoice[] {
-  return invoices.filter((inv) => inv.supplierId === supplierId);
-}
