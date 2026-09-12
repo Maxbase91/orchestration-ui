@@ -1,8 +1,8 @@
 // Admin — category taxonomy CRUD. Edits the procurement categories that drive
 // intake classification, routing rules, and analytics groupings in the front door.
 
-import { createElement, useState } from 'react';
-import { Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
+import { createElement, useMemo, useState } from 'react';
+import { AlertTriangle, Loader2, Pencil, Plus, Trash2, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,6 +23,9 @@ import {
   useDeleteProcurementCategory,
 } from '@/lib/db/hooks/use-procurement-categories';
 import type { ProcurementCategory } from '@/lib/db/procurement-categories';
+import { Checkbox } from '@/components/ui/checkbox';
+import { useUsers } from '@/lib/db/hooks/use-users';
+import { useCategoryManagers, useSetCategoryManagers } from '@/lib/db/hooks/use-category-managers';
 import { CATEGORY_ICON_NAMES, resolveCategoryIcon } from '@/data/category-icons';
 
 type EditForm = Omit<ProcurementCategory, 'sortOrder'>;
@@ -39,6 +42,53 @@ export function CategoriesPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState<EditForm>(EMPTY_FORM);
   const [isNew, setIsNew] = useState(false);
+
+  // Who is responsible for demand in each category. Two things read this and
+  // nothing could write it: approver derivation, and the validation stage gate
+  // — so a category with nobody assigned has no one who can move its requests
+  // out of validation.
+  const { data: assignments = [] } = useCategoryManagers();
+  const { data: users = [] } = useUsers();
+  const setManagers = useSetCategoryManagers();
+  const [managerDialog, setManagerDialog] = useState<ProcurementCategory | null>(null);
+  const [selectedManagers, setSelectedManagers] = useState<string[]>([]);
+
+  // Suppliers cannot own internal demand.
+  const assignableUsers = useMemo(
+    () => users.filter((user) => user.role !== 'supplier'),
+    [users],
+  );
+  const managersByCategory = useMemo(() => {
+    const byId = new Map(users.map((user) => [user.id, user.name]));
+    const map = new Map<string, { id: string; name: string }[]>();
+    for (const row of assignments) {
+      const list = map.get(row.categoryId) ?? [];
+      list.push({ id: row.userId, name: byId.get(row.userId) ?? row.userId });
+      map.set(row.categoryId, list);
+    }
+    return map;
+  }, [assignments, users]);
+
+  function openManagers(cat: ProcurementCategory) {
+    setSelectedManagers((managersByCategory.get(cat.id) ?? []).map((m) => m.id));
+    setManagerDialog(cat);
+  }
+
+  async function handleSaveManagers() {
+    if (!managerDialog) return;
+    try {
+      await setManagers.mutateAsync({ categoryId: managerDialog.id, userIds: selectedManagers });
+      toast.success(
+        selectedManagers.length === 0
+          ? `"${managerDialog.label}" now has no manager`
+          : `${selectedManagers.length} manager${selectedManagers.length > 1 ? 's' : ''} assigned to "${managerDialog.label}"`,
+      );
+      setManagerDialog(null);
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to save managers');
+    }
+  }
 
   function openNew() {
     setForm({ ...EMPTY_FORM, id: `cat-${Date.now()}` });
@@ -102,6 +152,34 @@ export function CategoriesPage() {
           {r.catalogueEligible ? 'Can fulfil' : 'Not fulfilled'}
         </span>
       ),
+    },
+    {
+      key: 'managers', label: 'Managers',
+      render: (r) => {
+        const assigned = managersByCategory.get(r.id as string) ?? [];
+        if (assigned.length === 0) {
+          return (
+            <button
+              type="button"
+              className="inline-flex items-center gap-1.5 rounded px-1.5 py-0.5 text-xs font-medium text-amber-700 hover:bg-amber-50"
+              onClick={(e) => { e.stopPropagation(); openManagers(r as unknown as ProcurementCategory); }}
+            >
+              <AlertTriangle className="size-3.5" />
+              No manager
+            </button>
+          );
+        }
+        return (
+          <button
+            type="button"
+            className="inline-flex items-center gap-1.5 rounded px-1.5 py-0.5 text-left text-sm hover:bg-gray-50"
+            onClick={(e) => { e.stopPropagation(); openManagers(r as unknown as ProcurementCategory); }}
+          >
+            <Users className="size-3.5 shrink-0 text-muted-foreground" />
+            <span>{assigned.map((m) => m.name).join(', ')}</span>
+          </button>
+        );
+      },
     },
     {
       key: 'actions', label: '',
@@ -199,6 +277,59 @@ export function CategoriesPage() {
             <Button onClick={handleSave} disabled={upsert.isPending}>
               {upsert.isPending ? <Loader2 className="mr-1.5 size-3.5 animate-spin" /> : null}
               Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Category managers. Several per category is normal — when more than one
+          is assigned the approval step becomes role-open and names them all,
+          rather than picking one arbitrarily. */}
+      <Dialog open={managerDialog !== null} onOpenChange={(open) => { if (!open) setManagerDialog(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Managers — {managerDialog?.label}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Whoever is responsible for demand in this category. They approve its requests
+            and are the only people who can move one out of validation.
+          </p>
+          <div className="max-h-72 space-y-1 overflow-y-auto rounded-md border p-1">
+            {assignableUsers.map((user) => {
+              const checked = selectedManagers.includes(user.id);
+              return (
+                <label
+                  key={user.id}
+                  className="flex cursor-pointer items-center gap-3 rounded px-2 py-1.5 hover:bg-gray-50"
+                >
+                  <Checkbox
+                    checked={checked}
+                    onCheckedChange={(value) => setSelectedManagers((prev) => (
+                      value === true ? [...prev, user.id] : prev.filter((id) => id !== user.id)
+                    ))}
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium">{user.name}</span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {user.role} · {user.department}
+                    </span>
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+          {selectedManagers.length === 0 && (
+            <p className="flex items-start gap-1.5 text-xs text-amber-700">
+              <AlertTriangle className="mt-px size-3.5 shrink-0" />
+              With no manager, nobody but an admin can move this category's requests out
+              of validation, and its approvals fall back to any holder of the role.
+            </p>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setManagerDialog(null)}>Cancel</Button>
+            <Button onClick={handleSaveManagers} disabled={setManagers.isPending}>
+              {setManagers.isPending ? <Loader2 className="mr-1.5 size-3.5 animate-spin" /> : null}
+              Save managers
             </Button>
           </DialogFooter>
         </DialogContent>

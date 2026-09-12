@@ -88,6 +88,45 @@ try {
   check('the picker offers the active cost centres', /CC-ENG-001/.test(listboxText), listboxText.slice(0, 120));
   check('the picker does NOT offer the retired one', !/Retired centre/.test(listboxText), listboxText.slice(0, 120));
 
+  // ── Category managers ─────────────────────────────────────────────────────
+  // Who owns demand in a category was read by two things — approver derivation
+  // and the validation stage gate — and writable by nobody: the only source was
+  // a seed backfill, so a wrong assignment could not be corrected. A category
+  // with none is not cosmetic: nobody but an admin can then move its requests
+  // out of validation.
+  console.log('\nAn administrator maintains the category managers');
+
+  await page.goto(`${BASE}/admin/categories`, { waitUntil: 'networkidle' });
+  await page.getByText('Consulting').first().waitFor({ timeout: 20000 });
+  const categoriesText = await page.locator('main').innerText();
+  check('a category with several managers names them all',
+    /Christine Dupont/.test(categoriesText) && /Sarah Chen/.test(categoriesText), categoriesText.slice(0, 200));
+  check('a category with no manager is flagged',
+    /No manager/.test(categoriesText), categoriesText.slice(0, 200));
+
+  // Assign a manager to the category that has none.
+  await page.getByRole('button', { name: /No manager/ }).first().click();
+  await page.getByRole('dialog').waitFor({ timeout: 10000 });
+  const dialogText = await page.getByRole('dialog').innerText();
+  check('the dialog explains what a manager does',
+    /out of validation/i.test(dialogText), dialogText.slice(0, 160));
+  // By name, not by the word "supplier" — the directory has a "Supplier
+  // Management" department, so matching the word passes on a page that offers
+  // every supplier. u13 is the external supplier user in the fixtures.
+  check('the dialog does not offer the external supplier user',
+    !/David Schneider/.test(dialogText), dialogText.slice(0, 200));
+  check('the dialog does offer internal users',
+    /Sarah Chen/.test(dialogText), dialogText.slice(0, 200));
+
+  await page.getByRole('dialog').getByText('Sarah Chen').click();
+  await page.getByRole('button', { name: 'Save managers' }).click();
+  await page.getByRole('dialog').waitFor({ state: 'hidden', timeout: 10000 });
+  await page.waitForTimeout(500);
+  const afterAssign = await page.locator('main').innerText();
+  const noManagerCount = (afterAssign.match(/No manager/g) ?? []).length;
+  check('assigning a manager clears the warning', noManagerCount === 0,
+    `${noManagerCount} still flagged`);
+
   check('no page errors while maintaining reference data', errors.length === 0, errors.join(' | '));
 } catch (error) {
   console.error(`\n  \x1b[31m✗\x1b[0m suite error — ${error.message.split('\n')[0]}`);

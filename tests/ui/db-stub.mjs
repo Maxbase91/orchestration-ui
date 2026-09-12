@@ -19,6 +19,10 @@ export const FIXTURES = {
     { id: 'u02', name: 'Marc Aubert', email: 'marc.aubert@company.com', role: 'requester', department: 'Operations', initials: 'MA', is_ooo: false },
     { id: 'u05', name: 'Sofia Ricci', email: 'sofia.ricci@company.com', role: 'approver', department: 'Finance', initials: 'SR', is_ooo: false },
     { id: 'u3', name: 'Sarah Chen', email: 'sarah.chen@company.com', role: 'vendor-manager', department: 'Supplier Management', initials: 'SC', is_ooo: false },
+    // An external supplier user, so any screen that must not offer one has
+    // something to exclude. Without a supplier in the fixtures, a "suppliers are
+    // filtered out" assertion passes whether or not the filter exists.
+    { id: 'u13', name: 'David Schneider', email: 'david.schneider@external.com', role: 'supplier', department: 'Accenture (External)', initials: 'DS', is_ooo: false },
   ],
   requests: [
     {
@@ -169,6 +173,15 @@ export const FIXTURES = {
     { id: 'goods', label: 'Goods', description: 'Physical products', active: true, timeline_days: 5, sort_order: 1, catalogue_eligible: true },
     { id: 'consulting', label: 'Consulting', description: 'Advisory services', active: true, timeline_days: 15, sort_order: 2, catalogue_eligible: false },
     { id: 'contract-renewal', label: 'Contract Renewal', description: 'Renew an existing agreement', active: true, timeline_days: 12, sort_order: 3, catalogue_eligible: false },
+  ],
+  // Consulting has two managers and goods has one, so the multi-manager display
+  // and the single case are both exercised; contract-renewal has none, which is
+  // the state the screen must warn about — with no manager, nobody but an admin
+  // can move that category's requests out of validation.
+  category_managers: [
+    { category_id: 'consulting', user_id: 'u11' },
+    { category_id: 'consulting', user_id: 'u3' },
+    { category_id: 'goods', user_id: 'u3' },
   ],
   audit_entries: [],
   // Minimal admin configuration keeps the routing preview meaningful in an

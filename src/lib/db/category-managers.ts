@@ -8,9 +8,9 @@
 // of system roles. There is no `category-manager` role in the six-role model;
 // the responsibility is an assignment, not a role.
 //
-// Note there is still no admin surface for maintaining these assignments; they
-// come from db/backfills/2026-09-10-category-managers.mjs. Adding one is
-// outstanding.
+// Maintained from /admin/categories. Until 2026-09-13 the only writer was
+// db/backfills/2026-09-10-category-managers.mjs, so the table was fully consumed
+// by two things and correctable by nobody.
 import { db } from '@/lib/db-client';
 
 const TABLE = 'category_managers';
@@ -36,4 +36,32 @@ export async function listManagersForCategory(categoryId: string): Promise<Categ
   const { data, error } = await db.from(TABLE).select('category_id, user_id').eq('category_id', categoryId);
   if (error) throw error;
   return (data ?? []).map(mapRow);
+}
+
+/**
+ * Replace a category's managers with exactly this set.
+ *
+ * Delete-then-insert rather than a diff: the set is small (a handful of people
+ * per category) and the whole-set write is what the admin screen means — "these
+ * are the managers now". A diff would have to reason about `assigned_at` for
+ * rows it keeps, which nothing reads.
+ *
+ * Not transactional. The two statements go through the /api/db boundary
+ * separately, so a failure between them leaves a category with no manager —
+ * which the derivation and the stage gate both handle (role mode, and admin can
+ * still advance), and which the screen shows as an explicit warning rather than
+ * silently. Worth knowing before this is used for anything where the empty
+ * state is not safe.
+ */
+export async function setManagersForCategory(categoryId: string, userIds: string[]): Promise<void> {
+  const { error: clearError } = await db.from(TABLE).delete().eq('category_id', categoryId);
+  if (clearError) throw clearError;
+
+  const unique = [...new Set(userIds.filter(Boolean))];
+  if (unique.length === 0) return;
+
+  const { error } = await db.from(TABLE).insert(
+    unique.map((userId) => ({ category_id: categoryId, user_id: userId })),
+  );
+  if (error) throw error;
 }
