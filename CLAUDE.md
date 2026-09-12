@@ -84,9 +84,32 @@ A change is not done until **all** of these hold (state explicitly if you delibe
   `db/migrations/apply-neon-schema.mjs`); Vercel serverless functions in `api/`, capped at
   **12** by the Hobby plan and guarded by `test:vercel-functions`. There is one database and no
   provider switch.
-- **AI:** assistant via `api/chat.ts` using **Groq + Gemini** (the governed providers — free tier,
-  already connected). **Model selection is governed (CLS-G0):** keep Groq + Gemini; do **not**
-  add a paid provider (e.g. Claude) or any new model provider without explicit approval.
+- **AI:** five routes call a model — `api/chat.ts` (the assistant, and the only tool-calling
+  caller), `api/ai.ts`, `api/chat-intake.ts`, `api/generate-sow.ts` and the rerank in
+  `api/_domains/contract-match.ts`. All five go through **one** helper, `api/_llm.ts`, which
+  tries **Groq** and falls back to **Gemini**. There were two copies of that helper until
+  2026-09-12, silently on different models; keep it at one.
+
+  Two Groq models, both pinned in `api/_llm.ts` and both asserted by `test:ai-api-config`:
+  `GROQ_TOOL_MODEL` (`openai/gpt-oss-120b`) for the assistant, which needs tool-calling, and
+  `DEFAULT_GROQ_MODEL` (`openai/gpt-oss-20b`) for the four single-shot callers. Only the
+  second has an env override (`GROQ_MODEL`) — deliberately, so a deployment cannot change the
+  assistant's model without a code review.
+
+  **Model selection is governed (CLS-G0)**, which means: Groq and Gemini are the only
+  providers, and the model ids are a product decision rather than an implementation detail.
+  Do not add a provider (Claude, OpenAI, a cloud model gateway, …), and do not change a model
+  id — *including swapping one Groq model for another* — without explicit approval. Only
+  `GROQ_API_KEY` and `GEMINI_API_KEY` are provisioned; anything else needs a commercial
+  decision first.
+
+  **When a model is retired** — Groq does this on a rolling schedule and it has already
+  happened twice here — the retired id returns **404** from the chat-completions endpoint,
+  which reads like an outage rather than a config problem. Check the model id before
+  debugging the network. The fix is one line in `api/_llm.ts` plus the matching assertion in
+  `tests/integration/ai-api-configuration.mjs`, and it is still a CLS-G0 change: raise it,
+  do not swap the id quietly. `GROQ_MODEL` is the deploy-time escape hatch for the
+  single-shot model while approval is pending.
 
 ## Commands
 ```bash

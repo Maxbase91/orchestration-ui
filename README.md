@@ -345,6 +345,8 @@ smaller, duplicated fixture set over the same tables has been removed.
 
 AI classification uses the governed Groq → Gemini server-side fallback with deterministic client routing when the classifier is unavailable. The AI agent configuration is held in the platform store and read by the Vercel handlers.
 
+There is one LLM helper, `api/_llm.ts`, and it pins two Groq models: `openai/gpt-oss-120b` for the assistant (which needs tool-calling) and `openai/gpt-oss-20b` for the four single-shot callers. Changing either — or adding a provider — is a governed decision (CLS-G0); see the AI section of [CLAUDE.md](CLAUDE.md).
+
 ---
 
 ## System Integrations
@@ -443,8 +445,8 @@ Full descriptions live in `.env.example`.
 | `NEON_DATABASE_URL` | Serverless (`api/`) | **Yes** | Private Neon connection string; never expose with `VITE_` |
 | `ADMIN_SEED_SECRET` | Serverless (`api/`) | Only for seeding | Shared secret for `api/admin/seed.ts` |
 | `VITE_ASSISTANT_PROVIDER` | Browser | No | `groq` (default) or `mock` for a fully offline assistant |
-| `GROQ_API_KEY` / `GEMINI_API_KEY` | Serverless (`api/`) | For AI classification and assistant | Server-side only, used by `api/ai.ts`, `api/chat.ts`, and `api/chat-intake.ts` |
-| `GROQ_MODEL` | Serverless (`api/`) | No | Groq model override for classifier routes; defaults to `openai/gpt-oss-20b` |
+| `GROQ_API_KEY` / `GEMINI_API_KEY` | Serverless (`api/`) | For AI classification and assistant | Server-side only. Five routes use them, all through `api/_llm.ts`: `api/chat.ts`, `api/ai.ts`, `api/chat-intake.ts`, `api/generate-sow.ts` and the rerank in `api/_domains/contract-match.ts` |
+| `GROQ_MODEL` | Serverless (`api/`) | No | Overrides the **single-shot** Groq model (default `openai/gpt-oss-20b`) used by every route except the assistant. The assistant's tool-calling model (`openai/gpt-oss-120b`) is pinned in code and has no override — see CLAUDE.md on CLS-G0 |
 
 The browser holds **no** database credential: it posts to the allowlisted `/api/db` boundary, and
 there is no provider switch to get wrong. `NEON_DATABASE_URL`/`DATABASE_URL` must be configured only
