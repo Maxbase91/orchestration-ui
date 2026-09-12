@@ -1,4 +1,6 @@
-import type { BuyingChannel, RequestStatus } from '@/data/types';
+// Relative, not `@/data/types`, so api/_domains/intake-submit.ts can import this
+// module — the same reason src/lib/db/mappers.ts uses relative specifiers.
+import type { BuyingChannel, RequestStatus } from '../../data/types.js';
 
 /**
  * Canonical map of buying channels → the lifecycle stages the request
@@ -77,4 +79,39 @@ export function nextStageAfter(
   const idx = stages.indexOf(stage as RequestStatus);
   if (idx === -1 || idx === stages.length - 1) return null;
   return stages[idx + 1] ?? null;
+}
+
+/**
+ * The stage a request enters when intake completes.
+ *
+ * The server used to write a constant `validation` for every channel. That was
+ * deliberate once — an earlier version branched to risk/approval/sourcing and
+ * left the writes those branches implied unreachable, so a constant was the
+ * honest fix. But `validation` is now on the procurement-led path only, and the
+ * constant outlived that: a business-led or direct-po request landed in a stage
+ * its own channel skips, so the stepper drew it as skipped while the request sat
+ * in it.
+ *
+ * This picks from the channel's own list rather than branching on value or
+ * category, so it cannot drift from the stepper the way the constant did.
+ *
+ * `risk` and `onboarding` are conditional — they appear in the lists so the
+ * stepper can draw them as skipped, not because every request enters them. Risk
+ * is entered only when intake triage asked for it; onboarding depends on the
+ * supplier, which intake often does not have yet, so it is never the landing
+ * stage and the engine enters it later if needed.
+ */
+export function firstActionableStage(
+  channel: BuyingChannel | string | undefined,
+  signals: { riskAssessmentRequired?: boolean } = {},
+): RequestStatus {
+  const conditional = new Set<RequestStatus>(['onboarding']);
+  if (!signals.riskAssessmentRequired) conditional.add('risk');
+
+  const stage = getStagesForChannel(channel)
+    .filter((candidate) => candidate !== 'intake' && !conditional.has(candidate))[0];
+
+  // Every channel list reaches `approval` at the latest, so this is a guard
+  // against an unknown channel rather than an expected path.
+  return stage ?? 'approval';
 }

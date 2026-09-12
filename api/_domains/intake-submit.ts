@@ -2,9 +2,11 @@
 // request, but only this dispatcher-routed handler decides the initial stage
 // and commits the request's related records together.
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getNeonClient } from '../_neon.js';
+import { getNeonClient, queryRows } from '../_neon.js';
 import { getDbAdmin } from '../_db-admin.js';
 import { approvalRows, deriveApprovalsFor, resolveChainId } from '../../src/lib/db/approvals-core.js';
+import { firstActionableStage } from '../../src/lib/workflow/buying-channel-stages.js';
+import { nodeIdForStatus } from '../../src/lib/workflow/node-config.js';
 
 type JsonRecord = Record<string, unknown>;
 type IntakePayload = {
@@ -44,17 +46,24 @@ function optionalIsoDate(value: unknown, field: string): string | null {
 function json(value: unknown): string { return JSON.stringify(value ?? null); }
 
 /**
- * The stage every completed intake enters.
+ * The stage a completed intake enters, from the request's own channel.
  *
- * Risk, approval and sourcing are downstream decisions taken after validation;
- * choosing between them here made the lifecycle skip required data-quality
- * checks. This was a function taking a request and an approval threshold and
- * voiding both — so the branches that read its result (an approval_entries
- * insert, a risk/approval/sourcing workflow node, a policy query per
- * submission) were unreachable while still reading as live routing. A constant
- * says what is true and cannot be mistaken for a decision.
+ * This was the constant `validation` for every channel. That began as an honest
+ * fix — the version before it branched on value and threshold and left the
+ * writes those branches implied unreachable, so a constant at least said
+ * something true. It stopped being true when `validation` became
+ * procurement-led-only: a business-led or direct-po request was written into a
+ * stage its own channel skips, and the stepper drew it as skipped while the
+ * request sat there.
+ *
+ * `firstActionableStage` reads the same channel→stages map the stepper does, so
+ * the two cannot disagree again, and it is a lookup rather than a decision — no
+ * branch here can void a downstream write the way the original did.
  */
-const INITIAL_STAGE = { status: 'validation', stage: 'validation' } as const;
+function initialStage(buyingChannel: string, riskAssessmentRequired: boolean) {
+  const status = firstActionableStage(buyingChannel, { riskAssessmentRequired });
+  return { status, stage: status } as const;
+}
 
 function cleanRow(row: JsonRecord): JsonRecord {
   return Object.fromEntries(Object.entries(row).filter(([, value]) => value !== undefined));
@@ -86,7 +95,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     // The approval threshold was read here on every submission and then
     // discarded — a database round trip per intake feeding a decision that is
     // not taken at this point in the lifecycle.
-    const stage = INITIAL_STAGE;
+    const stage = initialStage(buyingChannel, Boolean(request.riskAssessmentRequired));
 
     // The client keeps one request id for a submission attempt. Reusing that
     // id makes retries safe without adding a second idempotency column to the
@@ -108,7 +117,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       const historyCount = Number(lifecycle[0]?.history_count ?? 0);
       const workflowCount = Number(lifecycle[0]?.workflow_count ?? 0);
       if (String(existing[0].status) === 'intake' && historyCount === 0 && workflowCount === 0) {
-        const repairedStage = INITIAL_STAGE;
+        const repairedStage = initialStage(buyingChannel, Boolean(request.riskAssessmentRequired));
         const repairNow = new Date().toISOString();
         const repairQueries = [
           sql.query('UPDATE requests SET status = $1, updated_at = $2 WHERE id = $3', [repairedStage.status, repairNow, id]),
@@ -194,8 +203,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
 
     const stageRow = { request_id: id, stage: stage.stage, entered_at: now, owner_id: request.ownerId ?? requestorId, action: 'submitted', notes: 'Initial actionable stage selected by the server.' };
     queries.push(sql.query('INSERT INTO stage_history (request_id, stage, entered_at, owner_id, action, notes) VALUES ($1, $2, $3, $4, $5, $6)', Object.values(stageRow)));
-    const workflowRow = { id: `WI-${id}`, request_id: id, template_id: templateId, current_node_ids: json(['n3']), status: 'running', variables: json({ submittedBy: requestorId }), created_at: now, updated_at: now };
-    queries.push(sql.query(`INSERT INTO workflow_instances (${Object.keys(workflowRow).join(', ')}) VALUES (${Object.keys(workflowRow).map((_, i) => `$${i + 1}`).join(', ')})`, Object.values(workflowRow)));
+    // The node the instance starts on, read from the template that was actually
+    // chosen. This was the literal 'n3' regardless of template: Validation in
+    // WF-001, but a *decision* node in WF-002, so a request routed to WF-002 was
+    // parked somewhere the engine cannot resume from — and the Workflow Designer
+    // could be reshaped without any of it reaching the server.
+    //
+    // A template with no node for this stage writes no instance rather than one
+    // pointing at a node that does not exist: the engine's fallback can open a
+    // correct instance later, and a wrong pointer is harder to detect than a
+    // missing one.
+    const [templateRow] = await queryRows(
+      sql, 'SELECT nodes FROM workflow_templates WHERE id = $1', [templateId],
+    );
+    const templateNodes = Array.isArray(templateRow?.nodes) ? templateRow.nodes as Array<{ id: string; type?: string; label?: string }> : [];
+    const startNodeId = nodeIdForStatus(templateNodes, stage.status);
+    if (!startNodeId) {
+      console.warn(`[intake-submit] ${templateId} has no '${stage.status}' node; no workflow instance written for ${id}.`);
+    }
+    const workflowRow = { id: `WI-${id}`, request_id: id, template_id: templateId, current_node_ids: json([startNodeId]), status: 'running', variables: json({ submittedBy: requestorId }), created_at: now, updated_at: now };
+    if (startNodeId) {
+      queries.push(sql.query(`INSERT INTO workflow_instances (${Object.keys(workflowRow).join(', ')}) VALUES (${Object.keys(workflowRow).map((_, i) => `$${i + 1}`).join(', ')})`, Object.values(workflowRow)));
+    }
     await sql.transaction(queries);
     res.status(201).json({ requestId: id, status: stage.status, stage: stage.stage });
     return;

@@ -113,6 +113,31 @@ export function nodeToStatus(label: string): string {
   return LABEL_TO_STATUS[key] ?? key.replace(/\s+/g, '-');
 }
 
+/**
+ * The template node a request sits on when it is in `status`.
+ *
+ * The inverse of nodeToStatus, for writers that know the stage and need the
+ * node id. Both serverless lifecycle writers used to hardcode one — intake
+ * always wrote `n3`, whichever template it had just chosen. `n3` is Validation
+ * in WF-001 and a *decision* node in WF-002, so a request routed to WF-002 was
+ * parked on a node the engine cannot resume from, and renaming or reordering
+ * anything in the Workflow Designer changed nothing about what the server
+ * wrote.
+ *
+ * Returns null when the template has no node for that stage — the caller
+ * decides whether that is fatal, because an instance pointing at a node that
+ * does not exist is worse than one with no instance at all.
+ */
+export function nodeIdForStatus(
+  nodes: Array<{ id: string; type?: string; label?: string }>,
+  status: string,
+): string | null {
+  const match = nodes.find(
+    (node) => node.type === 'stage' && typeof node.label === 'string' && nodeToStatus(node.label) === status,
+  );
+  return match?.id ?? null;
+}
+
 /** Statuses from which a request never advances again. */
 const TERMINAL_STATUSES = new Set(['completed', 'cancelled']);
 
