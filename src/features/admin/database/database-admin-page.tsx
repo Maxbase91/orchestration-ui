@@ -77,9 +77,10 @@ export function DatabaseAdminPage() {
       <div className="flex items-start gap-2 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
         <Database className="mt-0.5 size-4 shrink-0" />
         <div>
-          <p className="font-medium">All tabs are live</p>
+          <p className="font-medium">Tabs marked with a database icon are live</p>
           <p className="text-xs">
-            Edits persist to the database and reflect on every feature page. All changes are captured in the Audit Log.
+            Their edits persist and reflect on every feature page, and all changes are captured in
+            the Audit Log. Workflows is a read-only view here — edit templates in the Workflow Designer.
           </p>
         </div>
       </div>

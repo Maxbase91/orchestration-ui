@@ -68,9 +68,20 @@ const LIVE_ENTITIES = new Set<string>([
   'invoice',
   'approval',
   'request',
-  'workflow',
   'sourcingEvent',
 ]);
+
+// `workflow` was in this set and had no persistence branch in update/create/
+// remove, so an edit fell through to the local-only tail — success toast, an
+// audit row claiming `record.update`, and nothing written. `reset()` below has
+// always cleared it alongside `audit` as a session-only entity, so this file
+// asserted both things at once. Workflow templates are edited at
+// /admin/workflows, which persists them properly through
+// src/lib/db/workflow-templates.ts; this tab is a read-only view of them.
+//
+// The rule this encodes: an entity belongs in LIVE_ENTITIES only when update,
+// create and remove all have a branch for it. test:config-consumption checks
+// that, so the two cannot come apart again.
 
 export function isLiveEntity(key: string): boolean {
   return LIVE_ENTITIES.has(key);

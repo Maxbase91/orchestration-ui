@@ -57,6 +57,53 @@ if (/current_node_ids: json\(\['n\d+'\]\)/.test(intakeWriter)) {
   bad('intake-submit resolves its start node', 'a literal node id is back in the instance insert');
 } else ok('intake-submit resolves its start node from the template');
 
+// ── LIVE_ENTITIES means the writes exist ────────────────────────────────────
+// `workflow` sat in this set with no branch in update/create/remove, so the tab
+// rendered a "Live (persisted to the database)" badge, showed a success toast,
+// wrote an audit row claiming `record.update`, and persisted nothing. The same
+// file's reset() had always treated it as session-only.
+console.log('\nEvery live entity has somewhere to write');
+const store = readFileSync(new URL('src/stores/database-admin-store.ts', ROOT), 'utf8');
+const liveBlock = /const LIVE_ENTITIES = new Set<string>\(\[([\s\S]*?)\]\);/.exec(store);
+if (!liveBlock) bad('LIVE_ENTITIES is declared');
+else {
+  const live = [...liveBlock[1].matchAll(/'([A-Za-z]+)'/g)].map((m) => m[1]);
+  // reset() lists the entities the store itself treats as session-only.
+  const resetBlock = /reset: \(\) => \{[\s\S]*?set\(\{([\s\S]*?)\}\);/.exec(store);
+  const sessionOnly = resetBlock ? [...resetBlock[1].matchAll(/^\s*([A-Za-z]+):/gm)].map((m) => m[1]) : [];
+  const contradictory = live.filter((key) => sessionOnly.includes(key));
+  if (contradictory.length === 0) ok(`${live.length} live entities, none cleared by reset()`);
+  else bad('no live entity is also session-only', `${contradictory.join(', ')} are both`);
+
+  // A live entity needs a persistence branch in each mutating action.
+  for (const key of live) {
+    const branches = new RegExp(`case '${key}':|key === '${key}'`, 'g');
+    const hits = (store.match(branches) ?? []).length;
+    if (hits === 0) bad(`${key} has a persistence branch`, 'listed live but no write path — edits are discarded');
+  }
+}
+
+const dbPage = readFileSync(new URL('src/features/admin/database/database-admin-page.tsx', ROOT), 'utf8');
+if (/All tabs are live/.test(dbPage)) {
+  bad('the banner does not overclaim', '"All tabs are live" is back, and it is not true of every tab');
+} else ok('the banner does not claim more than the set does');
+
+// ── A control that collects a value the save does not send ──────────────────
+// The agent form had a confidence-threshold slider, seven input checkboxes and
+// two switches. None reached the payload, none were seeded from the agent (so
+// every agent showed the same defaults), and `ai_agents` has no columns for
+// them — while the toast said "configuration saved". They were removed rather
+// than wired, because nothing reads an agent beyond `status`.
+console.log('\nThe agent form only offers what it saves');
+const agentForm = readFileSync(new URL('src/features/admin/ai-agents/components/agent-config-form.tsx', ROOT), 'utf8');
+const payload = /const updated: AIAgent = \{([\s\S]*?)\};/.exec(agentForm)?.[1] ?? '';
+for (const field of ['confidenceThreshold', 'selectedInputs', 'humanOverride', 'feedbackLoop']) {
+  if (!agentForm.includes(field)) continue;
+  if (payload.includes(field)) continue;
+  bad(`${field} is saved if it is collected`, 'the form collects it and the mutation does not send it');
+}
+if (failures === 0) ok('no unsent configuration control');
+
 // ── Live: no request sits in a stage its channel skips ──────────────────────
 const env = loadEnv();
 const connection = env.NEON_DATABASE_URL ?? env.DATABASE_URL;
