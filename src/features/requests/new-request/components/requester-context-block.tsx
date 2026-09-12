@@ -157,8 +157,14 @@ export function RequesterContextBlock({
               </div>
             ) : (
               <div className="flex flex-wrap items-center gap-2">
-                <p className="text-sm font-medium text-gray-900">
-                  {costCentreLabel || 'Not set on your profile'}
+                {/* "Not set on your profile" reads as a field the requester
+                    failed to fill. On a new demand it is genuinely optional —
+                    the budget is often not allocated until after sourcing —
+                    while catalogue and call-off block on it because those
+                    commit money now. Saying which of the two this is stops an
+                    optional field looking like an unmet requirement. */}
+                <p className={`text-sm font-medium ${costCentreLabel ? 'text-gray-900' : 'text-gray-500'}`}>
+                  {costCentreLabel || 'Not set yet — you can add it later'}
                 </p>
                 {!costCentre && profileCostCentre && (
                   <Badge variant="outline" className="text-[9px]">from your profile</Badge>

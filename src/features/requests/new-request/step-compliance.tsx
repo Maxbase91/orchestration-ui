@@ -869,12 +869,23 @@ function SmartAssessmentSection({
         ? suppliers.find((s) => s.name.toLowerCase().includes(supplier.toLowerCase()))
         : null;
 
-    // Contract coverage
+    // Contract coverage.
+    //
+    // The status column alone is not enough: a contract can still read 'active'
+    // there long after its end date, and this screen presented one valid until
+    // 31 May 2025 as an "Active contract". The end date is the fact; the status
+    // is a label somebody has to maintain. governed-checkout's evaluator
+    // already applies both, so trusting only the label made the intake screen
+    // disagree with the gate that would later refuse the checkout.
+    const notYetExpired = (contract: { endDate?: string }) =>
+      !contract.endDate || new Date(contract.endDate) >= new Date();
     const matchedContracts = matchedSupplier
       ? contracts.filter((c) => c.supplierId === matchedSupplier.id && (c.status === 'active' || c.status === 'expiring'))
       : [];
-    const hasActiveContract = matchedContracts.some((c) => c.status === 'active');
-    const hasExpiringContract = matchedContracts.some((c) => c.status === 'expiring');
+    const liveContracts = matchedContracts.filter(notYetExpired);
+    const expiredContracts = matchedContracts.filter((c) => !notYetExpired(c));
+    const hasActiveContract = liveContracts.some((c) => c.status === 'active');
+    const hasExpiringContract = liveContracts.some((c) => c.status === 'expiring');
 
     // Buying channel determines sourcing need
     const needsSourcing = estimatedValue >= 25000 && category !== 'contingent-labour' && !hasActiveContract;
@@ -894,7 +905,7 @@ function SmartAssessmentSection({
 
     const totalDays = steps.filter((s) => s.status !== 'skipped').reduce((sum, s) => sum + s.days, 0);
 
-    return { matchedSupplier, matchedContracts, hasActiveContract, hasExpiringContract, steps, totalDays };
+    return { matchedSupplier, matchedContracts, liveContracts, expiredContracts, hasActiveContract, hasExpiringContract, steps, totalDays };
   }, [supplier, supplierId, category, estimatedValue, suppliers, contracts]);
 
   // Vendor onboarding — derived from the supplier's onboardingStatus (data),
@@ -947,10 +958,15 @@ function SmartAssessmentSection({
             <div>
               <p className={`text-sm font-medium ${assessment.hasActiveContract ? 'text-green-800' : assessment.hasExpiringContract ? 'text-amber-800' : 'text-red-800'}`}>
                 {assessment.hasActiveContract
-                  ? `Active contract — ${assessment.matchedContracts[0]?.title}, valid until ${assessment.matchedContracts[0]?.endDate}, ${assessment.matchedContracts[0]?.utilisationPercentage}% utilised`
+                  ? `Active contract — ${assessment.liveContracts[0]?.title}, valid until ${assessment.liveContracts[0]?.endDate}, ${assessment.liveContracts[0]?.utilisationPercentage}% utilised`
                   : assessment.hasExpiringContract
-                    ? `Contract expiring — ${assessment.matchedContracts[0]?.title}, renewal recommended`
-                    : 'No existing contract — contracting step required'}
+                    ? `Contract expiring — ${assessment.liveContracts[0]?.title}, renewal recommended`
+                    : assessment.expiredContracts.length > 0
+                      // Naming the expired one matters: the requester knows a
+                      // contract exists and would otherwise read "no contract"
+                      // as the system having missed it.
+                      ? `No contract in date — ${assessment.expiredContracts[0]?.title} expired ${assessment.expiredContracts[0]?.endDate}; contracting step required`
+                      : 'No existing contract — contracting step required'}
               </p>
             </div>
           </div>

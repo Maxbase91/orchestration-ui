@@ -43,7 +43,12 @@ export interface StepGuidance {
    */
   youProvide: string[];
   /** What happens once this step is done — the consequence, not the next label. */
-  next: string;
+  /**
+   * What happens after this step. Optional: the full-request Details step had
+   * one saying "Nothing after this asks you for anything", which spent a line
+   * of the panel to tell the requester there was nothing to tell them.
+   */
+  next?: string;
 }
 
 /**
@@ -137,7 +142,6 @@ export const INTAKE_STEPS: readonly IntakeStepDefinition[] = [
           'Answers to any risk question we could not infer',
           'The supplier, if you already have one in mind',
         ],
-        next: 'Nothing after this asks you for anything — the next screen shows what we concluded and routes the request.',
       },
       catalogue: {
         purpose: 'Pick your items, set quantities and place the order.',

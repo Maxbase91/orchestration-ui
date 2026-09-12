@@ -33,7 +33,11 @@ export function StepHeaderPanel({ guidance, nextOverride }: StepHeaderPanelProps
       <div className="flex items-start gap-2.5">
         <Info className="mt-0.5 size-4 shrink-0 text-[#2D5F8A]" />
         <div className="min-w-0 flex-1">
-          <p className="text-sm text-gray-700">{nextOverride ?? guidance.next}</p>
+          {/* A step with nothing worth saying about what comes next says
+              nothing, rather than spending a line of the panel on it. */}
+          {(nextOverride ?? guidance.next) && (
+            <p className="text-sm text-gray-700">{nextOverride ?? guidance.next}</p>
+          )}
 
           {open && (
             <div className="mt-2.5 space-y-2 border-t border-blue-100 pt-2.5">

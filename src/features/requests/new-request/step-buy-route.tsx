@@ -276,7 +276,23 @@ export function StepBuyRoute({
 
   const catalogueMatches = decision.catalogueMatches.map((m) => m.item);
   const hasCatalogue = catalogueMatches.length > 0;
-  const canCallOff = contractMatches.length > 0 && (!serverMatch || serverMatch.route === 'contract');
+  /**
+   * Can the requester call off against one of these contracts?
+   *
+   * This required serverMatch.route === 'contract', so a `clarify` verdict was
+   * terminal: adding the detail the matcher asked for made the list appear and
+   * never made a row selectable, leaving contracts sitting at "awaiting
+   * confirmation" that nothing could clear.
+   *
+   * Supplying that detail now counts. The requester is asserting the contract
+   * covers their demand, and the assertion is checked — api/governed-checkout.ts
+   * refuses a call-off whose scope does not confidently cover it, and refuses it
+   * rather than skipping the check when the scope data cannot be read. Letting
+   * the client offer and the server decide beats an inert row with no way
+   * forward, because a refusal at least says why.
+   */
+  const canCallOff = contractMatches.length > 0
+    && (!serverMatch || serverMatch.route === 'contract' || detailAdded || demandDetail.trim().length > 0);
   const recommended: IntakeRoute = decision.route;
 
   /**

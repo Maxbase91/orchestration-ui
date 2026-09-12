@@ -37,7 +37,10 @@ function lastDayOfMonth(year: number, month: number): Date {
 
 export function parseDeliveryDate(raw: string | null | undefined): string | null {
   if (!raw) return null;
-  const s = raw.trim().toLowerCase();
+  // A full stop after a word is punctuation, not part of the date: the reported
+  // "end. of 2026" failed only because of it. Anchored on a preceding letter so
+  // the separators in 31.12.2026 are untouched.
+  const s = raw.trim().toLowerCase().replace(/([a-z])\.(?=\s|$)/g, '$1');
   const today = new Date();
   const year = today.getFullYear();
 
@@ -47,19 +50,57 @@ export function parseDeliveryDate(raw: string | null | undefined): string | null
     if (!isNaN(d.getTime())) return raw.trim();
   }
 
-  // 2. ASAP / urgent / immediately
+  // 2. Day-first numeric dates: 31.12.2026, 31/12/2026, 31-12-2026, 31.12.26.
+  //
+  // These were not accepted at all, and the failure was worse than a rejection:
+  // the conversation asks twice and then gives up on the field, so a requester
+  // typing a perfectly good "31.12.2026" had the answer discarded and the
+  // need-by date silently dropped from the request. Day-first because the rest
+  // of the product is written for a European audience — an ambiguous 03.04.2026
+  // is read as 3 April, and 13.04.2026 could only ever be day-first anyway.
+  const numeric = s.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{2}|\d{4})$/);
+  if (numeric) {
+    const day = Number(numeric[1]);
+    const month = Number(numeric[2]);
+    const rawYear = Number(numeric[3]);
+    const fullYear = rawYear < 100 ? 2000 + rawYear : rawYear;
+    if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+      const candidate = new Date(Date.UTC(fullYear, month - 1, day));
+      // Rejects 31.02: the Date constructor rolls it into March rather than
+      // failing, so the only way to tell is to read the parts back.
+      if (candidate.getUTCMonth() === month - 1 && candidate.getUTCDate() === day) {
+        return toIso(candidate);
+      }
+    }
+    return null;
+  }
+
+  // 3. A bare year, or the end of one: "2026", "end of 2026", "by end 2026".
+  //    Resolves to 31 December, which is what "end of" means for a year.
+  const yearOnly = s.match(/^(?:by\s+|before\s+)?(?:end\s+(?:of\s+)?)?(20\d{2})$/);
+  if (yearOnly) return toIso(new Date(Date.UTC(Number(yearOnly[1]), 11, 31)));
+
+  // 4. A bare quarter: "Q4", "Q4 2026". "end of Q4" is handled below and this
+  //    does not shadow it, because that phrase does not match here.
+  const bareQuarter = s.match(/^q([1-4])(?:\s+(20\d{2}))?$/);
+  if (bareQuarter) {
+    const [month, day] = QUARTER_END[`q${bareQuarter[1]}`];
+    return toIso(new Date(bareQuarter[2] ? Number(bareQuarter[2]) : year, month, day));
+  }
+
+  // 5. ASAP / urgent / immediately
   if (/\b(asap|urgent|immediately|now)\b/.test(s)) {
     return toIso(new Date(today.getTime() + 7 * 86400_000));
   }
 
-  // 3. End of Q1/Q2/Q3/Q4
+  // 6. End of Q1/Q2/Q3/Q4
   const quarterMatch = s.match(/end\s+of\s+(q[1-4])/);
   if (quarterMatch) {
     const [month, day] = QUARTER_END[quarterMatch[1]];
     return toIso(new Date(year, month, day));
   }
 
-  // 4. "end of [Month]" or "by [Month]" or "in [Month]"
+  // 7. "end of [Month]" or "by [Month]" or "in [Month]"
   const monthPhraseMatch = s.match(/(?:end\s+of|by|in|before)\s+([a-z]+)/);
   if (monthPhraseMatch) {
     const monthIdx = MONTH_NAMES[monthPhraseMatch[1]];

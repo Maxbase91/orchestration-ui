@@ -33,6 +33,7 @@
     "test:workflow-scripts": "node tests/integration/workflow-scripts.mjs",
     "test:approval-chain-persistence": "node --import tsx/esm tests/integration/approval-chain-persistence.mjs",
     "test:intake": "node tests/integration/intake-sequence.mjs",
+    "test:intake-quick-fixes": "node --import tsx/esm tests/integration/intake-quick-fixes.mjs",
     "test:intake-submit": "node --import tsx/esm tests/integration/intake-submit.mjs",
     "test:audit": "node --import tsx/esm tests/integration/audit-trail.mjs",
     "test:derived": "node --import tsx/esm tests/integration/derived-fields.mjs",

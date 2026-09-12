@@ -542,6 +542,13 @@ export function NewRequestPage() {
     if (next !== 'submit') setStepId(next);
   };
 
+  // A step change starts at the top. Nothing reset scroll anywhere, so leaving
+  // the tall Details screen for Review landed the requester in the middle of a
+  // page they had not read the start of.
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  }, [stepId]);
+
   const handleBack = () => {
     const previous = previousStep(stepId, route);
     if (previous) setStepId(previous);
@@ -625,11 +632,18 @@ export function NewRequestPage() {
           "Create a new procurement request in N steps" depending on a mode the
           requester had to pick first — three framings of one journey. */}
       <div>
-        <h1 className="mt-1 text-xl font-semibold text-gray-900">Start a request</h1>
+        {/* The header sat outside the confirmation guard, so a submitted
+            request was still headed "Start a request" — inviting the one thing
+            the requester had just finished doing. */}
+        <h1 className="mt-1 text-xl font-semibold text-gray-900">
+          {stepId === 'confirmation' ? 'Request submitted' : 'Start a request'}
+        </h1>
         <p className="mt-0.5 text-sm text-gray-500">
-          {isCatalogue
-            ? 'Catalogue request — governed checkout'
-            : 'Tell us what you need. We will find the simplest compliant way to handle it.'}
+          {stepId === 'confirmation'
+            ? `${requestId} is with procurement. Track it from your dashboard.`
+            : isCatalogue
+              ? 'Catalogue request — governed checkout'
+              : 'Tell us what you need. We will find the simplest compliant way to handle it.'}
         </p>
       </div>
 

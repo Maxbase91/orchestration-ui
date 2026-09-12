@@ -223,7 +223,14 @@ for (const step of progressStepsForRoute('full-request')) {
   check(`${step.id} has guidance`, entry !== undefined);
   if (!entry) continue;
   check(`${step.id} says what it is for`, typeof entry.purpose === 'string' && entry.purpose.length > 60);
-  check(`${step.id} says what happens after`, typeof entry.next === 'string' && entry.next.length > 20);
+  // `next` is no longer required on every step. Requiring it universally is
+  // what produced "Nothing after this asks you for anything — the next screen
+  // shows what we concluded and routes the request" on the Details step: a
+  // sentence written to satisfy the rule rather than to tell the requester
+  // anything, and removed at their request. Where a step does say what follows,
+  // it still has to be worth the line it occupies.
+  check(`${step.id} either says what happens after, or says nothing`,
+    entry.next === undefined || (typeof entry.next === 'string' && entry.next.length > 20));
   check(`${step.id} says what the requester supplies`, Array.isArray(entry.youProvide) && entry.youProvide.length > 0);
 }
 // The confirmation screen carries its own "What happens next?" — a panel there

@@ -475,9 +475,13 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Scroll to bottom on new messages
+  // Scroll the chat to its newest message — and only the chat.
+  //
+  // scrollIntoView with no `block` scrolls every scrollable ancestor, the
+  // window included, so each send jumped the whole page. `nearest` moves the
+  // conversation's own scroller and leaves the page where the requester put it.
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
   }, [messages, isTyping]);
 
   // Focus input on mount
