@@ -83,5 +83,6 @@ jobs:
       - name: Browser suites
         run: |
           npm run test:request-detail-ui
+          npm run test:requester-entry-ui
           npm run test:service-description-ui
           npm run test:intake-guidance-ui

@@ -1,6 +1,6 @@
 # FR-08: Procure-to-Pay (P2P)
 
-**Version:** 1.0 · **Date:** June 2026 · **Roles:** `procurement-manager`, `operations-lead`, `admin`
+**Version:** 1.0 · **Date:** 30 August 2026 · **Roles:** `procurement-manager`, `operations-lead`, `admin`
 
 ---
 

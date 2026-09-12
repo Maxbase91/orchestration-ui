@@ -1,6 +1,6 @@
 # FR-00: System Overview, Roles & Permissions
 
-**Version:** 1.0 · **Date:** June 2026 · **Status:** Approved
+**Version:** 1.0 · **Date:** 30 August 2026 · **Status:** Approved
 **App:** Procurement Orchestration Platform (orchestration-ui)
 
 ---

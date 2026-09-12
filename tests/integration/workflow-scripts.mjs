@@ -41,3 +41,24 @@ if (missing.length) {
 }
 
 console.log(`workflow-scripts: every npm run call in .github/workflows resolves (${scripts.size} scripts defined)`);
+
+// ── The other direction: a suite nobody can find is a suite nobody runs ──────
+// The README's Testing section is the only index of what each suite covers, and
+// it was hand-maintained, so it drifted: sixteen `test:*` scripts existed with
+// no entry, including whole areas (approval derivation, the lifecycle e2e,
+// schema drift). A reader looking for "is this covered?" concluded it was not.
+const readme = readFileSync(path.join(ROOT, 'README.md'), 'utf8');
+const undocumented = [...scripts]
+  .filter((name) => name.startsWith('test:'))
+  // The two aggregates are described in prose rather than as list entries.
+  .filter((name) => name !== 'test:all' && name !== 'test:ui:all')
+  .filter((name) => !readme.includes(`npm run ${name} `) && !readme.includes(`npm run ${name}\n`));
+
+if (undocumented.length) {
+  console.error(`workflow-scripts: ${undocumented.length} test script(s) are not documented in README.md`);
+  for (const name of undocumented) console.error(`  npm run ${name}`);
+  console.error('  Add a one-line entry to the Testing section saying what the suite covers.');
+  process.exit(1);
+}
+
+console.log(`workflow-scripts: every test:* script has a README entry`);

@@ -1,6 +1,6 @@
 # FR-05: Supplier Portal
 
-**Version:** 1.0 · **Date:** June 2026 · **Roles:** `supplier` (external)
+**Version:** 1.0 · **Date:** 30 August 2026 · **Roles:** `supplier` (external)
 
 > **Current R1 status:** the portal operates on internal supplier, sourcing, invoice, document, and message records. It is a simulation/UAT surface until authentication and live supplier-system integrations are added in R2; see the [current roadmap](../../roadmap/R1_BACKLOG_FIT_GAP.md).
 

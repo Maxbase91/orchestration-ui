@@ -1,6 +1,6 @@
 # FR-10: Admin Configuration
 
-**Version:** 1.0 · **Date:** June 2026 · **Roles:** `admin` only
+**Version:** 1.0 · **Date:** 30 August 2026 · **Roles:** `admin` only
 
 ---
 

@@ -103,7 +103,7 @@ stated in procurement's vocabulary, four steps after it became knowable.
 - **P-card eligibility** (`pCardEnabled`, max €5,000, categories `goods`/`services`, never `software`/`consulting`/`contingent-labour`/renewals/onboarding, never when urgent, material, or high/critical risk) is an *input to routing*, not a separate opinion.
 - Contract call-off needs a **primary signal** — supplier match, category match, or ≥2 keyword hits — plus remaining capacity ≥5%.
 
-**Technical** — `src/features/requests/new-request/step-buy-route.tsx` (presenter only), `src/lib/routing/demand-channel.ts`, `src/lib/routing/evaluate-routing-rules.ts`, `src/lib/routing/p-card.ts`, `api/contract-match.ts` (ADR-0004).
+**Technical** — `src/features/requests/new-request/step-buy-route.tsx` (presenter only), `src/lib/routing/demand-channel.ts`, `src/lib/routing/evaluate-routing-rules.ts`, `src/lib/routing/p-card.ts`, `src/server/api/contract-match.ts`, served at `/api/contract-match` by a `vercel.json` rewrite (ADR-0004).
 
 ---
 
@@ -215,7 +215,7 @@ was which.
 **Rules** — Density is a **UI density decision, not an authorization boundary**
 (ADR-0001). Route guards and entitlements are unchanged by it.
 
-**Technical** — `src/hooks/use-experience-mode.ts`, `src/lib/experience-mode.ts`, `src/components/layout/experience-mode-switcher.tsx`.
+**Technical** — withdrawn. The Simple/Expert switch and all three modules were deleted by ADR-0008, which replaced the two modes with one UI and progressive disclosure.
 
 ---
 
@@ -241,7 +241,7 @@ claims they had not earned.
 - The assistant **proposes**; it never executes an upstream write (ground rule 2). `create_ticket` is the only tool that creates a real record, and it is the only one permitted to say so.
 - A false completion claim is the most damaging output available to this product: unlike an error it is invisible, it is believed, and the requester stops chasing work nobody has picked up.
 
-**Technical** — `src/lib/procurement/intake-compliance-record.ts`, `submit-intake.ts`, `api/intake-submit.ts`, `src/data/request-compliance.ts`, `api/chat.ts` (`claimsWorkAlreadyDone`, `demandOfferedMessage`), `src/lib/assistant/capabilities/action.ts`.
+**Technical** — `src/lib/procurement/intake-compliance-record.ts`, `submit-intake.ts`, `src/server/api/intake-submit.ts`, `src/data/request-compliance.ts`, `api/chat.ts` (`claimsWorkAlreadyDone`, `demandOfferedMessage`), `src/lib/assistant/capabilities/action.ts`.
 
 ---
 

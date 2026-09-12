@@ -1,6 +1,6 @@
 # FR-01: Intake & New Request Wizard
 
-**Version:** 1.0 · **Date:** June 2026 · **Roles:** `service-owner`, `procurement-manager`, `admin`
+**Version:** 1.0 · **Date:** 4 September 2026 · **Roles:** `service-owner`, `procurement-manager`, `admin`
 
 ---
 
@@ -49,7 +49,7 @@ is manufactured so that the step counts match.
 - FR01-10 · *(superseded)* Urgency is captured with the demand detail rather than as a pre-step; RR-010 ("Urgent request fast-track") reads it, and the toggle states what it would change at the moment it is ticked.
 
 ### Step 2 — How you'll buy: catalogue, contract, or a new request
-- FR01-16 · System checks for an existing active contract covering the demand; the server-side matcher (`api/contract-match.ts`, ADR-0004) confirms coverage and may ask up to three clarifying questions.
+- FR01-16 · System checks for an existing active contract covering the demand; the server-side matcher (`src/server/api/contract-match.ts`, ADR-0004) confirms coverage and may ask up to three clarifying questions.
 - FR01-17 · Catalogue match: a catalogue-eligible category plus a naming-word match offers a direct-purchase path to the item's governed checkout.
 - FR01-18 · Contract call-off: a matching framework contract offers the call-off path (skips sourcing/contracting stages).
 - FR01-55 · **All three routes render together**, recommendation first and badged, each in requester language (`buyingChannelPlain`) with the category SLA as an indicative timeline. A ruled-out route states its reason **in place** and stays clickable — the previous sequential funnel could hide the correct path behind a wrong match.

@@ -1,6 +1,6 @@
 # FR-13: Data Model & Validation Rules
 
-**Version:** 1.1 · **Date:** June 2026
+**Version:** 1.1 · **Date:** 2 September 2026
 
 ---
 

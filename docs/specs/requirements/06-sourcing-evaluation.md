@@ -1,6 +1,6 @@
 # FR-06: Sourcing & Evaluation
 
-**Version:** 1.0 · **Date:** June 2026 · **Roles:** `procurement-manager`, `vendor-manager`, `admin`
+**Version:** 1.0 · **Date:** 30 August 2026 · **Roles:** `procurement-manager`, `vendor-manager`, `admin`
 
 ---
 

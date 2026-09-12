@@ -24,10 +24,15 @@ const SUITE_TIMEOUT_MS = 120_000;
 
 // Needs a browser binary and a dev server, so it runs as its own pass rather
 // than inside the default gate. `npm run test:all -- --browser` includes them.
+//
+// Membership is decided by what a suite *needs*, not by its name.
+// `test:catalogue-ui` sat here for its suffix: it is a static readFileSync
+// scan over five .tsx files with no Playwright import, so the default gate was
+// skipping it for no reason.
 const BROWSER = new Set([
   'test:ui', 'test:e2e-ui', 'test:ui-full',
   'test:service-description-ui', 'test:intake-guidance-ui', 'test:request-detail-ui',
-  'test:interactions-ui', 'test:catalogue-ui', 'test:requester-entry-ui', 'test:link-navigation',
+  'test:interactions-ui', 'test:requester-entry-ui', 'test:link-navigation',
   'test:dashboard-ui', 'test:reference-data-ui',
 ]);
 

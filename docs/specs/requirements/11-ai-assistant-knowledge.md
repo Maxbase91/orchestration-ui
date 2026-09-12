@@ -1,6 +1,6 @@
 # FR-11: AI Assistant & Knowledge Base
 
-**Version:** 1.0 · **Date:** June 2026 · **Roles:** All internal roles
+**Version:** 1.0 · **Date:** 30 August 2026 · **Roles:** All internal roles
 
 ---
 

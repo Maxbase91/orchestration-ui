@@ -4,10 +4,11 @@ A procurement orchestration platform with a React SPA, a private application-own
 
 **Live demo:** [orchestration-ui.vercel.app](https://orchestration-ui.vercel.app)
 
-The 31 August lifecycle-stabilisation changes are verified locally (including
-the full wizard smoke and atomic intake source checks) and are ready for a
-deployment-backed rerun. Neon live checks remain environment-dependent and
-must be repeated once the configured database hostname is reachable.
+**Status (12 September 2026).** `npm run test:all` runs 90 suites green, including
+the live-database checks; `npm run test:ui` (browser smoke) is green. The most
+recent work is the approval mechanism, the request lifecycle through to goods
+receipt, and a security pass over the `/api/db` boundary and the assistant's
+confirm-before-act path.
 
 **Release documentation:** [product backlog](docs/roadmap/PRODUCT_BACKLOG.md) · [R1 roadmap](docs/roadmap/R1_BACKLOG_FIT_GAP.md) · [implementation evidence index](docs/roadmap/R1_IMPLEMENTATION_EVIDENCE.md) · [test playbook](docs/testing/TEST_PLAYBOOK.md)
 
@@ -21,7 +22,7 @@ R1 is an internally operated system of record backed by private Neon. It owns re
 
 - **Intelligent Intake** — a four-step AI-assisted wizard that auto-classifies categories, suggests commodity codes, shows every way to buy on one screen, and runs compliance checks — asking everything before concluding anything
 - **Contract-aware intake** — structured scope versions, deliverable/exclusion matching, explainable ranking and adaptive clarification before a call-off
-- **One standardised requester experience** — no mode to choose. The evidence behind every determination is available to everyone, collapsed by default, and simplification comes from the role: a requester's default dashboard is their own requests, not KPIs (ADR-0006)
+- **One standardised requester experience** — no mode to choose. The evidence behind every determination is available to everyone, collapsed by default, and simplification comes from the role: a requester's default dashboard is their own requests, not KPIs (ADR-0008)
 - **Configurable home** — one dashboard per role, with widgets each user can add, remove and reorder; the layout persists
 - **Workflow Orchestration** — Kanban, table, and timeline views of active procurement workflows with bottleneck detection
 - **System Integration Handovers** — Internal handover records for future SAP Ariba, Coupa Risk, Sirion CLM, and SAP S/4HANA connectors (R2; no external writes)
@@ -105,7 +106,7 @@ R1 is an internally operated system of record backed by private Neon. It owns re
 | Workflow Canvas | @xyflow/react (React Flow) |
 | State | Zustand |
 | Icons | lucide-react |
-| Deployment | Vercel (static SPA) |
+| Deployment | Vercel — SPA plus serverless functions in `api/`, capped at 12 by the Hobby plan (`test:vercel-functions`) |
 
 ---
 
@@ -142,7 +143,7 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 Integration tests run as standalone Node scripts under `tests/integration/`:
 
 ```bash
-npm run test:all                  # every suite above in one run — pass/skip/fail counted separately
+npm run test:all                  # every non-browser suite in one run — pass/skip/fail counted separately
 npm run test:ui:all               # …including the browser suites (needs a Chromium binary)
 npm run test:db-casts             # every query parameter is cast to its column's type, never blindly to text
 npm run test:mode-equivalence     # Simple and Expert reach the same governance decision for the same demand —
@@ -228,11 +229,27 @@ npm run test:api-imports          # every api/*.ts function's import graph has e
 npm run test:vercel-functions     # keeps the explicit API surface within the Vercel Hobby 12-function budget
 npm run test:workflow-scripts     # every `npm run` call in .github/workflows still names a script that exists in package.json
 npm run test:admin-editors        # admin config saves
+npm run test:orchestration        # end-to-end orchestration rules across intake, routing and workflow
+npm run test:lifecycle-e2e        # a request walks intake → approval → PO → goods receipt in the live store
+npm run test:lifecycle-consistency # every request's status, stage history and workflow instance agree
+npm run test:approval-derivation  # approvers derive from the records, and one derivation serves every path
+npm run test:request-tabs         # the request-detail tabs show the stages a request actually traverses
+npm run test:refresh              # every lifecycle action invalidates every view it can affect
+npm run test:assistant-boundary   # the confirm card describes the queued write; the assistant reads only the caller's records
+npm run test:audit                # audit rows are written for the actions that claim them
+npm run test:derived              # database-derived columns track their inputs (live; cleans up its fixtures)
+npm run test:kpis                 # dashboard KPI aggregates match the underlying rows
+npm run test:ai-agents            # agent registry shape and activation rules
+npm run test:api-domain-routing   # every vercel.json rewrite reaches a real ?domain= handler
+npm run test:catalogue-order      # a catalogue order carries what the cXML hand-off requires
+npm run test:intake-quick-fixes   # scroll reset, date parsing, contract selectability and the removed filler copy
+npm run test:schema-drift         # db/schema.sql matches the live database's information_schema
+npm run test:table-lists          # hand-maintained relation lists match db/schema.sql
+npm run test:requester-entry-ui   # browser smoke (stubbed) — requester entry screen renders and fits 320px
 npm run walkthrough               # visual QA harness (Playwright) — drives the front door across scenarios + every tab, screenshots to /tmp/fd (no assertions)
 npm run test:ui                   # browser smoke (Playwright) — wizard end-to-end through the determination + config-driven routing steps
 npm run test:e2e-ui               # full-app browser sweep — every route × role, captures console/runtime errors
 npm run test:ui-full              # evidence harness — 60+ checkpoints screenshotted; asserts only "no crash, not blank"
-              # UI-only UAT sweep with visible role switching and retained screenshot artifacts
 npm run test:ui-lifecycle         # static guard that call-offs, stage actions and invoice transitions stay UI-governed
 npm run test:service-description-ui # browser smoke — /admin/service-description renders all four config areas
 npm run test:intake-guidance-ui   # browser smoke — step-1 single classification block, per-step header panels, the step gate
@@ -269,7 +286,7 @@ It boots the dev server itself and needs `.env.local` with `NEON_DATABASE_URL` s
 Four suites are the exception — `test:request-detail-ui`, `test:requester-entry-ui`,
 `test:service-description-ui` and `test:intake-guidance-ui`. They stub the data API inside the browser
 (`installDbStub()` in `tests/ui/db-stub.mjs`) and run with **no credentials and no network**, so all
-four run in CI. Use that harness for any screen worth checking where the database is unreachable — a
+four run in CI (`test:requester-entry-ui` was named here before it was actually wired in; it is now). Use that harness for any screen worth checking where the database is unreachable — a
 suite that can only run against a live database does not run in CI or in a sandbox, which is how a
 render crash on the request detail reached production unnoticed.
 
@@ -360,14 +377,12 @@ freshness). See `src/lib/integrations/README.md` and the [R1 evidence index](doc
 api/                 # Vercel entrypoints; the small domain handlers route through api/db.ts?domain=
 src/
 ├── config/          # Theme, navigation, roles
-├── data/            # Typed seed/fallback fixtures used by offline tests
+├── data/            # Domain types (types.ts) + seed fixtures for api/admin/seed.ts (see its README)
 ├── stores/          # Zustand state stores
 ├── hooks/           # Custom React hooks
 ├── lib/             # Utilities, formatters, decisioning and AI adapters
 │   ├── db/          # Data-access modules + TanStack Query hooks (incl. the cost-centre and
 │   │                #   delivery-location reference tables, and request supplier candidates).
-│   │                #   *-core.ts modules take the client as a parameter so the serverless
-│   │                #   handlers share one implementation with the browser..
 │   │                #   *-core.ts modules take the client as a parameter so the serverless
 │   │                #   handlers share one implementation with the browser.
 │   ├── integrations/# Standardised source-connector layer (own-store → live swap)
@@ -376,8 +391,9 @@ src/
 │   │                #   compliance record, governed checkout, …) + service description config (SERVICE_DESCRIPTION.md)
 │   ├── routing/     # Routing-rule evaluator + diagnostics, and the one buying-channel resolver both the
 │   │                #   buy-route screen and the determination call (plus its plain-English requester copy)
-│   ├── server/api/  # Explicit low-volume API handlers behind the dispatcher
+│   ├── assistant/   # Assistant providers, intents and capability handlers
 │   └── workflow/    # Workflow engine, transition primitive, gate model (see its README)
+├── server/api/      # Explicit low-volume API handlers behind the api/db.ts?domain= dispatcher
 ├── components/
 │   ├── ui/          # shadcn/ui primitives
 │   ├── layout/      # App shell, sidebar, topbar, portal layout

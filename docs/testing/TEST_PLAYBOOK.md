@@ -1,12 +1,49 @@
 # Procurement Orchestration UI — Full Test Playbook
 
 **Purpose:** a complete, repeatable regression script covering every page, role, and path in the application. Run it end-to-end before each release (or after major changes) to confirm nothing is broken.
-**App:** orchestration-ui · **Last updated:** 30 August 2026
+**App:** orchestration-ui · **Last updated:** 12 September 2026
 
 The roadmap status and implementation references are maintained in the [R1 roadmap](../roadmap/R1_BACKLOG_FIT_GAP.md)
 and its [implementation evidence index](../roadmap/R1_IMPLEMENTATION_EVIDENCE.md).
 
-> **Deployment note (30 Aug 2026):** the current live alias is `https://orchestration-ui.vercel.app` and the latest verified deployment is commit `0bf9a93`.
+> **Deployment note:** the live alias is `https://orchestration-ui.vercel.app`. The verified
+> commit is whatever `main` last pushed green — read it from the Actions run rather than
+> from here, because a pinned hash in a doc goes stale silently.
+
+## 2026-09-12 security assessment tranche
+
+A full-codebase security review of the `/api/db` boundary, the assistant's
+confirm-before-act path, and the server handlers. Authentication is still
+deferred (ADR-0003); everything below is a control the code *claimed* to have,
+or an integrity defect that survives adding authentication.
+
+**Scope: `npm run test:db-casts`, `npm run test:assistant-boundary`,
+`npm run test:neon-migration`.**
+
+| What was wrong | What now holds |
+|---|---|
+| `assertFilteredWrite` tested only that a filter existed. `neq` with a null value and `is` with any non-null value both compile to `col IS NOT NULL`, so one filter emptied a table. | A destructive write must narrow with `eq` on a real value, or a non-empty `in`/`cs` set. An or-group counts only when every clause narrows. `test:db-casts` covers each bypass and each real caller shape. |
+| `/api/db` returned raw Postgres error text. A unique violation embeds the conflicting row value, so the endpoint was a read oracle. | Only a typed `DbRequestError` is echoed, with a code; database errors are logged and answered generically. Same split applied to `contract-scope`, `contract-vocabulary` and `chat-intake`. |
+| The confirm card rendered the model's `read_back` while `action_type`/`action_params` executed separately. Nothing compared them, and untrusted text reaches the model every turn. | The card's sentence is built by `api/_action-description.ts` from the action and its parameters, with ids resolved to names and the targets listed. An action with no template shows no Confirm button. |
+| `remember_preference` accepted any key and value, and that row is read into the system prompt of every later conversation. | Four allowlisted keys, capped values, rendered as a labelled list marked as data. |
+| Only the purchase-order branch of the assistant was scoped to the caller; `requestor_id` was a model-settable filter. | Requests, POs and invoices scope to requester-or-owner. Suppliers, contracts and risk assessments stay unscoped by design, and a check pins that as a decision. |
+| `workflow-action` wrote any string into `requests.status`. | The stage must exist; a check asserts the guarded set still equals `RequestStatus`. |
+| `execute-action` took the actor's name from the request body and reported success on any audit-id collision. | The name is read from the directory; a collision must be the same action by the same actor before success is reported. |
+
+**Known and accepted, not closed.** Authentication (ADR-0003) — every check
+above is scoping and integrity, not authorization. Approval eligibility
+(`canActOnApproval`) is still enforced only in React, and `workflow-action`
+validates that a stage exists, not that this request may enter it next. The
+schema still carries 47 `ENABLE ROW LEVEL SECURITY` statements whose policies
+are all `USING (true)` — Supabase scaffolding that reads as access control and
+enforces nothing.
+
+**A test that polluted the store.** `test:derived` deleted its fixtures with a
+pattern match and never read the error. The new write guard refuses a pattern
+match, so the suite leaked a contract per run into the live database until
+`test:neon-live` failed on contracts with no scope metadata. It now selects by
+prefix and deletes the exact ids it found, and checks the error. Any suite that
+writes to the live store should do the same.
 
 ## 2026-09-05 correctness and de-duplication tranche
 
