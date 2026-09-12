@@ -2,6 +2,8 @@
 // server-side Vercel functions where the `@/` alias is not configured.
 // Include `.js` suffix so the @vercel/node builder resolves them in
 // NodeNext ESM mode.
+import type { ServiceDescriptionRecord } from '../../data/types.js';
+export type { ServiceDescriptionRecord };
 import type {
   ProcurementRequest,
   Comment,
@@ -730,35 +732,6 @@ export function mapDbToStageHistory(row: DbRecord): StageHistoryEntry {
 }
 
 // ── Service Descriptions ────────────────────────────────────────────
-
-export interface ServiceDescriptionRecord {
-  requestId: string;
-  objective: string;
-  scope: string;
-  exclusions?: string;
-  deliverables: string;
-  timeline: string;
-  resources: string;
-  acceptanceCriteria: string;
-  pricingModel: string;
-  location: string;
-  dependencies: string;
-  narrative: string;
-  /** The quality gate, computed at generation and previously discarded. */
-  qualityScore?: number;
-  qualityChecks?: { section: string; passed: boolean; issue: string | null }[];
-  /** The capture-time governance read the description was written against. */
-  signals?: Record<string, unknown>;
-  /** Sections that read made mandatory — what a reviewer should expect to find. */
-  requiredSections?: string[];
-  /**
-   * How each section came to be filled: `answered`, `assistant-drafted` (the
-   * requester accepted a draft after being challenged) or `weak` (challenged,
-   * answered thinly, accepted anyway). Lets a reviewer see which parts of a
-   * description nobody really wrote.
-   */
-  captureFlags?: Partial<Record<string, string>>;
-}
 
 export function mapDbToServiceDescription(row: DbRecord): ServiceDescriptionRecord {
   return {

@@ -1,19 +1,7 @@
 // Seed data only — not read by the runtime app.
 // Service descriptions moved to the database in Wave 1.
 
-export interface ServiceDescriptionRecord {
-  requestId: string;
-  objective: string;
-  scope: string;
-  deliverables: string;
-  timeline: string;
-  resources: string;
-  acceptanceCriteria: string;
-  pricingModel: string;
-  location: string;
-  dependencies: string;
-  narrative: string;
-}
+import type { ServiceDescriptionRecord } from './types.js';
 
 export const serviceDescriptions: ServiceDescriptionRecord[] = [
   {

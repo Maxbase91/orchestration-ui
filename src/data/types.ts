@@ -717,3 +717,41 @@ export interface ChatMessageData {
   suggestions?: string[];
   links?: Array<{ label: string; path: string }>;
 }
+
+/**
+ * A request's service description as stored.
+ *
+ * Declared twice once — this shape in src/lib/db/mappers.ts, and a shorter one
+ * in src/data/service-descriptions.ts missing exclusions, the quality gate and
+ * all three capture columns. The fixture file's copy typechecked against
+ * itself, so nothing caught that the seeds were being written against an older
+ * record than the app reads. Entity types belong here; see src/data/README.md.
+ */
+export interface ServiceDescriptionRecord {
+  requestId: string;
+  objective: string;
+  scope: string;
+  exclusions?: string;
+  deliverables: string;
+  timeline: string;
+  resources: string;
+  acceptanceCriteria: string;
+  pricingModel: string;
+  location: string;
+  dependencies: string;
+  narrative: string;
+  /** The quality gate, computed at generation and previously discarded. */
+  qualityScore?: number;
+  qualityChecks?: { section: string; passed: boolean; issue: string | null }[];
+  /** The capture-time governance read the description was written against. */
+  signals?: Record<string, unknown>;
+  /** Sections that read made mandatory — what a reviewer should expect to find. */
+  requiredSections?: string[];
+  /**
+   * How each section came to be filled: `answered`, `assistant-drafted` (the
+   * requester accepted a draft after being challenged) or `weak` (challenged,
+   * answered thinly, accepted anyway). Lets a reviewer see which parts of a
+   * description nobody really wrote.
+   */
+  captureFlags?: Partial<Record<string, string>>;
+}
