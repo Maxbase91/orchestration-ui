@@ -247,6 +247,7 @@ npm run test:schema-drift         # db/schema.sql matches the live database's in
 npm run test:forms                # every form triggers on a real stage, and none on validation
 npm run test:config-consumption   # admin configuration reaches what it configures — channel stages, template node ids, live lifecycle coherence
 npm run test:seed-parity          # the checked-in workflow seed matches live, so re-seeding cannot destroy a Designer edit
+npm run test:policy-tokens        # every governed threshold is nameable, editable and validated; no decisioning literal shadows one
 npm run test:models               # each pinned Groq/Gemini model is still served by its provider (calls the providers, so it is outside the default gate — run it on demand or via `test:all -- --external`)
 npm run test:table-lists          # hand-maintained relation lists match db/schema.sql
 npm run test:requester-entry-ui   # browser smoke (stubbed) — requester entry screen renders and fits 320px

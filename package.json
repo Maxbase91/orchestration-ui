@@ -127,6 +127,7 @@
     "backfill:initial-stage": "node --import tsx/esm db/backfills/2026-09-13-channel-initial-stage.mjs",
     "test:config-consumption": "node --import tsx/esm tests/integration/config-consumption.mjs",
     "test:seed-parity": "node --import tsx/esm tests/integration/seed-parity.mjs",
+    "test:policy-tokens": "node --import tsx/esm tests/integration/policy-tokens.mjs",
     "backfill:sla-deadlines": "node --import tsx/esm db/backfills/2026-09-13-sla-deadlines.mjs",
     "backfill:stage-slas": "node db/backfills/2026-09-13-stage-slas.mjs"
   },

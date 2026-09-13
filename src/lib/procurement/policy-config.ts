@@ -34,6 +34,17 @@ export interface PolicyConfig {
   contractUtilisationHeadroom: number;
   /** Second contract check: days-to-expiry buffer that flags a contract expiring. */
   contractExpiryBufferDays: number;
+  /**
+   * Value at/above which a PO needs an executed contract behind it.
+   *
+   * Equal to `competitiveSourcingThreshold` today, and deliberately its own key:
+   * contract coverage and competitive sourcing are different controls that
+   * happen to share a number. Folding them together would make raising one
+   * silently raise the other.
+   */
+  contractRequiredThreshold: number;
+  /** Value above which a demand exceeds standard budget approval and needs VP sign-off. */
+  budgetApprovalThreshold: number;
   /** Value above which a demand exceeds normal delegated budget authority. */
   delegatedAuthorityThreshold: number;
   /**
@@ -72,6 +83,10 @@ export const DEFAULT_POLICY_CONFIG: PolicyConfig = {
   preferredMinPerformance: 75,
   contractUtilisationHeadroom: 95,
   contractExpiryBufferDays: 60,
+  // Both preserve the literals intake-determination.ts hard-coded in its policy
+  // checks before they were governed. Same numbers, so no behaviour change.
+  contractRequiredThreshold: 25_000,
+  budgetApprovalThreshold: 100_000,
   // Preserves the literal the compliance report used before this was
   // configurable; it is not derived from the approval gate, which is separate.
   delegatedAuthorityThreshold: 500_000,

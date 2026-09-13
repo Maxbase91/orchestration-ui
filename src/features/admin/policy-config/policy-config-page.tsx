@@ -15,33 +15,17 @@ import { determineMateriality } from '@/lib/procurement/materiality';
 import { determineInherentRisk, type RiskTier } from '@/lib/procurement/risk-segmentation';
 import { determineApprovalToSource } from '@/lib/procurement/approval-to-source';
 import { formatCurrency } from '@/lib/format';
+import {
+  type NumericPolicyKey, NUMERIC_POLICY_KEYS, POLICY_KEY_META,
+} from '@/lib/procurement/policy-tokens';
 
-type NumericPolicyKey = Exclude<keyof PolicyConfig, 'pCardEnabled' | 'pCardEligibleCategories' | 'pCardExcludedCategories'>;
-
-interface FieldMeta {
-  key: NumericPolicyKey;
-  label: string;
-  help: string;
-  unit?: '€' | '%' | '/100' | 'days' | '';
-}
-
-const FIELDS: FieldMeta[] = [
-  { key: 'catalogueAutoApprovalThreshold', label: 'Catalogue auto-approval threshold', help: 'Below this whole-request value, valid catalogue orders are auto-approved', unit: '€' },
-  { key: 'approvalFullThreshold', label: 'Full approval-to-source threshold', help: 'At/above this value the full approval gate applies', unit: '€' },
-  { key: 'materialityValueThreshold', label: 'Materiality value threshold', help: 'At/above this value a demand is material on size alone', unit: '€' },
-  { key: 'criticalServiceThreshold', label: 'Critical-service question threshold', help: 'At/above this value the critical-service question is asked', unit: '€' },
-  { key: 'continuityThreshold', label: 'Business-continuity threshold', help: 'At/above this value continuity dependence is non-trivial', unit: '€' },
-  { key: 'riskHighValue', label: 'Inherent-risk band — high', help: 'Value contributing to a high inherent tier', unit: '€' },
-  { key: 'riskMediumValue', label: 'Inherent-risk band — medium', help: 'Value contributing to a medium inherent tier', unit: '€' },
-  { key: 'competitiveSourcingThreshold', label: 'Competitive-sourcing threshold', help: 'At/above this value competitive sourcing applies', unit: '€' },
-  { key: 'minCompetitiveQuotes', label: 'Minimum competitive quotes', help: 'Quotes required above the threshold', unit: '' },
-  { key: 'preferredMinPerformance', label: 'Preferred-supplier performance bar', help: 'Min performance score to qualify as preferred', unit: '/100' },
-  { key: 'contractUtilisationHeadroom', label: 'Contract utilisation headroom', help: 'Below this %, an active contract is transactable', unit: '%' },
-  { key: 'contractExpiryBufferDays', label: 'Contract expiry buffer', help: 'Days-to-expiry that flag a contract as expiring', unit: 'days' },
-  { key: 'catalogueMatchThreshold', label: 'Catalogue match threshold', help: 'Minimum score for a catalogue item to be offered at intake', unit: '' },
-  { key: 'catalogueMinContentMatches', label: 'Catalogue naming-word matches', help: 'Naming words (not adjectives) a catalogue match must hit', unit: '' },
-  { key: 'pCardMaxValue', label: 'P-card maximum value', help: 'Maximum demand value that may use the governed P-card route', unit: '€' },
-];
+// Every numeric threshold, derived from the shared key metadata rather than
+// listed here. The hand-maintained copy omitted `delegatedAuthorityThreshold`,
+// which was live in the compliance report and server-validated — so it could
+// never be edited, and because handleSave rebuilds the override set from this
+// list, saving any other field ERASED it. A derived list cannot drift.
+const FIELDS: { key: NumericPolicyKey; label: string; help: string; unit: string }[] =
+  NUMERIC_POLICY_KEYS.map((key) => ({ key, ...POLICY_KEY_META[key] }));
 
 const RISK_TIERS: RiskTier[] = ['low', 'medium', 'high', 'critical'];
 

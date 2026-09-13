@@ -25,6 +25,7 @@
 // determination is reached.
 
 import { formatCurrency } from '../format.js';
+import { getActivePolicyConfig, type PolicyConfig } from './policy-config.js';
 import { isPreferredSupplier, competitiveSourcingCheck, preferredSupplierCheck } from './supplier-preference.js';
 import { inferDataSensitivity } from './demand-signals.js';
 import { determineMateriality, type MaterialityResult } from './materiality.js';
@@ -95,6 +96,12 @@ export interface IntakeDeterminationInput {
   approvalChains: ApprovalChain[];
   /** AI-002 Request Validator. Policy checks only run when it is active. */
   validatorAgent?: { name: string; status: string };
+  /**
+   * Governed thresholds. Defaults to the active config, which the browser
+   * hydrates on boot — the same seam the sibling decisioning modules use.
+   * Injected explicitly by tests and the simulation panel.
+   */
+  policyConfig?: PolicyConfig;
 }
 
 export interface IntakeDetermination {
@@ -175,16 +182,25 @@ export function generatePolicyChecks(
   category: string,
   supplierId: string,
   suppliers: Supplier[],
+  config: PolicyConfig,
 ): { label: string; passed: boolean; detail: string }[] {
   const supplier = suppliers.find((s) => s.id === supplierId);
   const checks: { label: string; passed: boolean; detail: string }[] = [];
 
+  // Both thresholds were literals here while identical numbers sat in the
+  // governed config, so a compliance check told the requester one thing and
+  // /admin/thresholds another. They are their own keys rather than reused
+  // neighbours: contract coverage is not competitive sourcing, and budget
+  // approval is not the critical-service question, however the numbers line up.
+  const contractRequired = config.contractRequiredThreshold;
+  const budgetApproval = config.budgetApprovalThreshold;
+
   checks.push({
     label: 'Contract required before PO',
-    passed: value < 25000 || (supplier !== undefined && supplier.activeContracts > 0),
+    passed: value < contractRequired || (supplier !== undefined && supplier.activeContracts > 0),
     detail:
-      value < 25000
-        ? 'Value below threshold; PO can proceed without contract'
+      value < contractRequired
+        ? `Value below the ${formatCurrency(contractRequired)} threshold; PO can proceed without contract`
         : supplier && supplier.activeContracts > 0
           ? `Existing contract found with ${supplier.name}`
           : 'No existing contract found; contract must be executed before PO',
@@ -192,10 +208,10 @@ export function generatePolicyChecks(
 
   checks.push({
     label: 'Budget approval required',
-    passed: value <= 100000,
+    passed: value <= budgetApproval,
     detail:
-      value > 100000
-        ? `Value (${formatCurrency(value)}) exceeds standard threshold; VP approval required`
+      value > budgetApproval
+        ? `Value (${formatCurrency(value)}) exceeds the ${formatCurrency(budgetApproval)} standard threshold; VP approval required`
         : 'Within standard approval limits',
   });
 
@@ -232,6 +248,7 @@ export function evaluateIntakeDetermination(input: IntakeDeterminationInput): In
     miniIrq, contractId, now, suppliers, contracts, matchingRiskAssessments: matches,
     routingRules, approvalChains, validatorAgent,
   } = input;
+  const policy = input.policyConfig ?? getActivePolicyConfig();
 
   const supplierRec = suppliers.find((s) => s.id === supplierId);
   const dataSensitivity = inferDataSensitivity(serviceDescription ?? null);
@@ -395,7 +412,7 @@ export function evaluateIntakeDetermination(input: IntakeDeterminationInput): In
 
   const validatorActive = validatorAgent?.status === 'active';
   const policyChecks = validatorActive
-    ? generatePolicyChecks(estimatedValue, category, supplierId, suppliers)
+    ? generatePolicyChecks(estimatedValue, category, supplierId, suppliers, policy)
     : [
         {
           label: 'Request Validator agent',
