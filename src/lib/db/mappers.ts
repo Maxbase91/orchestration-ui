@@ -552,6 +552,15 @@ export function mapDbToRequest(row: DbRecord): ProcurementRequest {
   const ms = deadlineMs(result.slaDeadline);
   result.isOverdue = ms !== null && ms <= Date.now();
 
+  // Prefer the live figure from requests_with_derived. `days_in_stage` is
+  // written 0 at creation and 0 on every transition with nothing incrementing
+  // it, so the stored column is only a fallback for a read that bypassed the
+  // view. Same shape as the suppliers/contracts _live columns below.
+  if (result.days_in_stage_live !== undefined && result.days_in_stage_live !== null) {
+    result.daysInStage = Number(result.days_in_stage_live);
+    delete result.days_in_stage_live;
+  }
+
   return result as unknown as ProcurementRequest;
 }
 

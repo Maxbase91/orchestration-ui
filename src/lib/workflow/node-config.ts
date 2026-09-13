@@ -132,10 +132,18 @@ export function nodeIdForStatus(
   nodes: Array<{ id: string; type?: string; label?: string }>,
   status: string,
 ): string | null {
-  const match = nodes.find(
-    (node) => node.type === 'stage' && typeof node.label === 'string' && nodeToStatus(node.label) === status,
-  );
-  return match?.id ?? null;
+  const labelled = (node: { type?: string; label?: string }) =>
+    typeof node.label === 'string' && nodeToStatus(node.label) === status;
+
+  const stage = nodes.find((node) => node.type === 'stage' && labelled(node));
+  if (stage) return stage.id;
+
+  // `referred-back` is an `error` node, not a stage — WF-001's n13. A request
+  // sitting there is still work in flight (it is with the requester, waiting
+  // for an answer), so it needs a node to carry an SLA. Restricting the search
+  // to `type: 'stage'` is why those requests could never have a deadline.
+  const other = nodes.find((node) => node.type !== 'decision' && labelled(node));
+  return other?.id ?? null;
 }
 
 /** Statuses from which a request never advances again. */

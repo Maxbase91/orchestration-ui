@@ -793,6 +793,34 @@ LEFT JOIN (
   GROUP BY supplier_id
 ) i ON i.supplier_id = s.id;
 
+-- How long a request has been in its current stage, computed rather than stored.
+--
+-- `requests.days_in_stage` is written 0 at creation and 0 again on every stage
+-- transition, and nothing has ever incremented it. Six surfaces read it — the
+-- pipeline page, the timeline view, the workflows table, the Stuck Requests
+-- table and the over-SLA filter — so all of them reported zero forever.
+--
+-- A nightly job would work; a view is better, because there is no window in
+-- which the number is stale and nothing to run. Same pattern as
+-- suppliers_with_derived above: the caller reads the view, the mapper prefers
+-- the _live column, and the stored column is left alone rather than written to.
+--
+-- Measured from the open stage_history row, which is the moment the stage
+-- actually opened. Falls back to created_at for a request with no open row.
+DROP VIEW IF EXISTS requests_with_derived CASCADE;
+CREATE VIEW requests_with_derived
+  WITH (security_invoker = true) AS
+SELECT
+  r.*,
+  GREATEST(0, DATE_PART('day', now() - COALESCE(sh.entered_at, r.created_at)))::int
+    AS days_in_stage_live
+FROM requests r
+LEFT JOIN LATERAL (
+  SELECT entered_at FROM stage_history
+  WHERE request_id = r.id AND completed_at IS NULL
+  ORDER BY entered_at DESC LIMIT 1
+) sh ON true;
+
 DROP VIEW IF EXISTS contracts_with_derived CASCADE;
 CREATE VIEW contracts_with_derived
   WITH (security_invoker = true) AS

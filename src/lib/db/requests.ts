@@ -5,6 +5,10 @@ import { db } from '@/lib/db-client';
 import type { ProcurementRequest } from '@/data/types';
 import { mapDbToRequest, mapRequestToDb } from './mappers';
 
+// Reads go through the derived view so days_in_stage is recomputed on every
+// fetch — the stored column is written 0 and never incremented. Writes still
+// target the base table. Same split as suppliers.ts and contracts.ts.
+const READ_SOURCE = 'requests_with_derived';
 const TABLE = 'requests';
 
 /**
@@ -25,13 +29,13 @@ export async function nextRequestId(): Promise<string> {
 }
 
 export async function listRequests(): Promise<ProcurementRequest[]> {
-  const { data, error } = await db.from(TABLE).select('*').order('created_at', { ascending: false });
+  const { data, error } = await db.from(READ_SOURCE).select('*').order('created_at', { ascending: false });
   if (error) throw error;
   return (data ?? []).map(mapDbToRequest);
 }
 
 export async function getRequest(id: string): Promise<ProcurementRequest | null> {
-  const { data, error } = await db.from(TABLE).select('*').eq('id', id).maybeSingle();
+  const { data, error } = await db.from(READ_SOURCE).select('*').eq('id', id).maybeSingle();
   if (error) throw error;
   return data ? mapDbToRequest(data) : null;
 }

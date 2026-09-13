@@ -213,6 +213,39 @@ if (!connection) {
     bad(`${offenders.length} request(s) are in a stage their channel skips`,
       offenders.slice(0, 8).map((r) => `${r.id} ${r.buying_channel}/${r.status}`).join(', '));
   }
+
+  // Every stage node has an SLA, or requests in that stage get no deadline and
+  // no countdown. Three of four templates shipped with none at all.
+  const templates = await sql`SELECT id, nodes FROM workflow_templates`;
+  const unset = [];
+  for (const t of templates) {
+    for (const n of (Array.isArray(t.nodes) ? t.nodes : [])) {
+      if (n.type === 'stage' && n.slaDays == null) unset.push(`${t.id}/${n.label}`);
+    }
+  }
+  if (unset.length === 0) ok(`every stage node across ${templates.length} templates has an SLA`);
+  else bad(`${unset.length} stage node(s) have no SLA`, unset.slice(0, 8).join(', '));
+
+  // days_in_stage is computed by the view, not the stored column.
+  const staged = await sql`
+    SELECT id, days_in_stage, days_in_stage_live FROM requests_with_derived
+    WHERE status NOT IN ('draft', 'completed', 'cancelled') LIMIT 200
+  `;
+  const anyLive = staged.some((r) => Number(r.days_in_stage_live) > 0);
+  if (anyLive) ok('requests_with_derived computes a non-zero days_in_stage_live');
+  else bad('days_in_stage_live is computed', 'every row is zero — the view is not measuring stage entry');
+  const requestsModule = readFileSync(new URL('src/lib/db/requests.ts', ROOT), 'utf8');
+  if (/READ_SOURCE = 'requests_with_derived'/.test(requestsModule)) {
+    ok('the requests module reads the derived view');
+  } else bad('the requests module reads the derived view', 'reads bypass it, so days_in_stage is the stored zero');
+
+  // And therefore every open request has a deadline.
+  const undated = await sql`
+    SELECT id FROM requests
+    WHERE sla_deadline IS NULL AND status NOT IN ('draft', 'completed', 'cancelled')
+  `;
+  if (undated.length === 0) ok('every open request has an SLA deadline');
+  else bad(`${undated.length} open request(s) have no deadline`, undated.slice(0, 8).map((r) => r.id).join(', '));
 }
 
 console.log('');

@@ -37,7 +37,7 @@ async function loadDomainHandler(name: string): Promise<DomainHandler | undefine
 }
 
 const ALLOWED_RELATIONS = new Set([
-  'users', 'user_preferences', 'requests', 'stage_history', 'service_descriptions',
+  'users', 'user_preferences', 'requests', 'requests_with_derived', 'stage_history', 'service_descriptions',
   'ai_conversations', 'assistant_conversations', 'comments', 'comment_reads',
   'compliance_reports', 'system_integrations', 'form_submissions', 'approval_entries',
   'notifications', 'suppliers', 'suppliers_with_derived', 'contracts', 'contracts_with_derived',
