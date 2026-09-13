@@ -622,6 +622,9 @@ CREATE TABLE IF NOT EXISTS form_templates (
   category TEXT,
   trigger_stages TEXT[] DEFAULT '{}',
   trigger_conditions JSONB DEFAULT '[]',
+  -- Evidence the stage cannot be left without. Defaults false so an existing
+  -- template stays optional capture rather than stranding requests.
+  blocking BOOLEAN DEFAULT false,
   fields JSONB NOT NULL DEFAULT '[]',
   version TEXT DEFAULT '1.0',
   last_modified TEXT,

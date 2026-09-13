@@ -360,6 +360,7 @@ export function TabWorkflow({ request, focusStageId }: TabWorkflowProps) {
                 isHighlighted={highlightedStage === stage.id}
                 requestId={request.id}
                 requestCategory={request.category}
+                request={request}
                 events={stage.events}
               />
               {/* Stage-scoped comments + composer (current stage only). One

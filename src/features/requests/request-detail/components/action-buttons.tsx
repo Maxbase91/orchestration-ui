@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Check, X, RotateCcw, UserPlus, ArrowUpRight, Ban, ShoppingCart, Loader2, Gavel, ArrowRight } from 'lucide-react';
 import { canActOnApproval } from '@/lib/procurement/approval-derivation';
 import { useIsCategoryManager } from '@/lib/db/hooks/use-category-managers';
+import { useFormTemplates } from '@/lib/db/hooks/use-form-templates';
+import { useFormSubmissions } from '@/lib/db/hooks/use-form-submissions';
 import { useRequestSupplierCandidates } from '@/lib/db/hooks/use-request-supplier-candidates';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -128,6 +130,32 @@ export function ActionButtons({ request }: ActionButtonsProps) {
     && (isCategoryManager || currentRole === 'admin');
   const roleCanAdvanceStage = canAdvanceValidation
     || (STAGE_ADVANCERS[request.status] ?? []).includes(currentRole);
+  // Evidence the stage cannot be left without.
+  //
+  // A form marked `blocking` for this stage must be submitted before the stage
+  // advances. Until now forms were decorative — they rendered on the current
+  // stage and nothing read `form_submissions`, so completing one changed
+  // nothing and that table was empty for every request in the store. A form
+  // nobody has to fill in is a form nobody fills in.
+  //
+  // Admin is exempt, for the same reason admin can advance validation with no
+  // category manager: a misconfigured form must not be able to strand a
+  // request with no way out.
+  const { data: allFormTemplates = [] } = useFormTemplates();
+  const { data: allSubmissions = [] } = useFormSubmissions();
+  const outstandingForms = useMemo(() => {
+    if (currentRole === 'admin') return [];
+    const submitted = new Set(
+      allSubmissions.filter((s) => s.requestId === request.id).map((s) => s.formTemplateId),
+    );
+    return allFormTemplates.filter((template) => (
+      template.status === 'active'
+      && template.blocking === true
+      && template.triggerStages.includes(request.status)
+      && !submitted.has(template.id)
+    ));
+  }, [allFormTemplates, allSubmissions, request.id, request.status, currentRole]);
+
   const showGateAction =
     !isTerminalStatus(request.status) &&
     request.status !== 'approval' &&
@@ -425,11 +453,21 @@ export function ActionButtons({ request }: ActionButtonsProps) {
             size="sm"
             className="bg-blue-600 hover:bg-blue-700 text-white"
             onClick={handleCompleteStage}
-            disabled={advancing}
+            // Disabled, not hidden, with the reason on the button: a control
+            // that vanishes leaves the user hunting for why.
+            disabled={advancing || outstandingForms.length > 0}
+            title={outstandingForms.length > 0
+              ? `Complete ${outstandingForms.map((f) => f.name).join(' and ')} first`
+              : undefined}
           >
             {advancing ? <Loader2 className="size-3.5 animate-spin" /> : <ArrowRight className="size-3.5" />}
             {gateActionLabel(request.status)}
           </Button>
+        )}
+        {showGateAction && outstandingForms.length > 0 && (
+          <span className="text-xs text-amber-700">
+            Needs {outstandingForms.map((f) => f.name).join(' and ')} before this stage can close
+          </span>
         )}
         {isSourcingStage && (
           existingEvent ? (

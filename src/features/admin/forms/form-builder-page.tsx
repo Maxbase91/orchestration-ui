@@ -101,6 +101,17 @@ const PRE_POPULATE_OPTIONS = [
   { value: 'costCentre', label: 'Cost Centre' },
   { value: 'sraStatus', label: 'SRA Status' },
   { value: 'poId', label: 'PO ID' },
+  { value: 'requestId', label: 'Request ID' },
+  { value: 'title', label: 'Request title' },
+  { value: 'description', label: 'Request description' },
+  { value: 'businessJustification', label: 'Business justification' },
+  { value: 'commodityCodeLabel', label: 'Commodity (label)' },
+  { value: 'currency', label: 'Currency' },
+  { value: 'budgetOwner', label: 'Budget owner' },
+  { value: 'deliveryDate', label: 'Need-by date' },
+  { value: 'buyingChannel', label: 'Buying channel' },
+  { value: 'contractId', label: 'Contract ID' },
+  { value: 'beneficiaryName', label: 'Beneficiary' },
   // Service description sources. A risk or sourcing form triggered on its stage
   // can start from what the requester was already asked at intake instead of
   // asking the same thing a second time. Keys match sowPrePopulateValues().
@@ -738,20 +749,43 @@ function FieldConfigPanel({
       <div className="space-y-1">
         <Label className="text-xs">Pre-populate from</Label>
         <Select
-          value={field.prePopulateFrom ?? ''}
-          onValueChange={(v) => onUpdate({ prePopulateFrom: v || undefined })}
+          // The "None" option carries the sentinel `__none__`, and the handler
+          // maps it back to undefined. It used to be the literal `'none'`,
+          // which is truthy — so choosing None wrote `prePopulateFrom: 'none'`
+          // instead of clearing it, and the field then looked for a source
+          // called "none" that no producer supplies.
+          value={field.prePopulateFrom ?? '__none__'}
+          onValueChange={(v) => onUpdate({
+            prePopulateFrom: v === '__none__' ? undefined : v,
+            // A field with no source cannot be locked.
+            ...(v === '__none__' ? { prePopulateLocked: undefined } : {}),
+          })}
         >
           <SelectTrigger className="text-xs">
             <SelectValue placeholder="None" />
           </SelectTrigger>
           <SelectContent>
             {PRE_POPULATE_OPTIONS.map((opt) => (
-              <SelectItem key={opt.value || 'none'} value={opt.value || 'none'}>
+              <SelectItem key={opt.value || '__none__'} value={opt.value || '__none__'}>
                 {opt.label}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
+        {field.prePopulateFrom && (
+          <div className="flex items-center justify-between pt-1.5">
+            <Label className="text-xs text-gray-500">
+              Lock the pre-filled value
+              <span className="mt-0.5 block text-[11px] font-normal text-gray-400">
+                Read-only once filled from the request
+              </span>
+            </Label>
+            <Switch
+              checked={field.prePopulateLocked === true}
+              onCheckedChange={(v) => onUpdate({ prePopulateLocked: v || undefined })}
+            />
+          </div>
+        )}
       </div>
 
       <Separator />

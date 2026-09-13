@@ -3,6 +3,9 @@ import { toast } from 'sonner';
 import type { WorkflowStepDetail } from '@/data/workflow-step-details';
 import type { StageHistoryEntry } from '@/data/types';
 import { useUserLookup, useUsers } from '@/lib/db/hooks/use-users';
+import { useSupplierLookup } from '@/lib/db/hooks/use-suppliers';
+import { requestPrePopulateValues } from '@/lib/procurement/form-prepopulate';
+import { evalCondition } from '@/lib/routing/evaluate-routing-rules';
 import { formatDate } from '@/lib/format';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -41,6 +44,7 @@ import { FormSubmissionView } from '@/components/shared/form-submission-view';
 import { DynamicForm } from '@/components/shared/dynamic-form';
 import { useServiceDescription } from '@/lib/db/hooks/use-service-descriptions';
 import { sectionValuesOf, sowPrePopulateValues } from '@/lib/procurement/service-description-seed';
+import type { ProcurementRequest } from '@/data/types';
 import { useAuthStore } from '@/stores/auth-store';
 
 interface StepDetailCardProps {
@@ -54,6 +58,15 @@ interface StepDetailCardProps {
   isHighlighted?: boolean;
   requestId?: string;
   requestCategory?: string;
+  /**
+   * The whole request, so a form can pre-fill from it.
+   *
+   * FormsSection previously had only `requestId` and `requestCategory` — two
+   * scalars destructured off this very object one level up — which is why the
+   * Form Builder's request tokens (cost centre, value, supplier) resolved to
+   * nothing while the service-description ones worked.
+   */
+  request?: ProcurementRequest;
   /** Stage-level events surfaced as coloured markers above the detail. */
   events?: {
     referBack?: { notes?: string; at: string; by?: string };
@@ -95,7 +108,7 @@ function getDurationLabel(enteredAt: string, completedAt?: string): string {
 
 export const StepDetailCard = forwardRef<HTMLDivElement, StepDetailCardProps>(
   function StepDetailCard(
-    { stage, stageLabel, status, detail, stageHistory, isExpanded, onToggle, isHighlighted, requestId, requestCategory, events },
+    { stage, stageLabel, status, detail, stageHistory, isExpanded, onToggle, isHighlighted, requestId, requestCategory, request, events },
     ref,
   ) {
     useUsers();
@@ -359,6 +372,7 @@ export const StepDetailCard = forwardRef<HTMLDivElement, StepDetailCardProps>(
                 detail={detail}
                 requestId={requestId}
                 requestCategory={requestCategory}
+                request={request}
               />
 
               {/* Documents live only on the Documents tab now — one home,
@@ -474,10 +488,12 @@ function FormsSection({
   detail,
   requestId,
   requestCategory,
+  request,
 }: {
   stage: string;
   status: string;
   detail?: WorkflowStepDetail;
+  request?: ProcurementRequest;
   requestId?: string;
   requestCategory?: string;
 }) {
@@ -494,14 +510,36 @@ function FormsSection({
   // ever passed one, so the mapping was inert — a risk form on the risk stage
   // asked for scope and deliverables the requester had already given at intake.
   const { data: serviceDescription } = useServiceDescription(requestId);
+  // The lookup returns the supplier record; the form wants its name.
+  const supplier = useSupplierLookup()(request?.supplierId);
+
+  // What a trigger condition is evaluated against. The same shape routing
+  // rules use, so the two config surfaces share one vocabulary instead of
+  // drifting into two.
+  const triggerContext = useMemo(() => ({
+    category: request?.category ?? requestCategory,
+    value: request?.value,
+    supplierId: request?.supplierId,
+    commodityCode: request?.commodityCode,
+    priority: request?.priority,
+    isUrgent: request?.isUrgent,
+    contractId: request?.contractId,
+  }), [request, requestCategory]);
   const prePopulateContext = useMemo(
-    () =>
-      serviceDescription
-        ? // Narrowed, not cast: the record also carries a quality score, arrays
-          // and objects, and walking those as strings threw at runtime.
-          sowPrePopulateValues(sectionValuesOf(serviceDescription), serviceDescription.narrative)
-        : {},
-    [serviceDescription],
+    () => ({
+      // The request half. Every token the Form Builder offers now has a
+      // producer — before this only the `sow.` ones did, so an admin could pick
+      // "Cost Centre" and get an empty field.
+      ...requestPrePopulateValues(request, { supplierName: supplier?.name, sraStatus: supplier?.sraStatus }),
+      // The service-description half wins on a key collision: it is the more
+      // specific answer, captured for this request at intake.
+      ...(serviceDescription
+        // Narrowed, not cast: the record also carries a quality score, arrays
+        // and objects, and walking those as strings threw at runtime.
+        ? sowPrePopulateValues(sectionValuesOf(serviceDescription), serviceDescription.narrative)
+        : {}),
+    }),
+    [serviceDescription, request, supplier],
   );
 
   // Get actual form submissions for this stage
@@ -512,14 +550,21 @@ function FormsSection({
   if (status === 'current') {
     const allFormsForStage = templatesForStage(stage);
     for (const form of allFormsForStage) {
-      // Check trigger conditions
+      // Trigger conditions, through the routing evaluator.
+      //
+      // This was an inline `.some()` that implemented `category equals` and
+      // returned `true` for everything else — so any unrecognised condition
+      // made the whole set pass, and a form configured "category equals
+      // software AND value greater_than 100000" fired on every request. The
+      // Form Builder offers five operators and one of them worked, while its
+      // own preview described the conditions as ANDed.
+      //
+      // `every` with an explicit `false` default now, matching both the
+      // builder's wording and the routing evaluator this borrows.
       if (form.triggerConditions && form.triggerConditions.length > 0) {
-        const conditionMet = form.triggerConditions.some((cond) => {
-          if (cond.field === 'category' && cond.operator === 'equals') {
-            return requestCategory === cond.value;
-          }
-          return true;
-        });
+        const conditionMet = form.triggerConditions.every(
+          (cond) => evalCondition(cond.field, cond.operator, cond.value, triggerContext),
+        );
         if (!conditionMet) continue;
       }
       // Check if already submitted

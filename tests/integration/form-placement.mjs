@@ -104,6 +104,54 @@ if (!connection) {
   console.log(`  active: ${active.map((r) => `${r.id}→${(r.trigger_stages ?? []).join(',')}`).join('  ')}`);
 }
 
+// ── The builder offers only what the runtime implements ─────────────────────
+// The trigger evaluator was an inline `.some()` implementing one field/operator
+// pair and returning `true` for anything else, so a single unrecognised
+// condition made the whole set pass. The builder offered five operators and one
+// worked. It shares the routing evaluator now.
+console.log('\nThe builder and the evaluator agree');
+const builder = readFileSync(new URL('src/features/admin/forms/form-builder-page.tsx', ROOT), 'utf8');
+const routing = readFileSync(new URL('src/lib/routing/evaluate-routing-rules.ts', ROOT), 'utf8');
+const supportedOperators = new Set(
+  [...(/const SUPPORTED_OPERATORS = \[([\s\S]*?)\]/.exec(routing)?.[1] ?? '').matchAll(/'([a-z_]+)'/g)].map((m) => m[1]),
+);
+// The operator dropdown in the trigger-condition editor.
+const offeredOperators = [...builder.matchAll(/<SelectItem value="([a-z_]+)">/g)].map((m) => m[1])
+  .filter((op) => /equals|contains|than|empty|in|between|starts/.test(op));
+const unimplemented = [...new Set(offeredOperators)].filter((op) => !supportedOperators.has(op));
+if (unimplemented.length === 0) ok(`every offered operator is implemented (${supportedOperators.size} available)`);
+else bad('every offered operator is implemented', `${unimplemented.join(', ')} would silently pass or fail`);
+
+const renderer = readFileSync(new URL('src/features/requests/request-detail/components/step-detail-card.tsx', ROOT), 'utf8');
+if (/triggerConditions\.some\(/.test(renderer)) {
+  bad('trigger conditions are ANDed', '`.some()` is back — one unknown condition makes the set pass');
+} else ok('trigger conditions are ANDed, matching the builder\'s own wording');
+if (/evalCondition\(cond\.field/.test(renderer)) ok('the form evaluator is the routing evaluator');
+else bad('the form evaluator is shared', 'a second evaluator has appeared');
+
+// ── Every pre-populate token has a producer ─────────────────────────────────
+// The dropdown offered seven request tokens no producer supplied, so an admin
+// picked "Cost Centre" and the field came up empty.
+console.log('\nEvery pre-populate token resolves');
+const producer = readFileSync(new URL('src/lib/procurement/form-prepopulate.ts', ROOT), 'utf8');
+const produced = new Set(
+  [...(/const PREPOPULATE_TOKENS = \[([\s\S]*?)\] as const/.exec(producer)?.[1] ?? '').matchAll(/'([A-Za-z]+)'/g)].map((m) => m[1]),
+);
+const offeredTokens = [...(/const PRE_POPULATE_OPTIONS[^=]*=\s*\[([\s\S]*?)\];/.exec(builder)?.[1] ?? '')
+  .matchAll(/value: '([^']*)'/g)].map((m) => m[1]).filter(Boolean);
+// `sow.` tokens come from sowPrePopulateValues in service-description-seed.ts.
+const deadTokens = offeredTokens.filter((t) => !t.startsWith('sow.') && !produced.has(t));
+if (deadTokens.length === 0) ok(`all ${offeredTokens.length} offered tokens have a producer`);
+else bad('every offered token has a producer', deadTokens.join(', '));
+
+// ── A blocking form actually blocks ─────────────────────────────────────────
+const gate = readFileSync(new URL('src/features/requests/request-detail/components/action-buttons.tsx', ROOT), 'utf8');
+if (/template\.blocking === true/.test(gate) && /outstandingForms\.length > 0/.test(gate)) {
+  ok('the stage gate reads blocking forms');
+} else {
+  bad('the stage gate reads blocking forms', 'forms are decorative again — nothing consults form_submissions');
+}
+
 console.log('');
 if (failures) { console.error(`FAILED: ${failures} check(s)`); process.exit(1); }
 console.log('Form placement is coherent.');

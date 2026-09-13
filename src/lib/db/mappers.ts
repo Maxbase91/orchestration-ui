@@ -106,6 +106,7 @@ export function mapDbToFormTemplate(row: DbRecord): FormTemplate {
     category: (row.category ?? '') as string,
     triggerStages: (row.trigger_stages ?? row.triggerStages ?? []) as string[],
     triggerConditions: (row.trigger_conditions ?? row.triggerConditions ?? []) as FormTemplate['triggerConditions'],
+    blocking: Boolean(row.blocking ?? false),
     fields: (row.fields ?? []) as FormTemplate['fields'],
     version: (row.version ?? '1.0') as string,
     lastModified: (row.last_modified ?? row.lastModified ?? '') as string,
@@ -122,6 +123,7 @@ export function mapFormTemplateToDb(t: Partial<FormTemplate>): DbRecord {
   if (t.category !== undefined) out.category = t.category;
   if (t.triggerStages !== undefined) out.trigger_stages = t.triggerStages;
   if (t.triggerConditions !== undefined) out.trigger_conditions = t.triggerConditions;
+  if (t.blocking !== undefined) out.blocking = t.blocking;
   if (t.fields !== undefined) out.fields = t.fields;
   if (t.version !== undefined) out.version = t.version;
   if (t.lastModified !== undefined) out.last_modified = t.lastModified;

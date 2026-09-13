@@ -37,6 +37,15 @@ export interface FormField {
     max?: number;
   };
   prePopulateFrom?: string;
+  /**
+   * Lock a pre-filled value instead of letting it be edited.
+   *
+   * Per field, because both answers are right somewhere: a cost centre copied
+   * from the request should usually stand, while an estimated value the form
+   * exists to refine should not. Only meaningful alongside `prePopulateFrom` —
+   * a field with no source has nothing to lock, and is left editable.
+   */
+  prePopulateLocked?: boolean;
   infoContent?: string;
   width?: 'full' | 'half';
 }
@@ -49,6 +58,19 @@ export interface FormTemplate {
   category: string;
   triggerStages: string[];
   triggerConditions?: { field: string; operator: string; value: string }[];
+  /**
+   * Evidence the stage cannot be left without.
+   *
+   * A blocking form disables the stage's advance action until it is submitted.
+   * Forms were purely decorative before this — they rendered on the current
+   * stage and the gate never looked at `form_submissions`, so completing one
+   * changed nothing and `form_submissions` was empty for every request in the
+   * store. A form nobody has to fill in is a form nobody fills in.
+   *
+   * Off by default: an existing template keeps rendering as optional capture
+   * rather than suddenly stranding requests in whatever stage it targets.
+   */
+  blocking?: boolean;
   fields: FormField[];
   version: string;
   lastModified: string;

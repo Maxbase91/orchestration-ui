@@ -50,8 +50,8 @@ export const SUPPORTED_FIELDS = [
 
 /** Operators the evaluator implements. Kept in step with the editor's list. */
 export const SUPPORTED_OPERATORS = [
-  'equals', 'greater_than', 'less_than', 'in', 'starts_with', 'between',
-  'risk_rating', 'contains', 'is_empty', 'is_not_empty',
+  'equals', 'not_equals', 'greater_than', 'less_than', 'in', 'starts_with',
+  'between', 'risk_rating', 'contains', 'is_empty', 'is_not_empty',
 ] as const;
 
 /** Why a rule cannot fire. Empty means the rule is evaluable. */
@@ -205,7 +205,18 @@ function toNumber(v: unknown): number | null {
   return null;
 }
 
-function evalCondition(
+/**
+ * Exported so the Form Builder's trigger conditions use this evaluator rather
+ * than a second one.
+ *
+ * The form evaluator was an inline `.some()` in step-detail-card.tsx that
+ * implemented exactly one field/operator pair and returned `true` for anything
+ * else — so one unrecognised condition made a whole set pass, and a form
+ * configured "category equals software AND value greater_than 100000" fired on
+ * every request. Precisely the failure this file's header describes fixing for
+ * rules, in mirror image: `every` + `false` there, `some` + `true` here.
+ */
+export function evalCondition(
   field: string,
   operator: string,
   value: string,
@@ -225,6 +236,12 @@ function evalCondition(
   switch (operator) {
     case 'equals':
       return String(actual) === value;
+    // The Form Builder has always offered this and the evaluator never had it,
+    // so a `not_equals` condition fell to the default. Implemented rather than
+    // dropped: "category is not software" is a reasonable thing to configure,
+    // and the routing editor can use it too now.
+    case 'not_equals':
+      return String(actual) !== value;
     case 'greater_than': {
       const a = toNumber(actual);
       const b = toNumber(value);

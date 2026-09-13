@@ -112,7 +112,7 @@ export function DynamicForm({
                   field={field}
                   value={values[field.id]}
                   onChange={(v) => setValue(field.id, v)}
-                  readOnly={readOnly}
+                  readOnly={readOnly || isLocked(field)}
                 />
               ))}
             </div>
@@ -125,7 +125,7 @@ export function DynamicForm({
             field={field}
             value={values[field.id]}
             onChange={(v) => setValue(field.id, v)}
-            readOnly={readOnly}
+            readOnly={readOnly || isLocked(field)}
           />
         );
       })}
@@ -151,6 +151,17 @@ interface FieldRendererProps {
   value: string | string[] | boolean;
   onChange: (value: string | string[] | boolean) => void;
   readOnly: boolean;
+}
+
+/**
+ * A locked pre-filled field renders as read-only.
+ *
+ * Locking only applies when the field actually has a source to be filled from:
+ * `prePopulateLocked` on a field with no `prePopulateFrom` would freeze an
+ * empty input the user then cannot complete.
+ */
+function isLocked(field: FormField): boolean {
+  return Boolean(field.prePopulateLocked && field.prePopulateFrom);
 }
 
 function FieldRenderer({ field, value, onChange, readOnly }: FieldRendererProps) {

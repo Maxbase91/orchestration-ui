@@ -33,6 +33,7 @@ const FIELD_OPTIONS = [
 
 const OPERATOR_OPTIONS = [
   { value: 'equals', label: 'equals' },
+  { value: 'not_equals', label: 'does not equal' },
   { value: 'greater_than', label: 'greater than' },
   { value: 'less_than', label: 'less than' },
   { value: 'contains', label: 'contains' },
