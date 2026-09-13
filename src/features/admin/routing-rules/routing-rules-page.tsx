@@ -5,7 +5,7 @@ import type { RoutingRule } from '@/data/types';
 import { RuleListPanel } from './components/rule-list-panel';
 import { RuleEditorPanel } from './components/rule-editor-panel';
 import { RuleTestPanel } from './components/rule-test-panel';
-import { diagnoseRules } from '@/lib/routing/evaluate-routing-rules';
+import { diagnoseRules, uncoveredDemand, CHANNEL_OF_LAST_RESORT } from '@/lib/routing/evaluate-routing-rules';
 import { useApprovalChains } from '@/lib/db/hooks/use-approval-chains';
 import { usePolicyConfig } from '@/lib/procurement/use-policy-config';
 import { AlertTriangle } from 'lucide-react';
@@ -54,6 +54,12 @@ export function RoutingRulesPage() {
     config: policyConfig,
     chainIds: approvalChains.map((c) => c.id),
   });
+
+  // The catch-alls (RR-900…RR-905) are ordinary editable rules, so the rule set
+  // can be left with a hole. Production still routes — resolveRouting has a
+  // code floor — but silently, which is the failure mode this page exists to
+  // make visible.
+  const uncovered = uncoveredDemand(rules, policyConfig);
 
   // Plain function, not useCallback. The React compiler memoizes it, and the
   // manual version could not be preserved — it depended on an array the
@@ -107,6 +113,25 @@ export function RoutingRulesPage() {
               </li>
             ))}
           </ul>
+        </div>
+      )}
+      {uncovered.length > 0 && (
+        <div className="mx-6 mb-4 rounded-md border border-amber-200 bg-amber-50 p-3">
+          <p className="flex items-center gap-2 text-sm font-medium text-amber-900">
+            <AlertTriangle className="size-4 shrink-0" />
+            Some demand matches no rule
+          </p>
+          <p className="mt-1.5 pl-6 text-xs text-amber-800">
+            {uncovered.length === 1 ? 'One example gets' : `${uncovered.length} examples get`}
+            {' '}no answer from the rule set — for instance{' '}
+            <span className="font-medium">
+              {uncovered[0].category} at €{uncovered[0].value.toLocaleString()}
+            </span>
+            . Such a request is still routed, to{' '}
+            <span className="font-medium">{CHANNEL_OF_LAST_RESORT}</span>, by a fallback in code that
+            nobody can configure. Re-activate the catch-all rules, or add one of your own that
+            always matches.
+          </p>
         </div>
       )}
       <div className="flex flex-1 overflow-hidden border-t border-gray-200">

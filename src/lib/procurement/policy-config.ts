@@ -45,6 +45,15 @@ export interface PolicyConfig {
   contractRequiredThreshold: number;
   /** Value above which a demand exceeds standard budget approval and needs VP sign-off. */
   budgetApprovalThreshold: number;
+  /**
+   * Value at/below which an unmatched demand is bought by the business itself
+   * rather than run by procurement.
+   *
+   * Equal to `riskMediumValue` today and deliberately its own key: an
+   * inherent-risk band is not a channel boundary, and retuning risk
+   * segmentation must not silently reroute who does the buying.
+   */
+  businessLedCeiling: number;
   /** Value above which a demand exceeds normal delegated budget authority. */
   delegatedAuthorityThreshold: number;
   /**
@@ -87,6 +96,7 @@ export const DEFAULT_POLICY_CONFIG: PolicyConfig = {
   // checks before they were governed. Same numbers, so no behaviour change.
   contractRequiredThreshold: 25_000,
   budgetApprovalThreshold: 100_000,
+  businessLedCeiling: 50_000,
   // Preserves the literal the compliance report used before this was
   // configurable; it is not derived from the approval gate, which is separate.
   delegatedAuthorityThreshold: 500_000,

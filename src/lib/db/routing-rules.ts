@@ -5,7 +5,7 @@ import { mapDbToRoutingRule, mapRoutingRuleToDb } from './mappers';
 const TABLE = 'routing_rules';
 
 export async function listRoutingRules(): Promise<RoutingRule[]> {
-  const { data, error } = await db.from(TABLE).select('*').order('id');
+  const { data, error } = await db.from(TABLE).select('*').order('priority').order('id');
   if (error) throw error;
   return (data ?? []).map(mapDbToRoutingRule);
 }

@@ -1495,3 +1495,11 @@ ALTER TABLE purchase_requisitions ADD COLUMN IF NOT EXISTS contract_line_item TE
 -- handling this order" had no answer, which is what showed as unassigned.
 ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS owner_id   TEXT REFERENCES users(id);
 ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS owner_name TEXT;
+
+-- ── Routing-rule evaluation order ───────────────────────────────────────────
+-- Rules are evaluated first-match-wins, and the order was `ORDER BY id`. The
+-- seeded catch-alls sort last only by the luck of being named RR-9xx; any
+-- admin-created rule named after them in the alphabet would have jumped the
+-- queue and shadowed every specific rule behind it. Order is explicit now.
+-- 100 is the default for an ordinary rule, 900 for a catch-all.
+ALTER TABLE routing_rules ADD COLUMN IF NOT EXISTS priority INTEGER NOT NULL DEFAULT 100;

@@ -13,8 +13,18 @@
 // order, described as routing software over EUR 100k to procurement-led, and
 // carried match_count = 42. It had never matched once.
 //
-// `test:routing` needs a live connection; this suite is self-contained and
-// mirrors src/lib/routing/evaluate-routing-rules.ts. Keep in sync.
+// The runtime half is IMPORTED, not mirrored.
+//
+// This file used to carry a hand-copied evaluator, diagnoser and fallback
+// ladder under a "keep in sync" comment. It did not stay in sync: the copy
+// never learned `not_equals`, never resolved `policy:` tokens, and kept a
+// verbatim copy of the if-ladder that has now been deleted from the codebase —
+// so it would have gone on passing against code that no longer exists. A
+// mirror that can disagree with the thing it mirrors tests the mirror.
+//
+// The EDITOR lists below are still local, deliberately: they are the thing
+// being compared AGAINST the runtime, so importing both sides would assert
+// nothing.
 // Run: npm run test:routing-rule-integrity
 
 let failures = 0;
@@ -23,16 +33,23 @@ function check(name, cond, detail = '') {
   else { failures++; console.error(`  \x1b[31m✗\x1b[0m ${name}${detail ? ` — ${detail}` : ''}`); }
 }
 
-// ── mirrors evaluate-routing-rules.ts ───────────────────────────────────────
+import {
+  SUPPORTED_FIELDS, SUPPORTED_OPERATORS, evalCondition, diagnoseRule as diagnoseRuleReal,
+  resolveRouting as resolveRoutingReal, evaluateRoutingRules,
+} from '../../src/lib/routing/evaluate-routing-rules.ts';
+import { DEFAULT_POLICY_CONFIG } from '../../src/lib/procurement/policy-config.ts';
+import { routingRules } from '../../src/data/routing-rules.ts';
 
-const SUPPORTED_FIELDS = [
-  'category', 'value', 'supplierId', 'commodityCode', 'priority',
-  'isUrgent', 'riskRating', 'material', 'contractId', 'region',
-];
-const SUPPORTED_OPERATORS = [
-  'equals', 'greater_than', 'less_than', 'in', 'starts_with', 'between',
-  'risk_rating', 'contains', 'is_empty', 'is_not_empty',
-];
+const CONFIG = DEFAULT_POLICY_CONFIG;
+const diagnoseRule = (rule) => diagnoseRuleReal(rule, { config: CONFIG });
+// The fallback is data now (RR-900…RR-905), so "what happens when no specific
+// rule matches" means evaluating with the catch-alls present.
+const CATCH_ALLS = routingRules.filter((r) => (r.priority ?? 100) >= 900);
+// "Did this specific rule match?" — the catch-alls are deliberately absent, so
+// a null answer means the rule under test did not fire.
+const evaluate = (rules, ctx) => evaluateRoutingRules(rules, ctx, CONFIG);
+const resolveRouting = (rules, ctx) =>
+  resolveRoutingReal([...rules, ...CATCH_ALLS], ctx, CONFIG).channel;
 
 // Mirrors the admin editor's lists (condition-card.tsx). These two MUST match
 // the runtime's, which is the whole point of this suite.
@@ -44,82 +61,6 @@ const EDITOR_OPERATORS = [
   'equals', 'greater_than', 'less_than', 'contains', 'starts_with',
   'in', 'between', 'is_empty', 'is_not_empty', 'risk_rating',
 ];
-
-const RISK_ORDER = { low: 0, medium: 1, high: 2, critical: 3 };
-
-const fieldValue = (ctx, field) =>
-  SUPPORTED_FIELDS.includes(field) ? ctx[field] : undefined;
-
-const toNumber = (v) => {
-  if (typeof v === 'number') return v;
-  if (typeof v === 'string') { const n = Number(v); return Number.isFinite(n) ? n : null; }
-  return null;
-};
-
-function evalCondition(field, operator, value, ctx) {
-  const actual = fieldValue(ctx, field);
-
-  // Emptiness is asked BEFORE the undefined guard: "is empty" is a question
-  // about absence, and bailing on undefined made it unanswerable.
-  const empty = actual === undefined || actual === null || actual === '' || actual === false;
-  if (operator === 'is_empty') return empty;
-  if (operator === 'is_not_empty') return !empty;
-
-  if (actual === undefined) return false;
-
-  switch (operator) {
-    case 'equals': return String(actual) === value;
-    case 'greater_than': { const a = toNumber(actual), b = toNumber(value); return a !== null && b !== null && a > b; }
-    case 'less_than': { const a = toNumber(actual), b = toNumber(value); return a !== null && b !== null && a < b; }
-    case 'in': return value.split(',').map((s) => s.trim()).includes(String(actual));
-    case 'starts_with': return String(actual).startsWith(value);
-    case 'contains': return String(actual).toLowerCase().includes(value.toLowerCase());
-    case 'between': {
-      const [lo, hi] = value.split(',').map((s) => Number(s.trim()));
-      const a = toNumber(actual);
-      return a !== null && Number.isFinite(lo) && Number.isFinite(hi) && a >= lo && a <= hi;
-    }
-    case 'risk_rating': {
-      const at = RISK_ORDER[actual], vt = RISK_ORDER[value];
-      return at !== undefined && vt !== undefined && at >= vt;
-    }
-    default: return false;
-  }
-}
-
-function diagnoseRule(rule) {
-  const problems = [];
-  for (const c of rule.conditions ?? []) {
-    if (!SUPPORTED_FIELDS.includes(c.field)) problems.push(`Unknown field "${c.field}"`);
-    if (!SUPPORTED_OPERATORS.includes(c.operator)) problems.push(`Unsupported operator "${c.operator}"`);
-    if (c.operator === 'between' && c.value.split(',').length !== 2) {
-      problems.push(`"${c.field} between ${c.value}" needs two bounds`);
-    }
-  }
-  if ((rule.conditions ?? []).length === 0) problems.push('No conditions');
-  return problems;
-}
-
-const ruleMatches = (rule, ctx) =>
-  rule.status === 'active' &&
-  (rule.conditions ?? []).length > 0 &&
-  rule.conditions.every((c) => evalCondition(c.field, c.operator, c.value, ctx));
-
-const evaluate = (rules, ctx) => rules.find((r) => ruleMatches(r, ctx)) ?? null;
-
-function fallbackBuyingChannel(ctx) {
-  const value = ctx.value ?? 0;
-  const category = ctx.category ?? '';
-  if (value < 25000) return 'catalogue';
-  if (category === 'consulting' || value > 100000) return 'procurement-led';
-  if (category === 'contingent-labour') return 'framework-call-off';
-  if (value <= 50000) return 'business-led';
-  return 'procurement-led';
-}
-const resolveRouting = (rules, ctx) => {
-  const m = evaluate(rules, ctx);
-  return m ? m.action.buyingChannel : fallbackBuyingChannel(ctx);
-};
 
 const mk = (id, conditions, channel = 'procurement-led') => ({
   id, name: id, status: 'active', conditions,
@@ -153,7 +94,7 @@ check('it never matched the demand it described',
 // Post-fix, contractId and is_empty ARE supported, so the remaining structural
 // fault is the one-bound `between` — which is now reported rather than silent.
 check('its malformed `between` is now diagnosed, not silent',
-  diagnoseRule(oldRR001).some((p) => /needs two bounds/.test(p)));
+  diagnoseRule(oldRR001).some((p) => /needs two comma-separated bounds/.test(p)));
 
 const rr001 = mk('RR-001', [
   { field: 'category', operator: 'equals', value: 'software' },

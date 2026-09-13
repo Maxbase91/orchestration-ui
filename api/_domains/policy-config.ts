@@ -9,7 +9,7 @@ const KEYS: (keyof PolicyConfig)[] = [
   'criticalServiceThreshold', 'continuityThreshold', 'riskHighValue', 'riskMediumValue',
   'competitiveSourcingThreshold', 'minCompetitiveQuotes', 'preferredMinPerformance',
   'contractUtilisationHeadroom', 'contractExpiryBufferDays', 'delegatedAuthorityThreshold',
-  'contractRequiredThreshold', 'budgetApprovalThreshold',
+  'contractRequiredThreshold', 'budgetApprovalThreshold', 'businessLedCeiling',
   'catalogueMatchThreshold', 'catalogueMinContentMatches', 'pCardEnabled', 'pCardMaxValue',
   'pCardEligibleCategories', 'pCardExcludedCategories',
 ];

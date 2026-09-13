@@ -249,6 +249,7 @@ npm run test:config-consumption   # admin configuration reaches what it configur
 npm run test:seed-parity          # the checked-in workflow seed matches live, so re-seeding cannot destroy a Designer edit
 npm run test:policy-tokens        # every governed threshold is nameable, editable and validated; no decisioning literal shadows one
 npm run test:policy-token-routing # routing rules reference governed thresholds; tokenising changed no channel, and no token reaches the evaluator
+npm run test:routing-fallback     # the catch-all rules reproduce the deleted if-ladder exactly, and a hole in the rule set is visible
 npm run test:models               # each pinned Groq/Gemini model is still served by its provider (calls the providers, so it is outside the default gate — run it on demand or via `test:all -- --external`)
 npm run test:table-lists          # hand-maintained relation lists match db/schema.sql
 npm run test:requester-entry-ui   # browser smoke (stubbed) — requester entry screen renders and fits 320px

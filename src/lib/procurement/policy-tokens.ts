@@ -42,6 +42,7 @@ export const POLICY_KEY_META: Record<NumericPolicyKey, { label: string; help: st
   competitiveSourcingThreshold: { label: 'Competitive-sourcing threshold', help: 'At/above this value competitive sourcing applies', unit: '€' },
   contractRequiredThreshold: { label: 'Contract-required threshold', help: 'At/above this value a PO needs an executed contract behind it', unit: '€' },
   budgetApprovalThreshold: { label: 'Budget approval threshold', help: 'Above this value the demand exceeds standard budget approval and needs VP sign-off', unit: '€' },
+  businessLedCeiling: { label: 'Business-led ceiling', help: 'At/below this value an unmatched demand is bought by the business rather than run by procurement', unit: '€' },
   delegatedAuthorityThreshold: { label: 'Delegated authority threshold', help: 'Above this value the demand exceeds normal delegated budget authority', unit: '€' },
   minCompetitiveQuotes: { label: 'Minimum competitive quotes', help: 'Quotes required above the competitive-sourcing threshold', unit: '' },
   preferredMinPerformance: { label: 'Preferred-supplier performance bar', help: 'Minimum performance score to qualify as preferred', unit: '/100' },
@@ -61,6 +62,19 @@ export const CURRENCY_POLICY_KEYS: readonly NumericPolicyKey[] =
 
 export function isPolicyToken(raw: string): boolean {
   return raw.startsWith(POLICY_TOKEN_PREFIX);
+}
+
+/**
+ * Does this value carry a token ANYWHERE, including as one bound of a list?
+ *
+ * `isPolicyToken` only looks at the start, which is right for a single value
+ * and wrong for `between`: "0,policy:businessLedCeiling" does not start with
+ * the prefix, so the rule was never resolved and `Number('policy:…')` made
+ * every comparison false. Exactly the silent-never-matches failure the tokens
+ * exist to remove — reintroduced by the fast path that skipped resolution.
+ */
+export function containsPolicyToken(raw: string): boolean {
+  return raw.split(',').some((part) => isPolicyToken(part.trim()));
 }
 
 export function policyToken(key: NumericPolicyKey): string {

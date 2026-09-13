@@ -13,7 +13,7 @@
     "test:e2e": "node --import tsx/esm tests/integration/workflow-e2e.mjs",
     "test:kpis": "node --import tsx/esm tests/integration/dashboard-kpis.mjs",
     "test:routing": "node --import tsx/esm tests/integration/routing-rules.mjs",
-    "test:routing-rule-integrity": "node tests/integration/routing-rule-integrity.mjs",
+    "test:routing-rule-integrity": "node --import tsx/esm tests/integration/routing-rule-integrity.mjs",
     "test:ai-agents": "node --import tsx/esm tests/integration/ai-agents.mjs",
     "test:ai-api-config": "node --import tsx/esm tests/integration/ai-api-configuration.mjs",
     "test:api-imports": "node tests/integration/api-import-extensions.mjs",
@@ -130,8 +130,10 @@
     "test:seed-parity": "node --import tsx/esm tests/integration/seed-parity.mjs",
     "test:policy-tokens": "node --import tsx/esm tests/integration/policy-tokens.mjs",
     "test:policy-token-routing": "node --import tsx/esm tests/integration/policy-token-routing.mjs",
+    "test:routing-fallback": "node --import tsx/esm tests/integration/routing-fallback.mjs",
     "backfill:sla-deadlines": "node --import tsx/esm db/backfills/2026-09-13-sla-deadlines.mjs",
     "backfill:routing-tokens": "node db/backfills/2026-09-13-routing-policy-tokens.mjs",
+    "backfill:routing-catch-alls": "node --import tsx/esm db/backfills/2026-09-13-routing-catch-alls.mjs",
     "backfill:stage-slas": "node db/backfills/2026-09-13-stage-slas.mjs"
   },
   "dependencies": {

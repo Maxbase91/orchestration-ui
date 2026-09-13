@@ -19,6 +19,10 @@ import {
   resolveRouting, evaluateRoutingRules,
 } from '../../src/lib/routing/evaluate-routing-rules.ts';
 import { DEFAULT_POLICY_CONFIG } from '../../src/lib/procurement/policy-config.ts';
+// The real mapper, not a copy. The local one dropped `priority`, which is the
+// column that decides evaluation order — so the copy could not have detected
+// the very thing it was about to get wrong.
+import { mapDbToRoutingRule } from '../../src/lib/db/mappers.ts';
 
 const sb = await neonClient('routing');
 
@@ -27,22 +31,13 @@ const pass = (n, d = '') => results.push({ n, o: 'PASS', d });
 const fail = (n, d) => results.push({ n, o: 'FAIL', d });
 const assert = (cond, n, d) => (cond ? pass(n, d) : fail(n, d));
 
-function mapDbToRoutingRule(row) {
-  return {
-    id: row.id,
-    name: row.name,
-    status: row.status,
-    conditions: row.conditions,
-    action: row.action,
-    description: row.description,
-    matchCount: row.match_count,
-    lastModified: row.last_modified,
-    category: row.category,
-  };
-}
 
 async function main() {
-  const { data, error } = await sb.from('routing_rules').select('*');
+  // Ordered exactly as src/lib/db/routing-rules.ts orders it. The select
+  // carried no ORDER BY, so Postgres returned rows in physical order — and once
+  // the fallback became data, a catch-all could be evaluated before the
+  // specific rule it exists to back up.
+  const { data, error } = await sb.from('routing_rules').select('*').order('priority').order('id');
   if (error) throw error;
   const rules = (data ?? []).map(mapDbToRoutingRule);
   const active = rules.filter((r) => r.status === 'active');
@@ -92,13 +87,18 @@ async function main() {
   }
 
   // ── No-match context falls back gracefully
-  const noMatch = evaluateRoutingRules(rules, { category: 'unknown-category', value: 42 }, DEFAULT_POLICY_CONFIG);
-  assert(noMatch === null, 'routing: no-match returns null', `got=${JSON.stringify(noMatch)}`);
+  // The fallback is data now (RR-900…RR-905), so a demand nothing specific
+  // matches is caught by a catch-all rather than by a code ladder. "No match"
+  // therefore means no SPECIFIC rule matched.
+  const specific = rules.filter((r) => (r.priority ?? 100) < 900);
+  const noMatch = evaluateRoutingRules(specific, { category: 'unknown-category', value: 42 }, DEFAULT_POLICY_CONFIG);
+  assert(noMatch === null, 'routing: no specific rule matches an unknown category',
+    `got=${noMatch?.matchedRule?.id ?? 'null'}`);
   const fallback = resolveRouting(rules, { category: 'unknown-category', value: 42 }, DEFAULT_POLICY_CONFIG);
   assert(
-    fallback.matchedRule === null && fallback.channel === 'catalogue',
-    'routing: fallback is catalogue for small no-match request',
-    `channel=${fallback.channel}`,
+    fallback.matchedRule?.id === 'RR-900' && fallback.channel === 'catalogue',
+    'routing: a small unmatched request is caught by the catalogue catch-all',
+    `channel=${fallback.channel} via ${fallback.matchedRule?.id ?? 'code floor'}`,
   );
 
   // ── Ensure disabled rules never match

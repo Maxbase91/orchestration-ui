@@ -474,11 +474,23 @@ export interface RoutingRule {
   name: string;
   status: 'active' | 'draft' | 'disabled';
   conditions: { field: string; operator: string; value: string }[];
+  /**
+   * The chain this rule forces, as an approval_chains id, or '' to let the
+   * value band decide. It held a role-path string while intake looked it up as
+   * an id, so it never matched and the band always won — silently.
+   */
   action: { buyingChannel: BuyingChannel; approvalChain: string };
   description: string;
   matchCount: number;
   lastModified: string;
   category: string;
+  /**
+   * Evaluation order, ascending. 100 for an ordinary rule, 900 for a seeded
+   * catch-all. Rules were ordered by id, so the catch-alls sorted last only
+   * because they happen to be named RR-9xx — one admin rule named later in the
+   * alphabet would have shadowed every specific rule behind it.
+   */
+  priority?: number;
 }
 
 export interface WorkflowTemplate {

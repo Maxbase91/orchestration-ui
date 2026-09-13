@@ -19,7 +19,7 @@
 
 import type { RoutingRule, BuyingChannel, RiskRating } from '@/data/types';
 import type { PolicyConfig } from '@/lib/procurement/policy-config';
-import { isPolicyToken, resolvePolicyList } from '../procurement/policy-tokens.js';
+import { containsPolicyToken, resolvePolicyList } from '../procurement/policy-tokens.js';
 
 export interface RoutingContext {
   category?: string;
@@ -98,7 +98,7 @@ const UNPOPULATED_FIELDS: readonly string[] = ['region'];
  * their own resolver, which is the duplication being removed.
  */
 export function resolveRuleConditions(rule: RoutingRule, config: PolicyConfig): RoutingRule {
-  if (!(rule.conditions ?? []).some((c) => isPolicyToken(c.value))) return rule;
+  if (!(rule.conditions ?? []).some((c) => containsPolicyToken(c.value))) return rule;
   return {
     ...rule,
     conditions: rule.conditions.map((c) => ({
@@ -165,6 +165,34 @@ export function diagnoseRules(rules: RoutingRule[], ctx: DiagnoseContext): RuleD
     .filter((r) => r.status === 'active')
     .map((r) => ({ ruleId: r.id, ruleName: r.name, problems: diagnoseRule(r, ctx) }))
     .filter((d) => d.problems.length > 0);
+}
+
+/**
+ * Does any active rule catch a demand nothing specific matches?
+ *
+ * The catch-alls are ordinary editable rules now, so an admin can deactivate
+ * the last one and leave a hole. Production still routes — `resolveRouting`
+ * has a code floor — but silently, and a silent floor is the pattern this
+ * tranche exists to remove. The rules page renders this before the admin saves.
+ *
+ * Deliberately a coverage question, not an id check: an admin who writes their
+ * own always-true rule and deletes ours has not made a mistake.
+ */
+export function uncoveredDemand(
+  rules: RoutingRule[],
+  config: PolicyConfig,
+): { category: string; value: number }[] {
+  // A small probe set spanning the governed boundaries. Not exhaustive — it is
+  // the smallest grid that fails when the always-true catch-all goes away.
+  const probes = [
+    { category: 'goods', value: 0 },
+    { category: 'goods', value: config.competitiveSourcingThreshold },
+    { category: 'goods', value: config.businessLedCeiling + 1 },
+    { category: 'goods', value: config.budgetApprovalThreshold + 1 },
+    { category: 'services', value: config.businessLedCeiling + 1 },
+  ];
+  return probes.filter((p) =>
+    evaluateRoutingRules(rules, { ...p, pCardEligible: false }, config) === null);
 }
 
 /** Risk tiers ordered low → critical, for threshold comparisons. */
@@ -280,7 +308,7 @@ export function evalCondition(
   // through `resolveRuleConditions`. Returning false would look exactly like a
   // condition that legitimately did not match, which is the failure mode this
   // whole module exists to avoid.
-  if (isPolicyToken(value)) {
+  if (containsPolicyToken(value)) {
     console.error(`[evalCondition] unresolved ${value} — call resolveRuleConditions first.`);
     return false;
   }
@@ -375,19 +403,18 @@ export function evaluateRoutingRules(
 }
 
 /**
- * Fallback classifier used when no routing rule matches. Mirrors the legacy
- * hard-coded behaviour in step-compliance.tsx so the UI never ends up with
- * an empty channel.
+ * The channel used when no rule matches at all.
+ *
+ * Not configurable, deliberately. The catch-all rules (RR-900…RR-905) are
+ * ordinary editable data, which means an admin can deactivate or delete them —
+ * and intake must never be able to produce a request with no route. This is the
+ * floor under that, and it logs, because reaching it means the rule set has a
+ * hole somebody should close.
+ *
+ * It replaced a five-branch if-ladder that restated three governed thresholds
+ * in code. That ladder is now RR-900…RR-905, where an admin can see it.
  */
-export function fallbackBuyingChannel(ctx: RoutingContext): { channel: BuyingChannel; approvalChain: string } {
-  const value = ctx.value ?? 0;
-  const category = ctx.category ?? '';
-  if (value < 25000) return { channel: 'catalogue', approvalChain: 'line-manager' };
-  if (category === 'consulting' || value > 100000) return { channel: 'procurement-led', approvalChain: 'category-manager > finance > vp-procurement' };
-  if (category === 'contingent-labour') return { channel: 'framework-call-off', approvalChain: 'category-manager > finance' };
-  if (value <= 50000) return { channel: 'business-led', approvalChain: 'category-manager' };
-  return { channel: 'procurement-led', approvalChain: 'category-manager > finance > vp-procurement' };
-}
+export const CHANNEL_OF_LAST_RESORT: BuyingChannel = 'procurement-led';
 
 export function resolveRouting(
   rules: RoutingRule[],
@@ -396,6 +423,10 @@ export function resolveRouting(
 ): RoutingMatch {
   const match = evaluateRoutingRules(rules, ctx, config);
   if (match) return match;
-  const fb = fallbackBuyingChannel(ctx);
-  return { channel: fb.channel, approvalChain: fb.approvalChain, matchedRule: null };
+  console.warn(
+    '[resolveRouting] no rule matched — falling back to ' +
+    `${CHANNEL_OF_LAST_RESORT}. The catch-all rules (RR-900…RR-905) should make ` +
+    'this unreachable; one has probably been deactivated or deleted.',
+  );
+  return { channel: CHANNEL_OF_LAST_RESORT, approvalChain: '', matchedRule: null };
 }

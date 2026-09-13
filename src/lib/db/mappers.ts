@@ -225,6 +225,7 @@ export function mapDbToRoutingRule(row: DbRecord): RoutingRule {
     action: (row.action ?? { buyingChannel: 'procurement-led', approvalChain: '' }) as RoutingRule['action'],
     description: (row.description ?? '') as string,
     matchCount: (row.match_count ?? row.matchCount ?? 0) as number,
+    priority: (row.priority ?? 100) as number,
     lastModified: (row.last_modified ?? row.lastModified ?? '') as string,
     category: (row.category ?? '') as string,
   };
@@ -239,6 +240,7 @@ export function mapRoutingRuleToDb(r: Partial<RoutingRule>): DbRecord {
   if (r.action !== undefined) out.action = r.action;
   if (r.description !== undefined) out.description = r.description;
   if (r.matchCount !== undefined) out.match_count = r.matchCount;
+  if (r.priority !== undefined) out.priority = r.priority;
   if (r.lastModified !== undefined) out.last_modified = r.lastModified;
   if (r.category !== undefined) out.category = r.category;
   return out;

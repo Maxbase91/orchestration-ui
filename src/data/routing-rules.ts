@@ -177,4 +177,103 @@ export const routingRules: RoutingRule[] = [
     lastModified: '2024-12-01T09:00:00Z',
     category: 'Risk Management',
   },
+  // ── Catch-alls ─────────────────────────────────────────────────────────────
+  // These reproduce, exactly, the `fallbackBuyingChannel` if-ladder that used
+  // to live in evaluate-routing-rules.ts. It restated three governed numbers in
+  // code where no admin could see them, and it is the reason RR-001 sat dead
+  // for months: the ladder happened to agree with it, so nothing looked wrong.
+  //
+  // They run last (priority 900) and are ordered among themselves, because the
+  // ladder was ordered: a demand under the competitive-sourcing threshold is
+  // catalogue BEFORE anything else is asked about it.
+  //
+  // The ladder's `value <= 50000` step has no `less_than_or_equal` operator, so
+  // it is written as `between 0,ceiling` — `between` is inclusive at both ends,
+  // which is exactly the semantics needed.
+  {
+    id: 'RR-900',
+    name: 'Catch-all — below the sourcing threshold',
+    status: 'active',
+    priority: 900,
+    conditions: [
+      { field: 'value', operator: 'less_than', value: 'policy:competitiveSourcingThreshold' },
+    ],
+    action: { buyingChannel: 'catalogue', approvalChain: '' },
+    description: 'Unmatched demand below the competitive-sourcing threshold is a catalogue buy.',
+    matchCount: 0,
+    lastModified: '2026-09-13T00:00:00Z',
+    category: 'All',
+  },
+  {
+    id: 'RR-901',
+    name: 'Catch-all — consulting',
+    status: 'active',
+    priority: 901,
+    conditions: [
+      { field: 'category', operator: 'equals', value: 'consulting' },
+    ],
+    action: { buyingChannel: 'procurement-led', approvalChain: '' },
+    description: 'Consulting is procurement-led at any value.',
+    matchCount: 0,
+    lastModified: '2026-09-13T00:00:00Z',
+    category: 'All',
+  },
+  {
+    id: 'RR-902',
+    name: 'Catch-all — above budget approval',
+    status: 'active',
+    priority: 902,
+    conditions: [
+      { field: 'value', operator: 'greater_than', value: 'policy:budgetApprovalThreshold' },
+    ],
+    action: { buyingChannel: 'procurement-led', approvalChain: '' },
+    description: 'Unmatched demand above the budget approval threshold is procurement-led.',
+    matchCount: 0,
+    lastModified: '2026-09-13T00:00:00Z',
+    category: 'All',
+  },
+  {
+    id: 'RR-903',
+    name: 'Catch-all — contingent labour',
+    status: 'active',
+    priority: 903,
+    conditions: [
+      { field: 'category', operator: 'equals', value: 'contingent-labour' },
+    ],
+    action: { buyingChannel: 'framework-call-off', approvalChain: '' },
+    description: 'Contingent labour goes through a framework. RR-004 handles the two suppliers with a standing agreement; this catches the rest.',
+    matchCount: 0,
+    lastModified: '2026-09-13T00:00:00Z',
+    category: 'All',
+  },
+  {
+    id: 'RR-904',
+    name: 'Catch-all — under the business-led ceiling',
+    status: 'active',
+    priority: 904,
+    conditions: [
+      { field: 'value', operator: 'between', value: '0,policy:businessLedCeiling' },
+    ],
+    action: { buyingChannel: 'business-led', approvalChain: '' },
+    description: 'At or below the business-led ceiling the business buys it themselves.',
+    matchCount: 0,
+    lastModified: '2026-09-13T00:00:00Z',
+    category: 'All',
+  },
+  {
+    id: 'RR-905',
+    name: 'Catch-all — everything else',
+    status: 'active',
+    priority: 905,
+    conditions: [
+      // Always true for any demand carrying a value, zero included: emptiness is
+      // tested before the undefined guard, and 0 is not `=== false`.
+      { field: 'value', operator: 'is_not_empty', value: '' },
+    ],
+    action: { buyingChannel: 'procurement-led', approvalChain: '' },
+    description: 'Anything not caught above is run by procurement. Deactivating this leaves the code floor as the only route.',
+    matchCount: 0,
+    lastModified: '2026-09-13T00:00:00Z',
+    category: 'All',
+  },
 ];
