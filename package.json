@@ -80,7 +80,7 @@
     "test:supplier-data": "node tests/integration/supplier-data.mjs",
     "test:approval-derivation": "node --import tsx/esm tests/integration/approval-derivation.mjs",
     "test:approver-resolution": "node tests/integration/approver-resolution.mjs",
-    "test:workflow-steps": "node tests/integration/workflow-steps.mjs",
+    "test:workflow-steps": "node --import tsx/esm tests/integration/workflow-steps.mjs",
     "test:policy-config": "node tests/integration/policy-config.mjs",
     "test:policy-config-server": "node --import tsx/esm tests/integration/policy-config-server.mjs",
     "test:p-card": "node --import tsx/esm tests/integration/p-card.mjs",
@@ -109,6 +109,7 @@
     "test:ui-lifecycle": "node tests/integration/ui-lifecycle-hardening.mjs",
     "test:service-description-ui": "node tests/ui/service-description-admin.mjs",
     "test:routing-rules-ui": "node tests/ui/routing-rules-admin.mjs",
+    "test:approval-chains-ui": "node tests/ui/approval-chains-admin.mjs",
     "test:intake-guidance-ui": "node tests/ui/intake-guidance-ui.mjs",
     "test:request-detail-ui": "node tests/ui/request-detail-e2e.mjs",
     "test:interactions-ui": "node --import tsx/esm tests/ui/interactions-e2e.mjs",
@@ -131,9 +132,11 @@
     "test:policy-tokens": "node --import tsx/esm tests/integration/policy-tokens.mjs",
     "test:policy-token-routing": "node --import tsx/esm tests/integration/policy-token-routing.mjs",
     "test:routing-fallback": "node --import tsx/esm tests/integration/routing-fallback.mjs",
+    "test:approval-bands": "node --import tsx/esm tests/integration/approval-bands.mjs",
     "backfill:sla-deadlines": "node --import tsx/esm db/backfills/2026-09-13-sla-deadlines.mjs",
     "backfill:routing-tokens": "node db/backfills/2026-09-13-routing-policy-tokens.mjs",
     "backfill:routing-catch-alls": "node --import tsx/esm db/backfills/2026-09-13-routing-catch-alls.mjs",
+    "backfill:approval-bands": "node --import tsx/esm db/backfills/2026-09-13-approval-chain-bands.mjs",
     "backfill:stage-slas": "node db/backfills/2026-09-13-stage-slas.mjs"
   },
   "dependencies": {

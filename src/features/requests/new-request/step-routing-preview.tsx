@@ -14,6 +14,7 @@ import {
   selectApprovalChainForValue,
   selectWorkflowTemplateForCategory,
 } from '@/lib/workflow/workflow-steps';
+import { usePolicyConfig } from '@/lib/procurement/use-policy-config';
 
 interface StepRoutingPreviewProps {
   category: string;
@@ -49,6 +50,7 @@ export function StepRoutingPreview({
   const { data: detailTemplate } = useWorkflowTemplate(workflowTemplateId || undefined);
   const { data: allTemplates = [] } = useWorkflowTemplates();
   const { data: chains = [] } = useApprovalChains();
+  const policyConfig = usePolicyConfig();
   const { data: categories = [] } = useProcurementCategories();
   const { data: users = [] } = useUsers();
 
@@ -72,8 +74,8 @@ export function StepRoutingPreview({
   // step's functional role resolved to its actionable persona. Duplicate
   // personas (a person wearing two role hats) are merged.
   const approvalChain = useMemo(
-    () => selectApprovalChainForValue(chains, estimatedValue),
-    [chains, estimatedValue],
+    () => selectApprovalChainForValue(chains, estimatedValue, policyConfig),
+    [chains, estimatedValue, policyConfig],
   );
   // The approvers this request will actually be given, from the same derivation
   // the write path uses. This used to resolve each step to one of six personas

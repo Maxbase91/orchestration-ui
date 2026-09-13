@@ -367,7 +367,7 @@ export function evaluateIntakeDetermination(input: IntakeDeterminationInput): In
   // use human-readable role vocabularies, so persist the actual configured
   // chain selected by the same value band shown in the routing preview.
   const configuredChain = approvalChains.find((chain) => chain.id === routing.approvalChain);
-  const valueBandedChain = selectApprovalChainForValue(approvalChains, estimatedValue);
+  const valueBandedChain = selectApprovalChainForValue(approvalChains, estimatedValue, policy);
   const label = buyingChannelLabel(routing.channel);
   const supplierData = evaluateSupplierData(supplierRec);
 

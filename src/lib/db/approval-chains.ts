@@ -13,7 +13,16 @@ export interface ApprovalChain {
   id: string;
   name: string;
   description: string;
+  /**
+   * Rendered display label for the band, written from the bounds on save.
+   * Never parsed — it was, by regex, and a string with no number in it read as
+   * [0, Infinity) and shadowed every banded chain.
+   */
   threshold: string;
+  /** Inclusive lower bound: a literal, a `policy:` token, or null for open. */
+  minValue?: string | null;
+  /** Exclusive upper bound: a literal, a `policy:` token, or null for open. */
+  maxValue?: string | null;
   steps: ApprovalChainStep[];
   referencedBy: string[];
   createdAt?: string;
@@ -28,6 +37,8 @@ function mapDbToChain(row: Record<string, unknown>): ApprovalChain {
     name: row.name as string,
     description: (row.description as string) ?? '',
     threshold: (row.threshold as string) ?? '',
+    minValue: (row.min_value as string | null) ?? null,
+    maxValue: (row.max_value as string | null) ?? null,
     steps: (row.steps as ApprovalChainStep[]) ?? [],
     referencedBy: (row.referenced_by as string[]) ?? [],
     createdAt: row.created_at as string | undefined,
@@ -41,6 +52,8 @@ function mapChainToDb(chain: ApprovalChain): Record<string, unknown> {
     name: chain.name,
     description: chain.description,
     threshold: chain.threshold,
+    min_value: chain.minValue ?? null,
+    max_value: chain.maxValue ?? null,
     steps: chain.steps,
     referenced_by: chain.referencedBy,
     // Stamped client-side — there is no DB trigger maintaining updated_at.

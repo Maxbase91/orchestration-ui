@@ -7,6 +7,7 @@
 // that Vercel cannot resolve at runtime. Relative '.js' specifiers only.
 import type { NeonCompatibleClient, DbRow } from '../neon-compatible-client.js';
 import { selectApprovalChainForValue } from '../workflow/workflow-steps.js';
+import { loadPolicyConfigWith } from './policy-core.js';
 import {
   deriveApprovals,
   withContractOwnerStep,
@@ -79,9 +80,19 @@ export async function resolveChainId(
   value: number,
 ): Promise<string> {
   if (explicitChain) return explicitChain;
-  const { data } = await client.from('approval_chains').select('id, threshold');
-  const chains = ((data ?? []) as DbRow[]).map((row) => ({ id: String(row.id), threshold: String(row.threshold ?? '') }));
-  return selectApprovalChainForValue(chains, value)?.id ?? 'chain-1';
+  // The band bounds may name a governed threshold, so the stored config has to
+  // be read here rather than assumed — a serverless caller falling back to
+  // shipped defaults would pick a plausible wrong chain with nothing logged.
+  const [{ data }, config] = await Promise.all([
+    client.from('approval_chains').select('id, min_value, max_value'),
+    loadPolicyConfigWith(client),
+  ]);
+  const chains = ((data ?? []) as DbRow[]).map((row) => ({
+    id: String(row.id),
+    minValue: (row.min_value as string | null) ?? null,
+    maxValue: (row.max_value as string | null) ?? null,
+  }));
+  return selectApprovalChainForValue(chains, value, config)?.id ?? 'chain-1';
 }
 
 /** The chain a request's value falls into, by stored threshold band. */

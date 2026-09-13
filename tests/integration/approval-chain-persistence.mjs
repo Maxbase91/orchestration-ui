@@ -6,6 +6,8 @@ import { readFileSync } from 'node:fs';
 import { neonClient } from '../lib/live.mjs';
 import { evaluateIntakeDetermination } from '../../src/lib/procurement/intake-determination.ts';
 import { routingRules } from '../../src/data/routing-rules.ts';
+import { selectChainForValue } from '../../src/lib/workflow/approval-bands.ts';
+import { DEFAULT_POLICY_CONFIG } from '../../src/lib/procurement/policy-config.ts';
 
 // No hand-rolled .env.local loader here: neonClient hydrates it, and this file's
 // own copy read the file with no try/catch. A machine with .env.local present
@@ -18,17 +20,6 @@ function check(name, condition, detail = '') {
   else { failures += 1; console.error(`  \x1b[31m✗\x1b[0m ${name}${detail ? ` — ${detail}` : ''}`); }
 }
 
-function parseThresholdBand(threshold) {
-  const values = (threshold.match(/[\d,]+(?:\.\d+)?/g) ?? [])
-    .map((value) => Number(value.replace(/,/g, '')))
-    .filter(Number.isFinite);
-  if (values.length === 0) return { min: 0, max: Infinity };
-  if (/</.test(threshold) && values.length === 1) return { min: 0, max: values[0] };
-  if (/>/.test(threshold) && values.length === 1) return { min: values[0], max: Infinity };
-  if (values.length >= 2) return { min: values[0], max: values[1] };
-  return { min: values[0], max: Infinity };
-}
-
 const value = 60_000;
 const dbProxy = readFileSync(new URL('../../api/db.ts', import.meta.url), 'utf8');
 check('Neon update proxy binds SET values before filters', dbProxy.includes('const updateWhere = whereClause(request, whereParams, types, bodyParams.length)'));
@@ -37,12 +28,17 @@ check('Neon update proxy emits typed-safe SQL NULL literals', dbProxy.includes("
 // on a uuid/date/timestamptz column. test:db-casts covers the behaviour; this
 // only checks the call site still exists.
 check('Neon filter parameters carry column-typed casts', dbProxy.includes('function castForColumn') && dbProxy.includes('castForColumn(value, column, types)'));
-const { data: chains, error: chainsError } = await sb.from('approval_chains').select('id,threshold');
+// Band selection is IMPORTED. This file carried a copy of the regex parser
+// that read a string with no number in it as [0, Infinity) — the shadowing
+// bug — so the mirror would have gone on asserting the broken behaviour after
+// the real parser was deleted.
+const { data: chains, error: chainsError } = await sb.from('approval_chains').select('id,min_value,max_value');
 if (chainsError) throw new Error(chainsError.message);
-const chain = (chains ?? []).find((candidate) => {
-  const { min, max } = parseThresholdBand(candidate.threshold);
-  return value >= min && value < max;
-});
+const chain = selectChainForValue(
+  (chains ?? []).map((c) => ({ id: c.id, minValue: c.min_value, maxValue: c.max_value })),
+  value,
+  DEFAULT_POLICY_CONFIG,
+);
 check('a configured chain covers the test value', Boolean(chain), `value=${value}`);
 
 // The determination must hand back a chain PRIMARY KEY, not the routing rule's
@@ -64,7 +60,12 @@ const determination = evaluateIntakeDetermination({
   contracts: [],
   matchingRiskAssessments: [],
   routingRules,
-  approvalChains: (chains ?? []).map((c) => ({ ...c, name: c.id, description: '', steps: [], referencedBy: [] })),
+  // Mapped to the shape the app's mapper produces — the raw row is snake_case
+  // and the band selector reads minValue/maxValue.
+  approvalChains: (chains ?? []).map((c) => ({
+    id: c.id, minValue: c.min_value, maxValue: c.max_value,
+    name: c.id, description: '', threshold: '', steps: [], referencedBy: [],
+  })),
   validatorAgent: { name: 'Request Validator', status: 'active' },
 });
 check(

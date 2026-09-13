@@ -191,7 +191,9 @@ async function resolveChainForRequest(requestId: string): Promise<string> {
   const value = Number((req as Record<string, unknown> | null)?.value ?? 0);
   try {
     const chains = await listApprovalChains();
-    const banded = selectApprovalChainForValue(chains, value);
+    // Band bounds may name a governed threshold. Browser-side, so the active
+    // config is the one main.tsx hydrated from the server on boot.
+    const banded = selectApprovalChainForValue(chains, value, getActivePolicyConfig());
     if (banded) return banded.id;
   } catch (e) {
     console.warn('[engine] approval chain band lookup failed:', e);

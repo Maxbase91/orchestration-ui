@@ -130,36 +130,9 @@ export function selectWorkflowTemplateForCategory<T extends { type: string; name
   return byType ?? standard ?? templates[0];
 }
 
-/** Parse an approval-chain threshold string ("< 10,000", "10,000 - 100,000",
- *  "> 500,000") into a numeric [min, max) band. Reads the admin's own value,
- *  no thresholds are baked in here.
- *
- *  `null` when the string carries no number at all. Absence is NOT [0, ∞):
- *  the column defaults to '' and the admin page creates new chains at 'TBD',
- *  and treating either as an open band made such a chain match EVERY value —
- *  and, being found first, shadow every properly banded chain behind it. A
- *  chain whose band nobody has set is a chain that cannot be selected by
- *  value; it stays reachable by a routing rule naming it directly, which is
- *  how the compliance chain is meant to be reached. */
-export function parseThresholdBand(threshold: string): { min: number; max: number } | null {
-  const nums = (threshold.match(/[\d,]+(?:\.\d+)?/g) ?? [])
-    .map((s) => Number(s.replace(/,/g, '')))
-    .filter((n) => Number.isFinite(n));
-  if (nums.length === 0) return null;
-  if (/</.test(threshold) && nums.length === 1) return { min: 0, max: nums[0] };
-  if (/>/.test(threshold) && nums.length === 1) return { min: nums[0], max: Infinity };
-  if (nums.length >= 2) return { min: nums[0], max: nums[1] };
-  return { min: nums[0], max: Infinity };
-}
-
-/** Select the approval chain whose value band contains `value`. */
-export function selectApprovalChainForValue<T extends { threshold: string }>(
-  chains: T[],
-  value: number,
-): T | undefined {
-  return chains.find((c) => {
-    const band = parseThresholdBand(c.threshold);
-    if (!band) return false;
-    return value >= band.min && value < band.max;
-  });
-}
+// The regex band parser lived here. It read a string with no number in it as
+// [0, Infinity), so an unbanded chain matched every value and shadowed every
+// banded one behind it. Bands are structured now — see approval-bands.ts —
+// and `selectChainForValue` skips a chain it cannot place, because "we do not
+// know what this applies to" is not a licence to apply to everything.
+export { selectChainForValue as selectApprovalChainForValue } from './approval-bands.js';

@@ -1,8 +1,14 @@
 #!/usr/bin/env node
 // Verifies the Routing-step lifecycle composition + approval-chain banding.
 //
-// Self-contained — mirrors src/lib/workflow/workflow-steps.ts. Keep in sync.
-// Run: node tests/integration/workflow-steps.mjs
+// Band selection is IMPORTED; the lifecycle composition below is still
+// mirrored. This file carried a copy of the regex band parser that read a
+// string with no number in it as [0, Infinity) — the shadowing bug — so the
+// mirror would have gone on asserting the broken behaviour after the real
+// parser was deleted.
+// Run: npm run test:workflow-steps
+import { selectChainForValue } from '../../src/lib/workflow/approval-bands.ts';
+import { DEFAULT_POLICY_CONFIG } from '../../src/lib/procurement/policy-config.ts';
 
 let failures = 0;
 function check(name, cond, detail = '') {
@@ -42,22 +48,6 @@ function composeWorkflowSteps(nodes, signals) {
   if (idx === -1) idx = steps.length;
   return [...steps.slice(0, idx), ...inserts, ...steps.slice(idx)];
 }
-
-function parseThresholdBand(threshold) {
-  const nums = (threshold.match(/[\d,]+(?:\.\d+)?/g) ?? [])
-    .map((s) => Number(s.replace(/,/g, '')))
-    .filter((n) => Number.isFinite(n));
-  if (nums.length === 0) return { min: 0, max: Infinity };
-  if (/</.test(threshold) && nums.length === 1) return { min: 0, max: nums[0] };
-  if (/>/.test(threshold) && nums.length === 1) return { min: nums[0], max: Infinity };
-  if (nums.length >= 2) return { min: nums[0], max: nums[1] };
-  return { min: nums[0], max: Infinity };
-}
-const selectApprovalChainForValue = (chains, value) =>
-  chains.find((c) => {
-    const { min, max } = parseThresholdBand(c.threshold);
-    return value >= min && value < max;
-  });
 
 function selectWorkflowTemplateForCategory(templates, category) {
   if (templates.length === 0) return undefined;
@@ -143,20 +133,21 @@ check('no approval stage → Risk assessment inserted before Sourcing',
 
 console.log('\nApproval-chain value banding');
 const CHAINS = [
-  { id: 'chain-2', name: 'Fast-Track', threshold: '< 10,000' },
-  { id: 'chain-1', name: 'Standard', threshold: '10,000 - 100,000' },
-  { id: 'chain-3', name: 'VP-Level', threshold: '100,000 - 500,000' },
-  { id: 'chain-4', name: 'Board-Level', threshold: '> 500,000' },
+  { id: 'chain-2', name: 'Fast-Track', minValue: null, maxValue: '10000' },
+  { id: 'chain-1', name: 'Standard', minValue: '10000', maxValue: 'policy:budgetApprovalThreshold' },
+  { id: 'chain-3', name: 'VP-Level', minValue: 'policy:budgetApprovalThreshold', maxValue: 'policy:delegatedAuthorityThreshold' },
+  { id: 'chain-4', name: 'Board-Level', minValue: 'policy:delegatedAuthorityThreshold', maxValue: null },
 ];
-const bandFor = (v) => selectApprovalChainForValue(CHAINS, v)?.name;
+const bandFor = (v) => selectChainForValue(CHAINS, v, DEFAULT_POLICY_CONFIG)?.name;
 check('€5k → Fast-Track', bandFor(5_000) === 'Fast-Track');
 check('€50k → Standard', bandFor(50_000) === 'Standard');
 check('€150k → VP-Level (promptathon demand)', bandFor(150_000) === 'VP-Level');
 check('€750k → Board-Level', bandFor(750_000) === 'Board-Level');
 check('boundary €100k lands in the higher band (VP-Level)', bandFor(100_000) === 'VP-Level');
 check('boundary €10k lands in the higher band (Standard)', bandFor(10_000) === 'Standard');
-check('parse "< 10,000" → [0, 10000)', parseThresholdBand('< 10,000').min === 0 && parseThresholdBand('< 10,000').max === 10_000);
-check('parse "> 500,000" → [500000, ∞)', parseThresholdBand('> 500,000').min === 500_000 && parseThresholdBand('> 500,000').max === Infinity);
+// The bug the parser had: no band must never mean "every value".
+check('a chain with no band is skipped, not treated as [0, ∞)',
+  selectChainForValue([{ id: 'x', name: 'Unbanded' }, ...CHAINS], 150_000, DEFAULT_POLICY_CONFIG)?.name === 'VP-Level');
 
 console.log('\nWorkflow-template selection by category');
 const TEMPLATES = [

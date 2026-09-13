@@ -1503,3 +1503,16 @@ ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS owner_name TEXT;
 -- queue and shadowed every specific rule behind it. Order is explicit now.
 -- 100 is the default for an ordinary rule, 900 for a catch-all.
 ALTER TABLE routing_rules ADD COLUMN IF NOT EXISTS priority INTEGER NOT NULL DEFAULT 100;
+
+-- ── Approval-chain value bands ──────────────────────────────────────────────
+-- `threshold` was a free-text English string ("< 10,000", "100,000 - 500,000")
+-- parsed by regex at read time. A string with no number parsed as [0, Infinity)
+-- and therefore matched every value, shadowing every properly banded chain
+-- behind it — reachable two ways, since the column defaults to '' and the admin
+-- page created new chains at 'TBD'. The bounds are structured now, and each may
+-- hold a `policy:<key>` token so a band follows the governed threshold it
+-- means. NULL at either end is an open end; NULL at both means the chain is
+-- reachable only by a routing rule naming it, never by value.
+-- `threshold` survives as a rendered display label, written from the bounds.
+ALTER TABLE approval_chains ADD COLUMN IF NOT EXISTS min_value TEXT;
+ALTER TABLE approval_chains ADD COLUMN IF NOT EXISTS max_value TEXT;

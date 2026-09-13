@@ -18,10 +18,29 @@ import {
   useUpsertApprovalChain,
 } from '@/lib/db/hooks/use-approval-chains';
 import type { ApprovalChain } from '@/lib/db/approval-chains';
+import { bandLabel, governedBounds, diagnoseChains } from '@/lib/workflow/approval-bands';
+import { usePolicyConfig } from '@/lib/procurement/use-policy-config';
+import {
+  CURRENCY_POLICY_KEYS, POLICY_KEY_META, isPolicyToken, policyToken,
+} from '@/lib/procurement/policy-tokens';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
+import { AlertTriangle } from 'lucide-react';
+
+// Radix Select cannot hold an empty-string item value.
+const OPEN_END = '__open__';
+const LITERAL = '__literal__';
 
 export function ApprovalChainsPage() {
   const { data: serverChains = [], isLoading } = useApprovalChains();
   const upsertChain = useUpsertApprovalChain();
+  const policyConfig = usePolicyConfig();
+
+  // Diagnostics run over the EDITED view, not the server's, so a gap or an
+  // overlap shows while the admin is making it rather than after they save.
+  // An unbanded chain is not a problem — that is how a chain says "reachable
+  // only by a routing rule naming me".
 
   // Local edit buffer — only holds chains currently being edited
   const [editBuffer, setEditBuffer] = useState<Record<string, ApprovalChain>>({});
@@ -53,6 +72,8 @@ export function ApprovalChainsPage() {
   function getEditable(chain: ApprovalChain): ApprovalChain {
     return editBuffer[chain.id] ?? chain;
   }
+
+  const bandProblems = diagnoseChains(chains, policyConfig);
 
   function patchEdit(id: string, patch: Partial<ApprovalChain>) {
     setEditBuffer((prev) => ({
@@ -88,17 +109,18 @@ export function ApprovalChainsPage() {
     });
   }
 
-  function updateThreshold(chainId: string, threshold: string) {
-    patchEdit(chainId, { threshold });
-  }
-
   function addChain() {
     const id = `chain-${Date.now()}`;
     const newChain: ApprovalChain = {
       id,
       name: 'New Chain',
       description: 'Define the approval chain',
-      threshold: 'TBD',
+      // No band, so it is not selectable by value until the admin sets one.
+      // It used to default to 'TBD', which the regex parser read as [0, ∞) —
+      // a brand-new chain silently captured every request in the platform.
+      threshold: 'By routing rule only',
+      minValue: null,
+      maxValue: null,
       steps: [{ id: `s${Date.now()}`, role: 'Approver' }],
       referencedBy: [],
     };
@@ -109,7 +131,11 @@ export function ApprovalChainsPage() {
   }
 
   async function saveChain(chainId: string) {
-    const chain = getEditable(chains.find((c) => c.id === chainId)!);
+    const edited = getEditable(chains.find((c) => c.id === chainId)!);
+    // `threshold` is a rendered label now, written from the bounds rather than
+    // typed. It was the parsed source of truth, and a label that can disagree
+    // with the band it names is the whole problem being removed.
+    const chain = { ...edited, threshold: bandLabel(edited, policyConfig) };
     try {
       await upsertChain.mutateAsync(chain);
       // Remove from edit buffer — server is now source of truth
@@ -155,6 +181,26 @@ export function ApprovalChainsPage() {
         }
       />
 
+      {bandProblems.length > 0 && (
+        <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
+          <p className="flex items-center gap-2 text-sm font-medium text-amber-900">
+            <AlertTriangle className="size-4 shrink-0" />
+            The value bands do not cover every request cleanly
+          </p>
+          <ul className="mt-1.5 space-y-1 pl-6 text-xs text-amber-800">
+            {bandProblems.map((d) => (
+              <li key={d.chainId}>
+                <span className="font-medium">{d.chainName}</span> — {d.problems.join(' ')}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-1.5 pl-6 text-xs text-amber-800">
+            A gap means a request reaches the approval stage with nobody able to approve it. An
+            overlap means whichever chain is found first silently wins.
+          </p>
+        </div>
+      )}
+
       <div className="space-y-3">
         {chains.map((rawChain) => {
           const chain = getEditable(rawChain);
@@ -181,8 +227,13 @@ export function ApprovalChainsPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
+                  {/* Derived from the bounds, never the stored label: a chain
+                      edited but not yet saved must show the band it will have.
+                      The "EUR" prefix was hardcoded here and now reads wrong —
+                      the label already carries its own currency, and an
+                      unbanded chain says "By routing rule only". */}
                   <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-700">
-                    EUR {chain.threshold}
+                    {bandLabel(chain, policyConfig)}
                   </span>
                   <span className="text-xs text-muted-foreground">
                     {chain.steps.length} step(s)
@@ -231,15 +282,40 @@ export function ApprovalChainsPage() {
                     )}
                   </div>
 
-                  {/* Threshold editing */}
+                  {/* Value band. Was a free-text string parsed by regex, where a
+                      value with no number in it read as [0, ∞) and shadowed
+                      every properly banded chain behind it. */}
                   {isEditing && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground">Threshold:</span>
-                      <Input
-                        value={chain.threshold}
-                        onChange={(e) => updateThreshold(chain.id, e.target.value)}
-                        className="h-8 w-48 text-sm"
-                      />
+                    <div className="space-y-2 rounded-md border border-gray-200 bg-gray-50 p-3">
+                      <p className="text-xs font-medium text-gray-600">
+                        Value band — the request values this chain approves
+                      </p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <BoundEditor
+                          label="From"
+                          value={chain.minValue ?? null}
+                          onChange={(v) => patchEdit(chain.id, { minValue: v })}
+                        />
+                        <BoundEditor
+                          label="Up to"
+                          value={chain.maxValue ?? null}
+                          onChange={(v) => patchEdit(chain.id, { maxValue: v })}
+                        />
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        {bandLabel(chain, policyConfig)}
+                        {!chain.minValue && !chain.maxValue &&
+                          ' — this chain is never selected by value. A routing rule must name it.'}
+                      </p>
+                      {(() => {
+                        const g = governedBounds(chain, policyConfig);
+                        if (!g.min && !g.max) return null;
+                        return (
+                          <p className="text-xs text-gray-500">
+                            Follows {[g.min, g.max].filter(Boolean).join(' and ')}.
+                          </p>
+                        );
+                      })()}
                     </div>
                   )}
 
@@ -283,6 +359,55 @@ export function ApprovalChainsPage() {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+/**
+ * One end of a value band: open, a governed threshold, or a typed amount.
+ *
+ * Open at both ends is the legitimate way to say "this chain is reached by a
+ * routing rule naming it, never by value" — which is why absence must not be
+ * read as [0, ∞), the bug this whole change removes.
+ */
+function BoundEditor({
+  label, value, onChange,
+}: {
+  label: string;
+  value: string | null;
+  onChange: (v: string | null) => void;
+}) {
+  const mode = value === null || value === '' ? OPEN_END : isPolicyToken(value) ? value : LITERAL;
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className="text-xs text-gray-500">{label}</span>
+      <Select
+        value={mode}
+        onValueChange={(v) => {
+          if (v === OPEN_END) onChange(null);
+          else if (v === LITERAL) onChange('0');
+          else onChange(v);
+        }}
+      >
+        <SelectTrigger className="h-8 w-52 text-sm">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={OPEN_END}>No limit</SelectItem>
+          <SelectItem value={LITERAL}>A specific amount</SelectItem>
+          {CURRENCY_POLICY_KEYS.map((k) => (
+            <SelectItem key={k} value={policyToken(k)}>{POLICY_KEY_META[k].label}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {mode === LITERAL && (
+        <Input
+          value={value ?? ''}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="Amount"
+          className="h-8 w-28 text-sm"
+        />
+      )}
     </div>
   );
 }

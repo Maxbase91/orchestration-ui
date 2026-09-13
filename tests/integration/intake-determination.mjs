@@ -66,15 +66,17 @@ const SUPPLIERS = [
   supplier('SUP-FLAGGED', { screeningStatus: 'flagged' }),
 ];
 
-// `threshold` is a human-readable band string; `parseThresholdBand` reads the
-// numbers out of it. The shape matters — a chain without one throws.
-const chain = (id, name, threshold) => ({
-  id, name, threshold, description: '', steps: [], referencedBy: [],
+// Bands are structured bounds now, not a string parsed by regex. A chain with
+// neither bound set is deliberately NOT selectable by value — the string form
+// read an unparseable value as [0, Infinity), so an unbanded chain matched
+// everything and shadowed every banded one behind it.
+const chain = (id, name, minValue, maxValue) => ({
+  id, name, minValue, maxValue, threshold: '', description: '', steps: [], referencedBy: [],
 });
 const APPROVAL_CHAINS = [
-  chain('AC-001', 'Standard', '< €50,000'),
-  chain('AC-002', 'Senior', '€50,000 - €250,000'),
-  chain('AC-003', 'Executive', '> €250,000'),
+  chain('AC-001', 'Standard', null, '50000'),
+  chain('AC-002', 'Senior', '50000', 'policy:approvalFullThreshold'),
+  chain('AC-003', 'Executive', 'policy:approvalFullThreshold', null),
 ];
 
 const ACTIVE_VALIDATOR = { name: 'Request Validator', status: 'active' };
