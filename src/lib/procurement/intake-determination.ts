@@ -361,7 +361,7 @@ export function evaluateIntakeDetermination(input: IntakeDeterminationInput): In
     // No region on the demand model yet; named so the gap is visible rather
     // than an omission. A rule keyed on it is flagged by diagnoseRule.
     region: undefined,
-  });
+  }, policy);
 
   // `requests.approval_chain` is an FK to approval_chains.id. Routing rules
   // use human-readable role vocabularies, so persist the actual configured

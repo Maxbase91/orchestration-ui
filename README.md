@@ -248,6 +248,7 @@ npm run test:forms                # every form triggers on a real stage, and non
 npm run test:config-consumption   # admin configuration reaches what it configures — channel stages, template node ids, live lifecycle coherence
 npm run test:seed-parity          # the checked-in workflow seed matches live, so re-seeding cannot destroy a Designer edit
 npm run test:policy-tokens        # every governed threshold is nameable, editable and validated; no decisioning literal shadows one
+npm run test:policy-token-routing # routing rules reference governed thresholds; tokenising changed no channel, and no token reaches the evaluator
 npm run test:models               # each pinned Groq/Gemini model is still served by its provider (calls the providers, so it is outside the default gate — run it on demand or via `test:all -- --external`)
 npm run test:table-lists          # hand-maintained relation lists match db/schema.sql
 npm run test:requester-entry-ui   # browser smoke (stubbed) — requester entry screen renders and fits 320px
@@ -257,6 +258,7 @@ npm run test:e2e-ui               # full-app browser sweep — every route × ro
 npm run test:ui-full              # evidence harness — 60+ checkpoints screenshotted; asserts only "no crash, not blank"
 npm run test:ui-lifecycle         # static guard that call-offs, stage actions and invoice transitions stay UI-governed
 npm run test:service-description-ui # browser smoke — /admin/service-description renders all four config areas
+npm run test:routing-rules-ui     # browser smoke — /admin/rules shows governed thresholds by name and real approval chains
 npm run test:intake-guidance-ui   # browser smoke — step-1 single classification block, per-step header panels, the step gate
 npm run test:reference-data-ui    # browser smoke — admin maintains cost centres and delivery locations, and
                                   # a retired row disappears from every requester picker
@@ -289,7 +291,7 @@ npm run backfill:neon-catalogue-governance # idempotent repair when the migrated
 It boots the dev server itself and needs `.env.local` with `NEON_DATABASE_URL` set.
 
 Four suites are the exception — `test:request-detail-ui`, `test:requester-entry-ui`,
-`test:service-description-ui` and `test:intake-guidance-ui`. They stub the data API inside the browser
+`test:service-description-ui`, `test:routing-rules-ui` and `test:intake-guidance-ui`. They stub the data API inside the browser
 (`installDbStub()` in `tests/ui/db-stub.mjs`) and run with **no credentials and no network**, so all
 four run in CI (`test:requester-entry-ui` was named here before it was actually wired in; it is now). Use that harness for any screen worth checking where the database is unreachable — a
 suite that can only run against a live database does not run in CI or in a sandbox, which is how a

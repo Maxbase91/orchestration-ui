@@ -34,6 +34,7 @@ import { evaluateIntakeDetermination } from '../../src/lib/procurement/intake-de
 import { buildIntakeComplianceRecord } from '../../src/lib/procurement/intake-compliance-record.ts';
 import { resolveDemandChannel } from '../../src/lib/routing/demand-channel.js';
 import { routingRules } from '../../src/data/routing-rules.ts';
+import { DEFAULT_POLICY_CONFIG } from '../../src/lib/procurement/policy-config.ts';
 
 const NOW = new Date('2026-09-01T00:00:00Z');
 const iso = (date) => date.toISOString().slice(0, 10);
@@ -240,7 +241,7 @@ check('the channel is resolved once — P-card eligibility on both paths or neit
       riskRating: result.inherentRisk.tier,
       material: result.materiality.material,
       pCardEligible: result.pCardEligible,
-    });
+    }, DEFAULT_POLICY_CONFIG);
     assert.equal(result.buyingChannelSlug, direct.channel, name);
   }
 });

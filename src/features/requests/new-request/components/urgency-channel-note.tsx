@@ -14,6 +14,7 @@ import { AlertTriangle } from 'lucide-react';
 import { useRoutingRules } from '@/lib/db/hooks/use-routing-rules';
 import { buyingChannelLabel } from '@/lib/routing/evaluate-routing-rules';
 import { urgencyWouldChangeChannel } from '@/lib/routing/demand-channel';
+import { usePolicyConfig } from '@/lib/procurement/use-policy-config';
 
 interface UrgencyChannelNoteProps {
   category: string;
@@ -27,6 +28,7 @@ export function UrgencyChannelNote({
   category, estimatedValue, supplierId, isUrgent,
 }: UrgencyChannelNoteProps) {
   const { data: routingRules = [] } = useRoutingRules();
+  const policyConfig = usePolicyConfig();
 
   // Risk rating and materiality are deliberately not passed: this compares the
   // same demand with urgency on and off, so any field held constant across both
@@ -46,7 +48,7 @@ export function UrgencyChannelNote({
     region: undefined,
     commodityCode: undefined,
     pCardEligible: undefined,
-  });
+  }, policyConfig);
 
   // Silent when urgency changes nothing — a warning that is always on is one
   // nobody reads.

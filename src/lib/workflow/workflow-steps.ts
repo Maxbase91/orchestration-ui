@@ -132,12 +132,20 @@ export function selectWorkflowTemplateForCategory<T extends { type: string; name
 
 /** Parse an approval-chain threshold string ("< 10,000", "10,000 - 100,000",
  *  "> 500,000") into a numeric [min, max) band. Reads the admin's own value,
- *  no thresholds are baked in here. */
-export function parseThresholdBand(threshold: string): { min: number; max: number } {
+ *  no thresholds are baked in here.
+ *
+ *  `null` when the string carries no number at all. Absence is NOT [0, ∞):
+ *  the column defaults to '' and the admin page creates new chains at 'TBD',
+ *  and treating either as an open band made such a chain match EVERY value —
+ *  and, being found first, shadow every properly banded chain behind it. A
+ *  chain whose band nobody has set is a chain that cannot be selected by
+ *  value; it stays reachable by a routing rule naming it directly, which is
+ *  how the compliance chain is meant to be reached. */
+export function parseThresholdBand(threshold: string): { min: number; max: number } | null {
   const nums = (threshold.match(/[\d,]+(?:\.\d+)?/g) ?? [])
     .map((s) => Number(s.replace(/,/g, '')))
     .filter((n) => Number.isFinite(n));
-  if (nums.length === 0) return { min: 0, max: Infinity };
+  if (nums.length === 0) return null;
   if (/</.test(threshold) && nums.length === 1) return { min: 0, max: nums[0] };
   if (/>/.test(threshold) && nums.length === 1) return { min: nums[0], max: Infinity };
   if (nums.length >= 2) return { min: nums[0], max: nums[1] };
@@ -150,7 +158,8 @@ export function selectApprovalChainForValue<T extends { threshold: string }>(
   value: number,
 ): T | undefined {
   return chains.find((c) => {
-    const { min, max } = parseThresholdBand(c.threshold);
-    return value >= min && value < max;
+    const band = parseThresholdBand(c.threshold);
+    if (!band) return false;
+    return value >= band.min && value < band.max;
   });
 }

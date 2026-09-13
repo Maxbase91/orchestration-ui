@@ -6,6 +6,8 @@ import { RuleListPanel } from './components/rule-list-panel';
 import { RuleEditorPanel } from './components/rule-editor-panel';
 import { RuleTestPanel } from './components/rule-test-panel';
 import { diagnoseRules } from '@/lib/routing/evaluate-routing-rules';
+import { useApprovalChains } from '@/lib/db/hooks/use-approval-chains';
+import { usePolicyConfig } from '@/lib/procurement/use-policy-config';
 import { AlertTriangle } from 'lucide-react';
 
 /** The next free RR-nnn, so a deletion cannot make a new rule reuse an id. */
@@ -42,7 +44,16 @@ export function RoutingRulesPage() {
   // the failure is otherwise invisible: an unrecognised field or operator used
   // to return false and silently kill the whole rule, so a broken rule looked
   // exactly like one that merely had not matched yet.
-  const broken = diagnoseRules(rules);
+  // Chain ids are passed so a rule naming an approval chain that does not
+  // exist is reported here. Every seeded rule named a role path rather than an
+  // id, so the intake lookup never matched one and the value band silently
+  // decided instead — a rule that looked configured and was not.
+  const policyConfig = usePolicyConfig();
+  const { data: approvalChains = [] } = useApprovalChains();
+  const broken = diagnoseRules(rules, {
+    config: policyConfig,
+    chainIds: approvalChains.map((c) => c.id),
+  });
 
   // Plain function, not useCallback. The React compiler memoizes it, and the
   // manual version could not be preserved — it depended on an array the

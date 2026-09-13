@@ -4,6 +4,11 @@
 
 import type { RoutingRule } from './types.js';
 
+// `action.approvalChain` holds an approval_chains id, or '' meaning "let the
+// value band decide". It held a role-path string ('category-manager > finance')
+// for as long as the field existed, while intake looked it up as an id — so the
+// lookup never matched and the band silently decided every time, including for
+// the two rules written specifically to escalate compliance.
 export const routingRules: RoutingRule[] = [
   {
     id: 'RR-001',
@@ -11,9 +16,9 @@ export const routingRules: RoutingRule[] = [
     status: 'active',
     conditions: [
       { field: 'category', operator: 'equals', value: 'software' },
-      { field: 'value', operator: 'greater_than', value: '100000' },
+      { field: 'value', operator: 'greater_than', value: 'policy:budgetApprovalThreshold' },
     ],
-    action: { buyingChannel: 'procurement-led', approvalChain: 'category-manager > finance > vp-procurement' },
+    action: { buyingChannel: 'procurement-led', approvalChain: '' },
     description: 'Routes all software requests above €100K to Procurement-led channel with full approval chain.',
     matchCount: 42,
     lastModified: '2024-11-15T10:00:00Z',
@@ -27,7 +32,7 @@ export const routingRules: RoutingRule[] = [
       { field: 'value', operator: 'less_than', value: '5000' },
       { field: 'category', operator: 'equals', value: 'goods' },
     ],
-    action: { buyingChannel: 'catalogue', approvalChain: 'line-manager' },
+    action: { buyingChannel: 'catalogue', approvalChain: '' },
     description: 'Auto-routes goods under €5K to catalogue with single-level approval.',
     matchCount: 187,
     lastModified: '2024-10-01T09:00:00Z',
@@ -40,7 +45,7 @@ export const routingRules: RoutingRule[] = [
     conditions: [
       { field: 'category', operator: 'equals', value: 'consulting' },
     ],
-    action: { buyingChannel: 'procurement-led', approvalChain: 'category-manager > finance > vp-procurement' },
+    action: { buyingChannel: 'procurement-led', approvalChain: '' },
     description: 'All consulting engagements require Procurement-led procurement regardless of value.',
     matchCount: 28,
     lastModified: '2024-09-20T14:00:00Z',
@@ -54,7 +59,7 @@ export const routingRules: RoutingRule[] = [
       { field: 'category', operator: 'equals', value: 'contingent-labour' },
       { field: 'supplierId', operator: 'in', value: 'SUP-013,SUP-014' },
     ],
-    action: { buyingChannel: 'framework-call-off', approvalChain: 'category-manager > finance' },
+    action: { buyingChannel: 'framework-call-off', approvalChain: '' },
     description: 'Contingent labour from Randstad or Hays uses framework call-off with two-level approval.',
     matchCount: 35,
     lastModified: '2024-08-15T11:00:00Z',
@@ -68,7 +73,7 @@ export const routingRules: RoutingRule[] = [
       { field: 'category', operator: 'equals', value: 'contract-renewal' },
       { field: 'value', operator: 'less_than', value: '50000' },
     ],
-    action: { buyingChannel: 'business-led', approvalChain: 'category-manager' },
+    action: { buyingChannel: 'business-led', approvalChain: '' },
     description: 'Low-value contract renewals can be business-led with category manager oversight.',
     matchCount: 15,
     lastModified: '2024-10-10T16:00:00Z',
@@ -79,9 +84,9 @@ export const routingRules: RoutingRule[] = [
     name: 'Mega-deal threshold (>€1M)',
     status: 'active',
     conditions: [
-      { field: 'value', operator: 'greater_than', value: '1000000' },
+      { field: 'value', operator: 'greater_than', value: 'policy:materialityValueThreshold' },
     ],
-    action: { buyingChannel: 'procurement-led', approvalChain: 'category-manager > finance > vp-procurement > cpo' },
+    action: { buyingChannel: 'procurement-led', approvalChain: '' },
     description: 'Any request exceeding €1M requires full approval chain including CPO sign-off.',
     matchCount: 8,
     lastModified: '2024-07-01T09:00:00Z',
@@ -94,9 +99,9 @@ export const routingRules: RoutingRule[] = [
     conditions: [
       { field: 'category', operator: 'equals', value: 'goods' },
       { field: 'commodityCode', operator: 'starts_with', value: '432' },
-      { field: 'value', operator: 'less_than', value: '25000' },
+      { field: 'value', operator: 'less_than', value: 'policy:competitiveSourcingThreshold' },
     ],
-    action: { buyingChannel: 'catalogue', approvalChain: 'line-manager > category-manager' },
+    action: { buyingChannel: 'catalogue', approvalChain: '' },
     description: 'IT hardware under €25K routes to catalogue if commodity code matches IT equipment.',
     matchCount: 62,
     lastModified: '2024-11-01T10:00:00Z',
@@ -109,7 +114,7 @@ export const routingRules: RoutingRule[] = [
     conditions: [
       { field: 'category', operator: 'equals', value: 'supplier-onboarding' },
     ],
-    action: { buyingChannel: 'procurement-led', approvalChain: 'supplier-manager > compliance > category-manager' },
+    action: { buyingChannel: 'procurement-led', approvalChain: 'chain-compliance' },
     description: 'Supplier onboarding requires compliance review before category manager approval.',
     matchCount: 12,
     lastModified: '2024-09-05T09:00:00Z',
@@ -124,7 +129,7 @@ export const routingRules: RoutingRule[] = [
       { field: 'commodityCode', operator: 'starts_with', value: '761' },
       { field: 'value', operator: 'less_than', value: '10000' },
     ],
-    action: { buyingChannel: 'direct-po', approvalChain: 'line-manager' },
+    action: { buyingChannel: 'direct-po', approvalChain: '' },
     description: 'Low-value facilities services can use direct PO with line manager approval.',
     matchCount: 24,
     lastModified: '2024-10-20T14:00:00Z',
@@ -138,7 +143,7 @@ export const routingRules: RoutingRule[] = [
       { field: 'priority', operator: 'equals', value: 'urgent' },
       { field: 'isUrgent', operator: 'equals', value: 'true' },
     ],
-    action: { buyingChannel: 'procurement-led', approvalChain: 'category-manager > vp-procurement' },
+    action: { buyingChannel: 'procurement-led', approvalChain: '' },
     description: 'Urgent requests skip finance approval and go directly to VP for expedited processing.',
     matchCount: 6,
     lastModified: '2024-08-01T08:00:00Z',
@@ -153,7 +158,7 @@ export const routingRules: RoutingRule[] = [
       { field: 'commodityCode', operator: 'starts_with', value: '8014' },
       { field: 'value', operator: 'between', value: '50000,250000' },
     ],
-    action: { buyingChannel: 'procurement-led', approvalChain: 'category-manager > finance' },
+    action: { buyingChannel: 'procurement-led', approvalChain: '' },
     description: 'Mid-tier marketing services require Procurement-led procurement with finance approval. Draft — pending policy committee review.',
     matchCount: 0,
     lastModified: '2025-01-05T10:00:00Z',
@@ -166,7 +171,7 @@ export const routingRules: RoutingRule[] = [
     conditions: [
       { field: 'supplierId', operator: 'risk_rating', value: 'high,critical' },
     ],
-    action: { buyingChannel: 'procurement-led', approvalChain: 'supplier-manager > compliance > vp-procurement > cpo' },
+    action: { buyingChannel: 'procurement-led', approvalChain: 'chain-compliance' },
     description: 'High/critical risk suppliers require extended approval chain. Disabled — under review after false positive rate exceeded 15%.',
     matchCount: 3,
     lastModified: '2024-12-01T09:00:00Z',

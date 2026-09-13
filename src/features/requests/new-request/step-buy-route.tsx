@@ -40,6 +40,7 @@ import { decideIntakeRoute, type IntakeRoute } from '@/lib/procurement/intake-ro
 import { useRoutingRules } from '@/lib/db/hooks/use-routing-rules';
 import { buyingChannelPlain, buyingChannelLabel } from '@/lib/routing/evaluate-routing-rules';
 import { resolveDemandChannel } from '@/lib/routing/demand-channel';
+import { usePolicyConfig } from '@/lib/procurement/use-policy-config';
 import { computeDemandSignals } from '@/lib/procurement/demand-signals';
 import { requestContractMatch } from '@/lib/procurement/contract-match-api';
 import type { CatalogueItem } from '@/data/catalogue-items';
@@ -265,6 +266,7 @@ export function StepBuyRoute({
     [category, estimatedValue, demandText, contractMatches.length],
   );
 
+  const policyConfig = usePolicyConfig();
   const routing = useMemo(
     () => resolveDemandChannel(routingRules, {
       category,
@@ -281,8 +283,8 @@ export function StepBuyRoute({
       // Not yet proven at this step — evaluatePCardEligibility runs with the
       // determination. Named so the omission is deliberate, not forgotten.
       pCardEligible: undefined,
-    }),
-    [routingRules, category, estimatedValue, supplierId, contractMatches, signals, isUrgent, commodityCode],
+    }, policyConfig),
+    [routingRules, category, estimatedValue, supplierId, contractMatches, signals, isUrgent, commodityCode, policyConfig],
   );
 
   const timelineByCategory = useMemo(() => {

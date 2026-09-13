@@ -8,75 +8,17 @@
 import { readFileSync } from 'node:fs';
 import { neonClient } from '../lib/live.mjs';
 
-// Evaluator mirrors src/lib/routing/evaluate-routing-rules.ts — keep in sync.
-function fieldValue(ctx, field) {
-  return ctx[field];
-}
-function toNumber(v) {
-  if (typeof v === 'number') return v;
-  if (typeof v === 'string') {
-    const n = Number(v);
-    return Number.isFinite(n) ? n : null;
-  }
-  return null;
-}
-function evalCondition(field, operator, value, ctx) {
-  const actual = fieldValue(ctx, field);
-  if (actual === undefined) return false;
-  switch (operator) {
-    case 'equals': return String(actual) === value;
-    case 'greater_than': {
-      const a = toNumber(actual); const b = toNumber(value);
-      return a !== null && b !== null && a > b;
-    }
-    case 'less_than': {
-      const a = toNumber(actual); const b = toNumber(value);
-      return a !== null && b !== null && a < b;
-    }
-    case 'in': return value.split(',').map((s) => s.trim()).includes(String(actual));
-    case 'starts_with': return String(actual).startsWith(value);
-    case 'between': {
-      const [lo, hi] = value.split(',').map((s) => Number(s.trim()));
-      const a = toNumber(actual);
-      return a !== null && Number.isFinite(lo) && Number.isFinite(hi) && a >= lo && a <= hi;
-    }
-    case 'risk_rating': {
-      // Threshold: ctx risk tier is at or above the rule's tier.
-      const order = { low: 0, medium: 1, high: 2, critical: 3 };
-      const a = order[actual]; const b = order[value];
-      return a !== undefined && b !== undefined && a >= b;
-    }
-    default: return false;
-  }
-}
-function ruleMatches(rule, ctx) {
-  if (rule.status !== 'active') return false;
-  if (!rule.conditions?.length) return false;
-  return rule.conditions.every((c) => evalCondition(c.field, c.operator, c.value, ctx));
-}
-function evaluateRoutingRules(rules, ctx) {
-  for (const rule of rules) {
-    if (ruleMatches(rule, ctx)) {
-      return { channel: rule.action.buyingChannel, approvalChain: rule.action.approvalChain, matchedRule: rule };
-    }
-  }
-  return null;
-}
-function fallbackBuyingChannel(ctx) {
-  const value = ctx.value ?? 0;
-  const category = ctx.category ?? '';
-  if (value < 25000) return { channel: 'catalogue', approvalChain: 'line-manager' };
-  if (category === 'consulting' || value > 100000) return { channel: 'procurement-led', approvalChain: 'category-manager > finance > vp-procurement' };
-  if (category === 'contingent-labour') return { channel: 'framework-call-off', approvalChain: 'category-manager > finance' };
-  if (value <= 50000) return { channel: 'business-led', approvalChain: 'category-manager' };
-  return { channel: 'procurement-led', approvalChain: 'category-manager > finance > vp-procurement' };
-}
-function resolveRouting(rules, ctx) {
-  const match = evaluateRoutingRules(rules, ctx);
-  if (match) return match;
-  const fb = fallbackBuyingChannel(ctx);
-  return { channel: fb.channel, approvalChain: fb.approvalChain, matchedRule: null };
-}
+// The evaluator is IMPORTED, not mirrored.
+//
+// This file carried a hand-copied evaluator and a hand-copied fallback ladder,
+// "keep in sync" in a comment. It went out of sync the moment routing rules
+// learned to reference a governed threshold: the copy did not resolve
+// `policy:` tokens, so RR-001 and RR-006 failed here while working in the app.
+// A mirror that can disagree with the thing it mirrors tests the mirror.
+import {
+  resolveRouting, evaluateRoutingRules,
+} from '../../src/lib/routing/evaluate-routing-rules.ts';
+import { DEFAULT_POLICY_CONFIG } from '../../src/lib/procurement/policy-config.ts';
 
 const sb = await neonClient('routing');
 
@@ -141,7 +83,7 @@ async function main() {
   ];
 
   for (const s of scenarios) {
-    const m = evaluateRoutingRules(rules, s.ctx);
+    const m = evaluateRoutingRules(rules, s.ctx, DEFAULT_POLICY_CONFIG);
     assert(
       m?.matchedRule?.id === s.expectedRuleId && m?.channel === s.expectedChannel,
       `routing: ${s.label}`,
@@ -150,9 +92,9 @@ async function main() {
   }
 
   // ── No-match context falls back gracefully
-  const noMatch = evaluateRoutingRules(rules, { category: 'unknown-category', value: 42 });
+  const noMatch = evaluateRoutingRules(rules, { category: 'unknown-category', value: 42 }, DEFAULT_POLICY_CONFIG);
   assert(noMatch === null, 'routing: no-match returns null', `got=${JSON.stringify(noMatch)}`);
-  const fallback = resolveRouting(rules, { category: 'unknown-category', value: 42 });
+  const fallback = resolveRouting(rules, { category: 'unknown-category', value: 42 }, DEFAULT_POLICY_CONFIG);
   assert(
     fallback.matchedRule === null && fallback.channel === 'catalogue',
     'routing: fallback is catalogue for small no-match request',
@@ -164,7 +106,7 @@ async function main() {
   if (disabled.length > 0) {
     // Build a context guaranteed to match RR-012 if status were honoured
     const ctx = { supplierId: 'SUP-999', category: 'goods' };
-    const m = evaluateRoutingRules(rules, ctx);
+    const m = evaluateRoutingRules(rules, ctx, DEFAULT_POLICY_CONFIG);
     assert(
       m?.matchedRule?.status !== 'disabled',
       'routing: disabled rules are skipped',
@@ -185,16 +127,16 @@ async function main() {
       action: { buyingChannel: 'business-led', approvalChain: 'category-manager' },
     },
   ];
-  const critical = evaluateRoutingRules(riskRules, { value: 10000, riskRating: 'critical' });
+  const critical = evaluateRoutingRules(riskRules, { value: 10000, riskRating: 'critical' }, DEFAULT_POLICY_CONFIG);
   assert(critical?.matchedRule?.id === 'RISK-FULL', 'routing: critical risk escalates over low value',
     `matched=${critical?.matchedRule?.id ?? 'none'} channel=${critical?.channel ?? 'none'}`);
-  const high = evaluateRoutingRules(riskRules, { value: 10000, riskRating: 'high' });
+  const high = evaluateRoutingRules(riskRules, { value: 10000, riskRating: 'high' }, DEFAULT_POLICY_CONFIG);
   assert(high?.matchedRule?.id === 'RISK-FULL', 'routing: high risk meets the threshold',
     `matched=${high?.matchedRule?.id ?? 'none'}`);
-  const lowRisk = evaluateRoutingRules(riskRules, { value: 10000, riskRating: 'low' });
+  const lowRisk = evaluateRoutingRules(riskRules, { value: 10000, riskRating: 'low' }, DEFAULT_POLICY_CONFIG);
   assert(lowRisk?.matchedRule?.id === 'RISK-LIGHT', 'routing: low risk falls through to value rule',
     `matched=${lowRisk?.matchedRule?.id ?? 'none'}`);
-  const noRisk = evaluateRoutingRules(riskRules, { value: 10000 });
+  const noRisk = evaluateRoutingRules(riskRules, { value: 10000 }, DEFAULT_POLICY_CONFIG);
   assert(noRisk?.matchedRule?.id === 'RISK-LIGHT', 'routing: absent risk does not trigger risk rule',
     `matched=${noRisk?.matchedRule?.id ?? 'none'}`);
 
@@ -211,10 +153,10 @@ async function main() {
       action: { buyingChannel: 'business-led', approvalChain: 'category-manager' },
     },
   ];
-  const material = evaluateRoutingRules(matRules, { value: 10000, material: true });
+  const material = evaluateRoutingRules(matRules, { value: 10000, material: true }, DEFAULT_POLICY_CONFIG);
   assert(material?.matchedRule?.id === 'MAT-FULL', 'routing: material demand escalates over low value',
     `matched=${material?.matchedRule?.id ?? 'none'} channel=${material?.channel ?? 'none'}`);
-  const notMaterial = evaluateRoutingRules(matRules, { value: 10000, material: false });
+  const notMaterial = evaluateRoutingRules(matRules, { value: 10000, material: false }, DEFAULT_POLICY_CONFIG);
   assert(notMaterial?.matchedRule?.id === 'MAT-LIGHT', 'routing: non-material falls through to value rule',
     `matched=${notMaterial?.matchedRule?.id ?? 'none'}`);
 

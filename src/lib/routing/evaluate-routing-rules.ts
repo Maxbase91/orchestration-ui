@@ -18,6 +18,8 @@
 // broken, not merely inactive.
 
 import type { RoutingRule, BuyingChannel, RiskRating } from '@/data/types';
+import type { PolicyConfig } from '@/lib/procurement/policy-config';
+import { isPolicyToken, resolvePolicyList } from '../procurement/policy-tokens.js';
 
 export interface RoutingContext {
   category?: string;
@@ -82,7 +84,44 @@ export interface RuleDiagnostic {
  */
 const UNPOPULATED_FIELDS: readonly string[] = ['region'];
 
-export function diagnoseRule(rule: RoutingRule): string[] {
+/**
+ * Substitute every `policy:<key>` token in a rule's conditions for the number
+ * the decisioning-thresholds page governs. The one place a stored rule becomes
+ * an evaluable rule.
+ *
+ * This is deliberately NOT done inside `evalCondition`. That function is pure
+ * and shared with the Form Builder, and the two alternatives both fail:
+ * reading the module-singleton active config would let a serverless caller
+ * evaluate against shipped defaults while the admin's saved thresholds sat in
+ * Neon — a wrong answer with no error — and passing the config down to each
+ * comparison would still leave `diagnoseRule` and the rule summary needing
+ * their own resolver, which is the duplication being removed.
+ */
+export function resolveRuleConditions(rule: RoutingRule, config: PolicyConfig): RoutingRule {
+  if (!(rule.conditions ?? []).some((c) => isPolicyToken(c.value))) return rule;
+  return {
+    ...rule,
+    conditions: rule.conditions.map((c) => ({
+      ...c,
+      // `between` and `in` carry several bounds; each resolves on its own.
+      value: resolvePolicyList(c.value, config).value,
+    })),
+  };
+}
+
+export function resolveRulesForEvaluation(rules: RoutingRule[], config: PolicyConfig): RoutingRule[] {
+  return rules.map((r) => resolveRuleConditions(r, config));
+}
+
+/** What `diagnoseRule` needs beyond the rule itself. */
+export interface DiagnoseContext {
+  config: PolicyConfig;
+  /** Ids of the configured approval chains, so a rule naming a chain that does
+   *  not exist is reported rather than silently ignored at intake. */
+  chainIds?: readonly string[];
+}
+
+export function diagnoseRule(rule: RoutingRule, ctx: DiagnoseContext): string[] {
   const problems: string[] = [];
   for (const c of rule.conditions ?? []) {
     if (UNPOPULATED_FIELDS.includes(c.field)) {
@@ -94,10 +133,25 @@ export function diagnoseRule(rule: RoutingRule): string[] {
     if (!(SUPPORTED_OPERATORS as readonly string[]).includes(c.operator)) {
       problems.push(`Unsupported operator "${c.operator}" on "${c.field}".`);
     }
-    // `between` needs two bounds; one silently fails every comparison.
-    if (c.operator === 'between' && c.value.split(',').length !== 2) {
+    // A `policy:` token naming a key that does not exist keeps its raw value,
+    // which then fails every numeric comparison — the same silent death an
+    // unknown field used to have, so it gets the same visible diagnostic.
+    const resolved = resolvePolicyList(c.value, ctx.config);
+    if (resolved.unresolved) {
+      problems.push(`Unknown governed threshold "${c.value}" — this condition can never be true.`);
+    }
+    // `between` needs two bounds; one silently fails every comparison. Checked
+    // on the RESOLVED value, since a token stands in for one bound.
+    if (c.operator === 'between' && resolved.value.split(',').length !== 2) {
       problems.push(`"${c.field} between ${c.value}" needs two comma-separated bounds.`);
     }
+  }
+  // The rule's approval chain is looked up as an approval_chains id at intake.
+  // It held a role-path string for as long as the field existed, so the lookup
+  // never matched and the value band always decided — silently.
+  const chain = rule.action?.approvalChain;
+  if (chain && ctx.chainIds && ctx.chainIds.length > 0 && !ctx.chainIds.includes(chain)) {
+    problems.push(`"${chain}" is not a configured approval chain — the value band will decide instead.`);
   }
   if ((rule.conditions ?? []).length === 0) {
     problems.push('The rule has no conditions, so it can never match.');
@@ -106,10 +160,10 @@ export function diagnoseRule(rule: RoutingRule): string[] {
 }
 
 /** Every active rule that cannot fire, for the admin list. */
-export function diagnoseRules(rules: RoutingRule[]): RuleDiagnostic[] {
+export function diagnoseRules(rules: RoutingRule[], ctx: DiagnoseContext): RuleDiagnostic[] {
   return rules
     .filter((r) => r.status === 'active')
-    .map((r) => ({ ruleId: r.id, ruleName: r.name, problems: diagnoseRule(r) }))
+    .map((r) => ({ ruleId: r.id, ruleName: r.name, problems: diagnoseRule(r, ctx) }))
     .filter((d) => d.problems.length > 0);
 }
 
@@ -222,6 +276,15 @@ export function evalCondition(
   value: string,
   ctx: RoutingContext,
 ): boolean {
+  // A token here means a caller evaluated a stored rule without passing it
+  // through `resolveRuleConditions`. Returning false would look exactly like a
+  // condition that legitimately did not match, which is the failure mode this
+  // whole module exists to avoid.
+  if (isPolicyToken(value)) {
+    console.error(`[evalCondition] unresolved ${value} — call resolveRuleConditions first.`);
+    return false;
+  }
+
   const actual = fieldValue(ctx, field);
 
   // Emptiness is asked BEFORE the undefined guard, because "is empty" is a
@@ -285,11 +348,20 @@ function ruleMatches(rule: RoutingRule, ctx: RoutingContext): boolean {
   return rule.conditions.every((c) => evalCondition(c.field, c.operator, c.value, ctx));
 }
 
+/**
+ * `config` is required rather than defaulted, deliberately. A default of
+ * `getActivePolicyConfig()` reads as convenience and is a landmine: the active
+ * config is a browser-boot singleton, so a serverless caller would silently
+ * evaluate every rule against shipped defaults. Requiring it makes that
+ * impossible to write by accident — the same argument `demand-channel.ts`
+ * makes for its own inputs.
+ */
 export function evaluateRoutingRules(
   rules: RoutingRule[],
   ctx: RoutingContext,
+  config: PolicyConfig,
 ): RoutingMatch | null {
-  for (const rule of rules) {
+  for (const rule of resolveRulesForEvaluation(rules, config)) {
     if (ruleMatches(rule, ctx)) {
       // A configurable rule may nominate P-card, but the payment-adjacent
       // route is only safe when the intake has separately proven eligibility.
@@ -320,8 +392,9 @@ export function fallbackBuyingChannel(ctx: RoutingContext): { channel: BuyingCha
 export function resolveRouting(
   rules: RoutingRule[],
   ctx: RoutingContext,
+  config: PolicyConfig,
 ): RoutingMatch {
-  const match = evaluateRoutingRules(rules, ctx);
+  const match = evaluateRoutingRules(rules, ctx, config);
   if (match) return match;
   const fb = fallbackBuyingChannel(ctx);
   return { channel: fb.channel, approvalChain: fb.approvalChain, matchedRule: null };

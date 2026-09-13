@@ -13,6 +13,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  CURRENCY_POLICY_KEYS, POLICY_KEY_META, isPolicyToken, policyToken,
+  resolvePolicyValue, policyKeyHolding,
+} from '@/lib/procurement/policy-tokens';
+import { usePolicyConfig } from '@/lib/procurement/use-policy-config';
+import { formatCurrency } from '@/lib/format';
 
 // Every entry here MUST exist in SUPPORTED_FIELDS in evaluate-routing-rules.ts.
 // `riskLevel` used to sit in this list while the evaluator read `riskRating`,
@@ -60,6 +66,7 @@ interface ConditionCardProps {
 }
 
 export function ConditionCard({ condition, onChange, onRemove }: ConditionCardProps) {
+  const policyConfig = usePolicyConfig();
   // Presence checks are unary — hide the value control entirely.
   const needsValueInput = !['is_empty', 'is_not_empty'].includes(condition.operator);
 
@@ -139,6 +146,89 @@ export function ConditionCard({ condition, onChange, onRemove }: ConditionCardPr
       );
     }
 
+    // A money condition may reference a governed threshold instead of restating
+    // it. Restating is how €25,000 came to be written in four places, and how
+    // RR-001 sat dead for months while the hard-coded fallback happened to
+    // agree with it — the duplication hid the outage rather than surviving it.
+    if (condition.field === 'value') {
+      const tokened = isPolicyToken(condition.value);
+      const resolved = resolvePolicyValue(condition.value, policyConfig);
+      // Only offer the nudge for a plain literal, and only when a governed key
+      // holds exactly that amount. Two controls sharing a number today are not
+      // necessarily the same fact, so this suggests and never rewrites.
+      const literalMatch = !tokened && condition.value !== ''
+        ? policyKeyHolding(Number(condition.value), policyConfig)
+        : null;
+      return (
+        <div className="space-y-1.5">
+          <div className="flex gap-1.5">
+            <Button
+              type="button"
+              size="sm"
+              variant={tokened ? 'default' : 'outline'}
+              className="h-7 flex-1 text-xs"
+              onClick={() => onChange({ ...condition, value: policyToken(CURRENCY_POLICY_KEYS[0]) })}
+            >
+              Governed
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={tokened ? 'outline' : 'default'}
+              className="h-7 flex-1 text-xs"
+              onClick={() => onChange({ ...condition, value: tokened ? resolved.value : condition.value })}
+            >
+              Amount
+            </Button>
+          </div>
+          {tokened ? (
+            <>
+              <Select
+                value={condition.value}
+                onValueChange={(v) => onChange({ ...condition, value: v })}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select a threshold" />
+                </SelectTrigger>
+                <SelectContent>
+                  {CURRENCY_POLICY_KEYS.map((k) => (
+                    <SelectItem key={k} value={policyToken(k)}>{POLICY_KEY_META[k].label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-gray-500">
+                {resolved.unresolved
+                  ? 'This threshold no longer exists — the condition can never be true.'
+                  : `Currently ${formatCurrency(Number(resolved.value))}. Changing it in Decisioning Thresholds moves this rule too.`}
+              </p>
+            </>
+          ) : (
+            <>
+              <Input
+                value={condition.value}
+                onChange={(e) => onChange({ ...condition, value: e.target.value })}
+                placeholder="Enter amount"
+                className="w-full"
+              />
+              {literalMatch && (
+                <p className="text-xs text-amber-700">
+                  {formatCurrency(Number(condition.value))} is the {POLICY_KEY_META[literalMatch].label.toLowerCase()}.{' '}
+                  <button
+                    type="button"
+                    className="underline underline-offset-2 hover:text-amber-900"
+                    onClick={() => onChange({ ...condition, value: policyToken(literalMatch) })}
+                  >
+                    Reference it instead
+                  </button>{' '}
+                  so this rule follows a policy change.
+                </p>
+              )}
+            </>
+          )}
+        </div>
+      );
+    }
+
     return (
       <Input
         value={condition.value}
@@ -151,7 +241,7 @@ export function ConditionCard({ condition, onChange, onRemove }: ConditionCardPr
 
   return (
     <div className="flex items-start gap-2 rounded-lg border border-gray-200 bg-white p-3">
-      <div className="grid flex-1 gap-2 sm:grid-cols-3">
+      <div className="grid flex-1 gap-2 sm:grid-cols-[1fr_1fr_1.5fr]">
         <Select
           value={condition.field}
           onValueChange={(v) => onChange({ ...condition, field: v })}

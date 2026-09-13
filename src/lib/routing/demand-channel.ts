@@ -14,6 +14,7 @@
 
 import type { RiskTier } from '@/lib/procurement/risk-segmentation';
 import type { BuyingChannel, RoutingRule } from '@/data/types';
+import type { PolicyConfig } from '@/lib/procurement/policy-config';
 import { resolveRouting, type RoutingMatch } from './evaluate-routing-rules';
 
 /**
@@ -64,6 +65,7 @@ export interface DemandChannelInput {
 export function resolveDemandChannel(
   rules: RoutingRule[],
   input: DemandChannelInput,
+  config: PolicyConfig,
 ): RoutingMatch {
   return resolveRouting(rules, {
     category: input.category,
@@ -77,7 +79,7 @@ export function resolveDemandChannel(
     region: input.region,
     commodityCode: input.commodityCode,
     pCardEligible: input.pCardEligible,
-  });
+  }, config);
 }
 
 /**
@@ -95,9 +97,10 @@ export function resolveDemandChannel(
 export function urgencyWouldChangeChannel(
   rules: RoutingRule[],
   input: DemandChannelInput,
+  config: PolicyConfig,
 ): { from: BuyingChannel; to: BuyingChannel } | null {
-  const calm = resolveDemandChannel(rules, { ...input, isUrgent: false });
-  const urgent = resolveDemandChannel(rules, { ...input, isUrgent: true });
+  const calm = resolveDemandChannel(rules, { ...input, isUrgent: false }, config);
+  const urgent = resolveDemandChannel(rules, { ...input, isUrgent: true }, config);
   return calm.channel === urgent.channel
     ? null
     : { from: calm.channel, to: urgent.channel };

@@ -14,6 +14,15 @@ import { ConditionCard } from './condition-card';
 import type { RoutingRule, BuyingChannel } from '@/data/types';
 import { toast } from 'sonner';
 import { useSaveRoutingRule } from '@/lib/db/hooks/use-routing-rules';
+import { useApprovalChains } from '@/lib/db/hooks/use-approval-chains';
+import { usePolicyConfig } from '@/lib/procurement/use-policy-config';
+import { resolvePolicyValue, describePolicyValue } from '@/lib/procurement/policy-tokens';
+
+// Radix Select cannot hold an empty-string item value, so the "no override"
+// choice needs a sentinel. It is mapped back to '' on the way into the model —
+// storing the sentinel is the bug that made prePopulateFrom: 'none' a real
+// token in the form builder.
+const BAND_DECIDES = '__band__';
 
 const BUYING_CHANNEL_OPTIONS: { value: BuyingChannel; label: string }[] = [
   { value: 'procurement-led', label: 'Procurement-Led Sourcing' },
@@ -24,17 +33,13 @@ const BUYING_CHANNEL_OPTIONS: { value: BuyingChannel; label: string }[] = [
   { value: 'p-card', label: 'P-card route (eligible demands only)' },
 ];
 
-const APPROVAL_CHAIN_OPTIONS = [
-  { value: 'line-manager', label: 'Standard (Line Manager)' },
-  { value: 'category-manager', label: 'Fast-Track (Category Manager)' },
-  { value: 'category-manager > finance > vp-procurement', label: 'VP-Level' },
-  { value: 'category-manager > finance > vp-procurement > cpo', label: 'Board-Level (incl. CPO)' },
-  { value: 'line-manager > category-manager', label: 'Two-Level' },
-  { value: 'category-manager > finance', label: 'Category + Finance' },
-  { value: 'supplier-manager > compliance > category-manager', label: 'Compliance Chain' },
-  { value: 'supplier-manager > compliance > vp-procurement > cpo', label: 'Extended Compliance' },
-  { value: 'category-manager > vp-procurement', label: 'Fast-Track VP' },
-];
+// The nine hard-coded role-path strings that used to live here
+// ('category-manager > finance > vp-procurement', …) were written into
+// `action.approvalChain` while intake looked that field up as an
+// approval_chains id. The lookup could never match, so the value band silently
+// decided every time — including for the two rules written specifically to
+// escalate compliance. The chains themselves are the vocabulary now.
+
 
 const OPERATOR_LABELS: Record<string, string> = {
   equals: 'is',
@@ -47,6 +52,7 @@ const OPERATOR_LABELS: Record<string, string> = {
   is_empty: 'is empty',
   is_not_empty: 'is not empty',
   risk_rating: 'has risk rating',
+  not_equals: 'is not',
 };
 
 const FIELD_LABELS: Record<string, string> = {
@@ -68,6 +74,7 @@ const CHANNEL_LABELS: Record<string, string> = {
   'direct-po': 'Direct PO',
   'framework-call-off': 'Framework Call-Off',
   'catalogue': 'Catalogue',
+  'p-card': 'P-card route',
 };
 
 interface RuleEditorPanelProps {
@@ -95,6 +102,8 @@ interface RuleEditorPanelProps {
  * even for the same rule.
  */
 export function RuleEditorPanel({ rule, onSaved }: RuleEditorPanelProps) {
+  const policyConfig = usePolicyConfig();
+  const { data: approvalChains = [] } = useApprovalChains();
   const [name, setName] = useState(rule?.name ?? '');
   const [status, setStatus] = useState<'active' | 'draft' | 'disabled'>(rule?.status ?? 'draft');
   const [conditions, setConditions] = useState<{ field: string; operator: string; value: string }[]>(
@@ -103,7 +112,7 @@ export function RuleEditorPanel({ rule, onSaved }: RuleEditorPanelProps) {
   const [buyingChannel, setBuyingChannel] = useState<BuyingChannel>(
     rule?.action.buyingChannel ?? 'procurement-led',
   );
-  const [approvalChain, setApprovalChain] = useState(rule?.action.approvalChain ?? 'line-manager');
+  const [approvalChain, setApprovalChain] = useState(rule?.action.approvalChain ?? '');
 
   const plainEnglish = useMemo(() => {
     if (conditions.length === 0) return 'No conditions defined.';
@@ -111,9 +120,14 @@ export function RuleEditorPanel({ rule, onSaved }: RuleEditorPanelProps) {
     const parts = conditions.map((c) => {
       const field = FIELD_LABELS[c.field] || c.field;
       const op = OPERATOR_LABELS[c.operator] || c.operator;
-      const val = c.field === 'value' && !isNaN(Number(c.value))
-        ? `\u20AC${Number(c.value).toLocaleString()}`
-        : c.value;
+      // A token reads as its amount AND its name, so the summary says which
+      // governed threshold the rule follows rather than a bare number.
+      const resolved = resolvePolicyValue(c.value, policyConfig);
+      const val = resolved.key
+        ? describePolicyValue(resolved)
+        : c.field === 'value' && !isNaN(Number(c.value))
+          ? `\u20AC${Number(c.value).toLocaleString()}`
+          : c.value;
       if (['is_empty', 'is_not_empty'].includes(c.operator)) {
         return `${field} ${op}`;
       }
@@ -125,7 +139,7 @@ export function RuleEditorPanel({ rule, onSaved }: RuleEditorPanelProps) {
     const joined = parts.join(' AND ');
     const channel = CHANNEL_LABELS[buyingChannel] || buyingChannel;
     return `If ${joined}, route to ${channel}.`;
-  }, [conditions, buyingChannel]);
+  }, [conditions, buyingChannel, policyConfig]);
 
   function addCondition() {
     setConditions((prev) => [...prev, { field: 'value', operator: 'equals', value: '' }]);
@@ -258,16 +272,24 @@ export function RuleEditorPanel({ rule, onSaved }: RuleEditorPanelProps) {
 
             <div>
               <Label className="text-xs text-gray-500">Set Approval Chain</Label>
-              <Select value={approvalChain} onValueChange={setApprovalChain}>
+              <Select value={approvalChain || BAND_DECIDES} onValueChange={(v) => setApprovalChain(v === BAND_DECIDES ? '' : v)}>
                 <SelectTrigger className="mt-1">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {APPROVAL_CHAIN_OPTIONS.map((ch) => (
-                    <SelectItem key={ch.value} value={ch.value}>{ch.label}</SelectItem>
+                  <SelectItem value={BAND_DECIDES}>Let the value band decide</SelectItem>
+                  {approvalChains.map((ch) => (
+                    <SelectItem key={ch.id} value={ch.id}>
+                      {ch.name}{ch.threshold ? ` · ${ch.threshold}` : ''}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              <p className="mt-1 text-xs text-gray-500">
+                {approvalChain
+                  ? 'This rule overrides the value band and always uses the chain above.'
+                  : 'The chain whose value band contains the request value approves it.'}
+              </p>
             </div>
 
             {/* "Trigger Notification" and "Flag for Review" switches were here.

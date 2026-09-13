@@ -23,6 +23,7 @@ import { readFileSync } from 'node:fs';
 import { evaluateIntakeDetermination } from '../../src/lib/procurement/intake-determination.ts';
 import { resolveDemandChannel } from '../../src/lib/routing/demand-channel.js';
 import { routingRules } from '../../src/data/routing-rules.ts';
+import { DEFAULT_POLICY_CONFIG } from '../../src/lib/procurement/policy-config.ts';
 
 const NOW = '2026-09-01';
 
@@ -221,7 +222,7 @@ everyCase('the determination channel equals resolveDemandChannel for the same in
     riskRating: result.inherentRisk.tier,
     material: result.materiality.material,
     pCardEligible: result.pCardEligible,
-  });
+  }, DEFAULT_POLICY_CONFIG);
   assert.equal(result.buyingChannelSlug, direct.channel);
 });
 

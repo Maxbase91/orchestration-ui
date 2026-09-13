@@ -201,10 +201,41 @@ export const FIXTURES = {
     ],
     edges: [],
   }],
-  approval_chains: [{
-    id: 'AC-VP', name: 'VP-Level chain', description: 'Value-banded approval', threshold: '100,000 - 500,000',
-    steps: [{ id: 'step-vp', role: 'VP Procurement' }], referenced_by: [],
-  }],
+  approval_chains: [
+    {
+      id: 'AC-VP', name: 'VP-Level chain', description: 'Value-banded approval', threshold: '100,000 - 500,000',
+      steps: [{ id: 'step-vp', role: 'VP Procurement' }], referenced_by: [],
+    },
+    // Unbanded, so it is reachable only by a rule naming it. A chain with no
+    // parseable band used to be read as [0, Infinity) and shadow every banded
+    // chain behind it, so having one in the fixtures is the point.
+    {
+      id: 'chain-compliance', name: 'Compliance Escalation', description: 'Supplier manager, then legal, then category manager.',
+      threshold: 'By routing rule only',
+      steps: [{ id: 'cs1', role: 'Supplier Manager' }, { id: 'cs2', role: 'Legal' }], referenced_by: ['RR-T2'],
+    },
+  ],
+  routing_rules: [
+    {
+      id: 'RR-T1', name: 'High-value software', status: 'active', category: 'Software',
+      conditions: [
+        { field: 'category', operator: 'equals', value: 'software' },
+        // A governed threshold rather than a literal — the editor must render
+        // the picker and name the threshold, not print the raw token.
+        { field: 'value', operator: 'greater_than', value: 'policy:budgetApprovalThreshold' },
+      ],
+      action: { buyingChannel: 'procurement-led', approvalChain: '' },
+      description: 'Software above the budget approval threshold goes procurement-led.',
+      match_count: 0, last_modified: '2026-09-13T10:00:00Z',
+    },
+    {
+      id: 'RR-T2', name: 'Compliance escalation', status: 'active', category: 'Risk',
+      conditions: [{ field: 'category', operator: 'equals', value: 'supplier-onboarding' }],
+      action: { buyingChannel: 'procurement-led', approvalChain: 'chain-compliance' },
+      description: 'Onboarding demand goes through compliance regardless of value.',
+      match_count: 0, last_modified: '2026-09-13T10:00:00Z',
+    },
+  ],
 };
 
 function compare(rowValue, op, raw) {

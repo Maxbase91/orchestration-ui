@@ -17,6 +17,7 @@ import {
   diagnoseRule,
   type RoutingContext,
 } from '@/lib/routing/evaluate-routing-rules';
+import { usePolicyConfig } from '@/lib/procurement/use-policy-config';
 
 const CHANNEL_LABELS: Record<string, string> = {
   'procurement-led': 'Procurement-Led Sourcing',
@@ -44,6 +45,7 @@ interface CoverageResult {
 }
 
 export function RuleTestPanel({ rules }: RuleTestPanelProps) {
+  const policyConfig = usePolicyConfig();
   const [testValue, setTestValue] = useState('');
   const [testCategory, setTestCategory] = useState('');
   const [testSupplierStatus, setTestSupplierStatus] = useState('');
@@ -80,7 +82,7 @@ export function RuleTestPanel({ rules }: RuleTestPanelProps) {
   }
 
   function evaluateRule(rule: RoutingRule): boolean {
-    return evaluateRoutingRules([rule], testContext()) !== null;
+    return evaluateRoutingRules([rule], testContext(), policyConfig) !== null;
   }
 
   function handleTest() {
@@ -298,7 +300,7 @@ export function RuleTestPanel({ rules }: RuleTestPanelProps) {
                     // is still marked — at render, where the rule is in hand.
                     // The marker used to be baked into the id string, which
                     // made this very lookup miss and left the rule nameless.
-                    const broken = r ? diagnoseRule(r).length > 0 : false;
+                    const broken = r ? diagnoseRule(r, { config: policyConfig }).length > 0 : false;
                     return (
                       <li key={id} className="flex items-center gap-1.5 text-xs text-gray-600">
                         <span className="font-mono text-amber-600">{id}</span>
