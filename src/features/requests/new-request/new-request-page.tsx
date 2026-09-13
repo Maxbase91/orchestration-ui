@@ -151,6 +151,7 @@ export function NewRequestPage() {
     category: formData.category,
     estimatedValue: formData.estimatedValue,
     supplierId: formData.supplierId,
+    commodityCode: formData.commodityCode,
     isUrgent: formData.isUrgent,
     requestTitle: formData.title,
     serviceDescription: formData.serviceDescription,
@@ -746,6 +747,8 @@ export function NewRequestPage() {
             category={formData.category}
             estimatedValue={formData.estimatedValue}
             supplierId={formData.supplierId}
+            isUrgent={formData.isUrgent}
+            commodityCode={formData.commodityCode}
             llmIntent={formData.llmIntent}
             onChooseCatalogue={(items: CatalogueItem[]) => {
               const primary = items[0];

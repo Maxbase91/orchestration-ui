@@ -76,6 +76,15 @@ export interface IntakeDeterminationInput {
   miniIrq: { privilegedAccess?: boolean; criticalService?: boolean };
   /** A contract the buy-route step already matched, when there is one. */
   contractId?: string;
+  /**
+   * The confirmed commodity classification, when the requester has one.
+   *
+   * `SUPPORTED_FIELDS` has always evaluated `commodityCode` and no caller ever
+   * supplied it, so active rules RR-007 and RR-009 — both keyed on
+   * `commodityCode starts_with` — could never match, while `diagnoseRule`
+   * reported them healthy because the field is in the supported vocabulary.
+   */
+  commodityCode?: string;
   /** Today, as YYYY-MM-DD. Injected so the same inputs always give one answer. */
   now: string;
   suppliers: Supplier[];
@@ -331,6 +340,10 @@ export function evaluateIntakeDetermination(input: IntakeDeterminationInput): In
     riskRating: inherentRisk.tier,
     material: materiality.material,
     pCardEligible: pCard.eligible,
+    commodityCode: input.commodityCode,
+    // No region on the demand model yet; named so the gap is visible rather
+    // than an omission. A rule keyed on it is flagged by diagnoseRule.
+    region: undefined,
   });
 
   // `requests.approval_chain` is an FK to approval_chains.id. Routing rules

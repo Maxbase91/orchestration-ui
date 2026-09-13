@@ -36,6 +36,16 @@ export function UrgencyChannelNote({
     category,
     value: estimatedValue,
     supplierId,
+    // Held constant on both sides of the comparison, so they cancel out. Named
+    // explicitly because DemandChannelInput requires every key — an omission
+    // here is what let the buy-route step silently drop urgency.
+    contractId: undefined,
+    isUrgent: undefined,
+    riskRating: undefined,
+    material: undefined,
+    region: undefined,
+    commodityCode: undefined,
+    pCardEligible: undefined,
   });
 
   // Silent when urgency changes nothing — a warning that is always on is one

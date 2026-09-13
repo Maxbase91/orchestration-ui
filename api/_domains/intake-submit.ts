@@ -5,7 +5,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getNeonClient, queryRows } from '../_neon.js';
 import { getDbAdmin } from '../_db-admin.js';
 import { approvalRows, deriveApprovalsFor, resolveChainId } from '../../src/lib/db/approvals-core.js';
-import { firstActionableStage } from '../../src/lib/workflow/buying-channel-stages.js';
+import { BUYING_CHANNELS, firstActionableStage } from '../../src/lib/workflow/buying-channel-stages.js';
 import { nodeIdForStatus } from '../../src/lib/workflow/node-config.js';
 import { slaDeadlineFor } from '../../src/lib/workflow/business-days.js';
 
@@ -80,8 +80,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     const title = requiredString(request.title, 'title');
     const category = requiredString(request.category, 'category');
     const buyingChannel = requiredString(payload.buyingChannel ?? request.buyingChannel, 'buyingChannel').toLowerCase();
-    const allowedChannels = new Set(['catalogue', 'framework-call-off', 'p-card', 'direct-po', 'procurement-led', 'sourcing', 'contracting']);
-    if (!allowedChannels.has(buyingChannel)) throw new IntakeError('validation_error', 422, 'Select a valid procurement route.', { buyingChannel: 'Choose a valid route' });
+    // From the channel map, not a second hand-written list. The copy that used
+    // to be here omitted `business-led` while including `sourcing` and
+    // `contracting`, which nothing produces — so the one channel the fallback
+    // reaches for a mid-value demand was the one channel submit refused.
+    if (!BUYING_CHANNELS.includes(buyingChannel as typeof BUYING_CHANNELS[number])) {
+      throw new IntakeError('validation_error', 422, 'Select a valid procurement route.', { buyingChannel: 'Choose a valid route' });
+    }
     const value = Number(request.value ?? 0);
     if (!Number.isFinite(value) || value < 0) throw new IntakeError('validation_error', 422, 'Estimated value must be zero or greater.', { value: 'Enter a valid amount' });
     const deliveryDate = optionalIsoDate(request.deliveryDate, 'deliveryDate');

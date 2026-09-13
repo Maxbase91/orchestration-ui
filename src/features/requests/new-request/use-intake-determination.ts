@@ -36,6 +36,7 @@ const EMPTY_APPROVAL_CHAINS: ApprovalChain[] = [];
 export interface UseIntakeDeterminationInput {
   category: string;
   estimatedValue: number;
+  commodityCode?: string;
   supplierId: string;
   isUrgent: boolean;
   requestTitle?: string;
@@ -70,7 +71,7 @@ export function useIntakeDetermination(
   const loading = Boolean(input.supplierId) && !matchesFetched;
 
   const {
-    category, estimatedValue, supplierId, isUrgent, requestTitle, serviceDescription,
+    category, estimatedValue, supplierId, isUrgent, requestTitle, serviceDescription, commodityCode,
     miniIrq, contractId,
   } = input;
 
@@ -79,6 +80,7 @@ export function useIntakeDetermination(
     return evaluateIntakeDetermination({
       category,
       estimatedValue,
+      commodityCode,
       supplierId,
       isUrgent,
       requestTitle,
@@ -96,7 +98,7 @@ export function useIntakeDetermination(
       validatorAgent: validatorAgent ?? undefined,
     });
   }, [
-    loading, category, estimatedValue, supplierId, isUrgent, requestTitle, serviceDescription,
+    loading, category, estimatedValue, supplierId, isUrgent, requestTitle, serviceDescription, commodityCode,
     miniIrq, contractId, suppliers, contracts, matches, routingRules, approvalChains, validatorAgent,
   ]);
 

@@ -155,6 +155,41 @@ for (const [file, release] of [
   else bad(`${file.split('/').pop()} releases its buffer`, 'the shadow is never cleared, so a saved row renders stale');
 }
 
+// ── Routing: the editor, the evaluator and the submit gate agree ────────────
+console.log('\nRouting rules are reachable end to end');
+const evaluator = readFileSync(new URL('src/lib/routing/evaluate-routing-rules.ts', ROOT), 'utf8');
+const channelMap = readFileSync(new URL('src/lib/workflow/buying-channel-stages.ts', ROOT), 'utf8');
+const submitter = readFileSync(new URL('api/_domains/intake-submit.ts', ROOT), 'utf8');
+const editorPanel = readFileSync(new URL('src/features/admin/routing-rules/components/rule-editor-panel.tsx', ROOT), 'utf8');
+
+// `business-led` 422'd at submit because the writer restated the channel list.
+if (/const allowedChannels = new Set\(\[/.test(submitter)) {
+  bad('the submit gate derives its channels', 'a second hand-written channel list is back');
+} else ok('the submit gate derives its channels from the map');
+
+// Every channel the rule editor offers must be one the map knows, or a rule
+// can route somewhere the lifecycle cannot describe.
+const mapChannels = new Set([...channelMap.matchAll(/^\s+'?([a-z-]+)'?:\s+\['intake'/gm)].map((m) => m[1]));
+// Scoped to the channel array — the file also declares approval-chain options
+// in the same shape, and matching both reported chains as unroutable channels.
+const channelBlock = /const BUYING_CHANNEL_OPTIONS[^=]*=\s*\[([\s\S]*?)\];/.exec(editorPanel)?.[1] ?? '';
+const editorChannels = [...channelBlock.matchAll(/value: '([a-z-]+)'/g)].map((m) => m[1]);
+const unroutable = editorChannels.filter((c) => !mapChannels.has(c));
+if (unroutable.length === 0) ok(`all ${editorChannels.length} editor channels exist in the stage map`);
+else bad('every editor channel exists in the stage map', unroutable.join(', '));
+
+// The AND/OR toggle claimed a semantic the evaluator does not have.
+if (/setLogicMode/.test(editorPanel)) {
+  bad('the editor does not offer OR', 'ruleMatches uses `every`; an OR toggle is a lie');
+} else ok('the editor does not offer a logic mode the evaluator lacks');
+
+// A counter nothing increments must not be presented as live.
+const listPanel = readFileSync(new URL('src/features/admin/routing-rules/components/rule-list-panel.tsx', ROOT), 'utf8');
+const incrementsMatchCount = /match_count\s*=\s*match_count\s*\+|matchCount:\s*\w+\.matchCount\s*\+/.test(evaluator + submitter);
+if (/rule\.matchCount/.test(listPanel) && !incrementsMatchCount) {
+  bad('match count is not shown unless something writes it', 'nothing increments routing_rules.match_count');
+} else ok('no live-looking counter without a writer');
+
 // ── Live: no request sits in a stage its channel skips ──────────────────────
 const env = loadEnv();
 const connection = env.NEON_DATABASE_URL ?? env.DATABASE_URL;

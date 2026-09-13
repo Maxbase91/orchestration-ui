@@ -68,9 +68,26 @@ export interface RuleDiagnostic {
  * Returns [] for a healthy rule, so `diagnose(...).length > 0` reads as "this
  * rule is broken".
  */
+/**
+ * Fields the vocabulary supports and no production caller supplies.
+ *
+ * `diagnoseRule` used to check only the vocabulary, so a rule keyed on a field
+ * nothing populates read as healthy. `commodityCode` sat here for months —
+ * RR-007 and RR-009 were active, showed match counts of 62 and 24, and could
+ * never fire. It is supplied now; `region` is not, because the demand model has
+ * no such field yet.
+ *
+ * Anything listed here must be removed from the list the moment a caller starts
+ * passing it, or the diagnostic becomes the false alarm instead.
+ */
+const UNPOPULATED_FIELDS: readonly string[] = ['region'];
+
 export function diagnoseRule(rule: RoutingRule): string[] {
   const problems: string[] = [];
   for (const c of rule.conditions ?? []) {
+    if (UNPOPULATED_FIELDS.includes(c.field)) {
+      problems.push(`Nothing supplies "${c.field}" yet, so this condition can never be true.`);
+    }
     if (!(SUPPORTED_FIELDS as readonly string[]).includes(c.field)) {
       problems.push(`Unknown field "${c.field}" — this condition can never be true.`);
     }

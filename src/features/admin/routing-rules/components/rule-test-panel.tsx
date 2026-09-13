@@ -109,7 +109,10 @@ export function RuleTestPanel({ rules }: RuleTestPanelProps) {
       } else {
         // "Did not match these inputs" and "can never match anything" are very
         // different findings; a broken rule is flagged as broken.
-        dead.push(diagnoseRule(rule).length > 0 ? `${rule.id} (broken)` : rule.id);
+        // The bare id — the consumer looks the rule back up by it. Decorating
+        // it here ("RR-007 (broken)") made that lookup miss, so the one rule
+        // the admin most needs labelled rendered with no name at all.
+        dead.push(rule.id);
       }
     }
 
@@ -290,10 +293,21 @@ export function RuleTestPanel({ rules }: RuleTestPanelProps) {
                 <ul className="mt-2 space-y-1">
                   {coverage.deadRules.map((id) => {
                     const r = rules.find((rule) => rule.id === id);
+                    // "Did not match these inputs" and "can never match
+                    // anything" are very different findings, so a broken rule
+                    // is still marked — at render, where the rule is in hand.
+                    // The marker used to be baked into the id string, which
+                    // made this very lookup miss and left the rule nameless.
+                    const broken = r ? diagnoseRule(r).length > 0 : false;
                     return (
                       <li key={id} className="flex items-center gap-1.5 text-xs text-gray-600">
                         <span className="font-mono text-amber-600">{id}</span>
                         <span>{r?.name}</span>
+                        {broken && (
+                          <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
+                            can never match
+                          </span>
+                        )}
                       </li>
                     );
                   })}

@@ -8,6 +8,15 @@ import { RuleTestPanel } from './components/rule-test-panel';
 import { diagnoseRules } from '@/lib/routing/evaluate-routing-rules';
 import { AlertTriangle } from 'lucide-react';
 
+/** The next free RR-nnn, so a deletion cannot make a new rule reuse an id. */
+function nextRuleId(existing: { id: string }[]): string {
+  const highest = existing.reduce((max, rule) => {
+    const n = Number(/^RR-(\d+)$/.exec(rule.id)?.[1] ?? 0);
+    return Number.isFinite(n) && n > max ? n : max;
+  }, 0);
+  return `RR-${String(highest + 1).padStart(3, '0')}`;
+}
+
 export function RoutingRulesPage() {
   const { data: serverRules = [] } = useRoutingRules();
   // `null` until the page owns an edited copy: before the first edit the server
@@ -41,7 +50,10 @@ export function RoutingRulesPage() {
   // optimization to keep a memo that was buying nothing.
   const handleAddRule = () => {
     const newRule: RoutingRule = {
-      id: `RR-${String(rules.length + 1).padStart(3, '0')}`,
+      // Highest existing number + 1, not the count. `rules.length + 1` reused
+      // an id after any deletion, and saveRoutingRule upserts on id — so a new
+      // rule silently overwrote a live one.
+      id: nextRuleId(rules),
       name: 'New Rule',
       status: 'draft',
       conditions: [{ field: 'value', operator: 'greater_than', value: '' }],

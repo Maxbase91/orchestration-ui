@@ -3,7 +3,6 @@ import { Save, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import {
   Select,
   SelectContent,
@@ -101,13 +100,10 @@ export function RuleEditorPanel({ rule, onSaved }: RuleEditorPanelProps) {
   const [conditions, setConditions] = useState<{ field: string; operator: string; value: string }[]>(
     rule ? [...rule.conditions] : [],
   );
-  const [logicMode, setLogicMode] = useState<'AND' | 'OR'>('AND');
   const [buyingChannel, setBuyingChannel] = useState<BuyingChannel>(
     rule?.action.buyingChannel ?? 'procurement-led',
   );
   const [approvalChain, setApprovalChain] = useState(rule?.action.approvalChain ?? 'line-manager');
-  const [triggerNotification, setTriggerNotification] = useState(false);
-  const [flagForReview, setFlagForReview] = useState(false);
 
   const plainEnglish = useMemo(() => {
     if (conditions.length === 0) return 'No conditions defined.';
@@ -124,10 +120,12 @@ export function RuleEditorPanel({ rule, onSaved }: RuleEditorPanelProps) {
       return `${field} ${op} ${val}`;
     });
 
-    const joined = parts.join(` ${logicMode} `);
+    // Always AND — ruleMatches uses `every`. The preview said whatever the
+    // removed toggle was set to, which could contradict the evaluator.
+    const joined = parts.join(' AND ');
     const channel = CHANNEL_LABELS[buyingChannel] || buyingChannel;
     return `If ${joined}, route to ${channel}.`;
-  }, [conditions, logicMode, buyingChannel]);
+  }, [conditions, buyingChannel]);
 
   function addCondition() {
     setConditions((prev) => [...prev, { field: 'value', operator: 'equals', value: '' }]);
@@ -209,14 +207,16 @@ export function RuleEditorPanel({ rule, onSaved }: RuleEditorPanelProps) {
             {conditions.map((condition, index) => (
               <div key={index}>
                 {index > 0 && (
+                  // A label, not a toggle. This was a button flipping between
+                  // AND and OR: the evaluator is unconditionally `every`
+                  // (ruleMatches), the choice was never saved, and it was
+                  // discarded on remount — so it changed the preview sentence
+                  // and nothing else. Conditions are ANDed; saying so is the
+                  // honest version.
                   <div className="my-2 flex justify-center">
-                    <button
-                      type="button"
-                      onClick={() => setLogicMode((m) => (m === 'AND' ? 'OR' : 'AND'))}
-                      className="rounded-full border border-gray-200 bg-white px-3 py-0.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
-                    >
-                      {logicMode}
-                    </button>
+                    <span className="rounded-full border border-gray-200 bg-gray-50 px-3 py-0.5 text-xs font-medium text-gray-500">
+                      AND
+                    </span>
                   </div>
                 )}
                 <ConditionCard
@@ -270,15 +270,11 @@ export function RuleEditorPanel({ rule, onSaved }: RuleEditorPanelProps) {
               </Select>
             </div>
 
-            <div className="flex items-center justify-between">
-              <Label className="text-xs text-gray-500">Trigger Notification</Label>
-              <Switch checked={triggerNotification} onCheckedChange={setTriggerNotification} />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <Label className="text-xs text-gray-500">Flag for Review</Label>
-              <Switch checked={flagForReview} onCheckedChange={setFlagForReview} />
-            </div>
+            {/* "Trigger Notification" and "Flag for Review" switches were here.
+                Neither had a field on RoutingRule or a column on routing_rules,
+                so nothing could have consumed them even if the save had sent
+                them — which it did not. Removed rather than wired: there is no
+                notification or review mechanism for a rule match to feed. */}
           </div>
         </div>
 

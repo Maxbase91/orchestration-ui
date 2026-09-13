@@ -54,6 +54,15 @@ interface StepBuyRouteProps {
   category: string;
   estimatedValue: number;
   supplierId: string;
+  /**
+   * Urgency and classification reach the routing call here.
+   *
+   * They used to be absent, so this screen's channel and the determination's
+   * could disagree on the same demand: RR-010 (urgent fast-track) and every
+   * p-card rule fired on one and not the other.
+   */
+  isUrgent?: boolean;
+  commodityCode?: string;
   /** api/ai.ts `intent` from the describe step — authoritative when honourable. */
   llmIntent?: string;
   onChooseCatalogue: (items: CatalogueItem[]) => void;
@@ -134,6 +143,7 @@ function RouteOption({
 
 export function StepBuyRoute({
   title, demandDetail = '', category, estimatedValue, supplierId, llmIntent,
+  isUrgent, commodityCode,
   onChooseCatalogue, onChooseContract, onProceedToFullRequest, onEnrich,
 }: StepBuyRouteProps) {
   // Reads go through the standardised source-connector layer (own store today,
@@ -265,8 +275,14 @@ export function StepBuyRoute({
       contractId: contractMatches[0]?.contract.id,
       riskRating: signals.inherentRiskTier,
       material: signals.material,
+      isUrgent,
+      commodityCode,
+      region: undefined,
+      // Not yet proven at this step — evaluatePCardEligibility runs with the
+      // determination. Named so the omission is deliberate, not forgotten.
+      pCardEligible: undefined,
     }),
-    [routingRules, category, estimatedValue, supplierId, contractMatches, signals],
+    [routingRules, category, estimatedValue, supplierId, contractMatches, signals, isUrgent, commodityCode],
   );
 
   const timelineByCategory = useMemo(() => {

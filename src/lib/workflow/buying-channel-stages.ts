@@ -42,6 +42,18 @@ const STAGES_BY_CHANNEL: Record<BuyingChannel, RequestStatus[]> = {
   'procurement-led':    ['intake', 'validation', 'risk', 'onboarding', 'approval', 'sourcing', 'contracting', 'po', 'receipt', 'invoice', 'payment'],
 };
 
+/**
+ * Every channel the platform can route a demand to.
+ *
+ * Derived from the map rather than restated, because a restated copy is what
+ * broke: api/_domains/intake-submit.ts validated the submitted channel against
+ * its own hand-written set, which omitted `business-led` — a channel the
+ * fallback produces for any EUR 25-50k demand outside consulting, and one a
+ * seeded routing rule targets by name. The platform chose the route and then
+ * rejected it with a 422 the requester could do nothing about.
+ */
+export const BUYING_CHANNELS = Object.keys(STAGES_BY_CHANNEL) as BuyingChannel[];
+
 const FULL_LIFECYCLE: RequestStatus[] = [
   'intake', 'validation', 'approval', 'sourcing', 'contracting', 'po', 'receipt', 'invoice', 'payment',
 ];

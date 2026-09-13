@@ -16,20 +16,42 @@ import type { RiskTier } from '@/lib/procurement/risk-segmentation';
 import type { BuyingChannel, RoutingRule } from '@/data/types';
 import { resolveRouting, type RoutingMatch } from './evaluate-routing-rules';
 
+/**
+ * Every routing input, and every one of them required.
+ *
+ * They are required rather than optional on purpose. The header above says both
+ * screens call this so they cannot drift — and they drifted anyway, because
+ * optional fields let a caller omit one silently: the buy-route step left out
+ * `isUrgent` and `pCardEligible`, so RR-010 "Urgent request fast-track" and
+ * every p-card rule could fire on the determination and never on the screen
+ * shown two steps earlier. Same demand, two answers, no error.
+ *
+ * `undefined` is still a legitimate value for most of these — it means "not
+ * known at this point in the wizard". Requiring the key just makes not knowing
+ * a decision the caller writes down rather than an omission nobody sees.
+ */
 export interface DemandChannelInput {
   category: string;
   value: number;
-  supplierId?: string;
+  supplierId: string | undefined;
   /** A transactable contract already covers this — known from the pre-check. */
-  contractId?: string;
-  isUrgent?: boolean;
+  contractId: string | undefined;
+  isUrgent: boolean | undefined;
   /** The inherent-risk tier, when it has been computed. */
-  riskRating?: RiskTier;
+  riskRating: RiskTier | undefined;
   /** The materiality / regulatory flag, when it has been determined. */
-  material?: boolean;
-  region?: string;
+  material: boolean | undefined;
+  region: string | undefined;
+  /**
+   * The demand's commodity classification. `SUPPORTED_FIELDS` has always
+   * evaluated it and this type had no member for it, so RR-007 and RR-009 —
+   * both active, both keyed on `commodityCode starts_with` — could never match
+   * anything, while `diagnoseRule` reported them healthy because the field is
+   * in the supported vocabulary.
+   */
+  commodityCode: string | undefined;
   /** Eligibility must be proven by evaluatePCardEligibility before routing. */
-  pCardEligible?: boolean;
+  pCardEligible: boolean | undefined;
 }
 
 /**
@@ -53,6 +75,7 @@ export function resolveDemandChannel(
     riskRating: input.riskRating,
     material: input.material,
     region: input.region,
+    commodityCode: input.commodityCode,
     pCardEligible: input.pCardEligible,
   });
 }

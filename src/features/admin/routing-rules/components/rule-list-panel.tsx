@@ -6,7 +6,7 @@ import { useMemo } from 'react';
 import { Plus, GripVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/shared/status-badge';
-import { formatRelativeTime, formatNumber } from '@/lib/format';
+import { formatRelativeTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { RoutingRule } from '@/data/types';
 
@@ -62,9 +62,12 @@ export function RuleListPanel({ rules, selectedRuleId, onSelectRule, onAddRule }
                   </div>
                   <div className="mt-1 flex items-center gap-2">
                     <StatusBadge status={rule.status} size="sm" />
-                    <span className="text-xs text-gray-500">
-                      {formatNumber(rule.matchCount)} matches
-                    </span>
+                    {/* The match count was here. Nothing increments
+                        routing_rules.match_count — the evaluator is pure and
+                        takes no persistence handle — so the number was seed
+                        data that re-saved unchanged on every edit and looked
+                        maintained. Showing a live-looking counter that never
+                        moves is worse than showing none. */}
                   </div>
                   <p className="mt-1 text-xs text-gray-400">
                     Modified {formatRelativeTime(rule.lastModified)}
