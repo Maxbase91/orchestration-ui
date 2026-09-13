@@ -28,7 +28,11 @@ export const workflowTemplates: WorkflowTemplate[] = [
       { id: 'n10', type: 'stage', label: 'Invoice', x: 1250, y: 200, role: 'Accounts Payable', slaDays: 5, gate: 'manual' as const, purpose: 'Invoice received and matched to the PO and receipt.' },
       { id: 'n11', type: 'stage', label: 'Payment', x: 1400, y: 200, role: 'Finance', slaDays: 3, gate: 'manual' as const, purpose: 'Payment released to the supplier.' },
       { id: 'n12', type: 'end', label: 'Completed', x: 1550, y: 200 },
-      { id: 'n13', type: 'error', label: 'Referred Back', x: 500, y: 400 },
+      // Referred-back is an error node, not a stage, so no stage lookup reaches it.
+      // Its SLA measures the *requester's* time to respond — a request parked here
+      // for weeks is exactly what nobody notices today.
+      { id: 'n13', type: 'error', label: 'Referred Back', x: 500, y: 400, slaDays: 3 },
+      { id: 'n15', type: 'stage', label: 'Vendor Onboarding', x: 760, y: 60, role: 'Vendor management', slaDays: 5, gate: 'manual' as const, purpose: 'Create and screen the supplier so they can be invited to market and assessed' },
     ],
     edges: [
       { source: 'n1', target: 'n2' },
@@ -38,7 +42,11 @@ export const workflowTemplates: WorkflowTemplate[] = [
       // 'Skip risk' is the catch-all for demand that does not need one.
       { source: 'n3', target: 'n14', label: 'Risk required' },
       { source: 'n3', target: 'n4', label: 'Skip risk' },
-      { source: 'n14', target: 'n4' },
+      // Onboarding is entered only when the supplier is not yet on the register.
+      // 'Onboarding required' is listed first so it is evaluated first.
+      { source: 'n14', target: 'n15', label: 'Onboarding required' },
+      { source: 'n15', target: 'n4' },
+      { source: 'n14', target: 'n4', label: 'Skip onboarding' },
       { source: 'n4', target: 'n5', label: 'Needs Approval' },
       { source: 'n4', target: 'n6', label: 'Direct to Sourcing' },
       { source: 'n5', target: 'n7', label: 'Approved' },
@@ -59,12 +67,12 @@ export const workflowTemplates: WorkflowTemplate[] = [
     type: 'catalogue',
     nodes: [
       { id: 'n1', type: 'start', label: 'Catalogue Order', x: 50, y: 150 },
-      { id: 'n2', type: 'stage', label: 'Auto-Validate', x: 200, y: 150 },
+      { id: 'n2', type: 'stage', label: 'Auto-Validate', x: 200, y: 150, slaDays: 1 },
       { id: 'n3', type: 'decision', label: 'Value Check', x: 350, y: 150 },
-      { id: 'n4', type: 'stage', label: 'Manager Approval', x: 500, y: 50 },
-      { id: 'n5', type: 'stage', label: 'Auto-PO', x: 500, y: 250 },
-      { id: 'n6', type: 'stage', label: 'PO Created', x: 650, y: 150 },
-      { id: 'n7', type: 'stage', label: 'Receipt', x: 800, y: 150 },
+      { id: 'n4', type: 'stage', label: 'Manager Approval', x: 500, y: 50, slaDays: 3 },
+      { id: 'n5', type: 'stage', label: 'Auto-PO', x: 500, y: 250, slaDays: 1 },
+      { id: 'n6', type: 'stage', label: 'PO Created', x: 650, y: 150, slaDays: 2 },
+      { id: 'n7', type: 'stage', label: 'Receipt', x: 800, y: 150, slaDays: 5 },
       { id: 'n8', type: 'end', label: 'Complete', x: 950, y: 150 },
     ],
     edges: [
@@ -85,15 +93,15 @@ export const workflowTemplates: WorkflowTemplate[] = [
     type: 'onboarding',
     nodes: [
       { id: 'n1', type: 'start', label: 'Onboarding Request', x: 50, y: 200 },
-      { id: 'n2', type: 'stage', label: 'Initial Review', x: 200, y: 200 },
-      { id: 'n3', type: 'stage', label: 'Due Diligence', x: 350, y: 200 },
+      { id: 'n2', type: 'stage', label: 'Initial Review', x: 200, y: 200, slaDays: 2 },
+      { id: 'n3', type: 'stage', label: 'Due Diligence', x: 350, y: 200, slaDays: 5 },
       { id: 'n4', type: 'parallel', label: 'Parallel Checks', x: 500, y: 200 },
-      { id: 'n5', type: 'stage', label: 'Sanctions Screening', x: 650, y: 80 },
-      { id: 'n6', type: 'stage', label: 'Financial Check', x: 650, y: 200 },
-      { id: 'n7', type: 'stage', label: 'SRA Assessment', x: 650, y: 320 },
+      { id: 'n5', type: 'stage', label: 'Sanctions Screening', x: 650, y: 80, slaDays: 2 },
+      { id: 'n6', type: 'stage', label: 'Financial Check', x: 650, y: 200, slaDays: 3 },
+      { id: 'n7', type: 'stage', label: 'SRA Assessment', x: 650, y: 320, slaDays: 7 },
       { id: 'n8', type: 'decision', label: 'Risk Decision', x: 850, y: 200 },
-      { id: 'n9', type: 'stage', label: 'Compliance Approval', x: 1000, y: 100 },
-      { id: 'n10', type: 'stage', label: 'System Setup', x: 1150, y: 200 },
+      { id: 'n9', type: 'stage', label: 'Compliance Approval', x: 1000, y: 100, slaDays: 3 },
+      { id: 'n10', type: 'stage', label: 'System Setup', x: 1150, y: 200, slaDays: 2 },
       { id: 'n11', type: 'end', label: 'Active Supplier', x: 1300, y: 200 },
       { id: 'n12', type: 'error', label: 'Rejected', x: 1000, y: 350 },
     ],
@@ -120,13 +128,13 @@ export const workflowTemplates: WorkflowTemplate[] = [
     type: 'renewal',
     nodes: [
       { id: 'n1', type: 'start', label: 'Renewal Trigger', x: 50, y: 200 },
-      { id: 'n2', type: 'stage', label: 'Performance Review', x: 200, y: 200 },
+      { id: 'n2', type: 'stage', label: 'Performance Review', x: 200, y: 200, slaDays: 5 },
       { id: 'n3', type: 'decision', label: 'Renew or Recompete?', x: 400, y: 200 },
-      { id: 'n4', type: 'stage', label: 'Market Benchmark', x: 600, y: 100 },
-      { id: 'n5', type: 'stage', label: 'Negotiation', x: 600, y: 300 },
-      { id: 'n6', type: 'stage', label: 'Sourcing (RFP)', x: 800, y: 100 },
-      { id: 'n7', type: 'stage', label: 'Approval', x: 800, y: 300 },
-      { id: 'n8', type: 'stage', label: 'Contract Execution', x: 1000, y: 200 },
+      { id: 'n4', type: 'stage', label: 'Market Benchmark', x: 600, y: 100, slaDays: 10 },
+      { id: 'n5', type: 'stage', label: 'Negotiation', x: 600, y: 300, slaDays: 15 },
+      { id: 'n6', type: 'stage', label: 'Sourcing (RFP)', x: 800, y: 100, slaDays: 20 },
+      { id: 'n7', type: 'stage', label: 'Approval', x: 800, y: 300, slaDays: 5 },
+      { id: 'n8', type: 'stage', label: 'Contract Execution', x: 1000, y: 200, slaDays: 10 },
       { id: 'n9', type: 'end', label: 'Active Contract', x: 1200, y: 200 },
     ],
     edges: [

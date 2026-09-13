@@ -16,7 +16,7 @@ Admin is the platform's control plane — all configuration that changes platfor
 
 FR10-01 · **Categories** (`/admin/categories`): full CRUD on `procurement_categories` table. Fields: id (slug), label, description, timeline_days, sort_order, active. Changes visible in New Request Step 1 immediately.
 
-FR10-02 · **SLA Targets** (`/admin/sla-targets`): set days per stage (default channel). Changes propagate to bottleneck chart, stuck requests, timeline view — all read `useSlaTargets()`.
+FR10-02 · **SLA Targets** (`/admin/sla-targets`): **read-only view of template-owned stage SLAs.** The workflow template is the single source — a stage's SLA is its node's `slaDays`, set in the Workflow Designer (`/admin/workflows`). The bottleneck chart, stuck requests and timeline view read `useStageSlas()`, which derives from the templates; `requests.sla_deadline` is computed from the same node by `slaDeadlineFor()`. `sla_targets` is no longer a stage-SLA table — it retains only its `stage='ticket'` rows, which set ticket first-response targets by priority.
 
 FR10-03 · (Future) **Buying Channels** (`/admin/channels`): `buying_channels` table — admin-managed channel definitions.
 
