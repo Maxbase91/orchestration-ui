@@ -270,6 +270,24 @@ export async function installDbStub(target, overrides = {}) {
     }
 
     const table = payload.table ?? '';
+    // A `*_with_derived` view with no fixture of its own falls back to its base
+    // table, with the `_live` columns the real view adds.
+    //
+    // The database computes these from joins the stub has no way to run. Before
+    // this, pointing a read at a new view returned empty and the screen rendered
+    // its empty state — which is how requests_with_derived broke
+    // test:request-detail-ui the moment src/lib/db/requests.ts started reading
+    // it. suppliers_with_derived and contracts_with_derived carry explicit
+    // fixtures and are left alone.
+    if (!tables[table] && table.endsWith('_with_derived')) {
+      const base = table.slice(0, -'_with_derived'.length);
+      tables[table] = (tables[base] ?? []).map((row) => ({
+        ...row,
+        // Not a real elapsed-time computation — enough that a screen reading
+        // the live column gets the fixture's number rather than undefined.
+        days_in_stage_live: row.days_in_stage ?? 0,
+      }));
+    }
     // An unknown table answers empty rather than erroring: a screen reading a
     // table this fixture set does not model should render its empty state.
     tables[table] ??= [];
