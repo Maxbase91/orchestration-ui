@@ -5,7 +5,9 @@ import type { StageHistoryEntry } from '@/data/types';
 import { useUserLookup, useUsers } from '@/lib/db/hooks/use-users';
 import { useSupplierLookup } from '@/lib/db/hooks/use-suppliers';
 import { requestPrePopulateValues } from '@/lib/procurement/form-prepopulate';
-import { evalCondition } from '@/lib/routing/evaluate-routing-rules';
+import { outstandingForms } from '@/lib/forms/form-triggers';
+import { useFormTriggerContext } from '@/lib/forms/use-form-trigger-context';
+import { usePolicyConfig } from '@/lib/procurement/use-policy-config';
 import { formatDate } from '@/lib/format';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -513,18 +515,11 @@ function FormsSection({
   // The lookup returns the supplier record; the form wants its name.
   const supplier = useSupplierLookup()(request?.supplierId);
 
-  // What a trigger condition is evaluated against. The same shape routing
-  // rules use, so the two config surfaces share one vocabulary instead of
-  // drifting into two.
-  const triggerContext = useMemo(() => ({
-    category: request?.category ?? requestCategory,
-    value: request?.value,
-    supplierId: request?.supplierId,
-    commodityCode: request?.commodityCode,
-    priority: request?.priority,
-    isUrgent: request?.isUrgent,
-    contractId: request?.contractId,
-  }), [request, requestCategory]);
+  // Shared with the blocking gate in action-buttons.tsx. It was built inline
+  // here and not at all there, which is how the two gates came to disagree
+  // about which forms a stage is asking for.
+  const triggerContext = useFormTriggerContext(request, requestCategory);
+  const policyConfig = usePolicyConfig();
   const prePopulateContext = useMemo(
     () => ({
       // The request half. Every token the Form Builder offers now has a
@@ -545,35 +540,22 @@ function FormsSection({
   // Get actual form submissions for this stage
   const submissions = forStage(requestId, stage);
 
-  // For current steps, check for triggered forms that haven't been submitted
-  const triggeredForms: FormTemplate[] = [];
-  if (status === 'current') {
-    const allFormsForStage = templatesForStage(stage);
-    for (const form of allFormsForStage) {
-      // Trigger conditions, through the routing evaluator.
-      //
-      // This was an inline `.some()` that implemented `category equals` and
-      // returned `true` for everything else — so any unrecognised condition
-      // made the whole set pass, and a form configured "category equals
-      // software AND value greater_than 100000" fired on every request. The
-      // Form Builder offers five operators and one of them worked, while its
-      // own preview described the conditions as ANDed.
-      //
-      // `every` with an explicit `false` default now, matching both the
-      // builder's wording and the routing evaluator this borrows.
-      if (form.triggerConditions && form.triggerConditions.length > 0) {
-        const conditionMet = form.triggerConditions.every(
-          (cond) => evalCondition(cond.field, cond.operator, cond.value, triggerContext),
-        );
-        if (!conditionMet) continue;
-      }
-      // Check if already submitted
-      const alreadySubmitted = submissions.some((s) => s.formTemplateId === form.id);
-      if (!alreadySubmitted) {
-        triggeredForms.push(form);
-      }
-    }
-  }
+  // For current steps, the forms this stage is still asking for.
+  //
+  // One predicate, shared with the advance action's blocking gate — see
+  // src/lib/forms/form-triggers.ts. This loop used to evaluate conditions
+  // while that gate did not, so a conditional AND blocking template would
+  // strand every request in its stage: never rendered, never unlockable.
+  const triggeredForms: FormTemplate[] =
+    status === 'current'
+      ? outstandingForms(
+        templatesForStage(stage),
+        new Set(submissions.map((s) => s.formTemplateId)),
+        stage,
+        triggerContext,
+        policyConfig,
+      )
+      : [];
 
   const handleFormSubmit = useCallback(
     async (form: FormTemplate, values: Record<string, string | string[] | boolean>) => {

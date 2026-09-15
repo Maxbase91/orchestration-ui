@@ -95,10 +95,19 @@ try {
   console.log('\nThe risk form pre-populates from the description');
   const fillOutButtons = column.getByRole('button', { name: 'Fill Out Form' });
   const fillOutCount = await fillOutButtons.count();
-  // Regression for forStage() never checking template status: the fixture
-  // also seeds a `draft` form on the same stage (FT-RISK-2-DRAFT) \u2014 it must
-  // never be offered, so exactly one "Fill Out Form" button should exist.
-  check('only the active form is offered (draft form excluded)', fillOutCount === 1, `found ${fillOutCount}`);
+  // Two forms on this stage must NOT be offered: FT-RISK-2-DRAFT (regression
+  // for forStage() never checking template status) and
+  // FT-RISK-3-SOFTWARE-ONLY, whose condition excludes this consulting demand.
+  // So exactly one "Fill Out Form" button should exist.
+  check('only the active, applicable form is offered', fillOutCount === 1, `found ${fillOutCount}`);
+  const bodyText = await page.locator('body').innerText();
+  check('a form whose conditions exclude this request is not offered',
+    !/Software licensing addendum/.test(bodyText),
+    'FT-RISK-3-SOFTWARE-ONLY is software-only and this demand is consulting');
+  // The blocking gate is NOT asserted here: this context runs as admin, which
+  // is deliberately exempt from it, so any assertion about the gate would pass
+  // whether or not the bug existed. It is exercised as vendor-manager below —
+  // the role that actually advances the risk stage.
   const fillOut = fillOutButtons.first();
   const hasForm = await fillOut.isVisible().catch(() => false);
   check('the risk stage offers its triggered form', hasForm);
@@ -147,6 +156,32 @@ try {
   check('no \"trim is not a function\"',
     !pageErrors.some((m) => /trim is not a function/.test(m)),
     pageErrors.find((m) => /trim is not a function/.test(m)));
+
+  // ── The blocking gate, as the role it applies to ─────────────────────────
+  // FT-RISK-3-SOFTWARE-ONLY is active, blocking, on this stage, and its
+  // condition excludes this consulting demand. The gate used to filter on
+  // status/blocking/stage without ever evaluating conditions, so it held the
+  // stage shut for a request the form never applied to — and since the form
+  // never rendered, there was no way to satisfy it. A dead end with no message.
+  console.log('\nA form that does not apply does not hold the stage shut');
+  const gateContext = await browser.newContext();
+  await installDbStub(gateContext);
+  await gateContext.addInitScript((user) => {
+    localStorage.setItem('auth', JSON.stringify({ state: { currentRole: 'vendor-manager', currentUser: user }, version: 0 }));
+  }, { ...ADMIN, id: 'u7', name: 'Vendor Manager', role: 'vendor-manager', initials: 'VM' });
+  const gatePage = await gateContext.newPage();
+  await gatePage.goto(`${BASE}/requests/REQ-TEST-0001`, { waitUntil: 'domcontentloaded' });
+  await gatePage.getByText('Advisory support for a supplier consolidation programme').first()
+    .waitFor({ timeout: 20000 });
+  await gatePage.waitForTimeout(800);
+  const gateBody = await gatePage.locator('body').innerText();
+  check('vendor-manager sees the stage action for the risk stage',
+    /Record risk decision/i.test(gateBody),
+    'without the action rendering, the gate assertion below proves nothing');
+  check('a conditional blocking form does not hold a stage it does not apply to',
+    !/Software licensing addendum/.test(gateBody),
+    gateBody.slice(0, 300));
+  await gateContext.close();
 
   console.log('\nThe stub answered every query it was given');
   check('no filter was silently dropped', stub.unsupported.length === 0,

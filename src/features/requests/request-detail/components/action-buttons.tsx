@@ -46,6 +46,9 @@ import { DEFAULT_TEMPLATE } from '@/lib/procurement/service-description-defaults
 import { nextStageAfter } from '@/lib/workflow/buying-channel-stages';
 import { canEnterSourcing, supplierReadyForRiskCompletion } from '@/lib/workflow/onboarding-stage';
 import { getSupplier } from '@/lib/db/suppliers';
+import { outstandingBlockingForms } from '@/lib/forms/form-triggers';
+import { useFormTriggerContext } from '@/lib/forms/use-form-trigger-context';
+import { usePolicyConfig } from '@/lib/procurement/use-policy-config';
 
 interface ActionButtonsProps {
   request: ProcurementRequest;
@@ -143,18 +146,24 @@ export function ActionButtons({ request }: ActionButtonsProps) {
   // request with no way out.
   const { data: allFormTemplates = [] } = useFormTemplates();
   const { data: allSubmissions = [] } = useFormSubmissions();
+  const triggerContext = useFormTriggerContext(request);
+  const policyConfig = usePolicyConfig();
+
+  // The same predicate the request detail renders from — see
+  // src/lib/forms/form-triggers.ts. This filtered on status, blocking and
+  // trigger stage but never evaluated `triggerConditions`, while the renderer
+  // did. A template that was conditional AND blocking therefore stranded every
+  // request in its stage: the form never rendered, so it could not be
+  // submitted, so the button never unlocked.
   const outstandingForms = useMemo(() => {
     if (currentRole === 'admin') return [];
     const submitted = new Set(
       allSubmissions.filter((s) => s.requestId === request.id).map((s) => s.formTemplateId),
     );
-    return allFormTemplates.filter((template) => (
-      template.status === 'active'
-      && template.blocking === true
-      && template.triggerStages.includes(request.status)
-      && !submitted.has(template.id)
-    ));
-  }, [allFormTemplates, allSubmissions, request.id, request.status, currentRole]);
+    return outstandingBlockingForms(
+      allFormTemplates, submitted, request.status, triggerContext, policyConfig,
+    );
+  }, [allFormTemplates, allSubmissions, request.id, request.status, currentRole, triggerContext, policyConfig]);
 
   const showGateAction =
     !isTerminalStatus(request.status) &&

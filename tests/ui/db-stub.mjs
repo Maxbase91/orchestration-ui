@@ -120,6 +120,22 @@ export const FIXTURES = {
       ],
       version: '1.0', last_modified: '2026-08-01', created_by: 'u11',
     },
+    // Conditional AND blocking, on a category this request is NOT. The strand:
+    // the blocking gate used to filter on status/blocking/stage without ever
+    // evaluating triggerConditions, while the renderer did — so this template
+    // held the stage shut for a request it never applied to, and the form it
+    // wanted was never shown. Both gates share one predicate now; this fixture
+    // is here so the strand cannot come back unnoticed.
+    {
+      id: 'FT-RISK-3-SOFTWARE-ONLY', name: 'Software licensing addendum', description: 'Software demand only',
+      status: 'active', category: 'risk', blocking: true,
+      trigger_stages: ['risk'],
+      trigger_conditions: [{ field: 'category', operator: 'equals', value: 'software' }],
+      fields: [
+        { id: 'f1', fieldType: 'text', label: 'Licence metric', required: true },
+      ],
+      version: '1.0', last_modified: '2026-09-15', created_by: 'u11',
+    },
   ],
   form_submissions: [],
   workflow_instances: [
@@ -203,7 +219,12 @@ export const FIXTURES = {
   }],
   approval_chains: [
     {
-      id: 'AC-VP', name: 'VP-Level chain', description: 'Value-banded approval', threshold: '100,000 - 500,000',
+      // Structured bounds, as the table holds them. `threshold` is a display
+      // label now and is never parsed — leaving this fixture with only the
+      // label made resolveBand return null, so no chain was selected and the
+      // review step rendered no approvers at all.
+      id: 'AC-VP', name: 'VP-Level chain', description: 'Value-banded approval',
+      threshold: 'Below €500,000', min_value: null, max_value: '500000',
       steps: [{ id: 'step-vp', role: 'VP Procurement' }], referenced_by: [],
     },
     // Unbanded, so it is reachable only by a rule naming it. A chain with no

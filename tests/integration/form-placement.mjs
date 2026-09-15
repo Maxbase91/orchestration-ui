@@ -122,11 +122,17 @@ const unimplemented = [...new Set(offeredOperators)].filter((op) => !supportedOp
 if (unimplemented.length === 0) ok(`every offered operator is implemented (${supportedOperators.size} available)`);
 else bad('every offered operator is implemented', `${unimplemented.join(', ')} would silently pass or fail`);
 
-const renderer = readFileSync(new URL('src/features/requests/request-detail/components/step-detail-card.tsx', ROOT), 'utf8');
-if (/triggerConditions\.some\(/.test(renderer)) {
+// The predicate moved out of the renderer into src/lib/forms/form-triggers.ts
+// when the blocking gate was found not to be evaluating conditions at all.
+// These assertions follow it there — checking the renderer would now only
+// prove the code is absent, not that it is correct. test:form-gates asserts
+// the behaviour itself, including that the blocking set is a subset of what
+// renders.
+const triggers = readFileSync(new URL('src/lib/forms/form-triggers.ts', ROOT), 'utf8');
+if (/conditions\.some\(/.test(triggers)) {
   bad('trigger conditions are ANDed', '`.some()` is back — one unknown condition makes the set pass');
 } else ok('trigger conditions are ANDed, matching the builder\'s own wording');
-if (/evalCondition\(cond\.field/.test(renderer)) ok('the form evaluator is the routing evaluator');
+if (/evalCondition\(/.test(triggers)) ok('the form evaluator is the routing evaluator');
 else bad('the form evaluator is shared', 'a second evaluator has appeared');
 
 // ── Every pre-populate token has a producer ─────────────────────────────────
@@ -145,8 +151,10 @@ if (deadTokens.length === 0) ok(`all ${offeredTokens.length} offered tokens have
 else bad('every offered token has a producer', deadTokens.join(', '));
 
 // ── A blocking form actually blocks ─────────────────────────────────────────
+// The `blocking` filter lives in the shared predicate now; the gate's job is
+// to consult it and to hold the action while anything is outstanding.
 const gate = readFileSync(new URL('src/features/requests/request-detail/components/action-buttons.tsx', ROOT), 'utf8');
-if (/template\.blocking === true/.test(gate) && /outstandingForms\.length > 0/.test(gate)) {
+if (/outstandingBlockingForms\(/.test(gate) && /outstandingForms\.length > 0/.test(gate)) {
   ok('the stage gate reads blocking forms');
 } else {
   bad('the stage gate reads blocking forms', 'forms are decorative again — nothing consults form_submissions');

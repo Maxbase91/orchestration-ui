@@ -14,6 +14,7 @@
 import { readFileSync } from 'node:fs';
 import { neon } from '@neondatabase/serverless';
 import { loadEnv } from '../lib/live.mjs';
+import { FIXTURES } from '../ui/db-stub.mjs';
 import {
   resolveBand, bandLabel, selectChainForValue, diagnoseChains, governedBounds,
 } from '../../src/lib/workflow/approval-bands.ts';
@@ -125,6 +126,30 @@ else ok("new chains no longer default to 'TBD'");
 if (!/bandLabel\(edited, policyConfig\)/.test(page)) {
   bad('the stored label is written from the bounds on save', 'a label that can disagree with its band is the original bug');
 } else ok('the stored label is derived from the bounds, never typed');
+
+// ── The browser stub models the columns the app reads ──────────────────────
+// This is how C4 shipped a regression: the live rows and the new suite's own
+// fixtures gained structured bounds, and the SHARED stub fixture kept only the
+// old display label. resolveBand returned null, no chain was selected, and the
+// wizard's review step rendered no approvers — caught only because the wizard
+// smoke waits for the chain by name.
+console.log('\nThe browser stub can still select a chain by value');
+const stubChains = FIXTURES.approval_chains.map((c) => ({
+  id: c.id, name: c.name, minValue: c.min_value ?? null, maxValue: c.max_value ?? null,
+}));
+// Not "every chain has bounds": one is deliberately unbanded, because a
+// rule-only chain is exactly what must not shadow a banded one. The invariant
+// is that SOME chain is selectable, or the wizard's review step shows no
+// approvers at all — which is how C4 shipped a regression that only the
+// wizard smoke caught, by waiting for the chain by name.
+const selectable = [1_000, 50_000, 250_000].map((v) => selectChainForValue(stubChains, v, CONFIG)?.id);
+if (selectable.every((id) => id === undefined)) {
+  bad('the stub selects a chain for at least one value',
+    'every fixture chain carries only a display label, so resolveBand returns null for all of them');
+} else ok(`the stub selects a chain by value (${selectable.filter(Boolean).join(', ')})`);
+if (!stubChains.some((c) => !c.minValue && !c.maxValue)) {
+  bad('the stub keeps an unbanded chain', 'the shadowing case has no fixture to exercise it');
+} else ok('the stub keeps an unbanded chain, so the shadowing case stays covered');
 
 // ── Live ───────────────────────────────────────────────────────────────────
 const env = loadEnv();
