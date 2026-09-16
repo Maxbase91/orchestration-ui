@@ -19,7 +19,13 @@
 //   for comments had no way to add one.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { getStagesForChannel } from '../../src/lib/workflow/buying-channel-stages.ts';
+import { getStagesForChannel } from '../../src/lib/workflow/channel-stages.ts';
+import { channelStageMapFromTemplates } from '../../src/lib/workflow/channel-stages.ts';
+import { workflowTemplates } from '../../src/data/workflows.ts';
+// The lifecycle comes from the templates now — buying-channel-stages.ts is
+// deleted. Derived once here rather than restated, which is the point.
+const CHANNEL_STAGES = channelStageMapFromTemplates(workflowTemplates);
+
 
 let failures = 0;
 const check = (label, fn) => {
@@ -34,8 +40,8 @@ console.log('\nWorkflow shows the stages this route runs');
 const workflow = read('src/features/requests/request-detail/tab-workflow.tsx');
 check('the stage list is filtered before it is mapped', () => {
   assert.match(workflow, /stagesForThisRoute/, 'all eleven stages are still rendered');
-  assert.match(workflow, /isStageSkippedForChannel\(request\.buyingChannel/,
-    'the filter does not consult the channel');
+  assert.match(workflow, /isStageSkippedForChannel\(channelStageMap, request\.buyingChannel/,
+    'the filter does not consult the channel and the template-derived map');
 });
 check('a stage the request actually visited is kept', () => {
   // A referred-back or re-routed request visited a stage its channel no longer
@@ -46,7 +52,7 @@ check('the current stage is always kept', () => {
   assert.match(workflow, /request\.status === stage\.id/, 'a request could hide its own stage');
 });
 check('a catalogue order really has fewer stages than the union', () => {
-  const catalogue = getStagesForChannel('catalogue');
+  const catalogue = getStagesForChannel(CHANNEL_STAGES, 'catalogue');
   assert.ok(catalogue.length < 11, `catalogue traverses ${catalogue.length}`);
   assert.ok(!catalogue.includes('sourcing'), 'catalogue should not visit sourcing');
 });

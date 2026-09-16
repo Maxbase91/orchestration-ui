@@ -1,15 +1,14 @@
 import type { ProcurementRequest, RequestStatus } from '@/data/types';
+import { useMemo } from 'react';
 import { useRequests } from '@/lib/db/hooks/use-requests';
+import { useChannelStageMap } from '@/lib/db/hooks/use-channel-stage-map';
+import { lifecycleStagesFrom } from '@/lib/workflow/channel-stages';
+import { stageLabel } from '@/lib/workflow/stage-labels';
 
-const STAGE_LABEL: Partial<Record<RequestStatus, string>> = {
-  intake: 'Intake',
-  validation: 'Validation',
-  approval: 'Approval',
-  sourcing: 'Sourcing',
-  contracting: 'Contracting',
-  po: 'PO Creation',
-};
-const ACTIVE_STAGES = Object.keys(STAGE_LABEL) as RequestStatus[];
+// The stage list was `Object.keys` of a six-entry label map, so this analysed
+// six of eleven stages and silently never reported a bottleneck in receipt,
+// invoice, payment, risk or onboarding — the back half of the lifecycle, where
+// requests actually pile up. A label map is not a stage list.
 
 interface StageStat {
   stage: string;
@@ -20,11 +19,14 @@ interface StageStat {
 
 /** Real bottleneck stats off the live pipeline — active stages ranked by the
  *  average time requests have spent in them. No model, no fabricated numbers. */
-function analyseBottlenecks(requests: ProcurementRequest[]): StageStat[] {
+function analyseBottlenecks(
+  requests: ProcurementRequest[],
+  activeStages: readonly RequestStatus[],
+): StageStat[] {
   const byStage = new Map<string, ProcurementRequest[]>();
   for (const r of requests) {
-    if (!ACTIVE_STAGES.includes(r.status)) continue;
-    const label = STAGE_LABEL[r.status] ?? r.status;
+    if (!activeStages.includes(r.status)) continue;
+    const label = stageLabel(r.status);
     const arr = byStage.get(label);
     if (arr) arr.push(r);
     else byStage.set(label, [r]);
@@ -42,7 +44,15 @@ function analyseBottlenecks(requests: ProcurementRequest[]): StageStat[] {
 
 export function AIBottleneckAnalysis() {
   const { data: requests = [] } = useRequests();
-  const stats = analyseBottlenecks(requests);
+  // Every stage any channel traverses, from the workflow templates — not the
+  // keys of a six-entry label map, which is what limited this to the front half
+  // of the lifecycle.
+  const { data: channelStageMap } = useChannelStageMap();
+  const activeStages = useMemo(() => lifecycleStagesFrom(channelStageMap), [channelStageMap]);
+  const stats = useMemo(
+    () => analyseBottlenecks(requests, activeStages),
+    [requests, activeStages],
+  );
 
   return (
     <div className="space-y-3">

@@ -10,7 +10,13 @@
 import { readFileSync } from 'node:fs';
 import { neon } from '@neondatabase/serverless';
 import { loadEnv } from '../lib/live.mjs';
-import { firstActionableStage, getStagesForChannel } from '../../src/lib/workflow/buying-channel-stages.ts';
+import { firstActionableStage, getStagesForChannel } from '../../src/lib/workflow/channel-stages.ts';
+import { channelStageMapFromTemplates } from '../../src/lib/workflow/channel-stages.ts';
+import { workflowTemplates } from '../../src/data/workflows.ts';
+// The lifecycle comes from the templates now — buying-channel-stages.ts is
+// deleted. Derived once here rather than restated, which is the point.
+const CHANNEL_STAGES = channelStageMapFromTemplates(workflowTemplates);
+
 
 const ROOT = new URL('../../', import.meta.url);
 let failures = 0;
@@ -30,8 +36,8 @@ console.log('\nThe first actionable stage is one the channel traverses');
 const CHANNELS = ['catalogue', 'direct-po', 'business-led', 'framework-call-off', 'p-card', 'procurement-led'];
 for (const channel of CHANNELS) {
   for (const risk of [false, true]) {
-    const stage = firstActionableStage(channel, { riskAssessmentRequired: risk });
-    const traversed = getStagesForChannel(channel);
+    const stage = firstActionableStage(CHANNEL_STAGES, channel, { riskAssessmentRequired: risk });
+    const traversed = getStagesForChannel(CHANNEL_STAGES, channel);
     if (traversed.includes(stage)) continue;
     bad(`${channel} (risk=${risk}) lands on a traversed stage`,
       `${stage} is not in ${JSON.stringify(traversed)}`);
@@ -41,7 +47,7 @@ if (failures === 0) ok(`all ${CHANNELS.length} channels land on a stage they tra
 
 // `intake` is never a landing stage — intake is what just completed.
 for (const channel of CHANNELS) {
-  if (firstActionableStage(channel) === 'intake') bad(`${channel} does not land back on intake`);
+  if (firstActionableStage(CHANNEL_STAGES, channel) === 'intake') bad(`${channel} does not land back on intake`);
 }
 
 const intakeWriter = readFileSync(new URL('api/_domains/intake-submit.ts', ROOT), 'utf8');
@@ -158,7 +164,6 @@ for (const [file, release] of [
 // ── Routing: the editor, the evaluator and the submit gate agree ────────────
 console.log('\nRouting rules are reachable end to end');
 const evaluator = readFileSync(new URL('src/lib/routing/evaluate-routing-rules.ts', ROOT), 'utf8');
-const channelMap = readFileSync(new URL('src/lib/workflow/buying-channel-stages.ts', ROOT), 'utf8');
 const submitter = readFileSync(new URL('api/_domains/intake-submit.ts', ROOT), 'utf8');
 const editorPanel = readFileSync(new URL('src/features/admin/routing-rules/components/rule-editor-panel.tsx', ROOT), 'utf8');
 
@@ -169,7 +174,9 @@ if (/const allowedChannels = new Set\(\[/.test(submitter)) {
 
 // Every channel the rule editor offers must be one the map knows, or a rule
 // can route somewhere the lifecycle cannot describe.
-const mapChannels = new Set([...channelMap.matchAll(/^\s+'?([a-z-]+)'?:\s+\['intake'/gm)].map((m) => m[1]));
+// Derived from the templates rather than scraped out of a source file, which
+// is what the deleted buying-channel-stages.ts made necessary.
+const mapChannels = new Set(Object.keys(CHANNEL_STAGES));
 // Scoped to the channel array — the file also declares approval-chain options
 // in the same shape, and matching both reported chains as unroutable channels.
 const channelBlock = /const BUYING_CHANNEL_OPTIONS[^=]*=\s*\[([\s\S]*?)\];/.exec(editorPanel)?.[1] ?? '';
@@ -213,7 +220,7 @@ if (!connection) {
       AND status NOT IN ('draft', 'completed', 'cancelled', 'referred-back')
       AND id NOT LIKE 'UI-E2E-%' AND id NOT LIKE 'E2E-TEST-%'
   `;
-  const offenders = rows.filter((row) => !getStagesForChannel(row.buying_channel).includes(row.status));
+  const offenders = rows.filter((row) => !getStagesForChannel(CHANNEL_STAGES, row.buying_channel).includes(row.status));
   if (offenders.length === 0) ok(`${rows.length} active request(s), none in a skipped stage`);
   else {
     bad(`${offenders.length} request(s) are in a stage their channel skips`,

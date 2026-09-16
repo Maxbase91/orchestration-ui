@@ -21,7 +21,10 @@ const sql = neon(connectionString);
 
 const { default: checkout } = await import('../../api/governed-checkout.ts');
 const { canActOnApproval } = await import('../../src/lib/procurement/approval-derivation.ts');
-const { nextStageAfter } = await import('../../src/lib/workflow/buying-channel-stages.ts');
+const { nextStageAfter, channelStageMapFromTemplates } = await import('../../src/lib/workflow/channel-stages.ts');
+const { workflowTemplates } = await import('../../src/data/workflows.ts');
+// The lifecycle comes from the templates now — buying-channel-stages.ts is deleted.
+const CHANNEL_STAGES = channelStageMapFromTemplates(workflowTemplates);
 const { advanceOnReceipt, stageAfterReceipt } = await import('../../src/lib/db/receipts-core.ts');
 const { neonClient } = await import('../lib/live.mjs');
 const client = await neonClient('request-lifecycle-e2e');
@@ -138,7 +141,7 @@ try {
   console.log('\n3. A full receipt moves the request on');
 
   const [afterFull] = await sql.query('SELECT status FROM requests WHERE id = $1', [requestId]);
-  const expected = nextStageAfter('catalogue', 'po');
+  const expected = nextStageAfter(CHANNEL_STAGES, 'catalogue', 'po');
   check('the request left the PO stage', () => {
     if (afterFull?.status === 'po') throw new Error('still in po — nothing advanced it');
   });
@@ -158,17 +161,17 @@ try {
 
   console.log('\n   The rule on its own');
   check('only a complete receipt moves anything', () => {
-    if (stageAfterReceipt({ receiptStatus: 'partial', requestStatus: 'po', buyingChannel: 'catalogue' }).movedTo) {
+    if (stageAfterReceipt({ channelStages: CHANNEL_STAGES, receiptStatus: 'partial', requestStatus: 'po', buyingChannel: 'catalogue' }).movedTo) {
       throw new Error('a partial receipt moved the request');
     }
   });
   check('only from the PO stage', () => {
-    if (stageAfterReceipt({ receiptStatus: 'complete', requestStatus: 'invoice', buyingChannel: 'catalogue' }).movedTo) {
+    if (stageAfterReceipt({ channelStages: CHANNEL_STAGES, receiptStatus: 'complete', requestStatus: 'invoice', buyingChannel: 'catalogue' }).movedTo) {
       throw new Error('it moved a request that had already gone past po');
     }
   });
   check('and only where the channel has a stage after it', () => {
-    const result = stageAfterReceipt({ receiptStatus: 'complete', requestStatus: 'po', buyingChannel: 'p-card' });
+    const result = stageAfterReceipt({ channelStages: CHANNEL_STAGES, receiptStatus: 'complete', requestStatus: 'po', buyingChannel: 'p-card' });
     if (result.movedTo) throw new Error(`p-card has no receipt stage but moved to ${result.movedTo}`);
   });
 

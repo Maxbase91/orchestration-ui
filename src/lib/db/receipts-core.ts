@@ -9,7 +9,8 @@
 // relative '.js' specifiers only, so the serverless handlers and the tests can
 // use it rather than only the browser.
 import type { NeonCompatibleClient, DbRow } from '../neon-compatible-client.js';
-import { nextStageAfter } from '../workflow/buying-channel-stages.js';
+import { nextStageAfter, type ChannelStageMap } from '../workflow/channel-stages.js';
+import { loadChannelStageMapWith } from './channel-stage-map-core.js';
 
 export type ReceiptStatus = 'complete' | 'partial';
 
@@ -29,13 +30,15 @@ export function stageAfterReceipt(input: {
   receiptStatus: ReceiptStatus;
   requestStatus: string | null | undefined;
   buyingChannel: string | null | undefined;
+  /** The channel → stages map, from the workflow templates. */
+  channelStages: ChannelStageMap;
 }): ReceiptAdvance {
   if (input.receiptStatus !== 'complete') return { movedTo: null, reason: 'partial' };
   if (!input.requestStatus) return { movedTo: null, reason: 'request-missing' };
   // A receipt recorded against a request that has already moved on must not
   // drag it backwards.
   if (input.requestStatus !== 'po') return { movedTo: null, reason: 'not-in-po' };
-  const next = nextStageAfter(input.buyingChannel ?? '', 'po');
+  const next = nextStageAfter(input.channelStages, input.buyingChannel ?? '', 'po');
   if (!next) return { movedTo: null, reason: 'no-next-stage' };
   return { movedTo: next, reason: 'advanced' };
 }
@@ -53,7 +56,9 @@ export async function advanceOnReceipt(
     .from('requests').select('id, status, buying_channel').eq('id', input.requestId).maybeSingle();
   const request = data as DbRow | null;
 
+  const channelStages = await loadChannelStageMapWith(client);
   const decision = stageAfterReceipt({
+    channelStages,
     receiptStatus: input.receiptStatus,
     requestStatus: request ? String(request.status) : null,
     buyingChannel: request ? String(request.buying_channel ?? '') : null,

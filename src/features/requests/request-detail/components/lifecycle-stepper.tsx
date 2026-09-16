@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { ProcessStepper, type Step, type StepEvent } from '@/components/shared/process-stepper';
 import type { ProcurementRequest, RequestStatus, StageHistoryEntry } from '@/data/types';
 import { useStageHistoryByRequest } from '@/lib/db/hooks/use-stage-history';
@@ -6,26 +7,13 @@ import { formatDate } from '@/lib/format';
 import { useIntegrationsByRequest } from '@/lib/db/hooks/use-system-integrations';
 import { systemLabels, systemColors } from '@/data/system-integrations';
 import { useApprovalLookup } from '@/lib/db/hooks/use-approvals';
-import { isStageSkippedForChannel } from '@/lib/workflow/buying-channel-stages';
+import { isStageSkippedForChannel, lifecycleStagesFrom } from '@/lib/workflow/channel-stages';
+import { labelledStages } from '@/lib/workflow/stage-labels';
+import { useChannelStageMap } from '@/lib/db/hooks/use-channel-stage-map';
 import { useWorkflowTemplate } from '@/lib/db/hooks/use-workflow-templates';
 import { nodeToStatus } from '@/lib/workflow/node-config';
 import { openItemForRequest } from '@/lib/workflow/open-items';
 
-const LIFECYCLE_STAGES: { id: RequestStatus; label: string }[] = [
-  { id: 'intake', label: 'Intake' },
-  { id: 'validation', label: 'Validation' },
-  // Conditional: entered only when the intake triage required an assessment and
-  // no reusable one matched. Rendered as skipped otherwise, not omitted.
-  { id: 'risk', label: 'Risk Assessment' },
-  { id: 'onboarding', label: 'Vendor Onboarding' },
-  { id: 'approval', label: 'Approval' },
-  { id: 'sourcing', label: 'Sourcing' },
-  { id: 'contracting', label: 'Contracting' },
-  { id: 'po', label: 'Purchase Order' },
-  { id: 'receipt', label: 'Goods Receipt' },
-  { id: 'invoice', label: 'Invoice' },
-  { id: 'payment', label: 'Payment' },
-];
 
 function stageLabel(request: ProcurementRequest, stage: { id: RequestStatus; label: string }): string {
   // A framework call-off still needs a data/compliance gate and, where policy
@@ -56,6 +44,16 @@ export function LifecycleStepper({ request, onStepClick }: LifecycleStepperProps
   const { byRequest: approvalsByRequest } = useApprovalLookup();
   const approvals = approvalsByRequest(request.id);
   const { data: template } = useWorkflowTemplate(request.workflowTemplateId);
+  // The lifecycle comes from the workflow templates now. Both this and the
+  // channel's own path used to be restated in code — the union as a constant
+  // here and in tab-workflow.tsx, the per-channel path in
+  // buying-channel-stages.ts — and none of the three agreed with the templates
+  // the engine actually walks.
+  const { data: channelStageMap } = useChannelStageMap();
+  const LIFECYCLE_STAGES = useMemo(
+    () => labelledStages(lifecycleStagesFrom(channelStageMap)),
+    [channelStageMap],
+  );
 
   const completedStages = new Set<string>();
   const stageEntries = new Map<string, StageHistoryEntry>();
@@ -83,7 +81,7 @@ export function LifecycleStepper({ request, onStepClick }: LifecycleStepperProps
     const isCurrent = lifecycleStatus === stage.id;
 
     let status: Step['status'];
-    const channelSkipsThisStage = isStageSkippedForChannel(request.buyingChannel, stage.id);
+    const channelSkipsThisStage = isStageSkippedForChannel(channelStageMap, request.buyingChannel, stage.id);
     if (isCancelled) {
       status = isStageCompleted ? 'completed' : 'skipped';
     } else if (channelSkipsThisStage) {

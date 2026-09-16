@@ -33,7 +33,15 @@ const client = readFileSync('src/lib/procurement/submit-intake.ts', 'utf8');
 // skips. The replacement is still a lookup rather than a decision — it reads
 // the same channel→stages map the stepper reads — so the original failure
 // cannot come back. What is pinned now is that property, not a literal.
-assert.match(endpoint, /firstActionableStage\(buyingChannel, \{ riskAssessmentRequired/);
+// The map is now derived from the workflow templates and passed in, rather
+// than read from a code constant — the lookup property is unchanged, and
+// `channelStages` in the call is what proves it comes from the templates.
+assert.match(endpoint, /firstActionableStage\(channelStages, buyingChannel, \{ riskAssessmentRequired/);
+// And the map must be built from EVERY template, not just the one this
+// request runs on: the channel's path is defined by whichever template claims
+// that channel, which is not necessarily the same template.
+assert.match(endpoint, /channelStageMapFromTemplates\(/);
+assert.match(endpoint, /SELECT id, channels, nodes, edges FROM workflow_templates/);
 assert.doesNotMatch(endpoint, /const INITIAL_STAGE = \{ status: 'validation'/);
 // The branch that caused the original defect must not return: no threshold or
 // value comparison may decide the landing stage.

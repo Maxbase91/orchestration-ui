@@ -18,13 +18,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useStageSlas } from '@/lib/db/hooks/use-stage-slas';
 import { useWorkflowTemplates } from '@/lib/db/hooks/use-workflow-templates';
+import { stageLabel } from '@/lib/workflow/stage-labels';
 
-const STAGE_LABELS: Record<string, string> = {
-  intake: 'Intake', validation: 'Validation', risk: 'Risk Assessment',
-  onboarding: 'Vendor Onboarding', approval: 'Approval',
-  sourcing: 'Sourcing', contracting: 'Contracting', po: 'PO Creation',
-  receipt: 'Goods Receipt', invoice: 'Invoice', payment: 'Payment',
-};
 
 export function SlaTargetsPage() {
   const { data: slas, isLoading } = useStageSlas();
@@ -86,7 +81,7 @@ export function SlaTargetsPage() {
             {stages.map((sla) => (
               <div key={`${templateId}-${sla.stage}`} className="flex items-center justify-between gap-4 border-b border-gray-100 pb-2 last:border-0 last:pb-0">
                 <span className="text-sm font-medium text-gray-700">
-                  {STAGE_LABELS[sla.stage] ?? sla.stage}
+                  {stageLabel(sla.stage)}
                 </span>
                 <span className="text-sm tabular-nums text-gray-900">
                   {sla.days} <span className="text-xs text-muted-foreground">working days</span>

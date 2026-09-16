@@ -17,7 +17,14 @@ import { readFileSync } from 'node:fs';
 import { neon } from '@neondatabase/serverless';
 import { loadEnv } from '../lib/live.mjs';
 import { diagnoseFormTemplate, diagnoseFormTemplates } from '../../src/lib/forms/diagnose-form-template.ts';
-import { lifecycleStages } from '../../src/lib/workflow/buying-channel-stages.ts';
+import { lifecycleStagesFrom } from '../../src/lib/workflow/channel-stages.ts';
+import { channelStageMapFromTemplates } from '../../src/lib/workflow/channel-stages.ts';
+import { workflowTemplates } from '../../src/data/workflows.ts';
+import { stageLabel } from '../../src/lib/workflow/stage-labels.ts';
+// The lifecycle comes from the templates now — buying-channel-stages.ts is
+// deleted. Derived once here rather than restated, which is the point.
+const CHANNEL_STAGES = channelStageMapFromTemplates(workflowTemplates);
+
 import { DEFAULT_POLICY_CONFIG } from '../../src/lib/procurement/policy-config.ts';
 import { formTemplates } from '../../src/data/form-templates.ts';
 
@@ -27,7 +34,7 @@ let failures = 0;
 const ok = (l) => console.log(`  \x1b[32m✓\x1b[0m ${l}`);
 const bad = (l, d) => { failures += 1; console.error(`  \x1b[31m✗\x1b[0m ${l}`); if (d) console.error(`      ${d}`); };
 
-const STAGES = lifecycleStages();
+const STAGES = lifecycleStagesFrom(CHANNEL_STAGES);
 const CTX = { stages: STAGES, config: DEFAULT_POLICY_CONFIG };
 const builder = read('src/features/admin/forms/form-builder-page.tsx');
 
@@ -48,9 +55,11 @@ if (/const STAGES = \[/.test(builder)) {
   bad('the builder derives its stage list', 'a restated list is how the two omissions got in');
 } else ok('the builder derives its stage list from the lifecycle');
 
-const labels = /const STAGE_LABELS: Record<string, string> = \{([\s\S]*?)\};/.exec(builder)?.[1] ?? '';
-const unlabelled = STAGES.filter((stage) => !new RegExp(`\\b${stage}:`).test(labels));
-if (unlabelled.length) bad('every offered stage has a label', unlabelled.join(', '));
+// Labels live in src/lib/workflow/stage-labels.ts now — there were four copies
+// with three different answers for `po`, and two of them missing risk and
+// onboarding entirely, so those stages rendered as raw ids.
+const unlabelled = STAGES.filter((stage) => stageLabel(stage) === stage);
+if (unlabelled.length) bad('every offered stage has a label', `${unlabelled.join(', ')} would render as a raw id`);
 else ok('every offered stage has a label');
 
 // Every stage the seeded templates trigger on must be offerable.

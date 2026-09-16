@@ -65,8 +65,9 @@ import { NodeConfigPanel } from './components/node-config-panel';
 import { TemplateLibrary } from './components/template-library';
 import { SimulationRunner } from './components/simulation-runner';
 import { cn } from '@/lib/utils';
-import { BUYING_CHANNELS } from '@/lib/workflow/buying-channel-stages';
-import { channelStageMapFromTemplates, unclaimedChannels } from '@/lib/workflow/channel-stages';
+import {
+  BUYING_CHANNELS, channelStageMapFromTemplates, unclaimedChannels,
+} from '@/lib/workflow/channel-stages';
 
 function mapTemplateToFlow(template: WorkflowTemplate): { nodes: Node[]; edges: Edge[] } {
   const typeMapping: Record<string, string> = {
@@ -240,18 +241,19 @@ export function WorkflowDesignerPage() {
 
   return (
     <div className={containerClass}>
-      {/* Status banner — templates are persisted AND attached to
-          requests on submit (visible on request detail), but the
-          runtime lifecycle still follows the 9-stage enum. Full
-          template-driven runtime is a future phase. */}
+      {/* This banner said the runtime "still follows the 9-stage enum" and that
+          a template-derived lifecycle was a future phase. That stopped being
+          true when buying-channel-stages.ts was deleted and every consumer
+          started deriving the path from the graph below — a banner describing
+          behaviour the platform no longer has is the same defect class as a
+          control that configures nothing. */}
       {!isFullscreen && (
         <div className="border-b border-blue-200 bg-blue-50 px-4 py-2">
           <p className="text-xs text-blue-800">
-            <strong>Templates attached.</strong> Saves persist to{' '}
-            <code>workflow_templates</code> and the chosen template is attached to every
-            new request (visible on the request-detail Workflow tab). The runtime lifecycle
-            still follows the 9-stage enum — replacing it with a template-derived
-            sequence is a future phase.
+            <strong>This graph is the lifecycle.</strong> The stages a request visits, their
+            owner roles and their SLAs are read from the template that claims its buying
+            channel — the stepper, the stage gates and the intake writer all derive from
+            here. Saves persist to <code>workflow_templates</code>.
           </p>
         </div>
       )}

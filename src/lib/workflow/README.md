@@ -12,7 +12,8 @@ config plane that is actually read at runtime.
 | `risk-stage.ts` | The conditional risk stage — reuse an existing assessment, else raise a draft |
 | `onboarding-stage.ts` | Vendor onboarding: the light gate (sourcing + risk completion) and the full gate (contracting) |
 | `approver-resolution.ts` | Chain role → directory rep |
-| `buying-channel-stages.ts` | Which stages a channel actually has |
+| `channel-stages.ts` | Which stages a channel has — **derived from the workflow templates**, which claim their channels. Replaced `buying-channel-stages.ts`, a code map that disagreed with the templates for every channel |
+| `stage-labels.ts` | What a stage is called. Was ten copies with five different answers for `po` |
 | `workflow-steps.ts` | The template-derived lifecycle preview shown at intake |
 
 ## Why `transition.ts` exists

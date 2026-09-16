@@ -21,6 +21,7 @@ import { invalidateRequestViews, queryClient } from '@/lib/query-client';
 import type { ProcurementRequest, RequestStatus } from '@/data/types';
 import { WorkflowCard } from './components/workflow-card';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { stageLabelShort } from '@/lib/workflow/stage-labels';
 
 const STAGE_ORDER: RequestStatus[] = [
   'intake',
@@ -34,17 +35,6 @@ const STAGE_ORDER: RequestStatus[] = [
   'payment',
 ];
 
-const STAGE_LABELS: Record<string, string> = {
-  intake: 'Intake',
-  validation: 'Validation',
-  approval: 'Approval',
-  sourcing: 'Sourcing',
-  contracting: 'Contracting',
-  po: 'PO',
-  receipt: 'Receipt',
-  invoice: 'Invoice',
-  payment: 'Payment',
-};
 
 interface KanbanColumnProps {
   stage: RequestStatus;
@@ -68,7 +58,7 @@ function KanbanColumn({ stage, requests, onCardClick }: KanbanColumnProps) {
       <div className="border-b bg-white px-3 py-2 rounded-t-md">
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-semibold text-gray-700">
-            {STAGE_LABELS[stage] ?? stage}
+            {stageLabelShort(stage)}
           </h3>
           <span className="rounded-full bg-gray-200 px-1.5 py-0.5 text-[10px] font-medium text-gray-600">
             {requests.length}

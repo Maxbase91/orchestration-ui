@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Plus,
   GripVertical,
@@ -37,36 +37,15 @@ import { useFormTemplates, useSaveFormTemplate } from '@/lib/db/hooks/use-form-t
 import type { FormTemplate, FormField, FormFieldType } from '@/data/form-templates';
 import { DynamicForm } from '@/components/shared/dynamic-form';
 import { toast } from 'sonner';
-import { lifecycleStages } from '@/lib/workflow/buying-channel-stages';
+import { lifecycleStagesFrom } from '@/lib/workflow/channel-stages';
+import { useChannelStageMap } from '@/lib/db/hooks/use-channel-stage-map';
 import { ConditionCard } from '@/features/admin/routing-rules/components/condition-card';
 import { diagnoseFormTemplates } from '@/lib/forms/diagnose-form-template';
 import { usePolicyConfig } from '@/lib/procurement/use-policy-config';
+import { stageLabel } from '@/lib/workflow/stage-labels';
 
 // ── Constants ───────────────────────────────────────────────────────
 
-// Every stage a channel actually traverses. This was a hand-written list of
-// nine that omitted `risk` and `onboarding` — while three ACTIVE forms trigger
-// on exactly those. Their stages were invisible here, so an admin could not
-// see or remove them, and toggling any other stage wrote the array back with
-// the unseen entry intact.
-const STAGES = lifecycleStages();
-
-const STAGE_LABELS: Record<string, string> = {
-  intake: 'Intake',
-  validation: 'Validation',
-  // Absent alongside the stage list, so FORM-002, FORM-003 and FORM-006 — all
-  // active, all triggering on these two — had no label even once the stages
-  // themselves became visible.
-  risk: 'Risk Assessment',
-  onboarding: 'Vendor Onboarding',
-  approval: 'Approval',
-  sourcing: 'Sourcing',
-  contracting: 'Contracting',
-  po: 'Purchase Order',
-  receipt: 'Goods Receipt',
-  invoice: 'Invoice',
-  payment: 'Payment',
-};
 
 const CATEGORIES = ['Risk', 'Procurement', 'Compliance', 'Operations'] as const;
 
@@ -293,6 +272,12 @@ export function FormBuilderPage() {
   // ── Trigger description ─────────────────────────────────────
 
   const policyConfig = usePolicyConfig();
+  // Every stage a channel actually traverses, derived from the workflow
+  // templates. This was a hand-written list of nine that omitted `risk` and
+  // `onboarding` — while three ACTIVE forms trigger on exactly those, so their
+  // stages were invisible here and could not be removed.
+  const { data: channelStageMap } = useChannelStageMap();
+  const STAGES = useMemo(() => lifecycleStagesFrom(channelStageMap), [channelStageMap]);
   // Every active template that cannot do what it says, so a broken one is
   // visible from the list rather than only when it fails to appear on a
   // request. Same shape as the routing-rules page's `broken`.
@@ -304,7 +289,7 @@ export function FormBuilderPage() {
   // Plain derivation, same reasoning as `grouped` above.
   const triggerDescription = ((): string => {
     if (!selectedForm) return '';
-    const stages = selectedForm.triggerStages.map((s) => STAGE_LABELS[s] ?? s).join(', ');
+    const stages = selectedForm.triggerStages.map((s) => stageLabel(s)).join(', ');
     if (!stages) return 'No stages configured.';
     const conditions = selectedForm.triggerConditions;
     if (conditions && conditions.length > 0) {
@@ -378,7 +363,7 @@ export function FormBuilderPage() {
                               key={s}
                               className="inline-block rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500"
                             >
-                              {STAGE_LABELS[s] ?? s}
+                              {stageLabel(s)}
                             </span>
                           ))}
                           {form.triggerStages.length > 3 && (
@@ -460,7 +445,7 @@ export function FormBuilderPage() {
                                 : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100',
                             )}
                           >
-                            {STAGE_LABELS[stage]}
+                            {stageLabel(stage)}
                           </button>
                         );
                       })}

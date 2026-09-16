@@ -5,7 +5,10 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getNeonClient, queryRows } from '../_neon.js';
 import { getDbAdmin } from '../_db-admin.js';
 import { approvalRows, deriveApprovalsFor, resolveChainId } from '../../src/lib/db/approvals-core.js';
-import { BUYING_CHANNELS, firstActionableStage } from '../../src/lib/workflow/buying-channel-stages.js';
+import {
+  BUYING_CHANNELS, firstActionableStage, channelStageMapFromTemplates,
+  type ChannelStageMap,
+} from '../../src/lib/workflow/channel-stages.js';
 import { nodeIdForStatus } from '../../src/lib/workflow/node-config.js';
 import { slaDeadlineFor } from '../../src/lib/workflow/business-days.js';
 
@@ -61,8 +64,12 @@ function json(value: unknown): string { return JSON.stringify(value ?? null); }
  * the two cannot disagree again, and it is a lookup rather than a decision — no
  * branch here can void a downstream write the way the original did.
  */
-function initialStage(buyingChannel: string, riskAssessmentRequired: boolean) {
-  const status = firstActionableStage(buyingChannel, { riskAssessmentRequired });
+function initialStage(
+  channelStages: ChannelStageMap,
+  buyingChannel: string,
+  riskAssessmentRequired: boolean,
+) {
+  const status = firstActionableStage(channelStages, buyingChannel, { riskAssessmentRequired });
   return { status, stage: status } as const;
 }
 
@@ -106,16 +113,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     // the live store had none, which meant no countdown, and nothing that could
     // ever be overdue. The template owns stage SLAs, so the deadline is read
     // from the same node the workflow instance starts on.
-    const [templateRow] = await queryRows(
-      sql, 'SELECT nodes FROM workflow_templates WHERE id = $1', [templateId],
+    // Every template, not just the chosen one: the channel's stage path is
+    // derived from whichever template claims that channel, which is not
+    // necessarily the template this request runs on. Four rows instead of one.
+    const templateRows = await queryRows(
+      sql, 'SELECT id, channels, nodes, edges FROM workflow_templates', [],
     );
-    const templateNodes = Array.isArray(templateRow?.nodes)
-      ? templateRow.nodes as Array<{ id: string; type?: string; label?: string; slaDays?: number }>
+    const channelStages = channelStageMapFromTemplates(
+      templateRows as unknown as Parameters<typeof channelStageMapFromTemplates>[0],
+    );
+    const templateNodes = Array.isArray(templateRows.find((r) => r.id === templateId)?.nodes)
+      ? (templateRows.find((r) => r.id === templateId)!.nodes) as Array<{ id: string; type?: string; label?: string; slaDays?: number }>
       : [];
     // The approval threshold was read here on every submission and then
     // discarded — a database round trip per intake feeding a decision that is
     // not taken at this point in the lifecycle.
-    const stage = initialStage(buyingChannel, Boolean(request.riskAssessmentRequired));
+    const stage = initialStage(channelStages, buyingChannel, Boolean(request.riskAssessmentRequired));
     const startNodeId = nodeIdForStatus(templateNodes, stage.status);
 
     // The client keeps one request id for a submission attempt. Reusing that
@@ -138,7 +151,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       const historyCount = Number(lifecycle[0]?.history_count ?? 0);
       const workflowCount = Number(lifecycle[0]?.workflow_count ?? 0);
       if (String(existing[0].status) === 'intake' && historyCount === 0 && workflowCount === 0) {
-        const repairedStage = initialStage(buyingChannel, Boolean(request.riskAssessmentRequired));
+        const repairedStage = initialStage(channelStages, buyingChannel, Boolean(request.riskAssessmentRequired));
         const repairNow = new Date().toISOString();
         const repairQueries = [
           sql.query('UPDATE requests SET status = $1, updated_at = $2 WHERE id = $3', [repairedStage.status, repairNow, id]),

@@ -18,7 +18,7 @@
 // rather than being scattered across per-entity modules.
 import { db } from '@/lib/db-client';
 import { createApprovalsFor } from '@/lib/db/approvals-core';
-import { getWorkflowTemplate } from '@/lib/db/workflow-templates';
+import { getWorkflowTemplate, listWorkflowTemplates } from '@/lib/db/workflow-templates';
 import { saveComplianceReport } from '@/lib/db/compliance-reports';
 import {
   createWorkflowInstance,
@@ -27,7 +27,7 @@ import {
   type WorkflowInstance,
 } from '@/lib/db/workflow-instances';
 import type { Supplier, WorkflowTemplate } from '@/data/types';
-import { getStagesForChannel } from './buying-channel-stages';
+import { getStagesForChannel, channelStageMapFromTemplates } from './channel-stages';
 import { transitionStage } from './transition';
 import { onboardingRequired } from './onboarding-stage';
 import { ensureRiskAssessment } from './risk-stage';
@@ -666,7 +666,12 @@ async function executeNode(
  * never having entered anything.
  */
 async function initFallbackWorkflow(requestId: string, buyingChannel: string): Promise<void> {
-  const stages = getStagesForChannel(buyingChannel);
+  // The channel's path comes from the templates now. Already async and already
+  // reading templates elsewhere in this module, so this costs one list call
+  // rather than a new data path.
+  const stages = getStagesForChannel(
+    channelStageMapFromTemplates(await listWorkflowTemplates()), buyingChannel,
+  );
   // Governed checkout may already have resolved the first actionable stage
   // (risk, approval, or PO) before the fallback is initialized. Re-entering
   // `intake` here would make a completed call-off appear stuck and discard the

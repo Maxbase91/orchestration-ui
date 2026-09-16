@@ -49,6 +49,20 @@ export function stagesFromTemplate(template: TemplateLike): RequestStatus[] {
   const start = template.nodes.find((n) => n.type === 'start') ?? template.nodes[0];
   if (!start) return [];
 
+  // A template with nodes and no edges has no graph to traverse, and returning
+  // nothing would leave the request detail with a blank stepper — strictly
+  // worse than a best effort. Array order is that best effort: it is only
+  // *wrong* when edges exist and disagree with it (WF-001 lists Risk Assessment
+  // third while the graph reaches it after Validation), and here there are none
+  // to disagree.
+  if ((template.edges ?? []).length === 0) {
+    const seen = new Set<string>();
+    return template.nodes
+      .filter((n) => n.type === 'stage' && typeof n.label === 'string')
+      .map((n) => nodeToStatus(n.label as string) as RequestStatus)
+      .filter((status) => !seen.has(status) && seen.add(status));
+  }
+
   const seenNodes = new Set<string>([start.id]);
   const queue: string[] = [start.id];
   const stages: RequestStatus[] = [];
@@ -138,4 +152,98 @@ export function lifecycleStagesFrom(map: ChannelStageMap): RequestStatus[] {
   const seen = new Set<string>(longest);
   const extras = paths.flat().filter((stage) => !seen.has(stage));
   return [...longest, ...new Set(extras)];
+}
+
+// ── The lookups, now taking the derived map ──────────────────────────────────
+// These carry the same semantics as the code map they replace; what changed is
+// where the stage list comes from. Each takes the map explicitly rather than
+// reaching for a module singleton: the map is async data, and a default would
+// let a caller silently get an empty one.
+
+/**
+ * Every channel the platform can route a demand to.
+ *
+ * Code-owned, and deliberately NOT derived from the templates. The 422 gate in
+ * `api/_domains/intake-submit.ts` validates the submitted channel against this,
+ * and it once restated its own list which omitted `business-led` — a channel
+ * the fallback produces and a seeded rule targets, so the platform chose the
+ * route and then rejected it with an error the requester could do nothing
+ * about. Deriving it from templates would bring that back in a new form: a
+ * channel whose template an admin deleted would become unsubmittable rather
+ * than merely unconfigured. `unclaimedChannels` reports that instead.
+ */
+export const BUYING_CHANNELS: readonly BuyingChannel[] = [
+  'catalogue', 'direct-po', 'business-led', 'framework-call-off', 'p-card', 'procurement-led',
+];
+
+/**
+ * Stages the request will actually visit for its channel.
+ *
+ * An unknown or unclaimed channel gets the union rather than a guess: it is the
+ * widest honest answer, and it means the stepper draws every stage rather than
+ * hiding one. The code map returned a nine-stage `FULL_LIFECYCLE` here that
+ * omitted risk and onboarding — so an unknown channel silently lost two stages.
+ */
+export function getStagesForChannel(
+  map: ChannelStageMap,
+  channel: string | undefined,
+): readonly RequestStatus[] {
+  if (channel && map[channel]?.length) return map[channel];
+  return lifecycleStagesFrom(map);
+}
+
+/** True when this stage is NOT traversed for the given channel. */
+export function isStageSkippedForChannel(
+  map: ChannelStageMap,
+  channel: string | undefined,
+  stage: string,
+): boolean {
+  return !getStagesForChannel(map, channel).includes(stage as RequestStatus);
+}
+
+/**
+ * The stage that follows `stage` for this channel, or null at the end.
+ *
+ * Used when a request has no workflow instance to advance, which is the common
+ * path rather than a rare fallback — most requests predate the engine creating
+ * one.
+ */
+export function nextStageAfter(
+  map: ChannelStageMap,
+  channel: string | undefined,
+  stage: string,
+): RequestStatus | null {
+  const stages = getStagesForChannel(map, channel);
+  const idx = stages.indexOf(stage as RequestStatus);
+  if (idx === -1 || idx === stages.length - 1) return null;
+  return stages[idx + 1] ?? null;
+}
+
+/**
+ * The stage a request enters when intake completes.
+ *
+ * The server used to write a constant `validation` for every channel, so a
+ * business-led or direct-po request landed in a stage its own channel skips —
+ * the stepper drew it as skipped while the request sat in it.
+ *
+ * `risk` and `onboarding` are conditional: they are in the lists so the stepper
+ * can draw them as skipped, not because every request enters them. Risk is
+ * entered only when intake triage asked for it; onboarding depends on a
+ * supplier intake often does not have yet, so it is never the landing stage and
+ * the engine enters it later if needed.
+ */
+export function firstActionableStage(
+  map: ChannelStageMap,
+  channel: string | undefined,
+  signals: { riskAssessmentRequired?: boolean } = {},
+): RequestStatus {
+  const conditional = new Set<RequestStatus>(['onboarding']);
+  if (!signals.riskAssessmentRequired) conditional.add('risk');
+
+  const stage = getStagesForChannel(map, channel)
+    .filter((candidate) => candidate !== 'intake' && !conditional.has(candidate))[0];
+
+  // Every channel reaches `approval` at the latest, so this guards an unknown
+  // channel rather than an expected path.
+  return stage ?? 'approval';
 }

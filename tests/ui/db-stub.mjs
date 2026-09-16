@@ -204,6 +204,11 @@ export const FIXTURES = {
   // offline browser run: the same labels and value band as the seeded app.
   workflow_templates: [{
     id: 'WF-001', name: 'Standard Procurement', description: 'Standard lifecycle', type: 'procurement',
+    // The template claims the channel whose lifecycle it defines. Without this
+    // the derived stage map is empty and the request detail renders no stages
+    // at all — the same class of miss as leaving a chain with only its display
+    // label when bands became structured.
+    channels: ['procurement-led'],
     nodes: [
       { id: 'n1', type: 'start', label: 'Request Submitted' },
       { id: 'n2', type: 'stage', label: 'Intake', role: 'Business Requestor', slaDays: 1, gate: 'auto' },

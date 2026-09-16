@@ -18,6 +18,8 @@
 import { readFileSync } from 'node:fs';
 import { neon } from '@neondatabase/serverless';
 import { loadEnv } from '../lib/live.mjs';
+import { channelStageMapFromTemplates, lifecycleStagesFrom } from '../../src/lib/workflow/channel-stages.ts';
+import { workflowTemplates } from '../../src/data/workflows.ts';
 
 const ROOT = new URL('../../', import.meta.url);
 let failures = 0;
@@ -65,8 +67,10 @@ for (const [block, id] of blocks) {
 if (failures === 0) ok('every trigger stage is a RequestStatus, and none is a no-form stage');
 
 // A form whose stage no channel traverses is unreachable in practice.
-const channels = readFileSync(new URL('src/lib/workflow/buying-channel-stages.ts', ROOT), 'utf8');
-const reachable = new Set([...channels.matchAll(/'([a-z-]+)'/g)].map((m) => m[1]).filter((s) => STATUSES.has(s)));
+// Derived from the templates rather than scraped out of a source file. The
+// file this used to grep — buying-channel-stages.ts — is deleted, and grepping
+// quoted strings out of it was always a proxy for the real question.
+const reachable = new Set(lifecycleStagesFrom(channelStageMapFromTemplates(workflowTemplates)));
 for (const [block, id] of blocks) {
   if (!/status: 'active'/.test(block)) continue;
   const stages = [...(/triggerStages: \[([^\]]*)\]/.exec(block)?.[1] ?? '')

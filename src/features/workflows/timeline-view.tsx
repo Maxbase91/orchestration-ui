@@ -3,6 +3,7 @@ import { formatCurrency } from '@/lib/format';
 import type { ProcurementRequest, RequestStatus } from '@/data/types';
 import { useStageSlas } from '@/lib/db/hooks/use-stage-slas';
 import { stageSlaDays, type StageSla } from '@/lib/workflow/stage-sla';
+import { stageLabelShort } from '@/lib/workflow/stage-labels';
 import {
   Tooltip,
   TooltipContent,
@@ -21,17 +22,6 @@ const STAGE_ORDER: RequestStatus[] = [
   'payment',
 ];
 
-const STAGE_LABELS: Record<string, string> = {
-  intake: 'Intake',
-  validation: 'Validation',
-  approval: 'Approval',
-  sourcing: 'Sourcing',
-  contracting: 'Contracting',
-  po: 'PO',
-  receipt: 'Receipt',
-  invoice: 'Invoice',
-  payment: 'Payment',
-};
 
 function getStageIndex(status: RequestStatus): number {
   const idx = STAGE_ORDER.indexOf(status);
@@ -98,7 +88,7 @@ export function TimelineView({ requests }: TimelineViewProps) {
               key={stage}
               className="flex-1 text-center text-[10px] font-medium text-muted-foreground"
             >
-              {STAGE_LABELS[stage]}
+              {stageLabelShort(stage)}
             </div>
           ))}
         </div>
@@ -155,7 +145,7 @@ export function TimelineView({ requests }: TimelineViewProps) {
                       </TooltipTrigger>
                       <TooltipContent side="top" className="text-xs">
                         <p className="font-medium">
-                          {STAGE_LABELS[seg.stage]}
+                          {stageLabelShort(seg.stage)}
                         </p>
                         {seg.state === 'future' ? (
                           <p className="text-muted-foreground">Pending</p>

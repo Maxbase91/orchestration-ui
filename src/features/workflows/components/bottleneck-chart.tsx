@@ -16,6 +16,7 @@ import {
   Cell,
 } from 'recharts';
 import type { ProcurementRequest, RequestStatus } from '@/data/types';
+import { stageLabelShort } from '@/lib/workflow/stage-labels';
 
 const STAGE_ORDER: RequestStatus[] = [
   'intake',
@@ -29,17 +30,6 @@ const STAGE_ORDER: RequestStatus[] = [
   'payment',
 ];
 
-const STAGE_LABELS: Record<string, string> = {
-  intake: 'Intake',
-  validation: 'Validation',
-  approval: 'Approval',
-  sourcing: 'Sourcing',
-  contracting: 'Contracting',
-  po: 'PO',
-  receipt: 'Receipt',
-  invoice: 'Invoice',
-  payment: 'Payment',
-};
 
 interface BottleneckChartProps {
   requests: ProcurementRequest[];
@@ -59,7 +49,7 @@ export function BottleneckChart({ requests }: BottleneckChartProps) {
       const slaTarget = (stageSlaDays(slaTargets, stage) ?? 0);
 
       return {
-        name: STAGE_LABELS[stage],
+        name: stageLabelShort(stage),
         value: Math.round(avgDays * 10) / 10,
         count: stageRequests.length,
         exceedsSLA: avgDays > slaTarget,

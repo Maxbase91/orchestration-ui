@@ -15,7 +15,8 @@ import { updateApproval, listApprovals } from '@/lib/db/approvals';
 import { createAuditEntry } from '@/lib/db/audit-entries';
 import { advanceWorkflow, areAllApprovalsComplete } from './engine';
 import { transitionStage } from './transition';
-import { nextStageAfter } from './buying-channel-stages';
+import { nextStageAfter, channelStageMapFromTemplates } from './channel-stages';
+import { listWorkflowTemplates } from '@/lib/db/workflow-templates';
 
 export type ApprovalDecision = 'approved' | 'rejected' | 'info-requested';
 
@@ -104,7 +105,8 @@ export async function recordApprovalDecision(
   // where it does not, the channel's stage list says what comes next.
   if (await areAllApprovalsComplete(request.id)) {
     await advanceWorkflow(request.id, 'approved');
-    const next = nextStageAfter(request.buyingChannel, request.status);
+    const channelStages = channelStageMapFromTemplates(await listWorkflowTemplates());
+    const next = nextStageAfter(channelStages, request.buyingChannel, request.status);
     if (next) {
       await transitionStage({
         requestId: request.id,

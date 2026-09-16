@@ -43,7 +43,8 @@ import { getWorkflowInstanceForRequest } from '@/lib/db/workflow-instances';
 import { transitionStage } from '@/lib/workflow/transition';
 import { gateActionLabel, isGatedStage, isTerminalStatus, nodeToStatus, type TemplateNode } from '@/lib/workflow/node-config';
 import { DEFAULT_TEMPLATE } from '@/lib/procurement/service-description-defaults';
-import { nextStageAfter } from '@/lib/workflow/buying-channel-stages';
+import { nextStageAfter } from '@/lib/workflow/channel-stages';
+import { useChannelStageMap } from '@/lib/db/hooks/use-channel-stage-map';
 import { canEnterSourcing, supplierReadyForRiskCompletion } from '@/lib/workflow/onboarding-stage';
 import { getSupplier } from '@/lib/db/suppliers';
 import { outstandingBlockingForms } from '@/lib/forms/form-triggers';
@@ -148,6 +149,7 @@ export function ActionButtons({ request }: ActionButtonsProps) {
   const { data: allSubmissions = [] } = useFormSubmissions();
   const triggerContext = useFormTriggerContext(request);
   const policyConfig = usePolicyConfig();
+  const { data: channelStageMap } = useChannelStageMap();
 
   // The same predicate the request detail renders from — see
   // src/lib/forms/form-triggers.ts. This filtered on status, blocking and
@@ -249,7 +251,7 @@ export function ActionButtons({ request }: ActionButtonsProps) {
           if (instance) {
             await advanceWorkflow(request.id, 'approved');
           } else {
-            const nextStage = nextStageAfter(request.buyingChannel, request.status);
+            const nextStage = nextStageAfter(channelStageMap, request.buyingChannel, request.status);
             if (!nextStage) throw new Error('No next stage is configured for this request.');
             await transitionStage({
               requestId: request.id,
@@ -314,7 +316,7 @@ export function ActionButtons({ request }: ActionButtonsProps) {
           return;
         }
       }
-      const nextStage = nextStageAfter(request.buyingChannel, request.status);
+      const nextStage = nextStageAfter(channelStageMap, request.buyingChannel, request.status);
       if (nextStage === 'sourcing') {
         const gate = canEnterSourcing(supplier);
         if (!gate.allowed) {

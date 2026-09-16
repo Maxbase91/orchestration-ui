@@ -8,6 +8,7 @@ import { StuckRequestsTable } from './components/stuck-requests-table';
 import { HeatmapView } from './components/heatmap-view';
 import { AIBottleneckAnalysis } from './components/ai-bottleneck-analysis';
 import { SLATracker } from './components/sla-tracker';
+import { stageLabelShort } from '@/lib/workflow/stage-labels';
 
 const ACTIVE_STATUSES = new Set<RequestStatus>([
   'intake',
@@ -21,17 +22,6 @@ const ACTIVE_STATUSES = new Set<RequestStatus>([
   'payment',
 ]);
 
-const STAGE_LABELS: Record<string, string> = {
-  intake: 'Intake',
-  validation: 'Validation',
-  approval: 'Approval',
-  sourcing: 'Sourcing',
-  contracting: 'Contracting',
-  po: 'PO',
-  receipt: 'Receipt',
-  invoice: 'Invoice',
-  payment: 'Payment',
-};
 
 export function WorkflowMonitorPage() {
   const { data: requests = [] } = useRequests();
@@ -66,7 +56,7 @@ export function WorkflowMonitorPage() {
     }
 
     return {
-      stage: STAGE_LABELS[worstStage] ?? worstStage,
+      stage: stageLabelShort(worstStage),
       count: worstCount,
       avgDays: Math.round(worstAvg * 10) / 10,
     };

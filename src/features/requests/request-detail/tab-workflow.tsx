@@ -1,12 +1,14 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
-import type { ProcurementRequest, RequestStatus, StageHistoryEntry } from '@/data/types';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
+import type { ProcurementRequest, StageHistoryEntry } from '@/data/types';
 import { useStageHistoryByRequest } from '@/lib/db/hooks/use-stage-history';
 import { useUserLookup, useUsers } from '@/lib/db/hooks/use-users';
 import { useIntegrationsByRequest } from '@/lib/db/hooks/use-system-integrations';
 import { useWorkflowStepDetailsForRequest } from '@/lib/db/hooks/use-workflow-step-details';
 import { useWorkflowTemplate } from '@/lib/db/hooks/use-workflow-templates';
 import { useApprovalLookup } from '@/lib/db/hooks/use-approvals';
-import { isStageSkippedForChannel } from '@/lib/workflow/buying-channel-stages';
+import { isStageSkippedForChannel, lifecycleStagesFrom } from '@/lib/workflow/channel-stages';
+import { labelledStages } from '@/lib/workflow/stage-labels';
+import { useChannelStageMap } from '@/lib/db/hooks/use-channel-stage-map';
 import { openItemForRequest, type OpenSlaState } from '@/lib/workflow/open-items';
 import { isGatedStage, nodeToStatus, type TemplateNode } from '@/lib/workflow/node-config';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,21 +26,6 @@ interface TabWorkflowProps {
   focusStageId?: string | null;
 }
 
-const LIFECYCLE_STAGES: { id: RequestStatus; label: string }[] = [
-  { id: 'intake', label: 'Intake' },
-  { id: 'validation', label: 'Validation' },
-  // Conditional: entered only when the intake triage required an assessment and
-  // no reusable one matched. Rendered as skipped otherwise, not omitted.
-  { id: 'risk', label: 'Risk Assessment' },
-  { id: 'onboarding', label: 'Vendor Onboarding' },
-  { id: 'approval', label: 'Approval' },
-  { id: 'sourcing', label: 'Sourcing' },
-  { id: 'contracting', label: 'Contracting' },
-  { id: 'po', label: 'Purchase Order' },
-  { id: 'receipt', label: 'Goods Receipt' },
-  { id: 'invoice', label: 'Invoice' },
-  { id: 'payment', label: 'Payment' },
-];
 
 /** Compact SLA state for the open stage. `none` renders nothing — an absent
  *  target is not the same as being on track, so it must not look reassuring. */
@@ -65,6 +52,16 @@ export function TabWorkflow({ request, focusStageId }: TabWorkflowProps) {
   const { data: history = [] } = useStageHistoryByRequest(request.id);
   const { data: stepDetails = [] } = useWorkflowStepDetailsForRequest(request.id);
   const { data: workflowTemplate } = useWorkflowTemplate(request.workflowTemplateId);
+  // The lifecycle comes from the workflow templates now. Both this and the
+  // channel's own path used to be restated in code — the union as a constant
+  // here and in tab-workflow.tsx, the per-channel path in
+  // buying-channel-stages.ts — and none of the three agreed with the templates
+  // the engine actually walks.
+  const { data: channelStageMap } = useChannelStageMap();
+  const LIFECYCLE_STAGES = useMemo(
+    () => labelledStages(lifecycleStagesFrom(channelStageMap)),
+    [channelStageMap],
+  );
   const { byRequest: approvalsByRequest } = useApprovalLookup();
   const approvals = approvalsByRequest(request.id);
   const { data: allComments = [] } = useCommentsByRequest(request.id);
@@ -185,7 +182,7 @@ export function TabWorkflow({ request, focusStageId }: TabWorkflowProps) {
   const { data: sourcingEvents = [] } = useSourcingEventsForRequest(request.id);
 
   const stagesForThisRoute = LIFECYCLE_STAGES.filter((stage) =>
-    !isStageSkippedForChannel(request.buyingChannel, stage.id)
+    !isStageSkippedForChannel(channelStageMap, request.buyingChannel, stage.id)
     || stageEntries.has(stage.id)
     || request.status === stage.id);
 
@@ -195,7 +192,7 @@ export function TabWorkflow({ request, focusStageId }: TabWorkflowProps) {
     const isCurrent = request.status === stage.id;
 
     let cardStatus: 'completed' | 'current' | 'future' | 'skipped' | 'blocked';
-    const channelSkipsThisStage = isStageSkippedForChannel(request.buyingChannel, stage.id);
+    const channelSkipsThisStage = isStageSkippedForChannel(channelStageMap, request.buyingChannel, stage.id);
     if (isCancelled) {
       cardStatus = isStageCompleted ? 'completed' : 'skipped';
     } else if (channelSkipsThisStage) {

@@ -45,7 +45,7 @@ The editor edits in-memory `initialChains` and toasts "saved"; reload reverts. R
 *Recommendation:* create an `approval_chains` table; have routing rules reference a chain **by id**; at intake, resolve the chain → generate `approval_entries` step-by-step, each approver resolved from role → user (honouring OOO/delegate). This makes "edit a chain in Admin" actually change who approves.
 
 **A2. Workflow Designer doesn't drive the lifecycle.** (HIGH, conceptual)
-Templates persist and render as a read-only diagram, but request state follows a hardcoded 9-stage enum + `STAGES_BY_CHANNEL` map. So an admin can "design" a workflow that the engine ignores.
+Templates persist and render as a read-only diagram, but request state follows a hardcoded 9-stage enum + `STAGES_BY_CHANNEL` map. So an admin can "design" a workflow that the engine ignores. **Resolved 2026-09-16:** `STAGES_BY_CHANNEL` is deleted and every consumer derives the channel's path from the template that claims it — see `src/lib/workflow/channel-stages.ts` and `npm run test:channel-stages`.
 *Recommendation (phased):* (a) short term — set expectations in the UI (the banner already hints this) and let a template at least define *which stages are skipped* per channel; (b) medium term — make the assigned template the source of truth for stage sequence, gates (decision nodes), forms (form nodes), and integration steps, so Designer edits actually re-route the lifecycle.
 
 **A3. AI Agents are gates, not engines, and only 2 are consumed.** (MEDIUM)

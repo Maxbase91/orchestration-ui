@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import type { ProcurementRequest, RequestStatus } from '@/data/types';
+import { stageLabelShort } from '@/lib/workflow/stage-labels';
 
 const STAGE_ORDER: RequestStatus[] = [
   'intake',
@@ -14,17 +15,6 @@ const STAGE_ORDER: RequestStatus[] = [
   'payment',
 ];
 
-const STAGE_LABELS: Record<string, string> = {
-  intake: 'Intake',
-  validation: 'Validation',
-  approval: 'Approval',
-  sourcing: 'Sourcing',
-  contracting: 'Contracting',
-  po: 'PO',
-  receipt: 'Receipt',
-  invoice: 'Invoice',
-  payment: 'Payment',
-};
 
 function getWeekLabel(weeksAgo: number): string {
   const d = new Date();
@@ -106,7 +96,7 @@ export function HeatmapView({ requests }: HeatmapViewProps) {
               key={stage}
               className="flex-1 text-center text-[10px] font-medium text-muted-foreground px-0.5"
             >
-              {STAGE_LABELS[stage]}
+              {stageLabelShort(stage)}
             </div>
           ))}
         </div>
@@ -127,7 +117,7 @@ export function HeatmapView({ requests }: HeatmapViewProps) {
                     ? 'text-white'
                     : 'text-gray-600',
                 )}
-                title={`${STAGE_LABELS[cell.stage]}: ${cell.count} requests`}
+                title={`${stageLabelShort(cell.stage)}: ${cell.count} requests`}
               >
                 {cell.count > 0 ? cell.count : ''}
               </div>
