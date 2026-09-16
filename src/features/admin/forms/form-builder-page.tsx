@@ -14,6 +14,7 @@ import {
   Minus,
   Info,
   ChevronDown,
+  AlertTriangle,
 } from 'lucide-react';
 import { PageHeader } from '@/components/shared/page-header';
 import { Button } from '@/components/ui/button';
@@ -36,24 +37,28 @@ import { useFormTemplates, useSaveFormTemplate } from '@/lib/db/hooks/use-form-t
 import type { FormTemplate, FormField, FormFieldType } from '@/data/form-templates';
 import { DynamicForm } from '@/components/shared/dynamic-form';
 import { toast } from 'sonner';
+import { lifecycleStages } from '@/lib/workflow/buying-channel-stages';
+import { ConditionCard } from '@/features/admin/routing-rules/components/condition-card';
+import { diagnoseFormTemplates } from '@/lib/forms/diagnose-form-template';
+import { usePolicyConfig } from '@/lib/procurement/use-policy-config';
 
 // ── Constants ───────────────────────────────────────────────────────
 
-const STAGES = [
-  'intake',
-  'validation',
-  'approval',
-  'sourcing',
-  'contracting',
-  'po',
-  'receipt',
-  'invoice',
-  'payment',
-] as const;
+// Every stage a channel actually traverses. This was a hand-written list of
+// nine that omitted `risk` and `onboarding` — while three ACTIVE forms trigger
+// on exactly those. Their stages were invisible here, so an admin could not
+// see or remove them, and toggling any other stage wrote the array back with
+// the unseen entry intact.
+const STAGES = lifecycleStages();
 
 const STAGE_LABELS: Record<string, string> = {
   intake: 'Intake',
   validation: 'Validation',
+  // Absent alongside the stage list, so FORM-002, FORM-003 and FORM-006 — all
+  // active, all triggering on these two — had no label even once the stages
+  // themselves became visible.
+  risk: 'Risk Assessment',
+  onboarding: 'Vendor Onboarding',
   approval: 'Approval',
   sourcing: 'Sourcing',
   contracting: 'Contracting',
@@ -287,6 +292,15 @@ export function FormBuilderPage() {
 
   // ── Trigger description ─────────────────────────────────────
 
+  const policyConfig = usePolicyConfig();
+  // Every active template that cannot do what it says, so a broken one is
+  // visible from the list rather than only when it fails to appear on a
+  // request. Same shape as the routing-rules page's `broken`.
+  const brokenForms = diagnoseFormTemplates(forms, { stages: STAGES, config: policyConfig });
+  const selectedFormProblems = selectedForm
+    ? (brokenForms.find((d) => d.templateId === selectedForm.id)?.problems ?? [])
+    : [];
+
   // Plain derivation, same reasoning as `grouped` above.
   const triggerDescription = ((): string => {
     if (!selectedForm) return '';
@@ -453,70 +467,36 @@ export function FormBuilderPage() {
                     </div>
                   </div>
 
-                  {/* Conditions */}
+                  {/* Conditions — the SAME editor the routing rules use.
+                      The field was a free-text <Input> with no vocabulary and
+                      no diagnosis, so a typo fell to `undefined`, evalCondition
+                      returned false, and with `.every()` the whole form
+                      silently never rendered. Routing rules were given
+                      diagnostics for precisely that failure; forms kept it. */}
                   <div>
                     <Label className="text-xs text-gray-500">Conditions</Label>
-                    {selectedForm.triggerConditions && selectedForm.triggerConditions.length > 0 ? (
+                    <p className="mt-1 text-xs text-gray-500">
+                      All conditions must be true for the form to be asked for.
+                    </p>
+                    {(selectedForm.triggerConditions ?? []).length > 0 && (
                       <div className="mt-2 space-y-2">
-                        {selectedForm.triggerConditions.map((cond, idx) => (
-                          <div key={idx} className="flex items-center gap-2 text-xs">
-                            <Input
-                              value={cond.field}
-                              onChange={(e) => {
-                                const newConds = [...(selectedForm.triggerConditions ?? [])];
-                                newConds[idx] = { ...newConds[idx], field: e.target.value };
-                                updateForm({ triggerConditions: newConds });
-                              }}
-                              className="w-28 text-xs"
-                              placeholder="Field"
-                            />
-                            <Select
-                              value={cond.operator}
-                              onValueChange={(v) => {
-                                const newConds = [...(selectedForm.triggerConditions ?? [])];
-                                newConds[idx] = { ...newConds[idx], operator: v };
-                                updateForm({ triggerConditions: newConds });
-                              }}
-                            >
-                              <SelectTrigger className="w-28 text-xs">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="equals">equals</SelectItem>
-                                <SelectItem value="not_equals">not equals</SelectItem>
-                                <SelectItem value="contains">contains</SelectItem>
-                                <SelectItem value="greater_than">greater than</SelectItem>
-                                <SelectItem value="less_than">less than</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <Input
-                              value={cond.value}
-                              onChange={(e) => {
-                                const newConds = [...(selectedForm.triggerConditions ?? [])];
-                                newConds[idx] = { ...newConds[idx], value: e.target.value };
-                                updateForm({ triggerConditions: newConds });
-                              }}
-                              className="w-28 text-xs"
-                              placeholder="Value"
-                            />
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                const newConds = (selectedForm.triggerConditions ?? []).filter(
-                                  (_, i) => i !== idx,
-                                );
-                                updateForm({
-                                  triggerConditions: newConds.length > 0 ? newConds : undefined,
-                                });
-                              }}
-                            >
-                              <X className="size-3" />
-                            </Button>
-                          </div>
+                        {(selectedForm.triggerConditions ?? []).map((cond, idx) => (
+                          <ConditionCard
+                            key={idx}
+                            condition={cond}
+                            onChange={(next) => {
+                              const newConds = [...(selectedForm.triggerConditions ?? [])];
+                              newConds[idx] = next;
+                              updateForm({ triggerConditions: newConds });
+                            }}
+                            onRemove={() => {
+                              const newConds = (selectedForm.triggerConditions ?? []).filter((_, i) => i !== idx);
+                              updateForm({ triggerConditions: newConds.length > 0 ? newConds : undefined });
+                            }}
+                          />
                         ))}
                       </div>
-                    ) : null}
+                    )}
                     <Button
                       variant="outline"
                       size="sm"
@@ -524,17 +504,49 @@ export function FormBuilderPage() {
                       onClick={() => {
                         const newConds = [
                           ...(selectedForm.triggerConditions ?? []),
-                          { field: '', operator: 'equals', value: '' },
+                          { field: 'category', operator: 'equals', value: '' },
                         ];
                         updateForm({ triggerConditions: newConds });
                       }}
                     >
-                      <Plus className="size-3" />
+                      <Plus className="mr-1 size-3" />
                       Add Condition
                     </Button>
                   </div>
 
+                  {/* Blocking. The column has existed since forms became
+                      evidence rather than decoration, and nothing could set
+                      it — it was reachable only by a direct database write. */}
+                  <div className="flex items-start justify-between gap-3 rounded-md border border-gray-200 bg-gray-50 p-3">
+                    <div>
+                      <Label className="text-xs font-medium text-gray-700">Blocks the stage</Label>
+                      <p className="mt-0.5 text-xs text-gray-500">
+                        The stage cannot be completed until this form is submitted. Administrators are
+                        exempt, so a misconfigured form can never strand a request.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={selectedForm.blocking === true}
+                      onCheckedChange={(checked) => updateForm({ blocking: checked })}
+                    />
+                  </div>
+
                   <p className="text-xs text-gray-500 italic">{triggerDescription}</p>
+
+                  {/* A form that cannot fire must look broken, not merely
+                      quiet — the same argument diagnoseRule makes for routing
+                      rules, on the surface that had none. */}
+                  {selectedFormProblems.length > 0 && (
+                    <div className="rounded-md border border-red-200 bg-red-50 p-3">
+                      <p className="flex items-center gap-2 text-xs font-medium text-red-900">
+                        <AlertTriangle className="size-3.5 shrink-0" />
+                        This form cannot be asked for
+                      </p>
+                      <ul className="mt-1.5 list-disc space-y-0.5 pl-8 text-xs text-red-800">
+                        {selectedFormProblems.map((problem) => <li key={problem}>{problem}</li>)}
+                      </ul>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 

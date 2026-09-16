@@ -34,7 +34,7 @@ const BROWSER = new Set([
   'test:service-description-ui', 'test:intake-guidance-ui', 'test:request-detail-ui',
   'test:interactions-ui', 'test:requester-entry-ui', 'test:link-navigation',
   'test:dashboard-ui', 'test:reference-data-ui', 'test:routing-rules-ui',
-  'test:approval-chains-ui',
+  'test:approval-chains-ui', 'test:form-builder-ui',
 ]);
 
 // Suites that call a third party. Kept out of the default gate because a

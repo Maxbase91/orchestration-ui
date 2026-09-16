@@ -58,6 +58,27 @@ const FULL_LIFECYCLE: RequestStatus[] = [
   'intake', 'validation', 'approval', 'sourcing', 'contracting', 'po', 'receipt', 'invoice', 'payment',
 ];
 
+/**
+ * Every stage any channel traverses, in lifecycle order.
+ *
+ * Deliberately NOT `FULL_LIFECYCLE`, which is the unknown-channel fallback and
+ * omits `risk` and `onboarding` — no channel's own path is missing them, but
+ * the fallback list never grew. Anything asking "which stages exist" wants
+ * this: the Form Builder restated its own nine-stage list with the same two
+ * omissions, so three active forms triggered on stages the builder could not
+ * show, and an admin could neither see nor remove them.
+ *
+ * Derived from the map rather than written out, so it cannot drift from it.
+ */
+export function lifecycleStages(): RequestStatus[] {
+  const ordered = STAGES_BY_CHANNEL['procurement-led'];
+  const seen = new Set(ordered);
+  const extras = Object.values(STAGES_BY_CHANNEL)
+    .flat()
+    .filter((stage) => !seen.has(stage));
+  return [...ordered, ...new Set(extras)];
+}
+
 /** Stages the request will actually visit for its channel. Unknown
  *  channels fall back to the full 9-stage path. */
 export function getStagesForChannel(channel: BuyingChannel | string | undefined): RequestStatus[] {
