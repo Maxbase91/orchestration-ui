@@ -22,8 +22,6 @@ const OUTCOME = new Set(['services', 'consulting', 'software']);
 
 const ALL_SLOTS = [
   { id: 'title', kind: 'request', field: 'title', required: true },
-  { id: 'value', kind: 'request', field: 'estimatedValue', required: true },
-  { id: 'deliveryDate', kind: 'request', field: 'deliveryDate', required: false },
   { id: 'objective', kind: 'sow', field: 'objective', required: true },
   { id: 'scope', kind: 'sow', field: 'scope', required: true },
   { id: 'deliverables', kind: 'sow', field: 'deliverables', required: true },
@@ -32,6 +30,8 @@ const ALL_SLOTS = [
   { id: 'acceptanceCriteria', kind: 'sow', field: 'acceptanceCriteria', required: false, why: 'Asked because this category is bought on an outcome…', appliesWhen: (c) => OUTCOME.has(c.category) },
   { id: 'pricingModel', kind: 'sow', field: 'pricingModel', required: false, why: 'Asked because this demand is above the value where the commercial model is agreed up front…', appliesWhen: (c, cfg) => (c.estimatedValue ?? 0) >= cfg.criticalServiceThreshold },
   { id: 'dependencies', kind: 'sow', field: 'dependencies', required: false, why: 'Asked because at this value what the engagement relies on has to be visible…', appliesWhen: (c, cfg) => (c.estimatedValue ?? 0) >= cfg.continuityThreshold },
+  { id: 'value', kind: 'request', field: 'estimatedValue', required: true },
+  { id: 'deliveryDate', kind: 'request', field: 'deliveryDate', required: false },
 ];
 const REQUIRED = ['title', 'value', 'objective', 'scope', 'deliverables', 'resources'];
 
@@ -55,9 +55,13 @@ const ctxOf = (over = {}) => ({ category: 'goods', sow: {}, ...over });
 
 console.log('Canonical order + carry-forward');
 check('empty demand → first question is title', nextId(ctxOf()) === 'title');
-check('title known → next is value', nextId(ctxOf({ title: 'X' })) === 'value');
-check('title+value known → next is deliveryDate', nextId(ctxOf({ title: 'X', estimatedValue: 5000 })) === 'deliveryDate');
-check('title+value+date → next is objective', nextId(ctxOf({ title: 'X', estimatedValue: 5000, deliveryDate: '2026-09-01' })) === 'objective');
+check('title known → next is objective', nextId(ctxOf({ title: 'X' })) === 'objective');
+check('description captured → next is value (budget asked last)', nextId(ctxOf({
+  title: 'X', sow: { objective: 'o', scope: 's', deliverables: 'd', resources: 'r' },
+})) === 'value');
+check('description + value known → next is deliveryDate (the very last question)', nextId(ctxOf({
+  title: 'X', estimatedValue: 5000, sow: { objective: 'o', scope: 's', deliverables: 'd', resources: 'r' },
+})) === 'deliveryDate');
 check('already-answered slot is never re-asked', !agendaIds(ctxOf({ title: 'X' })).includes('title'));
 
 console.log('Completeness (agenda empty)');
@@ -132,8 +136,12 @@ ALL_SLOTS.find((s) => s.id === 'value').example = '€50,000 or 150k';
 ALL_SLOTS.find((s) => s.id === 'objective').prompt = "What's the primary objective of this engagement?";
 ALL_SLOTS.find((s) => s.id === 'objective').example = 'run a promptathon to upskill 40 staff on AI tooling';
 
+// Title known, nothing else — the exact scenario from the screenshot. With
+// budget now asked last (see the canonical-order block above), the next slot
+// this lands on is "objective", which is the slot the screenshot actually
+// showed.
 const q = nextQuestion(ctxOf({ category: 'consulting', title: 'business consulting' }));
-check('the prompt is the question alone', q.prompt === "What's the estimated budget for this?", q.prompt);
+check('the prompt is the question alone', q.prompt === "What's the primary objective of this engagement?", q.prompt);
 check('the example is not concatenated onto it', !q.prompt.includes(q.example));
 check('the example carries no "(e.g. …)" wrapper of its own',
   !/^\(e\.g\./.test(q.example), q.example);

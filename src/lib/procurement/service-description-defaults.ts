@@ -83,18 +83,6 @@ export const DEFAULT_SLOTS: ConfiguredSlot[] = [
     why: 'Asked because this one line names the request everywhere it appears afterwards — in approvals, in sourcing and on the record.',
   },
   {
-    id: 'value', targetKind: 'request', targetField: 'estimatedValue', required: true,
-    prompt: "What's the estimated budget for this?",
-    examples: { default: '€50,000 or 150k' },
-    why: 'Asked because the value sets the buying channel, who approves it, and how long it takes — it is the single biggest driver of your route.',
-  },
-  {
-    id: 'deliveryDate', targetKind: 'request', targetField: 'deliveryDate', required: false,
-    prompt: 'When do you need this delivered or started by?',
-    examples: { default: 'by end of Q3, or a specific date' },
-    why: 'Asked because the date decides whether the standard route can make it, and whether an urgent path is worth opening.',
-  },
-  {
     id: 'objective', targetKind: 'sow', targetField: 'objective', required: true,
     prompt: "What's the primary objective of this engagement?",
     examples: {
@@ -152,6 +140,19 @@ export const DEFAULT_SLOTS: ConfiguredSlot[] = [
     prompt: 'Are there key dependencies or systems this relies on?',
     why: 'Asked because at this value what the engagement relies on has to be visible — a dependency nobody recorded is a continuity risk nobody can plan for.',
     conditions: [{ field: 'value', operator: '>=', value: 'policy:continuityThreshold' }],
+  },
+  // ── Budget and timing — asked last, once the work itself is described ────
+  {
+    id: 'value', targetKind: 'request', targetField: 'estimatedValue', required: true,
+    prompt: "What's the estimated budget for this?",
+    examples: { default: '€50,000 or 150k' },
+    why: 'Asked because the value sets the buying channel, who approves it, and how long it takes — it is the single biggest driver of your route.',
+  },
+  {
+    id: 'deliveryDate', targetKind: 'request', targetField: 'deliveryDate', required: false,
+    prompt: 'When do you need this delivered or started by?',
+    examples: { default: 'by end of Q3, or a specific date' },
+    why: 'Asked because the date decides whether the standard route can make it, and whether an urgent path is worth opening.',
   },
 ];
 

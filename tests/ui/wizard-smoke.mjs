@@ -310,6 +310,61 @@ try {
   check('Next opens once every risk question is answered',
     await page.getByRole('button', { name: /^Next$/ }).isEnabled().catch(() => false));
 
+  // 3f. BUDGET "NOT KNOWN" — THE REPORTED DEFECT. Budget used to be slot #2,
+  //     asked immediately after the title, and a requester who did not yet
+  //     know the figure had no extractable number to give — the engine kept
+  //     re-asking the identical "What's the estimated budget for this?"
+  //     forever. Budget (and the delivery date) are now asked LAST, and
+  //     answering "not known" is accepted after one retry instead of looped
+  //     on.
+  await page.goto(`${BASE}/requests/new`, { waitUntil: 'networkidle' });
+  await page.locator('#need-input').fill('a market-research study for APAC expansion');
+  await page.locator('#need-input').press('Enter');
+  await page.getByRole('button', { name: /Accept & continue/ }).click();
+  await page.getByText("How you'll buy this", { exact: true }).waitFor({ timeout: 15000 });
+  await page.getByRole('button', { name: /^Start$/ }).last().click();
+  await page.getByPlaceholder(/Type your answer/).waitFor({ timeout: 15000 });
+
+  // Answer the opening invitation first, deliberately WITHOUT a figure in it,
+  // and confirm the very next question is not the budget — pinning down the
+  // reorder itself, not just that budget shows up somewhere within N turns.
+  const fillerAnswer = 'A detailed answer covering everything this question needs for the request.';
+  await page.getByPlaceholder(/Type your answer/).fill(fillerAnswer);
+  await page.getByPlaceholder(/Type your answer/).press('Enter');
+  await page.waitForTimeout(1200);
+  check('budget is NOT the first substantive question (it used to be slot #2, right after the title)',
+    (await page.getByText(/estimated budget/i).count()) === 0);
+
+  let sawBudgetQuestion = false;
+  for (let turn = 0; turn < 8 && !sawBudgetQuestion; turn++) {
+    if (await page.getByText(/estimated budget/i).count()) { sawBudgetQuestion = true; break; }
+    const field = page.getByPlaceholder(/Type your answer/);
+    if (await field.isDisabled().catch(() => true)) break;
+    await field.fill(fillerAnswer);
+    await field.press('Enter');
+    await page.waitForTimeout(1200);
+  }
+  check('budget is still asked eventually, once the description is captured',
+    sawBudgetQuestion);
+
+  const budgetField = page.getByPlaceholder(/Type your answer/);
+  await budgetField.fill('not known yet');
+  await budgetField.press('Enter');
+  await page.waitForTimeout(1200);
+  // "approximate figure" only — NOT "not known yet", which is also the text of
+  // the user's own message bubble still on screen and would match regardless
+  // of whether the assistant actually replied with a retry hint.
+  check('a vague first budget answer gets a retry hint, not silence',
+    (await page.getByText(/approximate figure/i).count()) > 0);
+
+  await budgetField.fill('not known yet');
+  await budgetField.press('Enter');
+  await page.waitForTimeout(1200);
+  check('a second "not known" gives up on the budget rather than re-asking it',
+    (await page.getByText(/leave the budget open/i).count()) > 0);
+  check('the conversation moves on — the next question is delivery date, not budget again',
+    (await page.getByText(/When do you need this delivered or started by/i).count()) > 0);
+
   // 4. Full staged funnel via free text: classify → catalogue (no match) →
   //    enrich → contract (no match) → proceed to full request → risk step.
   await page.goto(`${BASE}/requests/new`, { waitUntil: 'networkidle' });

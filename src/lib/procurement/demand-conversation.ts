@@ -127,9 +127,17 @@ function ex(
 }
 
 /**
- * The canonical slot order. Required slots reproduce the previous fixed
- * sequence (title → value → objective → scope → deliverables → resources);
- * the conditional slots enrich it and only appear when their trigger fires.
+ * The canonical slot order. What is being bought is captured first — the
+ * title, then the description that goes to suppliers — with budget and the
+ * delivery date asked LAST, once the requester has already described the
+ * work.
+ *
+ * Budget used to be slot #2, straight after the title, so the conversation's
+ * second-ever question was "What's the estimated budget for this?" before the
+ * requester had said anything about what they actually needed. It also meant
+ * a requester who did not yet know the figure hit that question immediately
+ * and had no way past it — see `unresolvedAttemptsRef` in step-chat-intake.tsx
+ * for where "not known" is now accepted rather than re-asked forever.
  */
 export const ALL_SLOTS: DemandSlot[] = [
   {
@@ -144,22 +152,6 @@ export const ALL_SLOTS: DemandSlot[] = [
       consulting: 'consultants to design a target operating model',
       goods: '50 height-adjustable desks for the new office',
     }, 'market-research study for APAC expansion'),
-  },
-  {
-    id: 'value',
-    target: { kind: 'request', field: 'estimatedValue' },
-    required: true,
-    prompt: "What's the estimated budget for this?",
-    why: 'Asked because the value sets the buying channel, who approves it, and how long it takes — it is the single biggest driver of your route.',
-    example: () => '€50,000 or 150k',
-  },
-  {
-    id: 'deliveryDate',
-    target: { kind: 'request', field: 'deliveryDate' },
-    required: false,
-    prompt: 'When do you need this delivered or started by?',
-    why: 'Asked because the date decides whether the standard route can make it, and whether an urgent path is worth opening.',
-    example: () => 'by end of Q3, or a specific date',
   },
   {
     id: 'objective',
@@ -268,6 +260,23 @@ export const ALL_SLOTS: DemandSlot[] = [
     why: 'Asked because at this value what the engagement relies on has to be visible — a dependency nobody recorded is a continuity risk nobody can plan for.',
     // Large engagements carry continuity-relevant dependencies worth surfacing.
     appliesWhen: (ctx, config) => (ctx.estimatedValue ?? 0) >= config.continuityThreshold,
+  },
+  // ── Budget and timing — asked last, once the work itself is described ────
+  {
+    id: 'value',
+    target: { kind: 'request', field: 'estimatedValue' },
+    required: true,
+    prompt: "What's the estimated budget for this?",
+    why: 'Asked because the value sets the buying channel, who approves it, and how long it takes — it is the single biggest driver of your route.',
+    example: () => '€50,000 or 150k',
+  },
+  {
+    id: 'deliveryDate',
+    target: { kind: 'request', field: 'deliveryDate' },
+    required: false,
+    prompt: 'When do you need this delivered or started by?',
+    why: 'Asked because the date decides whether the standard route can make it, and whether an urgent path is worth opening.',
+    example: () => 'by end of Q3, or a specific date',
   },
 ];
 

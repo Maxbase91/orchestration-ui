@@ -89,12 +89,14 @@ const HARDCODED_APPLIES = {
 const TIME_BASED = 'services,consulting,contingent-labour';
 const OUTCOME_BASED = 'services,consulting,software';
 const CONFIGURED_SLOTS = [
-  { id: 'title' }, { id: 'value' }, { id: 'deliveryDate' },
+  { id: 'title' },
   { id: 'objective' }, { id: 'scope' }, { id: 'deliverables' }, { id: 'resources' },
   { id: 'timeline', conditions: [{ field: 'category', operator: 'in', value: TIME_BASED }] },
   { id: 'acceptanceCriteria', conditions: [{ field: 'category', operator: 'in', value: OUTCOME_BASED }] },
   { id: 'pricingModel', conditions: [{ field: 'value', operator: '>=', value: 'policy:criticalServiceThreshold' }] },
   { id: 'dependencies', conditions: [{ field: 'value', operator: '>=', value: 'policy:continuityThreshold' }] },
+  // Budget and timing — asked last, once the work itself is described.
+  { id: 'value' }, { id: 'deliveryDate' },
 ];
 
 console.log('Configured conditions reproduce the hardcoded ones');
@@ -167,18 +169,21 @@ check('the required floor is present in the configured set',
   REQUIRED_FLOOR.every((id) => CONFIGURED_SLOTS.some((s) => s.id === id)));
 
 console.log('\nThe branch rules themselves');
-check('timeline is asked for services', slotApplies(CONFIGURED_SLOTS[7], { category: 'services' }, POLICY));
-check('timeline is not asked for goods', !slotApplies(CONFIGURED_SLOTS[7], { category: 'goods' }, POLICY));
+// CONFIGURED_SLOTS order: 0 title, 1 objective, 2 scope, 3 deliverables,
+// 4 resources, 5 timeline, 6 acceptanceCriteria, 7 pricingModel,
+// 8 dependencies, 9 value, 10 deliveryDate — budget and timing last.
+check('timeline is asked for services', slotApplies(CONFIGURED_SLOTS[5], { category: 'services' }, POLICY));
+check('timeline is not asked for goods', !slotApplies(CONFIGURED_SLOTS[5], { category: 'goods' }, POLICY));
 check('acceptance criteria is asked for software',
-  slotApplies(CONFIGURED_SLOTS[8], { category: 'software' }, POLICY));
+  slotApplies(CONFIGURED_SLOTS[6], { category: 'software' }, POLICY));
 check('acceptance criteria is not asked for contingent labour',
-  !slotApplies(CONFIGURED_SLOTS[8], { category: 'contingent-labour' }, POLICY));
+  !slotApplies(CONFIGURED_SLOTS[6], { category: 'contingent-labour' }, POLICY));
 check('pricing model fires at the threshold, not above it',
-  slotApplies(CONFIGURED_SLOTS[9], { value: 100_000 }, POLICY));
-check('pricing model does not fire below', !slotApplies(CONFIGURED_SLOTS[9], { value: 99_999 }, POLICY));
+  slotApplies(CONFIGURED_SLOTS[7], { value: 100_000 }, POLICY));
+check('pricing model does not fire below', !slotApplies(CONFIGURED_SLOTS[7], { value: 99_999 }, POLICY));
 check('dependencies fires at its own, higher threshold',
-  slotApplies(CONFIGURED_SLOTS[10], { value: 250_000 }, POLICY) &&
-  !slotApplies(CONFIGURED_SLOTS[10], { value: 249_999 }, POLICY));
+  slotApplies(CONFIGURED_SLOTS[8], { value: 250_000 }, POLICY) &&
+  !slotApplies(CONFIGURED_SLOTS[8], { value: 249_999 }, POLICY));
 check('an unknown category still asks the unconditional slots',
   slotApplies(CONFIGURED_SLOTS[0], { category: 'unknown' }, POLICY));
 
@@ -187,8 +192,8 @@ console.log('\nThresholds stay governed, not pinned');
 // move the question, or the config has quietly detached from /admin/thresholds.
 const LOWERED = { criticalServiceThreshold: 10_000, continuityThreshold: 20_000 };
 check('lowering the threshold makes the question apply to a smaller demand',
-  !slotApplies(CONFIGURED_SLOTS[9], { value: 50_000 }, POLICY) &&
-  slotApplies(CONFIGURED_SLOTS[9], { value: 50_000 }, LOWERED));
+  !slotApplies(CONFIGURED_SLOTS[7], { value: 50_000 }, POLICY) &&
+  slotApplies(CONFIGURED_SLOTS[7], { value: 50_000 }, LOWERED));
 check('a literal value is unaffected by policy',
   slotApplies({ conditions: [{ field: 'value', operator: '>=', value: '1000' }] }, { value: 5000 }, LOWERED));
 

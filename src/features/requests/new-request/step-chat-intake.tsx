@@ -228,6 +228,12 @@ function localFallbackResponse(
           const num = Number(val);
           if (num > 0) extracted.estimatedValue = num;
         }
+        // No number in the answer ("not known", "TBD"). Flagged the same way
+        // an unreadable date is, so the caller can give up after a second
+        // attempt instead of re-asking the same question forever.
+        if (extracted.estimatedValue === undefined) {
+          warning = 'Please give an approximate figure, or say it is not known yet.';
+        }
       } else {
         if (answering.target.field === 'deliveryDate') {
           // A date slot must carry a real date forward. Keeping a prose answer
@@ -426,22 +432,42 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
     () => [...descriptionSlots, ...riskSlotsFor(riskQuestions)],
     [descriptionSlots, riskQuestions],
   );
-  /** Unreadable date answers so far. */
-  const dateAttemptsRef = useRef(0);
+  /** Unreadable answers so far, per slot — today the need-by date and the budget. */
+  const unresolvedAttemptsRef = useRef<Record<string, number>>({});
 
-  /** One rule for both paths: prompt once, then leave the date open. */
-  const noteDateAttempt = useCallback((invalid: boolean): { hint: string; skipped: boolean } => {
-    if (!invalid) { dateAttemptsRef.current = 0; return { hint: '', skipped: false }; }
-    dateAttemptsRef.current += 1;
-    if (dateAttemptsRef.current >= 2) {
-      setSkippedSlots((prev) => new Set(prev).add('deliveryDate'));
-      dateAttemptsRef.current = 0;
+  /**
+   * One rule for both paths and both fields: prompt once more, then take
+   * "not known" for an answer and move on.
+   *
+   * Originally date-only. The budget slot hit the identical failure mode: a
+   * requester who does not yet know the figure ("not known", "TBD") has no
+   * extractable number, so with nothing to give up on the engine kept
+   * re-asking the same question forever. This covers both rather than
+   * growing a second copy of the same logic.
+   */
+  const noteUnresolvedAttempt = useCallback((
+    field: 'deliveryDate' | 'value',
+    invalid: boolean,
+  ): { hint: string; skipped: boolean } => {
+    if (!invalid) { unresolvedAttemptsRef.current[field] = 0; return { hint: '', skipped: false }; }
+    const attempts = (unresolvedAttemptsRef.current[field] ?? 0) + 1;
+    unresolvedAttemptsRef.current[field] = attempts;
+    if (attempts >= 2) {
+      setSkippedSlots((prev) => new Set(prev).add(field));
+      unresolvedAttemptsRef.current[field] = 0;
       return {
-        hint: 'No problem — we will leave the need-by date open and you can add it later.\n\n',
+        hint: field === 'deliveryDate'
+          ? 'No problem — we will leave the need-by date open and you can add it later.\n\n'
+          : 'No problem — we will leave the budget open and you can add it once it is known.\n\n',
         skipped: true,
       };
     }
-    return { hint: 'Please enter a specific need-by date, for example 2026-12-31.\n\n', skipped: false };
+    return {
+      hint: field === 'deliveryDate'
+        ? 'Please enter a specific need-by date, for example 2026-12-31.\n\n'
+        : 'Please give an approximate figure, for example €50,000 or 150k — or say it is not known yet.\n\n',
+      skipped: false,
+    };
   }, []);
   // The opening turn is a fixed invitation rather than the first slot question,
   // so it does not depend on the template resolving. The LLM may rewrite it in
@@ -683,6 +709,7 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
       // Merge extracted request fields (LLM does the extraction).
       const updates: Record<string, unknown> = {};
       let invalidDateAnswer = false;
+      let invalidValueAnswer = false;
       if (result.extracted) {
         for (const [key, value] of Object.entries(result.extracted)) {
           // Only these fields may come from the model. The loop used to copy
@@ -698,6 +725,14 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
         if (typeof updates.deliveryDate === 'string') {
           updates.deliveryDate = parseDeliveryDate(updates.deliveryDate) ?? '';
           if (!updates.deliveryDate) { delete updates.deliveryDate; invalidDateAnswer = true; }
+        }
+        // The question just asked was the budget and no figure came back
+        // ("not known", "TBD") — flagged the same way an unreadable date is.
+        // Gated on `askedSlot` because every OTHER question also leaves
+        // `estimatedValue` unextracted; only the budget question itself makes
+        // that absence meaningful.
+        if (askedSlot?.id === 'value' && updates.estimatedValue === undefined) {
+          invalidValueAnswer = true;
         }
         // Match supplier against directory
         if (updates.supplier && typeof updates.supplier === 'string') {
@@ -765,11 +800,12 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
         ]);
       } else {
         // Applied before the next question is chosen: saying "we'll leave the
-        // date open" and then asking for the date again is worse than either.
-        const dateOutcome = noteDateAttempt(invalidDateAnswer);
-        const remainingSlots = dateOutcome.skipped
-          ? slots.filter((slot) => slot.id !== 'deliveryDate')
-          : slots;
+        // date/budget open" and then asking for it again is worse than either.
+        const dateOutcome = noteUnresolvedAttempt('deliveryDate', invalidDateAnswer);
+        const valueOutcome = noteUnresolvedAttempt('value', invalidValueAnswer);
+        const remainingSlots = slots.filter((slot) =>
+          !(dateOutcome.skipped && slot.id === 'deliveryDate')
+          && !(valueOutcome.skipped && slot.id === 'value'));
         const next = determineNextQuestion(ctx, undefined, remainingSlots);
         if (next) {
           // The ENGINE chooses WHICH slot is asked and when the conversation is
@@ -783,12 +819,12 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
           // Guarded: the model's line is used only if it is a plausible single
           // question. Anything else falls back to the canned wording.
           const phrased = usableQuestion(result.nextQuestion);
-          const dateHint = dateOutcome.hint;
+          const hint = dateOutcome.hint || valueOutcome.hint;
           setMessages((prev) => [
             ...prev,
             {
               role: 'assistant',
-              content: `${dateHint}${phrased ?? next.prompt}`,
+              content: `${hint}${phrased ?? next.prompt}`,
               why: next.slot.why,
               // A generic example only helps when the wording is generic too.
               example: phrased ? undefined : next.example,
@@ -844,22 +880,26 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
       }
 
       // Same give-up rule as the LLM path: the offline extractor rejects an
-      // unreadable date too, and looping there was no better.
-      const offlineDate = noteDateAttempt(Boolean(fallback.warning));
-      // When the date is given up on, the question that follows must be the
+      // unreadable date or budget too, and looping there was no better.
+      const offlineField: 'deliveryDate' | 'value' | undefined =
+        offlineSlot?.id === 'deliveryDate' || offlineSlot?.id === 'value' ? offlineSlot.id : undefined;
+      const offlineOutcome = offlineField
+        ? noteUnresolvedAttempt(offlineField, Boolean(fallback.warning))
+        : { hint: '', skipped: false };
+      // When the slot is given up on, the question that follows must be the
       // NEXT one, not the one just abandoned.
-      const offlineNext = offlineDate.skipped
+      const offlineNext = offlineOutcome.skipped
         ? determineNextQuestion(
             buildContext(category, data, svcDesc, riskAnswers),
             undefined,
-            slots.filter((slot) => slot.id !== 'deliveryDate'),
+            slots.filter((slot) => slot.id !== offlineField),
           )
         : null;
       setMessages((prev) => [
         ...prev,
         {
           role: 'assistant',
-          content: `${offlineDate.hint}${offlineNext?.prompt ?? fallback.nextQuestion}`,
+          content: `${offlineOutcome.hint}${offlineNext?.prompt ?? fallback.nextQuestion}`,
           why: offlineNext?.slot.why ?? fallback.why,
           example: offlineNext?.example ?? fallback.example,
           ...choiceFor(offlineNext?.slot ?? fallback.nextSlot),
@@ -872,7 +912,7 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
     } finally {
       setIsTyping(false);
     }
-  }, [inputValue, isTyping, messages, category, data, svcDesc, riskAnswers, onUpdate, suppliers, slots, challenged, noteDateAttempt]);
+  }, [inputValue, isTyping, messages, category, data, svcDesc, riskAnswers, onUpdate, suppliers, slots, challenged, noteUnresolvedAttempt]);
 
   /**
    * True while the conversation is waiting on a yes/no governance answer.
