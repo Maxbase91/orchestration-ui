@@ -202,10 +202,16 @@ if (!connection) {
 } else {
   console.log('\nLive requests sit in stages their channel traverses');
   const sql = neon(connection);
+  // Records the browser harnesses mint mid-run. They are created and deleted
+  // within a single E2E pass, so a config assertion that happens to read while
+  // one is in flight fails on residue rather than on configuration — which is
+  // exactly how this went red on a green commit. Both prefixes: `UI-E2E-` from
+  // the lifecycle harness (ADR-0006) and `E2E-TEST-` from the interaction one.
   const rows = await sql`
     SELECT id, status, buying_channel FROM requests
     WHERE buying_channel IS NOT NULL
       AND status NOT IN ('draft', 'completed', 'cancelled', 'referred-back')
+      AND id NOT LIKE 'UI-E2E-%' AND id NOT LIKE 'E2E-TEST-%'
   `;
   const offenders = rows.filter((row) => !getStagesForChannel(row.buying_channel).includes(row.status));
   if (offenders.length === 0) ok(`${rows.length} active request(s), none in a skipped stage`);
@@ -243,6 +249,7 @@ if (!connection) {
   const undated = await sql`
     SELECT id FROM requests
     WHERE sla_deadline IS NULL AND status NOT IN ('draft', 'completed', 'cancelled')
+      AND id NOT LIKE 'UI-E2E-%' AND id NOT LIKE 'E2E-TEST-%'
   `;
   if (undated.length === 0) ok('every open request has an SLA deadline');
   else bad(`${undated.length} open request(s) have no deadline`, undated.slice(0, 8).map((r) => r.id).join(', '));

@@ -143,11 +143,16 @@ if (!connection) {
   // `draft` is pre-lifecycle — the request has not been submitted, so no
   // channel traverses it. `referred-back` is an error node, and completed and
   // cancelled are terminal. None of the four is a stage a channel visits.
+  // Harness records (UI-E2E-, E2E-TEST-) are created and deleted inside one
+  // browser pass, so reading while one is in flight fails on residue rather
+  // than on configuration. Same exclusion as test:config-consumption.
   const requests = await sql`
     SELECT buying_channel, status, count(*)::int AS n
       FROM requests
      WHERE status NOT IN ('draft', 'completed', 'cancelled', 'referred-back')
        AND buying_channel IS NOT NULL
+       AND id NOT LIKE 'UI-E2E-%'
+       AND id NOT LIKE 'E2E-TEST-%'
      GROUP BY 1, 2`;
   const stranded = requests.filter((r) => {
     const path = liveMap[r.buying_channel];

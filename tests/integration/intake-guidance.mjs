@@ -372,16 +372,28 @@ console.log('\nA question with a parser behind it cannot loop forever');
 // written — and the same question came straight back, forever. A requester who
 // did not yet know the date could never reach the sections that matter. Same
 // rule the rest of the conversation follows: push back once, then move on.
-check('an unreadable date is given up on rather than re-asked',
-  /dateAttemptsRef/.test(CHAT_SRC)
+//
+// The budget slot hit the identical failure ("not known" has no extractable
+// number), so the rule was generalised from `noteDateAttempt` to
+// `noteUnresolvedAttempt(field, invalid)`. These assertions follow it: they
+// guard the BEHAVIOUR — give up after a second attempt, skip the slot, move
+// on, one rule across both paths — rather than the date-only names, which is
+// what made them fail on an implementation that had got strictly better.
+check('an unreadable answer is given up on rather than re-asked',
+  /unresolvedAttemptsRef/.test(CHAT_SRC)
+  && /attempts >= 2/.test(CHAT_SRC)
   && /leave the need-by date open/.test(CHAT_SRC)
   && /skippedSlots/.test(CHAT_SRC));
+// Both fields with a parser behind them, not just the date.
+check('the budget gives up too, rather than a second copy of the rule',
+  /leave the budget open/.test(CHAT_SRC)
+  && (CHAT_SRC.match(/noteUnresolvedAttempt\(/g) ?? []).length >= 3);
 check('giving up moves to the next question, it does not re-ask',
-  /dateOutcome\.skipped/.test(CHAT_SRC)
-  && /slot\.id !== 'deliveryDate'/.test(CHAT_SRC));
+  /dateOutcome\.skipped && slot\.id === 'deliveryDate'/.test(CHAT_SRC)
+  && /valueOutcome\.skipped && slot\.id === 'value'/.test(CHAT_SRC));
 check('both the assistant and the offline paths share one rule',
-  (CHAT_SRC.match(/noteDateAttempt\(/g) ?? []).length >= 2
-  && /const noteDateAttempt = useCallback/.test(CHAT_SRC));
+  /const noteUnresolvedAttempt = useCallback/.test(CHAT_SRC)
+  && /offlineOutcome/.test(CHAT_SRC));
 
 console.log('\nThe opening turn cannot leave the input disabled');
 // Under StrictMode the effect runs, is cleaned up, then runs again on the same
