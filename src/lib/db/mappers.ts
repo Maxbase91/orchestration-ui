@@ -200,6 +200,7 @@ export function mapDbToWorkflowTemplate(row: DbRecord): WorkflowTemplate {
     type: (row.type ?? '') as string,
     nodes: (row.nodes ?? []) as WorkflowTemplate['nodes'],
     edges: (row.edges ?? []) as WorkflowTemplate['edges'],
+    channels: (row.channels ?? []) as WorkflowTemplate['channels'],
   };
 }
 
@@ -211,6 +212,7 @@ export function mapWorkflowTemplateToDb(w: Partial<WorkflowTemplate>): DbRecord 
   if (w.type !== undefined) out.type = w.type;
   if (w.nodes !== undefined) out.nodes = w.nodes;
   if (w.edges !== undefined) out.edges = w.edges;
+  if (w.channels !== undefined) out.channels = w.channels;
   return out;
 }
 

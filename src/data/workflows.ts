@@ -14,6 +14,7 @@ export const workflowTemplates: WorkflowTemplate[] = [
     name: 'Standard Procurement',
     description: 'Default end-to-end procurement workflow from intake to payment, covering all standard stages.',
     type: 'procurement',
+    channels: ['procurement-led'],
     nodes: [
       { id: 'n1', type: 'start', label: 'Request Submitted', x: 50, y: 200 },
       { id: 'n2', type: 'stage', label: 'Intake', x: 200, y: 200, role: 'Business Requestor', slaDays: 1, gate: 'auto' as const, purpose: 'Demand captured and classified. Completed by submission.' },
@@ -65,15 +66,25 @@ export const workflowTemplates: WorkflowTemplate[] = [
     name: 'Catalogue Purchase',
     description: 'Simplified workflow for catalogue-based purchases with minimal approval steps.',
     type: 'catalogue',
+    channels: ['catalogue'],
     nodes: [
       { id: 'n1', type: 'start', label: 'Catalogue Order', x: 50, y: 150 },
-      { id: 'n2', type: 'stage', label: 'Auto-Validate', x: 200, y: 150, slaDays: 1 },
+      // Renamed from "Auto-Validate", which normalised to `validation` — a
+      // stage the catalogue channel skips, so every catalogue request showed a
+      // phantom stage while lacking the intake it actually has. It IS the
+      // automated intake check; one rename removes the phantom and supplies
+      // the missing stage.
+      { id: 'n2', type: 'stage', label: 'Intake', x: 200, y: 150, role: 'Business Requestor', slaDays: 1, gate: 'auto' as const, purpose: 'Catalogue order captured and checked against the item.' },
       { id: 'n3', type: 'decision', label: 'Value Check', x: 350, y: 150 },
       { id: 'n4', type: 'stage', label: 'Manager Approval', x: 500, y: 50, slaDays: 3 },
       { id: 'n5', type: 'stage', label: 'Auto-PO', x: 500, y: 250, slaDays: 1 },
       { id: 'n6', type: 'stage', label: 'PO Created', x: 650, y: 150, slaDays: 2 },
-      { id: 'n7', type: 'stage', label: 'Receipt', x: 800, y: 150, slaDays: 5 },
-      { id: 'n8', type: 'end', label: 'Complete', x: 950, y: 150 },
+      { id: 'n7', type: 'stage', label: 'Receipt', x: 800, y: 150, role: 'Business Requestor', slaDays: 5, gate: 'manual' as const, purpose: 'Goods or services received and confirmed.' },
+      // A catalogue order is still invoiced and paid — the template ended at
+      // Receipt while the channel map (and the real process) carried both.
+      { id: 'n9', type: 'stage', label: 'Invoice', x: 950, y: 150, role: 'Accounts Payable', slaDays: 5, gate: 'manual' as const, purpose: 'Invoice received and matched to the PO and receipt.' },
+      { id: 'n10', type: 'stage', label: 'Payment', x: 1100, y: 150, role: 'Finance', slaDays: 3, gate: 'manual' as const, purpose: 'Payment released to the supplier.' },
+      { id: 'n8', type: 'end', label: 'Complete', x: 1250, y: 150 },
     ],
     edges: [
       { source: 'n1', target: 'n2' },
@@ -83,7 +94,9 @@ export const workflowTemplates: WorkflowTemplate[] = [
       { source: 'n4', target: 'n6', label: 'Approved' },
       { source: 'n5', target: 'n6' },
       { source: 'n6', target: 'n7' },
-      { source: 'n7', target: 'n8' },
+      { source: 'n7', target: 'n9' },
+      { source: 'n9', target: 'n10' },
+      { source: 'n10', target: 'n8' },
     ],
   },
   {
@@ -91,6 +104,7 @@ export const workflowTemplates: WorkflowTemplate[] = [
     name: 'Supplier Onboarding',
     description: 'Workflow for onboarding new suppliers including due diligence, screening, and SRA assessment.',
     type: 'onboarding',
+    channels: [],
     nodes: [
       { id: 'n1', type: 'start', label: 'Onboarding Request', x: 50, y: 200 },
       { id: 'n2', type: 'stage', label: 'Initial Review', x: 200, y: 200, slaDays: 2 },
@@ -126,6 +140,7 @@ export const workflowTemplates: WorkflowTemplate[] = [
     name: 'Contract Renewal',
     description: 'Workflow for evaluating and processing contract renewals including market comparison.',
     type: 'renewal',
+    channels: [],
     nodes: [
       { id: 'n1', type: 'start', label: 'Renewal Trigger', x: 50, y: 200 },
       { id: 'n2', type: 'stage', label: 'Performance Review', x: 200, y: 200, slaDays: 5 },
@@ -147,6 +162,104 @@ export const workflowTemplates: WorkflowTemplate[] = [
       { source: 'n6', target: 'n8' },
       { source: 'n7', target: 'n8', label: 'Approved' },
       { source: 'n8', target: 'n9' },
+    ],
+  },
+  // ── The channels that never had a lifecycle ────────────────────────────────
+  // Only procurement-led and catalogue had a template, so deriving the stage
+  // map from templates was impossible for four of six channels — there was
+  // nothing to derive from, and `type` (procurement/catalogue/onboarding/
+  // renewal) has no column to join a BuyingChannel on.
+  //
+  // Stages, owner roles and SLAs are WF-001's, so these describe exactly what
+  // buying-channel-stages.ts already claimed. They change no behaviour; what
+  // they change is that an admin can now SEE what p-card and direct-po do.
+  {
+    id: 'WF-005',
+    name: 'Direct Purchase Order',
+    description: 'A known need from a known supplier: approve, raise the PO, receive, pay. No sourcing, no contracting.',
+    type: 'direct-po',
+    channels: ['direct-po'],
+    nodes: [
+      { id: 'n1', type: 'start', label: 'Request Submitted', x: 50, y: 150 },
+      { id: 'n2', type: 'stage', label: 'Intake', x: 200, y: 150, role: 'Business Requestor', slaDays: 1, gate: 'auto' as const, purpose: 'Demand captured and classified. Completed by submission.' },
+      { id: 'n3', type: 'stage', label: 'Approval', x: 350, y: 150, role: 'Approver', slaDays: 5, gate: 'manual' as const, purpose: 'All approvers in the value-banded chain have responded.' },
+      { id: 'n4', type: 'stage', label: 'PO Creation', x: 500, y: 150, role: 'Procurement Ops', slaDays: 2, gate: 'manual' as const, purpose: 'Purchase order raised and issued to the supplier.' },
+      { id: 'n5', type: 'stage', label: 'Receipt', x: 650, y: 150, role: 'Business Requestor', slaDays: 5, gate: 'manual' as const, purpose: 'Goods or services received and confirmed.' },
+      { id: 'n6', type: 'stage', label: 'Invoice', x: 800, y: 150, role: 'Accounts Payable', slaDays: 5, gate: 'manual' as const, purpose: 'Invoice received and matched to the PO and receipt.' },
+      { id: 'n7', type: 'stage', label: 'Payment', x: 950, y: 150, role: 'Finance', slaDays: 3, gate: 'manual' as const, purpose: 'Payment released to the supplier.' },
+      { id: 'n8', type: 'end', label: 'Completed', x: 1100, y: 150 },
+      { id: 'n9', type: 'error', label: 'Referred Back', x: 350, y: 300, slaDays: 3 },
+    ],
+    edges: [
+      { source: 'n1', target: 'n2' },
+      { source: 'n2', target: 'n3' },
+      { source: 'n3', target: 'n4', label: 'Approved' },
+      { source: 'n3', target: 'n9', label: 'Rejected' },
+      { source: 'n4', target: 'n5' },
+      { source: 'n5', target: 'n6' },
+      { source: 'n6', target: 'n7' },
+      { source: 'n7', target: 'n8' },
+      { source: 'n9', target: 'n2', label: 'Resubmit' },
+    ],
+  },
+  {
+    id: 'WF-006',
+    name: 'Business-Led Buying',
+    description: 'The business runs the buy against an existing framework or a known supplier. Procurement assures risk and onboarding rather than running the deal.',
+    type: 'business-led',
+    // Both channels, because they traverse the same stages: a framework
+    // call-off and a business-led buy differ in what covers the spend, not in
+    // what the platform asks of them.
+    channels: ['business-led', 'framework-call-off'],
+    nodes: [
+      { id: 'n1', type: 'start', label: 'Request Submitted', x: 50, y: 200 },
+      { id: 'n2', type: 'stage', label: 'Intake', x: 200, y: 200, role: 'Business Requestor', slaDays: 1, gate: 'auto' as const, purpose: 'Demand captured and classified. Completed by submission.' },
+      { id: 'n3', type: 'stage', label: 'Risk Assessment', x: 350, y: 200, role: 'Third-party risk', slaDays: 7, gate: 'manual' as const, purpose: 'Third-party risk assessed and a decision recorded, or an existing assessment reused.' },
+      { id: 'n4', type: 'stage', label: 'Vendor Onboarding', x: 500, y: 200, role: 'Vendor management', slaDays: 5, gate: 'manual' as const, purpose: 'Create and screen the supplier so they can be transacted with.' },
+      { id: 'n5', type: 'stage', label: 'Approval', x: 650, y: 200, role: 'Approver', slaDays: 5, gate: 'manual' as const, purpose: 'All approvers in the value-banded chain have responded.' },
+      { id: 'n6', type: 'stage', label: 'PO Creation', x: 800, y: 200, role: 'Procurement Ops', slaDays: 2, gate: 'manual' as const, purpose: 'Purchase order raised and issued to the supplier.' },
+      { id: 'n7', type: 'stage', label: 'Receipt', x: 950, y: 200, role: 'Business Requestor', slaDays: 5, gate: 'manual' as const, purpose: 'Goods or services received and confirmed.' },
+      { id: 'n8', type: 'stage', label: 'Invoice', x: 1100, y: 200, role: 'Accounts Payable', slaDays: 5, gate: 'manual' as const, purpose: 'Invoice received and matched to the PO and receipt.' },
+      { id: 'n9', type: 'stage', label: 'Payment', x: 1250, y: 200, role: 'Finance', slaDays: 3, gate: 'manual' as const, purpose: 'Payment released to the supplier.' },
+      { id: 'n10', type: 'end', label: 'Completed', x: 1400, y: 200 },
+      { id: 'n11', type: 'error', label: 'Referred Back', x: 650, y: 350, slaDays: 3 },
+    ],
+    edges: [
+      { source: 'n1', target: 'n2' },
+      { source: 'n2', target: 'n3' },
+      // Risk and onboarding are entered only when the triage said so, the same
+      // conditional shape WF-001 uses; the stepper draws the rest as skipped.
+      { source: 'n3', target: 'n4', label: 'Onboarding required' },
+      { source: 'n3', target: 'n5', label: 'Skip onboarding' },
+      { source: 'n4', target: 'n5' },
+      { source: 'n5', target: 'n6', label: 'Approved' },
+      { source: 'n5', target: 'n11', label: 'Rejected' },
+      { source: 'n6', target: 'n7' },
+      { source: 'n7', target: 'n8' },
+      { source: 'n8', target: 'n9' },
+      { source: 'n9', target: 'n10' },
+      { source: 'n11', target: 'n2', label: 'Resubmit' },
+    ],
+  },
+  {
+    id: 'WF-007',
+    name: 'Purchasing Card',
+    description: 'Low-value governed card spend. Two stages and no PO — the card is the payment instrument, so receipt, invoice and payment do not apply.',
+    type: 'p-card',
+    channels: ['p-card'],
+    nodes: [
+      { id: 'n1', type: 'start', label: 'Request Submitted', x: 50, y: 150 },
+      { id: 'n2', type: 'stage', label: 'Intake', x: 200, y: 150, role: 'Business Requestor', slaDays: 1, gate: 'auto' as const, purpose: 'Demand captured and checked against the P-card policy.' },
+      { id: 'n3', type: 'stage', label: 'Approval', x: 350, y: 150, role: 'Approver', slaDays: 3, gate: 'manual' as const, purpose: 'Line manager has approved the card spend.' },
+      { id: 'n4', type: 'end', label: 'Completed', x: 500, y: 150 },
+      { id: 'n5', type: 'error', label: 'Referred Back', x: 350, y: 300, slaDays: 3 },
+    ],
+    edges: [
+      { source: 'n1', target: 'n2' },
+      { source: 'n2', target: 'n3' },
+      { source: 'n3', target: 'n4', label: 'Approved' },
+      { source: 'n3', target: 'n5', label: 'Rejected' },
+      { source: 'n5', target: 'n2', label: 'Resubmit' },
     ],
   },
 ];

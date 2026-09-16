@@ -253,6 +253,7 @@ npm run test:routing-fallback     # the catch-all rules reproduce the deleted if
 npm run test:approval-bands       # a chain with no value band never shadows one that has it; gaps and overlaps are reported
 npm run test:form-gates           # the blocking form gate is a subset of what renders, so a form can never strand a request
 npm run test:form-builder         # the builder offers every stage a form uses, the shared condition editor, and reports a form that cannot fire
+npm run test:channel-map-parity   # every channel derives its lifecycle from a template, matching the code map it will replace
 npm run test:models               # each pinned Groq/Gemini model is still served by its provider (calls the providers, so it is outside the default gate — run it on demand or via `test:all -- --external`)
 npm run test:table-lists          # hand-maintained relation lists match db/schema.sql
 npm run test:requester-entry-ui   # browser smoke (stubbed) — requester entry screen renders and fits 320px

@@ -504,6 +504,14 @@ export interface WorkflowTemplate {
    * is the exit criteria shown to that person. All optional so templates saved
    * before these existed stay valid — see lib/workflow/node-config.ts.
    */
+  /**
+   * Buying channels whose lifecycle this template defines.
+   *
+   * Empty for a side process — WF-003 Supplier Onboarding and WF-004 Contract
+   * Renewal are workflows for different objects, selected by category, and no
+   * request has ever used either.
+   */
+  channels?: BuyingChannel[];
   nodes: {
     id: string;
     type: string;

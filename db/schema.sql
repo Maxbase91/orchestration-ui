@@ -1516,3 +1516,14 @@ ALTER TABLE routing_rules ADD COLUMN IF NOT EXISTS priority INTEGER NOT NULL DEF
 -- `threshold` survives as a rendered display label, written from the bounds.
 ALTER TABLE approval_chains ADD COLUMN IF NOT EXISTS min_value TEXT;
 ALTER TABLE approval_chains ADD COLUMN IF NOT EXISTS max_value TEXT;
+
+-- ── Which channels a workflow template defines the lifecycle for ────────────
+-- The lifecycle was defined twice: buying-channel-stages.ts said which stages
+-- a channel visits, in code, and the template defined the graph the engine
+-- walks, in data. They disagreed for every channel. Templates win, because a
+-- template is the thing an admin can see and change — but there was no key to
+-- join on: `type` holds procurement/catalogue/onboarding/renewal while
+-- BuyingChannel has six values, and four channels had no template at all.
+-- Empty means a side process (supplier onboarding, contract renewal), not a
+-- route: those are selected by category and no request has ever used one.
+ALTER TABLE workflow_templates ADD COLUMN IF NOT EXISTS channels TEXT[] NOT NULL DEFAULT '{}';

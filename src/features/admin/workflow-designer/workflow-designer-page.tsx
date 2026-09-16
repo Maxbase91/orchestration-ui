@@ -1,5 +1,5 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
-import { Save, Play, Maximize2, Minimize2 } from 'lucide-react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { Save, Play, Maximize2, Minimize2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -64,6 +64,9 @@ import { DesignerCanvas } from './components/designer-canvas';
 import { NodeConfigPanel } from './components/node-config-panel';
 import { TemplateLibrary } from './components/template-library';
 import { SimulationRunner } from './components/simulation-runner';
+import { cn } from '@/lib/utils';
+import { BUYING_CHANNELS } from '@/lib/workflow/buying-channel-stages';
+import { channelStageMapFromTemplates, unclaimedChannels } from '@/lib/workflow/channel-stages';
 
 function mapTemplateToFlow(template: WorkflowTemplate): { nodes: Node[]; edges: Edge[] } {
   const typeMapping: Record<string, string> = {
@@ -179,6 +182,38 @@ export function WorkflowDesignerPage() {
 
   const saveTemplate = useSaveWorkflowTemplate();
 
+  // Which channels this template defines the lifecycle for. Until now the
+  // lifecycle lived twice — in `buying-channel-stages.ts` and in the graph
+  // below — with no key to join them on, so renaming a stage here changed the
+  // graph the engine walks and not the map the stepper draws.
+  //
+  // Held locally and merged on save, the same shape as the graph itself.
+  const [editedChannels, setEditedChannels] = useState<string[] | null>(null);
+  // Memoised because it feeds a useMemo and a useCallback below: a fresh
+  // array every render would invalidate both on every render.
+  const channels = useMemo(
+    () => editedChannels ?? template?.channels ?? [],
+    [editedChannels, template?.channels],
+  );
+
+  // A channel two templates claim, and a channel none claims, are both silent
+  // failures: the first claim wins, and an unclaimed channel has no lifecycle
+  // at all. Reported here, where they are made.
+  const channelIssues = useMemo(() => {
+    const claimedHere = new Set(channels);
+    const takenElsewhere = workflowTemplates
+      .filter((t) => t.id !== template?.id)
+      .flatMap((t) => (t.channels ?? []).filter((c) => claimedHere.has(c))
+        .map((c) => `${c} is also claimed by ${t.id}`));
+    const asClaimedNow = workflowTemplates.map((t) => (
+      t.id === template?.id ? { ...t, channels } : t
+    ));
+    const orphans = unclaimedChannels(
+      channelStageMapFromTemplates(asClaimedNow), BUYING_CHANNELS,
+    ).map((c) => `${c} has no template`);
+    return [...takenElsewhere, ...orphans];
+  }, [channels, workflowTemplates, template?.id]);
+
   const handleSave = useCallback(async () => {
     if (!template) {
       toast.error('No template selected.');
@@ -186,13 +221,14 @@ export function WorkflowDesignerPage() {
     }
     const graph = mapFlowToTemplateGraph(nodesRef.current, edgesRef.current);
     try {
-      await saveTemplate.mutateAsync({ ...template, ...graph });
+      await saveTemplate.mutateAsync({ ...template, ...graph, channels });
+      setEditedChannels(null);
       toast.success(`Workflow "${template.name}" saved.`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'unknown';
       toast.error(`Save failed: ${msg}`);
     }
-  }, [template, saveTemplate]);
+  }, [template, saveTemplate, channels]);
 
   const toggleFullscreen = useCallback(() => {
     setIsFullscreen((prev) => !prev);
@@ -235,6 +271,45 @@ export function WorkflowDesignerPage() {
             </SelectContent>
           </Select>
           <TemplateLibrary onSelect={handleTemplateChange} />
+          {/* Empty is legitimate: WF-003 and WF-004 are workflows for other
+              objects (supplier onboarding, contract renewal), selected by
+              category rather than by channel. */}
+          <div className="flex flex-wrap items-center gap-1.5 border-l border-gray-200 pl-3">
+            <span className="text-xs text-gray-500">Lifecycle for</span>
+            {BUYING_CHANNELS.map((channel) => {
+              const active = channels.includes(channel);
+              return (
+                <button
+                  key={channel}
+                  type="button"
+                  onClick={() => setEditedChannels(
+                    active ? channels.filter((c) => c !== channel) : [...channels, channel],
+                  )}
+                  className={cn(
+                    'rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
+                    active
+                      ? 'border-blue-300 bg-blue-100 text-blue-700'
+                      : 'border-gray-200 bg-gray-50 text-gray-500 hover:bg-gray-100',
+                  )}
+                >
+                  {channel}
+                </button>
+              );
+            })}
+            {channels.length === 0 && (
+              <span className="text-xs text-gray-400">none — a side process</span>
+            )}
+            {channelIssues.length > 0 && (
+              <span
+                className="flex items-center gap-1 text-xs text-amber-700"
+                title={channelIssues.join('\n')}
+              >
+                <AlertTriangle className="size-3.5 shrink-0" />
+                {channelIssues[0]}
+                {channelIssues.length > 1 ? ` (+${channelIssues.length - 1} more)` : ''}
+              </span>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <Button
