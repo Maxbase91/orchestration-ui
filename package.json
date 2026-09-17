@@ -94,6 +94,7 @@
     "test:csv-export": "node --import tsx/esm tests/integration/csv-export.mjs",
     "test:admin-delete-controls": "node tests/integration/admin-delete-controls.mjs",
     "test:integration-health": "node --import tsx/esm tests/integration/integration-health.mjs",
+    "test:design-tokens": "node tests/integration/design-tokens.mjs",
     "test:ui": "node tests/ui/wizard-smoke.mjs",
     "test:requester-entry-ui": "node tests/ui/requester-entry.mjs",
     "test:catalogue-ui": "node tests/integration/catalogue-detail-ui.mjs",

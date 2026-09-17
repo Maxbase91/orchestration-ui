@@ -196,6 +196,9 @@ npm run test:intake-routing-eval  # intake routing eval harness + accuracy basel
 npm run test:referral             # demand disposition — proceed / request-change / refer-back (RTE-06)
 npm run test:knowledge            # grounded policy-Q&A retrieval — ranking, citations, low-confidence, and that the
                                   #   assistant answers from the admin's knowledge_base rather than the built-in fixture
+npm run test:design-tokens        # the design foundation holds — every text token clears WCAG AA on every
+                                  #   ground in BOTH themes (computed, not eyeballed), the three theme states are
+                                  #   wired, the fonts are fetched, and a migrated screen names no palette colour
 npm run test:integration-health    # /admin/health reports what happened to the recorded handovers — a failing
                                   #   system never averages into a green card, an unused one says so, and no
                                   #   uptime/error-rate/session figure is invented; plus the budget-owner picker

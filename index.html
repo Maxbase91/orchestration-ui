@@ -5,6 +5,25 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Procurement Orchestration Platform</title>
+    <!--
+      Inter and IBM Plex Mono, actually fetched.
+
+      `--font-sans` has named Inter since the app was written and nothing ever
+      loaded it, so every screen has rendered in the system UI font on every
+      machine. That is audit finding 4, and it blocks finding 5: Inter's
+      tabular figures are the reason it was chosen for a product with 65 files
+      of numbers. Plex Mono carries ids, timestamps and any figure in a column.
+
+      Weights are the ones the app uses (400/500/600/700) rather than the full
+      family — a variable-font URL with every weight is ~3x the bytes for
+      weights nothing renders.
+    -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+    />
   </head>
   <body>
     <div id="root"></div>

@@ -35,8 +35,14 @@ where it is harder to notice than a component class.
 **Recommendation: `--ink-3: #646E87`.** Eight points darker, the minimum that
 clears 4.5:1 on all three grounds (4.71 on paper, 4.50 on sunk), and visually
 indistinguishable from the original. `--idle` shares the value and moves with
-it. Every other POC token passes on both themes, light and dark, including all
-four status colours on their own soft backgrounds — so this is the only change.
+it.
+
+> **Corrected during Phase 0.** This section said the light value was "the only
+> change", because I had checked the tokens against `--card` and `--paper` by
+> hand. The guard checks all 54 pairs, and the **dark** `--ink-3: #77819B` fails
+> the same way on `--card-2` (4.38) and `--idle-soft` (4.43). It is `#7B859F`,
+> the minimum that clears every ground. I found one by hand and missed the
+> other; computing it is the reason `test:design-tokens` exists.
 
 ```
        #6C768F  (POC)        #646E87  (proposed)
@@ -109,17 +115,30 @@ The POC has **13 distinct sizes** including `13.5px` and `12.5px`; the app has
 **11** including `9px`, `12.5px` and `13.5px`. Both are mockup artefacts. One
 scale of six, and the mapping is shown before any component changes:
 
-| Token | px / line-height | Replaces (app) | Role |
+| Utility | px / line-height | Replaces (app) | Role |
 |---|---|---|---|
-| `--text-2xs` | 11 / 1.45 | `text-[9px]`, `text-[10px]`, `text-[11px]` | uppercase eyebrows, table micro-labels |
-| `--text-xs` | 12.5 / 1.5 | `text-xs`, `text-[12px]`, `text-[12.5px]` | captions, reason lines, metadata |
-| `--text-sm` | 13.5 / 1.55 | `text-sm`, `text-[13px]`, `text-[13.5px]` | body, table cells, form values |
-| `--text-base` | 15 / 1.6 | `text-base` | narrative prose, chat |
-| `--text-lg` | 19 / 1.3 | `text-lg`, `text-xl` | card and section headings |
-| `--text-display` | 27–30 / 1.15 | `text-2xl` | the band's route statement and money figure |
+| `text-eyebrow` | 11 / 1.45 | `text-[9px]`, `text-[10px]`, `text-[11px]` | uppercase labels, table micro-headers |
+| `text-caption` | 12.5 / 1.5 | `text-xs`, `text-[12px]`, `text-[12.5px]` | captions, reason lines, metadata |
+| `text-body` | 13.5 / 1.55 | `text-sm`, `text-[13px]`, `text-[13.5px]` | body, table cells, form values |
+| `text-prose` | 15 / 1.6 | `text-base` | narrative prose, chat |
+| `text-heading` | 19 / 1.3 | `text-lg`, `text-xl` | card and section headings |
+| `text-display` | 28 / 1.15 | `text-2xl` | the band's route statement and money figure |
+
+> **Named by role, not by size — changed during Phase 0.** This table first
+> called them `--text-2xs/xs/sm/base/lg`. In Tailwind 4 those names *are*
+> Tailwind's own, so defining `--text-sm: 13.5px` would have silently resized
+> all **772** existing `text-sm` uses across every screen the moment the token
+> layer landed — the opposite of a phased migration, and it would have made
+> Phase 1's "migrate this screen" meaningless for type. Role names sit in their
+> own namespace, so the two scales coexist until a screen moves.
+>
+> Spacing is affected the same way and is therefore **not** redefined: Tailwind's
+> scale is already the 4px base specified below, and overriding a step such as
+> `--spacing-6` would shift every `p-6` in the tree. "One spacing scale" is
+> enforced as a guard rule instead.
 
 `text-[9px]` has no target — it is below the legible floor and its 7 uses become
-`--text-2xs`. Anything that then looks wrong is a layout problem to fix, not a
+`text-eyebrow`. Anything that then looks wrong is a layout problem to fix, not a
 size to re-add.
 
 ### Font
@@ -146,8 +165,9 @@ it is what makes finding 2 a 24-file mechanical change instead of 24 decisions.
 - Every existing suite green — Phase 0 changes no component, so nothing should
   move. If a browser suite fails here, the token layer has changed rendering and
   that is a bug in Phase 0, not in the suite.
-- New `test:design-tokens`, failing at this point by design: it asserts no raw
-  palette utility in files listed as migrated, and the list is empty.
+- New `test:design-tokens`. The migrated list starts with `<AsyncBoundary>`, the
+  one new component, so the rule is live from the first file rather than
+  arriving after the work.
 - Contrast assertion in that guard: every `--ink*`, `--accent`, `--ok`,
   `--warn`, `--stop` token computed against `--card`, `--paper` and `--sunk`,
   light and dark, must be ≥ 4.5:1. This is the check that would have caught D1,
