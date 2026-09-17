@@ -19,13 +19,18 @@ function mapFlowToTemplateGraph(
   nodes: Node[],
   edges: Edge[],
 ): { nodes: WorkflowTemplate['nodes']; edges: WorkflowTemplate['edges'] } {
-  // Reverse the typeMapping. 'userTask' flattens back to 'stage'
-  // since that's the most common node kind in the template schema.
+  // Every palette type maps back to a template type the engine handles. It
+  // mapped four of ten, so an Approval or Timer node dropped on the canvas
+  // saved as a plain stage — the label survived and the node kind did not.
+  // The palette is six now and this covers all of them.
   const reverseType: Record<string, string> = {
     start: 'start',
     end: 'end',
     userTask: 'stage',
     decision: 'decision',
+    systemAction: 'integration',
+    aiAgent: 'integration',
+    notification: 'integration',
   };
   return {
     nodes: nodes.map((n) => {
@@ -49,12 +54,21 @@ function mapFlowToTemplateGraph(
         ...(data.gate === 'auto' || data.gate === 'manual'
           ? { gate: data.gate as 'auto' | 'manual' }
           : {}),
+        // Which kind of integration node this is. Without it the three collapse
+        // into one on reload and the canvas shows a System Action where the
+        // author dropped an AI Agent.
+        ...(templateType === 'integration' && data.integrationKind
+          ? { integrationKind: data.integrationKind as string }
+          : {}),
       };
     }),
     edges: edges.map((e) => ({
       source: e.source,
       target: e.target,
       label: typeof e.label === 'string' ? e.label : undefined,
+      // The branch condition. Dropping it here is what left WF-002's decision
+      // as a caption with nothing behind it.
+      ...(e.data?.condition ? { condition: e.data.condition as EdgeCondition } : {}),
     })),
   };
 }
@@ -68,6 +82,8 @@ import { cn } from '@/lib/utils';
 import {
   BUYING_CHANNELS, channelStageMapFromTemplates, unclaimedChannels,
 } from '@/lib/workflow/channel-stages';
+import { diagnoseTemplate, type EdgeCondition } from '@/lib/workflow/edge-conditions';
+import { usePolicyConfig } from '@/lib/procurement/use-policy-config';
 
 function mapTemplateToFlow(template: WorkflowTemplate): { nodes: Node[]; edges: Edge[] } {
   const typeMapping: Record<string, string> = {
@@ -77,6 +93,10 @@ function mapTemplateToFlow(template: WorkflowTemplate): { nodes: Node[]; edges: 
     decision: 'decision',
     parallel: 'decision',
     error: 'end',
+    // The canvas has no integration node of its own; `integrationKind` on the
+    // node data says which of the three it is, and reverseType maps all three
+    // back to `integration`.
+    integration: 'systemAction',
   };
 
   const nodes: Node[] = template.nodes.map((n) => ({
@@ -92,6 +112,7 @@ function mapTemplateToFlow(template: WorkflowTemplate): { nodes: Node[]; edges: 
       ...(n.slaDays != null ? { slaDays: n.slaDays } : {}),
       ...(n.purpose ? { purpose: n.purpose } : {}),
       ...(n.gate ? { gate: n.gate } : {}),
+      ...(n.integrationKind ? { integrationKind: n.integrationKind } : {}),
     },
   }));
 
@@ -100,6 +121,7 @@ function mapTemplateToFlow(template: WorkflowTemplate): { nodes: Node[]; edges: 
     source: e.source,
     target: e.target,
     label: e.label,
+    ...(e.condition ? { data: { condition: e.condition } } : {}),
     animated: true,
     style: { stroke: '#94a3b8' },
   }));
@@ -144,6 +166,33 @@ export function WorkflowDesignerPage() {
     ? mapTemplateToFlow(template)
     : { nodes: [] as Node[], edges: [] as Edge[] };
 
+  // The config panel renders a decision's outgoing branches, so the edges have
+  // to be state: a ref read during render is stale the moment a condition is
+  // edited, and the panel would show the previous value.
+  // Both mirrored into state: the diagnostics banner and the branch editor
+  // render from them, and a ref read during render is stale the moment
+  // anything is edited.
+  const [editedNodes, setCanvasNodes] = useState<Node[]>([]);
+  const [editedEdges, setCanvasEdges] = useState<Edge[]>([]);
+  // `useState(initialNodes)` captured the FIRST render — before the templates
+  // query resolved — and never caught up, so the diagnostics had an empty graph
+  // to read and reported nothing. Falling back to the mapped template keeps the
+  // edited state authoritative once there is any, without an effect that sets
+  // state during render.
+  const canvasNodes = editedNodes.length > 0 ? editedNodes : initialNodes;
+  const canvasEdges = editedEdges.length > 0 ? editedEdges : initialEdges;
+
+  // Branches that cannot do what their caption says — a condition on a field
+  // nothing supplies, a label that reads like a rule and is not one, a decision
+  // with no default. WF-002's `> €5K` was all three at once and nothing
+  // anywhere reported it.
+  const policyConfig = usePolicyConfig();
+  const templateProblems = useMemo(() => {
+    if (!template) return [];
+    const graph = mapFlowToTemplateGraph(canvasNodes, canvasEdges);
+    return diagnoseTemplate(graph, policyConfig);
+  }, [template, canvasNodes, canvasEdges, policyConfig]);
+
   // Initialize refs on template change
   useEffect(() => {
     if (!template) return;
@@ -153,12 +202,19 @@ export function WorkflowDesignerPage() {
   }, [template]);
 
   const handleTemplateChange = useCallback((templateId: string) => {
+    // Reset the panel's view of the branches here rather than in an effect:
+    // the template is changing because someone chose one, which is exactly
+    // where the new edges are known.
+    const next = workflowTemplates.find((t) => t.id === templateId);
+    const flow = next ? mapTemplateToFlow(next) : { nodes: [] as Node[], edges: [] as Edge[] };
+    setCanvasNodes(flow.nodes);
+    setCanvasEdges(flow.edges);
     setSelectedTemplateId(templateId);
     setSelectedNode(null);
     setShowSimulation(false);
     setHighlightedNodeId(null);
     setCanvasKey((k) => k + 1);
-  }, []);
+  }, [workflowTemplates]);
 
   const handleNodeClick = useCallback((node: Node) => {
     setSelectedNode(node);
@@ -171,6 +227,15 @@ export function WorkflowDesignerPage() {
     };
     wrapper?.__canvasApi?.updateNodeData(nodeId, data);
     setSelectedNode(null);
+  }, []);
+
+  // A decision's branches are edges, so the panel edits those too. The panel
+  // stays open: configuring several branches is one task.
+  const handleEdgeUpdate = useCallback((edgeId: string, data: Record<string, unknown>) => {
+    const wrapper = canvasWrapperRef.current?.querySelector('[class*="flex-1"]') as HTMLDivElement & {
+      __canvasApi?: { updateEdgeData: (id: string, data: Record<string, unknown>) => void };
+    };
+    wrapper?.__canvasApi?.updateEdgeData(edgeId, data);
   }, []);
 
   const handleNodeDelete = useCallback((nodeId: string) => {
@@ -301,7 +366,32 @@ export function WorkflowDesignerPage() {
             {channels.length === 0 && (
               <span className="text-xs text-gray-400">none — a side process</span>
             )}
-            {channelIssues.length > 0 && (
+            {templateProblems.length > 0 && !isFullscreen && (
+        <div className="border-b border-amber-200 bg-amber-50 px-4 py-2">
+          <p className="flex items-center gap-2 text-xs font-medium text-amber-900">
+            <AlertTriangle className="size-3.5 shrink-0" />
+            Some branches will not do what their label says
+          </p>
+          <ul className="mt-1 list-disc space-y-0.5 pl-9 text-xs text-amber-800">
+            {templateProblems.flatMap((d) => d.problems.map((problem) => (
+              <li key={`${d.nodeId}-${problem}`}>
+                <button
+                  type="button"
+                  className="font-medium underline underline-offset-2"
+                  onClick={() => {
+                    const node = canvasNodes.find((n) => n.id === d.nodeId);
+                    if (node) setSelectedNode(node);
+                  }}
+                >
+                  {canvasNodes.find((n) => n.id === d.nodeId)?.data?.label as string ?? d.nodeId}
+                </button>
+                {' — '}{problem}
+              </li>
+            )))}
+          </ul>
+        </div>
+      )}
+      {channelIssues.length > 0 && (
               <span
                 className="flex items-center gap-1 text-xs text-amber-700"
                 title={channelIssues.join('\n')}
@@ -359,8 +449,8 @@ export function WorkflowDesignerPage() {
             initialEdges={initialEdges}
             onNodeClick={handleNodeClick}
             highlightedNodeId={highlightedNodeId}
-            onNodesChange={(n) => { nodesRef.current = n; }}
-            onEdgesChange={(e) => { edgesRef.current = e; }}
+            onNodesChange={(n) => { nodesRef.current = n; setCanvasNodes(n); }}
+            onEdgesChange={(e) => { edgesRef.current = e; setCanvasEdges(e); }}
           />
 
           {showSimulation && simulationGraph && (
@@ -381,7 +471,9 @@ export function WorkflowDesignerPage() {
           <NodeConfigPanel
             key={selectedNode.id}
             node={selectedNode}
+            edges={canvasEdges}
             onUpdate={handleNodeUpdate}
+            onUpdateEdge={handleEdgeUpdate}
             onDelete={handleNodeDelete}
             onClose={() => setSelectedNode(null)}
           />

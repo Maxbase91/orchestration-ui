@@ -89,8 +89,21 @@ export const workflowTemplates: WorkflowTemplate[] = [
     edges: [
       { source: 'n1', target: 'n2' },
       { source: 'n2', target: 'n3' },
-      { source: 'n3', target: 'n4', label: '> €5K' },
-      { source: 'n3', target: 'n5', label: '< €5K' },
+      // These labels were `> €5K` / `< €5K` and evaluated to nothing: the
+      // parser needed a field name and got a currency symbol, so the branch
+      // fell through to the first edge and EVERY catalogue order went to
+      // Manager Approval regardless of value. Typed now, against the governed
+      // threshold that already decides catalogue auto-approval elsewhere — so
+      // the boundary moves from /admin/thresholds rather than from a caption.
+      {
+        source: 'n3',
+        target: 'n4',
+        label: 'Above the auto-approval threshold',
+        condition: { field: 'value', operator: 'greater_than', value: 'policy:catalogueAutoApprovalThreshold' },
+      },
+      // The default branch: no condition, so it is taken when the one above
+      // does not hold.
+      { source: 'n3', target: 'n5', label: 'Auto-approve' },
       { source: 'n4', target: 'n6', label: 'Approved' },
       { source: 'n5', target: 'n6' },
       { source: 'n6', target: 'n7' },
@@ -129,8 +142,19 @@ export const workflowTemplates: WorkflowTemplate[] = [
       { source: 'n5', target: 'n8' },
       { source: 'n6', target: 'n8' },
       { source: 'n7', target: 'n8' },
-      { source: 'n8', target: 'n9', label: 'Pass' },
-      { source: 'n8', target: 'n12', label: 'Fail' },
+      // Both branches were unconditional, so the engine took "Pass" every time
+      // and "Fail" was unreachable — a risk decision that could not reject.
+      // Only a critical inherent tier rejects outright; everything else goes to
+      // Compliance Approval, which is itself a human gate, so the default is
+      // not fail-open. Proposed values for a process nobody had specified —
+      // change them in the Designer.
+      {
+        source: 'n8',
+        target: 'n12',
+        label: 'Critical risk',
+        condition: { field: 'riskRating', operator: 'risk_rating', value: 'critical' },
+      },
+      { source: 'n8', target: 'n9', label: 'To compliance approval' },
       { source: 'n9', target: 'n10', label: 'Approved' },
       { source: 'n10', target: 'n11' },
     ],
@@ -155,8 +179,19 @@ export const workflowTemplates: WorkflowTemplate[] = [
     edges: [
       { source: 'n1', target: 'n2' },
       { source: 'n2', target: 'n3' },
-      { source: 'n3', target: 'n4', label: 'Recompete' },
-      { source: 'n3', target: 'n5', label: 'Renew' },
+      // Both branches were unconditional, so "Recompete" was taken every time
+      // and "Renew" was unreachable. A renewal above the competitive-sourcing
+      // threshold goes back to market; below it, renegotiate with the
+      // incumbent. Governed, so the boundary moves from /admin/thresholds.
+      // Proposed values for a process nobody had specified — change them in
+      // the Designer.
+      {
+        source: 'n3',
+        target: 'n4',
+        label: 'Above the competitive-sourcing threshold',
+        condition: { field: 'value', operator: 'greater_than', value: 'policy:competitiveSourcingThreshold' },
+      },
+      { source: 'n3', target: 'n5', label: 'Renegotiate' },
       { source: 'n4', target: 'n6' },
       { source: 'n5', target: 'n7' },
       { source: 'n6', target: 'n8' },

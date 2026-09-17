@@ -9,19 +9,26 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
-import { Checkbox } from '@/components/ui/checkbox';
 import { useAiAgents } from '@/lib/db/hooks/use-ai-agents';
-import type { Node } from '@xyflow/react';
+import type { Node, Edge } from '@xyflow/react';
+import { ConditionCard } from '@/features/admin/routing-rules/components/condition-card';
+import type { EdgeCondition } from '@/lib/workflow/edge-conditions';
 
 interface NodeConfigPanelProps {
   node: Node;
+  /** Every edge on the canvas — a decision node configures its own branches,
+   *  because a branch condition belongs to the branch, not to the node. */
+  edges: Edge[];
   onUpdate: (nodeId: string, data: Record<string, unknown>) => void;
+  onUpdateEdge: (edgeId: string, data: Record<string, unknown>) => void;
   onDelete: (nodeId: string) => void;
   onClose: () => void;
 }
 
-export function NodeConfigPanel({ node, onUpdate, onDelete, onClose }: NodeConfigPanelProps) {
+export function NodeConfigPanel({
+  node, edges, onUpdate, onUpdateEdge, onDelete, onClose,
+}: NodeConfigPanelProps) {
+  const nodeLabel = (id: string) => id;
   const { data: aiAgents = [] } = useAiAgents();
   // Staged edits, initialised from the node. The caller keys this panel on the
   // node id, so selecting a different node remounts it with fresh state — which
@@ -89,178 +96,124 @@ export function NodeConfigPanel({ node, onUpdate, onDelete, onClose }: NodeConfi
                 </SelectContent>
               </Select>
             </Field>
-            <div className="flex items-center justify-between">
-              <Label className="text-sm">Escalate on timeout</Label>
-              <Switch checked={!!formData.escalateOnTimeout} onCheckedChange={(v) => set('escalateOnTimeout', v)} />
-            </div>
+            {/* "Escalate on timeout" was here. The save path never carried it
+                and there is no escalation mechanism for a stage SLA to trigger,
+                so it was a switch that changed nothing. An overdue stage is
+                surfaced by the SLA deadline, which is `slaDays` above. */}
           </>
         );
 
-      case 'approval':
-        return (
-          <>
-            <Field label="Approver">
-              <Input value={(formData.approver as string) ?? ''} onChange={(e) => set('approver', e.target.value)} placeholder="e.g. Budget Owner" />
-            </Field>
-            <Field label="Approval type">
-              <Select value={(formData.approvalType as string) ?? 'single'} onValueChange={(v) => set('approvalType', v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="single">Single</SelectItem>
-                  <SelectItem value="majority">Majority</SelectItem>
-                  <SelectItem value="unanimous">Unanimous</SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field label="Timeout (days)">
-              <Input type="number" value={(formData.timeout as number) ?? ''} onChange={(e) => set('timeout', Number(e.target.value))} min={0} />
-            </Field>
-            <Field label="Auto-approve conditions">
-              <Input value={(formData.autoApproveConditions as string) ?? ''} onChange={(e) => set('autoApproveConditions', e.target.value)} placeholder="e.g. value < 1000" />
-            </Field>
-            <div className="flex items-center justify-between">
-              <Label className="text-sm">Allow delegation</Label>
-              <Switch checked={!!formData.allowDelegation} onCheckedChange={(v) => set('allowDelegation', v)} />
-            </div>
-          </>
-        );
+      // `approval`, `timer` and `subWorkflow` are gone from the palette, and
+      // their config with them. Approval chains decide who approves — by value
+      // band, or by a routing rule naming one — so a second approver field here
+      // was a control the runtime never read. Waiting is `slaDays` on the stage.
+      // Sub-workflow had no runtime at all. The auto-approve condition field
+      // went with them: a fifth dialect for expressing a threshold, with no
+      // reader anywhere.
 
-      case 'aiAgent':
+      case 'decision': {
+        // A decision does not carry a condition — its BRANCHES do, and they
+        // differ, which is the whole point of branching. This panel collected
+        // one conditionField/Operator/Value for the node, persisted none of it,
+        // and left the real decision in free-text edge labels: WF-002's
+        // `> €5K` never evaluated, so every catalogue order took the same
+        // branch regardless of value.
+        const outgoing = edges.filter((e) => e.source === node.id);
         return (
-          <>
-            <Field label="AI Agent">
-              <Select value={(formData.agentId as string) ?? ''} onValueChange={(v) => set('agentId', v)}>
-                <SelectTrigger><SelectValue placeholder="Select agent" /></SelectTrigger>
-                <SelectContent>
-                  {aiAgents.map((a) => (
-                    <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field label="Confidence threshold">
-              <div className="flex items-center gap-3">
-                <input
-                  type="range"
-                  min={0}
-                  max={100}
-                  value={(formData.confidenceThreshold as number) ?? 80}
-                  onChange={(e) => set('confidenceThreshold', Number(e.target.value))}
-                  className="flex-1"
-                />
-                <span className="text-sm font-medium text-gray-700 w-10 text-right">{(formData.confidenceThreshold as number) ?? 80}%</span>
-              </div>
-            </Field>
-            <Field label="Fallback action">
-              <Select value={(formData.fallbackAction as string) ?? 'escalate'} onValueChange={(v) => set('fallbackAction', v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="escalate">Escalate to human</SelectItem>
-                  <SelectItem value="skip">Skip step</SelectItem>
-                  <SelectItem value="reject">Reject</SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
-          </>
+          <div className="space-y-3">
+            <p className="text-xs text-gray-500">
+              Each outgoing branch carries its own condition. They are tried in order; the
+              branch with no condition is the default and is taken when none of the others
+              holds.
+            </p>
+            {outgoing.length === 0 && (
+              <p className="text-xs text-amber-700">
+                This decision has no outgoing branches, so nothing can follow it.
+              </p>
+            )}
+            {outgoing.map((edge) => {
+              const target = nodeLabel(edge.target);
+              const condition = (edge.data?.condition as EdgeCondition | undefined) ?? null;
+              return (
+                <div key={edge.id} className="rounded-md border border-gray-200 p-2.5">
+                  <p className="mb-1.5 text-xs font-medium text-gray-700">→ {target}</p>
+                  {condition ? (
+                    <ConditionCard
+                      condition={condition}
+                      onChange={(next) => onUpdateEdge(edge.id, { condition: next })}
+                      onRemove={() => onUpdateEdge(edge.id, { condition: null })}
+                    />
+                  ) : (
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-gray-500">
+                        No condition — this is the default branch.
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => onUpdateEdge(edge.id, {
+                          condition: { field: 'value', operator: 'greater_than', value: '' },
+                        })}
+                      >
+                        Add condition
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {outgoing.length > 0 && outgoing.every((e) => e.data?.condition) && (
+              <p className="text-xs text-amber-700">
+                Every branch has a condition, so a request matching none of them falls through
+                to the first. Leave one branch unconditional as the default.
+              </p>
+            )}
+          </div>
         );
-
-      case 'decision':
-        return (
-          <>
-            <Field label="Condition field">
-              <Input value={(formData.conditionField as string) ?? ''} onChange={(e) => set('conditionField', e.target.value)} placeholder="e.g. request.value" />
-            </Field>
-            <Field label="Operator">
-              <Select value={(formData.conditionOperator as string) ?? 'equals'} onValueChange={(v) => set('conditionOperator', v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="equals">Equals</SelectItem>
-                  <SelectItem value="not_equals">Not Equals</SelectItem>
-                  <SelectItem value="greater_than">Greater Than</SelectItem>
-                  <SelectItem value="less_than">Less Than</SelectItem>
-                  <SelectItem value="contains">Contains</SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field label="Value">
-              <Input value={(formData.conditionValue as string) ?? ''} onChange={(e) => set('conditionValue', e.target.value)} placeholder="e.g. 5000" />
-            </Field>
-          </>
-        );
-
-      case 'timer':
-        return (
-          <>
-            <Field label="Duration">
-              <Input type="number" value={(formData.duration as number) ?? ''} onChange={(e) => set('duration', Number(e.target.value))} min={0} />
-            </Field>
-            <Field label="Unit">
-              <Select value={(formData.unit as string) ?? 'days'} onValueChange={(v) => set('unit', v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="hours">Hours</SelectItem>
-                  <SelectItem value="days">Days</SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field label="Action on expiry">
-              <Select value={(formData.actionOnExpiry as string) ?? 'escalate'} onValueChange={(v) => set('actionOnExpiry', v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="escalate">Escalate</SelectItem>
-                  <SelectItem value="skip">Skip</SelectItem>
-                  <SelectItem value="notify">Notify</SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
-          </>
-        );
+      }
 
       case 'systemAction':
+      case 'aiAgent':
+      case 'notification':
+        // All three persist as the template's `integration` type, which the
+        // engine handles; `integrationKind` is what keeps them distinct on
+        // reload. Before this they saved as plain stages — the label survived
+        // and the node kind did not.
         return (
           <>
-            <Field label="Action type">
-              <Select value={(formData.actionType as string) ?? 'send-email'} onValueChange={(v) => set('actionType', v)}>
+            <Field label="Integration kind">
+              <Select
+                value={(formData.integrationKind as string) ?? node.type ?? 'systemAction'}
+                onValueChange={(v) => set('integrationKind', v)}
+              >
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="send-email">Send Email</SelectItem>
-                  <SelectItem value="update-status">Update Status</SelectItem>
-                  <SelectItem value="create-po">Create PO</SelectItem>
+                  <SelectItem value="systemAction">System action</SelectItem>
+                  <SelectItem value="aiAgent">AI agent</SelectItem>
+                  <SelectItem value="notification">Notification</SelectItem>
                 </SelectContent>
               </Select>
             </Field>
-            <Field label="Configuration">
-              <Textarea value={(formData.configuration as string) ?? ''} onChange={(e) => set('configuration', e.target.value)} rows={3} placeholder="Action configuration..." />
-            </Field>
-          </>
-        );
-
-      case 'notification':
-        return (
-          <>
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Channels</Label>
-              {(['email', 'in-app', 'sms'] as const).map((ch) => {
-                const channels = (formData.channels as string[]) ?? [];
-                return (
-                  <div key={ch} className="flex items-center gap-2">
-                    <Checkbox
-                      checked={channels.includes(ch)}
-                      onCheckedChange={(checked) => {
-                        set('channels', checked ? [...channels, ch] : channels.filter((c) => c !== ch));
-                      }}
-                    />
-                    <Label className="text-sm capitalize">{ch}</Label>
-                  </div>
-                );
-              })}
-            </div>
-            <Field label="Recipient">
-              <Input value={(formData.recipient as string) ?? ''} onChange={(e) => set('recipient', e.target.value)} placeholder="e.g. requestor" />
-            </Field>
-            <Field label="Template">
-              <Input value={(formData.template as string) ?? ''} onChange={(e) => set('template', e.target.value)} placeholder="Template name..." />
-            </Field>
+            {(formData.integrationKind ?? node.type) === 'aiAgent' && (
+              <Field label="Agent">
+                <Select
+                  value={(formData.agentId as string) ?? ''}
+                  onValueChange={(v) => set('agentId', v)}
+                >
+                  <SelectTrigger><SelectValue placeholder="Select an agent" /></SelectTrigger>
+                  <SelectContent>
+                    {aiAgents.map((a) => (
+                      <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            )}
+            <p className="text-xs text-gray-500">
+              The engine logs and continues past an integration node — there are no live
+              upstream connections in this release.
+            </p>
           </>
         );
 

@@ -522,8 +522,21 @@ export interface WorkflowTemplate {
     slaDays?: number;
     purpose?: string;
     gate?: 'auto' | 'manual';
+  /** For an `integration` node: which kind the designer dropped. Without it
+   *  the three collapse into one on reload. */
+  integrationKind?: string;
   }[];
-  edges: { source: string; target: string; label?: string }[];
+  edges: {
+    source: string;
+    target: string;
+    /** Caption on the canvas. Display only — it was parsed, and `> €5K` never
+     *  matched, so the branch it guarded was taken unconditionally. */
+    label?: string;
+    /** What actually decides the branch: the same {field, operator, value}
+     *  shape routing rules and form triggers use, governed thresholds
+     *  included. */
+    condition?: { field: string; operator: string; value: string } | null;
+  }[];
 }
 
 export type RiskAssessmentCategory =

@@ -33,20 +33,22 @@
 import { neon } from '@neondatabase/serverless';
 import { requireConnectionOrFail } from '../../tests/lib/live.mjs';
 import { workflowTemplates } from '../../src/data/workflows.ts';
-import { stagesFromTemplate, channelStageMapFromTemplates, unclaimedChannels } from '../../src/lib/workflow/channel-stages.ts';
-import { BUYING_CHANNELS, getStagesForChannel } from '../../src/lib/workflow/buying-channel-stages.ts';
+import {
+  stagesFromTemplate, channelStageMapFromTemplates, unclaimedChannels,
+  BUYING_CHANNELS, getStagesForChannel,
+} from '../../src/lib/workflow/channel-stages.ts';
 
 const DRY = process.argv.includes('--dry-run');
 const sql = neon(requireConnectionOrFail('template channels'));
 
-// Refuse to write a set that disagrees with the code map. This backfill exists
-// to make the two agree; writing templates that do not would defeat it.
+// Refuse to write a set that leaves a channel without a lifecycle. This used to
+// compare against the code map; that map is deleted (C8) and the templates are
+// the definition now, so what is left to check is that the definition is
+// complete before it is written.
 const seedMap = channelStageMapFromTemplates(workflowTemplates);
-const mismatched = BUYING_CHANNELS.filter(
-  (c) => (seedMap[c] ?? []).join('>') !== [...getStagesForChannel(c)].join('>'),
-);
-if (mismatched.length > 0) {
-  console.error('The seed templates do not reproduce the code map for:', mismatched.join(', '));
+const empty = BUYING_CHANNELS.filter((c) => getStagesForChannel(seedMap, c).length === 0);
+if (empty.length > 0) {
+  console.error('Channels that derive no stages:', empty.join(', '));
   console.error('Fix src/data/workflows.ts before running this.');
   process.exit(1);
 }
@@ -76,7 +78,11 @@ const edgesBySource = (edges) => {
   const grouped = new Map();
   for (const e of edges ?? []) {
     if (!grouped.has(e.source)) grouped.set(e.source, []);
-    grouped.get(e.source).push(`${e.target}[${e.label ?? ''}]`);
+    // The condition is part of the edge: comparing source/target/label alone
+    // would miss a branch gaining or losing the thing that makes it decide.
+    grouped.get(e.source).push(
+      `${e.target}[${e.label ?? ''}]${e.condition ? `{${e.condition.field} ${e.condition.operator} ${e.condition.value}}` : ''}`,
+    );
   }
   return [...grouped.entries()].sort().map(([src, outs]) => `${src}:${outs.join(',')}`).join(' ');
 };

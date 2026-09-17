@@ -137,6 +137,7 @@
     "test:form-gates": "node --import tsx/esm tests/integration/form-gates.mjs",
     "test:form-builder": "node --import tsx/esm tests/integration/form-builder.mjs",
     "test:channel-stages": "node --import tsx/esm tests/integration/channel-stages.mjs",
+    "test:edge-conditions": "node --import tsx/esm tests/integration/edge-conditions.mjs",
     "backfill:sla-deadlines": "node --import tsx/esm db/backfills/2026-09-13-sla-deadlines.mjs",
     "backfill:routing-tokens": "node db/backfills/2026-09-13-routing-policy-tokens.mjs",
     "backfill:routing-catch-alls": "node --import tsx/esm db/backfills/2026-09-13-routing-catch-alls.mjs",

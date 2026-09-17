@@ -26,6 +26,9 @@ export interface TemplateNode {
   purpose?: string;
   /** Whether leaving this stage needs a human action. */
   gate?: NodeGate;
+  /** For an `integration` node: which kind the designer dropped. Without it
+   *  the three collapse into one on reload. */
+  integrationKind?: string;
 }
 
 /**

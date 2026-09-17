@@ -32,6 +32,7 @@ import { transitionStage } from './transition';
 import { onboardingRequired } from './onboarding-stage';
 import { ensureRiskAssessment } from './risk-stage';
 import { getActivePolicyConfig } from '@/lib/procurement/policy-config';
+import { getNextNodeIds, type EdgeEvalContext } from './edge-conditions';
 import { listApprovalChains } from '@/lib/db/approval-chains';
 import { selectApprovalChainForValue } from './workflow-steps';
 import { isGatedStage, nodeToStatus, type TemplateNode } from './node-config';
@@ -40,32 +41,6 @@ import { isGatedStage, nodeToStatus, type TemplateNode } from './node-config';
 // `./approver-resolution` (the single source of truth).
 
 // ── Node traversal helpers ────────────────────────────────────────────────────
-
-interface TemplateEdge { source: string; target: string; label?: string }
-
-// ── Decision edge condition evaluator ────────────────────────────────────────
-// Supports simple conditions on edge labels:
-//   "value > 100000"   "category == consulting"   "approved"   "rejected"
-// Falls back to first edge if no condition matches.
-
-interface EdgeContext {
-  value?: number;
-  category?: string;
-  status?: string;
-  outcome?: string;
-  /** Persisted at intake (R3); drives the conditional risk stage. */
-  riskRequired?: boolean;
-  riskTier?: string;
-  /**
-   * The awarded/named supplier still needs onboarding (S6).
-   *
-   * Note the node is the *visible* stage; the guarantee lives in the gates
-   * (canEnterSourcing / canEnterContracting), which hold on every path including
-   * ones this edge does not cover — a demand that skips risk still cannot invite
-   * or contract with an un-onboarded vendor.
-   */
-  onboardingRequired?: boolean;
-}
 
 /**
  * Does the named supplier still need onboarding?
@@ -96,72 +71,12 @@ async function needsOnboarding(supplierId: string | null | undefined): Promise<b
   }
 }
 
-function evaluateEdgeCondition(label: string | undefined, ctx: EdgeContext): boolean {
-  if (!label) return true; // unlabelled edges always match
-  const l = label.trim().toLowerCase();
+// Edge conditions live in edge-conditions.ts now, in the same
+// {field, operator, value} shape as routing rules and form triggers, evaluated
+// by the same evaluator against the same governed thresholds. The label parser
+// that lived here understood a handful of shapes and returned false for the
+// rest — including `> €5K`, which is exactly what an admin would write.
 
-  // Outcome keywords (from approval actions)
-  if (ctx.outcome && l.includes(ctx.outcome.toLowerCase())) return true;
-  if (l === 'approved' || l === 'rejected' || l === 'cancelled') {
-    return ctx.outcome?.toLowerCase() === l;
-  }
-
-  // Boolean flags carried on the request, e.g. the "risk required" edge that
-  // routes a demand into the risk stage. Written as a bare label rather than a
-  // comparison because that is what reads sensibly on the designer canvas.
-  if (l === 'risk required') return ctx.riskRequired === true;
-  if (l === 'no risk assessment' || l === 'skip risk') return ctx.riskRequired !== true;
-  if (l === 'onboarding required') return ctx.onboardingRequired === true;
-  if (l === 'skip onboarding' || l === 'no onboarding') return ctx.onboardingRequired !== true;
-
-  // Simple field comparisons: "value > 100000", "category == consulting",
-  // "risktier == high"
-  const compMatch = l.match(/^(value|category|status|risktier)\s*(>|<|>=|<=|==|!=)\s*(.+)$/);
-  if (compMatch) {
-    const [, field, op, rhs] = compMatch;
-    const lhsRaw = field === 'risktier' ? ctx.riskTier : ctx[field as keyof EdgeContext];
-    const lhsNum = typeof lhsRaw === 'number' ? lhsRaw : parseFloat(String(lhsRaw ?? ''));
-    const rhsNum = parseFloat(rhs);
-
-    if (!isNaN(lhsNum) && !isNaN(rhsNum)) {
-      if (op === '>') return lhsNum > rhsNum;
-      if (op === '<') return lhsNum < rhsNum;
-      if (op === '>=') return lhsNum >= rhsNum;
-      if (op === '<=') return lhsNum <= rhsNum;
-      if (op === '==') return lhsNum === rhsNum;
-      if (op === '!=') return lhsNum !== rhsNum;
-    }
-    // String comparison
-    const lhsStr = String(lhsRaw ?? '').toLowerCase();
-    const rhsStr = rhs.trim().toLowerCase();
-    if (op === '==') return lhsStr === rhsStr;
-    if (op === '!=') return lhsStr !== rhsStr;
-  }
-
-  // Fuzzy keyword match for category / channel names
-  if (ctx.category && l.includes(ctx.category.toLowerCase())) return true;
-
-  return false;
-}
-
-function getNextNodeIds(
-  nodeId: string,
-  edges: TemplateEdge[],
-  outcome?: string,
-  ctx?: EdgeContext,
-): string[] {
-  const outgoing = edges.filter((e) => e.source === nodeId);
-  if (outgoing.length === 0) return [];
-
-  const evalCtx: EdgeContext = { ...ctx, outcome };
-
-  // Try to find an edge whose label condition matches
-  const matched = outgoing.find((e) => evaluateEdgeCondition(e.label, evalCtx));
-  if (matched) return [matched.target];
-
-  // Fallback: first edge (happy path)
-  return [outgoing[0].target];
-}
 
 // ── Generate approval entries from chain ──────────────────────────────────────
 
@@ -350,7 +265,7 @@ async function advanceInstance(
     .eq('id', instance.requestId)
     .maybeSingle();
   const row = (reqRow ?? {}) as Record<string, unknown>;
-  const edgeCtx: EdgeContext = {
+  const edgeCtx: EdgeEvalContext = {
     value: row.value as number | undefined,
     category: row.category as string | undefined,
     status: row.status as string | undefined,
@@ -399,7 +314,7 @@ async function advanceInstance(
       }
     }
 
-    const nextIds = getNextNodeIds(nodeId, template.edges, stepOutcome, edgeCtx);
+    const nextIds = getNextNodeIds(nodeId, template.edges, stepOutcome, edgeCtx, getActivePolicyConfig());
     if (nextIds.length === 0) {
       await updateWorkflowInstance(instanceId, { currentNodeIds: [], status: 'completed' });
       return;

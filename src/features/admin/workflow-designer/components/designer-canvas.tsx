@@ -177,6 +177,19 @@ export function DesignerCanvas({
     [setNodes, onNodesChange],
   );
 
+  // An edge's condition is what makes a decision node decide, so the config
+  // panel edits edges as well as nodes. Same shape as updateNodeData.
+  const updateEdgeData = useCallback(
+    (edgeId: string, data: Record<string, unknown>) => {
+      setEdges((eds) => {
+        const updated = eds.map((e) => (e.id === edgeId ? { ...e, data: { ...e.data, ...data } } : e));
+        setTimeout(() => onEdgesChange(updated), 0);
+        return updated;
+      });
+    },
+    [setEdges, onEdgesChange],
+  );
+
   const deleteNode = useCallback(
     (nodeId: string) => {
       setNodes((nds) => {
@@ -196,8 +209,14 @@ export function DesignerCanvas({
   // Expose update/delete via ref-like pattern through parent
   // Store on the wrapper element for parent access
   if (reactFlowWrapper.current) {
-    (reactFlowWrapper.current as HTMLDivElement & { __canvasApi?: { updateNodeData: typeof updateNodeData; deleteNode: typeof deleteNode; syncToParent: typeof syncToParent } }).__canvasApi = {
+    (reactFlowWrapper.current as HTMLDivElement & { __canvasApi?: {
+      updateNodeData: typeof updateNodeData;
+      updateEdgeData: typeof updateEdgeData;
+      deleteNode: typeof deleteNode;
+      syncToParent: typeof syncToParent;
+    } }).__canvasApi = {
       updateNodeData,
+      updateEdgeData,
       deleteNode,
       syncToParent,
     };

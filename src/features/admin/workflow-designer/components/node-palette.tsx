@@ -6,26 +6,35 @@ import {
   Play,
   Square,
   User,
-  CheckCircle,
   Cog,
   Sparkles,
   GitBranch,
   Bell,
-  Clock,
-  GitMerge,
 } from 'lucide-react';
 import type { DragEvent } from 'react';
 
+// Ten types were offered and four round-tripped. `reverseType` mapped
+// start/end/userTask/decision and nothing else, so an Approval, Timer, AI
+// Agent, Notification, System Action or Sub-workflow node saved as a plain
+// stage — the label survived, everything that made it that kind of node did
+// not, and nothing said so.
+//
+// Six now, and every one of them persists:
+//   - Approval is gone: approval chains decide who approves, by value band or
+//     by a routing rule naming one. A second place to configure approvers is
+//     the drift this tranche exists to remove.
+//   - Timer/Wait is gone: waiting is `slaDays` on the stage.
+//   - Sub-workflow is gone: the engine has no runtime for it.
+//   - System Action, AI Agent and Notification all persist as the template's
+//     `integration` type, which the engine already handles, distinguished by
+//     the `integrationKind` the config panel sets.
 const NODE_TYPES = [
   { type: 'start', label: 'Start', icon: Play, color: 'bg-green-100 text-green-600 border-green-200' },
-  { type: 'userTask', label: 'User Task', icon: User, color: 'bg-blue-100 text-blue-600 border-blue-200' },
-  { type: 'approval', label: 'Approval', icon: CheckCircle, color: 'bg-amber-100 text-amber-600 border-amber-200' },
+  { type: 'userTask', label: 'Stage', icon: User, color: 'bg-blue-100 text-blue-600 border-blue-200' },
+  { type: 'decision', label: 'Decision', icon: GitBranch, color: 'bg-amber-100 text-amber-600 border-amber-200' },
   { type: 'systemAction', label: 'System Action', icon: Cog, color: 'bg-gray-100 text-gray-600 border-gray-200' },
   { type: 'aiAgent', label: 'AI Agent', icon: Sparkles, color: 'bg-purple-100 text-purple-600 border-purple-200' },
-  { type: 'decision', label: 'Decision', icon: GitBranch, color: 'bg-amber-100 text-amber-600 border-amber-200' },
   { type: 'notification', label: 'Notification', icon: Bell, color: 'bg-sky-100 text-sky-600 border-sky-200' },
-  { type: 'timer', label: 'Timer/Wait', icon: Clock, color: 'bg-gray-100 text-gray-600 border-gray-200' },
-  { type: 'subWorkflow', label: 'Sub-workflow', icon: GitMerge, color: 'bg-blue-100 text-blue-600 border-blue-200' },
   { type: 'end', label: 'End', icon: Square, color: 'bg-red-100 text-red-600 border-red-200' },
 ] as const;
 
