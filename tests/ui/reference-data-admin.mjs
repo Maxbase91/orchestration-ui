@@ -96,6 +96,29 @@ try {
   check('the picker offers the active cost centres', /CC-ENG-001/.test(listboxText), listboxText.slice(0, 120));
   check('the picker does NOT offer the retired one', !/Retired centre/.test(listboxText), listboxText.slice(0, 120));
 
+  // ── Integration health ────────────────────────────────────────────────────
+  // The page this replaces showed four green "Connected" cards, 99.97% uptime
+  // and a five-row invented error log. The fixtures behind this screen include
+  // a timed-out handover on purpose: the old page would have shown that system
+  // green, which is the failure worth guarding.
+  console.log('\nIntegration health reports what happened');
+
+  await page.goto(`${BASE}/admin/health`, { waitUntil: 'networkidle' });
+  await page.getByText('Integration Health').first().waitFor({ timeout: 20000 });
+  const healthText = await page.locator('main').innerText();
+  check('a timed-out handover makes its system read as failing',
+    /Handovers failing/.test(healthText), healthText.slice(0, 400));
+  check('a system awaiting a response reads as waiting',
+    /Awaiting response/.test(healthText));
+  check('a system with no handovers is shown as unused, not healthy',
+    /No handovers yet/.test(healthText));
+  check('the failed handover is listed with its own detail',
+    /No response within the agreed window/.test(healthText));
+  check('no invented uptime figure',
+    !/99\.9|0\.02%|Active Sessions/.test(healthText), healthText.slice(0, 300));
+  check('it states that there are no live connections',
+    /no live upstream connections/i.test(healthText));
+
   // ── Category managers ─────────────────────────────────────────────────────
   // Who owns demand in a category was read by two things — approver derivation
   // and the validation stage gate — and writable by nobody: the only source was

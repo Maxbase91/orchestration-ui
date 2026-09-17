@@ -10,7 +10,7 @@
 // cost centre" actually means.
 
 import { useState } from 'react';
-import { Loader2, Pencil, Plus } from 'lucide-react';
+import { AlertTriangle, Loader2, Pencil, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,14 +25,29 @@ import {
   useCostCentres, useUpsertCostCentre,
 } from '@/lib/db/hooks/use-cost-centres';
 import type { CostCentre } from '@/lib/db/cost-centres';
+import { useUsers } from '@/lib/db/hooks/use-users';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 
 type EditForm = Omit<CostCentre, 'sortOrder'>;
+
+// The Select primitive treats an empty string as "no value", so clearing needs
+// a sentinel rather than ''.
+const NO_OWNER = '__none__';
 
 const EMPTY_FORM: EditForm = { id: '', label: '', description: '', owner: '', active: true };
 
 export function CostCentresPage() {
   const { data: costCentres = [], isLoading } = useCostCentres();
   const upsert = useUpsertCostCentre();
+  // The Budget Owner approval step resolves `owner` against the user directory
+  // BY NAME (`approval-derivation.ts`), so a free-text field meant a typo — or a
+  // person who left — silently fell through to the role, naming nobody. The
+  // picker guarantees the stored name matches a real user.
+  const { data: users = [] } = useUsers();
+  // Suppliers are external; a budget is never theirs to sign off.
+  const internalUsers = users.filter((u) => u.role !== 'supplier');
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState<EditForm>(EMPTY_FORM);
@@ -73,7 +88,21 @@ export function CostCentresPage() {
   const columns: Column<Row>[] = [
     { key: 'id', label: 'Code', render: (r) => <span className="font-mono text-xs">{r.id as string}</span> },
     { key: 'label', label: 'Label', render: (r) => <span className="font-medium">{r.label as string}</span> },
-    { key: 'owner', label: 'Budget owner', render: (r) => <span className="text-sm text-muted-foreground">{(r.owner as string) || '—'}</span> },
+    {
+      key: 'owner',
+      label: 'Budget owner',
+      // An empty owner is not cosmetic: the Budget Owner approval step falls
+      // through to the role, so nobody in particular is asked. Flagged the same
+      // way /admin/categories flags a category with no manager.
+      render: (r) => ((r.owner as string)
+        ? <span className="text-sm">{r.owner as string}</span>
+        : (
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-700">
+            <AlertTriangle className="size-3.5" />
+            No budget owner
+          </span>
+        )),
+    },
     { key: 'description', label: 'Description', render: (r) => <span className="max-w-xs truncate text-sm text-muted-foreground">{(r.description as string) || '—'}</span> },
     {
       key: 'active', label: 'Status',
@@ -133,7 +162,24 @@ export function CostCentresPage() {
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="cc-owner">Budget owner</Label>
-              <Input id="cc-owner" value={form.owner} onChange={(e) => setForm((p) => ({ ...p, owner: e.target.value }))} placeholder="Who signs off spend against it" />
+              <Select
+                value={form.owner || NO_OWNER}
+                onValueChange={(v) => setForm((p) => ({ ...p, owner: v === NO_OWNER ? '' : v }))}
+              >
+                <SelectTrigger id="cc-owner">
+                  <SelectValue placeholder="Who signs off spend against it" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_OWNER}>No budget owner</SelectItem>
+                  {internalUsers.map((u) => (
+                    <SelectItem key={u.id} value={u.name}>{u.name} — {u.department}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Named on the Budget Owner approval step. With none, that step is assigned to the
+                role rather than to a person, and anyone holding it can approve.
+              </p>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="cc-description">Description</Label>

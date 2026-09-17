@@ -199,6 +199,14 @@ export const FIXTURES = {
     { category_id: 'consulting', user_id: 'u3' },
     { category_id: 'goods', user_id: 'u3' },
   ],
+  // Handover records for /admin/health. Deliberately NOT all green: one
+  // completed, one open and one timed out, because the page this replaces
+  // showed four "Connected" cards over a store that looked exactly like this.
+  system_integrations: [
+    { id: 'SI-1', request_id: 'REQ-TEST-0001', system: 'ariba', system_label: 'SAP Ariba', status: 'completed', submitted_at: '2026-09-01T09:00:00Z', responded_at: '2026-09-01T10:00:00Z', reference_id: 'AR-1', stage: 'sourcing', detail: 'Event published' },
+    { id: 'SI-2', request_id: 'REQ-TEST-0001', system: 'ariba', system_label: 'SAP Ariba', status: 'timeout', submitted_at: '2026-09-03T09:00:00Z', responded_at: null, reference_id: null, stage: 'sourcing', detail: 'No response within the agreed window' },
+    { id: 'SI-3', request_id: 'REQ-TEST-0001', system: 'sirion', system_label: 'Sirion CLM', status: 'awaiting-response', submitted_at: '2026-09-05T09:00:00Z', responded_at: null, reference_id: 'SI-9', stage: 'contracting', detail: 'Contract sent for signature' },
+  ],
   audit_entries: [],
   // Minimal admin configuration keeps the routing preview meaningful in an
   // offline browser run: the same labels and value band as the seeded app.
