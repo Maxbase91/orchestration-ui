@@ -1,141 +1,232 @@
 #!/usr/bin/env node
-// Verifies the four admin editor Save buttons actually round-trip to
-// the database (not just fire a toast). Simulates what the UI mutation
-// hook does: writes a test record via the base-table API and
-// re-reads to confirm persistence.
+// Every admin editor that claims to save, saves.
 //
-// Run: node tests/integration/admin-editors.mjs
+// Two halves, and both are needed. A live ROUND TRIP proves the table accepts
+// the write and gives it back; a STATIC check proves the page's Save handler
+// actually calls the mutation rather than firing a toast. Either alone passes
+// the defect this suite exists for: `/admin/database`'s Workflows tab showed a
+// green "Live (persisted)" badge, wrote an audit row claiming `record.update`,
+// and had no persistence branch at all.
+//
+// It covered FOUR surfaces — routing rules, agents, workflow templates, forms —
+// while eighteen admin routes exist. The eight added here are every remaining
+// surface that is supposed to persist; the ones deliberately left out are
+// listed at the bottom with why, so "not covered" is a decision rather than an
+// oversight.
+//
+// Run: npm run test:admin-editors
 
 import { readFileSync } from 'node:fs';
-import { neonClient } from '../lib/live.mjs';
+import { neon } from '@neondatabase/serverless';
+import { neonClient, loadEnv } from '../lib/live.mjs';
 
 const sb = await neonClient('admin-editors');
+// `procurement_policy_configs` is deliberately NOT in api/db.ts's allowlist: it
+// has its own endpoint so the browser cannot write thresholds directly. Reading
+// it therefore needs a direct client rather than the boundary the editors use.
+const env = loadEnv();
+const sql = neon(env.NEON_DATABASE_URL || env.DATABASE_URL);
 
 const results = [];
 const pass = (n, d = '') => results.push({ n, o: 'PASS', d });
 const fail = (n, d) => results.push({ n, o: 'FAIL', d });
 const assert = (cond, n, d) => (cond ? pass(n, d) : fail(n, d));
 
-// ── Routing Rule ───────────────────────────────────────────────────
+/**
+ * Every admin surface that persists, what it writes to, and how its page saves.
+ *
+ * `key` is the primary-key column — not always `id`: service descriptions are
+ * keyed by `category` and the policy config is a singleton on `singleton_key`.
+ * `field` is a text column safe to round-trip; the original is restored after.
+ */
+const SURFACES = [
+  {
+    label: 'routing rules', table: 'routing_rules', key: 'id', field: 'name',
+    page: 'src/features/admin/routing-rules/components/rule-editor-panel.tsx',
+    hook: 'useSaveRoutingRule', mutate: 'saveRoutingRule.mutateAsync',
+  },
+  {
+    label: 'ai agents', table: 'ai_agents', key: 'id', field: 'description',
+    page: 'src/features/admin/ai-agents/components/agent-config-form.tsx',
+    hook: 'useSaveAiAgent', mutate: 'saveAiAgent.mutateAsync',
+  },
+  {
+    label: 'workflow templates', table: 'workflow_templates', key: 'id', field: 'name',
+    page: 'src/features/admin/workflow-designer/workflow-designer-page.tsx',
+    hook: 'useSaveWorkflowTemplate', mutate: 'saveTemplate.mutateAsync',
+    // The graph must survive a name edit: a save that flattens nodes or edges
+    // to a string is how a round-trip "passes" while destroying the template.
+    jsonb: ['nodes', 'edges'],
+  },
+  {
+    label: 'form templates', table: 'form_templates', key: 'id', field: 'name',
+    page: 'src/features/admin/forms/form-builder-page.tsx',
+    hook: 'useSaveFormTemplate', mutate: 'saveFormTemplate.mutateAsync',
+    jsonb: ['fields'],
+  },
+  // ── The eight this suite did not cover ────────────────────────────────────
+  {
+    label: 'approval chains', table: 'approval_chains', key: 'id', field: 'name',
+    page: 'src/features/admin/approval-chains-page.tsx',
+    hook: 'useUpsertApprovalChain', mutate: 'upsertChain.mutateAsync',
+    jsonb: ['steps'],
+  },
+  {
+    label: 'procurement categories', table: 'procurement_categories', key: 'id', field: 'label',
+    page: 'src/features/admin/categories-page.tsx',
+    hook: 'useUpsertProcurementCategory', mutate: 'upsert.mutateAsync',
+  },
+  {
+    label: 'cost centres', table: 'cost_centres', key: 'id', field: 'description',
+    page: 'src/features/admin/cost-centres-page.tsx',
+    hook: 'useUpsertCostCentre', mutate: 'upsert.mutateAsync',
+  },
+  {
+    label: 'delivery locations', table: 'delivery_locations', key: 'id', field: 'label',
+    page: 'src/features/admin/delivery-locations-page.tsx',
+    hook: 'useUpsertDeliveryLocation', mutate: 'upsert.mutateAsync',
+  },
+  {
+    label: 'knowledge base', table: 'knowledge_base', key: 'id', field: 'title',
+    page: 'src/features/admin/kb-admin-page.tsx',
+    hook: 'useSaveKnowledgeBaseEntry', mutate: 'saveEntry.mutateAsync',
+    // Empty live, so the assistant answers from the built-in set. That is the
+    // documented fallback, not a fault — but the editor still has to work, and
+    // an empty table is exactly where a broken one hides.
+    sample: {
+      id: 'KB-E2E-CHECK', title: 'Round-trip check', body: 'Inserted and removed by test:admin-editors.',
+      source: 'test', tags: ['test'],
+    },
+  },
+  {
+    label: 'service descriptions', table: 'service_description_templates', key: 'category', field: 'label',
+    page: 'src/features/admin/service-description-page.tsx',
+    hook: 'useSaveServiceDescriptionTemplate', mutate: 'save.mutateAsync',
+    jsonb: ['slots', 'sections'],
+    // Also empty live: every category resolves to DEFAULT_TEMPLATE.
+    sample: {
+      category: 'e2e-check', label: 'Round-trip check', active: false,
+      system_prompt: '', category_guidance: '', temperature: 0.5, max_tokens: 3000,
+      slots: [], sections: [], narrative_sections: [],
+      sourcing_requirement_sections: [], default_criteria: [],
+    },
+  },
+];
 
-async function scenarioRoutingRuleRoundTrip() {
-  const { data: any1 } = await sb.from('routing_rules').select('*').limit(1).single();
-  if (!any1) { fail('routing: at least one rule present', 'no rules'); return; }
-  const original = any1;
+async function roundTrip(surface) {
+  const { label, table, key, field, jsonb = [], sample } = surface;
+  const { data: rows, error: readErr } = await sb.from(table).select('*').limit(1);
+  if (readErr) { fail(`${label}: table is readable`, readErr.message); return; }
 
-  const newName = `E2E-ADMIN-${Date.now()}`;
-  const { error: upErr } = await sb
-    .from('routing_rules')
-    .update({ name: newName, last_modified: new Date().toISOString() })
-    .eq('id', original.id);
-  if (upErr) { fail('routing: update succeeds', upErr.message); return; }
+  // An empty table must still be provable. `knowledge_base` and
+  // `service_description_templates` are both empty live — everything falls back
+  // to the built-in set, which is the documented behaviour — and a suite that
+  // skipped them would report "no rows" forever while the editor rotted. So a
+  // row is inserted, round-tripped and removed.
+  let before = rows?.[0];
+  let seeded = false;
+  if (!before) {
+    if (!sample) { fail(`${label}: at least one row to edit`, 'no rows and no sample defined'); return; }
+    const { error: insErr } = await sb.from(table).insert(sample);
+    if (insErr) { fail(`${label}: the editor's table accepts an insert`, insErr.message); return; }
+    seeded = true;
+    const { data: fresh } = await sb.from(table).select('*').eq(key, sample[key]).limit(1);
+    before = fresh?.[0];
+    if (!before) { fail(`${label}: the inserted row reads back`, 'insert reported success and nothing came back'); return; }
+    pass(`${label}: an empty table accepts a new row`);
+  }
 
-  const { data: after } = await sb
-    .from('routing_rules').select('name').eq('id', original.id).single();
-  assert(after?.name === newName, 'routing: save persists the new name', `name=${after?.name}`);
+  const marker = `${String(before[field] ?? '').slice(0, 50)} [E2E ${Date.now()}]`;
+  const { error: upErr } = await sb.from(table).update({ [field]: marker }).eq(key, before[key]);
+  if (upErr) { fail(`${label}: update succeeds`, upErr.message); return; }
 
-  await sb.from('routing_rules').update({ name: original.name }).eq('id', original.id);
+  const { data: after } = await sb.from(table).select('*').eq(key, before[key]).single();
+  assert(after?.[field] === marker, `${label}: save persists`, `${field}=${after?.[field]}`);
+
+  // JSONB columns must come back as arrays. A save that serialises them to a
+  // string still round-trips the text field, so the round trip alone would pass
+  // while the template, chain or form was destroyed.
+  for (const column of jsonb) {
+    assert(Array.isArray(after?.[column]), `${label}: ${column} survives as an array`,
+      `got ${typeof after?.[column]}`);
+  }
+
+  // Restore, or remove the row this suite created. Leaving a `[E2E …]` row
+  // behind would be the suite configuring the platform it is checking.
+  if (seeded) await sb.from(table).delete().eq(key, before[key]);
+  else await sb.from(table).update({ [field]: before[field] }).eq(key, before[key]);
 }
 
-// ── AI Agent ───────────────────────────────────────────────────────
-
-async function scenarioAiAgentRoundTrip() {
-  const { data: before } = await sb.from('ai_agents').select('*').eq('id', 'AI-001').single();
-  if (!before) { fail('ai-agent: AI-001 present', 'missing'); return; }
-
-  const marker = `${before.description.slice(0, 60)} [edited ${Date.now()}]`;
-  const { error } = await sb
-    .from('ai_agents')
-    .update({ description: marker, last_updated: new Date().toISOString() })
-    .eq('id', 'AI-001');
-  if (error) { fail('ai-agent: update succeeds', error.message); return; }
-
-  const { data: after } = await sb
-    .from('ai_agents').select('description').eq('id', 'AI-001').single();
-  assert(after?.description === marker, 'ai-agent: save persists the new description');
-
-  await sb.from('ai_agents').update({ description: before.description }).eq('id', 'AI-001');
+/** The Save handler calls the mutation — not a toast over nothing. */
+function handlerCallsMutation(surface) {
+  const src = readFileSync(new URL(`../../${surface.page}`, import.meta.url), 'utf8');
+  assert(src.includes(surface.hook), `${surface.label}: page imports ${surface.hook}`);
+  assert(src.includes(surface.mutate), `${surface.label}: page calls ${surface.mutate}`);
 }
 
-// ── Workflow Template ──────────────────────────────────────────────
+/**
+ * The policy config is a singleton behind its own endpoint, not a row an editor
+ * upserts, so it gets its own check rather than a contrived table entry.
+ */
+async function policyConfigRoundTrip() {
+  const rows = await sql`SELECT config FROM procurement_policy_configs WHERE singleton_key = 'default'`;
+  const before = rows[0];
+  if (!before) { fail('policy config: the singleton row exists', 'missing'); return; }
+  assert(before.config && typeof before.config === 'object',
+    'policy config: the stored config is an object, not a string',
+    `got ${typeof before.config}`);
+  // Both halves of the spine read this row server-side; if it stopped being an
+  // object every governed threshold would silently fall back to the shipped
+  // default (api/_policy.ts configFromRow).
+  const keys = Object.keys(before.config ?? {});
+  assert(keys.length >= 10, 'policy config: the row carries the governed keys', `${keys.length} keys`);
 
-async function scenarioWorkflowTemplateRoundTrip() {
-  const { data: before } = await sb.from('workflow_templates').select('*').limit(1).single();
-  if (!before) { fail('workflow: at least one template present', 'missing'); return; }
-
-  const newName = `${before.name} [E2E edit]`;
-  const { error } = await sb
-    .from('workflow_templates').update({ name: newName }).eq('id', before.id);
-  if (error) { fail('workflow: update succeeds', error.message); return; }
-
-  const { data: after } = await sb
-    .from('workflow_templates').select('name,nodes,edges').eq('id', before.id).single();
-  assert(after?.name === newName, 'workflow: save persists the new name', `name=${after?.name}`);
-  assert(Array.isArray(after?.nodes), 'workflow: nodes field preserved as array');
-  assert(Array.isArray(after?.edges), 'workflow: edges field preserved as array');
-
-  await sb.from('workflow_templates').update({ name: before.name }).eq('id', before.id);
+  const store = readFileSync(new URL('../../src/stores/policy-config-store.ts', import.meta.url), 'utf8');
+  assert(/savePolicyConfig\(/.test(store), 'policy config: the store persists through the endpoint');
 }
 
-// ── Form Template ──────────────────────────────────────────────────
-
-async function scenarioFormTemplateRoundTrip() {
-  const { data: before } = await sb.from('form_templates').select('*').eq('id', 'FORM-001').single();
-  if (!before) { fail('form: FORM-001 present', 'missing'); return; }
-
-  const newName = `${before.name} [E2E edit]`;
-  const { error } = await sb
-    .from('form_templates')
-    .update({ name: newName, last_modified: new Date().toISOString() })
-    .eq('id', 'FORM-001');
-  if (error) { fail('form: update succeeds', error.message); return; }
-
-  const { data: after } = await sb
-    .from('form_templates').select('name,fields').eq('id', 'FORM-001').single();
-  assert(after?.name === newName, 'form: save persists the new name', `name=${after?.name}`);
-  assert(Array.isArray(after?.fields), 'form: fields JSONB preserved as array');
-
-  await sb.from('form_templates').update({ name: before.name }).eq('id', 'FORM-001');
+/**
+ * Category managers are a set, not a field: the page replaces a category's rows
+ * wholesale. A field-level round trip cannot express that, so the shape is
+ * checked instead.
+ */
+async function categoryManagersRoundTrip() {
+  const { data, error } = await sb.from('category_managers').select('category_id, user_id').limit(5);
+  if (error) { fail('category managers: readable', error.message); return; }
+  assert(Array.isArray(data), 'category managers: the join table reads');
+  const page = readFileSync(new URL('../../src/features/admin/categories-page.tsx', import.meta.url), 'utf8');
+  assert(page.includes('useSetCategoryManagers'), 'category managers: the page imports the setter');
+  assert(page.includes('setManagers.mutateAsync'), 'category managers: the page calls it');
 }
 
-// ── Static source assertions (confirm wiring actually exists) ─────
-
-async function scenarioHandlersCallMutations() {
-  const files = [
-    {
-      path: '../../src/features/admin/routing-rules/components/rule-editor-panel.tsx',
-      hook: 'useSaveRoutingRule',
-      mutate: 'saveRoutingRule.mutateAsync',
-    },
-    {
-      path: '../../src/features/admin/ai-agents/components/agent-config-form.tsx',
-      hook: 'useSaveAiAgent',
-      mutate: 'saveAiAgent.mutateAsync',
-    },
-    {
-      path: '../../src/features/admin/workflow-designer/workflow-designer-page.tsx',
-      hook: 'useSaveWorkflowTemplate',
-      mutate: 'saveTemplate.mutateAsync',
-    },
-    {
-      path: '../../src/features/admin/forms/form-builder-page.tsx',
-      hook: 'useSaveFormTemplate',
-      mutate: 'saveFormTemplate.mutateAsync',
-    },
+/**
+ * Surfaces with no persistence, on purpose. Listed so that "not covered" is a
+ * decision someone made rather than something nobody noticed.
+ */
+function deliberatelyReadOnly() {
+  const cases = [
+    // The workflow template owns stage SLAs; this page shows what they are.
+    ['sla targets', 'src/features/admin/sla-targets-page.tsx', 'useUpsertSlaTarget'],
+    // Derived from system_integrations — there is nothing here to save.
+    ['system health', 'src/features/admin/system-health-page.tsx', 'mutateAsync'],
+    // Every control is disabled with a stated reason.
+    ['policy management', 'src/features/admin/policy-management-page.tsx', 'mutateAsync'],
   ];
-  for (const f of files) {
-    const src = readFileSync(new URL(f.path, import.meta.url), 'utf8');
-    assert(src.includes(f.hook), `${f.path}: imports ${f.hook}`);
-    assert(src.includes(f.mutate), `${f.path}: calls ${f.mutate}`);
+  for (const [label, path, forbidden] of cases) {
+    const src = readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
+    assert(!src.includes(forbidden), `${label}: read-only, and stays read-only`,
+      `${forbidden} appeared — a page that saves must be in SURFACES above`);
   }
 }
 
 async function main() {
-  await scenarioRoutingRuleRoundTrip();
-  await scenarioAiAgentRoundTrip();
-  await scenarioWorkflowTemplateRoundTrip();
-  await scenarioFormTemplateRoundTrip();
-  await scenarioHandlersCallMutations();
+  for (const surface of SURFACES) {
+    await roundTrip(surface);
+    handlerCallsMutation(surface);
+  }
+  await policyConfigRoundTrip();
+  await categoryManagersRoundTrip();
+  deliberatelyReadOnly();
 
   const failed = results.filter((r) => r.o === 'FAIL').length;
   for (const r of results) {
@@ -143,7 +234,7 @@ async function main() {
     console.log(`  ${tag}  ${r.n}`);
     if (r.d) console.log(`        ${r.d}`);
   }
-  console.log(`\n  ${results.length - failed} passed, ${failed} failed.`);
+  console.log(`\n  ${results.length - failed} passed, ${failed} failed across ${SURFACES.length} editors.`);
   process.exit(failed === 0 ? 0 : 1);
 }
 

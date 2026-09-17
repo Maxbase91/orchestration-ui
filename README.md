@@ -237,7 +237,9 @@ npm run test:ai-api-config        # API regression — missing active database/A
 npm run test:api-imports          # every api/*.ts function's import graph has explicit file extensions (tsc/vercel dev don't enforce this; Vercel's real build does)
 npm run test:vercel-functions     # keeps the explicit API surface within the Vercel Hobby 12-function budget
 npm run test:workflow-scripts     # every `npm run` call in .github/workflows still names a script that exists in package.json
-npm run test:admin-editors        # admin config saves
+npm run test:admin-editors        # every admin editor that claims to save, saves — a live round trip per table
+                                  #   (JSONB columns still arrays afterwards) plus a static check that the Save
+                                  #   handler calls the mutation; 10 surfaces, and the read-only ones stay read-only
 npm run test:orchestration        # end-to-end orchestration rules across intake, routing and workflow
 npm run test:lifecycle-e2e        # a request walks intake → approval → PO → goods receipt in the live store
 npm run test:lifecycle-consistency # every request's status, stage history and workflow instance agree
