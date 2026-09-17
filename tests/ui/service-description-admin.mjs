@@ -122,6 +122,51 @@ try {
   check('criteria weights show a running total',
     (await page.getByText(/Total/).count()) > 0);
 
+  // A condition the evaluator cannot act on must LOOK broken.
+  //
+  // Both failure modes are silent on screen: an unimplemented operator returns
+  // false, so the slot is simply never asked, and a field nothing supplies
+  // compares against undefined, so it is never asked either. Neither renders
+  // differently from a question that legitimately does not apply. The built-in
+  // template is healthy, so a stored row carrying the defect is stubbed in.
+  check('a healthy template shows no diagnostics banner',
+    (await page.getByText(/can never hold/).count()) === 0);
+
+  await page.route('**/api/db', async (route) => {
+    const body = JSON.parse(route.request().postData() ?? '{}');
+    if (body.table !== 'service_description_templates' || body.operation !== 'select') {
+      return route.fallback();
+    }
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ data: [{
+        category: 'default',
+        label: 'Default',
+        active: true,
+        // `greater_than` is the routing vocabulary's operator, not this
+        // evaluator's — exactly the mistake an admin moving between the two
+        // config screens would make.
+        slots: [{
+          id: 'timeline', targetKind: 'sow', targetField: 'timeline', required: false,
+          prompt: 'When?',
+          conditions: [{ field: 'value', operator: 'greater_than', value: '1000' }],
+        }],
+        sections: [{ id: 'objective', label: 'Objective', asked: true }],
+        narrative_sections: ['objective'],
+        sourcing_requirement_sections: [],
+        default_criteria: [],
+      }], error: null }),
+    });
+  });
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.getByText('Service Description', { exact: true }).first().waitFor({ timeout: 20000 });
+  const banner = page.getByText(/can never hold/);
+  check('an unusable condition is reported on the screen that collects it',
+    (await banner.count()) > 0);
+  check('the banner names the operator rather than saying "invalid"',
+    /greater_than/.test(await page.locator('body').innerText()));
+
   check('no non-network render errors', pageErrors.length === 0, pageErrors.slice(0, 3).join(' | '));
 
   console.log('');

@@ -23,10 +23,10 @@
 //    that the draft lacks, so the requester is told rather than having the
 //    document silently rewritten under them.
 
-import { determineMateriality, type Criticality } from './materiality';
-import { determineInherentRisk, type RiskTier } from './risk-segmentation';
-import { competitiveSourcingCheck, isPreferredSupplier } from './supplier-preference';
-import { getActivePolicyConfig, type PolicyConfig } from './policy-config';
+import { determineMateriality, type Criticality } from './materiality.js';
+import { determineInherentRisk, type RiskTier } from './risk-segmentation.js';
+import { competitiveSourcingCheck, isPreferredSupplier } from './supplier-preference.js';
+import { getActivePolicyConfig, type PolicyConfig } from './policy-config.js';
 import type { Supplier } from '@/data/types';
 
 export type DataSensitivity = 'none' | 'low' | 'medium' | 'high' | 'critical';

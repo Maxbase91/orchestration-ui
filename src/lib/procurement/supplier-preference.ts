@@ -7,7 +7,7 @@
 // configurable rule store without changing call sites.
 
 import type { Supplier } from '@/data/types';
-import { DEFAULT_POLICY_CONFIG, getActivePolicyConfig, type PolicyConfig } from './policy-config';
+import { DEFAULT_POLICY_CONFIG, getActivePolicyConfig, type PolicyConfig } from './policy-config.js';
 
 /** Order value at/above which competitive sourcing applies, unless exempt. */
 export const COMPETITIVE_SOURCING_THRESHOLD = DEFAULT_POLICY_CONFIG.competitiveSourcingThreshold;

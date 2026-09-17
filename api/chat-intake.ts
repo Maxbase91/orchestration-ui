@@ -8,6 +8,7 @@ import {
   type DemandConversationContext,
 } from '../src/lib/procurement/demand-conversation.js';
 import { getServiceDescriptionTemplate } from './_sd-template.js';
+import { loadPolicyConfig } from './_policy.js';
 
 // Base intake assistant rules. The QUESTION ORDER is NOT hard-coded here — it is
 // computed per-turn by the demand-conversation engine and injected below, so the
@@ -80,20 +81,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const { messages, category, extractedSoFar } = req.body;
 
-  // Which questions get asked is admin config, not a code constant. This is the
-  // reason the template is a table: PolicyConfig is localStorage-only, so a
-  // serverless route can never see an admin's overrides through it.
+  // Which questions get asked is admin config, not a code constant.
   // getServiceDescriptionTemplate fails open to the built-in, which serialises
   // the same slot set the engine defaults to — so an unreachable database
   // changes nothing about the conversation.
-  const template = await getServiceDescriptionTemplate(category);
+  //
+  // The note that used to sit here said PolicyConfig was localStorage-only and
+  // therefore unreachable from a serverless route. That has not been true since
+  // it became a Postgres singleton; governed-checkout has read the row since
+  // ADR-0002. Passing `undefined` for the config meant the engine fell back to
+  // `getActivePolicyConfig()`, a module singleton nothing hydrates in a cold
+  // start — so the two value-conditional slots (criticalServiceThreshold,
+  // continuityThreshold) branched on SHIPPED numbers here and on the admin's
+  // saved ones in the browser's offline fallback. Same conversation, two
+  // different sets of questions, depending on whether the model was up.
+  const [template, policy] = await Promise.all([
+    getServiceDescriptionTemplate(category),
+    loadPolicyConfig(),
+  ]);
   const slots = resolveSlots(template.slots);
 
   // The engine decides what to ask next from everything captured so far.
   const ctx = contextFrom(category ?? 'goods', (extractedSoFar ?? {}) as Record<string, unknown>);
-  const next = determineNextQuestion(ctx, undefined, slots);
-  const complete = isConversationComplete(ctx, undefined, slots);
-  const remaining = buildAgenda(ctx, undefined, slots).map((s) => s.id).join(', ') || 'none';
+  const next = determineNextQuestion(ctx, policy, slots);
+  const complete = isConversationComplete(ctx, policy, slots);
+  const remaining = buildAgenda(ctx, policy, slots).map((s) => s.id).join(', ') || 'none';
 
   // The opening turn is an INVITATION, not the first question on the agenda.
   //

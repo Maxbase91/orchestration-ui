@@ -169,7 +169,7 @@ npm run test:determination-export # exportable determination (structured Markdow
 npm run test:second-contract      # second contract check (frameworks/MSAs vs transactable)
 npm run test:sourcing             # sourcing: weights, ranking, award write-back, stage gate, entitlement
 npm run test:sow-narrative        # SOW narrative is synthesised from the service description
-npm run test:service-description-config # service description config — serialised slots, narrative composition, sourcing seed
+npm run test:service-description-config # service description config — drives the real evaluators: serialised slots reproduce the built-in agenda, an unusable condition is false and reported, the governance signals reach slots, a template's requiredWhen binds, narrative composition, sourcing seed
 npm run test:tickets              # support tickets — entitlement, internal notes, status lifecycle, references
 npm run test:ticket-sla           # ticket SLA — targets, due dates, breach/at-risk, waiting-on-user pause
 npm run test:approval-to-source   # approval-to-source gate (light vs full pre-sourcing approvals)

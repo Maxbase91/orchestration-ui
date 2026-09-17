@@ -212,11 +212,23 @@ check('leaving it unanswered does NOT count',
 check('an absent risk object does not count either',
   buildAgenda(described, undefined, withRisk).length === 1);
 
-// The description floor is a fixed id list, so it cannot see a per-demand risk
-// question. The step gate ANDs the two for exactly this reason.
-check('the description floor alone does not prove the risk question was answered',
-  requiredSlotsFilled(described, withRisk)
+// The floor used to be a fixed id list and could NOT see a per-demand risk
+// question, so `requiredSlotsFilled` returned true with the question still
+// unanswered and only the step gate's second condition caught it. `riskSlotsFor`
+// marks these `required: true` precisely so an unanswered one blocks — "the
+// determination reads these, so an unanswered one leaves the record saying a
+// question was triggered and never put" — and the floor now honours that, along
+// with a template's `requiredWhen`. Strictly more blocking than before, never
+// less; the step gate still ANDs the two.
+check('an unanswered risk question fails the floor, not just the agenda',
+  !requiredSlotsFilled(described, withRisk)
   && buildAgenda(described, undefined, withRisk).length > 0);
+check('answering it satisfies the floor',
+  requiredSlotsFilled({ ...described, risk: { privilegedAccess: false } }, withRisk));
+// The code-owned floor is still there underneath: a description-incomplete
+// demand fails it whatever the template says.
+check('the description floor is unchanged',
+  !requiredSlotsFilled({ category: 'consulting', sow: {} }, withRisk));
 
 check('progress counts the risk question in its denominator',
   conversationProgress(described, undefined, withRisk).total

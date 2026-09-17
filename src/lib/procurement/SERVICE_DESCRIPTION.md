@@ -19,25 +19,51 @@ the result into the steps that come after intake.
 
 ## Why a table, not a settings store
 
-`PolicyConfig` lives in localStorage. `api/generate-sow.ts` and `api/chat-intake.ts` run serverless,
-so they get `DEFAULT_POLICY_CONFIG` and **never see an admin's overrides** — two of the four
-question-branch thresholds already fail exactly that way. Any config that must reach a generation
-route therefore has to be in Postgres. Hence `service_description_templates`.
+Any config that must reach a generation route has to be in Postgres, because a serverless
+invocation has no browser state to read. Hence `service_description_templates`.
+
+`PolicyConfig` is a Postgres singleton too (`procurement_policy_configs`), and the note that used to
+sit here said it lived in localStorage — stale since ADR-0002. It mattered: both routes passed
+`DEFAULT_POLICY_CONFIG` on the strength of that claim, so a `policy:<key>` token resolved to the
+shipped number and an admin's edit at `/admin/thresholds` moved the browser and not generation. The
+browser hydrates a module-level copy in `src/main.tsx`; nothing under `api/` does, so a serverless
+caller must load the row. **`api/_policy.ts` is the one loader** — `loadPolicyConfig()` — and
+`test:checkout-gates` fails the build if either route reaches for the defaults again.
 
 ## Resolution order
 
     category row  →  `default` row  →  DEFAULT_TEMPLATE (code)
 
-Never null: generation, seeding and the intake conversation must always have something to run. An
-**empty array means "not configured"** and falls back per field, so a partial row overrides only what
-an admin actually changed. A missing table, a malformed row and an unreachable database all yield
-the built-in — an admin mistake cannot take intake down.
+Never null: generation, seeding and the intake conversation must always have something to run. A
+missing table, a malformed row and an unreachable database all yield the built-in — an admin mistake
+cannot take intake down, and the fallback is logged rather than silent.
+
+**Absent is "not configured"; `[]` is "configured to nothing".** Every list treated empty as absent
+and fell back, so an admin clearing `narrativeSections` saved, was told it saved, and got the
+built-in list back on the next read. The two exceptions are `slots` and `sections`, where empty is
+not a configuration but an empty template — one asks nothing and the other generates nothing — and
+`resolveSlots` carries the same floor.
 
 ## Conditions are data, not closures
 
 `appliesWhen` was a closure, which is why the slot set could not be stored. It is now
-`{ field, operator, value }` — the **same vocabulary** `routing_rules` (`evaluate-routing-rules.ts`)
-and `form_templates.trigger_conditions` already use, rather than a third one.
+`{ field, operator, value }` — the **same shape** `routing_rules` (`evaluate-routing-rules.ts`) and
+`form_templates.trigger_conditions` use. The shape is shared; the **operator sets are not**. Routing
+spells them `greater_than` / `equals`, this one `>` / `==`, and only `in` is common to both. An
+operator from the wrong screen used to make the condition pass unconditionally, because
+`evaluateSlotCondition` ended in `default: return true`. It returns **false** now, matching routing,
+and `diagnoseSlotConditions` reports it on `/admin/service-description` — so a mistake reads as a
+mistake rather than as policy.
+
+All six `SlotConditionField` values reach both slots and sections. Until recently the four
+governance fields — `materiality`, `riskTier`, `dataSensitivity`, `sourcingType` — reached sections
+only: `fromConfiguredSlot` supplied `{category, value}`, so a slot condition naming one silently
+never matched. `applicableSlots` computes the capture-time read once per agenda build
+(`slotConditionContext`) and passes it in.
+
+`ConfiguredSlot.requiredWhen` makes an **answer** mandatory, as distinct from `conditions`, which
+decide whether the question is **asked**. It is honoured by `outstandingRequiredSlots`, alongside
+`REQUIRED_SLOT_IDS` — the code-owned floor a template may add to and cannot lower.
 
 Thresholds keep referring to policy config **by name** so `/admin/thresholds` still moves them:
 

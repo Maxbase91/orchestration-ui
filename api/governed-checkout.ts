@@ -9,7 +9,6 @@ import {
   type GovernedCheckoutLine,
   type GovernedCheckoutDecision,
 } from '../src/lib/procurement/governed-checkout.js';
-import { DEFAULT_POLICY_CONFIG, type PolicyConfig } from '../src/lib/procurement/policy-config.js';
 import {
   mapDbToCatalogueItem,
   mapDbToContract,
@@ -25,6 +24,10 @@ import type { ProcurementProfile, PurchaseOrder, PurchaseRequisition, Procuremen
 import { loadContractMatchScopes } from './_domains/contract-match.js';
 import { matchContractScopes } from '../src/lib/procurement/contract-matching.js';
 import { getDbAdmin } from './_db-admin.js';
+// The policy loader lives in _policy.ts so generate-sow and chat-intake read the
+// same admin-saved thresholds this route has read since ADR-0002, instead of
+// each defaulting to the shipped numbers.
+import { loadPolicyConfigWith as loadPolicy } from './_policy.js';
 import { approvalRows, deriveApprovalsFor, resolveChainId } from '../src/lib/db/approvals-core.js';
 import { nodeIdForStatus } from '../src/lib/workflow/node-config.js';
 import { slaDeadlineFor } from '../src/lib/workflow/business-days.js';
@@ -77,49 +80,6 @@ function fingerprint(payload: CheckoutPayload): string {
     } : null,
   };
   return createHash('sha256').update(JSON.stringify(stable(normalized))).digest('hex');
-}
-
-/**
- * Merge a stored policy row over the shipped defaults, key by key.
- *
- * This used to reject the whole row if any single key was absent and fall back
- * to DEFAULT_POLICY_CONFIG entirely. That turned adding one field to
- * PolicyConfig into a silent reversion of every admin-configured threshold: the
- * stored row predates the new key, the guard fires, and live checkout starts
- * deciding on shipped defaults with nothing logged. Taking each key on its own
- * merits keeps the configured values and defaults only what is genuinely
- * missing — which is what the spread below always did on its own.
- *
- * A key whose stored type does not match the default's is also defaulted, so a
- * hand-edited row cannot feed a string threshold into a numeric comparison.
- */
-function configFromRow(row: DbRow | undefined): PolicyConfig {
-  const value = row?.config;
-  if (!isRecord(value)) return DEFAULT_POLICY_CONFIG;
-  const candidate = value as Record<string, unknown>;
-  const merged = { ...DEFAULT_POLICY_CONFIG } as Record<string, unknown>;
-  for (const [key, fallback] of Object.entries(DEFAULT_POLICY_CONFIG)) {
-    const stored = candidate[key];
-    if (stored === undefined || stored === null) continue;
-    if (Array.isArray(fallback) !== Array.isArray(stored)) continue;
-    if (typeof stored !== typeof fallback) continue;
-    merged[key] = stored;
-  }
-  return merged as unknown as PolicyConfig;
-}
-
-async function loadPolicy(sql: ReturnType<typeof getNeonClient>): Promise<PolicyConfig> {
-  try {
-    const rows = await queryRows(sql, 'SELECT config FROM procurement_policy_configs WHERE singleton_key = $1', ['default']);
-    return configFromRow(rows[0]);
-  } catch (error) {
-    // The policy table is additive. A deployment that has not run the migration
-    // still uses shipped defaults rather than making checkout unusable. Anything
-    // else — a permissions or connection failure — must surface, not quietly
-    // hand this checkout a different rulebook than the admin configured.
-    if (isMissingRelation(error)) return DEFAULT_POLICY_CONFIG;
-    throw error;
-  }
 }
 
 async function aggregate(sql: ReturnType<typeof getNeonClient>, requisitionRow: DbRow): Promise<Aggregate> {

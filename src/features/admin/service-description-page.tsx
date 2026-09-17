@@ -11,7 +11,7 @@
 // gap that stops /admin/thresholds reaching the intake conversation today.
 
 import { useMemo, useState } from 'react';
-import { Loader2, Plus, Save, Trash2, Wand2 } from 'lucide-react';
+import { AlertTriangle, Loader2, Plus, Save, Trash2, Wand2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,6 +33,8 @@ import type {
   ConfiguredSlot,
   ServiceDescriptionTemplate,
 } from '@/lib/procurement/service-description-config';
+import { diagnoseSlotConditions } from '@/lib/procurement/service-description-config';
+import { usePolicyConfig } from '@/lib/procurement/use-policy-config';
 import { DEFAULT_TEMPLATE, renderSystemPrompt } from '@/lib/procurement/service-description-defaults';
 
 /** A new row starts from the built-in so an admin edits rather than authors. */
@@ -45,6 +47,8 @@ export function ServiceDescriptionPage() {
   const { data: categories = [] } = useProcurementCategories();
   const save = useSaveServiceDescriptionTemplate();
   const remove = useDeleteServiceDescriptionTemplate();
+
+  const policyConfig = usePolicyConfig();
 
   const [selectedCategory, setSelectedCategory] = useState('default');
   const [draft, setDraft] = useState<ServiceDescriptionTemplate | null>(null);
@@ -61,6 +65,17 @@ export function ServiceDescriptionPage() {
   // Categories that have no row of their own fall through to `default`; showing
   // that is the difference between "configured" and "inheriting".
   const configured = new Set(templates.map((t) => t.category));
+
+  // A condition this platform cannot act on must look broken, not merely quiet —
+  // the argument `diagnoseRule` makes for routing rules and `diagnoseTemplate`
+  // for the workflow designer, on the third surface that had none. Both failure
+  // modes are invisible on screen: an unimplemented operator now returns false,
+  // so the slot is simply never asked, and a field nothing supplies compares
+  // against undefined, so it is never asked either.
+  const problems = useMemo(
+    () => diagnoseSlotConditions(current, policyConfig),
+    [current, policyConfig],
+  );
 
   function patch(p: Partial<ServiceDescriptionTemplate>) {
     setDraft({ ...current, ...p });
@@ -122,6 +137,20 @@ export function ServiceDescriptionPage() {
             ? 'Loading stored configuration — showing the built-in until it arrives.'
             : 'Stored configuration could not be read. Showing the built-in, which is what generation falls back to. Saving will overwrite the stored row.'}
         </p>
+      )}
+
+      {problems.length > 0 && (
+        <div className="rounded-md border border-red-200 bg-red-50 p-3">
+          <p className="flex items-center gap-2 text-xs font-medium text-red-900">
+            <AlertTriangle className="size-3.5 shrink-0" />
+            {problems.length === 1
+              ? 'One condition in this template can never hold'
+              : `${problems.length} conditions in this template can never hold`}
+          </p>
+          <ul className="mt-1.5 list-disc space-y-0.5 pl-8 text-xs text-red-800">
+            {problems.map((p) => <li key={`${p.ownerId}-${p.problem}`}>{p.problem}</li>)}
+          </ul>
+        </div>
       )}
 
       <Card>

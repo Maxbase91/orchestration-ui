@@ -16,7 +16,11 @@
 // for them.
 
 import { getActivePolicyConfig, type PolicyConfig } from './policy-config.js';
-import { slotApplies, type ConfiguredSlot } from './service-description-config.js';
+import {
+  slotApplies, evaluateSlotCondition,
+  type ConfiguredSlot, type SlotCondition, type SlotConditionContext,
+} from './service-description-config.js';
+import { computeDemandSignals } from './demand-signals.js';
 import type { MiniIrqField, ResidualQuestionId } from './residual-questions.js';
 
 export type DemandSlotId =
@@ -98,8 +102,32 @@ export interface DemandSlot {
   answerType?: 'text' | 'yes-no';
   /** A short, category-specific example appended to the prompt. */
   example?: (ctx: DemandConversationContext) => string;
-  /** Slot is part of the agenda only when this returns true (absent ⇒ always). */
-  appliesWhen?: (ctx: DemandConversationContext, config: PolicyConfig) => boolean;
+  /**
+   * Slot is part of the agenda only when this returns true (absent ⇒ always).
+   *
+   * `signals` is the capture-time governance read, computed once per agenda
+   * build rather than per slot. It is passed in because a configured slot's
+   * conditions may name `materiality`, `riskTier`, `dataSensitivity` or
+   * `sourcingType`: four of the six fields `SlotConditionField` declares. They
+   * reached SECTIONS (api/generate-sow.ts builds the full context) and never
+   * reached slots — `fromConfiguredSlot` supplied `{category, value}` only — so
+   * a condition on any of them silently never matched, and the half that worked
+   * is why it looked fine in testing.
+   */
+  appliesWhen?: (
+    ctx: DemandConversationContext,
+    config: PolicyConfig,
+    signals: SlotConditionContext,
+  ) => boolean;
+  /**
+   * Conditions under which an ANSWER is mandatory, beyond the slot being asked.
+   *
+   * Carried from the configured slot. It was declared on `ConfiguredSlot`,
+   * edited on `/admin/service-description`, persisted — and read by nothing:
+   * `fromConfiguredSlot` dropped it, so "a material engagement must state its
+   * exit provisions" saved successfully and governed nothing.
+   */
+  requiredWhen?: SlotCondition[];
   /**
    * Why this demand is being asked this question, shown to the requester.
    *
@@ -311,6 +339,7 @@ export function fromConfiguredSlot(slot: ConfiguredSlot): DemandSlot {
         ? ({ kind: 'request', field: slot.targetField } as DemandSlotTarget)
         : ({ kind: 'sow', field: slot.targetField } as DemandSlotTarget),
     required: slot.required,
+    requiredWhen: slot.requiredWhen,
     prompt: slot.prompt,
     // Plain text, like the built-in set: the "(e.g. …)" wrapper lived only in
     // `ex()`, so configured slots rendered bare and built-in ones wrapped —
@@ -321,8 +350,7 @@ export function fromConfiguredSlot(slot: ConfiguredSlot): DemandSlot {
     // Empty config string means "no rationale" — an admin blanking the field
     // removes the line rather than rendering an empty one.
     why: slot.why?.trim() || undefined,
-    appliesWhen: (ctx, config) =>
-      slotApplies(slot, { category: ctx.category, value: ctx.estimatedValue }, config),
+    appliesWhen: (_ctx, config, signals) => slotApplies(slot, signals, config),
   };
 }
 
@@ -380,7 +408,38 @@ export function applicableSlots(
   config: PolicyConfig = getActivePolicyConfig(),
   slots: DemandSlot[] = ALL_SLOTS,
 ): DemandSlot[] {
-  return slots.filter((slot) => !slot.appliesWhen || slot.appliesWhen(ctx, config));
+  const signals = slotConditionContext(ctx, config);
+  return slots.filter((slot) => !slot.appliesWhen || slot.appliesWhen(ctx, config, signals));
+}
+
+/**
+ * The full context a configured slot's conditions are evaluated against.
+ *
+ * Computed here, once per agenda build, from what the conversation already
+ * holds: `computeDemandSignals` needs only category, value and the description
+ * so far, all of which are on the context. So the four governance fields were
+ * never unavailable to slots — they were simply not passed.
+ *
+ * It is the capture-time read, deliberately: the determination has not run, and
+ * `computeDemandSignals` is the module that exists to say what is known now
+ * without guessing the rest.
+ */
+export function slotConditionContext(
+  ctx: DemandConversationContext,
+  config: PolicyConfig = getActivePolicyConfig(),
+): SlotConditionContext {
+  const signals = computeDemandSignals(
+    { category: ctx.category, value: ctx.estimatedValue ?? 0, sow: ctx.sow },
+    config,
+  );
+  return {
+    category: ctx.category,
+    value: ctx.estimatedValue,
+    materiality: signals.materiality,
+    riskTier: signals.inherentRiskTier,
+    dataSensitivity: signals.dataSensitivity,
+    sourcingType: signals.sourcingTypeHint,
+  };
 }
 
 /**
@@ -460,19 +519,39 @@ export function isConversationComplete(
 export function outstandingRequiredSlots(
   ctx: DemandConversationContext,
   slots: DemandSlot[] = ALL_SLOTS,
+  config: PolicyConfig = getActivePolicyConfig(),
 ): DemandSlot[] {
+  const signals = slotConditionContext(ctx, config);
+  // A slot is mandatory if the code floor says so, OR the template marks it
+  // required, OR its `requiredWhen` conditions hold for this demand. The last
+  // two were the half of "a template CAN add requirements" that had no
+  // implementation: `required` reached only the admin page's own toggle and
+  // `requiredWhen` reached nothing at all. The floor is unchanged and still
+  // cannot be lowered — for the built-in set the second clause is a no-op,
+  // because its `required: true` slots ARE REQUIRED_SLOT_IDS.
+  //
+  // Only among the slots that apply: demanding an answer to a question this
+  // demand is never asked would be an unsatisfiable gate.
+  const applicable = new Set(applicableSlots(ctx, config, slots).map((s) => s.id));
   return slots
-    .filter((s) => REQUIRED_SLOT_IDS.includes(s.id))
+    .filter((s) => applicable.has(s.id))
+    .filter((s) => REQUIRED_SLOT_IDS.includes(s.id)
+      || s.required
+      || (s.requiredWhen?.length
+        ? s.requiredWhen.every((c) => evaluateSlotCondition(c, signals, config))
+        : false))
     .filter((s) => !isSlotFilled(s, ctx));
 }
 
 export function requiredSlotsFilled(
   ctx: DemandConversationContext,
   slots: DemandSlot[] = ALL_SLOTS,
+  config: PolicyConfig = getActivePolicyConfig(),
 ): boolean {
-  // Deliberately NOT "every slot the template marks required": REQUIRED_SLOT_IDS
-  // is the mandatory floor that stops an LLM short-circuiting the conversation,
-  // and a template that forgot to mark a slot required must not be able to lower
-  // it. A template CAN add requirements; it cannot remove these.
-  return outstandingRequiredSlots(ctx, slots).length === 0;
+  // REQUIRED_SLOT_IDS is the mandatory floor that stops an LLM short-circuiting
+  // the conversation, and a template that forgot to mark a slot required must
+  // not be able to lower it. A template CAN add requirements; it cannot remove
+  // these. `outstandingRequiredSlots` is the one place that rule lives, so the
+  // two cannot drift into disagreeing about what is required.
+  return outstandingRequiredSlots(ctx, slots, config).length === 0;
 }

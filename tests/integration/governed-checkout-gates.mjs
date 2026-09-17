@@ -76,27 +76,66 @@ check('a check that did not run records that it did not run', () => {
 
 console.log('\nA stored policy row is an override, not an all-or-nothing replacement');
 
-// Reach configFromRow through loadPolicy's own module by exercising the rule it
-// encodes: every key present in the row survives, whatever else is missing.
-const { default: _handler } = await import('../../api/governed-checkout.ts');
-void _handler;
-check('the all-keys-present rejection is gone', () => {
-  if (/keys\.some\(\(key\) => candidate\[key\] === undefined\)/.test(checkout)) {
-    throw new Error('the all-or-nothing guard is still there');
-  }
-});
+// Driven, not grepped. These three asserted the SHAPE of the merge by searching
+// governed-checkout.ts for its source lines, so moving the loader to
+// api/_policy.ts — where generate-sow and chat-intake can share it — broke the
+// test while the behaviour was untouched. `configFromRow` is exported, so the
+// rule can be exercised instead of described.
+const { configFromRow } = await import('../../api/_policy.ts');
+const NUMERIC_KEY = Object.keys(DEFAULT_POLICY_CONFIG)
+  .find((k) => typeof DEFAULT_POLICY_CONFIG[k] === 'number');
+const OTHER_KEY = Object.keys(DEFAULT_POLICY_CONFIG)
+  .find((k) => k !== NUMERIC_KEY && typeof DEFAULT_POLICY_CONFIG[k] === 'number');
+
 check('a row missing one key keeps its other stored values', () => {
-  if (!checkout.includes('for (const [key, fallback] of Object.entries(DEFAULT_POLICY_CONFIG))')) {
-    throw new Error('no per-key merge');
+  // The all-or-nothing guard rejected the whole row if any single key was
+  // absent, so adding one field to PolicyConfig silently reverted every
+  // admin-configured threshold to its shipped default.
+  const stored = { [NUMERIC_KEY]: 123_456 };
+  const merged = configFromRow({ config: stored });
+  if (merged[NUMERIC_KEY] !== 123_456) throw new Error(`${NUMERIC_KEY} was defaulted away`);
+  if (merged[OTHER_KEY] !== DEFAULT_POLICY_CONFIG[OTHER_KEY]) {
+    throw new Error(`${OTHER_KEY} should fall back to its default`);
   }
 });
 check('a wrong-typed stored value is defaulted, not trusted', () => {
-  if (!checkout.includes('typeof stored !== typeof fallback')) throw new Error('no type check');
-  if (!checkout.includes('Array.isArray(fallback) !== Array.isArray(stored)')) throw new Error('no array check');
+  const merged = configFromRow({ config: { [NUMERIC_KEY]: 'not a number' } });
+  if (merged[NUMERIC_KEY] !== DEFAULT_POLICY_CONFIG[NUMERIC_KEY]) {
+    throw new Error('a string threshold reached a numeric comparison');
+  }
+  const arrayKey = Object.keys(DEFAULT_POLICY_CONFIG)
+    .find((k) => Array.isArray(DEFAULT_POLICY_CONFIG[k]));
+  if (arrayKey) {
+    const m = configFromRow({ config: { [arrayKey]: 'a,b' } });
+    if (!Array.isArray(m[arrayKey])) throw new Error('a string replaced a list');
+  }
+});
+check('a missing or malformed row is the shipped default', () => {
+  if (configFromRow(undefined)[NUMERIC_KEY] !== DEFAULT_POLICY_CONFIG[NUMERIC_KEY]) {
+    throw new Error('no row should mean defaults');
+  }
+  if (configFromRow({ config: 'nonsense' })[NUMERIC_KEY] !== DEFAULT_POLICY_CONFIG[NUMERIC_KEY]) {
+    throw new Error('a non-object config should mean defaults');
+  }
 });
 check('the policy config has keys to merge in the first place', () => {
   if (Object.keys(DEFAULT_POLICY_CONFIG).length < 10) throw new Error('unexpectedly small default config');
 });
+
+// Every route that evaluates a governed threshold reads the admin's row.
+// generate-sow and chat-intake both passed DEFAULT_POLICY_CONFIG, so a
+// `policy:<key>` token resolved to the shipped number and an admin's edit moved
+// the browser and not generation.
+for (const [label, path] of [
+  ['generate-sow', 'api/generate-sow.ts'],
+  ['chat-intake', 'api/chat-intake.ts'],
+]) {
+  check(`${label} reads the stored thresholds, not the shipped defaults`, () => {
+    const source = read(path);
+    if (/DEFAULT_POLICY_CONFIG/.test(source)) throw new Error('still evaluates against shipped defaults');
+    if (!/loadPolicyConfig/.test(source)) throw new Error('does not load the stored config');
+  });
+}
 
 console.log('\nThe other two swallow sites were narrowed with it');
 

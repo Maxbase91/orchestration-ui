@@ -5,7 +5,7 @@ import {
   composeNarrativeFromSections,
   requiredSectionsFor,
 } from '../src/lib/procurement/service-description-config.js';
-import { DEFAULT_POLICY_CONFIG } from '../src/lib/procurement/policy-config.js';
+import { loadPolicyConfig } from './_policy.js';
 import { renderSystemPrompt } from '../src/lib/procurement/service-description-defaults.js';
 
 export const config = { maxDuration: 60 };
@@ -202,8 +202,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     dataSensitivity: sig.dataSensitivity as string | undefined,
     sourcingType: sig.sourcingTypeHint as string | undefined,
   };
+  // The admin's saved thresholds, not the shipped defaults. A `policy:<key>`
+  // token on a section's `requiredWhen` is the whole point of the indirection —
+  // resolved against DEFAULT_POLICY_CONFIG it silently answered with the
+  // shipped number, so raising a threshold at /admin/thresholds moved what the
+  // determination screen demanded and not what generation was told to cover.
   const required = signals
-    ? requiredSectionsFor(resolved.sections, conditionCtx, DEFAULT_POLICY_CONFIG)
+    ? requiredSectionsFor(resolved.sections, conditionCtx, await loadPolicyConfig())
     : [];
   const requiredLabels = required.map(
     (id) => resolved.sections.find((x) => x.id === id)?.label ?? id,

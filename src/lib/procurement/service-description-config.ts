@@ -171,8 +171,67 @@ export function evaluateSlotCondition(
     case '<': return l < r;
     case '==': return l === r;
     case '!=': return l !== r;
-    default: return true;
+    // An operator this evaluator does not implement is FALSE, matching
+    // `evalCondition` in evaluate-routing-rules.ts and the design note at the
+    // top of this function — which said so while the code returned true eight
+    // lines below it. Failing open meant a typo in a JSONB operator made the
+    // slot always asked and the section always mandatory, and the mistake
+    // presented as policy rather than as a mistake. `diagnoseSlotConditions`
+    // reports it instead of the runtime silently absorbing it.
+    default: return false;
   }
+}
+
+/** One condition an admin wrote that this evaluator cannot act on. */
+export interface SlotConditionProblem {
+  /** The slot or section the condition sits on. */
+  ownerId: string;
+  problem: string;
+}
+
+const SUPPORTED_SLOT_OPERATORS: readonly string[] = ['>=', '>', '<=', '<', '==', '!=', 'in'];
+const SUPPORTED_SLOT_FIELDS: readonly string[] = [
+  'category', 'value', 'materiality', 'riskTier', 'dataSensitivity', 'sourcingType',
+];
+
+/**
+ * Conditions that can never do what they say.
+ *
+ * The same pattern as `diagnoseRule`, `diagnoseTemplate` and
+ * `diagnoseFormTemplate`: a surface that cannot act on something must say so.
+ * Both failure modes are silent without this — an unknown operator now returns
+ * false, so the slot is never asked, and an unknown field compares against
+ * `undefined`, so it is never asked either. Neither reads as broken on screen.
+ */
+export function diagnoseSlotConditions(
+  template: Pick<ServiceDescriptionTemplate, 'slots' | 'sections'>,
+  config: PolicyConfig,
+): SlotConditionProblem[] {
+  const out: SlotConditionProblem[] = [];
+  const check = (ownerId: string, label: string, conditions: SlotCondition[] | undefined) => {
+    for (const condition of conditions ?? []) {
+      if (!SUPPORTED_SLOT_FIELDS.includes(condition.field)) {
+        out.push({ ownerId, problem: `${label} tests "${condition.field}", which nothing supplies.` });
+      }
+      if (!SUPPORTED_SLOT_OPERATORS.includes(condition.operator)) {
+        out.push({ ownerId, problem: `${label} uses the operator "${condition.operator}", which is not implemented, so it never holds.` });
+      }
+      // A `policy:` token naming a key that does not exist resolves to the raw
+      // string, which then compares as text against a number and never matches.
+      if (condition.value.startsWith('policy:')
+        && typeof config[condition.value.slice('policy:'.length) as keyof PolicyConfig] !== 'number') {
+        out.push({ ownerId, problem: `${label} names the governed threshold "${condition.value.slice('policy:'.length)}", which does not exist.` });
+      }
+    }
+  };
+  for (const slot of template.slots ?? []) {
+    check(slot.id, `The condition on "${slot.id}"`, slot.conditions);
+    check(slot.id, `The mandatory-when rule on "${slot.id}"`, slot.requiredWhen);
+  }
+  for (const section of template.sections ?? []) {
+    check(section.id, `The mandatory-when rule on "${section.label}"`, section.requiredWhen);
+  }
+  return out;
 }
 
 /** Is this slot asked for this demand? All conditions must hold. */
