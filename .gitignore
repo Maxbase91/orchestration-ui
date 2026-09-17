@@ -47,3 +47,12 @@ _local/
 # re-runs minutes apart) were committed before this rule existed. Keep the
 # harness writing here, keep the output out of git.
 docs/testing/artifacts/ui-e2e/
+
+# Claude Code's working directory. Untracked but NOT ignored until now, which
+# made `git add .` a 523 MB mistake waiting to happen: `.claude/worktrees/`
+# holds full checkouts, and `settings.local.json` is a personal config that is
+# not this repo's to carry. `launch.json` is deliberately left visible — it is
+# project config (the dev-server definition) and whether to track it is a
+# decision, not an accident.
+.claude/worktrees/
+.claude/settings.local.json
