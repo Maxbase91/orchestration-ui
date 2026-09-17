@@ -1,4 +1,4 @@
-import { Plus } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { DataTable, type Column } from '@/components/shared/data-table';
@@ -38,9 +38,11 @@ interface AgentLibraryProps {
   agents: AIAgent[];
   onSelectAgent: (agent: AIAgent) => void;
   onAddAgent: () => void;
+  /** Raise the delete confirmation for this agent; the page owns the dialog. */
+  onDeleteAgent: (agent: AIAgent) => void;
 }
 
-export function AgentLibrary({ agents, onSelectAgent, onAddAgent }: AgentLibraryProps) {
+export function AgentLibrary({ agents, onSelectAgent, onAddAgent, onDeleteAgent }: AgentLibraryProps) {
   const columns: Column<AIAgent & Record<string, unknown>>[] = [
     {
       key: 'name',
@@ -106,6 +108,21 @@ export function AgentLibrary({ agents, onSelectAgent, onAddAgent }: AgentLibrary
           </div>
         );
       },
+    },
+    {
+      key: 'actions',
+      label: '',
+      render: (agent) => (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-red-500 hover:text-red-700"
+          // The row itself opens the agent, so the click must not do both.
+          onClick={(e) => { e.stopPropagation(); onDeleteAgent(agent as unknown as AIAgent); }}
+        >
+          <Trash2 className="size-3.5" />
+        </Button>
+      ),
     },
   ];
 

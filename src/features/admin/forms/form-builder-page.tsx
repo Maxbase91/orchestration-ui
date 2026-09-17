@@ -15,6 +15,7 @@ import {
   Info,
   ChevronDown,
   AlertTriangle,
+  Trash2,
 } from 'lucide-react';
 import { PageHeader } from '@/components/shared/page-header';
 import { Button } from '@/components/ui/button';
@@ -33,7 +34,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { useFormTemplates, useSaveFormTemplate } from '@/lib/db/hooks/use-form-templates';
+import { useFormTemplates, useSaveFormTemplate, useDeleteFormTemplate } from '@/lib/db/hooks/use-form-templates';
+import { ConfirmDeleteDialog } from '@/components/shared/confirm-delete-dialog';
 import type { FormTemplate, FormField, FormFieldType } from '@/data/form-templates';
 import { DynamicForm } from '@/components/shared/dynamic-form';
 import { toast } from 'sonner';
@@ -130,6 +132,8 @@ export function FormBuilderPage() {
   // routing-rules admin. Before the first edit the server list shows live;
   // afterwards local state owns it so a refetch cannot discard in-session work.
   const [editedForms, setEditedForms] = useState<FormTemplate[] | null>(null);
+  // The form the confirmation is about, so the dialog can name it.
+  const [pendingDelete, setPendingDelete] = useState<FormTemplate | null>(null);
   const forms = editedForms ?? serverForms;
   // Every edit starts from what is on screen — the server list until the first
   // change, the edited copy after it. Keeps the call sites below unchanged.
@@ -139,6 +143,7 @@ export function FormBuilderPage() {
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
   const [addFieldOpen, setAddFieldOpen] = useState(false);
   const saveFormTemplate = useSaveFormTemplate();
+  const removeFormTemplate = useDeleteFormTemplate();
 
   // An explicit pick wins, otherwise the first form — derived rather than
   // written into state once the templates arrive.
@@ -305,6 +310,17 @@ export function FormBuilderPage() {
         <PageHeader
           title="Form Builder"
           subtitle="Design and configure forms that are triggered during workflow stages."
+          actions={selectedForm && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-red-600 hover:text-red-700"
+              onClick={() => setPendingDelete(selectedForm)}
+            >
+              <Trash2 className="mr-1.5 size-3.5" />
+              Delete form
+            </Button>
+          )}
         />
       </div>
       <div className="flex flex-1 overflow-hidden border-t border-gray-200">
@@ -660,6 +676,27 @@ export function FormBuilderPage() {
           </div>
         </div>
       </div>
+
+      {/* `form_submissions.template_id` has no foreign key, so answers already
+          collected survive the template and keep their values — but they lose
+          the field labels that make them readable, because those live here.
+          Worth saying: an admin deleting a form to stop it being asked may not
+          intend to make last quarter's submissions unreadable. Deactivating is
+          usually what they want, which is why the dialog names the difference. */}
+      <ConfirmDeleteDialog
+        open={pendingDelete !== null}
+        onOpenChange={(open) => { if (!open) setPendingDelete(null); }}
+        noun="form"
+        label={pendingDelete ? `${pendingDelete.id} — ${pendingDelete.name}` : ''}
+        consequence="Submissions already collected are kept, but they lose the field labels that make them readable. To stop the form being asked without that, set it inactive instead."
+        onConfirm={async () => {
+          if (!pendingDelete) return;
+          await removeFormTemplate.mutateAsync(pendingDelete.id);
+          setEditedForms(null);
+          if (pickedFormId === pendingDelete.id) setPickedFormId(null);
+          toast.success(`Form "${pendingDelete.name}" deleted`);
+        }}
+      />
     </div>
   );
 }

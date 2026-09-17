@@ -16,7 +16,9 @@ import { PageHeader } from '@/components/shared/page-header';
 import {
   useApprovalChains,
   useUpsertApprovalChain,
+  useDeleteApprovalChain,
 } from '@/lib/db/hooks/use-approval-chains';
+import { ConfirmDeleteDialog } from '@/components/shared/confirm-delete-dialog';
 import type { ApprovalChain } from '@/lib/db/approval-chains';
 import { bandLabel, governedBounds, diagnoseChains } from '@/lib/workflow/approval-bands';
 import { usePolicyConfig } from '@/lib/procurement/use-policy-config';
@@ -26,7 +28,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Trash2 } from 'lucide-react';
 
 // Radix Select cannot hold an empty-string item value.
 const OPEN_END = '__open__';
@@ -35,6 +37,7 @@ const LITERAL = '__literal__';
 export function ApprovalChainsPage() {
   const { data: serverChains = [], isLoading } = useApprovalChains();
   const upsertChain = useUpsertApprovalChain();
+  const removeChain = useDeleteApprovalChain();
   const policyConfig = usePolicyConfig();
 
   // Diagnostics run over the EDITED view, not the server's, so a gap or an
@@ -46,6 +49,8 @@ export function ApprovalChainsPage() {
   const [editBuffer, setEditBuffer] = useState<Record<string, ApprovalChain>>({});
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  // Held as the record, not a flag, so the confirmation names the chain.
+  const [pendingDelete, setPendingDelete] = useState<ApprovalChain | null>(null);
 
   // Chains created here and not yet saved.
   //
@@ -343,14 +348,25 @@ export function ApprovalChainsPage() {
                         Save Changes
                       </Button>
                     ) : (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={(e) => { e.stopPropagation(); setEditingId(chain.id); }}
-                      >
-                        <Pencil className="mr-1.5 size-3.5" />
-                        Edit
-                      </Button>
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => { e.stopPropagation(); setEditingId(chain.id); }}
+                        >
+                          <Pencil className="mr-1.5 size-3.5" />
+                          Edit
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-red-600 hover:text-red-700"
+                          onClick={(e) => { e.stopPropagation(); setPendingDelete(chain); }}
+                        >
+                          <Trash2 className="mr-1.5 size-3.5" />
+                          Delete
+                        </Button>
+                      </>
                     )}
                   </div>
                 </div>
@@ -359,6 +375,44 @@ export function ApprovalChainsPage() {
           );
         })}
       </div>
+
+      {/* The one table here with a real foreign key: `requests.approval_chain`
+          references it, so Postgres refuses to delete a chain a request still
+          names. That refusal is the constraint working, and the dialog says so
+          in words rather than surfacing "Failed to delete" — which would make a
+          correct database look like a broken button.
+
+          A chain that is only in the local buffer has never been saved, so
+          there is nothing to delete server-side; it is dropped from the buffer
+          instead of sending a request for a row that does not exist. */}
+      <ConfirmDeleteDialog
+        open={pendingDelete !== null}
+        onOpenChange={(open) => { if (!open) setPendingDelete(null); }}
+        noun="approval chain"
+        label={pendingDelete ? `${pendingDelete.id} — ${pendingDelete.name}` : ''}
+        consequence="Requests currently routed to this chain keep their approvers. New requests in its value band fall through to the next matching chain, or to the default if there is none."
+        onConfirm={async () => {
+          if (!pendingDelete) return;
+          const id = pendingDelete.id;
+          if (localChainIds.has(id)) {
+            setEditBuffer((prev) => {
+              const next = { ...prev };
+              delete next[id];
+              return next;
+            });
+            setLocalChainIds((prev) => {
+              const next = new Set(prev);
+              next.delete(id);
+              return next;
+            });
+          } else {
+            await removeChain.mutateAsync(id);
+          }
+          if (expandedId === id) setExpandedId(null);
+          if (editingId === id) setEditingId(null);
+          toast.success(`Approval chain "${pendingDelete.name}" deleted`);
+        }}
+      />
     </div>
   );
 }

@@ -52,9 +52,17 @@ try {
   check('a retired cost centre is shown as retired, not hidden',
     centresText.includes('Retired centre') && centresText.includes('Retired'));
   // Deliberately no delete: requests store the code, not a foreign key, so a
-  // removed row would orphan every record charged to it.
+  // removed row would orphan every record charged to it. Retiring is already
+  // the way out, it is visible in the table above, and it keeps the history.
+  //
+  // This matched on the ACCESSIBLE NAME, so an icon-only trash button — which
+  // is exactly how every other table on this platform renders delete — sailed
+  // past it. A guard against a control appearing must not depend on how that
+  // control happens to be labelled. Checked against the markup instead.
+  const costCentreMarkup = await page.locator('main').innerHTML();
   check('there is no delete control — retiring is the way out',
-    (await page.getByRole('button', { name: /delete/i }).count()) === 0);
+    (await page.getByRole('button', { name: /delete/i }).count()) === 0
+    && !/lucide-trash/i.test(costCentreMarkup));
 
   await page.getByRole('button', { name: /Add cost centre/ }).click();
   await page.locator('#cc-id').fill('CC-NEW-001');

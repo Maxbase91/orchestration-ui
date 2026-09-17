@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { PageHeader } from '@/components/shared/page-header';
-import { useRoutingRules } from '@/lib/db/hooks/use-routing-rules';
+import { useRoutingRules, useDeleteRoutingRule } from '@/lib/db/hooks/use-routing-rules';
 import type { RoutingRule } from '@/data/types';
 import { RuleListPanel } from './components/rule-list-panel';
 import { RuleEditorPanel } from './components/rule-editor-panel';
@@ -8,7 +8,10 @@ import { RuleTestPanel } from './components/rule-test-panel';
 import { diagnoseRules, uncoveredDemand, CHANNEL_OF_LAST_RESORT } from '@/lib/routing/evaluate-routing-rules';
 import { useApprovalChains } from '@/lib/db/hooks/use-approval-chains';
 import { usePolicyConfig } from '@/lib/procurement/use-policy-config';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Trash2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { ConfirmDeleteDialog } from '@/components/shared/confirm-delete-dialog';
+import { toast } from 'sonner';
 
 /** The next free RR-nnn, so a deletion cannot make a new rule reuse an id. */
 function nextRuleId(existing: { id: string }[]): string {
@@ -32,6 +35,9 @@ export function RoutingRulesPage() {
   // the session. /admin/approvals already worked this way; these three pages
   // did not.
   const [editedRules, setEditedRules] = useState<RoutingRule[] | null>(null);
+  // The rule the confirmation is about, so it can be named in the dialog.
+  const [pendingDelete, setPendingDelete] = useState<RoutingRule | null>(null);
+  const removeRule = useDeleteRoutingRule();
   const rules = editedRules ?? serverRules;
 
   const [pickedRuleId, setPickedRuleId] = useState<string | null>(null);
@@ -90,6 +96,17 @@ export function RoutingRulesPage() {
         <PageHeader
           title="Routing Rules Engine"
           subtitle="Define and test rules that automatically route procurement requests to the correct buying channel."
+          actions={selectedRule && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-red-600 hover:text-red-700"
+              onClick={() => setPendingDelete(selectedRule)}
+            >
+              <Trash2 className="mr-1.5 size-3.5" />
+              Delete rule
+            </Button>
+          )}
         />
       </div>
       {broken.length > 0 && (
@@ -155,6 +172,27 @@ export function RoutingRulesPage() {
           <RuleTestPanel rules={rules} />
         </div>
       </div>
+
+      {/* Nothing references routing_rules, so a delete always succeeds — which
+          is precisely why the consequence has to be stated. Removing the rule
+          that routes a category does not stop those requests being routed; they
+          fall to whatever matches next, and if nothing does, to the
+          unconfigurable CHANNEL_OF_LAST_RESORT. A silently rerouted category is
+          harder to notice than a refused delete. */}
+      <ConfirmDeleteDialog
+        open={pendingDelete !== null}
+        onOpenChange={(open) => { if (!open) setPendingDelete(null); }}
+        noun="routing rule"
+        label={pendingDelete ? `${pendingDelete.id} — ${pendingDelete.name}` : ''}
+        consequence={`Demand this rule matched will be routed by the next rule that matches, or by ${CHANNEL_OF_LAST_RESORT} if none does. Requests already routed keep their channel.`}
+        onConfirm={async () => {
+          if (!pendingDelete) return;
+          await removeRule.mutateAsync(pendingDelete.id);
+          setEditedRules(null);
+          if (pickedRuleId === pendingDelete.id) setPickedRuleId(null);
+          toast.success(`Routing rule "${pendingDelete.name}" deleted`);
+        }}
+      />
     </div>
   );
 }

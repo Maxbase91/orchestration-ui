@@ -92,6 +92,7 @@
     "test:governed-checkout-atomic": "node --import tsx/esm tests/integration/governed-checkout-atomic.mjs",
     "test:knowledge": "node --import tsx/esm tests/integration/knowledge-retrieval.mjs",
     "test:csv-export": "node --import tsx/esm tests/integration/csv-export.mjs",
+    "test:admin-delete-controls": "node tests/integration/admin-delete-controls.mjs",
     "test:ui": "node tests/ui/wizard-smoke.mjs",
     "test:requester-entry-ui": "node tests/ui/requester-entry.mjs",
     "test:catalogue-ui": "node tests/integration/catalogue-detail-ui.mjs",

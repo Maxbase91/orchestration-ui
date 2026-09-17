@@ -195,6 +195,9 @@ npm run test:intake-routing-eval  # intake routing eval harness + accuracy basel
 npm run test:referral             # demand disposition — proceed / request-change / refer-back (RTE-06)
 npm run test:knowledge            # grounded policy-Q&A retrieval — ranking, citations, low-confidence, and that the
                                   #   assistant answers from the admin's knowledge_base rather than the built-in fixture
+npm run test:admin-delete-controls # config you can create and edit, you can also remove — the four surfaces whose
+                                  #   useDeleteX hook had no caller, each behind a confirmation that names the record
+                                  #   and its consequence; and the two reference tables that deliberately stay undeletable
 npm run test:csv-export           # one CSV implementation, RFC 4180 quoting, a BOM so Excel keeps the € signs,
                                   #   and the audit Export button actually exporting the filtered set
 npm run test:policy-config        # central decisioning thresholds (defaults pinned + override resolver)

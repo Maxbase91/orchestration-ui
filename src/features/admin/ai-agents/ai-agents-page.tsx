@@ -3,10 +3,12 @@
 // decisions made in the front door's intake and determination steps.
 
 import { useState, useCallback } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/shared/page-header';
-import { useAiAgents } from '@/lib/db/hooks/use-ai-agents';
+import { useAiAgents, useDeleteAiAgent } from '@/lib/db/hooks/use-ai-agents';
+import { ConfirmDeleteDialog } from '@/components/shared/confirm-delete-dialog';
 import type { AIAgent } from '@/data/types';
 import { AgentLibrary } from './components/agent-library';
 import { AgentConfigForm } from './components/agent-config-form';
@@ -26,6 +28,32 @@ export function AIAgentsPage() {
   const [editedAgents, setEditedAgents] = useState<AIAgent[] | null>(null);
   const agents = editedAgents ?? serverAgents;
   const [selectedAgent, setSelectedAgent] = useState<AIAgent | null>(null);
+  // The agent the confirmation is about, so the dialog can name it.
+  const [pendingDelete, setPendingDelete] = useState<AIAgent | null>(null);
+  const removeAgent = useDeleteAiAgent();
+
+  // Shared by both views, so the library and the detail screen delete the same
+  // way and neither can drift into a different confirmation.
+  const deleteDialog = (
+    // Only `status` is read by any runtime code (api/ai.ts, for one agent), so
+    // deleting an agent row removes a record rather than turning something off.
+    // Saying that is the point: an admin deleting an "AI Classification" agent
+    // reasonably expects classification to stop, and it will not.
+    <ConfirmDeleteDialog
+      open={pendingDelete !== null}
+      onOpenChange={(open) => { if (!open) setPendingDelete(null); }}
+      noun="agent"
+      label={pendingDelete ? `${pendingDelete.id} — ${pendingDelete.name}` : ''}
+      consequence="This removes the agent's record and its configuration. It does not switch off the automation itself — the routes that call a model do so whether or not a row describes them here."
+      onConfirm={async () => {
+        if (!pendingDelete) return;
+        await removeAgent.mutateAsync(pendingDelete.id);
+        setEditedAgents(null);
+        if (selectedAgent?.id === pendingDelete.id) setSelectedAgent(null);
+        toast.success(`Agent "${pendingDelete.name}" deleted`);
+      }}
+    />
+  );
 
   const handleAddAgent = useCallback(() => {
     const newAgent: AIAgent = {
@@ -56,6 +84,17 @@ export function AIAgentsPage() {
         <PageHeader
           title={selectedAgent.name}
           subtitle={selectedAgent.description}
+          actions={(
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-red-600 hover:text-red-700"
+              onClick={() => setPendingDelete(selectedAgent)}
+            >
+              <Trash2 className="mr-1.5 size-3.5" />
+              Delete agent
+            </Button>
+          )}
         />
 
         <div className="grid gap-6 lg:grid-cols-2">
@@ -69,6 +108,7 @@ export function AIAgentsPage() {
           </div>
           <AgentPerformance agent={selectedAgent} />
         </div>
+        {deleteDialog}
       </div>
     );
   }
@@ -83,7 +123,9 @@ export function AIAgentsPage() {
         agents={agents}
         onSelectAgent={setSelectedAgent}
         onAddAgent={handleAddAgent}
+        onDeleteAgent={setPendingDelete}
       />
+      {deleteDialog}
     </div>
   );
 }
