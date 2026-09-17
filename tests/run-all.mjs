@@ -22,6 +22,26 @@ const SKIP_EXIT_CODE = 3;
 // indefinitely and looks like a slow build rather than a broken test.
 const SUITE_TIMEOUT_MS = 120_000;
 
+/**
+ * Suites that legitimately need longer, and why.
+ *
+ * The default stays at two minutes — it is the hang protection, and raising it
+ * for everything would trade a real guarantee for one slow suite's convenience.
+ * A suite earns a place here only by talking to something outside this machine,
+ * where the time is network latency rather than work.
+ *
+ * `test:ai-agents` toggles six agents off and on again against the DEPLOYED app
+ * (`https://orchestration-ui.vercel.app`), asserting the runtime responds to
+ * each flip: sixteen assertions, each a round trip to Vercel plus a database
+ * write. It passes in isolation and has intermittently exceeded 120s inside the
+ * full run, which reports as a timeout rather than as the slow network call it
+ * is.
+ */
+const SUITE_TIMEOUT_OVERRIDES = {
+  'test:ai-agents': 300_000,
+};
+const timeoutFor = (suite) => SUITE_TIMEOUT_OVERRIDES[suite] ?? SUITE_TIMEOUT_MS;
+
 // Needs a browser binary and a dev server, so it runs as its own pass rather
 // than inside the default gate. `npm run test:all -- --browser` includes them.
 //
@@ -68,9 +88,10 @@ const skipped = [];
 const failed = [];
 
 for (const suite of suites) {
-  const result = spawnSync('npm', ['run', '--silent', suite], { encoding: 'utf8', timeout: SUITE_TIMEOUT_MS });
+  const budget = timeoutFor(suite);
+  const result = spawnSync('npm', ['run', '--silent', suite], { encoding: 'utf8', timeout: budget });
   if (result.signal) {
-    failed.push({ suite, output: `timed out after ${SUITE_TIMEOUT_MS / 1000}s (killed with ${result.signal})` });
+    failed.push({ suite, output: `timed out after ${budget / 1000}s (killed with ${result.signal})` });
     process.stdout.write('T');
     continue;
   }
