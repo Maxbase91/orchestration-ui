@@ -12,13 +12,13 @@ interface SystemIntegrationBadgeProps {
 }
 
 const statusConfig: Record<IntegrationStatus, { label: string; dotClass: string; icon?: typeof CheckCircle }> = {
-  'pending-handover': { label: 'Pending handover', dotClass: 'bg-gray-400 animate-pulse' },
-  'submitted': { label: 'Submitted', dotClass: 'bg-amber-400' },
-  'awaiting-response': { label: 'Awaiting response', dotClass: 'bg-amber-400 animate-pulse' },
-  'processing': { label: 'Processing', dotClass: 'bg-amber-400' },
-  'completed': { label: 'Completed', dotClass: 'bg-green-500', icon: CheckCircle },
-  'error': { label: 'Error', dotClass: 'bg-red-500', icon: XCircle },
-  'timeout': { label: 'Timeout', dotClass: 'bg-red-500', icon: Clock },
+  'pending-handover': { label: 'Pending handover', dotClass: 'bg-idle animate-pulse' },
+  'submitted': { label: 'Submitted', dotClass: 'bg-warn' },
+  'awaiting-response': { label: 'Awaiting response', dotClass: 'bg-warn animate-pulse' },
+  'processing': { label: 'Processing', dotClass: 'bg-warn' },
+  'completed': { label: 'Completed', dotClass: 'bg-ok', icon: CheckCircle },
+  'error': { label: 'Error', dotClass: 'bg-stop', icon: XCircle },
+  'timeout': { label: 'Timeout', dotClass: 'bg-stop', icon: Clock },
 };
 
 function getCompactLabel(integration: SystemIntegration): string {

@@ -10,23 +10,23 @@ interface ComplianceReportCardProps {
 }
 
 const decisionStyles: Record<ComplianceReport['decision'], { label: string; className: string }> = {
-  approved: { label: 'Approved', className: 'bg-green-100 text-green-700 border-green-200' },
-  'needs-review': { label: 'Needs Review', className: 'bg-amber-100 text-amber-700 border-amber-200' },
-  rejected: { label: 'Rejected', className: 'bg-red-100 text-red-700 border-red-200' },
+  approved: { label: 'Approved', className: 'bg-ok-soft text-ok border-ok-line' },
+  'needs-review': { label: 'Needs Review', className: 'bg-warn-soft text-warn border-warn-line' },
+  rejected: { label: 'Rejected', className: 'bg-stop-soft text-stop border-stop-line' },
 };
 
 const statusIcons: Record<ComplianceCheck['status'], { icon: typeof CheckCircle; className: string }> = {
-  pass: { icon: CheckCircle, className: 'text-green-500' },
-  fail: { icon: XCircle, className: 'text-red-500' },
-  warning: { icon: AlertTriangle, className: 'text-amber-500' },
-  info: { icon: Info, className: 'text-blue-500' },
+  pass: { icon: CheckCircle, className: 'text-ok' },
+  fail: { icon: XCircle, className: 'text-stop' },
+  warning: { icon: AlertTriangle, className: 'text-warn' },
+  info: { icon: Info, className: 'text-accent-solid' },
 };
 
 const severityStyles: Record<ComplianceCheck['severity'], string> = {
-  critical: 'bg-red-50 text-red-600',
-  high: 'bg-amber-50 text-amber-600',
-  medium: 'bg-gray-100 text-gray-600',
-  low: 'bg-gray-50 text-gray-500',
+  critical: 'bg-stop-soft text-stop',
+  high: 'bg-warn-soft text-warn',
+  medium: 'bg-idle-soft text-ink-2',
+  low: 'bg-card-2 text-ink-3',
 };
 
 const CATEGORIES: ComplianceCheck['category'][] = ['Budget', 'Contract', 'Supplier Compliance', 'Policy', 'Risk', 'Value'];
@@ -37,15 +37,15 @@ export function ComplianceReportCard({ report, defaultExpanded = false }: Compli
 
   if (agent && agent.status !== 'active') {
     return (
-      <div className="rounded-md border-l-2 border-gray-300 bg-gray-50 p-4">
+      <div className="rounded-md border-l-2 border-line bg-card-2 p-4">
         <div className="flex items-center gap-2">
-          <Sparkles className="size-4 shrink-0 text-gray-400" />
-          <span className="text-sm font-semibold text-gray-700">PR Compliance Review</span>
-          <span className="rounded-full border border-gray-200 bg-white px-2 py-0.5 text-xs text-gray-500">
+          <Sparkles className="size-4 shrink-0 text-ink-3" />
+          <span className="text-sm font-semibold text-ink-2">PR Compliance Review</span>
+          <span className="rounded-full border border-line bg-white px-2 py-0.5 text-xs text-ink-3">
             {agent.name} is {agent.status}
           </span>
         </div>
-        <p className="mt-2 pl-6 text-sm text-gray-500">
+        <p className="mt-2 pl-6 text-sm text-ink-3">
           {agent.name} is currently {agent.status}. Enable it in Admin → AI Agents to regenerate
           the PR compliance report for this request.
         </p>
@@ -64,18 +64,18 @@ export function ComplianceReportCard({ report, defaultExpanded = false }: Compli
   }, {});
 
   return (
-    <div className="rounded-md border-l-2 border-blue-400 bg-blue-50/30 p-4">
+    <div className="rounded-md border-l-2 border-accent-solid bg-accent-soft/30 p-4">
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Sparkles className="size-4 shrink-0 text-blue-500" />
-          <span className="text-sm font-semibold text-gray-900">PR Compliance Review</span>
+          <Sparkles className="size-4 shrink-0 text-accent-solid" />
+          <span className="text-sm font-semibold text-ink">PR Compliance Review</span>
         </div>
         <div className="flex items-center gap-2">
           <span className={cn('inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium', decision.className)}>
             {decision.label}
           </span>
-          <span className="text-xs font-medium text-gray-500">{report.confidence}%</span>
+          <span className="text-xs font-medium text-ink-3">{report.confidence}%</span>
         </div>
       </div>
 
@@ -88,13 +88,13 @@ export function ComplianceReportCard({ report, defaultExpanded = false }: Compli
       </p>
 
       {/* Summary */}
-      <p className="mt-2 pl-6 text-sm text-gray-700">{report.summary}</p>
+      <p className="mt-2 pl-6 text-sm text-ink-2">{report.summary}</p>
 
       {/* Toggle */}
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}
-        className="mt-3 ml-6 inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700"
+        className="mt-3 ml-6 inline-flex items-center gap-1 text-xs font-medium text-accent-solid hover:text-accent-solid"
       >
         {expanded ? 'Hide details' : 'Show details'}
         {expanded ? <ChevronUp className="size-3" /> : <ChevronDown className="size-3" />}
@@ -105,7 +105,7 @@ export function ComplianceReportCard({ report, defaultExpanded = false }: Compli
           {/* Checks grouped by category */}
           {Object.entries(groupedChecks).map(([category, checks]) => (
             <div key={category}>
-              <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">{category}</h4>
+              <h4 className="text-xs font-semibold text-ink-3 uppercase tracking-wide mb-1.5">{category}</h4>
               <div className="space-y-1.5">
                 {checks.map((check) => {
                   const iconConfig = statusIcons[check.status];
@@ -115,12 +115,12 @@ export function ComplianceReportCard({ report, defaultExpanded = false }: Compli
                       <StatusIcon className={cn('size-4 shrink-0 mt-0.5', iconConfig.className)} />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-gray-800">{check.check}</span>
+                          <span className="text-sm font-medium text-ink">{check.check}</span>
                           <span className={cn('rounded px-1.5 py-0.5 text-[10px] font-medium', severityStyles[check.severity])}>
                             {check.severity}
                           </span>
                         </div>
-                        <p className="text-xs text-gray-600">{check.detail}</p>
+                        <p className="text-xs text-ink-2">{check.detail}</p>
                       </div>
                     </div>
                   );
@@ -130,17 +130,17 @@ export function ComplianceReportCard({ report, defaultExpanded = false }: Compli
           ))}
 
           {/* Stats */}
-          <div className="text-xs text-gray-500 pt-2 border-t border-blue-100">
+          <div className="text-xs text-ink-3 pt-2 border-t border-accent-line">
             {passedCount}/{totalCount} checks passed
           </div>
 
           {/* Recommendation */}
-          <div className="rounded-md bg-blue-50 border border-blue-100 p-3">
+          <div className="rounded-md bg-accent-soft border border-accent-line p-3">
             <div className="flex items-center gap-1.5 mb-1">
-              <Info className="size-3.5 text-blue-500" />
-              <span className="text-xs font-semibold text-blue-700">Recommendation</span>
+              <Info className="size-3.5 text-accent-solid" />
+              <span className="text-xs font-semibold text-accent-solid">Recommendation</span>
             </div>
-            <p className="text-xs text-blue-800">{report.recommendation}</p>
+            <p className="text-xs text-accent-solid">{report.recommendation}</p>
           </div>
         </div>
       )}

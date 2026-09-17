@@ -150,15 +150,63 @@ if (/--spacing-\d+:/.test(css)) {
   bad('the spacing scale is not redefined', 'overriding a step shifts every existing use');
 } else ok('spacing is left to Tailwind’s 4px base');
 
+// Files that have moved onto tokens. Add one when its screen migrates; the
+// guard tightens with the work rather than arriving after it.
+const MIGRATED = [
+  'src/components/shared/async-boundary.tsx',
+  'src/components/shared/ai-confidence-badge.tsx',
+  'src/components/shared/ai-suggestion-card.tsx',
+  'src/components/shared/compliance-report-card.tsx',
+  'src/components/shared/confirm-delete-dialog.tsx',
+  'src/components/shared/data-table.tsx',
+  'src/components/shared/dynamic-form.tsx',
+  'src/components/shared/form-submission-view.tsx',
+  'src/components/shared/kpi-card.tsx',
+  'src/components/shared/page-header.tsx',
+  'src/components/shared/priority-indicator.tsx',
+  'src/components/shared/process-stepper.tsx',
+  'src/components/shared/sla-countdown.tsx',
+  'src/components/shared/system-integration-badge.tsx',
+  'src/components/shared/system-integration-timeline.tsx',
+  'src/components/charts/sparkline.tsx',
+];
+
+// ── Text on a status fill must flip with the theme ─────────────────────────
+console.log('\nText on a coloured fill survives both themes');
+// `bg-ok text-white` reads perfectly in light and is unreadable in dark, where
+// --ok inverts from #0F7048 to a light tint: white-on-that measures 2.32:1.
+// --paper flips with the theme and clears 4.5:1 on every status in both.
+{
+  const ON_FILL = ['ok', 'warn', 'stop', 'idle'];
+  const failures = [];
+  for (const fill of ON_FILL) {
+    for (const [theme, set] of [['light', light], ['dark', dark]]) {
+      if (!set?.[fill] || !set?.paper) continue;
+      const ratio = contrast(set.paper, set[fill]);
+      if (ratio < AA_BODY) failures.push(`${theme} --paper on --${fill}: ${ratio.toFixed(2)}`);
+    }
+  }
+  if (failures.length) bad('--paper reads on every status fill, both themes', failures.join(' · '));
+  else ok('--paper reads on every status fill, both themes');
+
+  // And nothing pins white against one, which only works in light.
+  const pinned = [];
+  for (const file of MIGRATED) {
+    for (const [, before] of read(file).matchAll(/(bg-(?:ok|warn|stop|idle|accent-solid)\b[^'"`]{0,80}?)\btext-white\b/g)) {
+      pinned.push(`${file}: ${before.trim().slice(0, 40)}…text-white`);
+    }
+  }
+  if (pinned.length) {
+    bad('no migrated file pins text-white to a status fill',
+      `${pinned.join(' · ')} — correct in light, 2.3:1 in dark`);
+  } else ok('no migrated file pins text-white to a status fill');
+}
+
 // ── Migrated screens hold no raw palette class ─────────────────────────────
 //
 // Add a file here when its screen moves onto tokens. Empty until Phase 1, and
 // that is deliberate: the guard exists from the start so the first migrated
 // file is covered by it, rather than the rule arriving after the work.
-const MIGRATED = [
-  'src/components/shared/async-boundary.tsx',
-];
-
 console.log(`\nMigrated files name tokens, never palette colours (${MIGRATED.length})`);
 const RAW = /\b(?:text|bg|border|ring|divide|from|to|via)-(?:gray|slate|zinc|neutral|stone|red|green|blue|amber|yellow|indigo|purple|teal|orange)-\d{2,3}\b/g;
 for (const file of MIGRATED) {

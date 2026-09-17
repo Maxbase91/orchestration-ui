@@ -84,7 +84,7 @@ export function ConfirmDeleteDialog({
           <DialogTitle>Delete this {noun}?</DialogTitle>
           <DialogDescription asChild>
             <div className="space-y-2 pt-1">
-              <p className="font-medium text-gray-900">{label}</p>
+              <p className="font-medium text-ink">{label}</p>
               <p>{consequence}</p>
               <p className="text-xs">This cannot be undone.</p>
             </div>
@@ -92,9 +92,9 @@ export function ConfirmDeleteDialog({
         </DialogHeader>
 
         {error && (
-          <div className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 p-3">
-            <AlertTriangle className="mt-0.5 size-4 shrink-0 text-red-700" />
-            <p className="text-xs text-red-900">{error}</p>
+          <div className="flex items-start gap-2 rounded-md border border-stop-line bg-stop-soft p-3">
+            <AlertTriangle className="mt-0.5 size-4 shrink-0 text-stop" />
+            <p className="text-xs text-stop">{error}</p>
           </div>
         )}
 

@@ -178,9 +178,9 @@ function FieldRenderer({ field, value, onChange, readOnly }: FieldRendererProps)
 
     case 'info-text':
       return (
-        <div className="flex gap-3 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950/40">
-          <Info className="mt-0.5 size-4 shrink-0 text-blue-600 dark:text-blue-400" />
-          <p className="text-sm text-blue-800 dark:text-blue-300">
+        <div className="flex gap-3 rounded-lg border border-accent-line bg-accent-soft p-4">
+          <Info className="mt-0.5 size-4 shrink-0 text-accent-solid" />
+          <p className="text-sm text-accent-solid">
             {field.infoContent}
           </p>
         </div>

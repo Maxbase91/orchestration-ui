@@ -28,36 +28,36 @@ export function AISuggestionCard({
   const [explanationOpen, setExplanationOpen] = useState(false);
 
   return (
-    <div className="rounded-md border-l-2 border-blue-400 bg-blue-50/70 p-4">
+    <div className="rounded-md border-l-2 border-accent-solid bg-accent-soft/70 p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-2 min-w-0">
-          <Sparkles className="size-4 shrink-0 text-blue-500 mt-0.5" />
+          <Sparkles className="size-4 shrink-0 text-accent-solid mt-0.5" />
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs font-medium text-blue-600">AI-generated</span>
+              <span className="text-xs font-medium text-accent-solid">AI-generated</span>
               {confidence !== undefined && <AIConfidenceBadge confidence={confidence} />}
             </div>
             {title && (
-              <p className="mt-1 text-sm font-medium text-gray-900">{title}</p>
+              <p className="mt-1 text-sm font-medium text-ink">{title}</p>
             )}
           </div>
         </div>
       </div>
 
-      <div className="mt-2 pl-6 text-sm text-gray-700">{children}</div>
+      <div className="mt-2 pl-6 text-sm text-ink-2">{children}</div>
 
       {showExplanation && explanation && (
         <div className="mt-3 pl-6">
           <button
             type="button"
             onClick={() => setExplanationOpen(!explanationOpen)}
-            className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700"
+            className="inline-flex items-center gap-1 text-xs text-accent-solid hover:text-accent-solid"
           >
             Why this suggestion?
             {explanationOpen ? <ChevronUp className="size-3" /> : <ChevronDown className="size-3" />}
           </button>
           {explanationOpen && (
-            <p className="mt-1 text-xs text-gray-600">{explanation}</p>
+            <p className="mt-1 text-xs text-ink-2">{explanation}</p>
           )}
         </div>
       )}

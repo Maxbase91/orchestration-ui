@@ -6,10 +6,10 @@ interface PriorityIndicatorProps {
 }
 
 const priorityConfig = {
-  low: { color: 'bg-gray-400', label: 'Low' },
-  medium: { color: 'bg-blue-500', label: 'Medium' },
-  high: { color: 'bg-amber-500', label: 'High' },
-  urgent: { color: 'bg-red-500', label: 'Urgent' },
+  low: { color: 'bg-idle', label: 'Low' },
+  medium: { color: 'bg-accent-solid', label: 'Medium' },
+  high: { color: 'bg-warn', label: 'High' },
+  urgent: { color: 'bg-stop', label: 'Urgent' },
 } as const;
 
 export function PriorityIndicator({ priority, showLabel = false }: PriorityIndicatorProps) {

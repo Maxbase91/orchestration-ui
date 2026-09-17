@@ -1,6 +1,9 @@
-// Time-to-deadline label for SLA tracking: green while comfortable, amber
-// within three days, red once overdue. Computed at render time — no ticking
+// Time-to-deadline label for SLA tracking. Computed at render time — no ticking
 // timer, a re-render is enough at day-level granularity.
+//
+// Colour is the SECOND signal, never the only one: the label itself says
+// "overdue" or "left", so the state survives greyscale, a colour-blind reader
+// and a screen reader. The tokens carry the hue.
 import { cn } from '@/lib/utils';
 import { differenceInDays, differenceInHours, parseISO } from 'date-fns';
 
@@ -19,10 +22,10 @@ export function SLACountdown({ deadline, compact = false }: SLACountdownProps) {
   const isUrgent = daysLeft >= 0 && daysLeft <= 3;
 
   const colorClass = isOverdue
-    ? 'text-red-600'
+    ? 'text-stop'
     : isUrgent
-      ? 'text-amber-600'
-      : 'text-green-600';
+      ? 'text-warn'
+      : 'text-ok';
 
   let label: string;
   if (isOverdue) {
@@ -39,7 +42,9 @@ export function SLACountdown({ deadline, compact = false }: SLACountdownProps) {
   }
 
   return (
-    <span className={cn('text-sm font-medium', colorClass)}>
+    // Tabular figures so a column of countdowns lines up rather than shifting
+    // with each digit width.
+    <span className={cn('text-body font-medium tabular-nums', colorClass)}>
       {label}
     </span>
   );

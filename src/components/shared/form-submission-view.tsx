@@ -11,11 +11,11 @@ interface FormSubmissionViewProps {
 
 const statusStyles: Record<string, string> = {
   completed:
-    'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300',
+    'bg-ok-soft text-ok',
   'in-progress':
-    'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
+    'bg-warn-soft text-warn',
   draft:
-    'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
+    'bg-idle-soft text-ink-2',
 };
 
 const statusLabels: Record<string, string> = {
@@ -170,7 +170,7 @@ function CheckboxValue({ checked }: { checked: boolean }) {
     <span
       className={cn(
         'inline-flex items-center gap-1 text-sm',
-        checked ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground',
+        checked ? 'text-ok' : 'text-muted-foreground',
       )}
     >
       {checked ? '\u2713 Yes' : '\u2717 No'}

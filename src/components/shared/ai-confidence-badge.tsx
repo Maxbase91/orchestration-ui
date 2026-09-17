@@ -10,9 +10,9 @@ function normalizeConfidence(c: number): number {
 }
 
 function getConfidenceLevel(pct: number) {
-  if (pct < 40) return { label: 'Low', color: 'bg-red-100 text-red-700' };
-  if (pct <= 70) return { label: 'Medium', color: 'bg-amber-100 text-amber-700' };
-  return { label: 'High', color: 'bg-green-100 text-green-700' };
+  if (pct < 40) return { label: 'Low', color: 'bg-stop-soft text-stop' };
+  if (pct <= 70) return { label: 'Medium', color: 'bg-warn-soft text-warn' };
+  return { label: 'High', color: 'bg-ok-soft text-ok' };
 }
 
 export function AIConfidenceBadge({ confidence }: AIConfidenceBadgeProps) {

@@ -24,10 +24,10 @@ interface Step {
 }
 
 const EVENT_STYLES: Record<StepEvent, { icon: typeof Check; color: string; title: string }> = {
-  'referred-back':   { icon: RotateCcw,    color: 'text-amber-600',  title: 'Referred back' },
-  'escalated':       { icon: ArrowUpRight, color: 'text-red-600',    title: 'Escalated' },
-  'info-requested':  { icon: HelpCircle,   color: 'text-yellow-600', title: 'Info requested' },
-  'overdue':         { icon: Clock,        color: 'text-red-600',    title: 'Overdue' },
+  'referred-back':   { icon: RotateCcw,    color: 'text-warn',  title: 'Referred back' },
+  'escalated':       { icon: ArrowUpRight, color: 'text-stop',    title: 'Escalated' },
+  'info-requested':  { icon: HelpCircle,   color: 'text-warn', title: 'Info requested' },
+  'overdue':         { icon: Clock,        color: 'text-stop',    title: 'Overdue' },
 };
 
 interface ProcessStepperProps {
@@ -47,29 +47,29 @@ const integrationStatusLabels: Record<string, string> = {
 
 const stepStyles: Record<StepStatus, { dot: string; line: string; label: string }> = {
   completed: {
-    dot: 'bg-green-600 text-white',
-    line: 'bg-green-600',
-    label: 'text-green-700 font-medium',
+    dot: 'bg-ok text-paper',
+    line: 'bg-ok',
+    label: 'text-ok font-medium',
   },
   current: {
-    dot: 'bg-amber-500 text-white animate-pulse',
-    line: 'bg-gray-300',
-    label: 'text-amber-700 font-semibold',
+    dot: 'bg-warn text-paper animate-pulse',
+    line: 'bg-idle',
+    label: 'text-warn font-semibold',
   },
   future: {
-    dot: 'border-2 border-gray-300 bg-white',
-    line: 'bg-gray-300',
-    label: 'text-gray-400',
+    dot: 'border-2 border-line bg-white',
+    line: 'bg-idle',
+    label: 'text-ink-3',
   },
   skipped: {
-    dot: 'border-2 border-dashed border-gray-300 bg-white',
-    line: 'bg-gray-300',
-    label: 'text-gray-400 line-through',
+    dot: 'border-2 border-dashed border-line bg-white',
+    line: 'bg-idle',
+    label: 'text-ink-3 line-through',
   },
   blocked: {
-    dot: 'bg-red-600 text-white',
-    line: 'bg-gray-300',
-    label: 'text-red-700 font-medium',
+    dot: 'bg-stop text-paper',
+    line: 'bg-idle',
+    label: 'text-stop font-medium',
   },
 };
 
@@ -125,7 +125,7 @@ export function ProcessStepper({ steps, onStepClick }: ProcessStepperProps) {
                 </span>
               )}
               {step.openAction && (
-                <span className="mt-0.5 max-w-[90px] text-center text-[10px] font-medium leading-tight text-amber-700">
+                <span className="mt-0.5 max-w-[90px] text-center text-[10px] font-medium leading-tight text-warn">
                   {step.openAction}
                 </span>
               )}

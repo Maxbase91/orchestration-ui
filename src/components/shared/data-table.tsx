@@ -1,6 +1,22 @@
 // Generic client-side data table: column config with custom cell renderers,
 // optional text search across all columns, and click-to-sort. All filtering/
 // sorting happens in memory — fine for the list sizes this platform serves.
+//
+// Three things every table in the product inherits from here, each an audit
+// finding this component is the single place to fix:
+//
+//   WIDTHS. Columns had no declared width, so every table re-laid-out when data
+//   arrived and again whenever a filter changed the longest cell. A `width` on a
+//   column now emits a <colgroup> and switches the table to `table-fixed`, so
+//   the geometry is known before the rows are.
+//
+//   FIGURES. 65 files format money or quantities and five used tabular
+//   numerals, so no money column in the product lined up. A `numeric` column
+//   gets tabular figures and right alignment.
+//
+//   KEYBOARD. Sortable headers were a click handler on a <th>: not focusable,
+//   not operable by keyboard, and with no `aria-sort` for a screen reader to
+//   announce. They are real buttons now.
 import { useState, useMemo } from 'react';
 import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -20,6 +36,21 @@ interface Column<T> {
   sortable?: boolean;
   render?: (item: T) => React.ReactNode;
   className?: string;
+  /**
+   * A CSS width — `'120px'`, `'20%'`, `'12ch'`.
+   *
+   * Declaring ANY column's width puts the whole table into `table-fixed`, so
+   * widths stop being derived from content and the layout no longer shifts when
+   * the data lands. Columns without one share what is left.
+   */
+  width?: string;
+  /**
+   * Money, counts, dates — anything read down the column rather than across.
+   *
+   * Applies tabular figures so digits occupy equal width, and right-aligns, so
+   * the units line up. Without it a proportional font makes every figure ragged.
+   */
+  numeric?: boolean;
 }
 
 interface DataTableProps<T> {
@@ -40,6 +71,7 @@ export function DataTable<T extends Record<string, unknown>>({
   searchPlaceholder = 'Search...',
 }: DataTableProps<T>) {
   const [search, setSearch] = useState('');
+  const hasWidths = columns.some((col) => col.width);
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
@@ -88,29 +120,52 @@ export function DataTable<T extends Record<string, unknown>>({
           className="max-w-xs"
         />
       )}
-      <Table>
+      <Table className={cn(hasWidths && 'table-fixed')}>
+        {/* Declared once, before any row renders — which is what stops the
+            shift. Columns with no width share the remainder. */}
+        {hasWidths && (
+          <colgroup>
+            {columns.map((col) => (
+              <col key={col.key} style={col.width ? { width: col.width } : undefined} />
+            ))}
+          </colgroup>
+        )}
         <TableHeader>
           <TableRow>
             {columns.map((col) => (
               <TableHead
                 key={col.key}
-                className={cn(col.sortable && 'cursor-pointer select-none', col.className)}
-                onClick={() => col.sortable && handleSort(col.key)}
+                className={cn(col.numeric && 'text-right tabular-nums', col.className)}
+                // Announced by a screen reader, and the only way a sorted column
+                // is discoverable without seeing the arrow.
+                aria-sort={
+                  col.sortable && sortKey === col.key
+                    ? (sortDir === 'asc' ? 'ascending' : 'descending')
+                    : col.sortable ? 'none' : undefined
+                }
               >
-                <span className="inline-flex items-center gap-1">
-                  {col.label}
-                  {col.sortable && (
-                    sortKey === col.key ? (
-                      sortDir === 'asc' ? (
-                        <ArrowUp className="size-3.5" />
-                      ) : (
-                        <ArrowDown className="size-3.5" />
-                      )
+                {col.sortable ? (
+                  <button
+                    type="button"
+                    onClick={() => handleSort(col.key)}
+                    className={cn(
+                      'inline-flex items-center gap-1 select-none rounded-sm',
+                      'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-solid',
+                      col.numeric && 'flex-row-reverse',
+                    )}
+                  >
+                    {col.label}
+                    {sortKey === col.key ? (
+                      sortDir === 'asc'
+                        ? <ArrowUp className="size-3.5" aria-hidden="true" />
+                        : <ArrowDown className="size-3.5" aria-hidden="true" />
                     ) : (
-                      <ArrowUpDown className="size-3.5 opacity-40" />
-                    )
-                  )}
-                </span>
+                      <ArrowUpDown className="size-3.5 opacity-40" aria-hidden="true" />
+                    )}
+                  </button>
+                ) : (
+                  col.label
+                )}
               </TableHead>
             ))}
           </TableRow>
@@ -128,9 +183,27 @@ export function DataTable<T extends Record<string, unknown>>({
                 key={rowIndex}
                 className={cn(onRowClick && 'cursor-pointer')}
                 onClick={() => onRowClick?.(item)}
+                // A clickable row is an interactive element, so it has to be
+                // reachable and operable without a mouse. `role="button"` on a
+                // <tr> is a compromise — the ideal is a link in the first cell,
+                // which is a per-caller change — but it is the difference
+                // between "awkward for a keyboard user" and "impossible".
+                {...(onRowClick && {
+                  tabIndex: 0,
+                  role: 'button' as const,
+                  onKeyDown: (e: React.KeyboardEvent) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      onRowClick(item);
+                    }
+                  },
+                })}
               >
                 {columns.map((col) => (
-                  <TableCell key={col.key} className={col.className}>
+                  <TableCell
+                    key={col.key}
+                    className={cn(col.numeric && 'text-right tabular-nums', col.className)}
+                  >
                     {col.render ? col.render(item) : (item[col.key] as React.ReactNode)}
                   </TableCell>
                 ))}
