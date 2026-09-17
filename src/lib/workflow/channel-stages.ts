@@ -112,6 +112,28 @@ export function channelStageMapFromTemplates(templates: TemplateLike[]): Channel
   return map;
 }
 
+/**
+ * The template a request on this channel runs on.
+ *
+ * Same "first claim wins" rule as the stage map, so the lifecycle a request is
+ * drawn against and the template its `workflow_template_id` names can never be
+ * two different templates.
+ *
+ * Returns null when nothing claims the channel. The intake writer defaulted to
+ * the literal `'WF-001'`, so a catalogue, direct-po or p-card request that
+ * reached it without an explicit template was recorded as running the
+ * procurement-led workflow — a template whose stages it does not traverse. 114
+ * of the 136 live requests carry no template id at all, which is the same gap
+ * from the other side.
+ */
+export function templateForChannel(
+  templates: TemplateLike[],
+  channel: string | undefined,
+): string | null {
+  if (!channel) return null;
+  return templates.find((t) => (t.channels ?? []).includes(channel))?.id ?? null;
+}
+
 /** Channels claimed by more than one template — a collision, not a fallback. */
 export function contestedChannels(templates: TemplateLike[]): string[] {
   const counts = new Map<string, number>();

@@ -14,6 +14,9 @@ config plane that is actually read at runtime.
 | `approver-resolution.ts` | Chain role → directory rep |
 | `channel-stages.ts` | Which stages a channel has — **derived from the workflow templates**, which claim their channels. Replaced `buying-channel-stages.ts`, a code map that disagreed with the templates for every channel |
 | `stage-labels.ts` | What a stage is called. Was ten copies with five different answers for `po` |
+| `stage-sla.ts` | A stage's SLA in working days, from the template node that owns it. Returns **null**, never a default — replaced `src/lib/db/sla-targets.ts`, whose `resolveSla` answered 5 for any stage nobody had configured |
+| `business-days.ts` | `slaDeadlineFor` / `addBusinessDays` — the one place a deadline is computed, dependency-free so `api/` can use it |
+| `edge-conditions.ts` | What decides which way a decision node branches: a typed condition in the routing vocabulary, plus `getNextNodeIds` |
 | `workflow-steps.ts` | The template-derived lifecycle preview shown at intake |
 
 ## Why `transition.ts` exists
@@ -114,6 +117,14 @@ countdown and the bottleneck views tell the truth.
 
 An **unknown role resolves to nobody** and leaves the stage unassigned, rather than silently
 resolving to one particular user. An unassigned stage you can see beats a wrong owner you cannot.
+
+`sla_deadline` is now written **every time a stage opens, including as NULL** — at creation
+(`api/_domains/intake-submit.ts`, `api/governed-checkout.ts`) and on every stage change
+(`api/workflow-action.ts`, `transition.ts`). Both change paths previously wrote it only when the new
+node happened to carry an `slaDays`, so a request moving into a stage without one kept the
+**previous** stage's deadline: out of a 1-day Intake into a 20-day Sourcing, red the next morning,
+and in the Stuck and bottleneck views for the remaining nineteen days. There is exactly one source —
+the node for the stage being entered — and exactly one arithmetic (`business-days.ts`).
 
 Approval chains resolve explicit chain → value band → `'chain-1'`. The intake wizard persists the
 selected `approval_chains.id` — never a routing rule's human-readable role label — because the

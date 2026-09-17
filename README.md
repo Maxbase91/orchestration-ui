@@ -199,7 +199,7 @@ npm run test:policy-config-server # Neon policy singleton save/load/validation (
 npm run test:governed-checkout    # contract/risk/capacity gates and PR/PO routing decisions
 npm run test:governed-checkout-atomic # atomic Neon request → PR → lines → conditional PO, replay/conflict/concurrency
 npm run test:checkout-gates       # a governed check cannot be skipped by the failure of its own data read
-npm run test:workflow-atomic      # workflow transitions commit with their stage history, or not at all
+npm run test:workflow-atomic      # transitions commit with their stage history, and write the NEW stage's SLA deadline (or NULL) — never the previous stage's
 npm run test:execute-action       # a confirmed assistant action writes a real record, or says it cannot
 npm run test:shared-core          # browser and server write tickets/preferences through one implementation
 npm run test:request-id           # request ids come from the database sequence, not Math.random()
@@ -245,7 +245,7 @@ npm run test:catalogue-order      # a catalogue order carries what the cXML hand
 npm run test:intake-quick-fixes   # scroll reset, date parsing, contract selectability and the removed filler copy
 npm run test:schema-drift         # db/schema.sql matches the live database's information_schema, and row-level security stays removed
 npm run test:forms                # every form triggers on a real stage, and none on validation
-npm run test:config-consumption   # admin configuration reaches what it configures — channel stages, template node ids, live lifecycle coherence
+npm run test:config-consumption   # admin configuration reaches what it configures — channel stages, template node ids, live lifecycle coherence, and no config nothing reads (sla_targets stage rows, match_count, templateless requests)
 npm run test:seed-parity          # the checked-in workflow seed matches live, so re-seeding cannot destroy a Designer edit
 npm run test:policy-tokens        # every governed threshold is nameable, editable and validated; no decisioning literal shadows one
 npm run test:policy-token-routing # routing rules reference governed thresholds; tokenising changed no channel, and no token reaches the evaluator
@@ -293,6 +293,13 @@ npm run backfill:intake-compliance # restores the 39 intake_compliance_records r
 npm run purge:ui-e2e              # remove retained UI-E2E-* lifecycle records (dry run; --apply to delete)
 npm run backfill:neon-catalogue-governance # idempotent repair when the migrated data predates the
                                            # explicit catalogue contract/risk columns.
+npm run backfill:c10-debris       # removes configuration nothing reads: the nine `sla_targets`
+                                   # stage rows (the template owns stage SLAs, and they disagreed
+                                   # with it in six of nine), `routing_rules.match_count` (seeded,
+                                   # incremented by nothing), and the 114 requests with no
+                                   # `workflow_template_id` — each assigned the template that claims
+                                   # its channel, then re-dated from that template's node.
+                                   # Idempotent; add --dry-run to report only.
 ```
 
 `test:ui` uses Playwright. First-time setup: `npm install` then `npx playwright install chromium`.

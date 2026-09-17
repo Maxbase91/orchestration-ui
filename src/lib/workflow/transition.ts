@@ -130,9 +130,12 @@ export async function transitionStage(input: TransitionInput): Promise<void> {
     status: toStage as ProcurementRequest['status'],
     daysInStage: 0,
     isOverdue: false,
+    // Unconditional, including null. `if (slaDeadline)` left the previous
+    // stage's deadline in place whenever the new stage's node set no `slaDays`,
+    // so the countdown kept running against a stage the request had left.
+    slaDeadline,
   };
   if (ownerId) patch.ownerId = ownerId;
-  if (slaDeadline) patch.slaDeadline = slaDeadline;
 
   await updateRequest(requestId, patch);
 }

@@ -6,7 +6,7 @@ import { getNeonClient, queryRows } from '../_neon.js';
 import { getDbAdmin } from '../_db-admin.js';
 import { approvalRows, deriveApprovalsFor, resolveChainId } from '../../src/lib/db/approvals-core.js';
 import {
-  BUYING_CHANNELS, firstActionableStage, channelStageMapFromTemplates,
+  BUYING_CHANNELS, firstActionableStage, channelStageMapFromTemplates, templateForChannel,
   type ChannelStageMap,
 } from '../../src/lib/workflow/channel-stages.js';
 import { nodeIdForStatus } from '../../src/lib/workflow/node-config.js';
@@ -103,7 +103,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     const sow = payload.serviceDescription ? record(payload.serviceDescription) : null;
     const compliance = payload.compliance ? record(payload.compliance) : null;
     const now = new Date().toISOString();
-    const templateId = payload.workflowTemplateId || String(request.workflowTemplateId || 'WF-001');
     const sql = getNeonClient();
 
     // The stage's SLA, from the template node the request is about to enter.
@@ -119,9 +118,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     const templateRows = await queryRows(
       sql, 'SELECT id, channels, nodes, edges FROM workflow_templates', [],
     );
-    const channelStages = channelStageMapFromTemplates(
-      templateRows as unknown as Parameters<typeof channelStageMapFromTemplates>[0],
-    );
+    const templates = templateRows as unknown as Parameters<typeof channelStageMapFromTemplates>[0];
+    const channelStages = channelStageMapFromTemplates(templates);
+    // The template this request runs on: what the client chose, else the one
+    // that claims its channel. The fallback was the literal `'WF-001'`, so a
+    // catalogue or p-card submission that arrived without an explicit template
+    // was recorded as running the procurement-led workflow — the wrong stage
+    // SLAs, the wrong owner roles, and a lifecycle it does not traverse. Null
+    // only when no template claims the channel, which `unclaimedChannels`
+    // already reports; the column is nullable and a wrong id is worse than none.
+    const templateId = payload.workflowTemplateId
+      || String(request.workflowTemplateId || '')
+      || templateForChannel(templates, buyingChannel)
+      || null;
     const templateNodes = Array.isArray(templateRows.find((r) => r.id === templateId)?.nodes)
       ? (templateRows.find((r) => r.id === templateId)!.nodes) as Array<{ id: string; type?: string; label?: string; slaDays?: number }>
       : [];
@@ -153,11 +162,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       if (String(existing[0].status) === 'intake' && historyCount === 0 && workflowCount === 0) {
         const repairedStage = initialStage(channelStages, buyingChannel, Boolean(request.riskAssessmentRequired));
         const repairNow = new Date().toISOString();
+        const repairTemplateId = (existing[0].workflow_template_id as string | null) ?? templateId;
         const repairQueries = [
           sql.query('UPDATE requests SET status = $1, updated_at = $2 WHERE id = $3', [repairedStage.status, repairNow, id]),
           sql.query('INSERT INTO stage_history (request_id, stage, entered_at, owner_id, action, notes) VALUES ($1, $2, $3, $4, $5, $6)', [id, repairedStage.stage, repairNow, existing[0].owner_id ?? existing[0].requestor_id, 'repaired', 'Initial lifecycle evidence restored for a previously incomplete submission.']),
-          sql.query('INSERT INTO workflow_instances (id, request_id, template_id, current_node_ids, status, variables, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)', [`WI-${id}`, id, existing[0].workflow_template_id ?? templateId, json([repairedStage.stage]), 'running', json({ repaired: true }), repairNow, repairNow]),
         ];
+        // `workflow_instances.template_id` is NOT NULL, so an unclaimed channel
+        // gets stage history and no instance rather than a failed repair. Same
+        // rule as the fresh-submission path below: no instance beats one that
+        // points nowhere.
+        if (repairTemplateId) {
+          repairQueries.push(sql.query('INSERT INTO workflow_instances (id, request_id, template_id, current_node_ids, status, variables, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)', [`WI-${id}`, id, repairTemplateId, json([repairedStage.stage]), 'running', json({ repaired: true }), repairNow, repairNow]));
+        }
         await sql.transaction(repairQueries);
         res.status(200).json({ requestId: id, status: repairedStage.status, stage: repairedStage.stage, repaired: true });
         return;

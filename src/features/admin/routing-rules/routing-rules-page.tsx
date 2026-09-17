@@ -76,7 +76,6 @@ export function RoutingRulesPage() {
       conditions: [{ field: 'value', operator: 'greater_than', value: '' }],
       action: { buyingChannel: 'procurement-led', approvalChain: 'line-manager' },
       description: '',
-      matchCount: 0,
       lastModified: new Date().toISOString(),
       category: 'All',
     };

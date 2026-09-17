@@ -45,7 +45,10 @@ const HOUR_MS = 60 * 60 * 1000;
  * makes, and for the same reason: absence of a target is not compliance.
  */
 export function openSlaState(
-  slaDeadline: string | undefined,
+  // Null as well as undefined: a stage whose template node sets no `slaDays`
+  // now writes NULL rather than leaving the previous stage's deadline behind,
+  // and both mean the same thing here — no target, so 'none'.
+  slaDeadline: string | null | undefined,
   now: Date = new Date(),
 ): OpenSlaState {
   if (!slaDeadline) return 'none';

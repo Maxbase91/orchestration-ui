@@ -8,8 +8,17 @@
 // no record of how it got there. These checks pin the transaction, the
 // owner-only (reassignment) case that the transition branch never covered, and
 // the error shape — a raw SQL message used to be handed to the caller.
+//
+// It also pins the SLA clock. The handler changed `status` and left
+// `sla_deadline` untouched, so a request carried the PREVIOUS stage's deadline
+// forward: out of a 1-day Intake into a 20-day Sourcing and the countdown stayed
+// on the intake deadline, went red overnight, and put the request in the Stuck
+// and bottleneck views for the remaining nineteen days. The sentinel below is
+// deliberately years in the past, so a deadline that survives a transition is
+// unmistakable rather than merely a bit wrong.
 import { neon } from '@neondatabase/serverless';
 import { loadEnv, requireConnection, skipIfUnreachable, skipLive } from '../lib/live.mjs';
+import { addBusinessDays } from '../../src/lib/workflow/business-days.ts';
 
 loadEnv();
 const connectionString = requireConnection('workflow-action-atomic');
@@ -44,6 +53,9 @@ if (!users || users.length < 2) skipLive('workflow-action-atomic', 'need two see
 
 const suffix = Date.now().toString(36);
 const requestId = `TEST-WFA-${suffix}`;
+// A deadline from a stage the request will have left. If a transition carries
+// it forward, every assertion below names the year 2020.
+const STALE_DEADLINE = '2020-01-01T00:00:00.000Z';
 const [owner, delegate] = users;
 
 async function cleanup() {
@@ -56,9 +68,9 @@ const now = new Date().toISOString();
 await sql.query(
   `INSERT INTO requests (id, title, description, category, status, priority, value, currency,
      requestor_id, owner_id, buying_channel, cost_centre, refer_back_count, days_in_stage,
-     is_overdue, created_at, updated_at)
-   VALUES ($1,$2,$3,'services','validation','medium',1000,'EUR',$4,$4,'procurement-led','CC-TEST',0,0,false,$5,$5)`,
-  [requestId, `Workflow atomicity ${suffix}`, 'Automated workflow-action verification', owner.id, now],
+     is_overdue, created_at, updated_at, workflow_template_id, sla_deadline)
+   VALUES ($1,$2,$3,'services','validation','medium',1000,'EUR',$4,$4,'procurement-led','CC-TEST',0,0,false,$5,$5,'WF-001',$6)`,
+  [requestId, `Workflow atomicity ${suffix}`, 'Automated workflow-action verification', owner.id, now, STALE_DEADLINE],
 );
 await sql.query(
   'INSERT INTO stage_history (request_id, stage, entered_at, owner_id, action) VALUES ($1, $2, $3, $4, $5)',
@@ -90,6 +102,36 @@ try {
   check('the new stage was recorded', () => {
     const entered = history.find((row) => row.stage === 'approval' && row.action === 'advanced');
     if (!entered) throw new Error(`no approval row in ${JSON.stringify(history)}`);
+  });
+
+  console.log('\nThe SLA clock belongs to the stage the request is in');
+
+  // Read as TEXT, not as a Date. `requests.sla_deadline` is `timestamp` rather
+  // than `timestamptz`, so the driver reconstructs it in the READING client's
+  // local zone and hands back an instant shifted by that offset — an hour here,
+  // five in New York. That is a real defect and a wide one (33 naive-timestamp
+  // columns across 20 tables, all written as UTC ISO strings), but it is not
+  // this commit's, and asserting through the shift would bake it in. The text
+  // is what was stored, which is what "which node's SLA was read" needs.
+  const afterAdvanceSla = await sql.query(
+    'SELECT sla_deadline::text AS stored FROM requests WHERE id = $1', [requestId]);
+  const advancedDeadline = afterAdvanceSla[0]?.stored;
+  const storedMs = (text) => (text ? Date.parse(`${text.replace(' ', 'T')}Z`) : null);
+  check('the previous stage\u2019s deadline does not survive the move', () => {
+    if (storedMs(advancedDeadline) === Date.parse(STALE_DEADLINE)) {
+      throw new Error('still the validation deadline');
+    }
+  });
+  check('the new stage\u2019s own SLA was written', () => {
+    // WF-001's Approval node allows 5 working days. Computed here from the same
+    // helper the handler uses, so the assertion is about which NODE was read,
+    // not a second implementation of business-day arithmetic.
+    if (!advancedDeadline) throw new Error('no deadline written');
+    const expected = addBusinessDays(new Date(), 5).getTime();
+    // A minute of slack: the handler stamps its own `now`, a moment before this.
+    if (Math.abs(storedMs(advancedDeadline) - expected) > 60_000) {
+      throw new Error(`${advancedDeadline} is not ~5 working days out`);
+    }
   });
 
   console.log('\nAn owner change is recorded even though the stage does not move');
@@ -148,6 +190,23 @@ try {
       if (result.statusCode !== 200) throw new Error(`status ${result.statusCode}: ${JSON.stringify(result.body)}`);
     });
   }
+
+  console.log('\nA stage with no SLA clears the clock rather than inheriting one');
+
+  // WF-001's Completed node is an `end` node and sets no `slaDays`. Nothing is
+  // due, so the honest value is NULL — and NULL is a value the handler must
+  // WRITE. Leaving the column alone here is the original defect in its purest
+  // form: a finished request with a live countdown.
+  const completed = await invoke({ requestId, action: 'advanced', newStatus: 'completed' });
+  check('the transition to a stage without an SLA succeeds', () => {
+    if (completed.statusCode !== 200) throw new Error(`status ${completed.statusCode}`);
+  });
+  const afterCompleted = await sql.query('SELECT sla_deadline FROM requests WHERE id = $1', [requestId]);
+  check('the deadline was cleared, not carried forward', () => {
+    if (afterCompleted[0]?.sla_deadline != null) {
+      throw new Error(`deadline is ${afterCompleted[0].sla_deadline}`);
+    }
+  });
 
   console.log('\nA rejected request changes nothing');
 

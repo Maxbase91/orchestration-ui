@@ -500,7 +500,6 @@ CREATE TABLE IF NOT EXISTS routing_rules (
   conditions JSONB NOT NULL DEFAULT '[]',
   action JSONB NOT NULL,
   description TEXT,
-  match_count INTEGER DEFAULT 0,
   last_modified TEXT,
   category TEXT
 );
@@ -1004,7 +1003,18 @@ CREATE TABLE IF NOT EXISTS approval_chains (
   updated_at    timestamptz NOT NULL DEFAULT now()
 );
 
--- SLA targets per stage/channel
+-- Ticket first-response SLAs, keyed (stage, channel).
+--
+-- This was "SLA targets per stage/channel" and held a row per lifecycle stage.
+-- Nothing read them: a stage's SLA is its workflow-template node's `slaDays`,
+-- which is what `requests.sla_deadline` is computed from. The nine stage rows
+-- disagreed with the templates in six of nine stages and sat in the database
+-- looking authoritative. Deleted in db/backfills/2026-09-17-c10-debris.mjs.
+--
+-- The surviving rows are `stage = 'ticket'`, channel = the ticket's priority,
+-- read by tickets-core.ts. `stage` is kept as the key rather than dropped so
+-- the ticket rows keep their identity and a stage row cannot be re-inserted
+-- without noticing this comment.
 CREATE TABLE IF NOT EXISTS sla_targets (
   stage   text NOT NULL,
   channel text NOT NULL DEFAULT 'default',
@@ -1203,8 +1213,8 @@ ALTER TABLE tickets DROP COLUMN IF EXISTS request_id;
 ALTER TABLE tickets ADD COLUMN IF NOT EXISTS transcript TEXT;
 
 -- Ticket SLAs are measured in hours ("within 4 hours"), which the table's
--- original `days` column cannot express. Nullable and additive: existing stage
--- rows keep using `days`, and a row that sets `hours` takes precedence.
+-- original `days` column cannot express. Nullable and additive, and `days` is
+-- still the fallback for a row that predates it.
 ALTER TABLE sla_targets ADD COLUMN IF NOT EXISTS hours INT;
 
 -- Ticket first-response targets, keyed (stage, channel) as the table already is:
@@ -1527,3 +1537,12 @@ ALTER TABLE approval_chains ADD COLUMN IF NOT EXISTS max_value TEXT;
 -- Empty means a side process (supplier onboarding, contract renewal), not a
 -- route: those are selected by category and no request has ever used one.
 ALTER TABLE workflow_templates ADD COLUMN IF NOT EXISTS channels TEXT[] NOT NULL DEFAULT '{}';
+
+-- ── Configuration debris ────────────────────────────────────────────────────
+-- `routing_rules.match_count` was seeded with real-looking numbers — 187 for
+-- the catalogue rule, 62 for IT hardware, 42 for a rule that had never matched
+-- once — and incremented by nothing. The evaluator is pure and takes no
+-- persistence handle, so the figures were fixtures that re-saved unchanged on
+-- every edit and so looked maintained. Threading a write through the evaluator
+-- to keep a vanity metric is the wrong trade; the column goes.
+ALTER TABLE routing_rules DROP COLUMN IF EXISTS match_count;

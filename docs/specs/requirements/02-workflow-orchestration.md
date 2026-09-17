@@ -92,10 +92,25 @@ FR02-10 · Decision node edge labels are evaluated as conditions:
 
 ## SLA & Bottlenecks
 
-FR02-20 · SLA targets are stored in `sla_targets` table (stage, channel, days). Default: 5 days.
-FR02-21 · Admin can edit SLA targets via `/admin/sla-targets` without code change.
-FR02-22 · `resolveSla(targets, stage)` is used by bottleneck chart, stuck-requests table, timeline view, and active-workflows page to determine overdue threshold.
-FR02-23 · Requests where `daysInStage > slaDays(request)` appear in the "Stuck Requests" panel.
+FR02-20 · **A stage's SLA is its workflow-template node's `slaDays`** — one source, edited in
+the Workflow Designer (`/admin/workflows`) beside that stage's role and gate. There is no
+default: a stage nobody configured has no target, and `stageSlaDays()` returns null rather
+than inventing one. `sla_targets` held nine stage rows that disagreed with the templates in
+six of nine stages and that nothing read; they were deleted in
+`db/backfills/2026-09-17-c10-debris.mjs`, and the table now holds only its `stage='ticket'`
+rows.
+FR02-21 · `/admin/sla-targets` is a **read-only** view of the template-derived figures,
+linking to the designer. It used to write `sla_targets` and claim the values drove the
+countdowns; they did not.
+FR02-22 · `useStageSlas()` / `stageSlasFromTemplates()` supply the bottleneck chart,
+stuck-requests table, timeline view and active-workflows page.
+FR02-23 · `requests.sla_deadline` is computed from the stage node's `slaDays` in **working
+days** (`slaDeadlineFor` + `addBusinessDays`) whenever a stage opens — at creation
+(`api/_domains/intake-submit.ts`, `api/governed-checkout.ts`) and on every stage change
+(`api/workflow-action.ts`, `src/lib/workflow/transition.ts`). It is written on every change
+**including as NULL**: a stage whose node sets no SLA clears the clock rather than inheriting
+the previous stage's. `isOverdue` is derived from it on read, so there is no job and no
+staleness window. Requests past their deadline appear in the "Stuck Requests" panel.
 
 ---
 
@@ -112,8 +127,11 @@ FR02-33 · **Workflow Monitor**: per-request stage history; integration badges (
 
 - `src/lib/workflow/engine.ts` — state machine
 - `src/lib/db/workflow-instances.ts` — instance DB layer
-- `src/lib/workflow/buying-channel-stages.ts` — fallback stage sequences
-- `src/lib/db/sla-targets.ts` + `src/lib/db/hooks/use-sla-targets.ts`
+- `src/lib/workflow/channel-stages.ts` — channel → stages, derived from the templates
+  (replaced `buying-channel-stages.ts`, which defined the lifecycle a second time)
+- `src/lib/workflow/stage-sla.ts` + `src/lib/db/hooks/use-stage-slas.ts` — stage SLAs from
+  the templates (replaced `src/lib/db/sla-targets.ts` and its hook, which had no importers)
+- `src/lib/workflow/business-days.ts` — `slaDeadlineFor` / `addBusinessDays`
 - `src/features/workflows/active-workflows-page.tsx` — Kanban/Table/Timeline
 - `src/features/workflows/workflow-monitor-page.tsx`
 - `src/features/workflows/components/bottleneck-chart.tsx`

@@ -22,19 +22,20 @@
 import { neon } from '@neondatabase/serverless';
 import { requireConnectionOrFail } from '../../tests/lib/live.mjs';
 import { nodeIdForStatus } from '../../src/lib/workflow/node-config.ts';
+import { templateForChannel } from '../../src/lib/workflow/channel-stages.ts';
 import { slaDeadlineFor } from '../../src/lib/workflow/business-days.ts';
 
 const DRY = process.argv.includes('--dry-run');
 const sql = neon(requireConnectionOrFail('sla deadlines'));
 
-const templates = await sql`SELECT id, nodes FROM workflow_templates`;
+const templates = await sql`SELECT id, channels, nodes FROM workflow_templates`;
 const nodesById = new Map(templates.map((t) => [t.id, Array.isArray(t.nodes) ? t.nodes : []]));
 
 // Open requests with no deadline. A closed request needs none, and one that
 // already has a deadline keeps it — this repairs the gap, it does not re-time
 // anything that is already running to a clock.
 const rows = await sql`
-  SELECT r.id, r.status, r.workflow_template_id,
+  SELECT r.id, r.status, r.workflow_template_id, r.buying_channel,
          (SELECT sh.entered_at FROM stage_history sh
            WHERE sh.request_id = r.id AND sh.completed_at IS NULL
            ORDER BY sh.entered_at DESC LIMIT 1) AS stage_entered_at,
@@ -48,7 +49,14 @@ const rows = await sql`
 const planned = [];
 const skipped = [];
 for (const row of rows) {
-  const templateId = row.workflow_template_id ?? 'WF-001';
+  // The template that claims the request's channel, not a literal 'WF-001'.
+  // That fallback dated a catalogue order against the procurement-led
+  // workflow's stage SLAs — the right shape of number, from the wrong process.
+  const templateId = row.workflow_template_id ?? templateForChannel(templates, row.buying_channel);
+  if (!templateId) {
+    skipped.push({ id: row.id, why: `no template claims channel '${row.buying_channel}'` });
+    continue;
+  }
   const nodes = nodesById.get(templateId) ?? [];
   const nodeId = nodeIdForStatus(nodes, row.status);
   const slaDays = nodes.find((n) => n.id === nodeId)?.slaDays;

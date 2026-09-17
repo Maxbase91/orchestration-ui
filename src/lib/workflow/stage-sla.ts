@@ -53,7 +53,8 @@ export function stageSlasFromTemplates(templates: TemplateLike[]): StageSla[] {
  * Returns null rather than a default when nothing defines one: absence of a
  * target is not a five-day target, and a screen showing "5 days" for a stage
  * nobody configured is the kind of invented number this whole pass has been
- * removing. `resolveSla` in src/lib/db/sla-targets.ts did exactly that.
+ * removing. `resolveSla` in src/lib/db/sla-targets.ts did exactly that — that
+ * module and its hook are deleted (C10); they had no importers.
  */
 export function stageSlaDays(
   slas: StageSla[],

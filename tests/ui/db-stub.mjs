@@ -252,14 +252,14 @@ export const FIXTURES = {
       ],
       action: { buyingChannel: 'procurement-led', approvalChain: '' },
       description: 'Software above the budget approval threshold goes procurement-led.',
-      match_count: 0, last_modified: '2026-09-13T10:00:00Z',
+      last_modified: '2026-09-13T10:00:00Z',
     },
     {
       id: 'RR-T2', name: 'Compliance escalation', status: 'active', category: 'Risk',
       conditions: [{ field: 'category', operator: 'equals', value: 'supplier-onboarding' }],
       action: { buyingChannel: 'procurement-led', approvalChain: 'chain-compliance' },
       description: 'Onboarding demand goes through compliance regardless of value.',
-      match_count: 0, last_modified: '2026-09-13T10:00:00Z',
+      last_modified: '2026-09-13T10:00:00Z',
     },
   ],
 };

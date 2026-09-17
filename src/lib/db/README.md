@@ -45,3 +45,18 @@ ordering constraint across four files without making it atomic.
 The real fix is not to reroute them through this layer but to move them behind a
 server endpoint, the way `api/workflow-action.ts` already handles the same
 sequence transactionally. Recorded as a gap rather than argued away.
+
+## A module with no importers is not free
+
+`src/lib/db/sla-targets.ts` and `hooks/use-sla-targets.ts` were deleted in C10.
+Nothing had imported either for months — every countdown reads
+`requests.sla_deadline`, computed from the workflow template node's `slaDays` —
+but they were not merely inert. `resolveSla` ended in `?? 5`, so any future
+caller would have been handed a five-day target for a stage nobody configured,
+and the nine `sla_targets` stage rows they read disagreed with the templates in
+six of nine stages. A reader that invents an answer, pointed at a table nothing
+maintains, is one import away from becoming a second source of truth.
+
+Stage SLAs now have one reader: `src/lib/workflow/stage-sla.ts`, which returns
+`null` when nothing defines one. `sla_targets` keeps only its `stage='ticket'`
+rows, read by `tickets-core.ts` — one table, one purpose.

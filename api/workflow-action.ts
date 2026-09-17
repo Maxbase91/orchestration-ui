@@ -8,6 +8,8 @@
 // trail silently diverging from the lifecycle it is supposed to explain.
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getNeonClient, queryRows } from './_neon.js';
+import { nodeIdForStatus } from '../src/lib/workflow/node-config.js';
+import { slaDeadlineFor } from '../src/lib/workflow/business-days.js';
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Workflow action failed.';
@@ -59,7 +61,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     // rather than an open session we could read inside.
     const existing = await queryRows(
       sql,
-      'SELECT status, owner_id, refer_back_count FROM requests WHERE id = $1',
+      'SELECT status, owner_id, refer_back_count, workflow_template_id FROM requests WHERE id = $1',
       [requestId],
     );
     if (!existing[0]) {
@@ -72,8 +74,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     const historyOwner = (typeof ownerId === 'string' && ownerId) || existing[0].owner_id || null;
     const noteText = typeof notes === 'string' ? notes : null;
 
+    // The new stage's clock, from the template node the request is moving into.
+    //
+    // This endpoint changed `status` and left `sla_deadline` alone, so a request
+    // carried the *previous* stage's deadline forward: move out of a 1-day
+    // Intake into a 20-day Sourcing and the countdown stayed on the intake
+    // deadline, went red the next morning, and put the request in the Stuck and
+    // bottleneck views for the remaining nineteen days. The browser path
+    // (transition.ts) has always recomputed it; this one is the server half.
+    //
+    // Written on every stage change, including as NULL: a stage whose node sets
+    // no `slaDays` has no deadline, and keeping the old one is exactly the bug.
+    const templateId = existing[0].workflow_template_id as string | null;
+    const templateNodes = templateId
+      ? (await queryRows(sql, 'SELECT nodes FROM workflow_templates WHERE id = $1', [templateId]))[0]?.nodes
+      : null;
+    const stageNodes = Array.isArray(templateNodes)
+      ? templateNodes as Array<{ id: string; type?: string; label?: string; slaDays?: number }>
+      : [];
+    const stageNodeId = nodeIdForStatus(stageNodes, newStatus);
+    const slaDeadline = slaDeadlineFor(
+      new Date(now),
+      stageNodes.find((n) => n.id === stageNodeId)?.slaDays,
+    );
+
     const updates: string[] = ['status = $1', 'updated_at = $2', 'days_in_stage = 0'];
     const values: unknown[] = [newStatus, now];
+    if (oldStatus !== newStatus) {
+      values.push(slaDeadline);
+      updates.push(`sla_deadline = $${values.length}`);
+    }
     if (typeof ownerId === 'string' && ownerId) {
       values.push(ownerId);
       updates.push(`owner_id = $${values.length}`);

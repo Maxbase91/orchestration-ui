@@ -7,12 +7,14 @@
 // confirm card rendering a sentence the executor never read. Each looked fine on
 // screen. These checks assert the couplings an audit had to trace by hand, so
 // they cannot come apart again quietly.
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { neon } from '@neondatabase/serverless';
 import { loadEnv } from '../lib/live.mjs';
 import { firstActionableStage, getStagesForChannel } from '../../src/lib/workflow/channel-stages.ts';
 import { channelStageMapFromTemplates } from '../../src/lib/workflow/channel-stages.ts';
 import { workflowTemplates } from '../../src/data/workflows.ts';
+import { nodeIdForStatus } from '../../src/lib/workflow/node-config.ts';
+import { slaDeadlineFor } from '../../src/lib/workflow/business-days.ts';
 // The lifecycle comes from the templates now — buying-channel-stages.ts is
 // deleted. Derived once here rather than restated, which is the point.
 const CHANNEL_STAGES = channelStageMapFromTemplates(workflowTemplates);
@@ -137,6 +139,17 @@ for (const [file, label] of [
 }
 if (failures === 0) ok('no surface compares against days_in_stage');
 
+// The orphan module pair, gone. `src/lib/db/sla-targets.ts` and its hook had
+// zero importers repo-wide while exporting a `resolveSla` that answered 5 for
+// any stage nobody had configured — an invented number, reachable from an
+// import away, for a table no countdown reads.
+for (const gone of ['src/lib/db/sla-targets.ts', 'src/lib/db/hooks/use-sla-targets.ts']) {
+  if (existsSync(new URL(gone, ROOT))) {
+    bad(`${gone} is deleted`, 'a stage-SLA reader that no longer has a source to read');
+  }
+}
+if (failures === 0) ok('no module offers to read stage SLAs from sla_targets');
+
 const slaPage = readFileSync(new URL('src/features/admin/sla-targets-page.tsx', ROOT), 'utf8');
 if (/useUpsertSlaTarget|upsert\.mutateAsync/.test(slaPage)) {
   bad('the SLA page does not claim to set stage SLAs', 'it writes sla_targets again, which no countdown reads');
@@ -190,12 +203,24 @@ if (/setLogicMode/.test(editorPanel)) {
   bad('the editor does not offer OR', 'ruleMatches uses `every`; an OR toggle is a lie');
 } else ok('the editor does not offer a logic mode the evaluator lacks');
 
-// A counter nothing increments must not be presented as live.
-const listPanel = readFileSync(new URL('src/features/admin/routing-rules/components/rule-list-panel.tsx', ROOT), 'utf8');
-const incrementsMatchCount = /match_count\s*=\s*match_count\s*\+|matchCount:\s*\w+\.matchCount\s*\+/.test(evaluator + submitter);
-if (/rule\.matchCount/.test(listPanel) && !incrementsMatchCount) {
-  bad('match count is not shown unless something writes it', 'nothing increments routing_rules.match_count');
-} else ok('no live-looking counter without a writer');
+// A counter nothing increments, gone rather than merely hidden.
+//
+// `match_count` was seeded 187, 62, 35, 42… and written by nothing: the
+// evaluator is pure and takes no persistence handle. RR-001 carried 42 while
+// all three of its conditions were false, which is part of why nobody looked at
+// it for months. Hiding the display left the fixtures in the database, still
+// re-saved unchanged on every edit, so the field goes too.
+for (const [file, label] of [
+  ['src/data/types.ts', 'the RoutingRule type'],
+  ['src/lib/db/mappers.ts', 'the routing-rule mappers'],
+  ['src/data/routing-rules.ts', 'the seeded rules'],
+  ['src/features/admin/routing-rules/routing-rules-page.tsx', 'the rules editor'],
+]) {
+  const source = readFileSync(new URL(file, ROOT), 'utf8');
+  const code = source.split('\n').filter((line) => !line.trim().startsWith('//') && !line.trim().startsWith('*')).join('\n');
+  if (/matchCount|match_count/.test(code)) bad(`${label} no longer carries a match count`, file);
+}
+if (failures === 0) ok('nothing carries a match count that nothing increments');
 
 // ── Live: no request sits in a stage its channel skips ──────────────────────
 const env = loadEnv();
@@ -229,7 +254,7 @@ if (!connection) {
 
   // Every stage node has an SLA, or requests in that stage get no deadline and
   // no countdown. Three of four templates shipped with none at all.
-  const templates = await sql`SELECT id, nodes FROM workflow_templates`;
+  const templates = await sql`SELECT id, channels, nodes FROM workflow_templates`;
   const unset = [];
   for (const t of templates) {
     for (const n of (Array.isArray(t.nodes) ? t.nodes : [])) {
@@ -260,6 +285,80 @@ if (!connection) {
   `;
   if (undated.length === 0) ok('every open request has an SLA deadline');
   else bad(`${undated.length} open request(s) have no deadline`, undated.slice(0, 8).map((r) => r.id).join(', '));
+
+  // ── Configuration nothing reads ──────────────────────────────────────────
+  // `sla_targets` held nine stage rows that disagreed with the templates in six
+  // of nine stages — sourcing 10 against 20, contracting 15 against 10 — and
+  // nothing read them. They sat in the database looking authoritative, which is
+  // the exact failure this suite exists for. The table's purpose is now one
+  // thing: ticket first-response targets, keyed by priority.
+  const slaRows = await sql`SELECT stage, channel, days FROM sla_targets WHERE stage <> 'ticket'`;
+  if (slaRows.length === 0) ok('sla_targets holds only ticket rows');
+  else {
+    bad(`${slaRows.length} sla_targets stage row(s) survive`,
+      `${slaRows.map((r) => `${r.stage}=${r.days}d`).join(', ')} — the template owns stage SLAs`);
+  }
+
+  const matchCountColumn = await sql`
+    SELECT 1 FROM information_schema.columns
+     WHERE table_name = 'routing_rules' AND column_name = 'match_count'`;
+  if (matchCountColumn.length === 0) ok('routing_rules has no match_count column');
+  else bad('routing_rules.match_count is dropped', 'a counter no writer maintains');
+
+  // A request without a template has no lifecycle definition: no stage list, no
+  // owner roles, no SLAs. 114 of 136 had none, and the intake writer's old
+  // fallback — the literal 'WF-001' — would have given a catalogue order the
+  // procurement-led workflow, which is worse than none. A channel no template
+  // claims is the one honest NULL, and `unclaimedChannels` reports it.
+  const templateless = await sql`
+    SELECT id, buying_channel FROM requests
+    WHERE workflow_template_id IS NULL
+      AND id NOT LIKE 'UI-E2E-%' AND id NOT LIKE 'E2E-TEST-%' AND id NOT LIKE 'TEST-%'
+  `;
+  const claimed = new Set(templates.flatMap((t) => t.channels ?? []));
+  const orphaned = templateless.filter((r) => claimed.has(r.buying_channel));
+  if (orphaned.length === 0) ok(`every request on a claimed channel names its workflow template`);
+  else {
+    bad(`${orphaned.length} request(s) name no workflow template`,
+      orphaned.slice(0, 8).map((r) => `${r.id} (${r.buying_channel})`).join(', '));
+  }
+
+  // The deadline belongs to the stage the request is in. Carried forward, it
+  // measures a stage the request has left: out of a 1-day Intake into a 20-day
+  // Sourcing, red the next morning, and in the Stuck view for the rest.
+  const nodesById = new Map(templates.map((t) => [t.id, Array.isArray(t.nodes) ? t.nodes : []]));
+  const dated = await sql`
+    SELECT r.id, r.status, r.workflow_template_id, r.sla_deadline::text AS deadline,
+           (SELECT sh.entered_at::text FROM stage_history sh
+             WHERE sh.request_id = r.id AND sh.completed_at IS NULL
+             ORDER BY sh.entered_at DESC LIMIT 1) AS entered
+      FROM requests r
+     WHERE r.sla_deadline IS NOT NULL AND r.workflow_template_id IS NOT NULL
+       AND r.status NOT IN ('draft', 'completed', 'cancelled')
+       AND r.id NOT LIKE 'UI-E2E-%' AND r.id NOT LIKE 'E2E-TEST-%' AND r.id NOT LIKE 'TEST-%'
+  `;
+  // Read as text on both sides: `sla_deadline` is `timestamp` rather than
+  // `timestamptz`, so the driver rebuilds it in the reading client's local zone
+  // and every instant comes back shifted by that offset. A separate defect, and
+  // a wide one; comparing the stored text keeps this check about which NODE's
+  // SLA was written rather than about the driver.
+  const asMs = (text) => (text ? Date.parse(`${text.replace(' ', 'T')}Z`) : null);
+  const stale = [];
+  for (const row of dated) {
+    if (!row.entered) continue;
+    const nodes = nodesById.get(row.workflow_template_id) ?? [];
+    const nodeId = nodeIdForStatus(nodes, row.status);
+    const slaDays = nodes.find((n) => n.id === nodeId)?.slaDays;
+    const want = slaDeadlineFor(new Date(asMs(row.entered)), slaDays);
+    // A day of tolerance: `entered_at` and the moment the deadline was written
+    // are not the same instant, and business-day arithmetic is whole-day.
+    const drift = want === null
+      ? 'a stage with no SLA still carries a deadline'
+      : (Math.abs(asMs(row.deadline) - Date.parse(want)) > 86_400_000 ? `${row.deadline} vs ${want}` : null);
+    if (drift) stale.push(`${row.id} (${row.status}): ${drift}`);
+  }
+  if (stale.length === 0) ok(`${dated.length} deadline(s) belong to the stage their request is in`);
+  else bad(`${stale.length} deadline(s) belong to another stage`, stale.slice(0, 6).join(' | '));
 }
 
 console.log('');

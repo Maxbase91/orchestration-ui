@@ -107,7 +107,15 @@ export interface ProcurementRequest {
   isUrgent: boolean;
   createdAt: string;
   updatedAt: string;
-  slaDeadline?: string;
+  /**
+   * When the current stage is due, or null when its node sets no `slaDays`.
+   *
+   * Null is a written value, not an absence: a transition into a stage with no
+   * SLA must *clear* the previous stage's deadline. Typed `string | undefined`
+   * while the writers only ever set it, which is how a request moved out of a
+   * 1-day Intake and kept the intake deadline through a 20-day Sourcing.
+   */
+  slaDeadline?: string | null;
   daysInStage: number;
   isOverdue: boolean;
   referBackCount: number;
@@ -481,7 +489,6 @@ export interface RoutingRule {
    */
   action: { buyingChannel: BuyingChannel; approvalChain: string };
   description: string;
-  matchCount: number;
   lastModified: string;
   category: string;
   /**

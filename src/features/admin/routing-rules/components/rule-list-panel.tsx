@@ -62,12 +62,12 @@ export function RuleListPanel({ rules, selectedRuleId, onSelectRule, onAddRule }
                   </div>
                   <div className="mt-1 flex items-center gap-2">
                     <StatusBadge status={rule.status} size="sm" />
-                    {/* The match count was here. Nothing increments
-                        routing_rules.match_count — the evaluator is pure and
-                        takes no persistence handle — so the number was seed
-                        data that re-saved unchanged on every edit and looked
-                        maintained. Showing a live-looking counter that never
-                        moves is worse than showing none. */}
+                    {/* A match count was here, reading routing_rules.match_count
+                        — seeded 187, 62, 35… and incremented by nothing, since
+                        the evaluator is pure and takes no persistence handle.
+                        It re-saved unchanged on every edit and so looked
+                        maintained; RR-001 sat at 42 while never having matched
+                        once. The display went first and the column with it. */}
                   </div>
                   <p className="mt-1 text-xs text-gray-400">
                     Modified {formatRelativeTime(rule.lastModified)}
