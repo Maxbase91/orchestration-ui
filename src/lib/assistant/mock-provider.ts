@@ -276,7 +276,7 @@ export const mockProvider: AssistantProvider = {
 
     switch (intent) {
       case 'knowledge': {
-        const turns = searchKnowledge(input);
+        const turns = await searchKnowledge(input);
         if (turns.length === 0) return helpResponse();
         if (!confident) {
           return [

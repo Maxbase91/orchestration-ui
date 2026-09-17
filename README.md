@@ -193,7 +193,10 @@ npm run test:onboarding-stage     # vendor onboarding — light gate (sourcing +
 npm run test:intake-routing       # catalogue vs contract vs new demand — category gate, naming-word rule, LLM intent
 npm run test:intake-routing-eval  # intake routing eval harness + accuracy baseline
 npm run test:referral             # demand disposition — proceed / request-change / refer-back (RTE-06)
-npm run test:knowledge            # grounded policy-Q&A retrieval (ranking, citations, low-confidence)
+npm run test:knowledge            # grounded policy-Q&A retrieval — ranking, citations, low-confidence, and that the
+                                  #   assistant answers from the admin's knowledge_base rather than the built-in fixture
+npm run test:csv-export           # one CSV implementation, RFC 4180 quoting, a BOM so Excel keeps the € signs,
+                                  #   and the audit Export button actually exporting the filtered set
 npm run test:policy-config        # central decisioning thresholds (defaults pinned + override resolver)
 npm run test:policy-config-server # Neon policy singleton save/load/validation (self-cleaning)
 npm run test:governed-checkout    # contract/risk/capacity gates and PR/PO routing decisions

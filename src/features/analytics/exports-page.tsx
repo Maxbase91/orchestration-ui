@@ -11,6 +11,7 @@ import { DataTable, type Column } from '@/components/shared/data-table';
 import { Download, FileSpreadsheet, FileText, File } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { downloadCsv } from '@/lib/csv';
 
 type ExportFormat = 'csv' | 'excel' | 'pdf';
 
@@ -61,28 +62,6 @@ export function ExportsPage() {
   const [toDate, setToDate] = useState<string>('');
   const [format, setFormat] = useState<ExportFormat>('csv');
 
-  function downloadCsv(filename: string, rows: Record<string, unknown>[]): void {
-    const headers = Object.keys(rows[0] ?? {});
-    if (!headers.length) return;
-    const lines = [
-      headers.join(','),
-      ...rows.map((r) =>
-        headers.map((h) => {
-          const v = String(r[h] ?? '');
-          // RFC 4180 quoting: wrap and double-up quotes only when the value
-          // contains a delimiter, quote or newline, so plain values stay clean.
-          return v.includes(',') || v.includes('"') || v.includes('\n') ? `"${v.replace(/"/g, '""')}"` : v;
-        }).join(','),
-      ),
-    ];
-    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
 
   const SAMPLE_DATA: Record<string, Record<string, unknown>[]> = {
     Requests: [

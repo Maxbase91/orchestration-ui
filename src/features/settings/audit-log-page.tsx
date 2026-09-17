@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/select';
 import { DataTable, type Column } from '@/components/shared/data-table';
 import { formatDate } from '@/lib/format';
+import { downloadCsv, datedFilename } from '@/lib/csv';
 import { useDatabaseAdminStore } from '@/stores/database-admin-store';
 import { useAuditEntries } from '@/lib/db/hooks/use-audit-entries';
 
@@ -205,6 +206,30 @@ export function AuditLogPage() {
     });
   }, [allEntries, dateFrom, dateTo, userFilter, actionFilter, objectTypeFilter]);
 
+  // Exports what the FILTERS produced, not the page and not the whole table.
+  // The page would be an arbitrary 25 rows; the whole table would ignore the
+  // filters the admin just set, which is the one thing they were doing. The
+  // button had no handler at all — it rendered, it was clickable, and clicking
+  // it did nothing, on the screen whose entire purpose is producing evidence.
+  //
+  // Columns are named explicitly rather than read off row zero, so a row that
+  // happens to lack `ipAddress` cannot silently drop the column for every row.
+  const handleExport = () => {
+    downloadCsv(
+      datedFilename('audit-log'),
+      filtered.map((row) => ({
+        timestamp: row.timestamp,
+        user: row.user,
+        action: row.action,
+        object_type: row.objectType,
+        object_id: row.objectId,
+        detail: row.detail,
+        ip_address: row.ipAddress,
+      })),
+      ['timestamp', 'user', 'action', 'object_type', 'object_id', 'detail', 'ip_address'],
+    );
+  };
+
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
@@ -214,7 +239,7 @@ export function AuditLogPage() {
         title="Audit Log"
         subtitle={`${filtered.length} entries`}
         actions={
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={handleExport} disabled={filtered.length === 0}>
             <Download className="mr-1.5 size-4" />
             Export
           </Button>

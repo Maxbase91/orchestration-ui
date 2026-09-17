@@ -31,24 +31,9 @@ interface UserRow {
   role: string;
   department: string;
   isOOO: boolean;
-  lastLogin: string;
   [key: string]: unknown;
 }
 
-const mockLastLogins: Record<string, string> = {
-  u1: '2026-04-06 09:12',
-  u2: '2026-03-15 14:30',
-  u3: '2026-04-06 08:45',
-  u4: '2026-04-05 16:22',
-  u5: '2026-04-06 10:05',
-  u6: '2026-04-04 11:38',
-  u7: '2026-04-06 07:55',
-  u8: '2026-03-20 09:00',
-  u9: '2026-04-05 13:15',
-  u10: '2026-04-06 08:30',
-  u11: '2026-04-05 17:45',
-  u12: '2026-04-03 15:10',
-};
 
 const blankForm = { name: '', email: '', role: '', department: '' };
 const initialsOf = (name: string) =>
@@ -121,7 +106,6 @@ export function UserManagementPage() {
         role: u.role,
         department: u.department,
         isOOO: u.isOOO,
-        lastLogin: mockLastLogins[u.id] ?? '2026-04-01 10:00',
       })),
     [users],
   );
@@ -167,7 +151,10 @@ export function UserManagementPage() {
         </span>
       ),
     },
-    { key: 'lastLogin', label: 'Last Login', sortable: true },
+    // A "Last Login" column was here, sortable, filled from a hardcoded map of
+    // twelve ids with '2026-04-01 10:00' for everyone else. `users` has no such
+    // column and could not have one: there is no authentication, so nothing
+    // records a login. An admin sorting by it was ordering fiction.
     {
       key: 'actions',
       label: 'Actions',

@@ -20,6 +20,7 @@ import { BarChartWidget } from '@/components/charts/bar-chart-widget';
 import { LineChartWidget } from '@/components/charts/line-chart-widget';
 import { PieChartWidget } from '@/components/charts/pie-chart-widget';
 import { cn } from '@/lib/utils';
+import { downloadCsv } from '@/lib/csv';
 
 type ChartType = 'bar' | 'line' | 'pie' | 'table' | 'scatter';
 
@@ -92,26 +93,6 @@ const SAMPLE_WIDGETS: ReportWidget[] = [
 
 let widgetCounter = 4;
 
-function downloadCsv(filename: string, rows: Record<string, unknown>[]): void {
-  if (rows.length === 0) return;
-  const headers = Object.keys(rows[0]);
-  const lines = [
-    headers.join(','),
-    ...rows.map((r) =>
-      headers.map((h) => {
-        const v = String(r[h] ?? '');
-        return v.includes(',') || v.includes('"') || v.includes('\n') ? `"${v.replace(/"/g, '""')}"` : v;
-      }).join(','),
-    ),
-  ];
-  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
 
 export function ReportBuilderPage() {
   const [widgets, setWidgets] = useState<ReportWidget[]>(SAMPLE_WIDGETS);

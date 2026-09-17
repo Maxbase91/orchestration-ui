@@ -1,8 +1,7 @@
-import { useEffect, useState } from 'react';
-import { MessageSquare, ThumbsUp, ThumbsDown, TrendingUp } from 'lucide-react';
+import { useMemo } from 'react';
+import { AlertTriangle, MessageSquare, ThumbsUp, ThumbsDown, TrendingUp } from 'lucide-react';
 import { format, subDays, startOfDay, parseISO } from 'date-fns';
-import { listAllConversations } from '@/lib/db/assistant-conversations';
-import { listChatFeedback } from '@/lib/db/chat-feedback';
+import { useAllConversations, useChatFeedback } from '@/lib/db/hooks/use-ai-analytics';
 import { PageHeader } from '@/components/shared/page-header';
 import { BarChartWidget } from '@/components/charts/bar-chart-widget';
 import { PieChartWidget } from '@/components/charts/pie-chart-widget';
@@ -69,35 +68,42 @@ function buildDailyBuckets(convs: ConvRow[], days = 14): DailyBucket[] {
 }
 
 export function AIAnalyticsPage() {
-  const [convs, setConvs] = useState<ConvRow[]>([]);
-  const [feedback, setFeedback] = useState<FeedbackRow[]>([]);
-  const [totalConvs, setTotalConvs] = useState(0);
-  const [loading, setLoading] = useState(true);
+  // Hooks, not a one-shot `void (async () => …)()`. That IIFE had no catch, so
+  // a failed read became an unhandled rejection — an uncaught page error the
+  // route sweep reports — and `setLoading(false)` sat after the awaits, leaving
+  // the screen on "Loading analytics…" indefinitely. An analytics page that
+  // cannot read its data must say so; a permanent spinner reads as "still
+  // working" and is indistinguishable from a slow query.
+  const conversationsQuery = useAllConversations();
+  const feedbackQuery = useChatFeedback();
 
-  useEffect(() => {
-    void (async () => {
-      const since = subDays(new Date(), 14).toISOString();
+  const loading = conversationsQuery.isLoading || feedbackQuery.isLoading;
+  const failed = conversationsQuery.isError || feedbackQuery.isError;
 
-      const [all, fb] = await Promise.all([listAllConversations(), listChatFeedback()]);
+  const all = useMemo(() => conversationsQuery.data ?? [], [conversationsQuery.data]);
+  const totalConvs = all.length;
 
-      // One read instead of two against the same table: the second call asked
-      // only for a count, which is the length of the list already fetched.
-      const recent = all.filter((conversation) => conversation.createdAt >= since);
-
-      setConvs(recent.map((conversation) => ({
+  // One read instead of two against the same table: the second call asked only
+  // for a count, which is the length of the list already fetched.
+  const convs = useMemo<ConvRow[]>(() => {
+    const since = subDays(new Date(), 14).toISOString();
+    return all
+      .filter((conversation) => conversation.createdAt >= since)
+      .map((conversation) => ({
         id: conversation.id,
         title: conversation.title,
         created_at: conversation.createdAt,
         messages: conversation.messages,
-      })) as unknown as ConvRow[]);
-      setTotalConvs(all.length);
-      setFeedback(fb.map((entry) => ({
-        polarity: entry.polarity,
-        created_at: entry.createdAt,
-      })) as unknown as FeedbackRow[]);
-      setLoading(false);
-    })();
-  }, []);
+      })) as unknown as ConvRow[];
+  }, [all]);
+
+  const feedback = useMemo<FeedbackRow[]>(
+    () => (feedbackQuery.data ?? []).map((entry) => ({
+      polarity: entry.polarity,
+      created_at: entry.createdAt,
+    })) as unknown as FeedbackRow[],
+    [feedbackQuery.data],
+  );
 
   const upVotes = feedback.filter((f) => f.polarity === 'up').length;
   const downVotes = feedback.filter((f) => f.polarity === 'down').length;
@@ -123,7 +129,22 @@ export function AIAnalyticsPage() {
         subtitle="Usage and answer quality for the last 14 days"
       />
 
-      {loading ? (
+      {/* Three states, not two. Zero conversations and an unreadable table look
+          identical on a chart, and reporting the second as the first is the
+          invented-number failure this tranche exists to remove. */}
+      {failed ? (
+        <div className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 p-3">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-red-700" />
+          <div className="text-sm text-red-900">
+            <p className="font-medium">Analytics could not be loaded</p>
+            <p className="mt-0.5 text-xs text-red-800">
+              The assistant conversation and feedback tables could not be read, so the figures
+              below would be zeroes rather than measurements. Nothing is shown rather than
+              something wrong.
+            </p>
+          </div>
+        </div>
+      ) : loading ? (
         <div className="flex items-center justify-center py-20 text-sm text-gray-400">
           Loading analytics…
         </div>

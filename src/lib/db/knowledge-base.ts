@@ -1,12 +1,19 @@
 // Data access for the admin-managed knowledge base.
 //
-// Entries here override and supplement the built-in KB and are the first thing
-// the assistant's retrieval consults. The admin screen used to talk to the database
-// directly through a hand-rolled `useEffect` + `useState` fetch; this module and
-// its hooks put it on the same footing as every other entity (see CLAUDE.md:
-// `lib/db/<entity>.ts` plus `lib/db/hooks/use-<entity>.ts`).
+// Entries here REPLACE the built-in KB — not merge with it, so an entry an admin
+// deleted stops answering — and they are what the assistant's retrieval ranks
+// over, in the browser (`capabilities/knowledge.ts`) and on the server
+// (`api/chat.ts`) alike. That was already this comment's claim and was true of
+// neither: the browser ranked the built-in fixture and nothing read this table,
+// while mock was both the default provider and the fallback on every failure,
+// so an admin's edit was invisible in the normal configuration.
+//
+// The admin screen used to talk to the database directly through a hand-rolled
+// `useEffect` + `useState` fetch; this module and its hooks put it on the same
+// footing as every other entity (see CLAUDE.md: `lib/db/<entity>.ts` plus
+// `lib/db/hooks/use-<entity>.ts`).
 
-import { db } from '@/lib/db-client';
+import { db } from '../db-client.js';
 
 export interface KBEntry {
   id: string;

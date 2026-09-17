@@ -17,6 +17,6 @@
 // runtime — the same failure shape as the `?.trim()` crash before it. Typed as
 // itself, a missing method is a build error.
 
-import { NeonCompatibleClient } from './neon-compatible-client';
+import { NeonCompatibleClient } from './neon-compatible-client.js';
 
 export const db = new NeonCompatibleClient();
