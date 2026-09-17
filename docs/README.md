@@ -13,6 +13,10 @@ docs/
 └── archive/      point-in-time audits, assessments, and resolved fix-logs (historical)
 ```
 
+`ui-audit.md` sits at the top level rather than in `archive/`: it is the working
+list for the UI redesign, and its findings are open until each is fixed and
+frozen by a guard.
+
 ## specs/ — what the product is
 | Doc | What it covers |
 |---|---|
