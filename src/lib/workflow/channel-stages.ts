@@ -113,6 +113,28 @@ export function channelStageMapFromTemplates(templates: TemplateLike[]): Channel
 }
 
 /**
+ * Templates that are not a request lifecycle.
+ *
+ * WF-003 (Supplier Onboarding) and WF-004 (Contract Renewal) are workflows for
+ * different OBJECTS — a supplier, a contract — selected by category rather than
+ * by buying channel, and no request has ever run on either. They sat in the
+ * request Workflow Designer beside the five channel templates under a banner
+ * reading "This graph is the lifecycle. The stages a request visits…", which is
+ * true of the others and false of these two.
+ *
+ * Discriminated on `type` rather than on "claims no channel": a template an
+ * admin has just created claims none either, and it is a request lifecycle
+ * whose channels have not been assigned yet — a different thing entirely, and
+ * one the designer's own diagnostics already report.
+ */
+export const SIDE_PROCESS_TYPES: readonly string[] = ['onboarding', 'renewal'];
+
+/** True when this template governs an object other than a request. */
+export function isSideProcess(template: { type?: string }): boolean {
+  return SIDE_PROCESS_TYPES.includes(template.type ?? '');
+}
+
+/**
  * The template a request on this channel runs on.
  *
  * Same "first claim wins" rule as the stage map, so the lifecycle a request is

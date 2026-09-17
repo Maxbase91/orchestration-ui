@@ -20,7 +20,7 @@ import { loadEnv } from '../lib/live.mjs';
 import {
   BUYING_CHANNELS, channelStageMapFromTemplates, stagesFromTemplate,
   unclaimedChannels, contestedChannels, lifecycleStagesFrom,
-  getStagesForChannel, isStageSkippedForChannel, nextStageAfter, firstActionableStage,
+  getStagesForChannel, isStageSkippedForChannel, nextStageAfter, firstActionableStage, isSideProcess,
 } from '../../src/lib/workflow/channel-stages.ts';
 import { LABELLED_STAGE_IDS, stageLabel } from '../../src/lib/workflow/stage-labels.ts';
 import { workflowTemplates } from '../../src/data/workflows.ts';
@@ -235,6 +235,53 @@ if (!connection) {
     const total = requests.reduce((n, r) => n + r.n, 0);
     ok(`${total} open request(s), every one in a stage its channel traverses`);
   }
+}
+
+
+// ── Side processes are not request lifecycles ──────────────────────────────
+// WF-003 (Supplier Onboarding) and WF-004 (Contract Renewal) govern a supplier
+// and a contract, not a request, and are selected by category rather than by
+// buying channel. They sat in the request Workflow Designer beside the five
+// channel templates, under a banner reading "This graph is the lifecycle. The
+// stages a request visits…" — true of the others and false of these.
+console.log('\nSide processes are separated from request lifecycles');
+{
+  const sideProcesses = workflowTemplates.filter(isSideProcess);
+  const lifecycles = workflowTemplates.filter((t) => !isSideProcess(t));
+
+  if (sideProcesses.length !== 2) {
+    bad('exactly the two side processes are classed as such',
+      sideProcesses.map((t) => t.id).join(', ') || '(none)');
+  } else ok(`${sideProcesses.map((t) => t.id).join(' and ')} are side processes`);
+
+  // The functional consequence, not just the label: a side process must claim
+  // no buying channel, or it would be deriving some request's stages.
+  const claiming = sideProcesses.filter((t) => (t.channels ?? []).length > 0);
+  if (claiming.length > 0) {
+    bad('a side process claims no buying channel', claiming.map((t) => t.id).join(', '));
+  } else ok('no side process claims a buying channel');
+
+  // And the converse: every request lifecycle must claim one, or it is a
+  // template that governs nothing and belongs on neither screen.
+  const unclaimed = lifecycles.filter((t) => (t.channels ?? []).length === 0);
+  if (unclaimed.length > 0) {
+    bad('every request lifecycle claims a channel', unclaimed.map((t) => t.id).join(', '));
+  } else ok(`all ${lifecycles.length} request lifecycles claim a channel`);
+
+  // The designer is scoped by the same predicate, so the two screens partition
+  // the templates rather than overlapping or dropping one.
+  const designer = read('src/features/admin/workflow-designer/workflow-designer-page.tsx');
+  if (!/\(scope === 'side-process'\) === isSideProcess\(t\)/.test(designer)) {
+    bad('the designer filters by the shared predicate',
+      'a second copy of the rule is how the two screens drift apart');
+  } else ok('the designer filters by the shared predicate');
+  if (!/These are side processes, not request lifecycles/.test(designer)) {
+    bad('the side-process screen says what it is',
+      'the request banner claims the graph decides a request\u2019s stages');
+  } else ok('each scope carries its own banner');
+  const app = read('src/App.tsx');
+  if (!/admin\/workflows\/side-processes/.test(app)) bad('the side-process route exists');
+  else ok('the side-process route exists');
 }
 
 console.log(failures === 0 ? '\n\x1b[32mchannel-stages passed\x1b[0m' : `\n\x1b[31m${failures} failed\x1b[0m`);

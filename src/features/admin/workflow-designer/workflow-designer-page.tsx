@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useWorkflowTemplates, useSaveWorkflowTemplate } from '@/lib/db/hooks/use-workflow-templates';
+import { isSideProcess } from '@/lib/workflow/channel-stages';
 import type { WorkflowTemplate } from '@/data/types';
 import type { Node, Edge } from '@xyflow/react';
 
@@ -129,8 +130,29 @@ function mapTemplateToFlow(template: WorkflowTemplate): { nodes: Node[]; edges: 
   return { nodes, edges };
 }
 
-export function WorkflowDesignerPage() {
-  const { data: workflowTemplates = [] } = useWorkflowTemplates();
+/**
+ * The designer, scoped to one kind of workflow.
+ *
+ * `request` shows the five templates that define a buying channel's lifecycle;
+ * `side-process` shows the ones that govern a different object — supplier
+ * onboarding, contract renewal. They shared one screen under a banner reading
+ * "This graph is the lifecycle. The stages a request visits…", which is true of
+ * the first set and false of the second: no request has ever run on either, and
+ * an admin editing one was being told it decided something it does not.
+ *
+ * One component, two routes. The alternative — a second designer page — would
+ * be 450 lines of copy that drifts from this one, which is the defect class the
+ * whole tranche has been removing.
+ */
+export function WorkflowDesignerPage({ scope = 'request' }: { scope?: 'request' | 'side-process' } = {}) {
+  const { data: allTemplates = [] } = useWorkflowTemplates();
+  // Memoised because `handleTemplateChange` depends on it: a fresh array every
+  // render would rebuild that callback every render, and the React Compiler
+  // refuses to optimise a manual memo whose dependency is unstable.
+  const workflowTemplates = useMemo(
+    () => allTemplates.filter((t) => (scope === 'side-process') === isSideProcess(t)),
+    [allTemplates, scope],
+  );
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -312,7 +334,7 @@ export function WorkflowDesignerPage() {
           started deriving the path from the graph below — a banner describing
           behaviour the platform no longer has is the same defect class as a
           control that configures nothing. */}
-      {!isFullscreen && (
+      {!isFullscreen && (scope === 'request' ? (
         <div className="border-b border-blue-200 bg-blue-50 px-4 py-2">
           <p className="text-xs text-blue-800">
             <strong>This graph is the lifecycle.</strong> The stages a request visits, their
@@ -321,12 +343,26 @@ export function WorkflowDesignerPage() {
             here. Saves persist to <code>workflow_templates</code>.
           </p>
         </div>
-      )}
+      ) : (
+        // Saying what these DO drive would be inventing a runtime. They are
+        // authored process definitions for objects the front door does not
+        // route, and no request has ever run on either.
+        <div className="border-b border-gray-200 bg-gray-50 px-4 py-2">
+          <p className="text-xs text-gray-700">
+            <strong>These are side processes, not request lifecycles.</strong> They describe how a
+            supplier is onboarded and how a contract is renewed — objects selected by category
+            rather than by buying channel. No request runs on them, so editing one changes no
+            request&apos;s stages, owners or SLAs. Saves persist to <code>workflow_templates</code>.
+          </p>
+        </div>
+      ))}
 
       {/* Top bar */}
       <div className="flex items-center justify-between border-b border-gray-200 bg-white px-4 py-2.5">
         <div className="flex items-center gap-3">
-          <h1 className="text-base font-semibold text-gray-900">Workflow Designer</h1>
+          <h1 className="text-base font-semibold text-gray-900">
+            {scope === 'side-process' ? 'Side Processes' : 'Workflow Designer'}
+          </h1>
           <Select value={effectiveTemplateId} onValueChange={handleTemplateChange}>
             <SelectTrigger className="w-52 h-8 text-sm">
               <SelectValue />
@@ -341,7 +377,15 @@ export function WorkflowDesignerPage() {
           {/* Empty is legitimate: WF-003 and WF-004 are workflows for other
               objects (supplier onboarding, contract renewal), selected by
               category rather than by channel. */}
-          <div className="flex flex-wrap items-center gap-1.5 border-l border-gray-200 pl-3">
+          <div
+            className={cn(
+              'flex-wrap items-center gap-1.5 border-l border-gray-200 pl-3',
+              // A side process claims no buying channel by definition — that is
+              // what makes it one. Offering the control here would invite an
+              // edit that silently reclassifies it as a request lifecycle.
+              scope === 'side-process' ? 'hidden' : 'flex',
+            )}
+          >
             <span className="text-xs text-gray-500">Lifecycle for</span>
             {BUYING_CHANNELS.map((channel) => {
               const active = channels.includes(channel);
