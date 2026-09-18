@@ -125,16 +125,16 @@ export function ComplianceKPIPage() {
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="rounded-md bg-white p-4 shadow-[0_1px_4px_rgba(0,0,0,0.08)]">
-          <h3 className="mb-4 text-sm font-semibold text-gray-900">Policy Breaches by Month</h3>
+        <div className="rounded-md bg-card p-4 shadow-[0_1px_4px_rgba(0,0,0,0.08)]">
+          <h3 className="mb-4 text-sm font-semibold text-ink">Policy Breaches by Month</h3>
           <BarChartWidget
             data={breachChartData}
             dataKeys={[{ key: 'value', color: '#B5392E', label: 'Breaches' }]}
             height={300}
           />
         </div>
-        <div className="rounded-md bg-white p-4 shadow-[0_1px_4px_rgba(0,0,0,0.08)]">
-          <h3 className="mb-4 text-sm font-semibold text-gray-900">First Time Right Trend</h3>
+        <div className="rounded-md bg-card p-4 shadow-[0_1px_4px_rgba(0,0,0,0.08)]">
+          <h3 className="mb-4 text-sm font-semibold text-ink">First Time Right Trend</h3>
           <LineChartWidget
             data={firstTimeRightData}
             dataKeys={[{ key: 'value', color: '#2E7D4F', label: 'First Time Right %' }]}
@@ -144,8 +144,8 @@ export function ComplianceKPIPage() {
       </div>
 
       {/* Cycle Time by Category */}
-      <div className="rounded-md bg-white p-4 shadow-[0_1px_4px_rgba(0,0,0,0.08)]">
-        <h3 className="mb-4 text-sm font-semibold text-gray-900">Cycle Time by Category</h3>
+      <div className="rounded-md bg-card p-4 shadow-[0_1px_4px_rgba(0,0,0,0.08)]">
+        <h3 className="mb-4 text-sm font-semibold text-ink">Cycle Time by Category</h3>
         <BarChartWidget
           data={cycleTimeByCategoryData}
           dataKeys={[{ key: 'value', color: '#2D5F8A', label: 'Avg Days' }]}

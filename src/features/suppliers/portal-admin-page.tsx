@@ -63,12 +63,12 @@ const accountColumns: Column<PortalAccount>[] = [
       <span
         className={
           item.status === 'Active'
-            ? 'inline-flex items-center gap-1.5 text-xs font-medium text-green-700'
-            : 'inline-flex items-center gap-1.5 text-xs font-medium text-gray-500'
+            ? 'inline-flex items-center gap-1.5 text-xs font-medium text-ok'
+            : 'inline-flex items-center gap-1.5 text-xs font-medium text-ink-3'
         }
       >
         <span
-          className={`size-1.5 rounded-full ${item.status === 'Active' ? 'bg-green-500' : 'bg-gray-400'}`}
+          className={`size-1.5 rounded-full ${item.status === 'Active' ? 'bg-ok' : 'bg-idle'}`}
         />
         {item.status as string}
       </span>
@@ -95,7 +95,7 @@ const accountColumns: Column<PortalAccount>[] = [
           title="Account deactivation ships with the deferred authentication phase."
           onClick={(e) => e.stopPropagation()}
         >
-          <UserX className="size-3.5 text-red-500" />
+          <UserX className="size-3.5 text-stop" />
         </Button>
       </div>
     ),

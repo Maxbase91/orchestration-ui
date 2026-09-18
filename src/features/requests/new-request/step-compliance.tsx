@@ -147,10 +147,10 @@ export function StepCompliance({
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-gray-500">
-        <Loader2 className="size-8 animate-spin text-blue-500" />
+      <div className="flex flex-col items-center justify-center py-16 text-ink-3">
+        <Loader2 className="size-8 animate-spin text-accent-solid" />
         <p className="mt-4 text-sm font-medium">Running compliance checks...</p>
-        <p className="mt-1 text-xs text-gray-400">
+        <p className="mt-1 text-xs text-ink-3">
           Checking buying channel, SRA, policy rules, and duplicate requests
         </p>
       </div>
@@ -227,7 +227,7 @@ export function StepCompliance({
         </CardHeader>
         <CardContent className="space-y-3">
           {(result.residualQuestions?.length ?? 0) === 0 ? (
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-ink-3">
               No further questions — your service description already covers what we need to assess.
             </p>
           ) : (
@@ -235,9 +235,9 @@ export function StepCompliance({
               const switchId = q.id === 'privileged-access' ? 'mini-irq-access' : 'mini-irq-critical';
               return (
                 <div key={q.id} className="flex items-center justify-between gap-4">
-                  <label htmlFor={switchId} className="text-sm text-gray-700">
+                  <label htmlFor={switchId} className="text-sm text-ink-2">
                     {q.question}
-                    <span className="block text-xs text-gray-400">Asked because: {q.reason}</span>
+                    <span className="block text-xs text-ink-3">Asked because: {q.reason}</span>
                   </label>
                   <Switch
                     id={switchId}
@@ -257,7 +257,7 @@ export function StepCompliance({
           requester submitting their own demand reaches for. */}
       {(
         <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold text-gray-900">Determination</p>
+          <p className="text-sm font-semibold text-ink">Determination</p>
           <Button variant="outline" size="sm" onClick={handleExport}>
             <Download className="size-3.5 mr-1.5" /> Export
           </Button>
@@ -276,12 +276,12 @@ export function StepCompliance({
         const labelFor = (id: string) =>
           SOW_SECTION_LABELS[id] ?? id.replace(/([A-Z])/g, ' $1').toLowerCase();
         return (
-          <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
-            <p className="text-sm font-medium text-amber-900">
+          <div className="rounded-md border border-warn-line bg-warn-soft p-3">
+            <p className="text-sm font-medium text-warn">
               The service description is missing {gaps.length} required section
               {gaps.length === 1 ? '' : 's'}
             </p>
-            <p className="mt-0.5 text-xs text-amber-800">
+            <p className="mt-0.5 text-xs text-warn">
               This demand&apos;s materiality, risk and sourcing make {gaps.length === 1 ? 'it' : 'these'}{' '}
               mandatory: <strong>{gaps.map(labelFor).join(', ')}</strong>. Go back to the service
               description to add {gaps.length === 1 ? 'it' : 'them'} — the request can still be
@@ -299,20 +299,20 @@ export function StepCompliance({
           headline routing decision: can this demand move to its next step? */}
       {result.referral && (
         <div className={`rounded-lg border p-3 ${
-          result.referral.outcome === 'refer-back' ? 'border-red-200 bg-red-50/60'
-            : result.referral.outcome === 'request-change' ? 'border-amber-200 bg-amber-50/60'
-              : 'border-green-200 bg-green-50/60'
+          result.referral.outcome === 'refer-back' ? 'border-stop-line bg-stop-soft/60'
+            : result.referral.outcome === 'request-change' ? 'border-warn-line bg-warn-soft/60'
+              : 'border-ok-line bg-ok-soft/60'
         }`}>
           <div className="flex items-center gap-2">
             <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${
-              result.referral.outcome === 'refer-back' ? 'bg-red-100 text-red-700'
-                : result.referral.outcome === 'request-change' ? 'bg-amber-100 text-amber-700'
-                  : 'bg-green-100 text-green-700'
+              result.referral.outcome === 'refer-back' ? 'bg-stop-soft text-stop'
+                : result.referral.outcome === 'request-change' ? 'bg-warn-soft text-warn'
+                  : 'bg-ok-soft text-ok'
             }`}>
               {result.referral.outcome === 'refer-back' ? 'Refer back'
                 : result.referral.outcome === 'request-change' ? 'Request change' : 'Proceed'}
             </span>
-            <span className="text-xs text-gray-600">{result.referral.reason}</span>
+            <span className="text-xs text-ink-2">{result.referral.reason}</span>
           </div>
         </div>
       )}
@@ -321,56 +321,56 @@ export function StepCompliance({
           the submit button — the reported gap: the channel is the single most
           consequential thing decided here, and it was presented as a
           classification label with a rule id under it. */}
-      <div className="rounded-lg border border-blue-200 bg-blue-50/60 p-4">
+      <div className="rounded-lg border border-accent-line bg-accent-soft/60 p-4">
         <div className="flex items-start gap-2">
-          <Info className="mt-0.5 size-4 shrink-0 text-blue-500" />
+          <Info className="mt-0.5 size-4 shrink-0 text-accent-solid" />
           <div>
             {(() => {
               const plain = buyingChannelPlain(result.buyingChannelSlug);
               return (
                 <>
-                  <p className="text-sm font-semibold text-gray-900">{plain.headline}</p>
-                  <p className="mt-0.5 text-sm text-gray-700">{plain.detail}</p>
+                  <p className="text-sm font-semibold text-ink">{plain.headline}</p>
+                  <p className="mt-0.5 text-sm text-ink-2">{plain.detail}</p>
                 </>
               );
             })()}
             {/* The full process, before submission, so nobody is surprised by
                 a step after they have committed to the request. */}
             {result.handoffSteps.length > 0 && (
-              <p className="mt-2 text-xs text-gray-600">
-                <span className="font-medium text-gray-700">What happens next:</span>{' '}
+              <p className="mt-2 text-xs text-ink-2">
+                <span className="font-medium text-ink-2">What happens next:</span>{' '}
                 {result.handoffSteps.map((step) => step.label).join(' → ')}
               </p>
             )}
             {(<>
-            <p className="mt-2 text-sm text-gray-700">
+            <p className="mt-2 text-sm text-ink-2">
               Based on value ({formatCurrency(estimatedValue)}), category ({category}), this is classified as:{' '}
-              <span className="font-semibold text-blue-700">{result.buyingChannelResult}</span>
+              <span className="font-semibold text-accent-solid">{result.buyingChannelResult}</span>
             </p>
-            <p className="mt-0.5 text-xs text-gray-500">
+            <p className="mt-0.5 text-xs text-ink-3">
               {result.matchedRuleName
                 ? `Matched routing rule: ${result.matchedRuleName}`
                 : 'No admin routing rule matched — using default fallback.'}
             </p>
             {result.materiality && (
-              <p className="mt-1 text-sm text-gray-700">
+              <p className="mt-1 text-sm text-ink-2">
                 Materiality:{' '}
-                <span className={result.materiality.material ? 'font-semibold text-amber-700' : 'font-medium text-gray-600'}>
+                <span className={result.materiality.material ? 'font-semibold text-warn' : 'font-medium text-ink-2'}>
                   {result.materiality.material
                     ? `Material — ${result.materiality.criticality} (regulatory flag raised)`
                     : 'Not material'}
                 </span>
                 {result.materiality.material && (
-                  <span className="text-xs text-gray-500"> · {result.materiality.reasons.join('; ')}</span>
+                  <span className="text-xs text-ink-3"> · {result.materiality.reasons.join('; ')}</span>
                 )}
               </p>
             )}
             {result.contractType && result.sourcingType && (
-              <p className="mt-1 text-sm text-gray-700">
-                Contract type: <span className="font-semibold text-gray-900">{result.contractType.type}</span>
-                <span className="text-xs text-gray-500"> ({result.contractType.reason})</span>
-                {' · '}Sourcing: <span className="font-semibold text-gray-900">{result.sourcingType.type}</span>
-                <span className="text-xs text-gray-500"> ({result.sourcingType.reason})</span>
+              <p className="mt-1 text-sm text-ink-2">
+                Contract type: <span className="font-semibold text-ink">{result.contractType.type}</span>
+                <span className="text-xs text-ink-3"> ({result.contractType.reason})</span>
+                {' · '}Sourcing: <span className="font-semibold text-ink">{result.sourcingType.type}</span>
+                <span className="text-xs text-ink-3"> ({result.sourcingType.reason})</span>
               </p>
             )}
             {/* The inherent tier and its drivers are stated once, under Risk
@@ -378,13 +378,13 @@ export function StepCompliance({
                 screen said it twice. This card keeps only the inputs that are
                 specific to the CHANNEL decision. */}
             {result.screening && (
-              <p className="mt-1 text-sm text-gray-700">
+              <p className="mt-1 text-sm text-ink-2">
                 Supplier screening:{' '}
                 <span className={`font-semibold ${
-                  result.screening.blocking ? 'text-red-700'
-                    : result.screening.cleared ? 'text-green-700' : 'text-amber-700'
+                  result.screening.blocking ? 'text-stop'
+                    : result.screening.cleared ? 'text-ok' : 'text-warn'
                 }`}>{result.screening.status}</span>
-                <span className="text-xs text-gray-500"> · {result.screening.message}</span>
+                <span className="text-xs text-ink-3"> · {result.screening.message}</span>
               </p>
             )}
             </>)}
@@ -401,15 +401,15 @@ export function StepCompliance({
           precise and tells a requester nothing about what happens to their
           request. This says what it means for them; the tier and its drivers
           are the workings below. */}
-      <div className="rounded-lg border border-gray-200 bg-white p-4">
-        <p className="text-sm font-medium text-gray-900">
+      <div className="rounded-lg border border-line bg-card p-4">
+        <p className="text-sm font-medium text-ink">
           {result.riskAssessmentRequired
             ? 'A risk assessment is required before this can proceed'
             : result.matchingRiskAssessments.length > 0
               ? 'No new risk assessment needed'
               : 'No separate risk assessment is required'}
         </p>
-        <p className="mt-1 text-sm text-gray-600">
+        <p className="mt-1 text-sm text-ink-2">
           {result.riskAssessmentRequired
             ? 'Nothing for you to do now — the assigned owner runs it, and it happens alongside the rest of the process.'
             : result.matchingRiskAssessments.length > 0
@@ -417,7 +417,7 @@ export function StepCompliance({
               : result.triageReason}
         </p>
         {result.supplierOnboardingRequired && (
-          <p className="mt-1.5 text-sm text-gray-600">
+          <p className="mt-1.5 text-sm text-ink-2">
             The supplier also needs onboarding before any contract or order can be raised.
           </p>
         )}
@@ -426,19 +426,19 @@ export function StepCompliance({
       {/* Inherent risk — what the mini-IRQ answers on the previous step
           produced, stated where every other conclusion is. */}
       {result.inherentRisk && (
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
-          <p className="text-sm font-medium text-gray-900">Inherent risk</p>
-          <p className="mt-1 text-sm text-gray-700">
+        <div className="rounded-lg border border-line bg-card p-4">
+          <p className="text-sm font-medium text-ink">Inherent risk</p>
+          <p className="mt-1 text-sm text-ink-2">
             <span className={`font-semibold ${
-              result.inherentRisk.tier === 'critical' ? 'text-red-700'
-                : result.inherentRisk.tier === 'high' ? 'text-amber-700'
-                  : 'text-gray-900'
+              result.inherentRisk.tier === 'critical' ? 'text-stop'
+                : result.inherentRisk.tier === 'high' ? 'text-warn'
+                  : 'text-ink'
             }`}>{result.inherentRisk.tier}</span>
-            <span className="text-xs text-gray-500"> · {result.inherentRisk.drivers.join('; ')}</span>
+            <span className="text-xs text-ink-3"> · {result.inherentRisk.drivers.join('; ')}</span>
           </p>
           {result.riskOutcome && (
-            <p className="mt-0.5 text-xs text-gray-500">
-              Assessment outcome: <span className="font-medium text-gray-700">{result.riskOutcome.decision}</span> ({result.riskOutcome.reasons[0]})
+            <p className="mt-0.5 text-xs text-ink-3">
+              Assessment outcome: <span className="font-medium text-ink-2">{result.riskOutcome.decision}</span> ({result.riskOutcome.reasons[0]})
             </p>
           )}
         </div>
@@ -448,13 +448,13 @@ export function StepCompliance({
           (continuity, data, concentration, regulatory, access). The workings
           behind the sentence above. */}
       {result.operationalRisk && (
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
+        <div className="rounded-lg border border-line bg-card p-4">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-medium text-gray-900">Preliminary operational risk</p>
+            <p className="text-sm font-medium text-ink">Preliminary operational risk</p>
             <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-              result.operationalRisk.overall === 'high' ? 'bg-red-100 text-red-700'
-                : result.operationalRisk.overall === 'medium' ? 'bg-amber-100 text-amber-700'
-                  : 'bg-gray-100 text-gray-500'
+              result.operationalRisk.overall === 'high' ? 'bg-stop-soft text-stop'
+                : result.operationalRisk.overall === 'medium' ? 'bg-warn-soft text-warn'
+                  : 'bg-idle-soft text-ink-3'
             }`}>
               {result.operationalRisk.overall}
             </span>
@@ -463,13 +463,13 @@ export function StepCompliance({
             {result.operationalRisk.dimensions.map((d) => (
               <li key={d.key} className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <span className="text-sm text-gray-700">{d.label}</span>
-                  <span className="block text-xs text-gray-400">{d.reason}</span>
+                  <span className="text-sm text-ink-2">{d.label}</span>
+                  <span className="block text-xs text-ink-3">{d.reason}</span>
                 </div>
                 <span className={`shrink-0 text-xs font-medium ${
-                  d.rating === 'high' ? 'text-red-600'
-                    : d.rating === 'medium' ? 'text-amber-600'
-                      : 'text-gray-400'
+                  d.rating === 'high' ? 'text-stop'
+                    : d.rating === 'medium' ? 'text-warn'
+                      : 'text-ink-3'
                 }`}>
                   {d.rating}
                 </span>
@@ -486,24 +486,24 @@ export function StepCompliance({
       {/* Approval to source — the pre-sourcing gate (DET-05): which
           approvals are required before the demand can move into sourcing. */}
       {result.approvalToSource && (
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
+        <div className="rounded-lg border border-line bg-card p-4">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-medium text-gray-900">Approval to source</p>
+            <p className="text-sm font-medium text-ink">Approval to source</p>
             <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-              result.approvalToSource.tier === 'full' ? 'bg-amber-100 text-amber-700'
-                : result.approvalToSource.tier === 'light' ? 'bg-blue-100 text-blue-700'
-                  : 'bg-gray-100 text-gray-500'
+              result.approvalToSource.tier === 'full' ? 'bg-warn-soft text-warn'
+                : result.approvalToSource.tier === 'light' ? 'bg-accent-soft text-accent-solid'
+                  : 'bg-idle-soft text-ink-3'
             }`}>
               {result.approvalToSource.tier === 'none' ? 'not required' : `${result.approvalToSource.tier} gate`}
             </span>
           </div>
-          <p className="mt-0.5 text-xs text-gray-500">{result.approvalToSource.rationale}</p>
+          <p className="mt-0.5 text-xs text-ink-3">{result.approvalToSource.rationale}</p>
           {result.approvalToSource.gates.length > 0 && (
             <ul className="mt-3 space-y-2">
               {result.approvalToSource.gates.map((gate) => (
-                <li key={gate.id} className="border-b border-gray-50 pb-2 last:border-0 last:pb-0">
-                  <p className="text-sm font-medium text-gray-800">{gate.label}</p>
-                  <p className="text-xs text-gray-500">{gate.reason}</p>
+                <li key={gate.id} className="border-b border-line-2 pb-2 last:border-0 last:pb-0">
+                  <p className="text-sm font-medium text-ink">{gate.label}</p>
+                  <p className="text-xs text-ink-3">{gate.reason}</p>
                 </li>
               ))}
             </ul>
@@ -514,25 +514,25 @@ export function StepCompliance({
       {/* Next steps — the structured handoff panel: each step, its system,
           status and deep-link. R1 routes (deep-links), it does not write. */}
       {result.handoffSteps && result.handoffSteps.length > 0 && (
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
-          <p className="text-sm font-medium text-gray-900">Next steps</p>
+        <div className="rounded-lg border border-line bg-card p-4">
+          <p className="text-sm font-medium text-ink">Next steps</p>
           <ul className="mt-3 space-y-2">
             {result.handoffSteps.map((step) => (
-              <li key={step.key} className="flex items-start justify-between gap-3 border-b border-gray-50 pb-2 last:border-0 last:pb-0">
+              <li key={step.key} className="flex items-start justify-between gap-3 border-b border-line-2 pb-2 last:border-0 last:pb-0">
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-800">{step.label}</p>
-                  <p className="text-xs text-gray-500">{step.system} · {step.detail}</p>
+                  <p className="text-sm font-medium text-ink">{step.label}</p>
+                  <p className="text-xs text-ink-3">{step.system} · {step.detail}</p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                    step.status === 'required' ? 'bg-amber-100 text-amber-700'
-                      : step.status === 'recommended' ? 'bg-blue-100 text-blue-700'
-                        : 'bg-gray-100 text-gray-500'
+                    step.status === 'required' ? 'bg-warn-soft text-warn'
+                      : step.status === 'recommended' ? 'bg-accent-soft text-accent-solid'
+                        : 'bg-idle-soft text-ink-3'
                   }`}>
                     {step.status}
                   </span>
                   {step.deepLink && (
-                    <Link to={step.deepLink} className="text-xs font-medium text-blue-600 hover:underline">
+                    <Link to={step.deepLink} className="text-xs font-medium text-accent-solid hover:underline">
                       Open
                     </Link>
                   )}
@@ -545,23 +545,23 @@ export function StepCompliance({
 
       {/* Second contract check — transactable contracts vs frameworks/MSAs. */}
       {result.secondContractCheck && (
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
-          <p className="text-sm font-medium text-gray-900">Contract coverage</p>
-          <p className="mt-0.5 text-xs text-gray-500">
-            Recommendation: <span className="font-medium text-gray-700">{result.secondContractCheck.recommendation}</span> — {result.secondContractCheck.reason}
+        <div className="rounded-lg border border-line bg-card p-4">
+          <p className="text-sm font-medium text-ink">Contract coverage</p>
+          <p className="mt-0.5 text-xs text-ink-3">
+            Recommendation: <span className="font-medium text-ink-2">{result.secondContractCheck.recommendation}</span> — {result.secondContractCheck.reason}
           </p>
           {result.secondContractCheck.candidates.length > 0 && (
             <ul className="mt-2 space-y-1.5">
               {result.secondContractCheck.candidates.map((c) => (
-                <li key={c.contractId} className="flex items-start justify-between gap-3 border-b border-gray-50 pb-1.5 last:border-0 last:pb-0">
+                <li key={c.contractId} className="flex items-start justify-between gap-3 border-b border-line-2 pb-1.5 last:border-0 last:pb-0">
                   <div className="min-w-0">
-                    <p className="text-sm text-gray-800">{c.title}</p>
-                    <p className="text-xs text-gray-500">{c.reason}</p>
+                    <p className="text-sm text-ink">{c.title}</p>
+                    <p className="text-xs text-ink-3">{c.reason}</p>
                   </div>
                   <span className={`shrink-0 inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                    c.kind === 'transactable' ? 'bg-green-100 text-green-700'
-                      : c.kind === 'framework' ? 'bg-blue-100 text-blue-700'
-                        : 'bg-amber-100 text-amber-700'
+                    c.kind === 'transactable' ? 'bg-ok-soft text-ok'
+                      : c.kind === 'framework' ? 'bg-accent-soft text-accent-solid'
+                        : 'bg-warn-soft text-warn'
                   }`}>
                     {c.kind}
                   </span>
@@ -573,33 +573,33 @@ export function StepCompliance({
       )}
 
       {/* SRA Status */}
-      <div className="rounded-lg border border-gray-200 bg-white p-4">
-        <p className="text-sm font-medium text-gray-900">SRA Status</p>
-        <p className="mt-1 text-sm text-gray-600">{result.sraStatus}</p>
+      <div className="rounded-lg border border-line bg-card p-4">
+        <p className="text-sm font-medium text-ink">SRA Status</p>
+        <p className="mt-1 text-sm text-ink-2">{result.sraStatus}</p>
       </div>
 
       {/* Matching Risk Assessments (reuse) */}
       {result.matchingRiskAssessments.length > 0 && (
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 p-4">
+        <div className="rounded-lg border border-ok-line bg-ok-soft/60 p-4">
           <div className="flex items-start gap-2">
-            <Recycle className="mt-0.5 size-4 shrink-0 text-emerald-600" />
+            <Recycle className="mt-0.5 size-4 shrink-0 text-ok" />
             <div className="flex-1">
-              <p className="text-sm font-medium text-emerald-900">
+              <p className="text-sm font-medium text-ok">
                 {result.matchingRiskAssessments.length} existing risk assessment
                 {result.matchingRiskAssessments.length > 1 ? 's' : ''} eligible for reuse
               </p>
-              <p className="mt-0.5 text-xs text-emerald-800/80">
+              <p className="mt-0.5 text-xs text-ok/80">
                 These assessments are valid and cover the selected supplier. A new SRA is not required at intake.
               </p>
               <ul className="mt-2 space-y-1.5">
                 {result.matchingRiskAssessments.map((ra) => (
                   <li
                     key={ra.id}
-                    className="flex items-center justify-between gap-2 rounded-md bg-white/70 px-2.5 py-1.5 text-xs"
+                    className="flex items-center justify-between gap-2 rounded-md bg-card/70 px-2.5 py-1.5 text-xs"
                   >
                     <div className="min-w-0 flex-1">
-                      <p className="font-medium text-gray-900 truncate">{ra.title}</p>
-                      <p className="text-[11px] text-gray-500">
+                      <p className="font-medium text-ink truncate">{ra.title}</p>
+                      <p className="text-[11px] text-ink-3">
                         {ra.id} · {ra.category} · {ra.riskLevel} risk · valid until {ra.validUntil}
                       </p>
                     </div>
@@ -618,9 +618,9 @@ export function StepCompliance({
       {/* Policy Checks */}
       <div>
         <div className="mb-3 flex items-baseline justify-between">
-          <p className="text-sm font-medium text-gray-700">Policy Checks</p>
+          <p className="text-sm font-medium text-ink-2">Policy Checks</p>
           {result.validatorAgentName && (
-            <p className="text-[11px] text-gray-400">
+            <p className="text-[11px] text-ink-3">
               {result.validatorAgentStatus === 'active'
                 ? `via ${result.validatorAgentName} (AI-002)`
                 : `${result.validatorAgentName} is ${result.validatorAgentStatus}`}
@@ -641,11 +641,11 @@ export function StepCompliance({
 
       {/* Summary */}
       {allPassed ? (
-        <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-center text-sm font-medium text-green-700">
+        <div className="rounded-lg border border-ok-line bg-ok-soft p-3 text-center text-sm font-medium text-ok">
           All compliance checks passed. You may proceed to the next step.
         </div>
       ) : (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-center text-sm font-medium text-amber-700">
+        <div className="rounded-lg border border-warn-line bg-warn-soft p-3 text-center text-sm font-medium text-warn">
           Some checks require attention. Review the warnings above before proceeding.
         </div>
       )}
@@ -664,24 +664,24 @@ export function StepCompliance({
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm flex items-center gap-2">
-                  <CheckCircle className="size-4 text-green-600" />
+                  <CheckCircle className="size-4 text-ok" />
                   Risk Assessment Not Required
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-gray-700">{result.triageReason} — no new triage needed at intake.</p>
+                <p className="text-sm text-ink-2">{result.triageReason} — no new triage needed at intake.</p>
                 {result.matchingRiskAssessments.length > 0 && (
-                  <ul className="mt-2 space-y-1 text-xs text-gray-600">
+                  <ul className="mt-2 space-y-1 text-xs text-ink-2">
                     {result.matchingRiskAssessments.map((ra) => (
                       <li key={ra.id}>
-                        <span className="font-medium text-gray-800">{ra.title}</span>
+                        <span className="font-medium text-ink">{ra.title}</span>
                         {' · '}
                         {ra.id} · {ra.category} · {ra.riskLevel} risk · valid until {ra.validUntil}
                       </li>
                     ))}
                   </ul>
                 )}
-                <p className="mt-3 text-[11px] text-gray-400">
+                <p className="mt-3 text-[11px] text-ink-3">
                   Data sensitivity inferred from SOW: <strong>{sensitivity}</strong>.
                 </p>
               </CardContent>
@@ -759,12 +759,12 @@ function SectionHeader({ label, meaning }: { label: string; meaning?: string }) 
   return (
     <div className="pt-1">
       <div className="flex items-center gap-2">
-        <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-ink-3">
           {label}
         </span>
-        <span className="h-px flex-1 bg-gray-100" />
+        <span className="h-px flex-1 bg-idle-soft" />
       </div>
-      {meaning && <p className="mt-1 text-xs text-gray-500">{meaning}</p>}
+      {meaning && <p className="mt-1 text-xs text-ink-3">{meaning}</p>}
     </div>
   );
 }
@@ -823,18 +823,18 @@ function RiskAssessmentTriageSection({
           {rows.map((r) => (
             <li key={r.label} className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <span className="text-sm text-gray-700">{r.label}</span>
-                <span className="block text-xs text-gray-400">{r.reason}</span>
+                <span className="text-sm text-ink-2">{r.label}</span>
+                <span className="block text-xs text-ink-3">{r.reason}</span>
               </div>
-              <span className="shrink-0 text-sm font-medium capitalize text-gray-900">{r.value}</span>
+              <span className="shrink-0 text-sm font-medium capitalize text-ink">{r.value}</span>
             </li>
           ))}
         </ul>
-        <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
-          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />
+        <div className="flex items-start gap-3 rounded-lg border border-warn-line bg-warn-soft p-3">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warn" />
           <div>
-            <p className="text-sm font-medium text-amber-800">A risk assessment is required</p>
-            <p className="mt-1 text-xs text-amber-700">
+            <p className="text-sm font-medium text-warn">A risk assessment is required</p>
+            <p className="mt-1 text-xs text-warn">
               {reuseCount > 0
                 ? `A reusable assessment exists, but a fresh one is needed here because ${triageReason}.`
                 : 'No assessment can be reused, so a risk assessment is carried out — it appears as a step in the workflow.'}
@@ -929,14 +929,14 @@ function SmartAssessmentSection({
       <CardContent className="space-y-4">
         {/* Vendor Match */}
         {(supplier || supplierId) && (
-          <div className={`flex items-start gap-2 rounded-lg border p-3 ${assessment.matchedSupplier ? 'border-green-200 bg-green-50' : 'border-amber-200 bg-amber-50'}`}>
+          <div className={`flex items-start gap-2 rounded-lg border p-3 ${assessment.matchedSupplier ? 'border-ok-line bg-ok-soft' : 'border-warn-line bg-warn-soft'}`}>
             {assessment.matchedSupplier ? (
-              <CheckCircle className="size-4 text-green-600 mt-0.5 shrink-0" />
+              <CheckCircle className="size-4 text-ok mt-0.5 shrink-0" />
             ) : (
-              <AlertTriangle className="size-4 text-amber-600 mt-0.5 shrink-0" />
+              <AlertTriangle className="size-4 text-warn mt-0.5 shrink-0" />
             )}
             <div>
-              <p className={`text-sm font-medium ${assessment.matchedSupplier ? 'text-green-800' : 'text-amber-800'}`}>
+              <p className={`text-sm font-medium ${assessment.matchedSupplier ? 'text-ok' : 'text-warn'}`}>
                 {assessment.matchedSupplier
                   ? `Existing vendor — ${assessment.matchedSupplier.name}, ${assessment.matchedSupplier.country}, Risk: ${assessment.matchedSupplier.riskRating}, ${assessment.matchedSupplier.activeContracts} active contracts`
                   : 'New vendor — supplier onboarding will be required'}
@@ -947,16 +947,16 @@ function SmartAssessmentSection({
 
         {/* Contract Coverage */}
         {assessment.matchedSupplier && (
-          <div className={`flex items-start gap-2 rounded-lg border p-3 ${assessment.hasActiveContract ? 'border-green-200 bg-green-50' : assessment.hasExpiringContract ? 'border-amber-200 bg-amber-50' : 'border-red-200 bg-red-50'}`}>
+          <div className={`flex items-start gap-2 rounded-lg border p-3 ${assessment.hasActiveContract ? 'border-ok-line bg-ok-soft' : assessment.hasExpiringContract ? 'border-warn-line bg-warn-soft' : 'border-stop-line bg-stop-soft'}`}>
             {assessment.hasActiveContract ? (
-              <CheckCircle className="size-4 text-green-600 mt-0.5 shrink-0" />
+              <CheckCircle className="size-4 text-ok mt-0.5 shrink-0" />
             ) : assessment.hasExpiringContract ? (
-              <AlertTriangle className="size-4 text-amber-600 mt-0.5 shrink-0" />
+              <AlertTriangle className="size-4 text-warn mt-0.5 shrink-0" />
             ) : (
-              <MinusCircle className="size-4 text-red-600 mt-0.5 shrink-0" />
+              <MinusCircle className="size-4 text-stop mt-0.5 shrink-0" />
             )}
             <div>
-              <p className={`text-sm font-medium ${assessment.hasActiveContract ? 'text-green-800' : assessment.hasExpiringContract ? 'text-amber-800' : 'text-red-800'}`}>
+              <p className={`text-sm font-medium ${assessment.hasActiveContract ? 'text-ok' : assessment.hasExpiringContract ? 'text-warn' : 'text-stop'}`}>
                 {assessment.hasActiveContract
                   ? `Active contract — ${assessment.liveContracts[0]?.title}, valid until ${assessment.liveContracts[0]?.endDate}, ${assessment.liveContracts[0]?.utilisationPercentage}% utilised`
                   : assessment.hasExpiringContract
@@ -974,13 +974,13 @@ function SmartAssessmentSection({
 
         {/* SRA Status */}
         {assessment.matchedSupplier && (
-          <div className={`flex items-start gap-2 rounded-lg border p-3 ${assessment.matchedSupplier.sraStatus === 'valid' ? 'border-green-200 bg-green-50' : assessment.matchedSupplier.sraStatus === 'expiring' ? 'border-amber-200 bg-amber-50' : 'border-red-200 bg-red-50'}`}>
+          <div className={`flex items-start gap-2 rounded-lg border p-3 ${assessment.matchedSupplier.sraStatus === 'valid' ? 'border-ok-line bg-ok-soft' : assessment.matchedSupplier.sraStatus === 'expiring' ? 'border-warn-line bg-warn-soft' : 'border-stop-line bg-stop-soft'}`}>
             {assessment.matchedSupplier.sraStatus === 'valid' ? (
-              <CheckCircle className="size-4 text-green-600 mt-0.5 shrink-0" />
+              <CheckCircle className="size-4 text-ok mt-0.5 shrink-0" />
             ) : (
-              <AlertTriangle className="size-4 text-amber-600 mt-0.5 shrink-0" />
+              <AlertTriangle className="size-4 text-warn mt-0.5 shrink-0" />
             )}
-            <p className={`text-sm font-medium ${assessment.matchedSupplier.sraStatus === 'valid' ? 'text-green-800' : 'text-amber-800'}`}>
+            <p className={`text-sm font-medium ${assessment.matchedSupplier.sraStatus === 'valid' ? 'text-ok' : 'text-warn'}`}>
               {assessment.matchedSupplier.sraStatus === 'valid'
                 ? `SRA valid until ${assessment.matchedSupplier.sraExpiryDate}`
                 : assessment.matchedSupplier.sraStatus === 'expiring'
@@ -992,57 +992,57 @@ function SmartAssessmentSection({
 
         {/* Vendor onboarding (always shown — a new supplier needs onboarding) */}
         <div className={`flex items-start gap-2 rounded-lg border p-3 ${
-          onboarding.tone === 'green' ? 'border-green-200 bg-green-50'
-            : onboarding.tone === 'amber' ? 'border-amber-200 bg-amber-50'
-              : 'border-red-200 bg-red-50'
+          onboarding.tone === 'green' ? 'border-ok-line bg-ok-soft'
+            : onboarding.tone === 'amber' ? 'border-warn-line bg-warn-soft'
+              : 'border-stop-line bg-stop-soft'
         }`}>
           {onboarding.tone === 'green' ? (
-            <CheckCircle className="size-4 text-green-600 mt-0.5 shrink-0" />
+            <CheckCircle className="size-4 text-ok mt-0.5 shrink-0" />
           ) : onboarding.tone === 'amber' ? (
-            <AlertTriangle className="size-4 text-amber-600 mt-0.5 shrink-0" />
+            <AlertTriangle className="size-4 text-warn mt-0.5 shrink-0" />
           ) : (
-            <MinusCircle className="size-4 text-red-600 mt-0.5 shrink-0" />
+            <MinusCircle className="size-4 text-stop mt-0.5 shrink-0" />
           )}
           <p className={`text-sm font-medium ${
-            onboarding.tone === 'green' ? 'text-green-800'
-              : onboarding.tone === 'amber' ? 'text-amber-800' : 'text-red-800'
+            onboarding.tone === 'green' ? 'text-ok'
+              : onboarding.tone === 'amber' ? 'text-warn' : 'text-stop'
           }`}>{onboarding.message}</p>
         </div>
 
         {/* Estimated Journey */}
         <div className="space-y-2 pt-2">
-          <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Estimated Processing Steps</p>
+          <p className="text-xs font-medium text-ink-3 uppercase tracking-wider">Estimated Processing Steps</p>
           <div className="space-y-1">
             {assessment.steps.map((step, i) => (
               <div key={i} className="flex items-start gap-3 py-1.5">
                 <div className="mt-0.5 shrink-0">
-                  {step.status === 'completed' && <CheckCircle className="size-4 text-green-500" />}
-                  {step.status === 'current' && <Circle className="size-4 text-blue-500 fill-blue-500" />}
-                  {step.status === 'future' && <Circle className="size-4 text-gray-300" />}
-                  {step.status === 'skipped' && <MinusCircle className="size-4 text-gray-300" />}
+                  {step.status === 'completed' && <CheckCircle className="size-4 text-ok" />}
+                  {step.status === 'current' && <Circle className="size-4 text-accent-solid fill-blue-500" />}
+                  {step.status === 'future' && <Circle className="size-4 text-ink-3" />}
+                  {step.status === 'skipped' && <MinusCircle className="size-4 text-ink-3" />}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className={`text-sm font-medium ${step.status === 'skipped' ? 'text-gray-400 line-through' : step.status === 'completed' ? 'text-green-700' : step.status === 'current' ? 'text-blue-700' : 'text-gray-700'}`}>
+                    <span className={`text-sm font-medium ${step.status === 'skipped' ? 'text-ink-3 line-through' : step.status === 'completed' ? 'text-ok' : step.status === 'current' ? 'text-accent-solid' : 'text-ink-2'}`}>
                       {step.name}
                     </span>
                     {step.status === 'future' && step.days > 0 && (
-                      <span className="inline-flex items-center gap-1 text-[10px] text-gray-400">
+                      <span className="inline-flex items-center gap-1 text-[10px] text-ink-3">
                         <Clock className="size-3" />~{step.days}d
                       </span>
                     )}
                     {step.status === 'skipped' && (
-                      <span className="text-[10px] text-gray-400 italic">skipped</span>
+                      <span className="text-[10px] text-ink-3 italic">skipped</span>
                     )}
                   </div>
-                  <p className="text-xs text-gray-500 mt-0.5">{step.detail}</p>
+                  <p className="text-xs text-ink-3 mt-0.5">{step.detail}</p>
                 </div>
               </div>
             ))}
           </div>
-          <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
+          <div className="flex items-center gap-2 pt-2 border-t border-line-2">
             <Clock className="size-4 text-[#2D5F8A]" />
-            <span className="text-sm font-semibold text-gray-900">
+            <span className="text-sm font-semibold text-ink">
               Estimated total: ~{assessment.totalDays} business days
             </span>
           </div>
@@ -1071,9 +1071,9 @@ function ITSecurityAssessmentSection() {
         >
           <CardTitle className="text-sm">IT Security Assessment</CardTitle>
           {collapsed ? (
-            <ChevronDown className="size-4 text-gray-400" />
+            <ChevronDown className="size-4 text-ink-3" />
           ) : (
-            <ChevronUp className="size-4 text-gray-400" />
+            <ChevronUp className="size-4 text-ink-3" />
           )}
         </button>
         <p className="text-xs text-muted-foreground">
@@ -1088,9 +1088,9 @@ function ITSecurityAssessmentSection() {
               onSubmit={() => setSubmitted(true)}
             />
           ) : (
-            <div className="flex items-start gap-3 rounded-lg border border-green-200 bg-green-50 p-4">
-              <CheckCircle className="mt-0.5 size-4 shrink-0 text-green-600" />
-              <p className="text-sm font-medium text-green-800">
+            <div className="flex items-start gap-3 rounded-lg border border-ok-line bg-ok-soft p-4">
+              <CheckCircle className="mt-0.5 size-4 shrink-0 text-ok" />
+              <p className="text-sm font-medium text-ok">
                 IT Security Assessment submitted.
               </p>
             </div>

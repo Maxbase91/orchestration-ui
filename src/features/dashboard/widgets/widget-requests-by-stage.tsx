@@ -51,11 +51,11 @@ export function WidgetRequestsByStage() {
           aria-label={`Open the ${stage.count} request(s) in ${stage.label}`}
           className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted/50"
         >
-          <span className={stage.status === 'referred-back' ? 'text-amber-700' : 'text-gray-700'}>
+          <span className={stage.status === 'referred-back' ? 'text-warn' : 'text-ink-2'}>
             {stage.label}
           </span>
           <span className={`ml-2 shrink-0 text-xs font-semibold ${
-            stage.status === 'referred-back' ? 'text-amber-700' : 'text-gray-900'
+            stage.status === 'referred-back' ? 'text-warn' : 'text-ink'
           }`}>
             {stage.count}
           </span>

@@ -1111,17 +1111,17 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
     // of the product uses (design-document §7.3).
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
       {/* The conversation (3/5) */}
-      <Card className="lg:col-span-3 flex flex-col overflow-hidden border-l-2 border-l-blue-400 bg-blue-50/70 lg:h-[calc(100vh-16rem)] lg:max-h-[640px] lg:min-h-[420px]">
+      <Card className="lg:col-span-3 flex flex-col overflow-hidden border-l-2 border-l-blue-400 bg-accent-soft/70 lg:h-[calc(100vh-16rem)] lg:max-h-[640px] lg:min-h-[420px]">
         {/* The AI visual language: blue-tinted surface, sparkle, and a label
             saying what is generating — the same treatment every AI surface in
             the product carries. */}
-        <CardHeader className="shrink-0 border-b border-blue-100 py-3">
+        <CardHeader className="shrink-0 border-b border-accent-line py-3">
           <CardTitle className="flex items-center gap-2 text-sm">
-            <div className="flex size-6 items-center justify-center rounded-full bg-blue-100">
+            <div className="flex size-6 items-center justify-center rounded-full bg-accent-soft">
               <Sparkles className="size-3.5 text-[#2D5F8A]" />
             </div>
             Procurement assistant
-            <span className="text-[11px] font-normal text-gray-500">AI-guided intake</span>
+            <span className="text-[11px] font-normal text-ink-3">AI-guided intake</span>
           </CardTitle>
         </CardHeader>
 
@@ -1131,7 +1131,7 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
             <div key={i} className={cn('flex gap-2', msg.role === 'user' ? 'flex-row-reverse' : '')}>
               <div className={cn(
                 'flex size-7 shrink-0 items-center justify-center rounded-full',
-                msg.role === 'user' ? 'bg-[#1B2A4A]' : 'bg-blue-100'
+                msg.role === 'user' ? 'bg-[#1B2A4A]' : 'bg-accent-soft'
               )}>
                 {msg.role === 'user'
                   ? <User className="size-3.5 text-white" />
@@ -1140,7 +1140,7 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
               </div>
               <div className={cn(
                 'max-w-[80%] rounded-lg px-3 py-2 text-sm',
-                msg.role === 'user' ? 'bg-[#1B2A4A] text-white' : 'bg-blue-50 text-gray-900'
+                msg.role === 'user' ? 'bg-[#1B2A4A] text-white' : 'bg-accent-soft text-ink'
               )}>
                 <p className="whitespace-pre-wrap">{msg.content}</p>
                 {/* A worked example, shown as a hint UNDER the question and
@@ -1149,8 +1149,8 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
                     run a promptathon to upskill 40 staff on AI tooling" — with
                     a topic belonging to somebody else's project. */}
                 {msg.example && (
-                  <p className="mt-1.5 text-[11px] text-gray-500">
-                    <span className="font-medium uppercase tracking-wider text-gray-400">
+                  <p className="mt-1.5 text-[11px] text-ink-3">
+                    <span className="font-medium uppercase tracking-wider text-ink-3">
                       Example
                     </span>{' '}
                     {msg.example}
@@ -1203,7 +1203,7 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
                     for some demands and not others, and so read as arbitrary
                     without a reason. The mandatory six carry none. */}
                 {msg.why && (
-                  <p className="mt-1.5 border-t border-blue-100 pt-1.5 text-[11px] italic text-gray-500">
+                  <p className="mt-1.5 border-t border-accent-line pt-1.5 text-[11px] italic text-ink-3">
                     Asked because {msg.why.replace(/^Asked because /i, '')}
                   </p>
                 )}
@@ -1214,14 +1214,14 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
           {/* Typing indicator */}
           {isTyping && (
             <div className="flex gap-2">
-              <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-blue-100">
+              <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-accent-soft">
                 <Sparkles className="size-3.5 text-[#2D5F8A]" />
               </div>
-              <div className="rounded-lg bg-blue-50 px-3 py-2">
+              <div className="rounded-lg bg-accent-soft px-3 py-2">
                 <div className="flex gap-1">
-                  <span className="size-1.5 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: '0ms' }} />
-                  <span className="size-1.5 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: '150ms' }} />
-                  <span className="size-1.5 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: '300ms' }} />
+                  <span className="size-1.5 animate-bounce rounded-full bg-idle" style={{ animationDelay: '0ms' }} />
+                  <span className="size-1.5 animate-bounce rounded-full bg-idle" style={{ animationDelay: '150ms' }} />
+                  <span className="size-1.5 animate-bounce rounded-full bg-idle" style={{ animationDelay: '300ms' }} />
                 </div>
               </div>
             </div>
@@ -1230,12 +1230,12 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
           {/* Complete banner + generated narrative */}
           {isComplete && (
             <div className="space-y-3">
-              <div className="flex items-center gap-2 rounded-lg bg-green-50 border border-green-200 p-3">
-                <CheckCircle className="size-5 text-green-600 shrink-0" />
+              <div className="flex items-center gap-2 rounded-lg bg-ok-soft border border-ok-line p-3">
+                <CheckCircle className="size-5 text-ok shrink-0" />
                 <div>
-                  <p className="text-sm font-medium text-green-800">Request details captured</p>
-                  {summary && <p className="text-xs text-green-600 mt-0.5">{summary}</p>}
-                  <p className="text-xs text-green-600 mt-1">Click <strong>Next</strong> to proceed to validation.</p>
+                  <p className="text-sm font-medium text-ok">Request details captured</p>
+                  {summary && <p className="text-xs text-ok mt-0.5">{summary}</p>}
+                  <p className="text-xs text-ok mt-1">Click <strong>Next</strong> to proceed to validation.</p>
                 </div>
               </div>
 
@@ -1249,9 +1249,9 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
 
           {/* Error state */}
           {error && (
-            <div className="flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-200 p-3">
-              <AlertTriangle className="size-4 text-amber-600 shrink-0" />
-              <p className="text-xs text-amber-700">Connection issue. Try sending your message again.</p>
+            <div className="flex items-center gap-2 rounded-lg bg-warn-soft border border-warn-line p-3">
+              <AlertTriangle className="size-4 text-warn shrink-0" />
+              <p className="text-xs text-warn">Connection issue. Try sending your message again.</p>
             </div>
           )}
 
@@ -1259,7 +1259,7 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
         </div>
 
         {/* Input */}
-        <div className="shrink-0 border-t border-blue-100 bg-white/60 p-3 flex gap-2">
+        <div className="shrink-0 border-t border-accent-line bg-card/60 p-3 flex gap-2">
           <Input
             ref={inputRef}
             value={inputValue}
@@ -1291,20 +1291,20 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
                   title is the step heading ("Service description") above. */}
               <div>
                 <div className="mb-1 flex items-center justify-between text-xs">
-                  <span className="font-medium text-gray-700">
+                  <span className="font-medium text-ink-2">
                     Enough for the risk assessment and sourcing
                   </span>
-                  <span className="text-gray-500">{unifiedDone} of {unifiedTotal}</span>
+                  <span className="text-ink-3">{unifiedDone} of {unifiedTotal}</span>
                 </div>
-                <div className="h-1.5 overflow-hidden rounded-full bg-gray-100">
+                <div className="h-1.5 overflow-hidden rounded-full bg-idle-soft">
                   <div className="h-full rounded-full bg-[#2D5F8A] transition-all duration-500" style={{ width: `${unifiedPct}%` }} />
                 </div>
-                <p className="mt-1.5 text-[11px] text-gray-500">
+                <p className="mt-1.5 text-[11px] text-ink-3">
                   What you write here is reused across the process — it is what suppliers
                   price against and what the risk assessment reads.
                 </p>
               </div>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">Key facts</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-3">Key facts</p>
 
               <div className="space-y-2">
                 {FIELD_LABELS.map(({ key, label }) => {
@@ -1318,12 +1318,12 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
                   const editable = key === 'title' || key === 'estimatedValue';
                   return (
                     <div key={key} className="flex items-start gap-2">
-                      {filled ? <CheckCircle className="size-3.5 text-green-500 mt-0.5 shrink-0" /> : <Circle className="size-3.5 text-gray-300 mt-0.5 shrink-0" />}
+                      {filled ? <CheckCircle className="size-3.5 text-ok mt-0.5 shrink-0" /> : <Circle className="size-3.5 text-ink-3 mt-0.5 shrink-0" />}
                       <div className="min-w-0 flex-1">
-                        <p className="text-[11px] font-medium uppercase tracking-wider text-gray-500">{label}</p>
+                        <p className="text-[11px] font-medium uppercase tracking-wider text-ink-3">{label}</p>
                         {editable ? (
                           <input
-                            className="w-full rounded border border-transparent bg-transparent px-1 py-0.5 text-xs text-gray-900 transition-colors hover:border-gray-200 focus:border-[#2D5F8A] focus:bg-white focus:outline-none"
+                            className="w-full rounded border border-transparent bg-transparent px-1 py-0.5 text-xs text-ink transition-colors hover:border-line focus:border-[#2D5F8A] focus:bg-card focus:outline-none"
                             value={key === 'estimatedValue' ? (data.estimatedValue || '') : data.title}
                             placeholder={key === 'estimatedValue' ? 'Estimated value' : 'Describe what you need'}
                             inputMode={key === 'estimatedValue' ? 'numeric' : undefined}
@@ -1334,7 +1334,7 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
                             )}
                           />
                         ) : (
-                          <p className={cn('text-xs truncate', filled ? 'text-gray-900' : 'text-gray-300 italic')}>{filled ? value : 'Pending...'}</p>
+                          <p className={cn('text-xs truncate', filled ? 'text-ink' : 'text-ink-3 italic')}>{filled ? value : 'Pending...'}</p>
                         )}
                       </div>
                     </div>
@@ -1345,25 +1345,25 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
               {/* Only shown when a supplier is already known (named in the
                   demand); otherwise the supplier is chosen later in compliance. */}
               {data.supplier && (
-                <div className="rounded-md bg-green-50 border border-green-100 px-2 py-1.5">
-                  <p className="text-[11px] font-medium uppercase tracking-wider text-green-600">
+                <div className="rounded-md bg-ok-soft border border-ok-line px-2 py-1.5">
+                  <p className="text-[11px] font-medium uppercase tracking-wider text-ok">
                     {data.supplierId ? 'Supplier Matched' : 'Supplier Named'}
                   </p>
-                  <p className="text-xs text-green-800">{data.supplier}</p>
+                  <p className="text-xs text-ok">{data.supplier}</p>
                 </div>
               )}
               {/* SERVICE DESCRIPTION — the master document, same panel as the facts above */}
-              <div className="pt-3 border-t border-gray-100 space-y-3">
+              <div className="pt-3 border-t border-line-2 space-y-3">
               {/* Header row — the service description builds automatically from
                   the conversation; there is no manual generate action. */}
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-1.5">
                   <FileText className="size-3.5 text-[#2D5F8A]" />
-                  <h4 className="text-sm font-semibold text-gray-900">Service description</h4>
+                  <h4 className="text-sm font-semibold text-ink">Service description</h4>
                 </div>
                 <div className="flex items-center gap-1.5">
                   {generating && (
-                    <span className="flex items-center gap-1 text-[10px] text-gray-400">
+                    <span className="flex items-center gap-1 text-[10px] text-ink-3">
                       <Loader2 className="size-3 animate-spin" />
                       Composing…
                     </span>
@@ -1383,24 +1383,24 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
                     className="flex items-center gap-1.5 w-full"
                     onClick={() => setShowQuality((v) => !v)}
                   >
-                    <ShieldCheck className={`size-3.5 shrink-0 ${qualityScore >= 80 ? 'text-green-600' : qualityScore >= 60 ? 'text-amber-500' : 'text-red-500'}`} />
-                    <span className={`text-[10px] font-semibold ${qualityScore >= 80 ? 'text-green-700' : qualityScore >= 60 ? 'text-amber-700' : 'text-red-700'}`}>
+                    <ShieldCheck className={`size-3.5 shrink-0 ${qualityScore >= 80 ? 'text-ok' : qualityScore >= 60 ? 'text-warn' : 'text-stop'}`} />
+                    <span className={`text-[10px] font-semibold ${qualityScore >= 80 ? 'text-ok' : qualityScore >= 60 ? 'text-warn' : 'text-stop'}`}>
                       SOW Quality: {qualityScore}/100
                     </span>
                     {qualityChecks.some((c) => !c.passed) && (
-                      <Badge variant="outline" className="text-[9px] px-1 py-0 border-amber-300 text-amber-700">
+                      <Badge variant="outline" className="text-[9px] px-1 py-0 border-warn-line text-warn">
                         {qualityChecks.filter((c) => !c.passed).length} issue{qualityChecks.filter((c) => !c.passed).length > 1 ? 's' : ''}
                       </Badge>
                     )}
                   </button>
                   {showQuality && (
-                    <div className="rounded-md border border-gray-100 bg-gray-50 p-2 space-y-0.5">
+                    <div className="rounded-md border border-line-2 bg-card-2 p-2 space-y-0.5">
                       {qualityChecks.map((chk) => (
                         <div key={chk.section} className="flex items-start gap-1.5 text-[10px]">
                           {chk.passed
-                            ? <CheckCircle className="size-3 text-green-500 shrink-0 mt-0.5" />
-                            : <XCircle className="size-3 text-red-400 shrink-0 mt-0.5" />}
-                          <span className={chk.passed ? 'text-gray-500' : 'text-red-600'}>
+                            ? <CheckCircle className="size-3 text-ok shrink-0 mt-0.5" />
+                            : <XCircle className="size-3 text-stop shrink-0 mt-0.5" />}
+                          <span className={chk.passed ? 'text-ink-3' : 'text-stop'}>
                             <span className="font-medium capitalize">{chk.section.replace(/([A-Z])/g, ' $1')}</span>
                             {!chk.passed && `: ${chk.issue}`}
                           </span>
@@ -1425,30 +1425,30 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
                   <div key={id}>
                     <div className="flex items-center gap-1.5">
                       {value
-                        ? <CheckCircle className="size-3 shrink-0 text-green-500" />
-                        : <Circle className={cn('size-3 shrink-0', asked ? 'text-gray-300' : 'text-blue-200')} />}
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">{label}</p>
+                        ? <CheckCircle className="size-3 shrink-0 text-ok" />
+                        : <Circle className={cn('size-3 shrink-0', asked ? 'text-ink-3' : 'text-accent-line')} />}
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-3">{label}</p>
                       {!asked && (
-                        <span className="text-[9px] uppercase tracking-wider text-blue-400">inferred</span>
+                        <span className="text-[9px] uppercase tracking-wider text-accent-solid">inferred</span>
                       )}
                       {/* Provenance, so a reviewer can see which parts of the
                           description the requester did not really write. */}
                       {capture === 'assistant-drafted' && (
-                        <span className="text-[9px] uppercase tracking-wider text-blue-400">drafted for you</span>
+                        <span className="text-[9px] uppercase tracking-wider text-accent-solid">drafted for you</span>
                       )}
                       {capture === 'weak' && (
-                        <span className="text-[9px] uppercase tracking-wider text-amber-500">needs detail</span>
+                        <span className="text-[9px] uppercase tracking-wider text-warn">needs detail</span>
                       )}
                     </div>
                     {value ? (
                       <textarea
-                        className="mt-0.5 w-full text-[11px] text-gray-700 leading-relaxed bg-transparent border border-transparent hover:border-gray-200 focus:border-[#2D5F8A] focus:bg-white focus:outline-none rounded px-1.5 py-1 resize-none transition-colors"
+                        className="mt-0.5 w-full text-[11px] text-ink-2 leading-relaxed bg-transparent border border-transparent hover:border-line focus:border-[#2D5F8A] focus:bg-card focus:outline-none rounded px-1.5 py-1 resize-none transition-colors"
                         rows={Math.max(2, Math.ceil(value.length / 80))}
                         value={value}
                         onChange={(e) => handleSowEdit(id, e.target.value)}
                       />
                     ) : (
-                      <p className="mt-0.5 pl-[18px] text-[11px] italic text-gray-300">
+                      <p className="mt-0.5 pl-[18px] text-[11px] italic text-ink-3">
                         {asked ? 'Pending — captured as you answer.' : 'Written for you when the description is composed.'}
                       </p>
                     )}
@@ -1461,16 +1461,16 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
                   offline nothing composes it, and a join of the raw answers is
                   not a service description. */}
               {svcDesc.narrative && (
-                <div className="mt-3 pt-3 border-t border-gray-100">
-                  <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">Service description</p>
-                  <div className="rounded-md bg-gray-50 border border-gray-200 p-3">
-                    <p className="text-[11px] text-gray-700 leading-relaxed whitespace-pre-wrap">{svcDesc.narrative}</p>
+                <div className="mt-3 pt-3 border-t border-line-2">
+                  <p className="text-[10px] font-semibold text-ink-3 uppercase tracking-wider mb-1">Service description</p>
+                  <div className="rounded-md bg-card-2 border border-line p-3">
+                    <p className="text-[11px] text-ink-2 leading-relaxed whitespace-pre-wrap">{svcDesc.narrative}</p>
                   </div>
                 </div>
               )}
 
               {Object.keys(svcDesc).filter((k) => k !== 'narrative' && svcDesc[k as keyof ServiceDescription]).length === 0 && (
-                <p className="text-xs text-gray-400 text-center py-4">Answer the assistant&apos;s questions — your service description builds automatically as the details come together.</p>
+                <p className="text-xs text-ink-3 text-center py-4">Answer the assistant&apos;s questions — your service description builds automatically as the details come together.</p>
               )}
             </div>
           {/* Currency, urgency and cost centre are commercial facts, not part of
@@ -1480,8 +1480,8 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
               nowhere at all. Three controls, shown once the description is
               complete so they do not interrupt the conversation. */}
           {isComplete && (
-            <div className="mt-3 space-y-3 rounded-md border border-gray-200 bg-white p-3">
-              <p className="text-xs font-semibold text-gray-700">Commercial details</p>
+            <div className="mt-3 space-y-3 rounded-md border border-line bg-card p-3">
+              <p className="text-xs font-semibold text-ink-2">Commercial details</p>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label className="text-[11px]">Currency</Label>
@@ -1522,9 +1522,9 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
           )}
 
           {isComplete && (
-            <div className="rounded-md bg-green-50 border border-green-200 p-2 text-center mt-3">
-              <CheckCircle className="size-4 text-green-600 mx-auto mb-0.5" />
-              <p className="text-xs font-medium text-green-800">Ready for validation</p>
+            <div className="rounded-md bg-ok-soft border border-ok-line p-2 text-center mt-3">
+              <CheckCircle className="size-4 text-ok mx-auto mb-0.5" />
+              <p className="text-xs font-medium text-ok">Ready for validation</p>
             </div>
           )}
         </Card>

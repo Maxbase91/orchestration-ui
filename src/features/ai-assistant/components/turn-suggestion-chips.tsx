@@ -12,7 +12,7 @@ export function TurnSuggestionChips({ turn, onChipClick }: Props) {
       {turn.chips.map((chip, i) => (
         <button
           key={chip.label}
-          className="animate-chip-in rounded-full border border-gray-200 bg-white shadow-sm hover:shadow hover:border-gray-300 px-3 py-1.5 text-[12px] font-medium text-gray-700 transition-all duration-150"
+          className="animate-chip-in rounded-full border border-line bg-card shadow-sm hover:shadow hover:border-line px-3 py-1.5 text-[12px] font-medium text-ink-2 transition-all duration-150"
           style={{ animationDelay: `${i * 60}ms` }}
           onClick={() => onChipClick(chip.prompt)}
         >

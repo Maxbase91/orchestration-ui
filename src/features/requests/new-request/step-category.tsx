@@ -337,15 +337,15 @@ export function StepCategory({ prefill, onUpdate, onAutoAdvance, onBrowseCatalog
     <div className="space-y-6">
       {/* Free text input */}
       <div>
-        <label htmlFor="need-input" className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor="need-input" className="block text-sm font-medium text-ink-2 mb-1">
           Describe what you need
         </label>
         {/* The step's guidance panel already says what happens to this text and
             that no category is needed; repeating it here made the same sentence
             appear twice within one screen. This says only what the control does. */}
-        <p className="text-xs text-gray-500 mb-2">Press Enter when you are done.</p>
+        <p className="text-xs text-ink-3 mb-2">Press Enter when you are done.</p>
         <form onSubmit={handleSubmit} className="relative">
-          <Sparkles className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+          <Sparkles className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-ink-3" />
           <Input
             id="need-input"
             placeholder='e.g. "I need business consulting from Accenture for a digital transformation project"'
@@ -367,17 +367,17 @@ export function StepCategory({ prefill, onUpdate, onAutoAdvance, onBrowseCatalog
           )}
         </form>
         <div className="mt-3 flex items-center gap-3">
-          <label htmlFor="intake-upload" className="cursor-pointer text-xs font-medium text-blue-700 hover:underline">
+          <label htmlFor="intake-upload" className="cursor-pointer text-xs font-medium text-accent-solid hover:underline">
             Upload a PDF or DOCX
           </label>
           <input id="intake-upload" type="file" accept="application/pdf,.pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx" className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; if (file) void handleFile(file); }} />
-          <span className="text-[11px] text-gray-400">We extract the details for you to confirm.</span>
+          <span className="text-[11px] text-ink-3">We extract the details for you to confirm.</span>
         </div>
       </div>
 
       {/* Loading */}
       {loading && (
-        <div className="flex items-center justify-center gap-2 text-sm text-gray-500 py-4">
+        <div className="flex items-center justify-center gap-2 text-sm text-ink-3 py-4">
           <Loader2 className="size-4 animate-spin" />
           Analysing your request...
         </div>
@@ -387,7 +387,7 @@ export function StepCategory({ prefill, onUpdate, onAutoAdvance, onBrowseCatalog
           controls lock rather than the block vanishing, so the requester is not
           shown an empty screen while the wizard advances. */}
       {aiResult && !loading && (
-        <div className="rounded-lg border-l-2 border-[#2D5F8A] bg-blue-50/50 p-4 space-y-3">
+        <div className="rounded-lg border-l-2 border-[#2D5F8A] bg-accent-soft/50 p-4 space-y-3">
           <div className="flex items-start gap-2">
             <Sparkles className="size-4 text-[#2D5F8A] mt-0.5 shrink-0" />
             <div className="flex-1 space-y-3">
@@ -395,7 +395,7 @@ export function StepCategory({ prefill, onUpdate, onAutoAdvance, onBrowseCatalog
                 <span className="text-xs font-medium text-[#2D5F8A]">AI Classification</span>
                 {/* Provenance, not a confidence score: the model returns no
                     confidence, so any percentage here would be invented. */}
-                <Badge variant="outline" className="text-[10px] border-blue-200 text-blue-600">
+                <Badge variant="outline" className="text-[10px] border-accent-line text-accent-solid">
                   {aiResult.source === 'llm' ? 'AI classified' : 'Keyword match'}
                 </Badge>
               </div>
@@ -404,21 +404,21 @@ export function StepCategory({ prefill, onUpdate, onAutoAdvance, onBrowseCatalog
                   heading rather than a card of its own: it and the raw input
                   above are the same sentence, and showing it three times (title
                   card, description, input box) read as three separate facts. */}
-              <h3 className="text-base font-semibold leading-snug text-gray-900">
+              <h3 className="text-base font-semibold leading-snug text-ink">
                 {aiResult.title || inputValue}
               </h3>
 
               {/* Specific candidates replace the old Goods/Services choice. */}
-              <div className="rounded-md border border-gray-200 bg-white px-3 py-2">
-                <p className="text-[10px] font-medium uppercase tracking-wider text-gray-400">Suggested commodity or service family</p>
+              <div className="rounded-md border border-line bg-card px-3 py-2">
+                <p className="text-[10px] font-medium uppercase tracking-wider text-ink-3">Suggested commodity or service family</p>
                 {(aiResult.commodityCandidates ?? []).map((candidate) => (
-                  <button key={candidate.code} type="button" className={`mt-2 flex w-full items-center justify-between rounded border px-2 py-1.5 text-left hover:border-blue-400 ${selectedCode === candidate.code && !noneSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}`} onClick={() => { setSelectedCode(candidate.code); setNoneSelected(false); }}>
-                    <span><span className="font-medium text-gray-900">{candidate.label}</span><span className="ml-2 text-[11px] text-gray-500">{candidate.code}</span><span className="block text-[10px] text-gray-500">{candidate.reason}</span></span>
-                    <span className="text-xs font-semibold text-blue-700">{Math.round(candidate.probability * 100)}%</span>
+                  <button key={candidate.code} type="button" className={`mt-2 flex w-full items-center justify-between rounded border px-2 py-1.5 text-left hover:border-accent-solid ${selectedCode === candidate.code && !noneSelected ? 'border-accent-solid bg-accent-soft' : 'border-line'}`} onClick={() => { setSelectedCode(candidate.code); setNoneSelected(false); }}>
+                    <span><span className="font-medium text-ink">{candidate.label}</span><span className="ml-2 text-[11px] text-ink-3">{candidate.code}</span><span className="block text-[10px] text-ink-3">{candidate.reason}</span></span>
+                    <span className="text-xs font-semibold text-accent-solid">{Math.round(candidate.probability * 100)}%</span>
                   </button>
                 ))}
-                {!!aiResult.commodityCandidates?.length && <button type="button" className={`mt-2 text-xs ${noneSelected ? 'font-semibold text-blue-700' : 'text-gray-500 hover:text-blue-700'}`} onClick={() => { setNoneSelected(true); setSelectedCode(null); }}>None of these</button>}
-                {!aiResult.commodityCandidates?.length && <p className="text-sm text-gray-600">Specific classification will be confirmed later.</p>}
+                {!!aiResult.commodityCandidates?.length && <button type="button" className={`mt-2 text-xs ${noneSelected ? 'font-semibold text-accent-solid' : 'text-ink-3 hover:text-accent-solid'}`} onClick={() => { setNoneSelected(true); setSelectedCode(null); }}>None of these</button>}
+                {!aiResult.commodityCandidates?.length && <p className="text-sm text-ink-2">Specific classification will be confirmed later.</p>}
               </div>
 
               {/* Supplier and value are labelled EXTRACTED, matching the
@@ -428,23 +428,23 @@ export function StepCategory({ prefill, onUpdate, onAutoAdvance, onBrowseCatalog
               {(aiResult.supplier || aiResult.estimatedValue > 0) && (
                 <div className="grid grid-cols-2 gap-2">
                   {aiResult.supplier && (
-                    <div className="rounded-md border border-gray-200 bg-white px-3 py-2">
-                      <p className="text-[10px] font-medium uppercase tracking-wider text-gray-400">
+                    <div className="rounded-md border border-line bg-card px-3 py-2">
+                      <p className="text-[10px] font-medium uppercase tracking-wider text-ink-3">
                         Supplier · extracted
                       </p>
-                      <p className="truncate text-sm font-medium text-gray-900">{aiResult.supplier}</p>
-                      <p className="text-[11px] text-gray-400">confirm on the determination</p>
+                      <p className="truncate text-sm font-medium text-ink">{aiResult.supplier}</p>
+                      <p className="text-[11px] text-ink-3">confirm on the determination</p>
                     </div>
                   )}
                   {aiResult.estimatedValue > 0 && (
-                    <div className="rounded-md border border-gray-200 bg-white px-3 py-2">
-                      <p className="text-[10px] font-medium uppercase tracking-wider text-gray-400">
+                    <div className="rounded-md border border-line bg-card px-3 py-2">
+                      <p className="text-[10px] font-medium uppercase tracking-wider text-ink-3">
                         Est. value · extracted
                       </p>
-                      <p className="text-sm font-medium text-gray-900">
+                      <p className="text-sm font-medium text-ink">
                         €{aiResult.estimatedValue.toLocaleString()}
                       </p>
-                      <p className="text-[11px] text-gray-400">refine at any point</p>
+                      <p className="text-[11px] text-ink-3">refine at any point</p>
                     </div>
                   )}
                 </div>
@@ -476,8 +476,8 @@ export function StepCategory({ prefill, onUpdate, onAutoAdvance, onBrowseCatalog
           fulfilment path (catalogue / contract / full request) is derived from
           the description, not chosen up front. */}
       {!loading && !accepted && onBrowseCatalogue && (
-        <div className="rounded-lg border border-dashed border-gray-200 p-4 text-center">
-          <p className="text-sm text-gray-600">Already know it&apos;s an off-the-shelf catalogue item?</p>
+        <div className="rounded-lg border border-dashed border-line p-4 text-center">
+          <p className="text-sm text-ink-2">Already know it&apos;s an off-the-shelf catalogue item?</p>
           <Button variant="outline" size="sm" className="mt-2" onClick={onBrowseCatalogue}>
             <ShoppingCart className="size-4" />
             Browse the catalogue

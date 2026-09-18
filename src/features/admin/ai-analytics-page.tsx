@@ -36,9 +36,9 @@ function StatCard({ label, value, icon: Icon, sub }: {
     <Card className="p-5">
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-gray-500">{label}</p>
-          <p className="mt-1.5 text-2xl font-semibold text-gray-900">{value}</p>
-          {sub && <p className="mt-0.5 text-xs text-gray-400">{sub}</p>}
+          <p className="text-xs font-medium uppercase tracking-wide text-ink-3">{label}</p>
+          <p className="mt-1.5 text-2xl font-semibold text-ink">{value}</p>
+          {sub && <p className="mt-0.5 text-xs text-ink-3">{sub}</p>}
         </div>
         <div className="flex size-9 items-center justify-center rounded-lg bg-[#1B2A4A]/8">
           <Icon className="size-4 text-[#1B2A4A]" />
@@ -133,11 +133,11 @@ export function AIAnalyticsPage() {
           identical on a chart, and reporting the second as the first is the
           invented-number failure this tranche exists to remove. */}
       {failed ? (
-        <div className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 p-3">
-          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-red-700" />
-          <div className="text-sm text-red-900">
+        <div className="flex items-start gap-2 rounded-md border border-stop-line bg-stop-soft p-3">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-stop" />
+          <div className="text-sm text-stop">
             <p className="font-medium">Analytics could not be loaded</p>
-            <p className="mt-0.5 text-xs text-red-800">
+            <p className="mt-0.5 text-xs text-stop">
               The assistant conversation and feedback tables could not be read, so the figures
               below would be zeroes rather than measurements. Nothing is shown rather than
               something wrong.
@@ -145,7 +145,7 @@ export function AIAnalyticsPage() {
           </div>
         </div>
       ) : loading ? (
-        <div className="flex items-center justify-center py-20 text-sm text-gray-400">
+        <div className="flex items-center justify-center py-20 text-sm text-ink-3">
           Loading analytics…
         </div>
       ) : (
@@ -181,7 +181,7 @@ export function AIAnalyticsPage() {
           {/* Charts row */}
           <div className="grid gap-6 lg:grid-cols-3">
             <Card className="col-span-2 p-5">
-              <p className="mb-4 text-sm font-medium text-gray-700">Conversations per day</p>
+              <p className="mb-4 text-sm font-medium text-ink-2">Conversations per day</p>
               <BarChartWidget
                 data={dailyBuckets}
                 dataKeys={[
@@ -195,9 +195,9 @@ export function AIAnalyticsPage() {
             </Card>
 
             <Card className="p-5">
-              <p className="mb-4 text-sm font-medium text-gray-700">Answer quality</p>
+              <p className="mb-4 text-sm font-medium text-ink-2">Answer quality</p>
               {totalFeedback === 0 ? (
-                <div className="flex h-[220px] items-center justify-center text-sm text-gray-400">
+                <div className="flex h-[220px] items-center justify-center text-sm text-ink-3">
                   No feedback collected yet
                 </div>
               ) : (
@@ -212,12 +212,12 @@ export function AIAnalyticsPage() {
 
           {/* Recent conversations */}
           <Card>
-            <div className="border-b border-gray-100 px-5 py-3.5">
-              <p className="text-sm font-medium text-gray-700">Recent conversations (14 days)</p>
+            <div className="border-b border-line-2 px-5 py-3.5">
+              <p className="text-sm font-medium text-ink-2">Recent conversations (14 days)</p>
             </div>
-            <div className="divide-y divide-gray-50">
+            <div className="divide-y divide-line-2">
               {convs.length === 0 ? (
-                <p className="px-5 py-8 text-center text-sm text-gray-400">No conversations in this period.</p>
+                <p className="px-5 py-8 text-center text-sm text-ink-3">No conversations in this period.</p>
               ) : (
                 convs.slice(0, 20).map((c) => {
                   const msgCount = c.messages?.length ?? 0;
@@ -225,12 +225,12 @@ export function AIAnalyticsPage() {
                   return (
                     <div key={c.id} className="flex items-center gap-3 px-5 py-3">
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm text-gray-800">{c.title}</p>
-                        <p className="text-xs text-gray-400">
+                        <p className="truncate text-sm text-ink">{c.title}</p>
+                        <p className="text-xs text-ink-3">
                           {userMsgs} {userMsgs === 1 ? 'query' : 'queries'} · {msgCount} messages
                         </p>
                       </div>
-                      <span className="shrink-0 text-xs text-gray-400">
+                      <span className="shrink-0 text-xs text-ink-3">
                         {format(parseISO(c.created_at), 'MMM d, HH:mm')}
                       </span>
                     </div>

@@ -18,7 +18,7 @@ export function PortalDashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold text-gray-900">Welcome back, {supplierName}</h1>
+        <h1 className="text-xl font-semibold text-ink">Welcome back, {supplierName}</h1>
         <p className="mt-0.5 text-sm text-muted-foreground">
           Here is an overview of your account activity.
         </p>
@@ -28,22 +28,22 @@ export function PortalDashboard() {
       <Card className="border-l-2 border-l-amber-500 py-4">
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-sm">
-            <AlertCircle className="size-4 text-amber-600" />
+            <AlertCircle className="size-4 text-warn" />
             Action Items
           </CardTitle>
         </CardHeader>
         <CardContent>
           <ul className="space-y-2 text-sm">
             <li className="flex items-center gap-2">
-              <span className="size-1.5 rounded-full bg-amber-500" />
+              <span className="size-1.5 rounded-full bg-warn" />
               <span>2 documents due for renewal</span>
             </li>
             <li className="flex items-center gap-2">
-              <span className="size-1.5 rounded-full bg-amber-500" />
+              <span className="size-1.5 rounded-full bg-warn" />
               <span>1 compliance questionnaire to complete</span>
             </li>
             <li className="flex items-center gap-2">
-              <span className="size-1.5 rounded-full bg-blue-500" />
+              <span className="size-1.5 rounded-full bg-accent-solid" />
               <span>New sourcing event invitation</span>
             </li>
           </ul>
@@ -81,11 +81,11 @@ export function PortalDashboard() {
                 {invoices.map((inv) => (
                   <div key={inv.id} className="flex items-center justify-between rounded-md border p-2.5">
                     <div>
-                      <p className="text-sm font-medium text-gray-900">{inv.id}</p>
+                      <p className="text-sm font-medium text-ink">{inv.id}</p>
                       <p className="text-xs text-muted-foreground">{formatDate(inv.invoiceDate)}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-medium text-gray-900">{formatCurrency(inv.amount)}</p>
+                      <p className="text-sm font-medium text-ink">{formatCurrency(inv.amount)}</p>
                       <p className="text-xs text-muted-foreground capitalize">{inv.status}</p>
                     </div>
                   </div>
@@ -105,14 +105,14 @@ export function PortalDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              <div className="rounded-md bg-blue-50 p-3">
-                <p className="text-sm font-medium text-blue-900">New Supplier Portal Features</p>
-                <p className="mt-1 text-xs text-blue-700">
+              <div className="rounded-md bg-accent-soft p-3">
+                <p className="text-sm font-medium text-accent-solid">New Supplier Portal Features</p>
+                <p className="mt-1 text-xs text-accent-solid">
                   You can now submit invoices and track payment status directly through the portal. Check the Invoices tab for details.
                 </p>
               </div>
-              <div className="rounded-md bg-gray-50 p-3">
-                <p className="text-sm font-medium text-gray-900">Annual Compliance Review</p>
+              <div className="rounded-md bg-card-2 p-3">
+                <p className="text-sm font-medium text-ink">Annual Compliance Review</p>
                 <p className="mt-1 text-xs text-muted-foreground">
                   The annual supplier compliance review cycle begins next month. Please ensure all certifications are up to date.
                 </p>

@@ -38,7 +38,7 @@ import { QABoard } from './components/qa-board';
 
 /** Renders a value, or an em-dash placeholder when it is not set. */
 function OrDash({ value }: { value: string | null | undefined }) {
-  return value ? <>{value}</> : <span className="text-gray-400">—</span>;
+  return value ? <>{value}</> : <span className="text-ink-3">—</span>;
 }
 
 export function EventDetailPage() {
@@ -132,7 +132,7 @@ export function EventDetailPage() {
         badge={
           <div className="flex items-center gap-2">
             <StatusBadge status={event.status} />
-            <span className="rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
+            <span className="rounded bg-idle-soft px-2 py-0.5 text-xs font-medium text-ink-2">
               {event.type}
             </span>
           </div>
@@ -157,7 +157,7 @@ export function EventDetailPage() {
               <Button
                 size="sm"
                 variant="outline"
-                className="border-amber-300 text-amber-700 hover:bg-amber-50"
+                className="border-warn-line text-warn hover:bg-warn-soft"
                 onClick={handleReapply}
                 disabled={applyAward.isPending}
               >
@@ -192,7 +192,7 @@ export function EventDetailPage() {
               <CardHeader><CardTitle className="text-sm text-muted-foreground">Supplier Responses</CardTitle></CardHeader>
               <CardContent className="space-y-2 text-sm">
                 <div className="flex justify-between"><span className="text-muted-foreground">Invited</span><span className="font-medium">{responses.length}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Responded</span><span className="font-medium text-green-700">{respondedCount}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Responded</span><span className="font-medium text-ok">{respondedCount}</span></div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Response rate</span>
                   <span className="font-medium">
@@ -214,11 +214,11 @@ export function EventDetailPage() {
                   <span className="text-muted-foreground">Raised from</span>
                   <span>
                     {event.requestId ? (
-                      <Link to={`/requests/${event.requestId}`} className="text-blue-600 hover:underline">
+                      <Link to={`/requests/${event.requestId}`} className="text-accent-solid hover:underline">
                         {event.requestId}
                       </Link>
                     ) : (
-                      <span className="text-gray-400">—</span>
+                      <span className="text-ink-3">—</span>
                     )}
                   </span>
                 </div>
@@ -251,14 +251,14 @@ export function EventDetailPage() {
                         <td className="py-2 font-medium">
                           {r.supplierName}
                           {r.awarded && (
-                            <span className="ml-2 rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-medium text-green-800">
+                            <span className="ml-2 rounded-full bg-ok-soft px-2 py-0.5 text-[11px] font-medium text-ok">
                               Awarded
                             </span>
                           )}
                         </td>
                         <td className="py-2"><StatusBadge status={r.status} size="sm" /></td>
                         <td className="py-2 tabular-nums">
-                          {r.price != null ? formatCurrency(r.price) : <span className="text-gray-400">—</span>}
+                          {r.price != null ? formatCurrency(r.price) : <span className="text-ink-3">—</span>}
                         </td>
                         <td className="py-2 text-muted-foreground">
                           {r.responseDate ? formatDate(r.responseDate) : '—'}

@@ -97,7 +97,7 @@ export function CostCentresPage() {
       render: (r) => ((r.owner as string)
         ? <span className="text-sm">{r.owner as string}</span>
         : (
-          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-700">
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-warn">
             <AlertTriangle className="size-3.5" />
             No budget owner
           </span>
@@ -107,7 +107,7 @@ export function CostCentresPage() {
     {
       key: 'active', label: 'Status',
       render: (r) => (
-        <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${r.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+        <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${r.active ? 'bg-ok-soft text-ok' : 'bg-idle-soft text-ink-3'}`}>
           {r.active ? 'Active' : 'Retired'}
         </span>
       ),

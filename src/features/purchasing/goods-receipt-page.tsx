@@ -88,7 +88,7 @@ export function GoodsReceiptPage() {
       render: (row) => {
         const pending = row.itemsPending as number;
         return (
-          <span className={pending > 0 ? 'text-sm font-semibold text-amber-600' : 'text-sm text-green-600'}>
+          <span className={pending > 0 ? 'text-sm font-semibold text-warn' : 'text-sm text-ok'}>
             {pending > 0 ? `${pending} pending` : 'All received'}
           </span>
         );
@@ -115,11 +115,11 @@ export function GoodsReceiptPage() {
       {selectedPO && (
         <div className="mt-4">
           <div className="mb-2 flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-gray-900">
+            <h3 className="text-sm font-semibold text-ink">
               Goods Receipt for {selectedPO.id} - {selectedPO.supplierName}
             </h3>
             <button
-              className="text-xs text-muted-foreground hover:text-gray-700"
+              className="text-xs text-muted-foreground hover:text-ink-2"
               onClick={() => setSelectedPO(null)}
             >
               Close

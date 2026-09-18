@@ -45,7 +45,7 @@ export function DashboardWidgetCard({ id, title, size, onRemove, children }: Das
       className={cn(
         'group bg-card rounded-md shadow-[0_1px_4px_rgba(0,0,0,0.08)] p-4',
         sizeClasses[size] ?? 'col-span-1',
-        isDragging && 'opacity-50 ring-2 ring-blue-200',
+        isDragging && 'opacity-50 ring-2 ring-accent-line',
       )}
     >
       <div className="flex items-center justify-between mb-3">
@@ -59,7 +59,7 @@ export function DashboardWidgetCard({ id, title, size, onRemove, children }: Das
           >
             <GripVertical className="size-4" />
           </button>
-          <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
+          <h3 className="text-sm font-semibold text-ink">{title}</h3>
         </div>
         <button
           type="button"

@@ -22,7 +22,7 @@ export function CatalogueItemDetailPage() {
   if (isError || !item) {
     return (
       <div className="mx-auto max-w-2xl py-12 text-center">
-        <h1 className="text-xl font-semibold text-gray-900">Catalogue item not found</h1>
+        <h1 className="text-xl font-semibold text-ink">Catalogue item not found</h1>
         <p className="mt-2 text-sm text-muted-foreground">This item may have been removed or is no longer available.</p>
         <Button asChild variant="outline" className="mt-5"><Link to="/requests/new"><ArrowLeft className="size-4" />Back to requests</Link></Button>
       </div>
@@ -56,39 +56,39 @@ export function CatalogueItemDetailPage() {
             <CardContent className="p-6 sm:p-8">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="secondary">{item.catalogueName}</Badge>
-                <Badge className={available ? 'gap-1 bg-green-100 text-green-800 hover:bg-green-100' : 'gap-1 bg-amber-100 text-amber-800 hover:bg-amber-100'}>{available ? <><CheckCircle2 className="size-3" />Available</> : 'Unavailable'}</Badge>
+                <Badge className={available ? 'gap-1 bg-ok-soft text-ok hover:bg-ok-soft' : 'gap-1 bg-warn-soft text-warn hover:bg-warn-soft'}>{available ? <><CheckCircle2 className="size-3" />Available</> : 'Unavailable'}</Badge>
               </div>
-              <h1 className="mt-4 text-2xl font-semibold text-gray-950">{item.name}</h1>
-              <p className="mt-3 text-base leading-7 text-gray-600">{item.description}</p>
-              <div className="mt-6 grid gap-4 border-t border-gray-100 pt-5 sm:grid-cols-3">
-                <div><p className="text-xs text-muted-foreground">Price</p><p className="mt-1 text-lg font-semibold text-gray-950">€{item.unitPrice.toLocaleString('de-DE', { minimumFractionDigits: 2 })}<span className="text-sm font-normal text-gray-500"> / {item.unit}</span></p></div>
-                <div><p className="text-xs text-muted-foreground">Supplier</p><p className="mt-1 flex items-center gap-1.5 text-sm font-medium text-gray-900"><Store className="size-4 text-gray-400" />{item.supplierName}</p></div>
-                <div><p className="text-xs text-muted-foreground">Estimated delivery</p><p className="mt-1 flex items-center gap-1.5 text-sm font-medium text-gray-900"><Clock3 className="size-4 text-gray-400" />{item.leadTime}</p></div>
+              <h1 className="mt-4 text-2xl font-semibold text-ink">{item.name}</h1>
+              <p className="mt-3 text-base leading-7 text-ink-2">{item.description}</p>
+              <div className="mt-6 grid gap-4 border-t border-line-2 pt-5 sm:grid-cols-3">
+                <div><p className="text-xs text-muted-foreground">Price</p><p className="mt-1 text-lg font-semibold text-ink">€{item.unitPrice.toLocaleString('de-DE', { minimumFractionDigits: 2 })}<span className="text-sm font-normal text-ink-3"> / {item.unit}</span></p></div>
+                <div><p className="text-xs text-muted-foreground">Supplier</p><p className="mt-1 flex items-center gap-1.5 text-sm font-medium text-ink"><Store className="size-4 text-ink-3" />{item.supplierName}</p></div>
+                <div><p className="text-xs text-muted-foreground">Estimated delivery</p><p className="mt-1 flex items-center gap-1.5 text-sm font-medium text-ink"><Clock3 className="size-4 text-ink-3" />{item.leadTime}</p></div>
               </div>
             </CardContent>
           </Card>
 
           {!available ? (
-            <Card className="border-amber-200 bg-amber-50/60"><CardContent className="p-5"><p className="text-sm font-medium text-amber-950">This item cannot be ordered right now</p><p className="mt-1 text-sm text-amber-800">The catalogue agreement or fulfilment data needs attention. Procurement must update it before an order can be placed.</p></CardContent></Card>
+            <Card className="border-warn-line bg-warn-soft/60"><CardContent className="p-5"><p className="text-sm font-medium text-warn">This item cannot be ordered right now</p><p className="mt-1 text-sm text-warn">The catalogue agreement or fulfilment data needs attention. Procurement must update it before an order can be placed.</p></CardContent></Card>
           ) : (
             /* Both halves of the old Simple/Expert fork, which showed one OR
                the other. The reassurance is what the reader needs first; the
                governance context is evidence, so it sits under it, collapsed —
                available to anyone who wants it rather than to whichever density
                they happened to be in. */
-            <Card className="border-green-100 bg-green-50/50">
+            <Card className="border-ok-line bg-ok-soft/50">
               <CardContent className="space-y-3 p-5">
                 <div className="flex items-start gap-3">
-                  <ShieldCheck className="mt-0.5 size-5 shrink-0 text-green-700" />
-                  <div><p className="text-sm font-medium text-green-950">Approved catalogue item</p><p className="mt-1 text-sm text-green-800">This item is available from an approved supplier agreement. We’ll check the remaining order details before creating your request.</p></div>
+                  <ShieldCheck className="mt-0.5 size-5 shrink-0 text-ok" />
+                  <div><p className="text-sm font-medium text-ok">Approved catalogue item</p><p className="mt-1 text-sm text-ok">This item is available from an approved supplier agreement. We’ll check the remaining order details before creating your request.</p></div>
                 </div>
-                <details className="rounded-lg border border-green-200 bg-white/60">
-                  <summary className="cursor-pointer list-none px-3 py-2 text-xs font-medium text-green-900">Governance context</summary>
-                  <div className="space-y-1.5 border-t border-green-200 px-3 py-2 text-xs text-gray-600">
-                    <p><span className="font-medium text-gray-900">Supplier:</span> {item.supplierName} ({item.supplierId})</p>
-                    <p><span className="font-medium text-gray-900">Catalogue:</span> {item.catalogueName}</p>
-                    <p><span className="font-medium text-gray-900">Contract and risk:</span> Resolved and checked as part of request submission.</p>
-                    <p><span className="font-medium text-gray-900">Routing:</span> The final approval path depends on total order value and configured policy.</p>
+                <details className="rounded-lg border border-ok-line bg-card/60">
+                  <summary className="cursor-pointer list-none px-3 py-2 text-xs font-medium text-ok">Governance context</summary>
+                  <div className="space-y-1.5 border-t border-ok-line px-3 py-2 text-xs text-ink-2">
+                    <p><span className="font-medium text-ink">Supplier:</span> {item.supplierName} ({item.supplierId})</p>
+                    <p><span className="font-medium text-ink">Catalogue:</span> {item.catalogueName}</p>
+                    <p><span className="font-medium text-ink">Contract and risk:</span> Resolved and checked as part of request submission.</p>
+                    <p><span className="font-medium text-ink">Routing:</span> The final approval path depends on total order value and configured policy.</p>
                   </div>
                 </details>
               </CardContent>

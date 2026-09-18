@@ -48,14 +48,14 @@ export function WidgetOpenPOs() {
           >
             <div className="flex min-w-0 items-center gap-2">
               {overdue
-                ? <PackageX className="size-3.5 shrink-0 text-red-500" />
-                : <PackageCheck className="size-3.5 shrink-0 text-gray-400" />}
+                ? <PackageX className="size-3.5 shrink-0 text-stop" />
+                : <PackageCheck className="size-3.5 shrink-0 text-ink-3" />}
               <span className="truncate">{po.supplierName}</span>
               {po.status === 'partially-received' && (
-                <span className="shrink-0 text-[10px] uppercase tracking-wide text-amber-600">part</span>
+                <span className="shrink-0 text-[10px] uppercase tracking-wide text-warn">part</span>
               )}
             </div>
-            <span className={`ml-2 shrink-0 text-xs font-medium ${overdue ? 'text-red-600' : 'text-gray-600'}`}>
+            <span className={`ml-2 shrink-0 text-xs font-medium ${overdue ? 'text-stop' : 'text-ink-2'}`}>
               {overdue ? `${Math.abs(po.daysToDelivery!)}d late` : formatCurrency(po.value)}
             </span>
           </button>

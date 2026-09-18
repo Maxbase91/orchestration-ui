@@ -87,7 +87,7 @@ export function DashboardPage() {
       {/* Welcome — leads the page so the greeting sets context before the tools. */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">
+          <h1 className="text-2xl font-semibold text-ink">
             Welcome back, {currentUser.name}
           </h1>
           <p className="text-sm text-muted-foreground mt-0.5">

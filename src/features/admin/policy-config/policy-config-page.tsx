@@ -94,8 +94,8 @@ export function PolicyConfigPage() {
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <div>
-        <h1 className="text-xl font-semibold text-gray-900">Decisioning Thresholds</h1>
-        <p className="mt-0.5 text-sm text-gray-500">
+        <h1 className="text-xl font-semibold text-ink">Decisioning Thresholds</h1>
+        <p className="mt-0.5 text-sm text-ink-3">
           The governed thresholds the front-door determination runs against. Saving applies them to the
           live front door; the simulation below previews the effect on a sample demand before you save.
         </p>
@@ -115,13 +115,13 @@ export function PolicyConfigPage() {
             {FIELDS.map((f) => (
               <div key={f.key} className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
-                  <Label htmlFor={`cfg-${f.key}`} className="text-sm text-gray-800">
+                  <Label htmlFor={`cfg-${f.key}`} className="text-sm text-ink">
                     {f.label}
                     {changedFromDefault(f.key) && (
-                      <span className="ml-1.5 rounded bg-amber-100 px-1 text-[10px] font-medium text-amber-700">edited</span>
+                      <span className="ml-1.5 rounded bg-warn-soft px-1 text-[10px] font-medium text-warn">edited</span>
                     )}
                   </Label>
-                  <p className="text-xs text-gray-400">{f.help} · default {DEFAULT_POLICY_CONFIG[f.key].toLocaleString()}</p>
+                  <p className="text-xs text-ink-3">{f.help} · default {DEFAULT_POLICY_CONFIG[f.key].toLocaleString()}</p>
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
                   <Input
@@ -131,7 +131,7 @@ export function PolicyConfigPage() {
                     value={draft[f.key]}
                     onChange={(e) => setDraft((d) => ({ ...d, [f.key]: Number(e.target.value) }))}
                   />
-                  {f.unit && <span className="w-8 text-xs text-gray-400">{f.unit}</span>}
+                  {f.unit && <span className="w-8 text-xs text-ink-3">{f.unit}</span>}
                 </div>
               </div>
             ))}
@@ -141,7 +141,7 @@ export function PolicyConfigPage() {
         <Card className="lg:col-span-3">
           <CardHeader>
             <CardTitle className="text-sm">P-card route policy</CardTitle>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-ink-3">
               Controls whether eligible low-value demands may be routed to the approved P-card process.
               This setting never charges a card or writes to an upstream system.
             </p>
@@ -149,8 +149,8 @@ export function PolicyConfigPage() {
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <Label htmlFor="cfg-pCardEnabled" className="text-sm text-gray-800">Enable P-card route</Label>
-                <p className="text-xs text-gray-400">When disabled, no routing rule can offer P-card.</p>
+                <Label htmlFor="cfg-pCardEnabled" className="text-sm text-ink">Enable P-card route</Label>
+                <p className="text-xs text-ink-3">When disabled, no routing rule can offer P-card.</p>
               </div>
               <Switch
                 id="cfg-pCardEnabled"
@@ -159,8 +159,8 @@ export function PolicyConfigPage() {
               />
             </div>
             <div>
-              <Label htmlFor="cfg-pCardEligibleCategories" className="text-sm text-gray-800">Eligible categories</Label>
-              <p className="text-xs text-gray-400">Comma-separated category IDs permitted for P-card.</p>
+              <Label htmlFor="cfg-pCardEligibleCategories" className="text-sm text-ink">Eligible categories</Label>
+              <p className="text-xs text-ink-3">Comma-separated category IDs permitted for P-card.</p>
               <Input
                 id="cfg-pCardEligibleCategories"
                 className="mt-1"
@@ -172,8 +172,8 @@ export function PolicyConfigPage() {
               />
             </div>
             <div>
-              <Label htmlFor="cfg-pCardExcludedCategories" className="text-sm text-gray-800">Excluded categories</Label>
-              <p className="text-xs text-gray-400">Comma-separated category IDs always blocked from P-card.</p>
+              <Label htmlFor="cfg-pCardExcludedCategories" className="text-sm text-ink">Excluded categories</Label>
+              <p className="text-xs text-ink-3">Comma-separated category IDs always blocked from P-card.</p>
               <Input
                 id="cfg-pCardExcludedCategories"
                 className="mt-1"
@@ -195,12 +195,12 @@ export function PolicyConfigPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="space-y-1">
-              <Label htmlFor="sim-value" className="text-xs text-gray-600">Estimated value</Label>
+              <Label htmlFor="sim-value" className="text-xs text-ink-2">Estimated value</Label>
               <Input id="sim-value" type="number" className="h-8" value={sim.value}
                 onChange={(e) => setSim((s) => ({ ...s, value: Number(e.target.value) }))} />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs text-gray-600">Supplier risk rating</Label>
+              <Label className="text-xs text-ink-2">Supplier risk rating</Label>
               <Select value={sim.riskRating} onValueChange={(v) => setSim((s) => ({ ...s, riskRating: v as RiskTier }))}>
                 <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -209,21 +209,21 @@ export function PolicyConfigPage() {
               </Select>
             </div>
             <div className="flex items-center justify-between">
-              <Label htmlFor="sim-critical" className="text-xs text-gray-600">Critical service</Label>
+              <Label htmlFor="sim-critical" className="text-xs text-ink-2">Critical service</Label>
               <Switch id="sim-critical" checked={sim.criticalService}
                 onCheckedChange={(v) => setSim((s) => ({ ...s, criticalService: v }))} />
             </div>
 
-            <div className="mt-2 space-y-2 rounded-md border border-gray-100 bg-gray-50 p-3 text-sm">
-              <p className="flex justify-between"><span className="text-gray-500">Value</span><span className="font-medium">{formatCurrency(sim.value)}</span></p>
-              <p className="flex justify-between"><span className="text-gray-500">Materiality</span>
-                <span className={outcome.materiality.material ? 'font-semibold text-amber-700' : 'font-medium text-gray-600'}>
+            <div className="mt-2 space-y-2 rounded-md border border-line-2 bg-card-2 p-3 text-sm">
+              <p className="flex justify-between"><span className="text-ink-3">Value</span><span className="font-medium">{formatCurrency(sim.value)}</span></p>
+              <p className="flex justify-between"><span className="text-ink-3">Materiality</span>
+                <span className={outcome.materiality.material ? 'font-semibold text-warn' : 'font-medium text-ink-2'}>
                   {outcome.materiality.material ? `Material — ${outcome.materiality.criticality}` : 'Not material'}
                 </span></p>
-              <p className="flex justify-between"><span className="text-gray-500">Inherent risk</span>
-                <span className="font-medium text-gray-900">{outcome.inherentRisk.tier}</span></p>
-              <p className="flex justify-between"><span className="text-gray-500">Approval gate</span>
-                <span className={`font-semibold ${outcome.approval.tier === 'full' ? 'text-amber-700' : 'text-gray-700'}`}>
+              <p className="flex justify-between"><span className="text-ink-3">Inherent risk</span>
+                <span className="font-medium text-ink">{outcome.inherentRisk.tier}</span></p>
+              <p className="flex justify-between"><span className="text-ink-3">Approval gate</span>
+                <span className={`font-semibold ${outcome.approval.tier === 'full' ? 'text-warn' : 'text-ink-2'}`}>
                   {outcome.approval.tier}
                 </span></p>
             </div>

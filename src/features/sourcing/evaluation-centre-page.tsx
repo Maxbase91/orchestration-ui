@@ -46,7 +46,7 @@ export function EvaluationCentrePage() {
             return (
               <Card
                 key={e.id}
-                className="cursor-pointer transition-colors hover:bg-gray-50"
+                className="cursor-pointer transition-colors hover:bg-card-2"
                 onClick={() => navigate(`/sourcing/${e.id}/evaluation`)}
               >
                 <CardContent className="flex items-center gap-4 py-4">

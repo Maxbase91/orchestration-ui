@@ -131,7 +131,7 @@ export function UserManagementPage() {
       key: 'role',
       label: 'Role',
       render: (item) => (
-        <span className="inline-flex rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700">
+        <span className="inline-flex rounded-full bg-accent-soft px-2.5 py-0.5 text-xs font-medium text-accent-solid">
           {roleLabel(item.role as string)}
         </span>
       ),
@@ -144,7 +144,7 @@ export function UserManagementPage() {
         <span className="inline-flex items-center gap-1.5 text-xs font-medium">
           <span
             className={`size-1.5 rounded-full ${
-              item.isOOO ? 'bg-amber-500' : 'bg-green-500'
+              item.isOOO ? 'bg-warn' : 'bg-ok'
             }`}
           />
           {item.isOOO ? 'On Leave' : 'Active'}
@@ -175,7 +175,7 @@ export function UserManagementPage() {
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 text-xs text-red-600"
+            className="h-7 text-xs text-stop"
             onClick={(e) => {
               e.stopPropagation();
               handleDeactivate(item);

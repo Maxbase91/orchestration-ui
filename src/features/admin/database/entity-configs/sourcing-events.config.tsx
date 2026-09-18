@@ -37,7 +37,7 @@ const columns: Column<EventRow>[] = [
     label: 'Status',
     sortable: true,
     render: (e) => (
-      <span className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-700">
+      <span className="inline-flex rounded-full bg-idle-soft px-2 py-0.5 text-[11px] font-medium text-ink-2">
         {e.status}
       </span>
     ),
@@ -123,9 +123,9 @@ export const sourcingEventsConfig: EntityConfig<'sourcingEvent'> = {
       <div>
         <p className="mb-1 font-medium">Requirements ({record.requirements.length})</p>
         {record.requirements.length === 0 ? (
-          <p className="text-xs text-gray-500">None captured.</p>
+          <p className="text-xs text-ink-3">None captured.</p>
         ) : (
-          <ul className="list-disc space-y-0.5 pl-5 text-xs text-gray-600">
+          <ul className="list-disc space-y-0.5 pl-5 text-xs text-ink-2">
             {record.requirements.map((r, i) => (
               <li key={i}>{r}</li>
             ))}
@@ -138,11 +138,11 @@ export const sourcingEventsConfig: EntityConfig<'sourcingEvent'> = {
           {record.criteria.length > 0 && ` · ${criteriaWeightTotal(record.criteria)}% total`})
         </p>
         {record.criteria.length === 0 ? (
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-ink-3">
             None — responses to this event cannot be scored.
           </p>
         ) : (
-          <ul className="space-y-0.5 text-xs text-gray-600">
+          <ul className="space-y-0.5 text-xs text-ink-2">
             {record.criteria.map((c) => (
               <li key={c.id}>
                 {c.label} — {c.weight}%
@@ -151,7 +151,7 @@ export const sourcingEventsConfig: EntityConfig<'sourcingEvent'> = {
           </ul>
         )}
       </div>
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-ink-3">
         Both are set by the New Event wizard, which is the only place criteria weights are
         validated. Deleting an event also deletes its invitations and submitted bids.
       </p>

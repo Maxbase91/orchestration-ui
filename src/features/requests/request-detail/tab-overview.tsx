@@ -57,11 +57,11 @@ function DetailRow({
   to?: string;
 }) {
   return (
-    <div className="flex flex-col sm:flex-row sm:gap-4 py-2 border-b border-gray-100 last:border-b-0">
+    <div className="flex flex-col sm:flex-row sm:gap-4 py-2 border-b border-line-2 last:border-b-0">
       <dt className="text-sm font-medium text-muted-foreground sm:w-40 shrink-0">{label}</dt>
-      <dd className="text-sm text-gray-900">
+      <dd className="text-sm text-ink">
         {value && to ? (
-          <Link to={to} className="text-blue-600 hover:underline">
+          <Link to={to} className="text-accent-solid hover:underline">
             {value}
           </Link>
         ) : (
@@ -143,7 +143,7 @@ export function TabOverview({ request }: TabOverviewProps) {
                 <DetailRow label="Last Updated" value={formatDate(request.updatedAt)} />
                 <DetailRow label="Days in Stage" value={String(request.daysInStage)} />
               </dl>
-              {!svcDesc?.narrative && request.businessJustification && <div className="mt-4 pt-4 border-t border-gray-100"><p className="text-sm font-medium text-muted-foreground mb-1">Request description</p><p className="text-sm text-gray-700">{request.businessJustification}</p></div>}
+              {!svcDesc?.narrative && request.businessJustification && <div className="mt-4 pt-4 border-t border-line-2"><p className="text-sm font-medium text-muted-foreground mb-1">Request description</p><p className="text-sm text-ink-2">{request.businessJustification}</p></div>}
             </CardContent>
           </Card>
         </div>
@@ -170,15 +170,15 @@ export function TabOverview({ request }: TabOverviewProps) {
                 <CardTitle className="text-base">Service Description</CardTitle>
                 {(svcDesc as unknown as Record<string, unknown>).quality_score !== undefined && (
                   <span className={`inline-flex items-center gap-1 text-[10px] font-semibold rounded-full px-2 py-0.5 ml-1 ${
-                    ((svcDesc as unknown as Record<string, unknown>).quality_score as number) >= 80 ? 'bg-green-100 text-green-700' :
-                    ((svcDesc as unknown as Record<string, unknown>).quality_score as number) >= 60 ? 'bg-amber-100 text-amber-700' :
-                    'bg-red-100 text-red-700'
+                    ((svcDesc as unknown as Record<string, unknown>).quality_score as number) >= 80 ? 'bg-ok-soft text-ok' :
+                    ((svcDesc as unknown as Record<string, unknown>).quality_score as number) >= 60 ? 'bg-warn-soft text-warn' :
+                    'bg-stop-soft text-stop'
                   }`}>
                     <ShieldCheck className="size-3" />
                     {((svcDesc as unknown as Record<string, unknown>).quality_score as number)}/100
                   </span>
                 )}
-                {sowExpanded ? <ChevronUp className="size-4 text-gray-400" /> : <ChevronDown className="size-4 text-gray-400" />}
+                {sowExpanded ? <ChevronUp className="size-4 text-ink-3" /> : <ChevronDown className="size-4 text-ink-3" />}
               </button>
               <Button
                 variant="ghost"
@@ -207,20 +207,20 @@ export function TabOverview({ request }: TabOverviewProps) {
                   return (
                     <div key={key} className="space-y-1">
                       <div className="flex items-center gap-1.5">
-                        <CheckCircle className="size-3.5 text-green-500 shrink-0" />
-                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{label}</p>
+                        <CheckCircle className="size-3.5 text-ok shrink-0" />
+                        <p className="text-xs font-semibold text-ink-3 uppercase tracking-wider">{label}</p>
                       </div>
-                      <p className="text-sm text-gray-700 leading-relaxed pl-5">{value}</p>
+                      <p className="text-sm text-ink-2 leading-relaxed pl-5">{value}</p>
                     </div>
                   );
                 })}
               </div>
 
               {/* Narrative Summary */}
-              <div className="pt-4 border-t border-gray-100">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Narrative Summary</p>
-                <div className="rounded-lg bg-gray-50 border border-gray-200 p-4">
-                  <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{svcDesc.narrative}</p>
+              <div className="pt-4 border-t border-line-2">
+                <p className="text-xs font-semibold text-ink-3 uppercase tracking-wider mb-2">Narrative Summary</p>
+                <div className="rounded-lg bg-card-2 border border-line p-4">
+                  <p className="text-sm text-ink-2 leading-relaxed whitespace-pre-wrap">{svcDesc.narrative}</p>
                 </div>
               </div>
             </CardContent>

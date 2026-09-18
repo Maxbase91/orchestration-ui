@@ -20,9 +20,9 @@ interface MatchVisualizerProps {
 }
 
 const statusStyles = {
-  match: 'bg-green-50 border-green-200',
-  'minor-variance': 'bg-amber-50 border-amber-200',
-  mismatch: 'bg-red-50 border-red-200',
+  match: 'bg-ok-soft border-ok-line',
+  'minor-variance': 'bg-warn-soft border-warn-line',
+  mismatch: 'bg-stop-soft border-stop-line',
 };
 
 const statusLabels = {
@@ -32,9 +32,9 @@ const statusLabels = {
 };
 
 const statusLabelColors = {
-  match: 'text-green-700',
-  'minor-variance': 'text-amber-700',
-  mismatch: 'text-red-700',
+  match: 'text-ok',
+  'minor-variance': 'text-warn',
+  mismatch: 'text-stop',
 };
 
 export function MatchVisualizer({ fields, poId, invoiceId }: MatchVisualizerProps) {

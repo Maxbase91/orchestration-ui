@@ -48,10 +48,10 @@ const sraIcons = {
 };
 
 const sraColors = {
-  valid: 'text-green-600',
-  expiring: 'text-amber-600',
-  expired: 'text-red-600',
-  'not-assessed': 'text-gray-400',
+  valid: 'text-ok',
+  expiring: 'text-warn',
+  expired: 'text-stop',
+  'not-assessed': 'text-ink-3',
 };
 
 function effectiveSraStatus(status: keyof typeof sraIcons, expiryDate?: string): keyof typeof sraIcons {
@@ -130,7 +130,7 @@ export function TabCompliance({ request }: TabComplianceProps) {
             <div className="flex justify-between gap-4">
               <span className="text-muted-foreground">Called off against</span>
               {requisition.contractId ? (
-                <Link to={`/contracts/${requisition.contractId}`} className="text-blue-600 hover:underline">
+                <Link to={`/contracts/${requisition.contractId}`} className="text-accent-solid hover:underline">
                   {contract?.title ?? requisition.contractId}
                 </Link>
               ) : <span className="text-muted-foreground">No contract</span>}
@@ -153,7 +153,7 @@ export function TabCompliance({ request }: TabComplianceProps) {
               // exactly like a check that ran and found nothing.
               <div className="flex justify-between gap-4">
                 <span className="text-muted-foreground">Coverage check</span>
-                <span className="text-amber-700">
+                <span className="text-warn">
                   {requisition.contractMatchAlgorithmVersion === 'not-evaluated'
                     ? 'Did not run — scope data was unavailable'
                     : 'Not evaluated for this route'}
@@ -178,7 +178,7 @@ export function TabCompliance({ request }: TabComplianceProps) {
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-sm">
-              <ShieldCheck className="size-4 text-blue-500" />
+              <ShieldCheck className="size-4 text-accent-solid" />
               Front-door determination
             </CardTitle>
           </CardHeader>
@@ -187,7 +187,7 @@ export function TabCompliance({ request }: TabComplianceProps) {
               {determination.map((d) => (
                 <div key={d.label}>
                   <dt className="text-xs text-muted-foreground">{d.label}</dt>
-                  <dd className="font-medium capitalize text-gray-900">{d.value}</dd>
+                  <dd className="font-medium capitalize text-ink">{d.value}</dd>
                 </div>
               ))}
             </dl>
@@ -199,7 +199,7 @@ export function TabCompliance({ request }: TabComplianceProps) {
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-sm">
-              <Info className="size-4 text-blue-500" />
+              <Info className="size-4 text-accent-solid" />
               Intake Compliance Summary
             </CardTitle>
           </CardHeader>
@@ -213,22 +213,22 @@ export function TabCompliance({ request }: TabComplianceProps) {
               {/* `not-run` renders grey rather than amber: it is a check that
                   has not happened, not one that raised a concern. */}
               <Badge variant="outline" className={cn('text-xs',
-                intake.sraCheck.status === 'pass' ? 'border-green-200 text-green-700'
-                  : intake.sraCheck.status === 'fail' ? 'border-red-200 text-red-700'
-                    : intake.sraCheck.status === 'not-run' ? 'border-gray-200 text-gray-600'
-                      : 'border-amber-200 text-amber-700')}>
+                intake.sraCheck.status === 'pass' ? 'border-ok-line text-ok'
+                  : intake.sraCheck.status === 'fail' ? 'border-stop-line text-stop'
+                    : intake.sraCheck.status === 'not-run' ? 'border-line text-ink-2'
+                      : 'border-warn-line text-warn')}>
                 {intake.sraCheck.status}
               </Badge>
             </div>
             <div className="mt-2 space-y-1.5">
               {intake.policyChecks.map((c) => (
                 <div key={c.label} className="flex items-start gap-2 text-sm">
-                  <span className={cn('mt-0.5 size-2 rounded-full shrink-0', c.passed ? 'bg-green-500' : 'bg-red-500')} />
+                  <span className={cn('mt-0.5 size-2 rounded-full shrink-0', c.passed ? 'bg-ok' : 'bg-stop')} />
                   <div className="flex-1 min-w-0">
-                    <p className={cn('font-medium', c.passed ? 'text-gray-900' : 'text-red-700')}>{c.label}</p>
+                    <p className={cn('font-medium', c.passed ? 'text-ink' : 'text-stop')}>{c.label}</p>
                     {c.detail && <p className="text-xs text-muted-foreground">{c.detail}</p>}
                   </div>
-                  <Badge variant="outline" className={cn('text-xs shrink-0', c.passed ? 'border-green-200 text-green-700' : 'border-red-200 text-red-700')}>
+                  <Badge variant="outline" className={cn('text-xs shrink-0', c.passed ? 'border-ok-line text-ok' : 'border-stop-line text-stop')}>
                     {c.passed ? 'Pass' : 'Fail'}
                   </Badge>
                 </div>
@@ -242,7 +242,7 @@ export function TabCompliance({ request }: TabComplianceProps) {
         <Card>
           <CardHeader className="pb-2">
             <div className="flex items-center gap-2">
-              <Search className="size-4 text-blue-600" />
+              <Search className="size-4 text-accent-solid" />
               <CardTitle className="text-sm">Duplicate Check</CardTitle>
             </div>
           </CardHeader>
@@ -252,20 +252,20 @@ export function TabCompliance({ request }: TabComplianceProps) {
                 badge, because a reviewer treats it as a cleared check. */}
             <div className="flex items-center gap-2">
               {intake.duplicateCheck.performed === false ? (
-                <HelpCircle className="size-4 text-gray-400" />
+                <HelpCircle className="size-4 text-ink-3" />
               ) : intake.duplicateCheck.found ? (
-                <AlertTriangle className="size-4 text-amber-500" />
+                <AlertTriangle className="size-4 text-warn" />
               ) : (
-                <CheckCircle className="size-4 text-green-600" />
+                <CheckCircle className="size-4 text-ok" />
               )}
               <Badge
                 variant="outline"
                 className={
                   intake.duplicateCheck.performed === false
-                    ? 'bg-gray-100 text-gray-600 border-gray-200'
+                    ? 'bg-idle-soft text-ink-2 border-line'
                     : intake.duplicateCheck.found
-                      ? 'bg-amber-100 text-amber-700 border-amber-200'
-                      : 'bg-green-100 text-green-700 border-green-200'
+                      ? 'bg-warn-soft text-warn border-warn-line'
+                      : 'bg-ok-soft text-ok border-ok-line'
                 }
               >
                 {intake.duplicateCheck.performed === false
@@ -273,7 +273,7 @@ export function TabCompliance({ request }: TabComplianceProps) {
                   : intake.duplicateCheck.found ? 'Potential overlap found' : 'No duplicates'}
               </Badge>
             </div>
-            <p className="text-xs text-gray-600">{intake.duplicateCheck.detail}</p>
+            <p className="text-xs text-ink-2">{intake.duplicateCheck.detail}</p>
           </CardContent>
         </Card>
       )}
@@ -282,7 +282,7 @@ export function TabCompliance({ request }: TabComplianceProps) {
         <Card>
           <CardHeader className="pb-2">
             <div className="flex items-center gap-2">
-              <Recycle className="size-4 text-emerald-600" />
+              <Recycle className="size-4 text-ok" />
               <CardTitle className="text-sm">Reused Risk Assessments</CardTitle>
             </div>
           </CardHeader>
@@ -294,15 +294,15 @@ export function TabCompliance({ request }: TabComplianceProps) {
                 return (
                   <div
                     key={raId}
-                    className="flex items-start justify-between gap-2 rounded-md border border-emerald-100 bg-emerald-50/40 px-3 py-1.5"
+                    className="flex items-start justify-between gap-2 rounded-md border border-ok-line bg-ok-soft/40 px-3 py-1.5"
                   >
                     <div className="min-w-0">
-                      <p className="text-xs font-medium text-gray-900 truncate">{ra.title}</p>
+                      <p className="text-xs font-medium text-ink truncate">{ra.title}</p>
                       <p className="text-[11px] text-muted-foreground">
                         {ra.id} · {ra.category} · {ra.riskLevel} risk · valid until {ra.validUntil}
                       </p>
                     </div>
-                    <Badge variant="outline" className="bg-emerald-100 text-emerald-700 border-emerald-200 shrink-0">
+                    <Badge variant="outline" className="bg-ok-soft text-ok border-ok-line shrink-0">
                       Reused
                     </Badge>
                   </div>
@@ -317,7 +317,7 @@ export function TabCompliance({ request }: TabComplianceProps) {
         <Card>
           <CardHeader className="pb-2">
             <div className="flex items-center gap-2">
-              <Flag className="size-4 text-red-500" />
+              <Flag className="size-4 text-stop" />
               <CardTitle className="text-sm">Risk Flags</CardTitle>
             </div>
           </CardHeader>
@@ -325,8 +325,8 @@ export function TabCompliance({ request }: TabComplianceProps) {
             <div className="space-y-1">
               {intake.riskFlags.map((flag, i) => (
                 <div key={i} className="flex items-start gap-2">
-                  <AlertTriangle className="size-3.5 shrink-0 mt-0.5 text-amber-500" />
-                  <p className="text-xs text-gray-700">{flag}</p>
+                  <AlertTriangle className="size-3.5 shrink-0 mt-0.5 text-warn" />
+                  <p className="text-xs text-ink-2">{flag}</p>
                 </div>
               ))}
             </div>
@@ -339,12 +339,12 @@ export function TabCompliance({ request }: TabComplianceProps) {
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2 text-sm">
-                <Building2 className="size-4 text-blue-500" />
+                <Building2 className="size-4 text-accent-solid" />
                 Supplier Risk Assessment
               </CardTitle>
               <Link
                 to={`/suppliers/${supplier.id}`}
-                className="text-xs font-medium text-blue-600 hover:underline"
+                className="text-xs font-medium text-accent-solid hover:underline"
               >
                 View full profile
               </Link>

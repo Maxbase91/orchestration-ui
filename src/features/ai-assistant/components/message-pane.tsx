@@ -29,7 +29,7 @@ function renderTurns(
   if (!msg.turns || msg.turns.length === 0) {
     const text = msg.content || "I couldn't generate a response — please try again.";
     return (
-      <div className="rounded-[18px] rounded-tl-[4px] bg-white border border-gray-100 shadow-sm px-4 py-3 text-[13.5px] leading-relaxed text-gray-800">
+      <div className="rounded-[18px] rounded-tl-[4px] bg-card border border-line-2 shadow-sm px-4 py-3 text-[13.5px] leading-relaxed text-ink">
         <p className="whitespace-pre-wrap">{text}</p>
       </div>
     );
@@ -107,8 +107,8 @@ function FeedbackButtons({ messageId }: { messageId: string }) {
         className={cn(
           'flex size-5 items-center justify-center rounded transition-colors',
           voted === 'up'
-            ? 'text-emerald-600'
-            : 'text-gray-300 hover:text-gray-500'
+            ? 'text-ok'
+            : 'text-ink-3 hover:text-ink-3'
         )}
         title="Helpful"
         disabled={!!voted}
@@ -120,8 +120,8 @@ function FeedbackButtons({ messageId }: { messageId: string }) {
         className={cn(
           'flex size-5 items-center justify-center rounded transition-colors',
           voted === 'down'
-            ? 'text-red-500'
-            : 'text-gray-300 hover:text-gray-500'
+            ? 'text-stop'
+            : 'text-ink-3 hover:text-ink-3'
         )}
         title="Not helpful"
         disabled={!!voted}
@@ -159,7 +159,7 @@ export function MessagePane({
             <div
               className={cn(
                 'flex size-8 shrink-0 items-center justify-center rounded-full',
-                isUser ? 'bg-gray-700' : 'bg-gradient-to-br from-[#1B2A4A] to-[#2D5F8A]'
+                isUser ? 'bg-ink-2' : 'bg-gradient-to-br from-[#1B2A4A] to-[#2D5F8A]'
               )}
             >
               {isUser ? (
@@ -193,8 +193,8 @@ export function MessagePane({
         <div className="flex gap-2.5 animate-msg-in">
           <AssistantAvatar />
           <div className="max-w-[85%]">
-            <div className="rounded-[18px] rounded-tl-[4px] bg-white border border-gray-100 shadow-sm px-4 py-3 text-[13.5px] leading-relaxed text-gray-800">
-              <p className="whitespace-pre-wrap">{streamingContent}<span className="inline-block w-0.5 h-[1em] bg-gray-400 ml-0.5 animate-pulse align-middle" /></p>
+            <div className="rounded-[18px] rounded-tl-[4px] bg-card border border-line-2 shadow-sm px-4 py-3 text-[13.5px] leading-relaxed text-ink">
+              <p className="whitespace-pre-wrap">{streamingContent}<span className="inline-block w-0.5 h-[1em] bg-idle ml-0.5 animate-pulse align-middle" /></p>
             </div>
           </div>
         </div>
@@ -204,11 +204,11 @@ export function MessagePane({
       {isTyping && !streamingContent && (
         <div className="flex gap-2.5 animate-msg-in">
           <AssistantAvatar />
-          <div className="rounded-[18px] rounded-tl-[4px] bg-white border border-gray-100 shadow-sm px-4 py-3">
+          <div className="rounded-[18px] rounded-tl-[4px] bg-card border border-line-2 shadow-sm px-4 py-3">
             <div className="flex gap-1 items-center h-[18px]">
-              <span className="size-1.5 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: '0ms' }} />
-              <span className="size-1.5 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: '150ms' }} />
-              <span className="size-1.5 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: '300ms' }} />
+              <span className="size-1.5 animate-bounce rounded-full bg-idle" style={{ animationDelay: '0ms' }} />
+              <span className="size-1.5 animate-bounce rounded-full bg-idle" style={{ animationDelay: '150ms' }} />
+              <span className="size-1.5 animate-bounce rounded-full bg-idle" style={{ animationDelay: '300ms' }} />
             </div>
           </div>
         </div>

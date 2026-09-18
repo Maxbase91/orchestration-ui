@@ -179,7 +179,7 @@ export function RuleEditorPanel({ rule, onSaved }: RuleEditorPanelProps) {
 
   if (!rule) {
     return (
-      <div className="flex h-full items-center justify-center text-sm text-gray-400">
+      <div className="flex h-full items-center justify-center text-sm text-ink-3">
         Select a rule to edit or create a new one.
       </div>
     );
@@ -187,7 +187,7 @@ export function RuleEditorPanel({ rule, onSaved }: RuleEditorPanelProps) {
 
   return (
     <div className="flex h-full flex-col overflow-y-auto">
-      <div className="border-b border-gray-200 p-4">
+      <div className="border-b border-line p-4">
         <Input
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -195,7 +195,7 @@ export function RuleEditorPanel({ rule, onSaved }: RuleEditorPanelProps) {
           placeholder="Rule name"
         />
         <div className="mt-3 flex items-center gap-4">
-          <Label className="text-xs text-gray-500">Status</Label>
+          <Label className="text-xs text-ink-3">Status</Label>
           <Select value={status} onValueChange={(v) => setStatus(v as 'active' | 'draft' | 'disabled')}>
             <SelectTrigger className="w-36">
               <SelectValue />
@@ -213,8 +213,8 @@ export function RuleEditorPanel({ rule, onSaved }: RuleEditorPanelProps) {
         {/* Conditions */}
         <div>
           <div className="mb-3 flex items-center gap-2">
-            <span className="rounded bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">IF</span>
-            <span className="text-sm font-medium text-gray-700">Conditions</span>
+            <span className="rounded bg-accent-soft px-2 py-0.5 text-xs font-semibold text-accent-solid">IF</span>
+            <span className="text-sm font-medium text-ink-2">Conditions</span>
           </div>
 
           <div className="space-y-2">
@@ -228,7 +228,7 @@ export function RuleEditorPanel({ rule, onSaved }: RuleEditorPanelProps) {
                   // and nothing else. Conditions are ANDed; saying so is the
                   // honest version.
                   <div className="my-2 flex justify-center">
-                    <span className="rounded-full border border-gray-200 bg-gray-50 px-3 py-0.5 text-xs font-medium text-gray-500">
+                    <span className="rounded-full border border-line bg-card-2 px-3 py-0.5 text-xs font-medium text-ink-3">
                       AND
                     </span>
                   </div>
@@ -251,13 +251,13 @@ export function RuleEditorPanel({ rule, onSaved }: RuleEditorPanelProps) {
         {/* Actions */}
         <div>
           <div className="mb-3 flex items-center gap-2">
-            <span className="rounded bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700">THEN</span>
-            <span className="text-sm font-medium text-gray-700">Actions</span>
+            <span className="rounded bg-ok-soft px-2 py-0.5 text-xs font-semibold text-ok">THEN</span>
+            <span className="text-sm font-medium text-ink-2">Actions</span>
           </div>
 
-          <div className="space-y-4 rounded-lg border border-gray-200 bg-white p-4">
+          <div className="space-y-4 rounded-lg border border-line bg-card p-4">
             <div>
-              <Label className="text-xs text-gray-500">Route to Buying Channel</Label>
+              <Label className="text-xs text-ink-3">Route to Buying Channel</Label>
               <Select value={buyingChannel} onValueChange={(v) => setBuyingChannel(v as BuyingChannel)}>
                 <SelectTrigger className="mt-1">
                   <SelectValue />
@@ -271,7 +271,7 @@ export function RuleEditorPanel({ rule, onSaved }: RuleEditorPanelProps) {
             </div>
 
             <div>
-              <Label className="text-xs text-gray-500">Set Approval Chain</Label>
+              <Label className="text-xs text-ink-3">Set Approval Chain</Label>
               <Select value={approvalChain || BAND_DECIDES} onValueChange={(v) => setApprovalChain(v === BAND_DECIDES ? '' : v)}>
                 <SelectTrigger className="mt-1">
                   <SelectValue />
@@ -285,7 +285,7 @@ export function RuleEditorPanel({ rule, onSaved }: RuleEditorPanelProps) {
                   ))}
                 </SelectContent>
               </Select>
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1 text-xs text-ink-3">
                 {approvalChain
                   ? 'This rule overrides the value band and always uses the chain above.'
                   : 'The chain whose value band contains the request value approves it.'}
@@ -301,13 +301,13 @@ export function RuleEditorPanel({ rule, onSaved }: RuleEditorPanelProps) {
         </div>
 
         {/* Plain English */}
-        <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-3">
-          <p className="text-xs font-medium text-gray-500">Plain English Description</p>
-          <p className="mt-1 text-sm text-gray-700">{plainEnglish}</p>
+        <div className="rounded-lg border border-dashed border-line bg-card-2 p-3">
+          <p className="text-xs font-medium text-ink-3">Plain English Description</p>
+          <p className="mt-1 text-sm text-ink-2">{plainEnglish}</p>
         </div>
       </div>
 
-      <div className="border-t border-gray-200 p-4">
+      <div className="border-t border-line p-4">
         <Button onClick={handleSave} disabled={saveRoutingRule.isPending} className="w-full">
           <Save className="size-4" />
           {saveRoutingRule.isPending ? 'Saving…' : 'Save Rule'}

@@ -103,7 +103,7 @@ export function TimelineView({ requests }: TimelineViewProps) {
             <div key={request.id} className="flex items-center group">
               {/* Label */}
               <div className="w-[200px] shrink-0 pr-3">
-                <p className="text-xs font-medium text-gray-900 truncate">
+                <p className="text-xs font-medium text-ink truncate">
                   {request.title}
                 </p>
                 <p className="text-[10px] text-muted-foreground">
@@ -118,13 +118,13 @@ export function TimelineView({ requests }: TimelineViewProps) {
                   const bgClass =
                     seg.state === 'completed'
                       ? seg.isLong
-                        ? 'bg-amber-400'
-                        : 'bg-green-500'
+                        ? 'bg-warn'
+                        : 'bg-ok'
                       : seg.state === 'current'
                         ? seg.isLong
-                          ? 'bg-red-400'
-                          : 'bg-amber-400'
-                        : 'bg-gray-200';
+                          ? 'bg-stop'
+                          : 'bg-warn'
+                        : 'bg-line';
 
                   return (
                     <Tooltip key={seg.stage}>
@@ -168,19 +168,19 @@ export function TimelineView({ requests }: TimelineViewProps) {
       {/* Legend */}
       <div className="mt-4 flex items-center gap-4 text-[10px] text-muted-foreground border-t pt-2">
         <div className="flex items-center gap-1">
-          <div className="size-3 rounded-sm bg-green-500" />
+          <div className="size-3 rounded-sm bg-ok" />
           <span>Completed (on time)</span>
         </div>
         <div className="flex items-center gap-1">
-          <div className="size-3 rounded-sm bg-amber-400" />
+          <div className="size-3 rounded-sm bg-warn" />
           <span>Current / slow stage</span>
         </div>
         <div className="flex items-center gap-1">
-          <div className="size-3 rounded-sm bg-red-400" />
+          <div className="size-3 rounded-sm bg-stop" />
           <span>Current (over SLA)</span>
         </div>
         <div className="flex items-center gap-1">
-          <div className="size-3 rounded-sm bg-gray-200" />
+          <div className="size-3 rounded-sm bg-line" />
           <span>Future stages</span>
         </div>
       </div>

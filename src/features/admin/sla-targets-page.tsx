@@ -44,7 +44,7 @@ export function SlaTargetsPage() {
         subtitle="How many working days each stage allows, as defined by the workflow templates"
       />
 
-      <div className="flex items-start gap-2 rounded-md border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700">
+      <div className="flex items-start gap-2 rounded-md border border-line bg-card-2 p-3 text-sm text-ink-2">
         <div className="flex-1">
           <p className="font-medium">Set in the Workflow Designer</p>
           <p className="text-xs text-muted-foreground">
@@ -79,11 +79,11 @@ export function SlaTargetsPage() {
           </CardHeader>
           <CardContent className="space-y-2">
             {stages.map((sla) => (
-              <div key={`${templateId}-${sla.stage}`} className="flex items-center justify-between gap-4 border-b border-gray-100 pb-2 last:border-0 last:pb-0">
-                <span className="text-sm font-medium text-gray-700">
+              <div key={`${templateId}-${sla.stage}`} className="flex items-center justify-between gap-4 border-b border-line-2 pb-2 last:border-0 last:pb-0">
+                <span className="text-sm font-medium text-ink-2">
                   {stageLabel(sla.stage)}
                 </span>
-                <span className="text-sm tabular-nums text-gray-900">
+                <span className="text-sm tabular-nums text-ink">
                   {sla.days} <span className="text-xs text-muted-foreground">working days</span>
                 </span>
               </div>

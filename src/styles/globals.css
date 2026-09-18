@@ -107,6 +107,70 @@
   --color-idle: var(--idle);
   --color-idle-soft: var(--idle-soft);
 
+  /* ── shadcn/ui roles, aliased to the semantic tokens ──────────────────
+     This is the change that makes dark mode work at all, and it was missing
+     from the first cut of the foundation.
+
+     shadcn's variables were fixed hexes. The semantic tokens flip with the
+     theme and those did not, so the moment a component's TEXT moved to a token
+     while its SURFACE was still `bg-card`, dark mode put one theme's ink on the
+     other theme's ground: measured at 1.16:1 on the approvals card — white on
+     white. Per-file migration could never have been safe for dark while two
+     colour systems disagreed about what theme it was.
+
+     Aliasing means every component follows the theme whether or not it has been
+     migrated, so the per-screen work is about hierarchy and type rather than
+     about whether the screen is readable. Light shifts imperceptibly: the page
+     background moves 2/255, cards not at all, text and borders 18-20.
+
+     `muted-foreground` carries 515 uses — it is the app's dominant text colour,
+     and pointing it at --ink-3 is most of the benefit on its own.
+
+     Two pairings that must not be broken:
+       · `accent` is both a hover background and a brand text colour here, so it
+         takes the saturated token and `accent-foreground` takes --accent-ink,
+         which flips. shadcn's own primitives always apply them together.
+       · every *-foreground on a coloured fill uses a flipping token, never
+         #FFFFFF — white on --stop is 7.14:1 in light and 2.54:1 in dark. */
+  --color-background: var(--paper);
+  --color-foreground: var(--ink);
+  --color-card: var(--card);
+  --color-card-foreground: var(--ink);
+  --color-popover: var(--card);
+  --color-popover-foreground: var(--ink);
+  --color-muted: var(--sunk);
+  --color-muted-foreground: var(--ink-3);
+  --color-primary: var(--accent);
+  --color-primary-foreground: var(--accent-ink);
+  --color-secondary: var(--sunk);
+  --color-secondary-foreground: var(--ink);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-ink);
+  --color-destructive: var(--stop);
+  --color-destructive-foreground: var(--paper);
+  --color-border: var(--line);
+  --color-input: var(--line);
+  --color-ring: var(--accent);
+  --color-surface: var(--paper);
+  /* The original custom theme's own roles. `text-text-primary` was a fixed
+     #1E1E1E, so the header user name rendered near-black on the dark shell and
+     disappeared — the same non-flipping-literal problem as `bg-white`, in a
+     class name that looks like a token. */
+  --color-text-primary: var(--ink);
+  --color-text-secondary: var(--ink-2);
+  --color-text-muted: var(--ink-3);
+  --color-status-success: var(--ok);
+  --color-status-warning: var(--warn);
+  --color-status-danger: var(--stop);
+  --color-status-info: var(--accent);
+  /* Chart series follow the status vocabulary, so a chart cannot say "good" in
+     a colour the rest of the product uses for "stopped". */
+  --color-chart-1: var(--accent);
+  --color-chart-2: var(--accent-2);
+  --color-chart-3: var(--warn);
+  --color-chart-4: var(--ok);
+  --color-chart-5: var(--stop);
+
   /* ── Type scale ────────────────────────────────────────────────────────
      Six sizes, named by ROLE rather than by size, and deliberately outside
      Tailwind's `xs/sm/base/lg` namespace.
@@ -176,20 +240,6 @@
   --color-amber-100: #f8e4cf;
   --color-amber-50: #fdf5ee;
 
-  /* Status colors */
-  --color-status-success: #2E7D4F;
-  --color-status-warning: #D4782F;
-  --color-status-danger: #B5392E;
-  --color-status-info: #2D5F8A;
-
-  /* Surface / Background */
-  --color-surface: #F3F5F9;
-  --color-card: #FFFFFF;
-
-  /* Text */
-  --color-text-primary: #1E1E1E;
-  --color-text-secondary: #4A5568;
-  --color-text-muted: #718096;
 
   /* Shadows */
   --shadow-card: 0 1px 4px rgba(0, 0, 0, 0.08);
@@ -199,30 +249,6 @@
   --radius-sm: 4px;
   --radius-md: 6px;
   --radius-lg: 8px;
-
-  /* shadcn/ui CSS variables */
-  --color-background: #F3F5F9;
-  --color-foreground: #1E1E1E;
-  --color-muted: #e2e5eb;
-  --color-muted-foreground: #4A5568;
-  --color-popover: #FFFFFF;
-  --color-popover-foreground: #1E1E1E;
-  --color-primary: #1B2A4A;
-  --color-primary-foreground: #FFFFFF;
-  --color-secondary: #e2e5eb;
-  --color-secondary-foreground: #1B2A4A;
-  --color-accent: #D4782F;
-  --color-accent-foreground: #FFFFFF;
-  --color-destructive: #B5392E;
-  --color-destructive-foreground: #FFFFFF;
-  --color-border: #d1d5db;
-  --color-input: #d1d5db;
-  --color-ring: #2D5F8A;
-  --color-chart-1: #1B2A4A;
-  --color-chart-2: #2D5F8A;
-  --color-chart-3: #D4782F;
-  --color-chart-4: #2E7D4F;
-  --color-chart-5: #B5392E;
 
   --radius: 0.375rem;
 }

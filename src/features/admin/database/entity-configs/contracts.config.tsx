@@ -28,12 +28,12 @@ const columns: Column<ContractRow>[] = [
       <span
         className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${
           c.status === 'active'
-            ? 'bg-green-100 text-green-700'
+            ? 'bg-ok-soft text-ok'
             : c.status === 'expiring'
-              ? 'bg-amber-100 text-amber-700'
+              ? 'bg-warn-soft text-warn'
               : c.status === 'expired' || c.status === 'terminated'
-                ? 'bg-red-100 text-red-700'
-                : 'bg-gray-100 text-gray-700'
+                ? 'bg-stop-soft text-stop'
+                : 'bg-idle-soft text-ink-2'
         }`}
       >
         {c.status}

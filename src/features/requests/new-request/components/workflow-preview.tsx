@@ -25,23 +25,23 @@ export function WorkflowPreview({ steps }: WorkflowPreviewProps) {
             className={cn('flex items-start flex-1 min-w-0', !isLast && 'flex-shrink-0')}
           >
             <div className="flex flex-col items-center">
-              <div className="flex size-8 items-center justify-center rounded-full border-2 border-blue-200 bg-blue-50 text-xs font-medium text-blue-600">
+              <div className="flex size-8 items-center justify-center rounded-full border-2 border-accent-line bg-accent-soft text-xs font-medium text-accent-solid">
                 {index + 1}
               </div>
-              <p className="mt-1.5 text-xs text-center max-w-[90px] leading-tight font-medium text-gray-700">
+              <p className="mt-1.5 text-xs text-center max-w-[90px] leading-tight font-medium text-ink-2">
                 {step.label}
               </p>
-              <p className="mt-0.5 text-[10px] text-center max-w-[90px] text-gray-500">
+              <p className="mt-0.5 text-[10px] text-center max-w-[90px] text-ink-3">
                 {step.owner}
               </p>
               {step.parallel && (
-                <span className="mt-0.5 inline-flex items-center rounded-full bg-blue-50 px-1.5 py-0.5 text-[9px] font-medium text-blue-600">
+                <span className="mt-0.5 inline-flex items-center rounded-full bg-accent-soft px-1.5 py-0.5 text-[9px] font-medium text-accent-solid">
                   parallel
                 </span>
               )}
             </div>
             {!isLast && (
-              <div className="mt-4 h-0.5 flex-1 mx-1 bg-blue-200" />
+              <div className="mt-4 h-0.5 flex-1 mx-1 bg-accent-soft" />
             )}
           </div>
         );

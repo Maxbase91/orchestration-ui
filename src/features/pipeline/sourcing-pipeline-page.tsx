@@ -44,11 +44,11 @@ const STATUS_TO_STAGE: Record<string, SourcingStage> = {
 const STAGES: SourcingStage[] = ['Draft', 'Published', 'In Evaluation', 'Award Pending', 'Completed'];
 
 const STAGE_COLORS: Record<SourcingStage, string> = {
-  Draft: 'bg-gray-200',
-  Published: 'bg-blue-500',
-  'In Evaluation': 'bg-yellow-500',
-  'Award Pending': 'bg-orange-500',
-  Completed: 'bg-green-500',
+  Draft: 'bg-line',
+  Published: 'bg-accent-solid',
+  'In Evaluation': 'bg-warn',
+  'Award Pending': 'bg-warn',
+  Completed: 'bg-ok',
 };
 
 export function SourcingPipelinePage() {
@@ -106,11 +106,11 @@ export function SourcingPipelinePage() {
       label: 'Stage',
       render: (row) => {
         const stageColors: Record<string, string> = {
-          Draft: 'bg-gray-100 text-gray-700',
-          Published: 'bg-blue-100 text-blue-700',
-          'In Evaluation': 'bg-yellow-100 text-yellow-700',
-          'Award Pending': 'bg-orange-100 text-orange-700',
-          Completed: 'bg-green-100 text-green-700',
+          Draft: 'bg-idle-soft text-ink-2',
+          Published: 'bg-accent-soft text-accent-solid',
+          'In Evaluation': 'bg-warn-soft text-warn',
+          'Award Pending': 'bg-warn-soft text-warn',
+          Completed: 'bg-ok-soft text-ok',
         };
         return (
           <span className={cn('inline-flex px-2 py-0.5 rounded-full text-xs font-medium', stageColors[row.stage as string] ?? '')}>
@@ -136,7 +136,7 @@ export function SourcingPipelinePage() {
       sortable: true,
       render: (row) => (
         <span className="text-sm">
-          {row.deadline ? formatDate(row.deadline as string) : <span className="text-gray-400">—</span>}
+          {row.deadline ? formatDate(row.deadline as string) : <span className="text-ink-3">—</span>}
         </span>
       ),
     },
@@ -152,8 +152,8 @@ export function SourcingPipelinePage() {
       <PageHeader title="Sourcing Pipeline" subtitle="Track sourcing events from draft to completion" />
 
       {/* Pipeline visualization */}
-      <div className="rounded-md border bg-white p-4 shadow-sm">
-        <h3 className="text-sm font-semibold text-gray-900 mb-4">Pipeline Stages</h3>
+      <div className="rounded-md border bg-card p-4 shadow-sm">
+        <h3 className="text-sm font-semibold text-ink mb-4">Pipeline Stages</h3>
         <div className="flex gap-1">
           {stageCounts.map(({ stage, count }, idx) => (
             <button
@@ -161,7 +161,7 @@ export function SourcingPipelinePage() {
               className={cn(
                 'flex-1 py-3 px-2 text-center transition-opacity',
                 'rounded-md cursor-pointer hover:opacity-90',
-                selectedStage === stage ? 'ring-2 ring-offset-1 ring-gray-900' : '',
+                selectedStage === stage ? 'ring-2 ring-offset-1 ring-ink' : '',
                 idx === 0 && 'rounded-l-lg',
                 idx === STAGES.length - 1 && 'rounded-r-lg',
               )}
@@ -184,9 +184,9 @@ export function SourcingPipelinePage() {
         <div className="flex items-center justify-center mt-2 gap-1">
           {STAGES.map((stage, idx) => (
             <div key={stage} className="flex items-center flex-1">
-              <div className="flex-1 h-0.5 bg-gray-300" />
+              <div className="flex-1 h-0.5 bg-idle" />
               {idx < STAGES.length - 1 && (
-                <div className="text-gray-400 text-xs mx-1">&rarr;</div>
+                <div className="text-ink-3 text-xs mx-1">&rarr;</div>
               )}
             </div>
           ))}

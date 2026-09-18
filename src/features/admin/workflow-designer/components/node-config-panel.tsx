@@ -121,13 +121,13 @@ export function NodeConfigPanel({
         const outgoing = edges.filter((e) => e.source === node.id);
         return (
           <div className="space-y-3">
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-ink-3">
               Each outgoing branch carries its own condition. They are tried in order; the
               branch with no condition is the default and is taken when none of the others
               holds.
             </p>
             {outgoing.length === 0 && (
-              <p className="text-xs text-amber-700">
+              <p className="text-xs text-warn">
                 This decision has no outgoing branches, so nothing can follow it.
               </p>
             )}
@@ -135,8 +135,8 @@ export function NodeConfigPanel({
               const target = nodeLabel(edge.target);
               const condition = (edge.data?.condition as EdgeCondition | undefined) ?? null;
               return (
-                <div key={edge.id} className="rounded-md border border-gray-200 p-2.5">
-                  <p className="mb-1.5 text-xs font-medium text-gray-700">→ {target}</p>
+                <div key={edge.id} className="rounded-md border border-line p-2.5">
+                  <p className="mb-1.5 text-xs font-medium text-ink-2">→ {target}</p>
                   {condition ? (
                     <ConditionCard
                       condition={condition}
@@ -145,7 +145,7 @@ export function NodeConfigPanel({
                     />
                   ) : (
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs text-gray-500">
+                      <span className="text-xs text-ink-3">
                         No condition — this is the default branch.
                       </span>
                       <Button
@@ -164,7 +164,7 @@ export function NodeConfigPanel({
               );
             })}
             {outgoing.length > 0 && outgoing.every((e) => e.data?.condition) && (
-              <p className="text-xs text-amber-700">
+              <p className="text-xs text-warn">
                 Every branch has a condition, so a request matching none of them falls through
                 to the first. Leave one branch unconditional as the default.
               </p>
@@ -210,7 +210,7 @@ export function NodeConfigPanel({
                 </Select>
               </Field>
             )}
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-ink-3">
               The engine logs and continues past an integration node — there are no live
               upstream connections in this release.
             </p>
@@ -218,18 +218,18 @@ export function NodeConfigPanel({
         );
 
       default:
-        return <p className="text-sm text-gray-500">No configuration available for this node type.</p>;
+        return <p className="text-sm text-ink-3">No configuration available for this node type.</p>;
     }
   }
 
   return (
-    <div className="w-72 shrink-0 border-l border-gray-200 bg-white overflow-y-auto">
-      <div className="border-b border-gray-200 px-4 py-3">
+    <div className="w-72 shrink-0 border-l border-line bg-card overflow-y-auto">
+      <div className="border-b border-line px-4 py-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-gray-900">Node Configuration</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-lg leading-none">&times;</button>
+          <h3 className="text-sm font-semibold text-ink">Node Configuration</h3>
+          <button onClick={onClose} className="text-ink-3 hover:text-ink-2 text-lg leading-none">&times;</button>
         </div>
-        <p className="text-xs text-gray-500 mt-0.5 capitalize">{node.type?.replace(/([A-Z])/g, ' $1').trim()}</p>
+        <p className="text-xs text-ink-3 mt-0.5 capitalize">{node.type?.replace(/([A-Z])/g, ' $1').trim()}</p>
       </div>
 
       <div className="p-4 space-y-4">
@@ -239,7 +239,7 @@ export function NodeConfigPanel({
 
         {renderFields()}
 
-        <div className="flex gap-2 pt-2 border-t border-gray-200">
+        <div className="flex gap-2 pt-2 border-t border-line">
           <Button size="sm" onClick={handleSave} className="flex-1">Save</Button>
           <Button size="sm" variant="outline" onClick={onClose} className="flex-1">Cancel</Button>
         </div>

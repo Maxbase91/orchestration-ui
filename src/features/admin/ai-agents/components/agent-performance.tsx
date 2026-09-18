@@ -45,26 +45,26 @@ export function AgentPerformance({ agent }: AgentPerformanceProps) {
 
   return (
     <div className="space-y-4">
-      <h4 className="text-sm font-semibold text-gray-900">Performance Dashboard</h4>
+      <h4 className="text-sm font-semibold text-ink">Performance Dashboard</h4>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-lg border border-gray-200 bg-white p-3 text-center">
-          <p className="text-2xl font-bold text-gray-900">{agent.accuracy}%</p>
-          <p className="text-xs text-gray-500">Current Accuracy</p>
+        <div className="rounded-lg border border-line bg-card p-3 text-center">
+          <p className="text-2xl font-bold text-ink">{agent.accuracy}%</p>
+          <p className="text-xs text-ink-3">Current Accuracy</p>
         </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-3 text-center">
-          <p className="text-2xl font-bold text-gray-900">{overrideRate}%</p>
-          <p className="text-xs text-gray-500">Override Rate</p>
+        <div className="rounded-lg border border-line bg-card p-3 text-center">
+          <p className="text-2xl font-bold text-ink">{overrideRate}%</p>
+          <p className="text-xs text-ink-3">Override Rate</p>
         </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-3 text-center">
-          <p className="text-2xl font-bold text-gray-900">{agent.decisionsMade.toLocaleString()}</p>
-          <p className="text-xs text-gray-500">Total Decisions</p>
+        <div className="rounded-lg border border-line bg-card p-3 text-center">
+          <p className="text-2xl font-bold text-ink">{agent.decisionsMade.toLocaleString()}</p>
+          <p className="text-xs text-ink-3">Total Decisions</p>
         </div>
       </div>
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-xs font-medium text-gray-500">Accuracy Trend (6 months)</CardTitle>
+          <CardTitle className="text-xs font-medium text-ink-3">Accuracy Trend (6 months)</CardTitle>
         </CardHeader>
         <CardContent>
           <LineChartWidget
@@ -77,7 +77,7 @@ export function AgentPerformance({ agent }: AgentPerformanceProps) {
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-xs font-medium text-gray-500">Decisions per Day</CardTitle>
+          <CardTitle className="text-xs font-medium text-ink-3">Decisions per Day</CardTitle>
         </CardHeader>
         <CardContent>
           <BarChartWidget
@@ -90,14 +90,14 @@ export function AgentPerformance({ agent }: AgentPerformanceProps) {
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-xs font-medium text-gray-500">Most Common Corrections (Top 5)</CardTitle>
+          <CardTitle className="text-xs font-medium text-ink-3">Most Common Corrections (Top 5)</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
             {COMMON_CORRECTIONS.map((item, i) => (
-              <div key={i} className="flex items-center justify-between rounded bg-gray-50 px-3 py-2">
-                <span className="text-xs text-gray-700">{item.correction}</span>
-                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+              <div key={i} className="flex items-center justify-between rounded bg-card-2 px-3 py-2">
+                <span className="text-xs text-ink-2">{item.correction}</span>
+                <span className="rounded-full bg-warn-soft px-2 py-0.5 text-xs font-medium text-warn">
                   {item.count}x
                 </span>
               </div>

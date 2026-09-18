@@ -20,17 +20,6 @@ import { useRequests } from '@/lib/db/hooks/use-requests';
 import { useAuthStore } from '@/stores/auth-store';
 import type { ApprovalStatus, ProcurementRequest, ApprovalEntry } from '@/data/types';
 
-// AI summaries for each request in approval stage
-const aiSummaries: Record<string, string> = {
-  'REQ-2024-0007':
-    'Contingent labour engagement with Randstad for 8 senior Java developers supporting digital transformation. €960K over the programme period. Budget owner confirms headcount need. Programme timeline at risk without approval.',
-  'REQ-2024-0014':
-    'Management consulting engagement with McKinsey for operating model redesign across 3 business units. €1.85M over 6 months. CEO-sponsored transformation programme targeting €20M cost reduction. Finance has already approved; dual VP sign-off required.',
-  'REQ-2024-0023':
-    'Industrial IoT sensor procurement from Siemens for factory floor predictive maintenance. €140K for 200 sensors. ROI projection shows 45% reduction in unplanned downtime and €1.2M annual maintenance savings. SRA valid.',
-  'REQ-2024-0031':
-    'Salesforce CRM expansion including 200 additional licenses and Service Cloud module. €540K annually, up from €420K. Sales team growth drives the license increase. Budget allocated under CC-SALES-001.',
-};
 
 type UrgencyFilter = 'all' | 'urgent' | 'high' | 'medium' | 'low';
 type ValueFilter = 'all' | 'under-100k' | '100k-500k' | '500k-1m' | 'over-1m';
@@ -167,7 +156,7 @@ export function ApprovalsPage() {
       <PageHeader
         title="My Approvals"
         badge={
-          <Badge variant="secondary" className="bg-amber-100 text-amber-700">
+          <Badge variant="secondary" className="bg-warn-soft text-warn">
             {pendingCount} pending
           </Badge>
         }
@@ -246,13 +235,13 @@ export function ApprovalsPage() {
 
         {/* Bulk action bar */}
         {selectedPendingItems.length > 0 && (
-          <div className="flex items-center gap-3 rounded-md border border-green-200 bg-green-50 px-4 py-2 mt-4">
-            <span className="text-sm font-medium text-green-800">
+          <div className="flex items-center gap-3 rounded-md border border-ok-line bg-ok-soft px-4 py-2 mt-4">
+            <span className="text-body font-medium text-ok">
               {selectedPendingItems.length} selected
             </span>
             <Button
               size="sm"
-              className="bg-green-600 hover:bg-green-700 text-white"
+              className="bg-ok text-paper hover:brightness-110"
               onClick={() => setBulkDialogOpen(true)}
             >
               Approve Selected ({selectedPendingItems.length})
@@ -272,10 +261,10 @@ export function ApprovalsPage() {
           <TabsContent key={tab} value={tab} className="space-y-3 mt-4">
             {filteredItems.length === 0 ? (
               <div className="flex flex-col items-center justify-center gap-1 rounded-md border border-dashed py-12">
-                <p className="text-sm text-gray-500">
+                <p className="text-body text-ink-3">
                   No approvals in {currentUser.name}&rsquo;s queue match the current filters.
                 </p>
-                <p className="text-xs text-gray-400">Switch role to view another approver&rsquo;s queue.</p>
+                <p className="text-caption text-ink-3">Switch role to view another approver&rsquo;s queue.</p>
               </div>
             ) : (
               filteredItems.map((item) => (
@@ -283,10 +272,6 @@ export function ApprovalsPage() {
                   key={item.approval.id}
                   request={item.request}
                   approval={item.approval}
-                  aiSummary={
-                    aiSummaries[item.request.id] ??
-                    `${item.request.description} Value: ${item.request.value.toLocaleString('en-IE', { style: 'currency', currency: item.request.currency, minimumFractionDigits: 0 })}. Category: ${categoryLabels[item.request.category] ?? item.request.category}.`
-                  }
                   selected={selectedIds.has(item.approval.id)}
                   onSelectChange={(checked) =>
                     handleSelectChange(item.approval.id, checked)

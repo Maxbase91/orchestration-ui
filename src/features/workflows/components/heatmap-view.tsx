@@ -72,18 +72,18 @@ export function HeatmapView({ requests }: HeatmapViewProps) {
   );
 
   function getIntensityClass(count: number): string {
-    if (count === 0) return 'bg-gray-100';
+    if (count === 0) return 'bg-idle-soft';
     const ratio = count / maxCount;
-    if (ratio <= 0.2) return 'bg-blue-100';
-    if (ratio <= 0.4) return 'bg-blue-200';
-    if (ratio <= 0.6) return 'bg-blue-400';
-    if (ratio <= 0.8) return 'bg-blue-500';
-    return 'bg-blue-700';
+    if (ratio <= 0.2) return 'bg-accent-soft';
+    if (ratio <= 0.4) return 'bg-accent-soft';
+    if (ratio <= 0.6) return 'bg-accent-solid';
+    if (ratio <= 0.8) return 'bg-accent-solid';
+    return 'bg-accent-solid';
   }
 
   return (
-    <div className="rounded-md border bg-white p-4 shadow-sm">
-      <h3 className="text-sm font-semibold text-gray-900 mb-4">
+    <div className="rounded-md border bg-card p-4 shadow-sm">
+      <h3 className="text-sm font-semibold text-ink mb-4">
         Pipeline Heatmap (Last 8 Weeks)
       </h3>
 
@@ -115,7 +115,7 @@ export function HeatmapView({ requests }: HeatmapViewProps) {
                   getIntensityClass(cell.count),
                   cell.count > 0 && cell.count >= maxCount * 0.6
                     ? 'text-white'
-                    : 'text-gray-600',
+                    : 'text-ink-2',
                 )}
                 title={`${stageLabelShort(cell.stage)}: ${cell.count} requests`}
               >
@@ -129,12 +129,12 @@ export function HeatmapView({ requests }: HeatmapViewProps) {
       {/* Legend */}
       <div className="mt-3 flex items-center justify-end gap-1 text-[10px] text-muted-foreground">
         <span>Less</span>
-        <div className="size-3 rounded-sm bg-gray-100" />
-        <div className="size-3 rounded-sm bg-blue-100" />
-        <div className="size-3 rounded-sm bg-blue-200" />
-        <div className="size-3 rounded-sm bg-blue-400" />
-        <div className="size-3 rounded-sm bg-blue-500" />
-        <div className="size-3 rounded-sm bg-blue-700" />
+        <div className="size-3 rounded-sm bg-idle-soft" />
+        <div className="size-3 rounded-sm bg-accent-soft" />
+        <div className="size-3 rounded-sm bg-accent-soft" />
+        <div className="size-3 rounded-sm bg-accent-solid" />
+        <div className="size-3 rounded-sm bg-accent-solid" />
+        <div className="size-3 rounded-sm bg-accent-solid" />
         <span>More</span>
       </div>
     </div>

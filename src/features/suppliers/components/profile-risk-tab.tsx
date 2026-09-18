@@ -66,7 +66,7 @@ export function ProfileRiskTab({ supplier }: ProfileRiskTabProps) {
       </AISuggestionCard>
 
       {canDecideRisk && (
-        <Card className="border-amber-200 bg-amber-50/40" data-testid="risk-decision-form">
+        <Card className="border-warn-line bg-warn-soft/40" data-testid="risk-decision-form">
           <CardHeader className="pb-2"><CardTitle className="text-sm">Record risk decision</CardTitle></CardHeader>
           <CardContent className="space-y-3">
             <p className="text-xs text-muted-foreground">This form is available because your role owns supplier risk decisions. A rationale is required before the decision is saved.</p>
@@ -121,7 +121,7 @@ export function ProfileRiskTab({ supplier }: ProfileRiskTabProps) {
               {supplier.certifications.map((cert) => (
                 <div key={cert.name} className="flex items-center justify-between rounded-md border p-3">
                   <div>
-                    <p className="text-sm font-medium text-gray-900">{cert.name}</p>
+                    <p className="text-sm font-medium text-ink">{cert.name}</p>
                     <p className="text-xs text-muted-foreground">
                       Expires: {formatDate(cert.expiryDate)}
                     </p>

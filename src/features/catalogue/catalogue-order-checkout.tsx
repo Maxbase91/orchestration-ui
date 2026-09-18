@@ -103,10 +103,10 @@ export function CatalogueOrderCheckout({
   };
 
   return (
-    <Card className="border-blue-100 shadow-none">
+    <Card className="border-accent-line shadow-none">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
-          <PackageCheck className="size-4 text-blue-600" />
+          <PackageCheck className="size-4 text-accent-solid" />
           Details for this order
         </CardTitle>
         <p className="text-sm text-muted-foreground">
@@ -128,7 +128,7 @@ export function CatalogueOrderCheckout({
         <div className="space-y-1.5">
           <Label htmlFor="catalogue-delivery-location">Deliver to</Label>
           <div className="relative">
-            <MapPin className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
+            <MapPin className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-3" />
             <select id="catalogue-delivery-location" value={effectiveDeliveryLocation} onChange={(event) => setDeliveryLocation(event.target.value)} className="h-10 w-full appearance-none rounded-md border border-input bg-background px-9 pr-8 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring">
               {/* An explicit placeholder when nothing matches: a `<select>`
                   whose value is not among its options displays the FIRST
@@ -137,7 +137,7 @@ export function CatalogueOrderCheckout({
               {!deliveryLocations.some((location) => location.id === effectiveDeliveryLocation) && <option value="">Select a delivery location…</option>}
               {deliveryLocations.map((location) => <option key={location.id} value={location.id}>{location.label}</option>)}
             </select>
-            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
+            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-ink-3" />
           </div>
           <p className="text-xs text-muted-foreground">{deliveryLocations.length === 0 ? 'No delivery locations are configured — ask an administrator to add one.' : 'Only active delivery locations can be chosen.'}</p>
         </div>
@@ -163,34 +163,34 @@ export function CatalogueOrderCheckout({
             {!costCentres.some((centre) => centre.id === effectiveCostCentre) && <option value="">Select a cost centre…</option>}
             {costCentres.map((centre) => <option key={centre.id} value={centre.id}>{centre.id} · {centre.label}</option>)}
           </select>
-          <p className="text-[11px] text-gray-500">
+          <p className="text-[11px] text-ink-3">
             {profile?.costCentre ? 'From your profile — change it for this order if needed.' : 'Your profile has no default cost centre, so this order needs one.'}
           </p>
         </div>
 
-        <div className="rounded-lg border border-blue-100 bg-blue-50/60 p-4">
+        <div className="rounded-lg border border-accent-line bg-accent-soft/60 p-4">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-sm font-medium text-blue-950">Order summary</p>
-              <p className="mt-1 text-xs text-blue-800">{quantity} × {item.name} · {item.supplierName}</p>
+              <p className="text-sm font-medium text-accent-solid">Order summary</p>
+              <p className="mt-1 text-xs text-accent-solid">{quantity} × {item.name} · {item.supplierName}</p>
             </div>
-            <p className="text-sm font-semibold text-blue-950">€{total.toLocaleString('de-DE', { minimumFractionDigits: 2 })}</p>
+            <p className="text-sm font-semibold text-accent-solid">€{total.toLocaleString('de-DE', { minimumFractionDigits: 2 })}</p>
           </div>
-          <p className="mt-2 text-xs text-blue-800">This item is listed in an approved catalogue. Contract and supplier-risk checks will be recorded with your request.</p>
+          <p className="mt-2 text-xs text-accent-solid">This item is listed in an approved catalogue. Contract and supplier-risk checks will be recorded with your request.</p>
         </div>
 
         {(
-          <div className="rounded-lg border border-gray-200">
-            <button type="button" className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm font-medium text-gray-800" aria-expanded={showExpertDetails} onClick={() => setShowExpertDetails((open) => !open)}>
+          <div className="rounded-lg border border-line">
+            <button type="button" className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm font-medium text-ink" aria-expanded={showExpertDetails} onClick={() => setShowExpertDetails((open) => !open)}>
               <span>Governance and routing details</span>
               <ChevronDown className={`size-4 transition-transform ${showExpertDetails ? 'rotate-180' : ''}`} />
             </button>
             {showExpertDetails && (
-              <div className="space-y-2 border-t border-gray-200 px-4 py-3 text-xs text-gray-600">
-                <p><span className="font-medium text-gray-800">Supplier:</span> {item.supplierName} ({item.supplierId})</p>
-                <p><span className="font-medium text-gray-800">Catalogue:</span> {item.catalogueName}</p>
-                <p><span className="font-medium text-gray-800">Route:</span> Catalogue order against the supplier’s active agreement, subject to policy and capacity checks.</p>
-                <p><span className="font-medium text-gray-800">Expected lead time:</span> {item.leadTime}</p>
+              <div className="space-y-2 border-t border-line px-4 py-3 text-xs text-ink-2">
+                <p><span className="font-medium text-ink">Supplier:</span> {item.supplierName} ({item.supplierId})</p>
+                <p><span className="font-medium text-ink">Catalogue:</span> {item.catalogueName}</p>
+                <p><span className="font-medium text-ink">Route:</span> Catalogue order against the supplier’s active agreement, subject to policy and capacity checks.</p>
+                <p><span className="font-medium text-ink">Expected lead time:</span> {item.leadTime}</p>
               </div>
             )}
           </div>

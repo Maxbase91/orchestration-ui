@@ -28,10 +28,10 @@ import { formatDate } from '@/lib/format';
 const SYSTEMS = Object.entries(systemLabels).map(([system, label]) => ({ system, label }));
 
 const STATE_STYLE: Record<SystemHealth['state'], { dot: string; text: string; icon: typeof CheckCircle; label: string }> = {
-  failing: { dot: 'bg-red-500', text: 'text-red-600', icon: AlertTriangle, label: 'Handovers failing' },
-  waiting: { dot: 'bg-amber-500', text: 'text-amber-600', icon: Clock, label: 'Awaiting response' },
-  healthy: { dot: 'bg-green-500', text: 'text-green-600', icon: CheckCircle, label: 'All completed' },
-  unused: { dot: 'bg-gray-300', text: 'text-gray-500', icon: MinusCircle, label: 'No handovers yet' },
+  failing: { dot: 'bg-stop', text: 'text-stop', icon: AlertTriangle, label: 'Handovers failing' },
+  waiting: { dot: 'bg-warn', text: 'text-warn', icon: Clock, label: 'Awaiting response' },
+  healthy: { dot: 'bg-ok', text: 'text-ok', icon: CheckCircle, label: 'All completed' },
+  unused: { dot: 'bg-idle', text: 'text-ink-3', icon: MinusCircle, label: 'No handovers yet' },
 };
 
 type FailureRow = SystemIntegration & Record<string, unknown>;
@@ -85,18 +85,18 @@ export function SystemHealthPage() {
       {/* An unreadable table and a platform with nothing to hand over look the
           same on a card. Saying which is the whole job of this screen. */}
       {isError && (
-        <div className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 p-3">
-          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-red-700" />
-          <div className="text-sm text-red-900">
+        <div className="flex items-start gap-2 rounded-md border border-stop-line bg-stop-soft p-3">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-stop" />
+          <div className="text-sm text-stop">
             <p className="font-medium">Handover records could not be read</p>
-            <p className="mt-0.5 text-xs text-red-800">
+            <p className="mt-0.5 text-xs text-stop">
               Nothing below is a measurement. The figures are absent rather than shown as zeroes.
             </p>
           </div>
         </div>
       )}
 
-      <div className="rounded-md border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600">
+      <div className="rounded-md border border-line bg-card-2 p-3 text-xs text-ink-2">
         This release has <span className="font-medium">no live upstream connections</span>. Each
         record below is a handover the platform prepared for an external system and the outcome it
         recorded — not a health check against a running service. There is no uptime, error rate or
@@ -105,7 +105,7 @@ export function SystemHealthPage() {
 
       {/* Per-system summary */}
       <div>
-        <h3 className="mb-3 text-sm font-medium text-gray-900">Handovers by system</h3>
+        <h3 className="mb-3 text-sm font-medium text-ink">Handovers by system</h3>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {health.map((h) => {
             const style = STATE_STYLE[h.state];
@@ -123,7 +123,7 @@ export function SystemHealthPage() {
                 <div className="space-y-0.5 text-xs text-muted-foreground">
                   <p className="tabular-nums">
                     {h.completed} completed · {h.open} open
-                    {h.failed > 0 && <span className="font-medium text-red-600"> · {h.failed} failed</span>}
+                    {h.failed > 0 && <span className="font-medium text-stop"> · {h.failed} failed</span>}
                   </p>
                   <p>
                     Last handover:{' '}
@@ -140,7 +140,7 @@ export function SystemHealthPage() {
 
       {/* Totals — each one a count of rows, not a rate nobody measures. */}
       <div>
-        <h3 className="mb-3 text-sm font-medium text-gray-900">Across all systems</h3>
+        <h3 className="mb-3 text-sm font-medium text-ink">Across all systems</h3>
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           {[
             { label: 'Handovers recorded', value: String(integrations.length) },
@@ -160,7 +160,7 @@ export function SystemHealthPage() {
           the record itself carries. The five rows that used to be here were
           invented, down to the timestamps. */}
       <Card className="p-4">
-        <h3 className="mb-4 text-sm font-medium text-gray-900">
+        <h3 className="mb-4 text-sm font-medium text-ink">
           Handovers that did not land{failures.length > 0 && ` (${failures.length})`}
         </h3>
         {failures.length === 0 ? (

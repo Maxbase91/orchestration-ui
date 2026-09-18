@@ -43,7 +43,7 @@ function renderInline(text: string): React.ReactNode {
   const parts = text.split(/(\*\*[^*]+\*\*)/g);
   return parts.map((part, i) =>
     part.startsWith('**') && part.endsWith('**')
-      ? <strong key={i} className="font-semibold text-gray-900">{part.slice(2, -2)}</strong>
+      ? <strong key={i} className="font-semibold text-ink">{part.slice(2, -2)}</strong>
       : part
   );
 }
@@ -71,7 +71,7 @@ function MarkdownContent({ text }: { text: string }) {
             <ol key={bIdx} className="list-none space-y-0.5 pl-0">
               {lines.map((line, lIdx) => (
                 <li key={lIdx} className="flex gap-2">
-                  <span className="shrink-0 font-medium text-gray-400 tabular-nums">
+                  <span className="shrink-0 font-medium text-ink-3 tabular-nums">
                     {lIdx + 1}.
                   </span>
                   <span>{renderInline(stripBullet(line.trim()))}</span>
@@ -90,14 +90,14 @@ function MarkdownContent({ text }: { text: string }) {
                 if (!isBulletLine(trimmed)) {
                   // Non-bullet line mixed into block — treat as paragraph
                   return (
-                    <li key={lIdx} className="text-gray-800">
+                    <li key={lIdx} className="text-ink">
                       {renderInline(trimmed)}
                     </li>
                   );
                 }
                 return (
                   <li key={lIdx} className="flex gap-2">
-                    <span className="mt-[3px] size-1.5 shrink-0 rounded-full bg-gray-300" />
+                    <span className="mt-[3px] size-1.5 shrink-0 rounded-full bg-idle" />
                     <span>{renderInline(stripBullet(trimmed))}</span>
                   </li>
                 );
@@ -109,7 +109,7 @@ function MarkdownContent({ text }: { text: string }) {
         // Heading-like line (short, ends with ':' and is the only line)
         if (lines.length === 1 && lines[0].endsWith(':') && lines[0].length < 80) {
           return (
-            <p key={bIdx} className="font-semibold text-gray-700 text-[12.5px] uppercase tracking-wide">
+            <p key={bIdx} className="font-semibold text-ink-2 text-[12.5px] uppercase tracking-wide">
               {renderInline(lines[0].slice(0, -1))}
             </p>
           );
@@ -117,7 +117,7 @@ function MarkdownContent({ text }: { text: string }) {
 
         // Regular paragraph(s)
         return (
-          <p key={bIdx} className="text-gray-800">
+          <p key={bIdx} className="text-ink">
             {renderInline(lines.join(' '))}
           </p>
         );
@@ -129,13 +129,13 @@ function MarkdownContent({ text }: { text: string }) {
 export function TurnChatAnswer({ turn }: Props) {
   return (
     <div className="space-y-1.5">
-      <div className="rounded-[18px] rounded-tl-[4px] bg-white border border-gray-100 shadow-sm px-4 py-3 text-[13.5px] leading-relaxed text-gray-800">
+      <div className="rounded-[18px] rounded-tl-[4px] bg-card border border-line-2 shadow-sm px-4 py-3 text-[13.5px] leading-relaxed text-ink">
         <MarkdownContent text={cleanAssistantText(turn.content)} />
       </div>
       {turn.source && (
         <div className="flex items-center gap-1 pl-1">
-          <BookOpen className="size-3 text-gray-400 shrink-0" />
-          <span className="text-[10px] text-gray-400">{turn.source}</span>
+          <BookOpen className="size-3 text-ink-3 shrink-0" />
+          <span className="text-[10px] text-ink-3">{turn.source}</span>
         </div>
       )}
     </div>

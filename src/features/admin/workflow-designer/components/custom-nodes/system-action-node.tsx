@@ -15,22 +15,22 @@ type SystemActionNodeType = Node<SystemActionNodeData, 'systemAction'>;
 export function SystemActionNode({ data, selected }: NodeProps<SystemActionNodeType>) {
   return (
     <div
-      className={`rounded-lg border-2 bg-gray-50 px-4 py-3 shadow-sm ${
-        selected ? 'border-gray-600 ring-2 ring-gray-300' : 'border-gray-300'
+      className={`rounded-lg border-2 bg-card-2 px-4 py-3 shadow-sm ${
+        selected ? 'border-line ring-2 ring-line' : 'border-line'
       }`}
       style={{ minWidth: 180 }}
     >
-      <Handle type="target" position={Position.Top} className="!bg-gray-500 !h-2.5 !w-2.5" />
+      <Handle type="target" position={Position.Top} className="!bg-idle !h-2.5 !w-2.5" />
       <div className="flex items-center gap-2">
-        <div className="flex h-7 w-7 items-center justify-center rounded bg-gray-200">
-          <Cog className="h-4 w-4 text-gray-600" />
+        <div className="flex h-7 w-7 items-center justify-center rounded bg-line">
+          <Cog className="h-4 w-4 text-ink-2" />
         </div>
         <div>
-          <div className="text-xs font-medium uppercase tracking-wide text-gray-400">System</div>
-          <div className="text-sm font-semibold text-gray-900">{data.label}</div>
+          <div className="text-xs font-medium uppercase tracking-wide text-ink-3">System</div>
+          <div className="text-sm font-semibold text-ink">{data.label}</div>
         </div>
       </div>
-      <Handle type="source" position={Position.Bottom} className="!bg-gray-500 !h-2.5 !w-2.5" />
+      <Handle type="source" position={Position.Bottom} className="!bg-idle !h-2.5 !w-2.5" />
     </div>
   );
 }

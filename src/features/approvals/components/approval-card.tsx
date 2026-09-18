@@ -23,7 +23,6 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { SLACountdown } from '@/components/shared/sla-countdown';
-import { AISuggestionCard } from '@/components/shared/ai-suggestion-card';
 import { OOOWarning } from './ooo-warning';
 import { formatCurrency } from '@/lib/format';
 import { getStatusLabel } from '@/lib/status';
@@ -39,7 +38,6 @@ import type { ProcurementRequest, ApprovalEntry } from '@/data/types';
 interface ApprovalCardProps {
   request: ProcurementRequest;
   approval: ApprovalEntry;
-  aiSummary: string;
   selected: boolean;
   onSelectChange: (checked: boolean) => void;
   onActionComplete: (action: string) => void;
@@ -56,16 +54,15 @@ const categoryLabels: Record<string, string> = {
 };
 
 const priorityConfig: Record<string, { color: string; icon: typeof AlertTriangle }> = {
-  urgent: { color: 'bg-red-100 text-red-700', icon: AlertTriangle },
-  high: { color: 'bg-amber-100 text-amber-700', icon: Clock },
-  medium: { color: 'bg-blue-100 text-blue-700', icon: Clock },
-  low: { color: 'bg-gray-100 text-gray-700', icon: Clock },
+  urgent: { color: 'bg-stop-soft text-stop', icon: AlertTriangle },
+  high: { color: 'bg-warn-soft text-warn', icon: Clock },
+  medium: { color: 'bg-accent-soft text-accent-solid', icon: Clock },
+  low: { color: 'bg-idle-soft text-ink-2', icon: Clock },
 };
 
 export function ApprovalCard({
   request,
   approval,
-  aiSummary,
   selected,
   onSelectChange,
   onActionComplete,
@@ -167,7 +164,7 @@ export function ApprovalCard({
   };
 
   return (
-    <div className="rounded-lg border bg-white p-4 shadow-sm">
+    <div className="rounded-lg border bg-card p-4 shadow-sm">
       <div className="flex items-start gap-3">
         <Checkbox
           checked={selected}
@@ -176,44 +173,56 @@ export function ApprovalCard({
         />
 
         <div className="min-w-0 flex-1 space-y-3">
-          {/* Header row */}
-          <div className="flex items-start justify-between gap-2">
-            <div>
+          {/* Header.
+              Three tiers, so the row answers "what am I approving, how much,
+              and how urgently" before anything else is read:
+                1. the request, and the amount — tabular figures, so a column of
+                   decisions can be compared down the page;
+                2. which decision this is (step and role) and who asked;
+                3. everything else, below.
+              The amount was already on the card, as a small span among the
+              badges. It is the fact this screen exists to present, so it leads
+              rather than sits in a row of chips. */}
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <Link
                   to={`/requests/${request.id}`}
-                  className="group inline-flex items-center gap-1.5 text-sm font-semibold text-gray-900 hover:text-blue-700"
+                  className="group inline-flex items-center gap-1.5 text-body font-semibold text-ink hover:text-accent-solid"
                 >
                   {request.title}
-                  <ExternalLink className="size-3 text-gray-400 group-hover:text-blue-600" />
+                  <ExternalLink className="size-3 text-ink-3 group-hover:text-accent-solid" aria-hidden="true" />
                 </Link>
                 <Link
                   to={`/requests/${request.id}`}
-                  className="text-xs text-gray-500 hover:text-blue-700 hover:underline"
+                  className="font-mono text-caption text-ink-3 hover:text-accent-solid hover:underline"
                 >
                   {request.id}
                 </Link>
               </div>
-              <p className="text-xs text-gray-500 mt-0.5">
-                Requested by {requestor?.name ?? 'Unknown'} &middot;{' '}
-                {approval.approverRole}
+              <p className="text-caption text-ink-3 mt-0.5">
+                {approval.approverRole} &middot; requested by{' '}
+                {requestor?.name ?? 'Unknown'}
               </p>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex flex-col items-end gap-1 shrink-0 text-right">
+              <span className="text-heading font-semibold tabular-nums text-ink leading-none">
+                {formatCurrency(request.value, request.currency)}
+              </span>
               {request.slaDeadline && (
                 <SLACountdown deadline={request.slaDeadline} compact />
               )}
               {request.isOverdue && !request.slaDeadline && (
-                <span className="text-xs font-medium text-red-600">Overdue</span>
+                <span className="text-caption font-medium text-stop">Overdue</span>
               )}
             </div>
           </div>
 
-          {/* Badges row */}
+          {/* Badges row.
+              The amount used to sit here, as a small span among the badges. It
+              has moved to the header — same fact, given the weight the decision
+              deserves — so it is not repeated here. */}
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-semibold text-gray-900">
-              {formatCurrency(request.value, request.currency)}
-            </span>
             <Badge variant="secondary" className={priorityCfg.color}>
               {getStatusLabel(request.priority)}
             </Badge>
@@ -223,29 +232,21 @@ export function ApprovalCard({
             <StatusBadge status={approval.status} size="sm" />
           </div>
 
-          {/* AI Summary */}
-          <AISuggestionCard>
-            <p>{aiSummary}</p>
-          </AISuggestionCard>
-
-          {/* Key data points */}
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-600 sm:grid-cols-4">
-            <div>
-              <span className="text-gray-400">Cost Centre:</span>{' '}
-              {request.costCentre}
-            </div>
-            <div>
-              <span className="text-gray-400">Budget Owner:</span>{' '}
-              {request.budgetOwner}
-            </div>
-            <div>
-              <span className="text-gray-400">Channel:</span>{' '}
-              {getStatusLabel(request.buyingChannel)}
-            </div>
-            <div>
-              <span className="text-gray-400">Delivery:</span>{' '}
-              {request.deliveryDate}
-            </div>
+          {/* Key data points. An empty one renders an em dash rather than a
+              bare label: "Budget Owner:" followed by nothing reads as a broken
+              field, and every cost centre in the seed is in fact unowned. */}
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-caption text-ink-2 sm:grid-cols-4">
+            {[
+              ['Cost centre', request.costCentre],
+              ['Budget owner', request.budgetOwner],
+              ['Channel', getStatusLabel(request.buyingChannel)],
+              ['Needed by', request.deliveryDate],
+            ].map(([label, value]) => (
+              <div key={label}>
+                <span className="text-ink-3">{label}:</span>{' '}
+                {value || <span className="text-ink-3">&mdash;</span>}
+              </div>
+            ))}
           </div>
 
           {/* OOO Warning */}
@@ -265,15 +266,15 @@ export function ApprovalCard({
               approval. Others see who it's with (consistent with the
               request-detail Approvals tab); resolved approvals show no actions. */}
           {approval.status !== 'pending' ? null : !isCurrentUserApprover ? (
-            <p className="text-xs text-gray-500">
-              Awaiting <span className="font-medium text-gray-700">{approval.approverName || approval.approverRole}</span>
+            <p className="text-caption text-ink-3">
+              Awaiting <span className="font-medium text-ink-2">{approval.approverName || approval.approverRole}</span>
               {' '}— switch to that role to act on it.
             </p>
           ) : (
           <div className="flex items-center gap-2 flex-wrap">
             <Button
               size="sm"
-              className="bg-green-600 hover:bg-green-700 text-white"
+              className="bg-ok text-paper hover:brightness-110"
               onClick={handleApprove}
             >
               <Check className="size-3.5" />
@@ -294,7 +295,7 @@ export function ApprovalCard({
               variant={expandedAction === 'request-info' ? 'default' : 'outline'}
               className={
                 expandedAction === 'request-info'
-                  ? 'bg-amber-600 hover:bg-amber-700 text-white'
+                  ? 'bg-warn text-paper hover:brightness-110'
                   : ''
               }
               onClick={() =>
@@ -321,7 +322,7 @@ export function ApprovalCard({
 
           {/* Expanded inline forms */}
           {expandedAction === 'reject' && (
-            <div className="space-y-2 rounded-md border border-red-200 bg-red-50 p-3">
+            <div className="space-y-2 rounded-md border border-stop-line bg-stop-soft p-3">
               <Textarea
                 placeholder="Reason for rejection (required)"
                 value={comment}
@@ -352,7 +353,7 @@ export function ApprovalCard({
           )}
 
           {expandedAction === 'request-info' && (
-            <div className="space-y-2 rounded-md border border-amber-200 bg-amber-50 p-3">
+            <div className="space-y-2 rounded-md border border-warn-line bg-warn-soft p-3">
               <Textarea
                 placeholder="What information do you need?"
                 value={comment}
@@ -362,7 +363,7 @@ export function ApprovalCard({
               <div className="flex items-center gap-2">
                 <Button
                   size="sm"
-                  className="bg-amber-600 hover:bg-amber-700 text-white"
+                  className="bg-warn text-paper hover:brightness-110"
                   onClick={handleRequestInfo}
                   disabled={!comment.trim()}
                 >

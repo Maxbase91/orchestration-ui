@@ -124,14 +124,14 @@ export function SimulationRunner({ nodes, edges, onHighlightNode, onClose }: Sim
   }, [steps, onHighlightNode]);
 
   return (
-    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 w-[560px] rounded-xl border border-gray-200 bg-white shadow-xl">
-      <div className="flex items-center justify-between border-b border-gray-100 px-4 py-2.5">
-        <h4 className="text-sm font-semibold text-gray-900">Simulation</h4>
+    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 w-[560px] rounded-xl border border-line bg-card shadow-xl">
+      <div className="flex items-center justify-between border-b border-line-2 px-4 py-2.5">
+        <h4 className="text-sm font-semibold text-ink">Simulation</h4>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-500">
+          <span className="text-xs text-ink-3">
             {currentStep >= 0 ? `Step ${currentStep + 1} of ${steps.length}` : 'Ready'}
           </span>
-          <button onClick={() => { onHighlightNode(null); onClose(); }} className="text-gray-400 hover:text-gray-600">
+          <button onClick={() => { onHighlightNode(null); onClose(); }} className="text-ink-3 hover:text-ink-2">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -139,19 +139,19 @@ export function SimulationRunner({ nodes, edges, onHighlightNode, onClose }: Sim
 
       <div className="p-4 space-y-3">
         {currentStep >= 0 && steps[currentStep] && (
-          <div className="rounded-lg border border-green-200 bg-green-50 p-3">
+          <div className="rounded-lg border border-ok-line bg-ok-soft p-3">
             <div className="flex items-center gap-2">
-              <span className="rounded bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 capitalize">
+              <span className="rounded bg-ok-soft px-2 py-0.5 text-xs font-medium text-ok capitalize">
                 {steps[currentStep].type.replace(/([A-Z])/g, ' $1').trim()}
               </span>
-              <span className="text-sm font-semibold text-green-900">{steps[currentStep].label}</span>
+              <span className="text-sm font-semibold text-ok">{steps[currentStep].label}</span>
             </div>
-            <p className="text-xs text-green-700 mt-1.5">{steps[currentStep].data}</p>
+            <p className="text-xs text-ok mt-1.5">{steps[currentStep].data}</p>
           </div>
         )}
 
         {currentStep < 0 && (
-          <p className="text-sm text-gray-500 text-center py-2">Click "Start" to begin step-by-step simulation.</p>
+          <p className="text-sm text-ink-3 text-center py-2">Click "Start" to begin step-by-step simulation.</p>
         )}
 
         <div className="flex items-center gap-2">
@@ -175,13 +175,13 @@ export function SimulationRunner({ nodes, edges, onHighlightNode, onClose }: Sim
         </div>
 
         {warnings.length > 0 && (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 space-y-1">
-            <div className="flex items-center gap-1.5 text-amber-700">
+          <div className="rounded-lg border border-warn-line bg-warn-soft p-3 space-y-1">
+            <div className="flex items-center gap-1.5 text-warn">
               <AlertTriangle className="h-3.5 w-3.5" />
               <span className="text-xs font-semibold">Warnings</span>
             </div>
             {warnings.map((w, i) => (
-              <p key={i} className="text-xs text-amber-700">{w}</p>
+              <p key={i} className="text-xs text-warn">{w}</p>
             ))}
           </div>
         )}

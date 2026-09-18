@@ -106,24 +106,24 @@ function RouteOption({
     <div
       className={cn(
         'rounded-lg border p-4',
-        recommended ? 'border-blue-200 bg-blue-50/40' : 'border-gray-200 bg-white',
+        recommended ? 'border-accent-line bg-accent-soft/40' : 'border-line bg-card',
       )}
     >
       <div className="flex items-start gap-3">
         <div className="mt-0.5 shrink-0">{icon}</div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-baseline gap-2">
-            <p className="text-sm font-semibold text-gray-900">{headline}</p>
+            <p className="text-sm font-semibold text-ink">{headline}</p>
             {recommended && (
-              <span className="rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-white">
+              <span className="rounded-full bg-accent-solid px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-paper">
                 Recommended
               </span>
             )}
             {timelineDays !== undefined && (
-              <span className="text-xs text-gray-500">about {timelineDays} days</span>
+              <span className="text-xs text-ink-3">about {timelineDays} days</span>
             )}
           </div>
-          <p className="mt-0.5 text-xs text-gray-600">{disabledReason ?? detail}</p>
+          <p className="mt-0.5 text-xs text-ink-2">{disabledReason ?? detail}</p>
           {children}
         </div>
         {action && actionLabel && (
@@ -356,8 +356,8 @@ export function StepBuyRoute({
     return (
       <div className="space-y-4">
         <div>
-          <h2 className="text-base font-semibold text-gray-900">We could not check what already exists</h2>
-          <p className="mt-0.5 text-sm text-gray-600">
+          <h2 className="text-base font-semibold text-ink">We could not check what already exists</h2>
+          <p className="mt-0.5 text-sm text-ink-2">
             The catalogue and contract register could not be reached, so neither was checked.
             Nothing has been ruled in or out.
           </p>
@@ -376,8 +376,8 @@ export function StepBuyRoute({
 
   if (catLoading || conLoading) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-gray-500">
-        <Loader2 className="size-8 animate-spin text-blue-500" />
+      <div className="flex flex-col items-center justify-center py-16 text-ink-3">
+        <Loader2 className="size-8 animate-spin text-accent-solid" />
         <p className="mt-4 text-sm font-medium">Checking what already exists…</p>
       </div>
     );
@@ -404,8 +404,8 @@ export function StepBuyRoute({
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-base font-semibold text-gray-900">How you&apos;ll buy this</h2>
-        <p className="mt-0.5 text-sm text-gray-600">
+        <h2 className="text-base font-semibold text-ink">How you&apos;ll buy this</h2>
+        <p className="mt-0.5 text-sm text-ink-2">
           We looked for a catalogue item and an existing contract first, because both are faster.
           Pick the one that fits — you can change your mind here.
         </p>
@@ -416,7 +416,7 @@ export function StepBuyRoute({
       <div className="space-y-2.5">
         <RouteOption
           recommended={recommended === 'catalogue'}
-          icon={<ShoppingCart className="size-4 text-green-600" />}
+          icon={<ShoppingCart className="size-4 text-ok" />}
           headline={catalogueChannel.headline}
           detail={catalogueChannel.detail}
           timelineDays={hasCatalogue ? timelineByCategory.get('catalogue') : undefined}
@@ -434,10 +434,10 @@ export function StepBuyRoute({
                   <button
                     type="button"
                     onClick={() => onChooseCatalogue([item])}
-                    className="flex w-full items-center justify-between gap-2 rounded px-2 py-1.5 text-left text-xs transition-colors hover:bg-white"
+                    className="flex w-full items-center justify-between gap-2 rounded px-2 py-1.5 text-left text-xs transition-colors hover:bg-card"
                   >
-                    <span className="min-w-0 truncate text-gray-700">
-                      <span className="font-medium text-gray-900">{item.name}</span>
+                    <span className="min-w-0 truncate text-ink-2">
+                      <span className="font-medium text-ink">{item.name}</span>
                       {' · '}{formatCurrency(item.unitPrice)} / {item.unit}
                       {' · '}{item.leadTime}
                     </span>
@@ -453,7 +453,7 @@ export function StepBuyRoute({
 
         <RouteOption
           recommended={recommended === 'contract'}
-          icon={<FileText className="size-4 text-blue-600" />}
+          icon={<FileText className="size-4 text-accent-solid" />}
           headline={contractChannel.headline}
           detail={contractChannel.detail}
           timelineDays={canCallOff ? timelineByCategory.get(category) : undefined}
@@ -480,10 +480,10 @@ export function StepBuyRoute({
                     <button
                       type="button"
                       onClick={() => onChooseContract(contract, supplierById.get(contract.supplierId))}
-                      className="flex w-full items-center justify-between gap-2 rounded px-2 py-1.5 text-left text-xs transition-colors hover:bg-white"
+                      className="flex w-full items-center justify-between gap-2 rounded px-2 py-1.5 text-left text-xs transition-colors hover:bg-card"
                     >
-                      <span className="min-w-0 truncate text-gray-700">
-                        <span className="font-medium text-gray-900">{contract.title}</span>
+                      <span className="min-w-0 truncate text-ink-2">
+                        <span className="font-medium text-ink">{contract.title}</span>
                         {' · '}{contract.supplierName}
                       </span>
                       <span className="flex shrink-0 items-center gap-1 font-medium text-[#2D5F8A]">
@@ -494,11 +494,11 @@ export function StepBuyRoute({
                     // Listed but not yet selectable, and it says so rather than
                     // looking broken.
                     <div className="flex w-full items-center justify-between gap-2 px-2 py-1.5 text-xs">
-                      <span className="min-w-0 truncate text-gray-500">
-                        <span className="font-medium text-gray-700">{contract.title}</span>
+                      <span className="min-w-0 truncate text-ink-3">
+                        <span className="font-medium text-ink-2">{contract.title}</span>
                         {' · '}{contract.supplierName}
                       </span>
-                      <span className="shrink-0 text-gray-400">awaiting confirmation</span>
+                      <span className="shrink-0 text-ink-3">awaiting confirmation</span>
                     </div>
                   )}
                 </li>
@@ -521,13 +521,13 @@ export function StepBuyRoute({
       {/* One box, shown when the decision could still be sharpened — not two
           enrichment blocks, one per stage, each with its own guidance string. */}
       {(showEnrich || clarifyingQuestion || (!hasCatalogue && contractMatches.length === 0)) && (
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
-          <p className="text-sm font-medium text-gray-900">
+        <div className="rounded-lg border border-line bg-card p-4">
+          <p className="text-sm font-medium text-ink">
             {clarifyingQuestion ? 'One detail would settle this' : 'Add a bit more detail'}
           </p>
           {/* The matcher knows what it is missing (ADR-0004), so it asks. A
               generic prompt threw that away and made the requester guess. */}
-          <p className="mt-0.5 text-xs text-gray-500">
+          <p className="mt-0.5 text-xs text-ink-3">
             {clarifyingQuestion ?? `The more specific you are, the better we can match — try ${enrichGuidance(category)}.`}
           </p>
           <Textarea
@@ -540,7 +540,7 @@ export function StepBuyRoute({
             aria-label={clarifyingQuestion ?? 'Add more detail about what you need'}
           />
           <div className="mt-3 flex items-center justify-between gap-3">
-            <p className="text-[11px] text-gray-500">
+            <p className="text-[11px] text-ink-3">
               You can skip this and raise a full request instead.
             </p>
             <Button size="sm" disabled={!enrich.trim()} onClick={useEnrichment}>
@@ -557,7 +557,7 @@ export function StepBuyRoute({
           twice. It is now confirmed, and the re-matched result is what changes
           above. */}
       {detailAdded && (
-        <p className="flex items-center gap-1.5 text-xs text-green-700">
+        <p className="flex items-center gap-1.5 text-xs text-ok">
           <Check className="size-3.5" />
           Detail added — the options above have been re-checked against it.
         </p>
@@ -566,7 +566,7 @@ export function StepBuyRoute({
       {/* Server confirmation is still required before a call-off can be
           submitted; say so once, quietly, rather than as a banner. */}
       {matchUnavailable && contractMatches.length > 0 && (
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-ink-3">
           Contract coverage is a preliminary match — it is confirmed on the server before submission.
         </p>
       )}
@@ -579,7 +579,7 @@ export function StepBuyRoute({
         <div>
           <button
             type="button"
-            className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-700"
+            className="flex items-center gap-1.5 text-xs font-medium text-ink-3 hover:text-ink-2"
             onClick={() => setShowEvidence((open) => !open)}
             aria-expanded={showEvidence}
           >
@@ -587,18 +587,18 @@ export function StepBuyRoute({
             Why this?
           </button>
           {showEvidence && (
-            <div className="mt-2 space-y-2 rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600">
+            <div className="mt-2 space-y-2 rounded-lg border border-line bg-card-2 p-3 text-xs text-ink-2">
               <p className="flex items-start gap-2">
-                <Route className="mt-0.5 size-3.5 shrink-0 text-gray-400" />
+                <Route className="mt-0.5 size-3.5 shrink-0 text-ink-3" />
                 <span>
-                  Buying channel <span className="font-medium text-gray-900">{buyingChannelLabel(routing.channel)}</span>
+                  Buying channel <span className="font-medium text-ink">{buyingChannelLabel(routing.channel)}</span>
                   {' — '}
                   {routing.matchedRule
                     ? `routing rule ${routing.matchedRule.id} “${routing.matchedRule.name}”`
                     : 'the default fallback; no admin routing rule matched this demand'}.
                 </span>
               </p>
-              {decision.llmOverruled && <p className="text-amber-700">{decision.llmOverruled}</p>}
+              {decision.llmOverruled && <p className="text-warn">{decision.llmOverruled}</p>}
               {decision.reasons.map((reason) => (<p key={reason}>{reason}</p>))}
               {decision.catalogueMatches.map(({ item, matched, score }) => (
                 <p key={item.id}>

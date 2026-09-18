@@ -462,7 +462,7 @@ export function ActionButtons({ request }: ActionButtonsProps) {
         {showGateAction && (
           <Button
             size="sm"
-            className="bg-blue-600 hover:bg-blue-700 text-white"
+            className="bg-accent-solid hover:bg-accent-solid text-paper"
             onClick={handleCompleteStage}
             // Disabled, not hidden, with the reason on the button: a control
             // that vanishes leaves the user hunting for why.
@@ -476,7 +476,7 @@ export function ActionButtons({ request }: ActionButtonsProps) {
           </Button>
         )}
         {showGateAction && outstandingForms.length > 0 && (
-          <span className="text-xs text-amber-700">
+          <span className="text-xs text-warn">
             Needs {outstandingForms.map((f) => f.name).join(' and ')} before this stage can close
           </span>
         )}
@@ -489,7 +489,7 @@ export function ActionButtons({ request }: ActionButtonsProps) {
           ) : (
             <Button
               size="sm"
-              className="bg-blue-600 hover:bg-blue-700 text-white"
+              className="bg-accent-solid hover:bg-accent-solid text-paper"
               onClick={() => setEventDialogOpen(true)}
             >
               <Gavel className="size-3.5" />
@@ -500,7 +500,7 @@ export function ActionButtons({ request }: ActionButtonsProps) {
         {isPOStage && (
           <Button
             size="sm"
-            className="bg-blue-600 hover:bg-blue-700 text-white"
+            className="bg-accent-solid hover:bg-accent-solid text-paper"
             onClick={() => setPoDialogOpen(true)}
           >
             <ShoppingCart className="size-3.5" />
@@ -511,7 +511,7 @@ export function ActionButtons({ request }: ActionButtonsProps) {
           <>
             <Button
               size="sm"
-              className="bg-green-600 hover:bg-green-700 text-white"
+              className="bg-ok hover:bg-ok text-paper"
               onClick={() => setConfirmAction('approve')}
             >
               <Check className="size-3.5" />
@@ -527,7 +527,7 @@ export function ActionButtons({ request }: ActionButtonsProps) {
             </Button>
           </>
         )}
-        {canManageRequest && <Button size="sm" variant="outline" className="text-amber-700 border-amber-300 hover:bg-amber-50" onClick={() => setReferBackOpen(true)}>
+        {canManageRequest && <Button size="sm" variant="outline" className="text-warn border-warn-line hover:bg-warn-soft" onClick={() => setReferBackOpen(true)}>
           <RotateCcw className="size-3.5" />
           Refer Back
         </Button>}
@@ -539,7 +539,7 @@ export function ActionButtons({ request }: ActionButtonsProps) {
           <ArrowUpRight className="size-3.5" />
           Escalate
         </Button>}
-        {canManageRequest && <Button size="sm" variant="outline" className="text-red-600 border-red-200 hover:bg-red-50" onClick={() => setConfirmAction('cancel')}>
+        {canManageRequest && <Button size="sm" variant="outline" className="text-stop border-stop-line hover:bg-stop-soft" onClick={() => setConfirmAction('cancel')}>
           <Ban className="size-3.5" />
           Cancel
         </Button>}

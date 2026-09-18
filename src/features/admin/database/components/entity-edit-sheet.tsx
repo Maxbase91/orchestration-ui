@@ -155,7 +155,7 @@ export function EntityEditSheet<K extends EntityKey>({
 
         <SheetFooter className="shrink-0 flex-row items-center justify-between border-t px-6 py-3">
           {mode === 'edit' ? (
-            <Button variant="ghost" size="sm" className="text-red-600" onClick={handleDelete}>
+            <Button variant="ghost" size="sm" className="text-stop" onClick={handleDelete}>
               Delete
             </Button>
           ) : (
@@ -184,9 +184,9 @@ interface FieldRendererProps {
 
 function FieldRenderer({ field, value, onChange, disabled }: FieldRendererProps) {
   const commonLabel = (
-    <Label htmlFor={field.key} className="text-xs font-medium text-gray-700">
+    <Label htmlFor={field.key} className="text-xs font-medium text-ink-2">
       {field.label}
-      {field.required && <span className="ml-0.5 text-red-500">*</span>}
+      {field.required && <span className="ml-0.5 text-stop">*</span>}
     </Label>
   );
 
@@ -209,7 +209,7 @@ function FieldRenderer({ field, value, onChange, disabled }: FieldRendererProps)
 
   if (field.type === 'boolean') {
     return (
-      <div className="flex items-center justify-between rounded-md border border-gray-200 px-3 py-2">
+      <div className="flex items-center justify-between rounded-md border border-line px-3 py-2">
         <div>
           {commonLabel}
           {field.helpText && <p className="text-[11px] text-muted-foreground">{field.helpText}</p>}
@@ -254,7 +254,7 @@ function FieldRenderer({ field, value, onChange, disabled }: FieldRendererProps)
     return (
       <div className="space-y-1.5">
         {commonLabel}
-        <div className="flex flex-wrap gap-2 rounded-md border border-gray-200 p-2">
+        <div className="flex flex-wrap gap-2 rounded-md border border-line p-2">
           {field.options.map((opt) => {
             const selected = arr.includes(opt.value);
             return (
@@ -269,8 +269,8 @@ function FieldRenderer({ field, value, onChange, disabled }: FieldRendererProps)
                 }}
                 className={`rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors ${
                   selected
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    ? 'bg-accent-solid text-paper'
+                    : 'bg-idle-soft text-ink-2 hover:bg-line'
                 } ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
               >
                 {opt.label}

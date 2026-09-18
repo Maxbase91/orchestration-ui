@@ -18,7 +18,7 @@ export function PortalProfile() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-semibold text-gray-900">Company Profile</h1>
+      <h1 className="text-xl font-semibold text-ink">Company Profile</h1>
 
       <Card className="py-4">
         <CardHeader className="pb-2">
@@ -28,23 +28,23 @@ export function PortalProfile() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label className="text-xs">Company Name</Label>
-              <Input value={supplier.name} readOnly className="bg-gray-50" />
+              <Input value={supplier.name} readOnly className="bg-card-2" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">D&B Number</Label>
-              <Input value={supplier.duns} readOnly className="bg-gray-50" />
+              <Input value={supplier.duns} readOnly className="bg-card-2" />
             </div>
             <div className="space-y-1.5 sm:col-span-2">
               <Label className="text-xs">Address</Label>
-              <Input value={supplier.address} readOnly className="bg-gray-50" />
+              <Input value={supplier.address} readOnly className="bg-card-2" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Country</Label>
-              <Input value={supplier.country} readOnly className="bg-gray-50" />
+              <Input value={supplier.country} readOnly className="bg-card-2" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Tier</Label>
-              <Input value={`Tier ${supplier.tier}`} readOnly className="bg-gray-50" />
+              <Input value={`Tier ${supplier.tier}`} readOnly className="bg-card-2" />
             </div>
           </div>
         </CardContent>
@@ -58,11 +58,11 @@ export function PortalProfile() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label className="text-xs">Contact Name</Label>
-              <Input value={supplier.primaryContact} readOnly className="bg-gray-50" />
+              <Input value={supplier.primaryContact} readOnly className="bg-card-2" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Email</Label>
-              <Input value={supplier.primaryContactEmail} readOnly className="bg-gray-50" />
+              <Input value={supplier.primaryContactEmail} readOnly className="bg-card-2" />
             </div>
           </div>
         </CardContent>
@@ -76,19 +76,19 @@ export function PortalProfile() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label className="text-xs">Bank Name</Label>
-              <Input value="Bank of Ireland" readOnly className="bg-gray-50" />
+              <Input value="Bank of Ireland" readOnly className="bg-card-2" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">IBAN</Label>
-              <Input value="IE29 AIBK **** **** **42" readOnly className="bg-gray-50" />
+              <Input value="IE29 AIBK **** **** **42" readOnly className="bg-card-2" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">BIC/SWIFT</Label>
-              <Input value="AIBK IE2D" readOnly className="bg-gray-50" />
+              <Input value="AIBK IE2D" readOnly className="bg-card-2" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Account Holder</Label>
-              <Input value={supplier.name} readOnly className="bg-gray-50" />
+              <Input value={supplier.name} readOnly className="bg-card-2" />
             </div>
           </div>
         </CardContent>

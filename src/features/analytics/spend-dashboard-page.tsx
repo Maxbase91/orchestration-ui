@@ -150,16 +150,16 @@ export function SpendDashboardPage() {
 
       {/* Spend by Period + Spend by Category */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="rounded-md bg-white p-4 shadow-[0_1px_4px_rgba(0,0,0,0.08)]">
-          <h3 className="mb-4 text-sm font-semibold text-gray-900">Spend by Period</h3>
+        <div className="rounded-md bg-card p-4 shadow-[0_1px_4px_rgba(0,0,0,0.08)]">
+          <h3 className="mb-4 text-sm font-semibold text-ink">Spend by Period</h3>
           <BarChartWidget
             data={monthlySpendData}
             dataKeys={[{ key: 'value', color: '#1B2A4A', label: 'Total Spend' }]}
             height={300}
           />
         </div>
-        <div className="rounded-md bg-white p-4 shadow-[0_1px_4px_rgba(0,0,0,0.08)]">
-          <h3 className="mb-4 text-sm font-semibold text-gray-900">Spend by Category</h3>
+        <div className="rounded-md bg-card p-4 shadow-[0_1px_4px_rgba(0,0,0,0.08)]">
+          <h3 className="mb-4 text-sm font-semibold text-ink">Spend by Category</h3>
           <PieChartWidget
             data={categorySpendData}
             height={300}
@@ -170,14 +170,14 @@ export function SpendDashboardPage() {
       </div>
 
       {/* Top 20 Suppliers by Spend */}
-      <div className="rounded-md bg-white p-4 shadow-[0_1px_4px_rgba(0,0,0,0.08)]">
-        <h3 className="mb-4 text-sm font-semibold text-gray-900">Top 20 Suppliers by Spend</h3>
+      <div className="rounded-md bg-card p-4 shadow-[0_1px_4px_rgba(0,0,0,0.08)]">
+        <h3 className="mb-4 text-sm font-semibold text-ink">Top 20 Suppliers by Spend</h3>
         <div className="space-y-2">
           {topSuppliersBySpend.map((s) => (
             <div key={s.id} className="flex items-center gap-4">
-              <span className="w-48 shrink-0 truncate text-sm text-gray-700">{s.name}</span>
+              <span className="w-48 shrink-0 truncate text-sm text-ink-2">{s.name}</span>
               <div className="flex-1">
-                <div className="h-5 rounded bg-gray-100">
+                <div className="h-5 rounded bg-idle-soft">
                   <div
                     className="h-5 rounded bg-[#1B2A4A]"
                     style={{
@@ -186,7 +186,7 @@ export function SpendDashboardPage() {
                   />
                 </div>
               </div>
-              <span className="w-28 shrink-0 text-right text-sm font-medium text-gray-900">
+              <span className="w-28 shrink-0 text-right text-sm font-medium text-ink">
                 {formatCurrency(s.totalSpend12m)}
               </span>
             </div>
@@ -196,8 +196,8 @@ export function SpendDashboardPage() {
 
       {/* Managed vs Unmanaged + Contract vs Off-Contract */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="rounded-md bg-white p-4 shadow-[0_1px_4px_rgba(0,0,0,0.08)]">
-          <h3 className="mb-4 text-sm font-semibold text-gray-900">Managed vs Unmanaged</h3>
+        <div className="rounded-md bg-card p-4 shadow-[0_1px_4px_rgba(0,0,0,0.08)]">
+          <h3 className="mb-4 text-sm font-semibold text-ink">Managed vs Unmanaged</h3>
           <PieChartWidget
             data={managedVsUnmanaged}
             height={280}
@@ -205,8 +205,8 @@ export function SpendDashboardPage() {
             showLegend
           />
         </div>
-        <div className="rounded-md bg-white p-4 shadow-[0_1px_4px_rgba(0,0,0,0.08)]">
-          <h3 className="mb-4 text-sm font-semibold text-gray-900">Contract vs Off-Contract</h3>
+        <div className="rounded-md bg-card p-4 shadow-[0_1px_4px_rgba(0,0,0,0.08)]">
+          <h3 className="mb-4 text-sm font-semibold text-ink">Contract vs Off-Contract</h3>
           <PieChartWidget
             data={contractVsOff}
             height={280}

@@ -88,7 +88,7 @@ export function AIAgentsPage() {
             <Button
               variant="outline"
               size="sm"
-              className="text-red-600 hover:text-red-700"
+              className="text-stop hover:text-stop"
               onClick={() => setPendingDelete(selectedAgent)}
             >
               <Trash2 className="mr-1.5 size-3.5" />

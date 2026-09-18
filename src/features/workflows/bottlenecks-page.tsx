@@ -49,9 +49,9 @@ const escalations = [
 ];
 
 const severityConfig = {
-  critical: { color: 'border-l-red-600 bg-red-50', badge: 'bg-red-100 text-red-700', icon: AlertTriangle },
-  high: { color: 'border-l-orange-500 bg-orange-50', badge: 'bg-orange-100 text-orange-700', icon: ArrowUpRight },
-  medium: { color: 'border-l-yellow-500 bg-yellow-50', badge: 'bg-yellow-100 text-yellow-700', icon: Clock },
+  critical: { color: 'border-l-red-600 bg-stop-soft', badge: 'bg-stop-soft text-stop', icon: AlertTriangle },
+  high: { color: 'border-l-orange-500 bg-warn-soft', badge: 'bg-warn-soft text-warn', icon: ArrowUpRight },
+  medium: { color: 'border-l-yellow-500 bg-warn-soft', badge: 'bg-warn-soft text-warn', icon: Clock },
 };
 
 function formatEscalationDate(iso: string) {
@@ -74,9 +74,9 @@ export function BottlenecksPage() {
 
       <StuckRequestsTable requests={requests} />
 
-      <div className="rounded-md border bg-white shadow-sm">
+      <div className="rounded-md border bg-card shadow-sm">
         <div className="border-b px-4 py-3">
-          <h3 className="text-sm font-semibold text-gray-900">Escalation Management</h3>
+          <h3 className="text-sm font-semibold text-ink">Escalation Management</h3>
           <p className="text-xs text-muted-foreground mt-0.5">Active escalations requiring attention</p>
         </div>
         <div className="divide-y">
@@ -87,9 +87,9 @@ export function BottlenecksPage() {
               <div key={esc.id} className={cn('border-l-4 px-4 py-3', config.color)}>
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-start gap-3">
-                    <Icon className="size-4 mt-0.5 shrink-0 text-gray-600" />
+                    <Icon className="size-4 mt-0.5 shrink-0 text-ink-2" />
                     <div>
-                      <p className="text-sm font-medium text-gray-900">{esc.title}</p>
+                      <p className="text-sm font-medium text-ink">{esc.title}</p>
                       <p className="text-xs text-muted-foreground mt-0.5">{esc.reason}</p>
                       <p className="text-xs text-muted-foreground mt-1">
                         Escalated by <span className="font-medium">{esc.escalatedBy}</span> to{' '}

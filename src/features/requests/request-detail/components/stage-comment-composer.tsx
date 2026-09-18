@@ -184,9 +184,9 @@ export function StageCommentComposer({ requestId, stage, stageLabel }: StageComm
 
 
   return (
-    <div className="relative rounded-md border border-gray-200 bg-gray-50 p-3">
+    <div className="relative rounded-md border border-line bg-card-2 p-3">
       <div className="flex items-start gap-2">
-        <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-gray-200 text-xs font-medium text-gray-700">
+        <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-line text-xs font-medium text-ink-2">
           {currentUser.initials || currentUser.name.slice(0, 2).toUpperCase()}
         </div>
         <div className="min-w-0 flex-1">
@@ -196,11 +196,11 @@ export function StageCommentComposer({ requestId, stage, stageLabel }: StageComm
             onChange={handleInput}
             onKeyDown={handleKeyDown}
             placeholder={`Comment on the ${stageLabel.toLowerCase()} step — type @ to mention someone…`}
-            className="w-full resize-none rounded-md border border-gray-200 bg-white px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+            className="w-full resize-none rounded-md border border-line bg-card px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-accent-solid"
             rows={2}
           />
           <div className="mt-2 flex items-center justify-between gap-2">
-            <label className="flex items-center gap-1 text-[11px] text-gray-500">
+            <label className="flex items-center gap-1 text-[11px] text-ink-3">
               <input
                 type="checkbox"
                 checked={isInternal}
@@ -210,7 +210,7 @@ export function StageCommentComposer({ requestId, stage, stageLabel }: StageComm
               Internal only
             </label>
             <div className="flex items-center gap-2">
-              <span className="text-[11px] text-gray-400 hidden sm:inline">
+              <span className="text-[11px] text-ink-3 hidden sm:inline">
                 <AtSign className="inline size-3" /> to mention · ⌘+Enter to send
               </span>
               <Button size="sm" onClick={submit} disabled={!content.trim() || addComment.isPending}>
@@ -224,7 +224,7 @@ export function StageCommentComposer({ requestId, stage, stageLabel }: StageComm
 
       {/* Mention picker — absolute, positioned above the textarea */}
       {showMentionPicker && suggestions.length > 0 && (
-        <div className="absolute bottom-14 left-12 z-10 w-64 overflow-hidden rounded-md border border-gray-200 bg-white shadow-md">
+        <div className="absolute bottom-14 left-12 z-10 w-64 overflow-hidden rounded-md border border-line bg-card shadow-md">
           <ul className="max-h-48 overflow-y-auto py-1">
             {suggestions.map((u, i) => (
               <li key={u.id}>
@@ -234,14 +234,14 @@ export function StageCommentComposer({ requestId, stage, stageLabel }: StageComm
                     e.preventDefault();
                     insertMention(u);
                   }}
-                  className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm ${i === highlightIndex ? 'bg-blue-50 text-blue-900' : 'text-gray-800 hover:bg-gray-50'}`}
+                  className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm ${i === highlightIndex ? 'bg-accent-soft text-accent-solid' : 'text-ink hover:bg-card-2'}`}
                 >
-                  <span className="flex size-6 items-center justify-center rounded-full bg-gray-100 text-[10px] font-medium text-gray-700">
+                  <span className="flex size-6 items-center justify-center rounded-full bg-idle-soft text-[10px] font-medium text-ink-2">
                     {u.initials || u.name.slice(0, 2).toUpperCase()}
                   </span>
                   <span className="flex-1 truncate">
                     {u.name}
-                    <span className="ml-1 text-[11px] text-gray-400">@{u.id}</span>
+                    <span className="ml-1 text-[11px] text-ink-3">@{u.id}</span>
                   </span>
                 </button>
               </li>

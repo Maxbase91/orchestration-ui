@@ -100,8 +100,8 @@ export function ScoringMatrix({ criteria, suppliers, onScoreChange, onShortlistT
                       onClick={() => onShortlistToggle?.(s.id, !s.shortlisted)}
                       className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
                         s.shortlisted
-                          ? 'bg-green-100 text-green-700'
-                          : 'bg-red-100 text-red-700'
+                          ? 'bg-ok-soft text-ok'
+                          : 'bg-stop-soft text-stop'
                       }`}
                     >
                       {s.shortlisted ? 'Shortlisted' : 'Eliminated'}

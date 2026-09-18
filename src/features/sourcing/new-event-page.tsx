@@ -275,7 +275,7 @@ export function NewEventPage() {
           {STEPS.map((s, i) => (
             <span
               key={s}
-              className={i <= step ? 'font-medium text-gray-900' : ''}
+              className={i <= step ? 'font-medium text-ink' : ''}
             >
               {s}
             </span>
@@ -401,7 +401,7 @@ export function NewEventPage() {
             {filteredSuppliers.map((supplier) => (
               <label
                 key={supplier.id}
-                className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50"
+                className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-card-2"
               >
                 <Checkbox
                   checked={selectedSuppliers.includes(supplier.id)}
@@ -442,7 +442,7 @@ export function NewEventPage() {
                   onClick={() => removeRequirement(req.id)}
                   disabled={requirements.length <= 1}
                 >
-                  <Trash2 className="size-4 text-red-500" />
+                  <Trash2 className="size-4 text-stop" />
                 </Button>
               </div>
               <Textarea
@@ -471,8 +471,8 @@ export function NewEventPage() {
               <span
                 className={
                   totalWeight === 100
-                    ? 'font-medium text-green-600'
-                    : 'font-medium text-red-600'
+                    ? 'font-medium text-ok'
+                    : 'font-medium text-stop'
                 }
               >
                 {totalWeight}%
@@ -516,7 +516,7 @@ export function NewEventPage() {
                   onClick={() => removeCriteria(c.id)}
                   disabled={criteria.length <= 1}
                 >
-                  <Trash2 className="size-4 text-red-500" />
+                  <Trash2 className="size-4 text-stop" />
                 </Button>
               </div>
             ))}
@@ -565,7 +565,7 @@ export function NewEventPage() {
                 return (
                   <span
                     key={id}
-                    className="rounded-full bg-blue-50 px-2.5 py-1 text-xs text-blue-700"
+                    className="rounded-full bg-accent-soft px-2.5 py-1 text-xs text-accent-solid"
                   >
                     {s?.name ?? id}
                   </span>
@@ -608,7 +608,7 @@ export function NewEventPage() {
                 <span>Total</span>
                 <span
                   className={
-                    totalWeight === 100 ? 'text-green-600' : 'text-red-600'
+                    totalWeight === 100 ? 'text-ok' : 'text-stop'
                   }
                 >
                   {totalWeight}%

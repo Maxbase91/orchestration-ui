@@ -144,11 +144,11 @@ function ApprovalRow({ approval, request, isCurrentUserApprover }: ApprovalRowPr
   }
 
   return (
-    <div className="border-b border-gray-100 pb-4 last:border-b-0 last:pb-0">
+    <div className="border-b border-line-2 pb-4 last:border-b-0 last:pb-0">
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-medium text-gray-900">{approval.approverName}</span>
+            <span className="text-sm font-medium text-ink">{approval.approverName}</span>
             <span className="text-xs text-muted-foreground">{approval.approverRole}</span>
             <StatusBadge status={approval.status} size="sm" />
           </div>
@@ -156,9 +156,9 @@ function ApprovalRow({ approval, request, isCurrentUserApprover }: ApprovalRowPr
             <span>Requested: {formatDate(approval.requestedAt)}</span>
             {approval.respondedAt && <span>Responded: {formatDate(approval.respondedAt)}</span>}
           </div>
-          {approval.comments && <p className="text-sm text-gray-700 mt-1">{approval.comments}</p>}
+          {approval.comments && <p className="text-sm text-ink-2 mt-1">{approval.comments}</p>}
           {approval.delegatedTo && (
-            <p className="text-xs text-blue-600 mt-1">Delegated to another approver</p>
+            <p className="text-xs text-accent-solid mt-1">Delegated to another approver</p>
           )}
         </div>
 
@@ -167,7 +167,7 @@ function ApprovalRow({ approval, request, isCurrentUserApprover }: ApprovalRowPr
             <>
               <Button
                 size="sm"
-                className="bg-green-600 hover:bg-green-700 text-white"
+                className="bg-ok hover:bg-ok text-paper"
                 onClick={handleApprove}
                 disabled={updateApproval.isPending}
               >
@@ -185,7 +185,7 @@ function ApprovalRow({ approval, request, isCurrentUserApprover }: ApprovalRowPr
               <Button
                 size="sm"
                 variant="outline"
-                className={expanded === 'request-info' ? 'bg-amber-50' : ''}
+                className={expanded === 'request-info' ? 'bg-warn-soft' : ''}
                 onClick={() => setExpanded(expanded === 'request-info' ? null : 'request-info')}
               >
                 <MessageSquare className="size-3.5" />
@@ -202,7 +202,7 @@ function ApprovalRow({ approval, request, isCurrentUserApprover }: ApprovalRowPr
       </div>
 
       {canAct && expanded === 'reject' && (
-        <div className="mt-3 space-y-2 rounded-md border border-red-200 bg-red-50 p-3">
+        <div className="mt-3 space-y-2 rounded-md border border-stop-line bg-stop-soft p-3">
           <Textarea
             placeholder="Reason for rejection (required)"
             value={comment}
@@ -233,7 +233,7 @@ function ApprovalRow({ approval, request, isCurrentUserApprover }: ApprovalRowPr
       )}
 
       {canAct && expanded === 'request-info' && (
-        <div className="mt-3 space-y-2 rounded-md border border-amber-200 bg-amber-50 p-3">
+        <div className="mt-3 space-y-2 rounded-md border border-warn-line bg-warn-soft p-3">
           <Textarea
             placeholder="What information do you need?"
             value={comment}
@@ -243,7 +243,7 @@ function ApprovalRow({ approval, request, isCurrentUserApprover }: ApprovalRowPr
           <div className="flex items-center gap-2">
             <Button
               size="sm"
-              className="bg-amber-600 hover:bg-amber-700 text-white"
+              className="bg-warn hover:bg-warn text-paper"
               onClick={handleRequestInfo}
               disabled={!comment.trim() || updateApproval.isPending}
             >

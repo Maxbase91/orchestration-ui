@@ -80,7 +80,7 @@ export function PortalDocuments() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-gray-900">Documents & Compliance</h1>
+        <h1 className="text-xl font-semibold text-ink">Documents & Compliance</h1>
         <Button disabled title="Document upload ships with the document-storage phase (AI-003 backend).">
           {extractorActive ? <Sparkles className="size-4" /> : <Upload className="size-4" />}
           {extractorActive ? 'Upload & Auto-Extract' : 'Upload Document'}
@@ -88,14 +88,14 @@ export function PortalDocuments() {
       </div>
 
       {expiringDocs.length > 0 && (
-        <div className="rounded-md border-l-2 border-amber-400 bg-amber-50 p-3">
+        <div className="rounded-md border-l-2 border-warn-line bg-warn-soft p-3">
           <div className="flex items-center gap-2">
-            <AlertTriangle className="size-4 text-amber-600" />
-            <span className="text-sm font-medium text-amber-800">
+            <AlertTriangle className="size-4 text-warn" />
+            <span className="text-sm font-medium text-warn">
               {expiringDocs.length} document(s) require attention
             </span>
           </div>
-          <ul className="mt-1 pl-6 text-xs text-amber-700">
+          <ul className="mt-1 pl-6 text-xs text-warn">
             {expiringDocs.map((d) => (
               <li key={d.id}>
                 {d.name} -- {d.status === 'expired' ? 'Expired' : 'Expiring'} {d.expiryDate}
@@ -119,7 +119,7 @@ export function PortalDocuments() {
                 <div className="flex items-center gap-3 min-w-0">
                   <FileText className="size-4 shrink-0 text-muted-foreground" />
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{doc.name}</p>
+                    <p className="text-sm font-medium text-ink truncate">{doc.name}</p>
                     <p className="text-xs text-muted-foreground">
                       {doc.type} &middot; Uploaded: {doc.uploadedDate} &middot; Expires: {doc.expiryDate}
                     </p>
@@ -140,14 +140,14 @@ export function PortalDocuments() {
       {/* Upload area */}
       <Card className="py-4">
         <CardContent>
-          <div className="flex flex-col items-center justify-center rounded-md border-2 border-dashed border-gray-300 py-10">
+          <div className="flex flex-col items-center justify-center rounded-md border-2 border-dashed border-line py-10">
             <Upload className="size-8 text-muted-foreground" />
-            <p className="mt-2 text-sm font-medium text-gray-900">Drop files here or click to upload</p>
+            <p className="mt-2 text-sm font-medium text-ink">Drop files here or click to upload</p>
             <p className="mt-1 text-xs text-muted-foreground">
               PDF, DOC, DOCX, JPG, PNG up to 10MB
             </p>
             {extractorAgent && (
-              <p className="mt-2 text-[11px] text-gray-400">
+              <p className="mt-2 text-[11px] text-ink-3">
                 {extractorActive
                   ? `Auto-extraction on via ${extractorAgent.name} (AI-003) · accuracy ${extractorAgent.accuracy}%`
                   : `Auto-extraction off — ${extractorAgent.name} is ${extractorAgent.status}`}

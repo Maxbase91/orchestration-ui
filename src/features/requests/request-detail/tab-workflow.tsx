@@ -32,9 +32,9 @@ interface TabWorkflowProps {
 function SlaPill({ state }: { state: OpenSlaState }) {
   if (state === 'none') return <span className="text-muted-foreground">No SLA set</span>;
   const styles: Record<Exclude<OpenSlaState, 'none'>, string> = {
-    'on-track': 'bg-green-100 text-green-700',
-    'at-risk': 'bg-amber-100 text-amber-700',
-    breached: 'bg-red-100 text-red-700',
+    'on-track': 'bg-ok-soft text-ok',
+    'at-risk': 'bg-warn-soft text-warn',
+    breached: 'bg-stop-soft text-stop',
   };
   const labels: Record<Exclude<OpenSlaState, 'none'>, string> = {
     'on-track': 'On track',
@@ -270,7 +270,7 @@ export function TabWorkflow({ request, focusStageId }: TabWorkflowProps) {
             <CardTitle className="text-base">Attached Template — {workflowTemplate.name}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-ink-3">
               {workflowTemplate.description || 'Admin-configured workflow template attached to this request.'}
               {' '}Type: <code>{workflowTemplate.type || 'default'}</code>.
             </p>
@@ -290,18 +290,18 @@ export function TabWorkflow({ request, focusStageId }: TabWorkflowProps) {
                     .map((n) => {
                       const isCurrent = nodeToStatus(n.label) === request.status;
                       return (
-                        <tr key={n.id} className={isCurrent ? 'bg-blue-50/60' : ''}>
-                          <td className="py-1.5 pr-3 font-medium text-gray-900">
+                        <tr key={n.id} className={isCurrent ? 'bg-accent-soft/60' : ''}>
+                          <td className="py-1.5 pr-3 font-medium text-ink">
                             {n.label}
-                            {isCurrent && <span className="ml-1.5 text-[10px] text-blue-700">current</span>}
+                            {isCurrent && <span className="ml-1.5 text-[10px] text-accent-solid">current</span>}
                           </td>
                           <td className="py-1.5 pr-3">
-                            {n.role ?? <span className="text-gray-400">not set</span>}
+                            {n.role ?? <span className="text-ink-3">not set</span>}
                           </td>
                           <td className="py-1.5 pr-3">
                             {n.slaDays != null
                               ? `${n.slaDays}d`
-                              : <span className="text-gray-400">—</span>}
+                              : <span className="text-ink-3">—</span>}
                           </td>
                           <td className="py-1.5 text-muted-foreground">
                             {isGatedStage(n, nodeToStatus(n.label))
@@ -339,7 +339,7 @@ export function TabWorkflow({ request, focusStageId }: TabWorkflowProps) {
                     <Link
                       key={event.id}
                       to={`/sourcing/${event.id}`}
-                      className="font-medium text-blue-600 hover:underline"
+                      className="font-medium text-accent-solid hover:underline"
                     >
                       {event.id} — {event.status}
                     </Link>
@@ -392,19 +392,19 @@ export function TabWorkflow({ request, focusStageId }: TabWorkflowProps) {
                     .map((c) => (
                       <div
                         key={c.key}
-                        className="flex items-start gap-2 rounded-md border border-gray-200 bg-white p-3"
+                        className="flex items-start gap-2 rounded-md border border-line bg-card p-3"
                       >
-                        <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-gray-100 text-[10px] font-medium text-gray-700">
+                        <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-idle-soft text-[10px] font-medium text-ink-2">
                           {c.authorInitials}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="text-xs text-gray-500">
-                            <span className="font-medium text-gray-800">{c.authorName}</span>
+                          <p className="text-xs text-ink-3">
+                            <span className="font-medium text-ink">{c.authorName}</span>
                             {' · '}
                             {formatDate(c.timestamp)}
                             {c.isInternal && ' · internal'}
                           </p>
-                          <p className="mt-1 whitespace-pre-wrap text-sm text-gray-800">{c.content}</p>
+                          <p className="mt-1 whitespace-pre-wrap text-sm text-ink">{c.content}</p>
                         </div>
                       </div>
                     ))}
@@ -435,14 +435,14 @@ export function TabWorkflow({ request, focusStageId }: TabWorkflowProps) {
               {openItem ? (
                 <>
                   <div>
-                    <p className="text-sm font-medium text-gray-900">{openItem.action}</p>
+                    <p className="text-sm font-medium text-ink">{openItem.action}</p>
                     {openItem.exitCriteria && (
                       <p className="mt-1 text-xs text-muted-foreground">{openItem.exitCriteria}</p>
                     )}
                   </div>
                   <div className="border-t pt-2">
                     <p className="text-xs text-muted-foreground">Owner</p>
-                    <p className="text-sm font-medium text-gray-900">
+                    <p className="text-sm font-medium text-ink">
                       {owner?.name ?? (openItem.ownerRole ? `Unassigned (${openItem.ownerRole})` : 'Unassigned')}
                     </p>
                     {owner?.role && <p className="text-xs text-muted-foreground">{owner.role}</p>}
@@ -467,7 +467,7 @@ export function TabWorkflow({ request, focusStageId }: TabWorkflowProps) {
       {/* System Integrations Timeline */}
       {integrations.length > 0 && (
         <div className="bg-card rounded-md shadow-[0_1px_4px_rgba(0,0,0,0.08)] p-6">
-          <h3 className="text-sm font-semibold text-gray-900 mb-4">System Integrations</h3>
+          <h3 className="text-sm font-semibold text-ink mb-4">System Integrations</h3>
           <SystemIntegrationTimeline integrations={integrations} />
         </div>
       )}

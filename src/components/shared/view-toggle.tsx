@@ -29,7 +29,7 @@ const iconMap: Record<string, LucideIcon> = {
 
 export function ViewToggle({ views, activeView, onChange }: ViewToggleProps) {
   return (
-    <div className="inline-flex items-center rounded-md border bg-white p-0.5">
+    <div className="inline-flex items-center rounded-md border bg-card p-0.5">
       {views.map((view) => {
         const Icon = iconMap[view.icon] ?? List;
         const isActive = view.id === activeView;

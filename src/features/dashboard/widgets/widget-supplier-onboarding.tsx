@@ -49,12 +49,12 @@ export function WidgetSupplierOnboarding() {
         >
           <div className="flex min-w-0 items-center gap-2">
             {supplier.screeningStatus === 'flagged'
-              ? <ShieldQuestion className="size-3.5 shrink-0 text-red-500" />
-              : <Building2 className="size-3.5 shrink-0 text-gray-400" />}
+              ? <ShieldQuestion className="size-3.5 shrink-0 text-stop" />
+              : <Building2 className="size-3.5 shrink-0 text-ink-3" />}
             <span className="truncate">{supplier.name}</span>
           </div>
           <span className={`ml-2 shrink-0 text-xs font-medium ${
-            supplier.screeningStatus === 'flagged' ? 'text-red-600' : 'text-gray-600'
+            supplier.screeningStatus === 'flagged' ? 'text-stop' : 'text-ink-2'
           }`}>
             {reason}
           </span>

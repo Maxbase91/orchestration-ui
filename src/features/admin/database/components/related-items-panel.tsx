@@ -51,7 +51,7 @@ export function RelatedItemsPanel<K extends EntityKey>({
   if (!hasAny) {
     return (
       <div>
-        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500">
+        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-ink-3">
           Related Items
         </h3>
         <p className="text-xs text-muted-foreground italic">
@@ -63,17 +63,17 @@ export function RelatedItemsPanel<K extends EntityKey>({
 
   return (
     <div>
-      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
+      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-ink-3">
         Related Items
       </h3>
       <div className="space-y-4">
         {outgoing.length > 0 && (
           <div>
-            <p className="mb-1.5 text-[11px] font-medium text-gray-600">Links to</p>
+            <p className="mb-1.5 text-[11px] font-medium text-ink-2">Links to</p>
             <div className="space-y-1.5">
               {outgoing.map((o) => (
-                <div key={`${o.relation.to}-${o.targetId}`} className="flex items-center justify-between rounded-md border border-gray-100 bg-gray-50 px-3 py-2">
-                  <span className="text-xs text-gray-600">{o.relation.label}</span>
+                <div key={`${o.relation.to}-${o.targetId}`} className="flex items-center justify-between rounded-md border border-line-2 bg-card-2 px-3 py-2">
+                  <span className="text-xs text-ink-2">{o.relation.label}</span>
                   <FkLink
                     entity={o.relation.to}
                     id={o.targetId}
@@ -90,7 +90,7 @@ export function RelatedItemsPanel<K extends EntityKey>({
           .filter((i) => i.matches.length > 0)
           .map((i) => (
             <div key={`${i.relation.from}-${i.relation.via}`}>
-              <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-medium text-gray-600">
+              <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-medium text-ink-2">
                 <ArrowRight className="size-3" />
                 {i.relation.label} ({i.matches.length})
               </p>

@@ -17,7 +17,7 @@ export function GlobalSearch() {
         type="text"
         placeholder="Search requests, suppliers, contracts..."
         className={cn(
-          'w-full h-8 pl-8 pr-3 text-sm rounded-md border border-input bg-white',
+          'w-full h-8 pl-8 pr-3 text-sm rounded-md border border-input bg-card',
           'placeholder:text-text-muted text-text-primary',
           'focus:outline-none focus:ring-1 focus:ring-ring focus:border-ring',
           'transition-all duration-200',

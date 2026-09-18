@@ -15,7 +15,7 @@ const columns: Column<ContractRow>[] = [
     key: 'title',
     label: 'Title',
     sortable: true,
-    render: (c) => <span className="font-medium text-gray-900">{c.title as string}</span>,
+    render: (c) => <span className="font-medium text-ink">{c.title as string}</span>,
   },
   {
     key: 'value',
@@ -78,14 +78,14 @@ export function ProfileContractsTab({ supplierId }: ProfileContractsTabProps) {
   return (
     <div className="space-y-4">
       {expiringContracts.length > 0 && (
-        <div className="rounded-md border-l-2 border-amber-400 bg-amber-50 p-3">
+        <div className="rounded-md border-l-2 border-warn-line bg-warn-soft p-3">
           <div className="flex items-center gap-2">
-            <AlertTriangle className="size-4 text-amber-600" />
-            <span className="text-sm font-medium text-amber-800">
+            <AlertTriangle className="size-4 text-warn" />
+            <span className="text-sm font-medium text-warn">
               {expiringContracts.length} contract(s) expiring within 90 days
             </span>
           </div>
-          <ul className="mt-1 pl-6 text-xs text-amber-700">
+          <ul className="mt-1 pl-6 text-xs text-warn">
             {expiringContracts.map((c) => (
               <li key={c.id}>
                 {c.title} - expires {formatDate(c.endDate)}

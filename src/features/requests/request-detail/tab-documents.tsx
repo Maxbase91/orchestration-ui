@@ -59,8 +59,8 @@ export function TabDocuments({ request }: TabDocumentsProps) {
           className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-x-4 items-center px-3 py-2.5 rounded-md hover:bg-muted/50 text-sm"
         >
           <div className="flex items-center gap-2 min-w-0">
-            <FileText className="size-4 shrink-0 text-blue-500" />
-            <span className="truncate font-medium text-gray-900">{doc.name}</span>
+            <FileText className="size-4 shrink-0 text-accent-solid" />
+            <span className="truncate font-medium text-ink">{doc.name}</span>
           </div>
           <span className="text-xs text-muted-foreground whitespace-nowrap">{doc.type}</span>
           <span className="text-xs text-muted-foreground whitespace-nowrap">
@@ -72,7 +72,7 @@ export function TabDocuments({ request }: TabDocumentsProps) {
             <button
               disabled
               title="Document download ships with the document-storage phase"
-              className="p-1 rounded text-gray-300 cursor-not-allowed"
+              className="p-1 rounded text-ink-3 cursor-not-allowed"
             >
               <Download className="size-3.5" />
             </button>

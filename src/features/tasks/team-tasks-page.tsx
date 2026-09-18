@@ -34,10 +34,10 @@ const PRIORITY_ORDER: Record<string, number> = {
 
 const PriorityIndicator = ({ priority }: { priority: string }) => {
   const config: Record<string, { icon: typeof ArrowUp; color: string; label: string }> = {
-    urgent: { icon: AlertCircle, color: 'text-red-600', label: 'Urgent' },
-    high: { icon: ArrowUp, color: 'text-orange-600', label: 'High' },
-    medium: { icon: ArrowRight, color: 'text-yellow-600', label: 'Medium' },
-    low: { icon: ArrowDown, color: 'text-gray-500', label: 'Low' },
+    urgent: { icon: AlertCircle, color: 'text-stop', label: 'Urgent' },
+    high: { icon: ArrowUp, color: 'text-warn', label: 'High' },
+    medium: { icon: ArrowRight, color: 'text-warn', label: 'Medium' },
+    low: { icon: ArrowDown, color: 'text-ink-3', label: 'Low' },
   };
   const c = config[priority] ?? config.medium;
   const Icon = c.icon;
@@ -126,8 +126,8 @@ export function TeamTasksPage() {
       sortable: true,
       render: (row) => (
         <div className="flex items-center gap-2">
-          {row.isOverdue && <AlertCircle className="size-3.5 text-red-500 shrink-0" />}
-          <span className={cn('text-sm font-medium', row.isOverdue && 'text-red-700')}>{row.title as string}</span>
+          {row.isOverdue && <AlertCircle className="size-3.5 text-stop shrink-0" />}
+          <span className={cn('text-sm font-medium', row.isOverdue && 'text-stop')}>{row.title as string}</span>
         </div>
       ),
     },
@@ -136,9 +136,9 @@ export function TeamTasksPage() {
       label: 'Type',
       render: (row) => {
         const colors: Record<string, string> = {
-          Approval: 'bg-purple-100 text-purple-700',
-          Review: 'bg-blue-100 text-blue-700',
-          Action: 'bg-green-100 text-green-700',
+          Approval: 'bg-accent-soft text-accent-solid',
+          Review: 'bg-accent-soft text-accent-solid',
+          Action: 'bg-ok-soft text-ok',
         };
         return (
           <span className={cn('inline-flex px-2 py-0.5 rounded-full text-xs font-medium', colors[row.type as string] ?? '')}>

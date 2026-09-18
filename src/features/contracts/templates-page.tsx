@@ -186,15 +186,15 @@ export function TemplatesPage() {
           return (
             <div
               key={tpl.id}
-              className="rounded-md border bg-white p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+              className="rounded-md border bg-card p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
               onClick={() => setPreviewTemplate(tpl)}
             >
               <div className="flex items-start gap-3">
-                <div className="rounded-md bg-gray-100 p-2">
-                  <Icon className="size-5 text-gray-600" />
+                <div className="rounded-md bg-idle-soft p-2">
+                  <Icon className="size-5 text-ink-2" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-sm font-semibold text-gray-900">{tpl.name}</h3>
+                  <h3 className="text-sm font-semibold text-ink">{tpl.name}</h3>
                   <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{tpl.description}</p>
                   <p className="mt-2 text-[10px] text-muted-foreground">
                     Last updated: {formatTemplateDate(tpl.lastUpdated)}
@@ -227,7 +227,7 @@ export function TemplatesPage() {
               <DialogHeader>
                 <DialogTitle>{previewTemplate.name}</DialogTitle>
               </DialogHeader>
-              <pre className="mt-4 whitespace-pre-wrap text-sm text-gray-700 bg-gray-50 rounded-md p-4 font-mono leading-relaxed">
+              <pre className="mt-4 whitespace-pre-wrap text-sm text-ink-2 bg-card-2 rounded-md p-4 font-mono leading-relaxed">
                 {previewTemplate.previewContent}
               </pre>
               <div className="mt-4 flex justify-end gap-2">

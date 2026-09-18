@@ -28,27 +28,27 @@ export function ProfileOverviewTab({ supplier }: ProfileOverviewTabProps) {
             <dl className="space-y-3 text-sm">
               <div className="flex justify-between">
                 <dt className="text-muted-foreground">Name</dt>
-                <dd className="font-medium text-gray-900">{supplier.name}</dd>
+                <dd className="font-medium text-ink">{supplier.name}</dd>
               </div>
               <div className="flex justify-between">
                 <dt className="text-muted-foreground">Address</dt>
-                <dd className="font-medium text-gray-900 text-right max-w-[60%]">{supplier.address}</dd>
+                <dd className="font-medium text-ink text-right max-w-[60%]">{supplier.address}</dd>
               </div>
               <div className="flex justify-between">
                 <dt className="text-muted-foreground">D&B Number</dt>
-                <dd className="font-medium text-gray-900">{supplier.duns}</dd>
+                <dd className="font-medium text-ink">{supplier.duns}</dd>
               </div>
               <div className="flex justify-between">
                 <dt className="text-muted-foreground">Primary Contact</dt>
-                <dd className="font-medium text-gray-900">{supplier.primaryContact}</dd>
+                <dd className="font-medium text-ink">{supplier.primaryContact}</dd>
               </div>
               <div className="flex justify-between">
                 <dt className="text-muted-foreground">Contact Email</dt>
-                <dd className="font-medium text-gray-900">{supplier.primaryContactEmail}</dd>
+                <dd className="font-medium text-ink">{supplier.primaryContactEmail}</dd>
               </div>
               <div className="flex justify-between">
                 <dt className="text-muted-foreground">Tier</dt>
-                <dd className="font-medium text-gray-900">Tier {supplier.tier}</dd>
+                <dd className="font-medium text-ink">Tier {supplier.tier}</dd>
               </div>
             </dl>
           </CardContent>

@@ -116,20 +116,20 @@ export function StepRoutingPreview({
       {/* Workflow Preview — the lifecycle from the attached template. */}
       <div>
         <div className="mb-3 flex items-baseline justify-between">
-          <p className="text-sm font-medium text-gray-700">Workflow Preview</p>
-          {template && <p className="text-[11px] text-gray-400">from “{template.name}”</p>}
+          <p className="text-sm font-medium text-ink-2">Workflow Preview</p>
+          {template && <p className="text-[11px] text-ink-3">from “{template.name}”</p>}
         </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
+        <div className="rounded-lg border border-line bg-card p-4">
           {workflowSteps.length > 0 ? (
             <WorkflowPreview steps={workflowSteps} />
           ) : (
-            <p className="text-sm text-gray-400">
+            <p className="text-sm text-ink-3">
               The lifecycle will display once the workflow template is attached.
             </p>
           )}
         </div>
         {(riskAssessmentRequired || supplierOnboardingRequired) && (
-          <p className="mt-2 flex items-center gap-1.5 text-xs text-amber-700">
+          <p className="mt-2 flex items-center gap-1.5 text-xs text-warn">
             <ShieldCheck className="size-3.5" />
             {riskAssessmentRequired && supplierOnboardingRequired
               ? 'A risk assessment and vendor onboarding have been added to the lifecycle.'
@@ -143,9 +143,9 @@ export function StepRoutingPreview({
       {/* Required Approvals — the value-banded approval chain. */}
       <div>
         <div className="mb-3 flex items-baseline justify-between">
-          <p className="text-sm font-medium text-gray-700">Required Approvals</p>
+          <p className="text-sm font-medium text-ink-2">Required Approvals</p>
           {approvalChain && (
-            <p className="text-[11px] text-gray-400">
+            <p className="text-[11px] text-ink-3">
               {approvalChain.name} chain · {approvalChain.threshold}
             </p>
           )}
@@ -155,15 +155,15 @@ export function StepRoutingPreview({
             {approvers.map((approver, i) => (
               <div
                 key={approver.id}
-                className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3"
+                className="flex items-center justify-between rounded-lg border border-line bg-card px-4 py-3"
               >
                 <div className="flex items-center gap-3">
-                  <div className="flex size-8 items-center justify-center rounded-full bg-gray-100 text-xs font-medium text-gray-600">
+                  <div className="flex size-8 items-center justify-center rounded-full bg-idle-soft text-xs font-medium text-ink-2">
                     {approver.name.split(' ').map((n) => n[0]).join('')}
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-900">{approver.name}</p>
-                    <p className="text-xs text-gray-500">{approver.roles.join(' · ')}</p>
+                    <p className="text-sm font-medium text-ink">{approver.name}</p>
+                    <p className="text-xs text-ink-3">{approver.roles.join(' · ')}</p>
                   </div>
                 </div>
                 <Badge variant="outline" className="text-xs">
@@ -173,12 +173,12 @@ export function StepRoutingPreview({
             ))}
           </div>
         ) : (
-          <p className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500">
+          <p className="rounded-lg border border-line bg-card-2 px-4 py-3 text-sm text-ink-3">
             No approvals required for this value band.
           </p>
         )}
         {approvers.length > 1 && (
-          <p className="mt-2 text-xs text-gray-500">
+          <p className="mt-2 text-xs text-ink-3">
             Approvals in this chain run in sequence.
           </p>
         )}
@@ -186,13 +186,13 @@ export function StepRoutingPreview({
 
       {/* Estimated Timeline — the category's configured SLA. */}
       {matchedCategory && (
-        <div className="flex items-center gap-3 rounded-lg border border-blue-200 bg-blue-50/60 p-4">
-          <Clock className="size-5 text-blue-500" />
+        <div className="flex items-center gap-3 rounded-lg border border-accent-line bg-accent-soft/60 p-4">
+          <Clock className="size-5 text-accent-solid" />
           <div>
-            <p className="text-sm font-medium text-gray-900">Estimated Timeline</p>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm font-medium text-ink">Estimated Timeline</p>
+            <p className="text-sm text-ink-2">
               {matchedCategory.label} requests target approximately{' '}
-              <span className="font-semibold text-blue-700">{matchedCategory.timelineDays} business days</span>
+              <span className="font-semibold text-accent-solid">{matchedCategory.timelineDays} business days</span>
             </p>
           </div>
         </div>
@@ -201,8 +201,8 @@ export function StepRoutingPreview({
       {/* Additional Reviewers — from the user directory. */}
       <div>
         <div className="mb-3 flex items-center gap-2">
-          <UsersIcon className="size-4 text-gray-500" />
-          <p className="text-sm font-medium text-gray-700">Add Reviewers / Watchers</p>
+          <UsersIcon className="size-4 text-ink-3" />
+          <p className="text-sm font-medium text-ink-2">Add Reviewers / Watchers</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {reviewers.map((reviewer) => {
@@ -214,12 +214,12 @@ export function StepRoutingPreview({
                 onClick={() => toggleReviewer(reviewer.id)}
                 className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition-colors ${
                   selected
-                    ? 'border-blue-300 bg-blue-50 text-blue-700'
-                    : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                    ? 'border-accent-line bg-accent-soft text-accent-solid'
+                    : 'border-line bg-card text-ink-2 hover:bg-card-2'
                 }`}
               >
                 {reviewer.name}
-                <span className="text-gray-400">{reviewer.department || reviewer.role}</span>
+                <span className="text-ink-3">{reviewer.department || reviewer.role}</span>
               </button>
             );
           })}

@@ -20,12 +20,12 @@ const columns: Column<ApprovalRow>[] = [
       <span
         className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${
           a.status === 'approved'
-            ? 'bg-green-100 text-green-700'
+            ? 'bg-ok-soft text-ok'
             : a.status === 'rejected'
-              ? 'bg-red-100 text-red-700'
+              ? 'bg-stop-soft text-stop'
               : a.status === 'delegated'
-                ? 'bg-blue-100 text-blue-700'
-                : 'bg-amber-100 text-amber-700'
+                ? 'bg-accent-soft text-accent-solid'
+                : 'bg-warn-soft text-warn'
         }`}
       >
         {a.status}

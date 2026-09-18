@@ -19,7 +19,7 @@ function getMockActivity(supplier: Supplier): ActivityEvent[] {
       title: 'Contract Signed',
       description: `New contract with ${supplier.name} executed.`,
       timestamp: '2024-12-15',
-      color: 'text-green-600 bg-green-50',
+      color: 'text-ok bg-ok-soft',
     },
     {
       id: 'act-2',
@@ -27,7 +27,7 @@ function getMockActivity(supplier: Supplier): ActivityEvent[] {
       title: 'Request Submitted',
       description: `Procurement request raised for ${supplier.categories[0] ?? 'services'}.`,
       timestamp: '2024-11-20',
-      color: 'text-blue-600 bg-blue-50',
+      color: 'text-accent-solid bg-accent-soft',
     },
     {
       id: 'act-3',
@@ -35,7 +35,7 @@ function getMockActivity(supplier: Supplier): ActivityEvent[] {
       title: 'Payment Processed',
       description: `Invoice payment of EUR 85,000 completed.`,
       timestamp: '2024-11-05',
-      color: 'text-amber-600 bg-amber-50',
+      color: 'text-warn bg-warn-soft',
     },
     {
       id: 'act-4',
@@ -43,7 +43,7 @@ function getMockActivity(supplier: Supplier): ActivityEvent[] {
       title: 'Risk Assessment Completed',
       description: `SRA completed with rating: ${supplier.riskRating}.`,
       timestamp: '2024-10-10',
-      color: 'text-purple-600 bg-purple-50',
+      color: 'text-accent-solid bg-accent-soft',
     },
     {
       id: 'act-5',
@@ -51,7 +51,7 @@ function getMockActivity(supplier: Supplier): ActivityEvent[] {
       title: 'Communication Sent',
       description: `Compliance questionnaire sent to ${supplier.primaryContact}.`,
       timestamp: '2024-09-25',
-      color: 'text-gray-600 bg-gray-50',
+      color: 'text-ink-2 bg-card-2',
     },
     {
       id: 'act-6',
@@ -59,7 +59,7 @@ function getMockActivity(supplier: Supplier): ActivityEvent[] {
       title: 'Contract Renewed',
       description: `Framework agreement renewal processed.`,
       timestamp: '2024-08-12',
-      color: 'text-green-600 bg-green-50',
+      color: 'text-ok bg-ok-soft',
     },
     {
       id: 'act-7',
@@ -67,7 +67,7 @@ function getMockActivity(supplier: Supplier): ActivityEvent[] {
       title: 'Payment Processed',
       description: `Invoice payment of EUR 120,000 completed.`,
       timestamp: '2024-07-28',
-      color: 'text-amber-600 bg-amber-50',
+      color: 'text-warn bg-warn-soft',
     },
   ];
 }
@@ -101,7 +101,7 @@ export function ProfileActivityTab({ supplier }: ProfileActivityTabProps) {
                 </div>
                 {/* Content */}
                 <div className="pt-0.5">
-                  <p className="text-sm font-medium text-gray-900">{event.title}</p>
+                  <p className="text-sm font-medium text-ink">{event.title}</p>
                   <p className="text-xs text-muted-foreground">{event.description}</p>
                   <p className="mt-1 text-xs text-muted-foreground">{event.timestamp}</p>
                 </div>

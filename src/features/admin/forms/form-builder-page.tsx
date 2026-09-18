@@ -65,17 +65,17 @@ const FIELD_TYPE_OPTIONS: { type: FormFieldType; label: string; icon: React.Reac
 ];
 
 const FIELD_ICONS: Record<FormFieldType, React.ReactNode> = {
-  text: <Type className="size-3.5 text-gray-400" />,
-  textarea: <AlignLeft className="size-3.5 text-gray-400" />,
-  number: <Hash className="size-3.5 text-gray-400" />,
-  select: <List className="size-3.5 text-gray-400" />,
-  'multi-select': <List className="size-3.5 text-gray-400" />,
-  radio: <CircleDot className="size-3.5 text-gray-400" />,
-  checkbox: <CheckSquare className="size-3.5 text-gray-400" />,
-  date: <Calendar className="size-3.5 text-gray-400" />,
-  'file-upload': <Upload className="size-3.5 text-gray-400" />,
-  separator: <Minus className="size-3.5 text-gray-400" />,
-  'info-text': <Info className="size-3.5 text-gray-400" />,
+  text: <Type className="size-3.5 text-ink-3" />,
+  textarea: <AlignLeft className="size-3.5 text-ink-3" />,
+  number: <Hash className="size-3.5 text-ink-3" />,
+  select: <List className="size-3.5 text-ink-3" />,
+  'multi-select': <List className="size-3.5 text-ink-3" />,
+  radio: <CircleDot className="size-3.5 text-ink-3" />,
+  checkbox: <CheckSquare className="size-3.5 text-ink-3" />,
+  date: <Calendar className="size-3.5 text-ink-3" />,
+  'file-upload': <Upload className="size-3.5 text-ink-3" />,
+  separator: <Minus className="size-3.5 text-ink-3" />,
+  'info-text': <Info className="size-3.5 text-ink-3" />,
 };
 
 const PRE_POPULATE_OPTIONS = [
@@ -112,16 +112,16 @@ const PRE_POPULATE_OPTIONS = [
 ];
 
 const statusBadge: Record<string, string> = {
-  active: 'bg-green-100 text-green-700',
-  draft: 'bg-gray-100 text-gray-600',
-  disabled: 'bg-red-100 text-red-600',
+  active: 'bg-ok-soft text-ok',
+  draft: 'bg-idle-soft text-ink-2',
+  disabled: 'bg-stop-soft text-stop',
 };
 
 const categoryBadge: Record<string, string> = {
-  Risk: 'bg-amber-100 text-amber-700',
-  Procurement: 'bg-blue-100 text-blue-700',
-  Compliance: 'bg-purple-100 text-purple-700',
-  Operations: 'bg-emerald-100 text-emerald-700',
+  Risk: 'bg-warn-soft text-warn',
+  Procurement: 'bg-accent-soft text-accent-solid',
+  Compliance: 'bg-accent-soft text-accent-solid',
+  Operations: 'bg-ok-soft text-ok',
 };
 
 // ── Page Component ──────────────────────────────────────────────────
@@ -314,7 +314,7 @@ export function FormBuilderPage() {
             <Button
               variant="outline"
               size="sm"
-              className="text-red-600 hover:text-red-700"
+              className="text-stop hover:text-stop"
               onClick={() => setPendingDelete(selectedForm)}
             >
               <Trash2 className="mr-1.5 size-3.5" />
@@ -323,11 +323,11 @@ export function FormBuilderPage() {
           )}
         />
       </div>
-      <div className="flex flex-1 overflow-hidden border-t border-gray-200">
+      <div className="flex flex-1 overflow-hidden border-t border-line">
         {/* ── Left Panel: Form List ──────────────────────────── */}
-        <div className="w-1/4 min-w-[240px] border-r border-gray-200 overflow-y-auto bg-gray-50/50">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
-            <h2 className="text-sm font-semibold text-gray-700">Forms</h2>
+        <div className="w-1/4 min-w-[240px] border-r border-line overflow-y-auto bg-card-2/50">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-line">
+            <h2 className="text-sm font-semibold text-ink-2">Forms</h2>
             <Button size="sm" variant="outline" onClick={addNewForm}>
               <Plus className="size-3.5" />
               Add Form
@@ -339,7 +339,7 @@ export function FormBuilderPage() {
               if (!catForms || catForms.length === 0) return null;
               return (
                 <div key={cat}>
-                  <p className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                  <p className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-ink-3">
                     {cat}
                   </p>
                   <div className="space-y-1">
@@ -354,12 +354,12 @@ export function FormBuilderPage() {
                         className={cn(
                           'w-full text-left rounded-md px-3 py-2.5 transition-colors',
                           selectedFormId === form.id
-                            ? 'bg-white border-2 border-blue-500 shadow-sm'
-                            : 'hover:bg-white border border-transparent',
+                            ? 'bg-card border-2 border-accent-solid shadow-sm'
+                            : 'hover:bg-card border border-transparent',
                         )}
                       >
                         <div className="flex items-center justify-between gap-2">
-                          <p className="text-sm font-medium text-gray-900 truncate">{form.name}</p>
+                          <p className="text-sm font-medium text-ink truncate">{form.name}</p>
                           <Badge
                             variant="secondary"
                             className={cn('text-[10px] shrink-0', statusBadge[form.status])}
@@ -377,18 +377,18 @@ export function FormBuilderPage() {
                           {form.triggerStages.slice(0, 3).map((s) => (
                             <span
                               key={s}
-                              className="inline-block rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500"
+                              className="inline-block rounded bg-idle-soft px-1.5 py-0.5 text-[10px] text-ink-3"
                             >
                               {stageLabel(s)}
                             </span>
                           ))}
                           {form.triggerStages.length > 3 && (
-                            <span className="text-[10px] text-gray-400">
+                            <span className="text-[10px] text-ink-3">
                               +{form.triggerStages.length - 3}
                             </span>
                           )}
                         </div>
-                        <p className="mt-1 text-[11px] text-gray-400">
+                        <p className="mt-1 text-[11px] text-ink-3">
                           {form.fields.filter((f) => f.fieldType !== 'separator' && f.fieldType !== 'info-text').length} fields
                         </p>
                       </button>
@@ -427,7 +427,7 @@ export function FormBuilderPage() {
                       <SelectItem value="disabled">Disabled</SelectItem>
                     </SelectContent>
                   </Select>
-                  <span className="text-xs text-gray-400 shrink-0">v{selectedForm.version}</span>
+                  <span className="text-xs text-ink-3 shrink-0">v{selectedForm.version}</span>
                 </div>
                 <Textarea
                   value={selectedForm.description}
@@ -445,7 +445,7 @@ export function FormBuilderPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <Label className="text-xs text-gray-500">Triggered during</Label>
+                    <Label className="text-xs text-ink-3">Triggered during</Label>
                     <div className="mt-2 flex flex-wrap gap-1.5">
                       {STAGES.map((stage) => {
                         const active = selectedForm.triggerStages.includes(stage);
@@ -457,8 +457,8 @@ export function FormBuilderPage() {
                             className={cn(
                               'rounded-full px-2.5 py-1 text-xs font-medium border transition-colors',
                               active
-                                ? 'bg-blue-100 text-blue-700 border-blue-300'
-                                : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100',
+                                ? 'bg-accent-soft text-accent-solid border-accent-line'
+                                : 'bg-card-2 text-ink-3 border-line hover:bg-idle-soft',
                             )}
                           >
                             {stageLabel(stage)}
@@ -475,8 +475,8 @@ export function FormBuilderPage() {
                       silently never rendered. Routing rules were given
                       diagnostics for precisely that failure; forms kept it. */}
                   <div>
-                    <Label className="text-xs text-gray-500">Conditions</Label>
-                    <p className="mt-1 text-xs text-gray-500">
+                    <Label className="text-xs text-ink-3">Conditions</Label>
+                    <p className="mt-1 text-xs text-ink-3">
                       All conditions must be true for the form to be asked for.
                     </p>
                     {(selectedForm.triggerConditions ?? []).length > 0 && (
@@ -518,10 +518,10 @@ export function FormBuilderPage() {
                   {/* Blocking. The column has existed since forms became
                       evidence rather than decoration, and nothing could set
                       it — it was reachable only by a direct database write. */}
-                  <div className="flex items-start justify-between gap-3 rounded-md border border-gray-200 bg-gray-50 p-3">
+                  <div className="flex items-start justify-between gap-3 rounded-md border border-line bg-card-2 p-3">
                     <div>
-                      <Label className="text-xs font-medium text-gray-700">Blocks the stage</Label>
-                      <p className="mt-0.5 text-xs text-gray-500">
+                      <Label className="text-xs font-medium text-ink-2">Blocks the stage</Label>
+                      <p className="mt-0.5 text-xs text-ink-3">
                         The stage cannot be completed until this form is submitted. Administrators are
                         exempt, so a misconfigured form can never strand a request.
                       </p>
@@ -532,18 +532,18 @@ export function FormBuilderPage() {
                     />
                   </div>
 
-                  <p className="text-xs text-gray-500 italic">{triggerDescription}</p>
+                  <p className="text-xs text-ink-3 italic">{triggerDescription}</p>
 
                   {/* A form that cannot fire must look broken, not merely
                       quiet — the same argument diagnoseRule makes for routing
                       rules, on the surface that had none. */}
                   {selectedFormProblems.length > 0 && (
-                    <div className="rounded-md border border-red-200 bg-red-50 p-3">
-                      <p className="flex items-center gap-2 text-xs font-medium text-red-900">
+                    <div className="rounded-md border border-stop-line bg-stop-soft p-3">
+                      <p className="flex items-center gap-2 text-xs font-medium text-stop">
                         <AlertTriangle className="size-3.5 shrink-0" />
                         This form cannot be asked for
                       </p>
-                      <ul className="mt-1.5 list-disc space-y-0.5 pl-8 text-xs text-red-800">
+                      <ul className="mt-1.5 list-disc space-y-0.5 pl-8 text-xs text-stop">
                         {selectedFormProblems.map((problem) => <li key={problem}>{problem}</li>)}
                       </ul>
                     </div>
@@ -554,7 +554,7 @@ export function FormBuilderPage() {
               {/* Fields Section */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-gray-700">Form Fields</h3>
+                  <h3 className="text-sm font-semibold text-ink-2">Form Fields</h3>
                   <div className="relative">
                     <Button
                       size="sm"
@@ -566,13 +566,13 @@ export function FormBuilderPage() {
                       <ChevronDown className="size-3" />
                     </Button>
                     {addFieldOpen && (
-                      <div className="absolute right-0 top-full z-10 mt-1 w-48 rounded-md border border-gray-200 bg-white py-1 shadow-lg">
+                      <div className="absolute right-0 top-full z-10 mt-1 w-48 rounded-md border border-line bg-card py-1 shadow-lg">
                         {FIELD_TYPE_OPTIONS.map((opt) => (
                           <button
                             key={opt.type}
                             type="button"
                             onClick={() => addField(opt.type)}
-                            className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+                            className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-ink-2 hover:bg-card-2"
                           >
                             {opt.icon}
                             {opt.label}
@@ -591,22 +591,22 @@ export function FormBuilderPage() {
                       className={cn(
                         'flex items-center justify-between rounded-md border px-3 py-2 cursor-pointer transition-colors',
                         selectedFieldId === field.id
-                          ? 'border-blue-400 bg-blue-50/50'
-                          : 'border-gray-200 bg-white hover:border-gray-300',
+                          ? 'border-accent-solid bg-accent-soft/50'
+                          : 'border-line bg-card hover:border-line',
                       )}
                     >
                       <div className="flex items-center gap-2 min-w-0">
-                        <GripVertical className="size-3.5 text-gray-300 shrink-0 cursor-grab" />
+                        <GripVertical className="size-3.5 text-ink-3 shrink-0 cursor-grab" />
                         {FIELD_ICONS[field.fieldType]}
-                        <span className="text-sm font-medium text-gray-800 truncate">
+                        <span className="text-sm font-medium text-ink truncate">
                           {field.label || '(untitled)'}
                         </span>
                         {field.required && (
-                          <span className="text-[10px] text-red-500">*</span>
+                          <span className="text-[10px] text-stop">*</span>
                         )}
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
-                        <span className="text-[10px] text-gray-400">
+                        <span className="text-[10px] text-ink-3">
                           {field.width === 'half' ? 'Half' : 'Full'}
                         </span>
                         <button
@@ -615,7 +615,7 @@ export function FormBuilderPage() {
                             e.stopPropagation();
                             removeField(field.id);
                           }}
-                          className="p-0.5 text-gray-300 hover:text-red-500 transition-colors"
+                          className="p-0.5 text-ink-3 hover:text-stop transition-colors"
                         >
                           <X className="size-3.5" />
                         </button>
@@ -623,7 +623,7 @@ export function FormBuilderPage() {
                     </div>
                   ))}
                   {selectedForm.fields.length === 0 && (
-                    <p className="py-8 text-center text-sm text-gray-400">
+                    <p className="py-8 text-center text-sm text-ink-3">
                       No fields yet. Click "Add Field" to get started.
                     </p>
                   )}
@@ -637,23 +637,23 @@ export function FormBuilderPage() {
               </div>
             </div>
           ) : (
-            <div className="flex h-full items-center justify-center text-sm text-gray-400">
+            <div className="flex h-full items-center justify-center text-sm text-ink-3">
               Select a form to edit or create a new one
             </div>
           )}
         </div>
 
         {/* ── Right Panel: Field Config + Preview ───────────── */}
-        <div className="w-1/4 min-w-[240px] border-l border-gray-200 overflow-y-auto flex flex-col">
+        <div className="w-1/4 min-w-[240px] border-l border-line overflow-y-auto flex flex-col">
           {/* Field Configuration */}
-          <div className="flex-1 border-b border-gray-200 overflow-y-auto">
-            <div className="px-4 py-3 border-b border-gray-200">
-              <h2 className="text-sm font-semibold text-gray-700">Field Configuration</h2>
+          <div className="flex-1 border-b border-line overflow-y-auto">
+            <div className="px-4 py-3 border-b border-line">
+              <h2 className="text-sm font-semibold text-ink-2">Field Configuration</h2>
             </div>
             {selectedField ? (
               <FieldConfigPanel field={selectedField} onUpdate={(updates) => updateField(selectedField.id, updates)} />
             ) : (
-              <div className="flex items-center justify-center py-12 text-sm text-gray-400">
+              <div className="flex items-center justify-center py-12 text-sm text-ink-3">
                 {selectedForm ? 'Select a field to configure' : 'No form selected'}
               </div>
             )}
@@ -661,15 +661,15 @@ export function FormBuilderPage() {
 
           {/* Live Preview */}
           <div className="flex-1 overflow-y-auto">
-            <div className="px-4 py-3 border-b border-gray-200">
-              <h2 className="text-sm font-semibold text-gray-700">Live Preview</h2>
+            <div className="px-4 py-3 border-b border-line">
+              <h2 className="text-sm font-semibold text-ink-2">Live Preview</h2>
             </div>
             {selectedForm ? (
               <div className="p-4">
                 <DynamicForm template={selectedForm} readOnly={false} />
               </div>
             ) : (
-              <div className="flex items-center justify-center py-12 text-sm text-gray-400">
+              <div className="flex items-center justify-center py-12 text-sm text-ink-3">
                 No form selected
               </div>
             )}
@@ -769,8 +769,8 @@ function FieldConfigPanel({
               className={cn(
                 'flex-1 rounded border px-3 py-1.5 text-xs font-medium transition-colors',
                 field.width === w
-                  ? 'border-blue-400 bg-blue-50 text-blue-700'
-                  : 'border-gray-200 text-gray-600 hover:bg-gray-50',
+                  ? 'border-accent-solid bg-accent-soft text-accent-solid'
+                  : 'border-line text-ink-2 hover:bg-card-2',
               )}
             >
               {w === 'full' ? 'Full' : 'Half'}
@@ -808,9 +808,9 @@ function FieldConfigPanel({
         </Select>
         {field.prePopulateFrom && (
           <div className="flex items-center justify-between pt-1.5">
-            <Label className="text-xs text-gray-500">
+            <Label className="text-xs text-ink-3">
               Lock the pre-filled value
-              <span className="mt-0.5 block text-[11px] font-normal text-gray-400">
+              <span className="mt-0.5 block text-[11px] font-normal text-ink-3">
                 Read-only once filled from the request
               </span>
             </Label>
@@ -907,7 +907,7 @@ function FieldConfigPanel({
                   const newOpts = (field.options ?? []).filter((_, i) => i !== idx);
                   onUpdate({ options: newOpts });
                 }}
-                className="p-0.5 text-gray-300 hover:text-red-500"
+                className="p-0.5 text-ink-3 hover:text-stop"
               >
                 <X className="size-3" />
               </button>

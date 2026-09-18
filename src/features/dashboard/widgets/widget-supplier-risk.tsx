@@ -9,8 +9,8 @@ import { cn } from '@/lib/utils';
 // Only the two admitting tiers get strong colours; lower-rated suppliers that
 // slip in via an expired assessment fall back to the muted style below.
 const riskColors: Record<string, string> = {
-  critical: 'text-red-600 bg-red-50',
-  high: 'text-orange-600 bg-orange-50',
+  critical: 'text-stop bg-stop-soft',
+  high: 'text-warn bg-warn-soft',
 };
 
 export function WidgetSupplierRisk() {
@@ -39,7 +39,7 @@ export function WidgetSupplierRisk() {
           className="flex items-center justify-between w-full text-left px-2 py-1.5 rounded hover:bg-muted/50 transition-colors text-sm"
         >
           <div className="flex items-center gap-2 min-w-0">
-            <ShieldAlert className="size-3.5 shrink-0 text-red-500" />
+            <ShieldAlert className="size-3.5 shrink-0 text-stop" />
             <span className="truncate">{s.name}</span>
           </div>
           <div className="flex items-center gap-2 shrink-0 ml-2">
@@ -47,7 +47,7 @@ export function WidgetSupplierRisk() {
               {s.riskRating}
             </span>
             {s.sraStatus === 'expired' && (
-              <span className="text-xs text-red-600">SRA expired</span>
+              <span className="text-xs text-stop">SRA expired</span>
             )}
           </div>
         </button>

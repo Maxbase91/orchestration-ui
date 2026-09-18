@@ -21,12 +21,12 @@ const columns: Column<RARow>[] = [
       <span
         className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${
           r.riskLevel === 'low'
-            ? 'bg-green-100 text-green-700'
+            ? 'bg-ok-soft text-ok'
             : r.riskLevel === 'medium'
-              ? 'bg-amber-100 text-amber-700'
+              ? 'bg-warn-soft text-warn'
               : r.riskLevel === 'high'
-                ? 'bg-orange-100 text-orange-700'
-                : 'bg-red-100 text-red-700'
+                ? 'bg-warn-soft text-warn'
+                : 'bg-stop-soft text-stop'
         }`}
       >
         {r.riskLevel}
@@ -42,9 +42,9 @@ const columns: Column<RARow>[] = [
     sortable: true,
     render: (r) =>
       r.reusable ? (
-        <span className="text-green-700 text-xs font-medium">Yes</span>
+        <span className="text-ok text-xs font-medium">Yes</span>
       ) : (
-        <span className="text-gray-400 text-xs">No</span>
+        <span className="text-ink-3 text-xs">No</span>
       ),
   },
 ];

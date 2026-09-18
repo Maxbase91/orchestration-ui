@@ -45,7 +45,7 @@ function InvitationCard({ invitation, isPast }: { invitation: Invitation; isPast
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <h3 className="text-sm font-semibold text-gray-900">{event.title}</h3>
+              <h3 className="text-sm font-semibold text-ink">{event.title}</h3>
               <Badge variant="secondary" className="text-xs">{event.type}</Badge>
             </div>
             {event.description && (
@@ -64,7 +64,7 @@ function InvitationCard({ invitation, isPast }: { invitation: Invitation; isPast
           </div>
 
           {response.awarded ? (
-            <div className="flex shrink-0 items-center gap-1 text-xs font-medium text-green-700">
+            <div className="flex shrink-0 items-center gap-1 text-xs font-medium text-ok">
               <CheckCircle2 className="size-3.5" />
               Awarded
             </div>
@@ -110,7 +110,7 @@ export function PortalSourcing() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold text-gray-900">Sourcing Events</h1>
+        <h1 className="text-xl font-semibold text-ink">Sourcing Events</h1>
         <p className="mt-0.5 text-sm text-muted-foreground">
           Events you have been invited to bid on
         </p>
@@ -118,7 +118,7 @@ export function PortalSourcing() {
 
       {invitations.length === 0 && (
         <div className="flex flex-col items-center gap-2 py-16 text-center">
-          <Inbox className="size-8 text-gray-300" />
+          <Inbox className="size-8 text-ink-3" />
           <p className="text-sm text-muted-foreground">
             You have not been invited to any sourcing events yet.
           </p>
@@ -127,14 +127,14 @@ export function PortalSourcing() {
 
       {open.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-gray-900">Open ({open.length})</h2>
+          <h2 className="text-sm font-semibold text-ink">Open ({open.length})</h2>
           {open.map((i) => <InvitationCard key={i.response.id} invitation={i} />)}
         </section>
       )}
 
       {past.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-gray-900">Closed ({past.length})</h2>
+          <h2 className="text-sm font-semibold text-ink">Closed ({past.length})</h2>
           {past.map((i) => <InvitationCard key={i.response.id} invitation={i} isPast />)}
         </section>
       )}

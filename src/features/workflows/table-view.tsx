@@ -121,10 +121,10 @@ export function TableView({ requests }: TableViewProps) {
             className={cn(
               'text-sm font-medium',
               days > 10
-                ? 'text-red-600'
+                ? 'text-stop'
                 : days > 5
-                  ? 'text-amber-600'
-                  : 'text-gray-600',
+                  ? 'text-warn'
+                  : 'text-ink-2',
             )}
           >
             {days}d
@@ -140,20 +140,20 @@ export function TableView({ requests }: TableViewProps) {
         const days = item.daysInStage as number;
         if (overdue) {
           return (
-            <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
+            <span className="inline-flex items-center rounded-full bg-stop-soft px-2 py-0.5 text-xs font-medium text-stop">
               Overdue
             </span>
           );
         }
         if (days >= 4) {
           return (
-            <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+            <span className="inline-flex items-center rounded-full bg-warn-soft px-2 py-0.5 text-xs font-medium text-warn">
               At Risk
             </span>
           );
         }
         return (
-          <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+          <span className="inline-flex items-center rounded-full bg-ok-soft px-2 py-0.5 text-xs font-medium text-ok">
             On Track
           </span>
         );

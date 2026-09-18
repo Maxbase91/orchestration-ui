@@ -140,7 +140,7 @@ export function CategoriesPage() {
     {
       key: 'active', label: 'Active',
       render: (r) => (
-        <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${r.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+        <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${r.active ? 'bg-ok-soft text-ok' : 'bg-idle-soft text-ink-3'}`}>
           {r.active ? 'Active' : 'Inactive'}
         </span>
       ),
@@ -148,7 +148,7 @@ export function CategoriesPage() {
     {
       key: 'catalogueEligible', label: 'Catalogue',
       render: (r) => (
-        <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${r.catalogueEligible ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>
+        <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${r.catalogueEligible ? 'bg-accent-soft text-accent-solid' : 'bg-idle-soft text-ink-3'}`}>
           {r.catalogueEligible ? 'Can fulfil' : 'Not fulfilled'}
         </span>
       ),
@@ -161,7 +161,7 @@ export function CategoriesPage() {
           return (
             <button
               type="button"
-              className="inline-flex items-center gap-1.5 rounded px-1.5 py-0.5 text-xs font-medium text-amber-700 hover:bg-amber-50"
+              className="inline-flex items-center gap-1.5 rounded px-1.5 py-0.5 text-xs font-medium text-warn hover:bg-warn-soft"
               onClick={(e) => { e.stopPropagation(); openManagers(r as unknown as ProcurementCategory); }}
             >
               <AlertTriangle className="size-3.5" />
@@ -172,7 +172,7 @@ export function CategoriesPage() {
         return (
           <button
             type="button"
-            className="inline-flex items-center gap-1.5 rounded px-1.5 py-0.5 text-left text-sm hover:bg-gray-50"
+            className="inline-flex items-center gap-1.5 rounded px-1.5 py-0.5 text-left text-sm hover:bg-card-2"
             onClick={(e) => { e.stopPropagation(); openManagers(r as unknown as ProcurementCategory); }}
           >
             <Users className="size-3.5 shrink-0 text-muted-foreground" />
@@ -188,7 +188,7 @@ export function CategoriesPage() {
           <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); openEdit(r as unknown as ProcurementCategory); }}>
             <Pencil className="size-3.5" />
           </Button>
-          <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-700" onClick={(e) => { e.stopPropagation(); handleDelete(r as unknown as ProcurementCategory); }}>
+          <Button variant="ghost" size="sm" className="text-stop hover:text-stop" onClick={(e) => { e.stopPropagation(); handleDelete(r as unknown as ProcurementCategory); }}>
             <Trash2 className="size-3.5" />
           </Button>
         </div>
@@ -300,7 +300,7 @@ export function CategoriesPage() {
               return (
                 <label
                   key={user.id}
-                  className="flex cursor-pointer items-center gap-3 rounded px-2 py-1.5 hover:bg-gray-50"
+                  className="flex cursor-pointer items-center gap-3 rounded px-2 py-1.5 hover:bg-card-2"
                 >
                   <Checkbox
                     checked={checked}
@@ -319,7 +319,7 @@ export function CategoriesPage() {
             })}
           </div>
           {selectedManagers.length === 0 && (
-            <p className="flex items-start gap-1.5 text-xs text-amber-700">
+            <p className="flex items-start gap-1.5 text-xs text-warn">
               <AlertTriangle className="mt-px size-3.5 shrink-0" />
               With no manager, nobody but an admin can move this category's requests out
               of validation, and its approvals fall back to any holder of the role.

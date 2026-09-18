@@ -59,7 +59,7 @@ export function SupplierProfilePage() {
             <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${riskColors[supplier.riskRating]}`}>
               {supplier.riskRating.charAt(0).toUpperCase() + supplier.riskRating.slice(1)} Risk
             </span>
-            <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
+            <span className="rounded-full bg-idle-soft px-2 py-0.5 text-xs font-medium text-ink-2">
               Tier {supplier.tier}
             </span>
           </div>

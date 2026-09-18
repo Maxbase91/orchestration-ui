@@ -47,10 +47,10 @@ export function WidgetExpiringContracts() {
           className="flex items-center justify-between w-full text-left px-2 py-1.5 rounded hover:bg-muted/50 transition-colors text-sm"
         >
           <div className="flex items-center gap-2 min-w-0">
-            <FileWarning className={`size-3.5 shrink-0 ${c.daysUntilExpiry <= 0 ? 'text-red-500' : 'text-amber-500'}`} />
+            <FileWarning className={`size-3.5 shrink-0 ${c.daysUntilExpiry <= 0 ? 'text-stop' : 'text-warn'}`} />
             <span className="truncate">{c.title}</span>
           </div>
-          <span className={`text-xs font-medium shrink-0 ml-2 ${c.daysUntilExpiry <= 0 ? 'text-red-600' : 'text-amber-600'}`}>
+          <span className={`text-xs font-medium shrink-0 ml-2 ${c.daysUntilExpiry <= 0 ? 'text-stop' : 'text-warn'}`}>
             {c.daysUntilExpiry <= 0 ? 'Expired' : `${c.daysUntilExpiry}d left`}
           </span>
         </button>

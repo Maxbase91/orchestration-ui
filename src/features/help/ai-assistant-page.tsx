@@ -69,7 +69,7 @@ function ConversationSidebar({
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
   return (
-    <div className="flex h-full flex-col border-r bg-gray-50/80">
+    <div className="flex h-full flex-col border-r bg-card-2/80">
       <div className="p-3">
         <button
           onClick={onNew}
@@ -84,7 +84,7 @@ function ConversationSidebar({
         <div className="px-2 pb-4">
           {grouped.map(({ group, items }) => (
             <div key={group} className="mb-3">
-              <p className="px-2 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+              <p className="px-2 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-ink-3">
                 {group}
               </p>
               {items.map((c) => (
@@ -93,8 +93,8 @@ function ConversationSidebar({
                   className={cn(
                     'group relative flex w-full items-center rounded-lg px-2 py-2 text-left text-xs transition-all duration-150',
                     c.id === activeId
-                      ? 'bg-white shadow-sm border border-gray-200 text-gray-900 font-medium'
-                      : 'text-gray-600 hover:bg-gray-100/80 hover:text-gray-900'
+                      ? 'bg-card shadow-sm border border-line text-ink font-medium'
+                      : 'text-ink-2 hover:bg-idle-soft/80 hover:text-ink'
                   )}
                   onClick={() => onSelect(c.id)}
                   onMouseEnter={() => setHoveredId(c.id)}
@@ -103,7 +103,7 @@ function ConversationSidebar({
                   <span className="flex-1 truncate pr-6">{c.title}</span>
                   {hoveredId === c.id && (
                     <span
-                      className="absolute right-1.5 flex size-5 shrink-0 items-center justify-center rounded text-gray-400 hover:text-red-500"
+                      className="absolute right-1.5 flex size-5 shrink-0 items-center justify-center rounded text-ink-3 hover:text-stop"
                       onClick={(e) => { e.stopPropagation(); onDelete(c.id); }}
                     >
                       <Trash2 className="size-3" />
@@ -115,7 +115,7 @@ function ConversationSidebar({
           ))}
 
           {conversations.length === 0 && (
-            <p className="px-2 py-4 text-center text-xs text-gray-400">No conversations yet</p>
+            <p className="px-2 py-4 text-center text-xs text-ink-3">No conversations yet</p>
           )}
         </div>
       </ScrollArea>
@@ -180,7 +180,7 @@ export function AIAssistantPage() {
         subtitle="Ask questions about procurement, requests, suppliers, and more"
       />
 
-      <div className="mt-4 flex flex-1 min-h-0 rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+      <div className="mt-4 flex flex-1 min-h-0 rounded-xl border border-line overflow-hidden shadow-sm">
         {/* Sidebar */}
         <div className="w-[220px] shrink-0">
           <ConversationSidebar
@@ -193,7 +193,7 @@ export function AIAssistantPage() {
         </div>
 
         {/* Main chat area */}
-        <div className="flex flex-1 flex-col min-w-0 bg-white">
+        <div className="flex flex-1 flex-col min-w-0 bg-card">
           <ScrollArea className="flex-1" ref={scrollRef}>
             <div className="space-y-4 p-6">
               <MessagePane
@@ -209,7 +209,7 @@ export function AIAssistantPage() {
           </ScrollArea>
 
           {/* Input */}
-          <div className="bg-white border-t border-gray-100 p-4 shadow-[0_-1px_8px_rgba(0,0,0,0.04)]">
+          <div className="bg-card border-t border-line-2 p-4 shadow-[0_-1px_8px_rgba(0,0,0,0.04)]">
             <ChatInput
               onSend={(t) => void submitSend(t)}
               disabled={isTyping}

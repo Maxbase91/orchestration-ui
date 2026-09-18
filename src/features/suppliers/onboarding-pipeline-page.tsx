@@ -38,20 +38,20 @@ function SupplierCard({ supplier, onClick, canComplete }: { supplier: Supplier; 
   return (
     <div
       className={cn(
-        'rounded-md border bg-white p-3 shadow-sm cursor-pointer hover:shadow-md transition-shadow',
+        'rounded-md border bg-card p-3 shadow-sm cursor-pointer hover:shadow-md transition-shadow',
         supplier.riskRating === 'high' && 'border-l-4 border-l-red-400',
         supplier.riskRating === 'critical' && 'border-l-4 border-l-red-600',
       )}
       onClick={onClick}
     >
-      <p className="text-sm font-semibold text-gray-900">{supplier.name}</p>
+      <p className="text-sm font-semibold text-ink">{supplier.name}</p>
       <div className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground">
         <MapPin className="size-3" />
         {supplier.country}
       </div>
       <div className="mt-1.5 flex flex-wrap gap-1">
         {supplier.categories.slice(0, 2).map((cat) => (
-          <span key={cat} className="inline-flex items-center gap-0.5 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-600">
+          <span key={cat} className="inline-flex items-center gap-0.5 rounded bg-idle-soft px-1.5 py-0.5 text-[10px] text-ink-2">
             <Tag className="size-2.5" />
             {cat}
           </span>
@@ -95,10 +95,10 @@ export function OnboardingPipelinePage() {
         {COLUMNS.map((col) => {
           const items = grouped[col.key] ?? [];
           return (
-            <div key={col.key} className={cn('rounded-lg border-t-4 bg-gray-50 p-3', col.color)}>
+            <div key={col.key} className={cn('rounded-lg border-t-4 bg-card-2 p-3', col.color)}>
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-gray-900">{col.label}</h3>
-                <span className="inline-flex items-center rounded-full bg-white px-2 py-0.5 text-xs font-medium text-gray-700 shadow-sm">
+                <h3 className="text-sm font-semibold text-ink">{col.label}</h3>
+                <span className="inline-flex items-center rounded-full bg-card px-2 py-0.5 text-xs font-medium text-ink-2 shadow-sm">
                   {items.length}
                 </span>
               </div>

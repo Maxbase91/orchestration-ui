@@ -60,16 +60,16 @@ export function RequesterContextBlock({
   const beneficiaryLabel = isSelf ? `${requestor?.name ?? 'You'} (you)` : (beneficiaryName ?? 'Someone else');
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-gray-50/60 p-3">
+    <div className="rounded-lg border border-line bg-card-2/60 p-3">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {/* Requester location — read-only, from profile */}
         <div className="flex items-center gap-2">
-          <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-blue-100">
+          <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-accent-soft">
             <MapPin className="size-3.5 text-[#2D5F8A]" />
           </div>
           <div className="min-w-0">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Requesting from</p>
-            <p className="text-sm font-medium text-gray-900">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-3">Requesting from</p>
+            <p className="text-sm font-medium text-ink">
               {country ?? 'Not set'}
               <Badge variant="outline" className="ml-2 text-[9px]">from your profile</Badge>
             </p>
@@ -78,18 +78,18 @@ export function RequesterContextBlock({
 
         {/* Beneficiary — default self, changeable */}
         <div className="flex items-start gap-2">
-          <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-blue-100">
+          <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-accent-soft">
             <UserRound className="size-3.5 text-[#2D5F8A]" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Buying for</p>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-3">Buying for</p>
             {!changing ? (
               <div className="flex items-center gap-2 flex-wrap">
-                <p className="text-sm font-medium text-gray-900">{beneficiaryLabel}</p>
+                <p className="text-sm font-medium text-ink">{beneficiaryLabel}</p>
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-5 px-1.5 text-[11px] text-blue-700"
+                  className="h-5 px-1.5 text-[11px] text-accent-solid"
                   onClick={() => setChanging(true)}
                 >
                   <Pencil className="size-3" /> Change
@@ -98,7 +98,7 @@ export function RequesterContextBlock({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-5 px-1.5 text-[11px] text-gray-500"
+                    className="h-5 px-1.5 text-[11px] text-ink-3"
                     onClick={() =>
                       onUpdate({ beneficiaryId: '', beneficiaryName: '', beneficiaryCountry: '', beneficiaryCountryCode: '' })
                     }
@@ -123,7 +123,7 @@ export function RequesterContextBlock({
                     setChanging(false);
                   }}
                 />
-                <Button variant="ghost" size="sm" className="h-5 px-1.5 text-[11px] text-gray-500" onClick={() => setChanging(false)}>
+                <Button variant="ghost" size="sm" className="h-5 px-1.5 text-[11px] text-ink-3" onClick={() => setChanging(false)}>
                   Cancel
                 </Button>
               </div>
@@ -133,11 +133,11 @@ export function RequesterContextBlock({
 
         {/* Charged to — derived from the profile, correctable here. */}
         <div className="flex items-start gap-2">
-          <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-blue-100">
+          <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-accent-soft">
             <Wallet className="size-3.5 text-[#2D5F8A]" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Charged to</p>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-3">Charged to</p>
             {editingCostCentre ? (
               <div className="mt-1 space-y-1.5">
                 {/* A picker, not free text: the governed checkout rejects a cost
@@ -163,7 +163,7 @@ export function RequesterContextBlock({
                     while catalogue and call-off block on it because those
                     commit money now. Saying which of the two this is stops an
                     optional field looking like an unmet requirement. */}
-                <p className={`text-sm font-medium ${costCentreLabel ? 'text-gray-900' : 'text-gray-500'}`}>
+                <p className={`text-sm font-medium ${costCentreLabel ? 'text-ink' : 'text-ink-3'}`}>
                   {costCentreLabel || 'Not set yet — you can add it later'}
                 </p>
                 {!costCentre && profileCostCentre && (
@@ -172,7 +172,7 @@ export function RequesterContextBlock({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-5 px-1.5 text-[11px] text-blue-700"
+                  className="h-5 px-1.5 text-[11px] text-accent-solid"
                   onClick={() => setEditingCostCentre(true)}
                 >
                   <Pencil className="size-3" /> Change

@@ -15,12 +15,12 @@ const columns: Column<WorkflowRow>[] = [
   {
     key: 'nodes',
     label: 'Nodes',
-    render: (w) => <span className="text-xs text-gray-500">{w.nodes.length}</span>,
+    render: (w) => <span className="text-xs text-ink-3">{w.nodes.length}</span>,
   },
   {
     key: 'edges',
     label: 'Edges',
-    render: (w) => <span className="text-xs text-gray-500">{w.edges.length}</span>,
+    render: (w) => <span className="text-xs text-ink-3">{w.edges.length}</span>,
   },
   { key: 'description', label: 'Description' },
 ];
@@ -47,10 +47,10 @@ export const workflowsConfig: EntityConfig<'workflow'> = {
   readOnlyReason: 'Workflow graphs are editable only in the Workflow Designer.',
   renderComplexFields: ({ record }) => (
     <div className="space-y-3">
-      <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+      <h4 className="text-xs font-semibold uppercase tracking-wider text-ink-3">
         Graph summary
       </h4>
-      <div className="rounded-md border border-gray-100 bg-gray-50 p-3 text-xs text-gray-700">
+      <div className="rounded-md border border-line-2 bg-card-2 p-3 text-xs text-ink-2">
         <p>
           <strong>{record.nodes.length}</strong> nodes, <strong>{record.edges.length}</strong> edges.
         </p>
@@ -59,7 +59,7 @@ export const workflowsConfig: EntityConfig<'workflow'> = {
         </p>
         <a
           href="/admin/workflows"
-          className="mt-2 inline-block rounded-md bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700"
+          className="mt-2 inline-block rounded-md bg-accent-solid px-3 py-1 text-xs font-medium text-paper hover:bg-accent-solid"
         >
           Edit in Designer →
         </a>

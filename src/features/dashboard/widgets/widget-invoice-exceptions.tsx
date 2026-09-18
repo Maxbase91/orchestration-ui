@@ -55,12 +55,12 @@ export function WidgetInvoiceExceptions() {
         >
           <div className="flex min-w-0 items-center gap-2">
             {invoice.status === 'disputed'
-              ? <TriangleAlert className="size-3.5 shrink-0 text-red-500" />
-              : <ReceiptText className="size-3.5 shrink-0 text-amber-500" />}
+              ? <TriangleAlert className="size-3.5 shrink-0 text-stop" />
+              : <ReceiptText className="size-3.5 shrink-0 text-warn" />}
             <span className="truncate">{invoice.supplierName}</span>
-            <span className="shrink-0 text-xs text-gray-400">{formatCurrency(invoice.amount, invoice.currency)}</span>
+            <span className="shrink-0 text-xs text-ink-3">{formatCurrency(invoice.amount, invoice.currency)}</span>
           </div>
-          <span className="ml-2 shrink-0 text-xs font-medium text-amber-700">{reason}</span>
+          <span className="ml-2 shrink-0 text-xs font-medium text-warn">{reason}</span>
         </button>
       ))}
     </div>

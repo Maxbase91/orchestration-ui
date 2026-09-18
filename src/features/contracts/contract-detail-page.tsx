@@ -181,8 +181,8 @@ export function ContractDetailPage() {
             <CardHeader><CardTitle className="text-base">Coverage & matching</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               {scopeQuery.isLoading && <p className="text-sm text-muted-foreground">Loading scope metadata…</p>}
-              {!scopeQuery.isLoading && !scopeQuery.data?.scope && <p className="text-sm text-amber-700">This contract has no complete scope version yet, so requests will continue to full intake.</p>}
-              {!canEditContract && <p className="rounded-md bg-blue-50 px-3 py-2 text-xs text-blue-800">You are viewing this contract in read-only mode. Procurement owners maintain coverage and renewal data.</p>}
+              {!scopeQuery.isLoading && !scopeQuery.data?.scope && <p className="text-sm text-warn">This contract has no complete scope version yet, so requests will continue to full intake.</p>}
+              {!canEditContract && <p className="rounded-md bg-accent-soft px-3 py-2 text-xs text-accent-solid">You are viewing this contract in read-only mode. Procurement owners maintain coverage and renewal data.</p>}
               <label className="block text-sm font-medium">Service family<input readOnly={!canEditContract} className="mt-1 w-full rounded-md border px-3 py-2 text-sm" value={effectiveServiceFamily} onChange={(event) => setServiceFamily(event.target.value)} placeholder="e.g. payroll implementation" /></label>
               <label className="block text-sm font-medium">Scope description<textarea readOnly={!canEditContract} className="mt-1 min-h-24 w-full rounded-md border px-3 py-2 text-sm" value={effectiveNarrative} onChange={(event) => setScopeNarrative(event.target.value)} placeholder="Describe the services and outcomes this contract covers" /></label>
               <div className="grid gap-4 md:grid-cols-2">
@@ -199,7 +199,7 @@ export function ContractDetailPage() {
                   scopeMutation.mutate({ scope, deliverables, exclusions });
                 }}>{scopeMutation.isPending ? 'Saving…' : 'Save coverage'}</Button>
               </div>}
-              {canEditContract && scopeMutation.isError && <p className="text-sm text-red-700">{scopeMutation.error.message}</p>}
+              {canEditContract && scopeMutation.isError && <p className="text-sm text-stop">{scopeMutation.error.message}</p>}
             </CardContent>
           </Card>
           <Card>
@@ -294,15 +294,15 @@ export function ContractDetailPage() {
                   <p className="text-muted-foreground">Renewal Timeline</p>
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <div className="size-2 rounded-full bg-green-500" />
+                      <div className="size-2 rounded-full bg-ok" />
                       <span>90 days before - Start renewal assessment</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className="size-2 rounded-full bg-amber-500" />
+                      <div className="size-2 rounded-full bg-warn" />
                       <span>60 days before - Negotiate terms</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className="size-2 rounded-full bg-red-500" />
+                      <div className="size-2 rounded-full bg-stop" />
                       <span>30 days before - Final approval</span>
                     </div>
                   </div>
@@ -354,7 +354,7 @@ export function ContractDetailPage() {
                   {linkedPOs.map((po) => (
                     <div
                       key={po.id}
-                      className={`flex items-center justify-between rounded-lg border p-3 ${canOpenPurchaseOrders ? 'cursor-pointer hover:bg-gray-50' : ''}`}
+                      className={`flex items-center justify-between rounded-lg border p-3 ${canOpenPurchaseOrders ? 'cursor-pointer hover:bg-card-2' : ''}`}
                       onClick={canOpenPurchaseOrders ? () => navigate(`/purchasing/orders/${po.id}`) : undefined}
                       onKeyDown={canOpenPurchaseOrders ? (event) => {
                         if (event.key === 'Enter' || event.key === ' ') {

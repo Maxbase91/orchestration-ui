@@ -140,14 +140,14 @@ export function ServiceDescriptionPage() {
       )}
 
       {problems.length > 0 && (
-        <div className="rounded-md border border-red-200 bg-red-50 p-3">
-          <p className="flex items-center gap-2 text-xs font-medium text-red-900">
+        <div className="rounded-md border border-stop-line bg-stop-soft p-3">
+          <p className="flex items-center gap-2 text-xs font-medium text-stop">
             <AlertTriangle className="size-3.5 shrink-0" />
             {problems.length === 1
               ? 'One condition in this template can never hold'
               : `${problems.length} conditions in this template can never hold`}
           </p>
-          <ul className="mt-1.5 list-disc space-y-0.5 pl-8 text-xs text-red-800">
+          <ul className="mt-1.5 list-disc space-y-0.5 pl-8 text-xs text-stop">
             {problems.map((p) => <li key={`${p.ownerId}-${p.problem}`}>{p.problem}</li>)}
           </ul>
         </div>
@@ -177,7 +177,7 @@ export function ServiceDescriptionPage() {
             <Label className="text-sm">Active</Label>
           </div>
           {selectedCategory !== 'default' && stored && (
-            <Button variant="outline" size="sm" className="ml-auto text-red-600 border-red-200 hover:bg-red-50"
+            <Button variant="outline" size="sm" className="ml-auto text-stop border-stop-line hover:bg-stop-soft"
               onClick={handleDelete} disabled={remove.isPending}>
               <Trash2 className="size-3.5" />
               Revert to default
@@ -230,7 +230,7 @@ export function ServiceDescriptionPage() {
                 onChange={(e) => patch({ maxTokens: Number(e.target.value) })} />
             </div>
           </div>
-          <details className="rounded-md border bg-gray-50 p-3">
+          <details className="rounded-md border bg-card-2 p-3">
             <summary className="cursor-pointer text-xs font-medium">
               <Wand2 className="mr-1 inline size-3" />
               Preview the assembled prompt
@@ -266,7 +266,7 @@ export function ServiceDescriptionPage() {
                 {current.slots.map((slot, i) => (
                   <tr key={slot.id} className="border-b align-top">
                     <td className="py-2 pr-3">
-                      <span className="font-medium text-gray-900">{slot.id}</span>
+                      <span className="font-medium text-ink">{slot.id}</span>
                       <span className="block text-[11px] text-muted-foreground">
                         → {slot.targetKind}.{slot.targetField}
                       </span>
@@ -319,7 +319,7 @@ export function ServiceDescriptionPage() {
               {current.sections.map((sec) => (
                 <span key={sec.id}
                   className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs ${
-                    sec.asked ? 'border-gray-200 bg-white' : 'border-amber-200 bg-amber-50 text-amber-800'
+                    sec.asked ? 'border-line bg-card' : 'border-warn-line bg-warn-soft text-warn'
                   }`}>
                   {sec.label}
                   {!sec.asked && <span className="text-[10px]">inferred</span>}
@@ -397,15 +397,15 @@ export function ServiceDescriptionPage() {
                     so the total is shown here rather than discovered later. */}
                 <span className={`text-xs ${
                   current.defaultCriteria.reduce((s, c) => s + c.weight, 0) === 100
-                    ? 'text-green-700' : 'text-amber-700'
+                    ? 'text-ok' : 'text-warn'
                 }`}>
                   Total {current.defaultCriteria.reduce((s, c) => s + c.weight, 0)}% — must be 100%
                 </span>
               </div>
             </div>
           </div>
-          <div className="rounded-md border bg-gray-50 p-3 text-xs text-muted-foreground">
-            <strong className="text-gray-900">Risk and other forms.</strong> Any form built in the Form
+          <div className="rounded-md border bg-card-2 p-3 text-xs text-muted-foreground">
+            <strong className="text-ink">Risk and other forms.</strong> Any form built in the Form
             Builder can pre-fill a field from a service-description section — pick one of the
             “Service description — …” sources on the field. A form whose trigger stage is
             <code> risk</code> then appears on the risk step already populated with what the

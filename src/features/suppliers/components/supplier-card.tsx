@@ -13,11 +13,11 @@ function ComplianceCheck({ label, pass }: { label: string; pass: boolean }) {
   return (
     <span className="inline-flex items-center gap-1 text-xs">
       {pass ? (
-        <Check className="size-3 text-green-600" />
+        <Check className="size-3 text-ok" />
       ) : (
-        <X className="size-3 text-red-500" />
+        <X className="size-3 text-stop" />
       )}
-      <span className={pass ? 'text-green-700' : 'text-red-600'}>{label}</span>
+      <span className={pass ? 'text-ok' : 'text-stop'}>{label}</span>
     </span>
   );
 }
@@ -44,7 +44,7 @@ export function SupplierCard({ supplier }: SupplierCardProps) {
       <CardContent className="space-y-3">
         <div className="flex items-start justify-between gap-2">
           <div>
-            <h3 className="text-sm font-semibold text-gray-900">{supplier.name}</h3>
+            <h3 className="text-sm font-semibold text-ink">{supplier.name}</h3>
             <p className="text-xs text-muted-foreground">
               {flag} {supplier.country}
             </p>
@@ -57,11 +57,11 @@ export function SupplierCard({ supplier }: SupplierCardProps) {
         <div className="grid grid-cols-2 gap-2 text-xs">
           <div>
             <span className="text-muted-foreground">Active Contracts</span>
-            <p className="font-medium text-gray-900">{supplier.activeContracts}</p>
+            <p className="font-medium text-ink">{supplier.activeContracts}</p>
           </div>
           <div>
             <span className="text-muted-foreground">Spend (12M)</span>
-            <p className="font-medium text-gray-900">{formatCurrency(supplier.totalSpend12m)}</p>
+            <p className="font-medium text-ink">{formatCurrency(supplier.totalSpend12m)}</p>
           </div>
         </div>
 

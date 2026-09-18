@@ -127,15 +127,15 @@ export function RuleTestPanel({ rules }: RuleTestPanelProps) {
   }
 
   return (
-    <div className="flex h-full flex-col border-l border-gray-200">
-      <div className="border-b border-gray-200 p-4">
-        <h2 className="text-sm font-semibold text-gray-900">Test Rule</h2>
-        <p className="mt-0.5 text-xs text-gray-500">Simulate a request to test rule matching</p>
+    <div className="flex h-full flex-col border-l border-line">
+      <div className="border-b border-line p-4">
+        <h2 className="text-sm font-semibold text-ink">Test Rule</h2>
+        <p className="mt-0.5 text-xs text-ink-3">Simulate a request to test rule matching</p>
       </div>
 
       <div className="flex-1 space-y-4 overflow-y-auto p-4">
         <div>
-          <Label className="text-xs text-gray-500">Value (EUR)</Label>
+          <Label className="text-xs text-ink-3">Value (EUR)</Label>
           <Input
             type="number"
             value={testValue}
@@ -146,7 +146,7 @@ export function RuleTestPanel({ rules }: RuleTestPanelProps) {
         </div>
 
         <div>
-          <Label className="text-xs text-gray-500">Category</Label>
+          <Label className="text-xs text-ink-3">Category</Label>
           <Select value={testCategory} onValueChange={setTestCategory}>
             <SelectTrigger className="mt-1">
               <SelectValue placeholder="Select category" />
@@ -164,7 +164,7 @@ export function RuleTestPanel({ rules }: RuleTestPanelProps) {
         </div>
 
         <div>
-          <Label className="text-xs text-gray-500">Supplier Status</Label>
+          <Label className="text-xs text-ink-3">Supplier Status</Label>
           <Select value={testSupplierStatus} onValueChange={setTestSupplierStatus}>
             <SelectTrigger className="mt-1">
               <SelectValue placeholder="Select status" />
@@ -178,12 +178,12 @@ export function RuleTestPanel({ rules }: RuleTestPanelProps) {
         </div>
 
         <div className="flex items-center justify-between">
-          <Label className="text-xs text-gray-500">Contract Exists</Label>
+          <Label className="text-xs text-ink-3">Contract Exists</Label>
           <Switch checked={testContractExists} onCheckedChange={setTestContractExists} />
         </div>
 
         <div>
-          <Label className="text-xs text-gray-500">Risk Rating</Label>
+          <Label className="text-xs text-ink-3">Risk Rating</Label>
           <Select value={testRiskLevel} onValueChange={setTestRiskLevel}>
             <SelectTrigger className="mt-1">
               <SelectValue placeholder="Select risk" />
@@ -201,7 +201,7 @@ export function RuleTestPanel({ rules }: RuleTestPanelProps) {
             the live "Urgent request fast-track" — was reported dead whatever
             the inputs. */}
         <div>
-          <Label className="text-xs text-gray-500">Priority</Label>
+          <Label className="text-xs text-ink-3">Priority</Label>
           <Select value={testPriority} onValueChange={setTestPriority}>
             <SelectTrigger className="mt-1">
               <SelectValue placeholder="Select priority" />
@@ -216,7 +216,7 @@ export function RuleTestPanel({ rules }: RuleTestPanelProps) {
         </div>
 
         <div>
-          <Label className="text-xs text-gray-500">Commodity Code</Label>
+          <Label className="text-xs text-ink-3">Commodity Code</Label>
           <Input
             className="mt-1"
             placeholder="e.g. 43211500"
@@ -238,10 +238,10 @@ export function RuleTestPanel({ rules }: RuleTestPanelProps) {
 
         {/* Single test result */}
         {result && (
-          <div className="rounded-lg border border-green-200 bg-green-50 p-3">
-            <p className="text-xs font-medium text-green-700">Rule Matched</p>
-            <p className="mt-1 text-sm font-semibold text-gray-900">{result.rule.name}</p>
-            <div className="mt-2 space-y-1 text-xs text-gray-600">
+          <div className="rounded-lg border border-ok-line bg-ok-soft p-3">
+            <p className="text-xs font-medium text-ok">Rule Matched</p>
+            <p className="mt-1 text-sm font-semibold text-ink">{result.rule.name}</p>
+            <div className="mt-2 space-y-1 text-xs text-ink-2">
               <p>
                 <span className="font-medium">Channel:</span> {result.channel}
               </p>
@@ -254,41 +254,41 @@ export function RuleTestPanel({ rules }: RuleTestPanelProps) {
         )}
 
         {result === null && !coverage && testValue && (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
-            <p className="text-xs font-medium text-amber-700">No rule matched for this input.</p>
+          <div className="rounded-lg border border-warn-line bg-warn-soft p-3">
+            <p className="text-xs font-medium text-warn">No rule matched for this input.</p>
           </div>
         )}
 
         {/* Coverage result */}
         {coverage && (
           <div className="space-y-3">
-            <div className="rounded-lg border border-gray-200 bg-white p-3">
-              <p className="text-xs font-medium text-gray-500">Rule Coverage Summary</p>
+            <div className="rounded-lg border border-line bg-card p-3">
+              <p className="text-xs font-medium text-ink-3">Rule Coverage Summary</p>
               <div className="mt-2 grid grid-cols-2 gap-2 text-center">
-                <div className="rounded bg-gray-50 p-2">
-                  <p className="text-lg font-bold text-gray-900">{coverage.totalRules}</p>
-                  <p className="text-xs text-gray-500">Total</p>
+                <div className="rounded bg-card-2 p-2">
+                  <p className="text-lg font-bold text-ink">{coverage.totalRules}</p>
+                  <p className="text-xs text-ink-3">Total</p>
                 </div>
-                <div className="rounded bg-gray-50 p-2">
-                  <p className="text-lg font-bold text-gray-900">{coverage.activeRules}</p>
-                  <p className="text-xs text-gray-500">Active</p>
+                <div className="rounded bg-card-2 p-2">
+                  <p className="text-lg font-bold text-ink">{coverage.activeRules}</p>
+                  <p className="text-xs text-ink-3">Active</p>
                 </div>
-                <div className="rounded bg-green-50 p-2">
-                  <p className="text-lg font-bold text-green-700">{coverage.firedRules.length}</p>
-                  <p className="text-xs text-green-600">Fired</p>
+                <div className="rounded bg-ok-soft p-2">
+                  <p className="text-lg font-bold text-ok">{coverage.firedRules.length}</p>
+                  <p className="text-xs text-ok">Fired</p>
                 </div>
-                <div className="rounded bg-amber-50 p-2">
-                  <p className="text-lg font-bold text-amber-700">{coverage.deadRules.length}</p>
-                  <p className="text-xs text-amber-600">Did Not Fire</p>
+                <div className="rounded bg-warn-soft p-2">
+                  <p className="text-lg font-bold text-warn">{coverage.deadRules.length}</p>
+                  <p className="text-xs text-warn">Did Not Fire</p>
                 </div>
               </div>
             </div>
 
             {coverage.deadRules.length > 0 && (
-              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+              <div className="rounded-lg border border-warn-line bg-warn-soft p-3">
                 <div className="flex items-center gap-1.5">
-                  <AlertTriangle className="size-3.5 text-amber-600" />
-                  <p className="text-xs font-medium text-amber-700">
+                  <AlertTriangle className="size-3.5 text-warn" />
+                  <p className="text-xs font-medium text-warn">
                     Rules that did not fire with test data
                   </p>
                 </div>
@@ -302,11 +302,11 @@ export function RuleTestPanel({ rules }: RuleTestPanelProps) {
                     // made this very lookup miss and left the rule nameless.
                     const broken = r ? diagnoseRule(r, { config: policyConfig }).length > 0 : false;
                     return (
-                      <li key={id} className="flex items-center gap-1.5 text-xs text-gray-600">
-                        <span className="font-mono text-amber-600">{id}</span>
+                      <li key={id} className="flex items-center gap-1.5 text-xs text-ink-2">
+                        <span className="font-mono text-warn">{id}</span>
                         <span>{r?.name}</span>
                         {broken && (
-                          <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
+                          <span className="rounded bg-warn-soft px-1.5 py-0.5 text-[10px] font-medium text-warn">
                             can never match
                           </span>
                         )}

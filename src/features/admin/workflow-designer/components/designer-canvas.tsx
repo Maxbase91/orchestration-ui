@@ -248,7 +248,7 @@ export function DesignerCanvas({
           nodeStrokeWidth={3}
           pannable
           zoomable
-          className="!bg-gray-50 !border-gray-200"
+          className="!bg-card-2 !border-line"
         />
         <Background variant={BackgroundVariant.Dots} gap={15} size={1} color="#e2e8f0" />
       </ReactFlow>

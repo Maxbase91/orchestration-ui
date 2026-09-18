@@ -146,7 +146,7 @@ export function PolicyManagementPage() {
           return (
             <Card key={policy.id} className="overflow-hidden">
               <button
-                className="flex w-full items-center justify-between px-5 py-4 text-left hover:bg-gray-50"
+                className="flex w-full items-center justify-between px-5 py-4 text-left hover:bg-card-2"
                 onClick={() => toggleExpand(policy.id)}
               >
                 <div className="flex items-center gap-3 min-w-0">
@@ -176,7 +176,7 @@ export function PolicyManagementPage() {
                 <div className="border-t px-5 py-4 space-y-4">
                   <div className="prose prose-sm max-w-none">
                     {policy.fullText.split('\n\n').map((paragraph, idx) => (
-                      <p key={idx} className="text-sm text-gray-700 mb-3">
+                      <p key={idx} className="text-sm text-ink-2 mb-3">
                         {paragraph}
                       </p>
                     ))}

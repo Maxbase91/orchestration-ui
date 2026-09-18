@@ -35,9 +35,9 @@ export function SupplierPortalLayout() {
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-surface">
       {/* Top bar */}
-      <header className="h-14 shrink-0 bg-white border-b border-border flex items-center justify-between px-6">
+      <header className="h-14 shrink-0 bg-card border-b border-border flex items-center justify-between px-6">
         <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-amber-500 shrink-0">
+          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-warn shrink-0">
             <span className="text-sm font-bold text-white">GP</span>
           </div>
           <span className="text-sm font-semibold text-navy-800 tracking-tight">
@@ -51,7 +51,7 @@ export function SupplierPortalLayout() {
       </header>
 
       {/* Horizontal nav */}
-      <nav className="shrink-0 bg-white border-b border-border px-6">
+      <nav className="shrink-0 bg-card border-b border-border px-6">
         <div className="flex items-center gap-1 -mb-px">
           {portalNavItems.map((item) => {
             const isActive =

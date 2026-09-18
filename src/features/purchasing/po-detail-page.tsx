@@ -164,7 +164,7 @@ export function PODetailPage() {
                   <td className="py-2 text-center">{li.quantity}</td>
                   <td className="py-2 text-right">{formatCurrency(li.unitPrice)}</td>
                   <td className="py-2 text-center">
-                    <span className={li.received >= li.quantity ? 'text-green-700' : li.received > 0 ? 'text-amber-700' : 'text-muted-foreground'}>
+                    <span className={li.received >= li.quantity ? 'text-ok' : li.received > 0 ? 'text-warn' : 'text-muted-foreground'}>
                       {li.received}/{li.quantity}
                     </span>
                   </td>
@@ -185,7 +185,7 @@ export function PODetailPage() {
           classification, and the first anyone knew of that was at the boundary. */}
       {!readiness.ready && (
         <Card>
-          <CardHeader><CardTitle className="text-sm text-amber-700">Not ready to hand off</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-sm text-warn">Not ready to hand off</CardTitle></CardHeader>
           <CardContent className="space-y-1 text-sm">
             {readiness.gaps.map((gap, index) => (
               <div key={index} className="flex gap-2">
@@ -212,7 +212,7 @@ export function PODetailPage() {
         <CardContent className="space-y-2 text-sm">
           <div className="flex justify-between"><span className="text-muted-foreground">Created</span><span>{formatDate(po.createdAt)}</span></div>
           <div className="flex justify-between"><span className="text-muted-foreground">Delivery Date</span><span>{formatDate(po.deliveryDate)}</span></div>
-          {po.contractId && <div className="flex justify-between"><span className="text-muted-foreground">Contract</span><span className="text-blue-600 cursor-pointer" onClick={() => navigate(`/contracts/${po.contractId}`)}>{po.contractId}</span></div>}
+          {po.contractId && <div className="flex justify-between"><span className="text-muted-foreground">Contract</span><span className="text-accent-solid cursor-pointer" onClick={() => navigate(`/contracts/${po.contractId}`)}>{po.contractId}</span></div>}
           {po.requestId && <div className="flex justify-between"><span className="text-muted-foreground">Request</span><span>{po.requestId}</span></div>}
           <div className="flex justify-between">
             <span className="text-muted-foreground">Owner</span>

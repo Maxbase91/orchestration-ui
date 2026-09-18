@@ -57,12 +57,12 @@ const stepStyles: Record<StepStatus, { dot: string; line: string; label: string 
     label: 'text-warn font-semibold',
   },
   future: {
-    dot: 'border-2 border-line bg-white',
+    dot: 'border-2 border-line bg-card',
     line: 'bg-idle',
     label: 'text-ink-3',
   },
   skipped: {
-    dot: 'border-2 border-dashed border-line bg-white',
+    dot: 'border-2 border-dashed border-line bg-card',
     line: 'bg-idle',
     label: 'text-ink-3 line-through',
   },

@@ -51,16 +51,16 @@ function KanbanColumn({ stage, requests, onCardClick }: KanbanColumnProps) {
     <div
       ref={setNodeRef}
       className={cn(
-        'flex w-[260px] shrink-0 flex-col rounded-md border bg-gray-50/80',
-        isOver && 'ring-2 ring-blue-400/50',
+        'flex w-[260px] shrink-0 flex-col rounded-md border bg-card-2/80',
+        isOver && 'ring-2 ring-accent-solid/50',
       )}
     >
-      <div className="border-b bg-white px-3 py-2 rounded-t-md">
+      <div className="border-b bg-card px-3 py-2 rounded-t-md">
         <div className="flex items-center justify-between">
-          <h3 className="text-xs font-semibold text-gray-700">
+          <h3 className="text-xs font-semibold text-ink-2">
             {stageLabelShort(stage)}
           </h3>
-          <span className="rounded-full bg-gray-200 px-1.5 py-0.5 text-[10px] font-medium text-gray-600">
+          <span className="rounded-full bg-line px-1.5 py-0.5 text-[10px] font-medium text-ink-2">
             {requests.length}
           </span>
         </div>

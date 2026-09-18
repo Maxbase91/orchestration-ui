@@ -57,7 +57,7 @@ export function SettingsPage() {
             <h3 className="mb-4 text-sm font-medium">User Profile</h3>
             <div className="space-y-4">
               <div className="flex items-center gap-4">
-                <div className="flex size-14 items-center justify-center rounded-full bg-gray-100 text-lg font-semibold text-gray-600">
+                <div className="flex size-14 items-center justify-center rounded-full bg-idle-soft text-lg font-semibold text-ink-2">
                   {currentUser.initials}
                 </div>
                 <div>
@@ -193,7 +193,7 @@ export function SettingsPage() {
                     <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
                       <Pencil className="size-3.5" />
                     </Button>
-                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-500 hover:text-red-600">
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-stop hover:text-stop">
                       <Trash2 className="size-3.5" />
                     </Button>
                   </div>

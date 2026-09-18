@@ -15,7 +15,7 @@ const columns: Column<SupplierRow>[] = [
     key: 'name',
     label: 'Name',
     sortable: true,
-    render: (s) => <span className="font-medium text-gray-900">{s.name}</span>,
+    render: (s) => <span className="font-medium text-ink">{s.name}</span>,
   },
   {
     key: 'country',
@@ -82,7 +82,7 @@ const columns: Column<SupplierRow>[] = [
       // Performance bands: >=80 healthy, 60–79 watch, below 60 problem; 0
       // means "not yet scored", shown as a dash rather than a red zero.
       return (
-        <span className={`text-sm font-medium ${score >= 80 ? 'text-green-700' : score >= 60 ? 'text-amber-700' : 'text-red-700'}`}>
+        <span className={`text-sm font-medium ${score >= 80 ? 'text-ok' : score >= 60 ? 'text-warn' : 'text-stop'}`}>
           {score > 0 ? `${score}/100` : '--'}
         </span>
       );

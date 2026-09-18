@@ -238,8 +238,8 @@ function SidebarItem({
         collapsed ? 'justify-center px-2 py-2' : 'px-3 py-2',
         depth > 0 && !collapsed && 'pl-10',
         isActive
-          ? 'bg-blue-500/20 text-white'
-          : 'text-navy-200 hover:bg-white/8 hover:text-white',
+          ? 'bg-accent-solid/20 text-paper'
+          : 'text-navy-200 hover:bg-card/8 hover:text-white',
       )}
     >
       {createElement(icon, { className: cn('shrink-0', collapsed ? 'h-5 w-5' : 'h-4 w-4') })}
@@ -348,7 +348,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
           collapsed ? 'justify-center px-2' : 'px-4 gap-3',
         )}
       >
-        <div className="flex h-8 w-8 items-center justify-center rounded-md bg-amber-500 shrink-0">
+        <div className="flex h-8 w-8 items-center justify-center rounded-md bg-warn shrink-0">
           <span className="text-sm font-bold text-white">GP</span>
         </div>
         {!collapsed && (
@@ -378,7 +378,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
             onMobileClose?.();
             toggleSidebar();
           }}
-          className="w-full flex items-center justify-center gap-2 rounded-md px-2 py-2 text-navy-300 hover:bg-white/8 hover:text-white transition-colors"
+          className="w-full flex items-center justify-center gap-2 rounded-md px-2 py-2 text-navy-300 hover:bg-card/8 hover:text-white transition-colors"
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           {collapsed ? (

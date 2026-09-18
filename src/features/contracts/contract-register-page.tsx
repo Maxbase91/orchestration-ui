@@ -67,9 +67,9 @@ function expiryBadge(endDate: string, status: string) {
   if (status === 'expired' || status === 'terminated' || status === 'draft') return null;
   const days = daysUntilExpiry(endDate);
   if (days <= 0) return null;
-  if (days <= 30) return <span className="ml-1 rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-medium text-red-700">{days}d</span>;
-  if (days <= 60) return <span className="ml-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">{days}d</span>;
-  if (days <= 90) return <span className="ml-1 rounded-full bg-yellow-100 px-1.5 py-0.5 text-[10px] font-medium text-yellow-700">{days}d</span>;
+  if (days <= 30) return <span className="ml-1 rounded-full bg-stop-soft px-1.5 py-0.5 text-[10px] font-medium text-stop">{days}d</span>;
+  if (days <= 60) return <span className="ml-1 rounded-full bg-warn-soft px-1.5 py-0.5 text-[10px] font-medium text-warn">{days}d</span>;
+  if (days <= 90) return <span className="ml-1 rounded-full bg-warn-soft px-1.5 py-0.5 text-[10px] font-medium text-warn">{days}d</span>;
   return null;
 }
 
@@ -172,8 +172,8 @@ export function ContractRegisterPage() {
             onClick={() => setTab(t.id)}
             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
               tab === t.id
-                ? 'border-gray-900 text-gray-900'
-                : 'border-transparent text-muted-foreground hover:text-gray-700'
+                ? 'border-ink text-ink'
+                : 'border-transparent text-muted-foreground hover:text-ink-2'
             }`}
           >
             {t.label}

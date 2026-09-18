@@ -220,25 +220,25 @@ export function ReportBuilderPage() {
 
       <div className="flex gap-4" style={{ minHeight: 'calc(100vh - 200px)' }}>
         {/* Left Sidebar - Data Sources */}
-        <div className="w-52 shrink-0 rounded-md bg-white p-3 shadow-[0_1px_4px_rgba(0,0,0,0.08)]">
-          <h3 className="mb-3 text-xs font-semibold uppercase text-gray-500">Data Sources</h3>
+        <div className="w-52 shrink-0 rounded-md bg-card p-3 shadow-[0_1px_4px_rgba(0,0,0,0.08)]">
+          <h3 className="mb-3 text-xs font-semibold uppercase text-ink-3">Data Sources</h3>
           <div className="space-y-1.5">
             {DATA_SOURCES.map((source) => (
               <div
                 key={source.id}
                 draggable
                 onDragStart={(e) => handleDragStart(e, source.id)}
-                className="flex cursor-grab items-center gap-2 rounded-md border border-gray-100 p-2 text-sm transition-colors hover:border-blue-200 hover:bg-blue-50 active:cursor-grabbing"
+                className="flex cursor-grab items-center gap-2 rounded-md border border-line-2 p-2 text-sm transition-colors hover:border-accent-line hover:bg-accent-soft active:cursor-grabbing"
               >
-                <GripVertical className="size-3.5 text-gray-400" />
+                <GripVertical className="size-3.5 text-ink-3" />
                 <span>{source.icon}</span>
-                <span className="text-gray-700">{source.label}</span>
+                <span className="text-ink-2">{source.label}</span>
               </div>
             ))}
           </div>
 
           <div className="mt-6">
-            <h3 className="mb-3 text-xs font-semibold uppercase text-gray-500">Quick Add</h3>
+            <h3 className="mb-3 text-xs font-semibold uppercase text-ink-3">Quick Add</h3>
             <Button
               variant="outline"
               size="sm"
@@ -269,7 +269,7 @@ export function ReportBuilderPage() {
         <div
           className={cn(
             'flex-1 rounded-md border-2 border-dashed p-4 transition-colors',
-            dragOverCanvas ? 'border-blue-400 bg-blue-50/50' : 'border-gray-200 bg-gray-50/50',
+            dragOverCanvas ? 'border-accent-solid bg-accent-soft/50' : 'border-line bg-card-2/50',
           )}
           onDrop={handleDrop}
           onDragOver={handleDragOver}
@@ -277,7 +277,7 @@ export function ReportBuilderPage() {
         >
           {widgets.length === 0 ? (
             <div className="flex h-full items-center justify-center">
-              <div className="text-center text-gray-400">
+              <div className="text-center text-ink-3">
                 <BarChart3 className="mx-auto mb-2 size-12" />
                 <p className="text-sm font-medium">Drop data sources here</p>
                 <p className="text-xs">Drag from the sidebar to add widgets</p>
@@ -289,17 +289,17 @@ export function ReportBuilderPage() {
                 <div
                   key={widget.id}
                   className={cn(
-                    'relative cursor-pointer rounded-md bg-white p-4 shadow-[0_1px_4px_rgba(0,0,0,0.08)] transition-all',
+                    'relative cursor-pointer rounded-md bg-card p-4 shadow-[0_1px_4px_rgba(0,0,0,0.08)] transition-all',
                     selectedWidgetId === widget.id
-                      ? 'ring-2 ring-blue-400'
+                      ? 'ring-2 ring-accent-solid'
                       : 'hover:shadow-md',
                   )}
                   onClick={() => setSelectedWidgetId(widget.id)}
                 >
                   <div className="mb-3 flex items-center justify-between">
-                    <h4 className="text-sm font-semibold text-gray-900">{widget.title}</h4>
+                    <h4 className="text-sm font-semibold text-ink">{widget.title}</h4>
                     <button
-                      className="rounded p-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                      className="rounded p-0.5 text-ink-3 hover:bg-idle-soft hover:text-ink-2"
                       onClick={(e) => {
                         e.stopPropagation();
                         removeWidget(widget.id);
@@ -316,25 +316,25 @@ export function ReportBuilderPage() {
         </div>
 
         {/* Right Panel - Widget Config */}
-        <div className="w-60 shrink-0 rounded-md bg-white p-3 shadow-[0_1px_4px_rgba(0,0,0,0.08)]">
-          <h3 className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase text-gray-500">
+        <div className="w-60 shrink-0 rounded-md bg-card p-3 shadow-[0_1px_4px_rgba(0,0,0,0.08)]">
+          <h3 className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase text-ink-3">
             <Settings2 className="size-3.5" />
             Widget Config
           </h3>
           {selectedWidget ? (
             <div className="space-y-4">
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-600">Title</label>
+                <label className="mb-1 block text-xs font-medium text-ink-2">Title</label>
                 <input
                   type="text"
                   value={selectedWidget.title}
                   onChange={(e) => updateWidgetTitle(e.target.value)}
-                  className="w-full rounded-md border border-gray-200 px-2.5 py-1.5 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  className="w-full rounded-md border border-line px-2.5 py-1.5 text-sm focus:border-accent-solid focus:outline-none focus:ring-1 focus:ring-accent-solid"
                 />
               </div>
 
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-600">Chart Type</label>
+                <label className="mb-1 block text-xs font-medium text-ink-2">Chart Type</label>
                 <div className="grid grid-cols-3 gap-1">
                   {CHART_TYPES.map((ct) => {
                     const Icon = ct.icon;
@@ -344,8 +344,8 @@ export function ReportBuilderPage() {
                         className={cn(
                           'flex flex-col items-center gap-1 rounded-md border p-2 text-xs transition-colors',
                           selectedWidget.type === ct.type
-                            ? 'border-blue-400 bg-blue-50 text-blue-700'
-                            : 'border-gray-100 text-gray-500 hover:border-gray-300',
+                            ? 'border-accent-solid bg-accent-soft text-accent-solid'
+                            : 'border-line-2 text-ink-3 hover:border-line',
                         )}
                         onClick={() => updateWidgetType(ct.type)}
                       >
@@ -358,12 +358,12 @@ export function ReportBuilderPage() {
               </div>
 
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-600">Data Source</label>
-                <p className="text-sm text-gray-700">{selectedWidget.dataSource}</p>
+                <label className="mb-1 block text-xs font-medium text-ink-2">Data Source</label>
+                <p className="text-sm text-ink-2">{selectedWidget.dataSource}</p>
               </div>
 
-              <div className="border-t border-gray-100 pt-3">
-                <p className="text-xs font-medium text-gray-600">Export Widget</p>
+              <div className="border-t border-line-2 pt-3">
+                <p className="text-xs font-medium text-ink-2">Export Widget</p>
                 <div className="mt-2 flex gap-1.5">
                   <Button
                     variant="outline"
@@ -389,7 +389,7 @@ export function ReportBuilderPage() {
               </div>
             </div>
           ) : (
-            <p className="text-sm text-gray-400">Select a widget to configure</p>
+            <p className="text-sm text-ink-3">Select a widget to configure</p>
           )}
         </div>
       </div>
@@ -430,16 +430,16 @@ function WidgetRenderer({ widget }: { widget: ReportWidget }) {
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
-              <tr className="border-b text-xs font-medium text-gray-500">
+              <tr className="border-b text-xs font-medium text-ink-3">
                 <th className="pb-2 pr-4">Name</th>
                 <th className="pb-2 text-right">Value</th>
               </tr>
             </thead>
             <tbody>
               {chartData.map((row) => (
-                <tr key={row.name} className="border-b border-gray-50">
-                  <td className="py-1.5 pr-4 text-gray-700">{row.name}</td>
-                  <td className="py-1.5 text-right font-medium text-gray-900">
+                <tr key={row.name} className="border-b border-line-2">
+                  <td className="py-1.5 pr-4 text-ink-2">{row.name}</td>
+                  <td className="py-1.5 text-right font-medium text-ink">
                     {typeof row.value === 'number' ? row.value.toLocaleString() : row.value}
                   </td>
                 </tr>
@@ -458,6 +458,6 @@ function WidgetRenderer({ widget }: { widget: ReportWidget }) {
         />
       );
     default:
-      return <p className="text-sm text-gray-400">Unsupported chart type</p>;
+      return <p className="text-sm text-ink-3">Unsupported chart type</p>;
   }
 }

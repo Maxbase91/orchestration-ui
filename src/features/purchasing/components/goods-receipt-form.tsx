@@ -72,11 +72,11 @@ export function GoodsReceiptForm({ lineItems, onConfirm, saving }: GoodsReceiptF
                   </td>
                   <td className="py-2 text-center">
                     {fullyReceived ? (
-                      <span className="inline-flex items-center gap-1 text-xs text-green-700">
+                      <span className="inline-flex items-center gap-1 text-xs text-ok">
                         <Check className="size-3" /> Complete
                       </span>
                     ) : quantities[i] > 0 ? (
-                      <span className="text-xs text-amber-700">Partial</span>
+                      <span className="text-xs text-warn">Partial</span>
                     ) : (
                       <span className="text-xs text-muted-foreground">Pending</span>
                     )}

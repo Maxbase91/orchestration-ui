@@ -38,16 +38,16 @@ export function SLATracker({ requests }: SLATrackerProps) {
 
   if (allTracked.length === 0) {
     return (
-      <div className="rounded-md border bg-white p-6 text-center text-sm text-muted-foreground">
+      <div className="rounded-md border bg-card p-6 text-center text-sm text-muted-foreground">
         No SLA concerns at the moment.
       </div>
     );
   }
 
   return (
-    <div className="rounded-md border bg-white shadow-sm">
+    <div className="rounded-md border bg-card shadow-sm">
       <div className="border-b px-4 py-3">
-        <h3 className="text-sm font-semibold text-gray-900">
+        <h3 className="text-sm font-semibold text-ink">
           SLA Tracker ({allTracked.length})
         </h3>
         <p className="text-xs text-muted-foreground mt-0.5">
@@ -63,8 +63,8 @@ export function SLATracker({ requests }: SLATrackerProps) {
               className={cn(
                 'rounded-md border p-3',
                 req.isOverdue
-                  ? 'border-red-300 bg-red-50/50'
-                  : 'border-amber-300 bg-amber-50/50',
+                  ? 'border-stop-line bg-stop-soft/50'
+                  : 'border-warn-line bg-warn-soft/50',
               )}
             >
               <div className="flex items-start justify-between gap-2">
@@ -73,7 +73,7 @@ export function SLATracker({ requests }: SLATrackerProps) {
                 </span>
                 <StatusBadge status={req.status} size="sm" />
               </div>
-              <p className="mt-1 text-sm font-medium text-gray-900 line-clamp-1">
+              <p className="mt-1 text-sm font-medium text-ink line-clamp-1">
                 {req.title}
               </p>
               <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
@@ -89,7 +89,7 @@ export function SLATracker({ requests }: SLATrackerProps) {
                 {req.slaDeadline ? (
                   <SLACountdown deadline={req.slaDeadline} compact />
                 ) : (
-                  <span className="text-xs font-medium text-amber-600">
+                  <span className="text-xs font-medium text-warn">
                     Approaching SLA
                   </span>
                 )}

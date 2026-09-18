@@ -142,7 +142,26 @@ export const FIXTURES = {
     { id: 'wi1', request_id: 'REQ-TEST-0001', template_id: 'wf-procurement-led', current_node_ids: ['risk'], status: 'running', variables: {}, created_at: '2026-08-01T09:00:00Z', updated_at: '2026-08-04T09:00:00Z' },
   ],
   comments: [],
-  approval_entries: [],
+  // Two decisions for the admin persona (u11), so the approvals queue can be
+  // driven offline: one pending and actionable, one already approved. The
+  // pending one is deliberately high-value — the amount is the fact that screen
+  // exists to present, and it was not a field on the card until this phase.
+  approval_entries: [
+    {
+      id: 'APR-TEST-1', request_id: 'REQ-TEST-0001', approver_id: 'u11',
+      approver_name: 'Christine Dupont', approver_role: 'VP Procurement',
+      status: 'pending', requested_at: '2026-09-15T09:00:00Z',
+      step_order: 3, assignment_mode: 'role',
+    },
+    {
+      id: 'APR-TEST-2', request_id: 'REQ-TEST-0001', approver_id: 'u11',
+      approver_name: 'Christine Dupont', approver_role: 'Budget Owner',
+      status: 'approved', requested_at: '2026-09-12T09:00:00Z',
+      responded_at: '2026-09-13T11:20:00Z', comments: 'Budget confirmed against CC-TEST.',
+      step_order: 2, assignment_mode: 'person',
+      decided_by: 'u11', decided_by_name: 'Christine Dupont',
+    },
+  ],
   risk_assessments: [],
   intake_compliance_records: [],
   notifications: [],

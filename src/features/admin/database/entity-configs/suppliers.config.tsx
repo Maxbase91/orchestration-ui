@@ -20,12 +20,12 @@ const columns: Column<SupplierRow>[] = [
       <span
         className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${
           s.riskRating === 'low'
-            ? 'bg-green-100 text-green-700'
+            ? 'bg-ok-soft text-ok'
             : s.riskRating === 'medium'
-              ? 'bg-amber-100 text-amber-700'
+              ? 'bg-warn-soft text-warn'
               : s.riskRating === 'high'
-                ? 'bg-orange-100 text-orange-700'
-                : 'bg-red-100 text-red-700'
+                ? 'bg-warn-soft text-warn'
+                : 'bg-stop-soft text-stop'
         }`}
       >
         {s.riskRating}
@@ -38,7 +38,7 @@ const columns: Column<SupplierRow>[] = [
     label: 'SRA',
     sortable: true,
     render: (s) => (
-      <span className="text-xs text-gray-700">
+      <span className="text-xs text-ink-2">
         {s.sraStatus}
         {s.sraExpiryDate ? ` (${s.sraExpiryDate})` : ''}
       </span>

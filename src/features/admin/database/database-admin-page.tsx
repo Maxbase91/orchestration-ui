@@ -74,7 +74,7 @@ export function DatabaseAdminPage() {
         }
       />
 
-      <div className="flex items-start gap-2 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+      <div className="flex items-start gap-2 rounded-md border border-ok-line bg-ok-soft p-3 text-sm text-ok">
         <Database className="mt-0.5 size-4 shrink-0" />
         <div>
           <p className="font-medium">Tabs marked with a database icon are live</p>
@@ -91,7 +91,7 @@ export function DatabaseAdminPage() {
             <TabsTrigger key={t.key} value={t.key}>
               {t.label}
               {isLiveEntity(t.key) && (
-                <Database className="ml-1 size-3 text-emerald-600" aria-label="Live (persisted to the database)" />
+                <Database className="ml-1 size-3 text-ok" aria-label="Live (persisted to the database)" />
               )}
               <CountBadge entity={t.key} />
             </TabsTrigger>
@@ -118,7 +118,7 @@ export function DatabaseAdminPage() {
 function CountBadge({ entity }: { entity: EntityKey }) {
   const count = useDatabaseAdminStore((s) => (s[entity] as unknown[]).length);
   return (
-    <span className="ml-1.5 rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600">
+    <span className="ml-1.5 rounded-full bg-idle-soft px-1.5 py-0.5 text-[10px] font-medium text-ink-2">
       {count}
     </span>
   );

@@ -323,7 +323,7 @@ export function WorkflowDesignerPage({ scope = 'request' }: { scope?: 'request' 
   }, []);
 
   const containerClass = isFullscreen
-    ? 'fixed inset-0 z-50 bg-white flex flex-col'
+    ? 'fixed inset-0 z-50 bg-card flex flex-col'
     : 'flex h-full flex-col';
 
   return (
@@ -335,8 +335,8 @@ export function WorkflowDesignerPage({ scope = 'request' }: { scope?: 'request' 
           behaviour the platform no longer has is the same defect class as a
           control that configures nothing. */}
       {!isFullscreen && (scope === 'request' ? (
-        <div className="border-b border-blue-200 bg-blue-50 px-4 py-2">
-          <p className="text-xs text-blue-800">
+        <div className="border-b border-accent-line bg-accent-soft px-4 py-2">
+          <p className="text-xs text-accent-solid">
             <strong>This graph is the lifecycle.</strong> The stages a request visits, their
             owner roles and their SLAs are read from the template that claims its buying
             channel — the stepper, the stage gates and the intake writer all derive from
@@ -347,8 +347,8 @@ export function WorkflowDesignerPage({ scope = 'request' }: { scope?: 'request' 
         // Saying what these DO drive would be inventing a runtime. They are
         // authored process definitions for objects the front door does not
         // route, and no request has ever run on either.
-        <div className="border-b border-gray-200 bg-gray-50 px-4 py-2">
-          <p className="text-xs text-gray-700">
+        <div className="border-b border-line bg-card-2 px-4 py-2">
+          <p className="text-xs text-ink-2">
             <strong>These are side processes, not request lifecycles.</strong> They describe how a
             supplier is onboarded and how a contract is renewed — objects selected by category
             rather than by buying channel. No request runs on them, so editing one changes no
@@ -358,9 +358,9 @@ export function WorkflowDesignerPage({ scope = 'request' }: { scope?: 'request' 
       ))}
 
       {/* Top bar */}
-      <div className="flex items-center justify-between border-b border-gray-200 bg-white px-4 py-2.5">
+      <div className="flex items-center justify-between border-b border-line bg-card px-4 py-2.5">
         <div className="flex items-center gap-3">
-          <h1 className="text-base font-semibold text-gray-900">
+          <h1 className="text-base font-semibold text-ink">
             {scope === 'side-process' ? 'Side Processes' : 'Workflow Designer'}
           </h1>
           <Select value={effectiveTemplateId} onValueChange={handleTemplateChange}>
@@ -379,14 +379,14 @@ export function WorkflowDesignerPage({ scope = 'request' }: { scope?: 'request' 
               category rather than by channel. */}
           <div
             className={cn(
-              'flex-wrap items-center gap-1.5 border-l border-gray-200 pl-3',
+              'flex-wrap items-center gap-1.5 border-l border-line pl-3',
               // A side process claims no buying channel by definition — that is
               // what makes it one. Offering the control here would invite an
               // edit that silently reclassifies it as a request lifecycle.
               scope === 'side-process' ? 'hidden' : 'flex',
             )}
           >
-            <span className="text-xs text-gray-500">Lifecycle for</span>
+            <span className="text-xs text-ink-3">Lifecycle for</span>
             {BUYING_CHANNELS.map((channel) => {
               const active = channels.includes(channel);
               return (
@@ -399,8 +399,8 @@ export function WorkflowDesignerPage({ scope = 'request' }: { scope?: 'request' 
                   className={cn(
                     'rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
                     active
-                      ? 'border-blue-300 bg-blue-100 text-blue-700'
-                      : 'border-gray-200 bg-gray-50 text-gray-500 hover:bg-gray-100',
+                      ? 'border-accent-line bg-accent-soft text-accent-solid'
+                      : 'border-line bg-card-2 text-ink-3 hover:bg-idle-soft',
                   )}
                 >
                   {channel}
@@ -408,15 +408,15 @@ export function WorkflowDesignerPage({ scope = 'request' }: { scope?: 'request' 
               );
             })}
             {channels.length === 0 && (
-              <span className="text-xs text-gray-400">none — a side process</span>
+              <span className="text-xs text-ink-3">none — a side process</span>
             )}
             {templateProblems.length > 0 && !isFullscreen && (
-        <div className="border-b border-amber-200 bg-amber-50 px-4 py-2">
-          <p className="flex items-center gap-2 text-xs font-medium text-amber-900">
+        <div className="border-b border-warn-line bg-warn-soft px-4 py-2">
+          <p className="flex items-center gap-2 text-xs font-medium text-warn">
             <AlertTriangle className="size-3.5 shrink-0" />
             Some branches will not do what their label says
           </p>
-          <ul className="mt-1 list-disc space-y-0.5 pl-9 text-xs text-amber-800">
+          <ul className="mt-1 list-disc space-y-0.5 pl-9 text-xs text-warn">
             {templateProblems.flatMap((d) => d.problems.map((problem) => (
               <li key={`${d.nodeId}-${problem}`}>
                 <button
@@ -437,7 +437,7 @@ export function WorkflowDesignerPage({ scope = 'request' }: { scope?: 'request' 
       )}
       {channelIssues.length > 0 && (
               <span
-                className="flex items-center gap-1 text-xs text-amber-700"
+                className="flex items-center gap-1 text-xs text-warn"
                 title={channelIssues.join('\n')}
               >
                 <AlertTriangle className="size-3.5 shrink-0" />

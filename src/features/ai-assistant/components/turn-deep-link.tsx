@@ -10,7 +10,7 @@ export function TurnDeepLink({ turn, onNavigate }: Props) {
   return (
     <button
       onClick={() => onNavigate(turn.path)}
-      className="group w-full text-left rounded-xl border border-gray-200 bg-white shadow-sm hover:shadow-md hover:border-gray-300 transition-all duration-150 px-4 py-3"
+      className="group w-full text-left rounded-xl border border-line bg-card shadow-sm hover:shadow-md hover:border-line transition-all duration-150 px-4 py-3"
     >
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
@@ -18,10 +18,10 @@ export function TurnDeepLink({ turn, onNavigate }: Props) {
             {turn.label}
           </p>
           {turn.description && (
-            <p className="text-[12px] text-gray-500 truncate">{turn.description}</p>
+            <p className="text-[12px] text-ink-3 truncate">{turn.description}</p>
           )}
         </div>
-        <ArrowUpRight className="size-4 text-gray-400 shrink-0 group-hover:text-gray-600 transition-colors" />
+        <ArrowUpRight className="size-4 text-ink-3 shrink-0 group-hover:text-ink-2 transition-colors" />
       </div>
     </button>
   );

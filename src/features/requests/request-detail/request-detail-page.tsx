@@ -30,7 +30,7 @@ export function RequestDetailPage() {
     return (
       <div className="flex flex-col items-center justify-center py-24 gap-3">
         <FileQuestion className="size-12 text-muted-foreground" />
-        <h2 className="text-xl font-semibold text-gray-900">Request not found</h2>
+        <h2 className="text-xl font-semibold text-ink">Request not found</h2>
         <p className="text-sm text-muted-foreground">
           The request {id ? `"${id}"` : ''} does not exist or has been removed.
         </p>

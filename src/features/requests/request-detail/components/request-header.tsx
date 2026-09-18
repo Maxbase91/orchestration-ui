@@ -24,18 +24,18 @@ export function RequestHeader({ request }: RequestHeaderProps) {
       </div>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1.5">
-          <h1 className="text-xl font-semibold text-gray-900">{request.title}</h1>
+          <h1 className="text-xl font-semibold text-ink">{request.title}</h1>
           <div className="flex items-center gap-3 flex-wrap">
             <StatusBadge status={request.status} />
             <PriorityIndicator priority={request.priority} showLabel />
             {request.slaDeadline && <SLACountdown deadline={request.slaDeadline} />}
             {request.isOverdue && (
-              <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-700">
+              <span className="rounded-full bg-stop-soft px-2.5 py-0.5 text-xs font-medium text-stop">
                 Overdue
               </span>
             )}
             {request.referBackCount > 0 && (
-              <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-700">
+              <span className="rounded-full bg-warn-soft px-2.5 py-0.5 text-xs font-medium text-warn">
                 Referred back {request.referBackCount}x
               </span>
             )}

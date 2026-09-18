@@ -128,19 +128,19 @@ export function SupplierRecommenderCard({
         ? `${selectedSupplier.name} has an active contract, ${selectedSupplier.performanceScore}% performance score, and ${selectedSupplier.riskRating} risk — sourcing can proceed as a call-off.`
         : '',
       icon: CheckCircle,
-      color: 'text-green-700 bg-green-50 border-green-200',
+      color: 'text-ok bg-ok-soft border-ok-line',
     },
     'recommend-existing': {
       label: 'Recommended existing suppliers',
       detail: `${recommendations.length} existing supplier${recommendations.length === 1 ? '' : 's'} match the category profile — pick one below or proceed to competitive sourcing.`,
       icon: Star,
-      color: 'text-blue-700 bg-blue-50 border-blue-200',
+      color: 'text-accent-solid bg-accent-soft border-accent-line',
     },
     'onboard-new': {
       label: 'New supplier onboarding required',
       detail: 'No existing supplier matches the required category with acceptable performance/risk. Downstream workflow should trigger the supplier-onboarding process.',
       icon: UserPlus,
-      color: 'text-amber-700 bg-amber-50 border-amber-200',
+      color: 'text-warn bg-warn-soft border-warn-line',
     },
   };
 
@@ -157,7 +157,7 @@ export function SupplierRecommenderCard({
           <Sparkles className="size-4 text-[#2D5F8A]" />
           Supplier
         </CardTitle>
-        <span className="text-[11px] text-gray-400">
+        <span className="text-[11px] text-ink-3">
           {!agent
             ? 'Recommender unavailable'
             : active
@@ -172,7 +172,7 @@ export function SupplierRecommenderCard({
             second decision the requester has already made somewhere else. */}
         {onSelect && (
           <div className="mb-4 space-y-1.5">
-            <p className="text-xs font-medium text-gray-700">Selected supplier</p>
+            <p className="text-xs font-medium text-ink-2">Selected supplier</p>
             <SupplierAutocomplete
               value={selectedSupplierName ?? ''}
               supplierId={selectedSupplierId ?? ''}
@@ -185,19 +185,19 @@ export function SupplierRecommenderCard({
             {/* A prospective supplier changes what happens next, so it is stated
                 here rather than discovered at the sourcing or contracting gate. */}
             {selectedSupplier && isProspective(selectedSupplier) && (
-              <p className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-[11px] text-amber-800">
+              <p className="rounded-md border border-warn-line bg-warn-soft px-2 py-1.5 text-[11px] text-warn">
                 New supplier — screening must clear before they can be invited to a
                 sourcing event or the risk assessment completed, and full onboarding is
                 required before contracting.
               </p>
             )}
             {selectedSupplierId && supplierProvenance === 'named' && (
-              <p className="text-[11px] text-gray-500">
+              <p className="text-[11px] text-ink-3">
                 Taken from your request — confirm or change it here.
               </p>
             )}
             {!selectedSupplierId && intent === 'named' && (
-              <p className="text-[11px] text-gray-500">
+              <p className="text-[11px] text-ink-3">
                 No supplier selected yet. Pick one, or say you have none in mind.
               </p>
             )}
@@ -207,8 +207,8 @@ export function SupplierRecommenderCard({
                 decided — and gave them no confirmation it had registered. */}
             {onIntentChange && (
               intent === 'to-be-sourced' ? (
-                <div className="mt-2 flex items-center justify-between gap-3 rounded-md border border-blue-100 bg-blue-50/60 px-3 py-2">
-                  <p className="text-xs text-blue-900">
+                <div className="mt-2 flex items-center justify-between gap-3 rounded-md border border-accent-line bg-accent-soft/60 px-3 py-2">
+                  <p className="text-xs text-accent-solid">
                     No supplier in mind — sourcing will identify candidates.
                   </p>
                   <Button size="sm" variant="ghost" className="h-6 text-[11px]" onClick={() => onIntentChange('named')}>
@@ -243,13 +243,13 @@ export function SupplierRecommenderCard({
           );
         })()}
         {!active ? (
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-ink-3">
             {agent
               ? `Supplier recommender is ${agent.status}. Enable it in Admin → AI Agents to see ranked supplier suggestions for ${category || 'the selected category'}.`
               : 'Supplier recommender is not configured, so no ranked suggestions are shown. You can still select a supplier above.'}
           </p>
         ) : recommendations.length === 0 ? (
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-ink-3">
             {outcome === 'preferred'
               ? 'Selected supplier is preferred — no alternate suggestions needed.'
               : 'No matching existing suppliers with performance history in this category.'}
@@ -262,30 +262,30 @@ export function SupplierRecommenderCard({
                 className={cn(
                   'flex items-center justify-between rounded-md border p-3',
                   supplier.id === selectedSupplierId
-                    ? 'border-blue-300 bg-blue-50/50'
-                    : 'border-gray-200',
+                    ? 'border-accent-line bg-accent-soft/50'
+                    : 'border-line',
                 )}
               >
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-gray-900 truncate">{supplier.name}</p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-sm font-medium text-ink truncate">{supplier.name}</p>
+                  <p className="text-xs text-ink-3">
                     {supplier.country} · {supplier.activeContracts} active contract(s) · {formatCurrency(supplier.totalSpend12m)} YTD
                   </p>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
-                  <span className="flex items-center gap-1 text-xs text-gray-600">
-                    <Star className="size-3 text-amber-500" />
+                  <span className="flex items-center gap-1 text-xs text-ink-2">
+                    <Star className="size-3 text-warn" />
                     {supplier.performanceScore}
                   </span>
                   {supplier.riskRating === 'high' || supplier.riskRating === 'critical' ? (
-                    <span className="flex items-center gap-1 text-xs text-red-600">
+                    <span className="flex items-center gap-1 text-xs text-stop">
                       <AlertTriangle className="size-3" />
                       {supplier.riskRating}
                     </span>
                   ) : (
-                    <span className="text-xs text-gray-400">{supplier.riskRating}</span>
+                    <span className="text-xs text-ink-3">{supplier.riskRating}</span>
                   )}
-                  <span className="text-[11px] text-gray-400">
+                  <span className="text-[11px] text-ink-3">
                     fit {(score * 100).toFixed(0)}%
                   </span>
                   {/* A recommendation you cannot act on is not a recommendation.
@@ -293,7 +293,7 @@ export function SupplierRecommenderCard({
                       one, while selection lived two steps earlier. */}
                   {onSelect && (
                     supplier.id === selectedSupplierId ? (
-                      <span className="flex items-center gap-1 text-xs font-medium text-blue-700">
+                      <span className="flex items-center gap-1 text-xs font-medium text-accent-solid">
                         <CheckCircle className="size-3.5" /> Preferred
                       </span>
                     ) : (
@@ -322,7 +322,7 @@ export function SupplierRecommenderCard({
             ))}
           </ul>
         )}
-        <p className="mt-3 text-[11px] text-gray-400">
+        <p className="mt-3 text-[11px] text-ink-3">
           Ranked by category fit × performance score × risk weight · est. value {formatCurrency(estimatedValue)}
         </p>
       </CardContent>

@@ -86,10 +86,10 @@ export function SpendAnomaliesCard() {
     <Card>
       <CardHeader className="pb-3 flex flex-row items-center justify-between">
         <CardTitle className="text-sm flex items-center gap-2">
-          <AlertTriangle className="size-4 text-amber-600" />
+          <AlertTriangle className="size-4 text-warn" />
           Spend Anomalies
         </CardTitle>
-        <span className="flex items-center gap-1 text-[11px] text-gray-400">
+        <span className="flex items-center gap-1 text-[11px] text-ink-3">
           <Sparkles className="size-3" />
           {active
             ? `${agent.name} (AI-004) · accuracy ${agent.accuracy}%`
@@ -98,12 +98,12 @@ export function SpendAnomaliesCard() {
       </CardHeader>
       <CardContent>
         {!active ? (
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-ink-3">
             Anomaly detection is off. Enable {agent.name} in Admin → AI Agents to surface
             off-contract spend, supplier concentration, and urgent-request outliers here.
           </p>
         ) : anomalies.length === 0 ? (
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-ink-3">
             No anomalies detected in current spend data.
           </p>
         ) : (
@@ -113,18 +113,18 @@ export function SpendAnomaliesCard() {
                 key={a.id}
                 className={`rounded-md border p-3 ${
                   a.severity === 'high'
-                    ? 'border-red-200 bg-red-50'
+                    ? 'border-stop-line bg-stop-soft'
                     : a.severity === 'medium'
-                      ? 'border-amber-200 bg-amber-50'
-                      : 'border-gray-200 bg-gray-50'
+                      ? 'border-warn-line bg-warn-soft'
+                      : 'border-line bg-card-2'
                 }`}
               >
                 <p className={`text-sm font-medium ${
-                  a.severity === 'high' ? 'text-red-800' : a.severity === 'medium' ? 'text-amber-800' : 'text-gray-800'
+                  a.severity === 'high' ? 'text-stop' : a.severity === 'medium' ? 'text-warn' : 'text-ink'
                 }`}>
                   {a.title}
                 </p>
-                <p className="mt-0.5 text-xs text-gray-600">{a.detail}</p>
+                <p className="mt-0.5 text-xs text-ink-2">{a.detail}</p>
               </li>
             ))}
           </ul>

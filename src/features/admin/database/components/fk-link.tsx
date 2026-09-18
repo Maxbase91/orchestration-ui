@@ -26,7 +26,7 @@ export function FkLink({ entity, id, label, onNavigate, className }: FkLinkProps
         onNavigate(entity, id);
       }}
       className={cn(
-        'inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 transition-colors hover:bg-blue-100',
+        'inline-flex items-center gap-1 rounded-md border border-accent-line bg-accent-soft px-2 py-0.5 text-xs font-medium text-accent-solid transition-colors hover:bg-accent-soft',
         className,
       )}
       title={`Open ${entity} ${id}`}

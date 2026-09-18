@@ -135,7 +135,7 @@ export function ReferBackDialog({ open, onOpenChange, request }: ReferBackDialog
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={!step || !reason || submitting} className="bg-amber-600 hover:bg-amber-700 text-white">
+          <Button onClick={handleSubmit} disabled={!step || !reason || submitting} className="bg-warn hover:bg-warn text-paper">
             {submitting ? 'Referring back...' : 'Refer Back'}
           </Button>
         </DialogFooter>

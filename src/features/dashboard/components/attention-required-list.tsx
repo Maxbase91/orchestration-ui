@@ -27,7 +27,7 @@ export function AttentionRequiredList() {
   }, [requests]);
 
   if (flaggedItems.length === 0) {
-    return <p className="text-sm text-gray-500">No items require attention.</p>;
+    return <p className="text-sm text-ink-3">No items require attention.</p>;
   }
 
   return (
@@ -38,24 +38,24 @@ export function AttentionRequiredList() {
           <button
             key={r.id}
             onClick={() => navigate(`/requests/${r.id}`)}
-            className="w-full flex items-start gap-3 rounded-md border border-gray-100 bg-white p-3 hover:bg-gray-50 transition-colors cursor-pointer text-left"
+            className="w-full flex items-start gap-3 rounded-md border border-line-2 bg-card p-3 hover:bg-card-2 transition-colors cursor-pointer text-left"
           >
-            <div className={`mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full ${r.isOverdue ? 'bg-red-50 text-red-500' : 'bg-amber-50 text-amber-500'}`}>
+            <div className={`mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full ${r.isOverdue ? 'bg-stop-soft text-stop' : 'bg-warn-soft text-warn'}`}>
               {r.isOverdue ? <Clock className="size-3.5" /> : <ArrowLeftCircle className="size-3.5" />}
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs font-mono text-gray-400">{r.id}</span>
+                <span className="text-xs font-mono text-ink-3">{r.id}</span>
                 <StatusBadge status={r.status} size="sm" />
                 {r.isOverdue && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-stop-soft px-2 py-0.5 text-xs font-medium text-stop">
                     <AlertTriangle className="size-3" />
                     Overdue
                   </span>
                 )}
               </div>
-              <p className="mt-1 text-sm font-medium text-gray-900 truncate">{r.title}</p>
-              <div className="mt-1 flex items-center gap-3 text-xs text-gray-500">
+              <p className="mt-1 text-sm font-medium text-ink truncate">{r.title}</p>
+              <div className="mt-1 flex items-center gap-3 text-xs text-ink-3">
                 <span>{formatCurrency(r.value, r.currency)}</span>
                 <span>{r.daysInStage}d in stage</span>
                 {owner && <span>Owner: {owner.name}</span>}

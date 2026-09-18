@@ -134,7 +134,7 @@ export function TicketActions({ ticket, actor }: TicketActionsProps) {
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+          <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-ink-3">
             Owner
           </label>
           <Select value={ticket.ownerId ?? UNASSIGNED} onValueChange={handleAssign} disabled={busy}>
@@ -158,7 +158,7 @@ export function TicketActions({ ticket, actor }: TicketActionsProps) {
         </div>
 
         <div>
-          <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+          <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-ink-3">
             Status
           </label>
           <Select
@@ -181,15 +181,15 @@ export function TicketActions({ ticket, actor }: TicketActionsProps) {
       </div>
 
       {pendingStatus === 'resolved' && (
-        <div className="space-y-2 rounded border border-green-200 bg-green-50 p-3">
-          <p className="text-xs font-medium text-green-900">
+        <div className="space-y-2 rounded border border-ok-line bg-ok-soft p-3">
+          <p className="text-xs font-medium text-ok">
             What resolved it? The requester sees this.
           </p>
           <Textarea
             value={resolution}
             onChange={(e) => setResolution(e.target.value)}
             placeholder="e.g. Access rights corrected — the PO is now editable."
-            className="min-h-[70px] bg-white text-sm"
+            className="min-h-[70px] bg-card text-sm"
           />
           <div className="flex gap-2">
             <Button size="sm" className="h-7" onClick={handleResolve} disabled={busy}>
@@ -209,7 +209,7 @@ export function TicketActions({ ticket, actor }: TicketActionsProps) {
 
       <div>
         <div className="mb-1 flex items-center justify-between">
-          <label className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+          <label className="text-[10px] font-semibold uppercase tracking-wider text-ink-3">
             {isInternal ? 'Internal note' : 'Reply to requester'}
           </label>
           <button
@@ -217,8 +217,8 @@ export function TicketActions({ ticket, actor }: TicketActionsProps) {
             onClick={() => setIsInternal((v) => !v)}
             className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium transition-colors ${
               isInternal
-                ? 'bg-amber-100 text-amber-800'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                ? 'bg-warn-soft text-warn'
+                : 'bg-idle-soft text-ink-2 hover:bg-line'
             }`}
           >
             <Lock className="size-2.5" />
@@ -229,7 +229,7 @@ export function TicketActions({ ticket, actor }: TicketActionsProps) {
           value={reply}
           onChange={(e) => setReply(e.target.value)}
           placeholder={isInternal ? 'Context for whoever picks this up next…' : 'Write back to the requester…'}
-          className={`min-h-[80px] text-sm ${isInternal ? 'border-amber-200 bg-amber-50' : ''}`}
+          className={`min-h-[80px] text-sm ${isInternal ? 'border-warn-line bg-warn-soft' : ''}`}
         />
         <div className="mt-2 flex justify-end">
           <Button size="sm" className="h-7" onClick={handleReply} disabled={busy || !reply.trim()}>

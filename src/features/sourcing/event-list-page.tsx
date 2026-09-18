@@ -41,14 +41,14 @@ const columns: Column<EventRow>[] = [
     key: 'category',
     label: 'Category',
     sortable: true,
-    render: (item) => (item.category as string) || <span className="text-gray-400">—</span>,
+    render: (item) => (item.category as string) || <span className="text-ink-3">—</span>,
   },
   {
     key: 'type',
     label: 'Type',
     sortable: true,
     render: (item) => (
-      <span className="rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
+      <span className="rounded bg-idle-soft px-2 py-0.5 text-xs font-medium text-ink-2">
         {item.type as string}
       </span>
     ),
@@ -64,7 +64,7 @@ const columns: Column<EventRow>[] = [
     label: 'Deadline',
     sortable: true,
     render: (item) =>
-      item.deadline ? formatDate(item.deadline as string) : <span className="text-gray-400">—</span>,
+      item.deadline ? formatDate(item.deadline as string) : <span className="text-ink-3">—</span>,
   },
   { key: 'suppliers', label: 'Suppliers', sortable: true },
   { key: 'owner', label: 'Owner', sortable: true },

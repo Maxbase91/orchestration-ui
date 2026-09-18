@@ -8,17 +8,17 @@ import type { Ticket, TicketStatus } from '@/data/types';
 import { slaState } from '@/lib/procurement/ticket-sla';
 
 const STATUS_STYLES: Record<string, string> = {
-  open: 'bg-amber-100 text-amber-800',
-  'in-progress': 'bg-blue-100 text-blue-800',
-  'waiting-on-user': 'bg-purple-100 text-purple-800',
-  resolved: 'bg-green-100 text-green-800',
-  cancelled: 'bg-gray-100 text-gray-600',
+  open: 'bg-warn-soft text-warn',
+  'in-progress': 'bg-accent-soft text-accent-solid',
+  'waiting-on-user': 'bg-accent-soft text-accent-solid',
+  resolved: 'bg-ok-soft text-ok',
+  cancelled: 'bg-idle-soft text-ink-2',
 };
 
 const PRIORITY_STYLES: Record<string, string> = {
-  low: 'bg-gray-100 text-gray-600',
-  medium: 'bg-orange-100 text-orange-700',
-  high: 'bg-red-100 text-red-700',
+  low: 'bg-idle-soft text-ink-2',
+  medium: 'bg-warn-soft text-warn',
+  high: 'bg-stop-soft text-stop',
 };
 
 /** Hyphenated slugs read as sentences: `waiting-on-user` → "Waiting on user". */
@@ -30,7 +30,7 @@ export function TicketStatusBadge({ status }: { status: TicketStatus | string })
   return (
     <span
       className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${
-        STATUS_STYLES[status] ?? 'bg-gray-100 text-gray-600'
+        STATUS_STYLES[status] ?? 'bg-idle-soft text-ink-2'
       }`}
     >
       {humaniseStatus(status)}
@@ -42,7 +42,7 @@ export function TicketPriorityBadge({ priority }: { priority: string }) {
   return (
     <span
       className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium capitalize ${
-        PRIORITY_STYLES[priority] ?? 'bg-gray-100 text-gray-600'
+        PRIORITY_STYLES[priority] ?? 'bg-idle-soft text-ink-2'
       }`}
     >
       {priority}
@@ -62,7 +62,7 @@ export function TicketSlaBadge({ ticket }: { ticket: Ticket }) {
   return (
     <span
       className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${
-        breached ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'
+        breached ? 'bg-stop-soft text-stop' : 'bg-warn-soft text-warn'
       }`}
     >
       {breached ? 'SLA breached' : 'Due soon'}

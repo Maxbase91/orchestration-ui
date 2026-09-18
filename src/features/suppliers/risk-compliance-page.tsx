@@ -24,23 +24,23 @@ interface SupplierRow extends Record<string, unknown> {
 }
 
 const riskColors: Record<RiskRating, string> = {
-  low: 'bg-green-100 text-green-700',
-  medium: 'bg-yellow-100 text-yellow-700',
-  high: 'bg-orange-100 text-orange-700',
-  critical: 'bg-red-100 text-red-700',
+  low: 'bg-ok-soft text-ok',
+  medium: 'bg-warn-soft text-warn',
+  high: 'bg-warn-soft text-warn',
+  critical: 'bg-stop-soft text-stop',
 };
 
 const sraColors: Record<string, string> = {
-  valid: 'bg-green-100 text-green-700',
-  expiring: 'bg-amber-100 text-amber-700',
-  expired: 'bg-red-100 text-red-700',
-  'not-assessed': 'bg-gray-100 text-gray-600',
+  valid: 'bg-ok-soft text-ok',
+  expiring: 'bg-warn-soft text-warn',
+  expired: 'bg-stop-soft text-stop',
+  'not-assessed': 'bg-idle-soft text-ink-2',
 };
 
 const screeningColors: Record<string, string> = {
-  clear: 'bg-green-100 text-green-700',
-  flagged: 'bg-red-100 text-red-700',
-  pending: 'bg-yellow-100 text-yellow-700',
+  clear: 'bg-ok-soft text-ok',
+  flagged: 'bg-stop-soft text-stop',
+  pending: 'bg-warn-soft text-warn',
 };
 
 export function RiskCompliancePage() {
@@ -134,7 +134,7 @@ export function RiskCompliancePage() {
         <div className="flex items-center gap-1.5">
           <span className="text-sm">{row.certCount as number}</span>
           {(row.expiringCerts as number) > 0 && (
-            <span className="inline-flex px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-amber-100 text-amber-700">
+            <span className="inline-flex px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-warn-soft text-warn">
               {row.expiringCerts} expiring
             </span>
           )}
@@ -190,7 +190,7 @@ export function RiskCompliancePage() {
         <KPICard label="Pending Screenings" value={pendingScreenings} />
       </div>
 
-      <div className="rounded-md border bg-white shadow-sm overflow-hidden">
+      <div className="rounded-md border bg-card shadow-sm overflow-hidden">
         <DataTable
           columns={columns}
           data={filtered}

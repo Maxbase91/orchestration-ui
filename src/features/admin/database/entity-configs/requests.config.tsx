@@ -26,9 +26,9 @@ const columns: Column<RequestRow>[] = [
     label: 'Overdue',
     render: (r) =>
       r.isOverdue ? (
-        <span className="text-red-600 text-xs font-medium">Yes</span>
+        <span className="text-stop text-xs font-medium">Yes</span>
       ) : (
-        <span className="text-gray-400 text-xs">No</span>
+        <span className="text-ink-3 text-xs">No</span>
       ),
   },
 ];

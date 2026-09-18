@@ -72,10 +72,10 @@ function Stat({
   tone?: 'neutral' | 'warn' | 'bad';
 }) {
   const toneClass =
-    tone === 'bad' ? 'text-red-700' : tone === 'warn' ? 'text-amber-700' : 'text-gray-900';
+    tone === 'bad' ? 'text-stop' : tone === 'warn' ? 'text-warn' : 'text-ink';
   return (
-    <div className="rounded-lg border bg-white px-3 py-2">
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">{label}</p>
+    <div className="rounded-lg border bg-card px-3 py-2">
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-3">{label}</p>
       <p className={`text-lg font-semibold tabular-nums ${toneClass}`}>{value}</p>
     </div>
   );
@@ -146,7 +146,7 @@ export function TicketInboxPage() {
           {VIEWS.map((v) => (
             <TabsTrigger key={v.id} value={v.id} className="gap-1.5">
               {v.label}
-              <span className="rounded-full bg-gray-200 px-1.5 text-[10px] font-medium text-gray-700">
+              <span className="rounded-full bg-line px-1.5 text-[10px] font-medium text-ink-2">
                 {counts[v.id] ?? 0}
               </span>
             </TabsTrigger>
@@ -156,7 +156,7 @@ export function TicketInboxPage() {
 
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative min-w-[220px] flex-1">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-ink-3" />
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -194,33 +194,33 @@ export function TicketInboxPage() {
         <p className="py-8 text-sm text-muted-foreground">Loading tickets…</p>
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center gap-2 py-16 text-center">
-          <Inbox className="size-8 text-gray-300" />
+          <Inbox className="size-8 text-ink-3" />
           <p className="text-sm text-muted-foreground">
             {tickets.length === 0 ? 'No tickets have been raised yet' : 'No tickets match these filters'}
           </p>
         </div>
       ) : (
-        <div className="divide-y rounded-lg border bg-white">
+        <div className="divide-y rounded-lg border bg-card">
           {filtered.map((t) => (
             <button
               key={t.id}
               onClick={() => setSelected(t)}
-              className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-gray-50 focus:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+              className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-card-2 focus:bg-card-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-solid"
             >
               <div className="min-w-0 flex-1">
                 <div className="mb-0.5 flex flex-wrap items-center gap-2">
-                  <span className="font-mono text-xs text-gray-400">{t.id}</span>
+                  <span className="font-mono text-xs text-ink-3">{t.id}</span>
                   <TicketStatusBadge status={t.status} />
                   {t.priority && <TicketPriorityBadge priority={t.priority} />}
                   {!t.ownerId && !TERMINAL_TICKET_STATUSES.includes(t.status) && (
-                    <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-700">
+                    <span className="inline-flex items-center rounded-full bg-stop-soft px-2 py-0.5 text-[11px] font-medium text-stop">
                       Unassigned
                     </span>
                   )}
                   <TicketSlaBadge ticket={t} />
                 </div>
-                <p className="truncate text-sm text-gray-800">{t.summary}</p>
-                <p className="mt-0.5 text-[11px] text-gray-400">
+                <p className="truncate text-sm text-ink">{t.summary}</p>
+                <p className="mt-0.5 text-[11px] text-ink-3">
                   {t.createdBy}
                   {t.ownerName && <span> · owned by {t.ownerName}</span>}
                   <span> · {formatDistanceToNow(parseISO(t.createdAt), { addSuffix: true })}</span>

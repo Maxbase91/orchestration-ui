@@ -50,9 +50,9 @@ function ConversationDropdown({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="flex min-w-0 flex-1 items-center gap-1 rounded-md px-1.5 py-0.5 text-sm font-medium text-gray-800 hover:bg-gray-100 transition-colors">
+        <button className="flex min-w-0 flex-1 items-center gap-1 rounded-md px-1.5 py-0.5 text-sm font-medium text-ink hover:bg-idle-soft transition-colors">
           <span className="truncate max-w-[160px]">{activeTitle}</span>
-          <ChevronDown className="size-3.5 shrink-0 text-gray-400" />
+          <ChevronDown className="size-3.5 shrink-0 text-ink-3" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-56">
@@ -65,7 +65,7 @@ function ConversationDropdown({
             >
               <span className="truncate text-xs">{c.title}</span>
               <button
-                className="shrink-0 rounded p-0.5 text-gray-400 hover:text-red-500"
+                className="shrink-0 rounded p-0.5 text-ink-3 hover:text-stop"
                 onClick={(e) => { e.stopPropagation(); onDelete(c.id); }}
               >
                 <Trash2 className="size-3" />
@@ -159,19 +159,19 @@ export function AIChatOverlay() {
       )}
 
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="right" className="flex w-[420px] flex-col gap-0 p-0 sm:max-w-[420px] bg-gray-50/50">
+        <SheetContent side="right" className="flex w-[420px] flex-col gap-0 p-0 sm:max-w-[420px] bg-card-2/50">
           {/* Visually-hidden title satisfies Radix accessibility requirement */}
           <SheetHeader className="sr-only">
             <SheetTitle>Procurement Assistant</SheetTitle>
             <SheetDescription>AI-powered procurement assistant chat</SheetDescription>
           </SheetHeader>
           {/* Header */}
-          <div className="flex items-center gap-2 bg-white border-b border-gray-100 px-4 py-3">
+          <div className="flex items-center gap-2 bg-card border-b border-line-2 px-4 py-3">
             <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#1B2A4A] to-[#2D5F8A]">
               <Sparkles className="size-3.5 text-white" />
             </div>
             {isLoading ? (
-              <span className="flex-1 text-sm text-gray-400">Loading…</span>
+              <span className="flex-1 text-sm text-ink-3">Loading…</span>
             ) : (
               <ConversationDropdown
                 activeTitle={activeTitle}
@@ -182,14 +182,14 @@ export function AIChatOverlay() {
             )}
             <div className="flex items-center gap-1 ml-auto shrink-0">
               <button
-                className="flex size-7 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+                className="flex size-7 items-center justify-center rounded-md text-ink-3 hover:bg-idle-soft hover:text-ink-2 transition-colors"
                 title="New conversation"
                 onClick={() => void handleNewConversation()}
               >
                 <Plus className="size-4" />
               </button>
               <button
-                className="flex size-7 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+                className="flex size-7 items-center justify-center rounded-md text-ink-3 hover:bg-idle-soft hover:text-ink-2 transition-colors"
                 title="Close"
                 onClick={() => setOpen(false)}
               >
@@ -217,7 +217,7 @@ export function AIChatOverlay() {
           </ScrollArea>
 
           {/* Input area */}
-          <div className="bg-white border-t border-gray-100 px-3 py-3 shadow-[0_-1px_8px_rgba(0,0,0,0.04)]">
+          <div className="bg-card border-t border-line-2 px-3 py-3 shadow-[0_-1px_8px_rgba(0,0,0,0.04)]">
             <ChatInput onSend={(t) => void handleSend(t)} disabled={isTyping} />
           </div>
         </SheetContent>

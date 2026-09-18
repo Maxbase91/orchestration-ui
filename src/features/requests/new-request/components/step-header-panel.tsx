@@ -29,24 +29,24 @@ export function StepHeaderPanel({ guidance, nextOverride }: StepHeaderPanelProps
   if (!guidance) return null;
 
   return (
-    <div className="mb-5 rounded-lg border border-blue-100 bg-blue-50/40 px-4 py-3">
+    <div className="mb-5 rounded-lg border border-accent-line bg-accent-soft/40 px-4 py-3">
       <div className="flex items-start gap-2.5">
         <Info className="mt-0.5 size-4 shrink-0 text-[#2D5F8A]" />
         <div className="min-w-0 flex-1">
           {/* A step with nothing worth saying about what comes next says
               nothing, rather than spending a line of the panel on it. */}
           {(nextOverride ?? guidance.next) && (
-            <p className="text-sm text-gray-700">{nextOverride ?? guidance.next}</p>
+            <p className="text-sm text-ink-2">{nextOverride ?? guidance.next}</p>
           )}
 
           {open && (
-            <div className="mt-2.5 space-y-2 border-t border-blue-100 pt-2.5">
-              <p className="text-xs text-gray-600">{guidance.purpose}</p>
+            <div className="mt-2.5 space-y-2 border-t border-accent-line pt-2.5">
+              <p className="text-xs text-ink-2">{guidance.purpose}</p>
               {guidance.youProvide.length > 0 && (
                 <ul className="space-y-0.5">
                   {guidance.youProvide.map((item) => (
-                    <li key={item} className="flex gap-1.5 text-xs text-gray-600">
-                      <span aria-hidden className="text-gray-400">·</span>
+                    <li key={item} className="flex gap-1.5 text-xs text-ink-2">
+                      <span aria-hidden className="text-ink-3">·</span>
                       <span>{item}</span>
                     </li>
                   ))}
@@ -59,7 +59,7 @@ export function StepHeaderPanel({ guidance, nextOverride }: StepHeaderPanelProps
         <button
           type="button"
           onClick={() => setOpen((previous) => !previous)}
-          className="shrink-0 rounded px-1.5 py-0.5 text-xs text-[#2D5F8A] hover:bg-blue-100/60"
+          className="shrink-0 rounded px-1.5 py-0.5 text-xs text-[#2D5F8A] hover:bg-accent-soft/60"
           aria-expanded={open}
         >
           <span className="flex items-center gap-1">

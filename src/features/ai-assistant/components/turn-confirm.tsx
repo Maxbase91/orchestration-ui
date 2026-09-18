@@ -19,22 +19,22 @@ interface Props {
 
 export function TurnConfirm({ turn, onConfirm, onCancel, disabled }: Props) {
   return (
-    <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4 space-y-3">
+    <div className="rounded-xl border border-warn-line bg-warn-soft/60 p-4 space-y-3">
       <div className="flex items-center gap-2">
-        <ShieldCheck className="size-4 text-amber-600 shrink-0" />
-        <span className="text-[11px] font-semibold text-amber-700 uppercase tracking-wider">
+        <ShieldCheck className="size-4 text-warn shrink-0" />
+        <span className="text-[11px] font-semibold text-warn uppercase tracking-wider">
           Confirm before I act
         </span>
       </div>
-      <p className="text-[13px] text-gray-800 whitespace-pre-wrap leading-relaxed">
+      <p className="text-[13px] text-ink whitespace-pre-wrap leading-relaxed">
         {turn.readBack}
       </p>
       {turn.facts && turn.facts.length > 0 && (
         <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[12px]">
           {turn.facts.map((fact) => (
             <div key={fact.label} className="contents">
-              <dt className="text-amber-800/80">{fact.label}</dt>
-              <dd className="text-gray-900 font-medium break-words">{fact.value}</dd>
+              <dt className="text-warn/80">{fact.label}</dt>
+              <dd className="text-ink font-medium break-words">{fact.value}</dd>
             </div>
           ))}
         </dl>

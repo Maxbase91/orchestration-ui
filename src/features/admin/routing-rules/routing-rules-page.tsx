@@ -100,7 +100,7 @@ export function RoutingRulesPage() {
             <Button
               variant="outline"
               size="sm"
-              className="text-red-600 hover:text-red-700"
+              className="text-stop hover:text-stop"
               onClick={() => setPendingDelete(selectedRule)}
             >
               <Trash2 className="mr-1.5 size-3.5" />
@@ -110,12 +110,12 @@ export function RoutingRulesPage() {
         />
       </div>
       {broken.length > 0 && (
-        <div className="mx-6 mb-4 rounded-md border border-red-200 bg-red-50 p-3">
-          <p className="flex items-center gap-2 text-sm font-medium text-red-900">
+        <div className="mx-6 mb-4 rounded-md border border-stop-line bg-stop-soft p-3">
+          <p className="flex items-center gap-2 text-sm font-medium text-stop">
             <AlertTriangle className="size-4 shrink-0" />
             {broken.length} active rule{broken.length === 1 ? '' : 's'} cannot fire
           </p>
-          <ul className="mt-1.5 space-y-1 pl-6 text-xs text-red-800">
+          <ul className="mt-1.5 space-y-1 pl-6 text-xs text-stop">
             {broken.map((d) => (
               <li key={d.ruleId}>
                 <button
@@ -132,12 +132,12 @@ export function RoutingRulesPage() {
         </div>
       )}
       {uncovered.length > 0 && (
-        <div className="mx-6 mb-4 rounded-md border border-amber-200 bg-amber-50 p-3">
-          <p className="flex items-center gap-2 text-sm font-medium text-amber-900">
+        <div className="mx-6 mb-4 rounded-md border border-warn-line bg-warn-soft p-3">
+          <p className="flex items-center gap-2 text-sm font-medium text-warn">
             <AlertTriangle className="size-4 shrink-0" />
             Some demand matches no rule
           </p>
-          <p className="mt-1.5 pl-6 text-xs text-amber-800">
+          <p className="mt-1.5 pl-6 text-xs text-warn">
             {uncovered.length === 1 ? 'One example gets' : `${uncovered.length} examples get`}
             {' '}no answer from the rule set — for instance{' '}
             <span className="font-medium">
@@ -150,7 +150,7 @@ export function RoutingRulesPage() {
           </p>
         </div>
       )}
-      <div className="flex flex-1 overflow-hidden border-t border-gray-200">
+      <div className="flex flex-1 overflow-hidden border-t border-line">
         {/* Left panel - 25% */}
         <div className="w-1/4 min-w-[240px]">
           <RuleListPanel

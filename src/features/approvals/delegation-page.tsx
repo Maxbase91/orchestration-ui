@@ -20,7 +20,7 @@ export function DelegationPage() {
         }
       />
 
-      <div className="rounded-lg border bg-white p-6">
+      <div className="rounded-lg border bg-card p-6">
         <DelegationManager />
       </div>
     </div>

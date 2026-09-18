@@ -69,9 +69,9 @@ export function AgentConfigForm({ agent, onClose, onSaved }: AgentConfigFormProp
   }
 
   return (
-    <div className="space-y-6 rounded-lg border border-gray-200 bg-white p-6">
+    <div className="space-y-6 rounded-lg border border-line bg-card p-6">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-gray-900">Agent Configuration</h3>
+        <h3 className="text-sm font-semibold text-ink">Agent Configuration</h3>
         <Button variant="ghost" size="sm" onClick={onClose}>
           <X className="size-4" />
         </Button>
@@ -80,11 +80,11 @@ export function AgentConfigForm({ agent, onClose, onSaved }: AgentConfigFormProp
       {/* Basic info */}
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <Label className="text-xs text-gray-500">Name</Label>
+          <Label className="text-xs text-ink-3">Name</Label>
           <Input value={name} onChange={(e) => setName(e.target.value)} className="mt-1" />
         </div>
         <div>
-          <Label className="text-xs text-gray-500">Type</Label>
+          <Label className="text-xs text-ink-3">Type</Label>
           <Select value={type} onValueChange={(v) => setType(v as AIAgent['type'])}>
             <SelectTrigger className="mt-1">
               <SelectValue />
@@ -99,12 +99,12 @@ export function AgentConfigForm({ agent, onClose, onSaved }: AgentConfigFormProp
       </div>
 
       <div>
-        <Label className="text-xs text-gray-500">Description</Label>
+        <Label className="text-xs text-ink-3">Description</Label>
         <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className="mt-1" />
       </div>
 
       <div className="flex items-center gap-4">
-        <Label className="text-xs text-gray-500">Status</Label>
+        <Label className="text-xs text-ink-3">Status</Label>
         <Select value={status} onValueChange={(v) => setStatus(v as AIAgent['status'])}>
           <SelectTrigger className="w-32">
             <SelectValue />
@@ -131,7 +131,7 @@ export function AgentConfigForm({ agent, onClose, onSaved }: AgentConfigFormProp
           threshold nothing consults would be configuration for a reader that
           does not exist, which is the same shape as the toast that said
           "configuration saved" while sending four fields. */}
-      <p className="rounded-md border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600">
+      <p className="rounded-md border border-line bg-card-2 p-3 text-xs text-ink-2">
         Setting an agent to <span className="font-medium">Active</span> is what enables it.
         A disabled or draft agent returns a deterministic response instead of calling the
         model. Thresholds and input selection are not configurable yet.

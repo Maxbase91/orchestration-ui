@@ -187,19 +187,19 @@ export function ApprovalChainsPage() {
       />
 
       {bandProblems.length > 0 && (
-        <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
-          <p className="flex items-center gap-2 text-sm font-medium text-amber-900">
+        <div className="rounded-md border border-warn-line bg-warn-soft p-3">
+          <p className="flex items-center gap-2 text-sm font-medium text-warn">
             <AlertTriangle className="size-4 shrink-0" />
             The value bands do not cover every request cleanly
           </p>
-          <ul className="mt-1.5 space-y-1 pl-6 text-xs text-amber-800">
+          <ul className="mt-1.5 space-y-1 pl-6 text-xs text-warn">
             {bandProblems.map((d) => (
               <li key={d.chainId}>
                 <span className="font-medium">{d.chainName}</span> — {d.problems.join(' ')}
               </li>
             ))}
           </ul>
-          <p className="mt-1.5 pl-6 text-xs text-amber-800">
+          <p className="mt-1.5 pl-6 text-xs text-warn">
             A gap means a request reaches the approval stage with nobody able to approve it. An
             overlap means whichever chain is found first silently wins.
           </p>
@@ -217,7 +217,7 @@ export function ApprovalChainsPage() {
             <Card key={chain.id} className="overflow-hidden">
               {/* Header */}
               <button
-                className="flex w-full items-center justify-between px-5 py-4 text-left hover:bg-gray-50"
+                className="flex w-full items-center justify-between px-5 py-4 text-left hover:bg-card-2"
                 onClick={() => toggleExpand(chain.id)}
               >
                 <div className="flex items-center gap-3">
@@ -237,7 +237,7 @@ export function ApprovalChainsPage() {
                       The "EUR" prefix was hardcoded here and now reads wrong —
                       the label already carries its own currency, and an
                       unbanded chain says "By routing rule only". */}
-                  <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-700">
+                  <span className="rounded-full bg-idle-soft px-2.5 py-1 text-xs text-ink-2">
                     {bandLabel(chain, policyConfig)}
                   </span>
                   <span className="text-xs text-muted-foreground">
@@ -254,7 +254,7 @@ export function ApprovalChainsPage() {
                     {chain.steps.map((step, idx) => (
                       <div key={step.id} className="flex items-center gap-2">
                         {isEditing ? (
-                          <div className="flex items-center gap-1 rounded-lg border bg-white px-2 py-1.5">
+                          <div className="flex items-center gap-1 rounded-lg border bg-card px-2 py-1.5">
                             <GripVertical className="size-3.5 text-muted-foreground" />
                             <Input
                               value={step.role}
@@ -263,7 +263,7 @@ export function ApprovalChainsPage() {
                             />
                             <button
                               onClick={() => removeStep(chain.id, step.id)}
-                              className="text-red-400 hover:text-red-600"
+                              className="text-stop hover:text-stop"
                               disabled={chain.steps.length <= 1}
                             >
                               <X className="size-3.5" />
@@ -271,13 +271,13 @@ export function ApprovalChainsPage() {
                           </div>
                         ) : (
                           <div className="flex items-center gap-2">
-                            <div className="flex size-7 items-center justify-center rounded-full bg-blue-100 text-xs font-medium text-blue-700">
+                            <div className="flex size-7 items-center justify-center rounded-full bg-accent-soft text-xs font-medium text-accent-solid">
                               {idx + 1}
                             </div>
                             <span className="whitespace-nowrap text-sm">{step.role}</span>
                           </div>
                         )}
-                        {idx < chain.steps.length - 1 && <div className="h-px w-6 bg-gray-300" />}
+                        {idx < chain.steps.length - 1 && <div className="h-px w-6 bg-idle" />}
                       </div>
                     ))}
                     {isEditing && (
@@ -291,8 +291,8 @@ export function ApprovalChainsPage() {
                       value with no number in it read as [0, ∞) and shadowed
                       every properly banded chain behind it. */}
                   {isEditing && (
-                    <div className="space-y-2 rounded-md border border-gray-200 bg-gray-50 p-3">
-                      <p className="text-xs font-medium text-gray-600">
+                    <div className="space-y-2 rounded-md border border-line bg-card-2 p-3">
+                      <p className="text-xs font-medium text-ink-2">
                         Value band — the request values this chain approves
                       </p>
                       <div className="flex flex-wrap items-center gap-2">
@@ -307,7 +307,7 @@ export function ApprovalChainsPage() {
                           onChange={(v) => patchEdit(chain.id, { maxValue: v })}
                         />
                       </div>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-ink-3">
                         {bandLabel(chain, policyConfig)}
                         {!chain.minValue && !chain.maxValue &&
                           ' — this chain is never selected by value. A routing rule must name it.'}
@@ -316,7 +316,7 @@ export function ApprovalChainsPage() {
                         const g = governedBounds(chain, policyConfig);
                         if (!g.min && !g.max) return null;
                         return (
-                          <p className="text-xs text-gray-500">
+                          <p className="text-xs text-ink-3">
                             Follows {[g.min, g.max].filter(Boolean).join(' and ')}.
                           </p>
                         );
@@ -332,7 +332,7 @@ export function ApprovalChainsPage() {
                       </p>
                       <div className="flex flex-wrap gap-1.5">
                         {chain.referencedBy.map((rule) => (
-                          <span key={rule} className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs text-gray-600">
+                          <span key={rule} className="rounded-full bg-idle-soft px-2.5 py-0.5 text-xs text-ink-2">
                             {rule}
                           </span>
                         ))}
@@ -360,7 +360,7 @@ export function ApprovalChainsPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="text-red-600 hover:text-red-700"
+                          className="text-stop hover:text-stop"
                           onClick={(e) => { e.stopPropagation(); setPendingDelete(chain); }}
                         >
                           <Trash2 className="mr-1.5 size-3.5" />
@@ -434,7 +434,7 @@ function BoundEditor({
   const mode = value === null || value === '' ? OPEN_END : isPolicyToken(value) ? value : LITERAL;
   return (
     <div className="flex items-center gap-1.5">
-      <span className="text-xs text-gray-500">{label}</span>
+      <span className="text-xs text-ink-3">{label}</span>
       <Select
         value={mode}
         onValueChange={(v) => {

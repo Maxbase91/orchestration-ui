@@ -46,29 +46,29 @@ function AskAIBanner() {
   }
 
   return (
-    <Card className="border-amber-200 bg-amber-50 p-4">
+    <Card className="border-warn-line bg-warn-soft p-4">
       <div className="flex items-start gap-3">
-        <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-amber-100">
-          <Sparkles className="size-4 text-amber-600" />
+        <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-warn-soft">
+          <Sparkles className="size-4 text-warn" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-amber-900">Try asking the AI assistant first</p>
-          <p className="text-xs text-amber-700 mb-3">It answers policy questions, looks up requests, and can take actions — instantly, 24/7.</p>
+          <p className="text-sm font-medium text-warn">Try asking the AI assistant first</p>
+          <p className="text-xs text-warn mb-3">It answers policy questions, looks up requests, and can take actions — instantly, 24/7.</p>
           <form onSubmit={handleAsk} className="flex gap-2">
             <Input
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               placeholder="e.g. What is the consulting threshold?"
-              className="flex-1 h-8 text-sm bg-white border-amber-200"
+              className="flex-1 h-8 text-sm bg-card border-warn-line"
             />
-            <Button type="submit" size="sm" className="h-8 bg-amber-500 hover:bg-amber-600 shrink-0">
+            <Button type="submit" size="sm" className="h-8 bg-warn hover:bg-warn shrink-0">
               Ask
             </Button>
           </form>
         </div>
         <button
           onClick={() => navigate('/help/assistant')}
-          className="flex shrink-0 items-center gap-1 text-xs text-amber-700 hover:text-amber-900"
+          className="flex shrink-0 items-center gap-1 text-xs text-warn hover:text-warn"
         >
           Open Assistant
           <ArrowRight className="size-3" />
@@ -103,7 +103,7 @@ function RequesterThread({
     <div className="space-y-2 py-2">
       {/* The requester can point support at the request/PO/supplier the ticket
           is about — the types are scoped to what their role can already see. */}
-      <div className="rounded border bg-gray-50 p-2.5">
+      <div className="rounded border bg-card-2 p-2.5">
         <TicketLinksPanel
           ticketId={ticketId}
           actor={actor}
@@ -116,22 +116,22 @@ function RequesterThread({
         <p className="text-xs text-muted-foreground">No replies yet.</p>
       )}
       {responses.map((r) => (
-        <div key={r.id} className="rounded border bg-white p-2.5">
+        <div key={r.id} className="rounded border bg-card p-2.5">
           <div className="mb-0.5 flex items-center gap-2">
-            <span className="text-xs font-medium text-gray-700">{r.authorName ?? 'Support'}</span>
-            <span className="ml-auto text-[11px] text-gray-400">
+            <span className="text-xs font-medium text-ink-2">{r.authorName ?? 'Support'}</span>
+            <span className="ml-auto text-[11px] text-ink-3">
               {format(parseISO(r.createdAt), 'dd MMM, HH:mm')}
             </span>
           </div>
-          <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-700">{r.body}</p>
+          <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink-2">{r.body}</p>
         </div>
       ))}
       {resolution && (
-        <div className="rounded border border-green-200 bg-green-50 p-2.5">
-          <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-green-800">
+        <div className="rounded border border-ok-line bg-ok-soft p-2.5">
+          <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-ok">
             Resolution
           </p>
-          <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-700">{resolution}</p>
+          <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink-2">{resolution}</p>
         </div>
       )}
     </div>
@@ -169,7 +169,7 @@ function MyTickets({
   if (tickets.length === 0) {
     return (
       <div className="flex flex-col items-center gap-2 py-8 text-center">
-        <Ticket className="size-8 text-gray-300" />
+        <Ticket className="size-8 text-ink-3" />
         <p className="text-sm text-muted-foreground">No tickets yet</p>
       </div>
     );
@@ -181,20 +181,20 @@ function MyTickets({
         <div key={t.id} className="py-3">
           <button
             onClick={() => setExpanded((e) => (e === t.id ? null : t.id))}
-            className="flex w-full items-start gap-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+            className="flex w-full items-start gap-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-solid"
           >
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-              <span className="text-xs font-mono text-gray-400">{t.id}</span>
+              <span className="text-xs font-mono text-ink-3">{t.id}</span>
               <TicketStatusBadge status={t.status} />
               {t.priority && <TicketPriorityBadge priority={t.priority} />}
             </div>
-            <p className="text-sm text-gray-800 truncate">{t.summary}</p>
-            <p className="text-[11px] text-gray-400 mt-0.5">
+            <p className="text-sm text-ink truncate">{t.summary}</p>
+            <p className="text-[11px] text-ink-3 mt-0.5">
               {t.category && <span className="mr-2 capitalize">{t.category.replace('-', ' ')}</span>}
               {format(parseISO(t.createdAt), 'dd MMM yyyy, HH:mm')}
               {isAdmin && t.createdBy !== userName && (
-                <span className="ml-2 text-gray-500">— {t.createdBy}</span>
+                <span className="ml-2 text-ink-3">— {t.createdBy}</span>
               )}
             </p>
           </div>
@@ -276,7 +276,7 @@ export function ContactSupportPage() {
         {/* Left: Contact form */}
         <div className="lg:col-span-3">
           <Card className="p-6">
-            <h3 className="mb-4 text-sm font-medium text-gray-700">Submit a support ticket</h3>
+            <h3 className="mb-4 text-sm font-medium text-ink-2">Submit a support ticket</h3>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
@@ -354,7 +354,7 @@ export function ContactSupportPage() {
 
           {/* My Tickets */}
           <Card className="mt-4 p-6">
-            <h3 className="mb-1 text-sm font-medium text-gray-700">
+            <h3 className="mb-1 text-sm font-medium text-ink-2">
               {isAdmin ? 'All Tickets' : 'My Tickets'}
             </h3>
             <p className="mb-4 text-xs text-muted-foreground">
@@ -412,7 +412,7 @@ export function ContactSupportPage() {
               {faqLinks.map((faq) => (
                 <button
                   key={faq.articleId}
-                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-blue-700 hover:bg-blue-50"
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-accent-solid hover:bg-accent-soft"
                   onClick={() => navigate('/help/kb')}
                 >
                   <ExternalLink className="size-3.5 shrink-0" />

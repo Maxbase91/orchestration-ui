@@ -39,16 +39,16 @@ export function StuckRequestsTable({ requests }: StuckRequestsTableProps) {
 
   if (stuckRequests.length === 0) {
     return (
-      <div className="rounded-md border bg-white p-6 text-center text-sm text-muted-foreground">
+      <div className="rounded-md border bg-card p-6 text-center text-sm text-muted-foreground">
         No stuck requests at the moment.
       </div>
     );
   }
 
   return (
-    <div className="rounded-md border bg-white shadow-sm">
+    <div className="rounded-md border bg-card shadow-sm">
       <div className="border-b px-4 py-3">
-        <h3 className="text-sm font-semibold text-gray-900">
+        <h3 className="text-sm font-semibold text-ink">
           Stuck Requests ({stuckRequests.length})
         </h3>
         <p className="text-xs text-muted-foreground mt-0.5">
@@ -96,8 +96,8 @@ export function StuckRequestsTable({ requests }: StuckRequestsTableProps) {
                     className={cn(
                       'text-sm font-semibold',
                       daysOverdue > 10
-                        ? 'text-red-600'
-                        : 'text-amber-600',
+                        ? 'text-stop'
+                        : 'text-warn',
                     )}
                   >
                     {daysOverdue}
@@ -107,7 +107,7 @@ export function StuckRequestsTable({ requests }: StuckRequestsTableProps) {
                   {sla}
                 </TableCell>
                 <TableCell className="text-center">
-                  <span className="text-sm font-semibold text-red-600">
+                  <span className="text-sm font-semibold text-stop">
                     +{daysOverdue}
                   </span>
                 </TableCell>

@@ -196,7 +196,7 @@ export function ConditionCard({ condition, onChange, onRemove }: ConditionCardPr
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-ink-3">
                 {resolved.unresolved
                   ? 'This threshold no longer exists — the condition can never be true.'
                   : `Currently ${formatCurrency(Number(resolved.value))}. Changing it in Decisioning Thresholds moves this rule too.`}
@@ -211,11 +211,11 @@ export function ConditionCard({ condition, onChange, onRemove }: ConditionCardPr
                 className="w-full"
               />
               {literalMatch && (
-                <p className="text-xs text-amber-700">
+                <p className="text-xs text-warn">
                   {formatCurrency(Number(condition.value))} is the {POLICY_KEY_META[literalMatch].label.toLowerCase()}.{' '}
                   <button
                     type="button"
-                    className="underline underline-offset-2 hover:text-amber-900"
+                    className="underline underline-offset-2 hover:text-warn"
                     onClick={() => onChange({ ...condition, value: policyToken(literalMatch) })}
                   >
                     Reference it instead
@@ -240,7 +240,7 @@ export function ConditionCard({ condition, onChange, onRemove }: ConditionCardPr
   }
 
   return (
-    <div className="flex items-start gap-2 rounded-lg border border-gray-200 bg-white p-3">
+    <div className="flex items-start gap-2 rounded-lg border border-line bg-card p-3">
       <div className="grid flex-1 gap-2 sm:grid-cols-[1fr_1fr_1.5fr]">
         <Select
           value={condition.field}
@@ -276,7 +276,7 @@ export function ConditionCard({ condition, onChange, onRemove }: ConditionCardPr
         variant="ghost"
         size="sm"
         onClick={onRemove}
-        className="mt-0.5 shrink-0 text-gray-400 hover:text-red-500"
+        className="mt-0.5 shrink-0 text-ink-3 hover:text-stop"
       >
         <X className="size-4" />
       </Button>

@@ -27,8 +27,8 @@ export function WidgetQuickStats() {
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-3">
-        <div className="size-8 rounded-md bg-blue-50 flex items-center justify-center">
-          <FileText className="size-4 text-blue-600" />
+        <div className="size-8 rounded-md bg-accent-soft flex items-center justify-center">
+          <FileText className="size-4 text-accent-solid" />
         </div>
         <div>
           <p className="text-lg font-semibold leading-none">{stats.submitted}</p>
@@ -36,8 +36,8 @@ export function WidgetQuickStats() {
         </div>
       </div>
       <div className="flex items-center gap-3">
-        <div className="size-8 rounded-md bg-green-50 flex items-center justify-center">
-          <CheckCircle className="size-4 text-green-600" />
+        <div className="size-8 rounded-md bg-ok-soft flex items-center justify-center">
+          <CheckCircle className="size-4 text-ok" />
         </div>
         <div>
           <p className="text-lg font-semibold leading-none">{stats.approved}</p>
@@ -45,8 +45,8 @@ export function WidgetQuickStats() {
         </div>
       </div>
       <div className="flex items-center gap-3">
-        <div className="size-8 rounded-md bg-purple-50 flex items-center justify-center">
-          <PackageCheck className="size-4 text-purple-600" />
+        <div className="size-8 rounded-md bg-accent-soft flex items-center justify-center">
+          <PackageCheck className="size-4 text-accent-solid" />
         </div>
         <div>
           <p className="text-lg font-semibold leading-none">{stats.completed}</p>

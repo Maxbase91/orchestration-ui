@@ -18,10 +18,10 @@ import { useIntegrationsByRequest } from '@/lib/db/hooks/use-system-integrations
 import { SystemIntegrationBadge } from '@/components/shared/system-integration-badge';
 
 const priorityConfig: Record<string, { icon: typeof ArrowUp; color: string }> = {
-  urgent: { icon: AlertTriangle, color: 'text-red-600' },
-  high: { icon: ArrowUp, color: 'text-amber-600' },
-  medium: { icon: ArrowRight, color: 'text-blue-500' },
-  low: { icon: ArrowDown, color: 'text-gray-400' },
+  urgent: { icon: AlertTriangle, color: 'text-stop' },
+  high: { icon: ArrowUp, color: 'text-warn' },
+  medium: { icon: ArrowRight, color: 'text-accent-solid' },
+  low: { icon: ArrowDown, color: 'text-ink-3' },
 };
 
 interface WorkflowCardProps {
@@ -57,10 +57,10 @@ export function WorkflowCard({ request, onClick }: WorkflowCardProps) {
 
   const isApproachingSLA = request.daysInStage >= 4 && !request.isOverdue;
   const borderClass = request.isOverdue
-    ? 'border-red-400'
+    ? 'border-stop-line'
     : isApproachingSLA
-      ? 'border-amber-400'
-      : 'border-gray-200';
+      ? 'border-warn-line'
+      : 'border-line';
 
   return (
     <div
@@ -70,7 +70,7 @@ export function WorkflowCard({ request, onClick }: WorkflowCardProps) {
       {...listeners}
       onClick={onClick}
       className={cn(
-        'rounded-md border bg-white p-3 shadow-sm cursor-grab active:cursor-grabbing',
+        'rounded-md border bg-card p-3 shadow-sm cursor-grab active:cursor-grabbing',
         'hover:shadow-md transition-shadow',
         borderClass,
         isDragging && 'opacity-50 shadow-lg',
@@ -83,13 +83,13 @@ export function WorkflowCard({ request, onClick }: WorkflowCardProps) {
         <PriorityIcon className={cn('size-3.5 shrink-0', priority.color)} />
       </div>
 
-      <p className="mt-1 text-sm font-medium text-gray-900 line-clamp-2 leading-tight">
+      <p className="mt-1 text-sm font-medium text-ink line-clamp-2 leading-tight">
         {request.title}
       </p>
 
       <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
         <span>{requestor?.name ?? 'Unknown'}</span>
-        <span className="font-medium text-gray-700">
+        <span className="font-medium text-ink-2">
           {formatCurrency(request.value, request.currency)}
         </span>
       </div>
@@ -102,10 +102,10 @@ export function WorkflowCard({ request, onClick }: WorkflowCardProps) {
           className={cn(
             'font-medium',
             request.isOverdue
-              ? 'text-red-600'
+              ? 'text-stop'
               : isApproachingSLA
-                ? 'text-amber-600'
-                : 'text-gray-500',
+                ? 'text-warn'
+                : 'text-ink-3',
           )}
         >
           {request.daysInStage}d in stage
@@ -115,7 +115,7 @@ export function WorkflowCard({ request, onClick }: WorkflowCardProps) {
       {(complianceReport || activeIntegration) && (
         <div className="mt-2 flex items-center gap-2 flex-wrap">
           {complianceReport && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-purple-50 border border-purple-200 px-2 py-0.5 text-[10px] font-medium text-purple-700">
+            <span className="inline-flex items-center gap-1 rounded-full bg-accent-soft border border-accent-line px-2 py-0.5 text-[10px] font-medium text-accent-solid">
               <Sparkles className="size-2.5" />
               AI Reviewed
             </span>

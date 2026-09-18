@@ -55,7 +55,7 @@ export function UrgencyChannelNote({
   if (!change) return null;
 
   return (
-    <p className="flex items-start gap-1.5 text-[11px] text-amber-700">
+    <p className="flex items-start gap-1.5 text-[11px] text-warn">
       <AlertTriangle className="mt-px size-3 shrink-0" />
       <span>
         {isUrgent ? 'Marked urgent, so this request now goes to ' : 'Marking this urgent moves it to '}

@@ -130,7 +130,7 @@ export function TicketLinksPanel({
   return (
     <div>
       <div className="mb-2 flex items-center justify-between">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-3">
           References
         </p>
         {!readOnly && allowedTypes.length > 0 && (
@@ -154,23 +154,23 @@ export function TicketLinksPanel({
           {links.map((l) => {
             const meta = TICKET_LINK_META[l.objectType];
             return (
-              <div key={l.id} className="flex items-center gap-2 rounded border bg-white px-2.5 py-1.5">
-                <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-gray-600">
+              <div key={l.id} className="flex items-center gap-2 rounded border bg-card px-2.5 py-1.5">
+                <span className="rounded bg-idle-soft px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-ink-2">
                   {meta?.label ?? l.objectType}
                 </span>
                 <Link
                   to={meta?.path(l.objectId) ?? '#'}
-                  className="inline-flex min-w-0 items-center gap-1 text-sm text-blue-600 hover:underline"
+                  className="inline-flex min-w-0 items-center gap-1 text-sm text-accent-solid hover:underline"
                 >
                   <span className="font-mono text-xs">{l.objectId}</span>
-                  {l.label && <span className="truncate text-gray-600">— {l.label}</span>}
+                  {l.label && <span className="truncate text-ink-2">— {l.label}</span>}
                   <ExternalLink className="size-3 shrink-0" />
                 </Link>
                 {!readOnly && (
                 <button
                   onClick={() => handleRemove(l.id, `${l.objectType} ${l.objectId}`)}
                   aria-label={`Remove link to ${l.objectId}`}
-                  className="ml-auto rounded p-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700 focus-visible:ring-2 focus-visible:ring-blue-500"
+                  className="ml-auto rounded p-0.5 text-ink-3 hover:bg-idle-soft hover:text-ink-2 focus-visible:ring-2 focus-visible:ring-accent-solid"
                 >
                   <X className="size-3.5" />
                 </button>
@@ -182,10 +182,10 @@ export function TicketLinksPanel({
       )}
 
       {adding && (
-        <div className="space-y-2 rounded border bg-gray-50 p-2.5">
+        <div className="space-y-2 rounded border bg-card-2 p-2.5">
           <div className="flex gap-2">
             <Select value={type} onValueChange={(v) => { setType(v as TicketLinkType); setSearch(''); }}>
-              <SelectTrigger className="h-8 w-[150px] bg-white">
+              <SelectTrigger className="h-8 w-[150px] bg-card">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -200,7 +200,7 @@ export function TicketLinksPanel({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search by id or name…"
-              className="h-8 flex-1 bg-white"
+              className="h-8 flex-1 bg-card"
             />
           </div>
           {matches.length === 0 ? (
@@ -208,15 +208,15 @@ export function TicketLinksPanel({
               {search ? 'No matches' : 'Start typing to search'}
             </p>
           ) : (
-            <div className="divide-y rounded border bg-white">
+            <div className="divide-y rounded border bg-card">
               {matches.map((c) => (
                 <button
                   key={c.id}
                   onClick={() => handleAdd(c)}
-                  className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-sm hover:bg-gray-50 focus:bg-gray-50 focus:outline-none"
+                  className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-sm hover:bg-card-2 focus:bg-card-2 focus:outline-none"
                 >
-                  <span className="font-mono text-xs text-gray-400">{c.id}</span>
-                  <span className="truncate text-gray-700">{c.label}</span>
+                  <span className="font-mono text-xs text-ink-3">{c.id}</span>
+                  <span className="truncate text-ink-2">{c.label}</span>
                 </button>
               ))}
             </div>

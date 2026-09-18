@@ -54,18 +54,18 @@ function PaymentStepper({ status }: { status: string }) {
           <div key={step} className="flex items-center gap-0.5">
             <div className={cn(
               'flex items-center justify-center rounded-full',
-              isComplete ? 'bg-green-100' : isCurrent ? 'bg-blue-100' : 'bg-gray-100',
+              isComplete ? 'bg-ok-soft' : isCurrent ? 'bg-accent-soft' : 'bg-idle-soft',
             )}>
               {isComplete ? (
-                <Check className={cn('size-3.5 p-0.5', 'text-green-600')} />
+                <Check className={cn('size-3.5 p-0.5', 'text-ok')} />
               ) : (
-                <Circle className={cn('size-3.5 p-0.5', isCurrent ? 'text-blue-500' : 'text-gray-400')} />
+                <Circle className={cn('size-3.5 p-0.5', isCurrent ? 'text-accent-solid' : 'text-ink-3')} />
               )}
             </div>
             {idx < PAYMENT_STEPS.length - 1 && (
               <div className={cn(
                 'w-3 h-0.5',
-                isComplete ? 'bg-green-400' : 'bg-gray-200',
+                isComplete ? 'bg-ok' : 'bg-line',
               )} />
             )}
           </div>
@@ -126,10 +126,10 @@ export function PaymentTrackerPage() {
     .reduce((sum, i) => sum + i.amount, 0);
 
   const matchColors: Record<string, string> = {
-    matched: 'bg-green-100 text-green-700',
-    'partial match': 'bg-amber-100 text-amber-700',
-    unmatched: 'bg-red-100 text-red-700',
-    variance: 'bg-orange-100 text-orange-700',
+    matched: 'bg-ok-soft text-ok',
+    'partial match': 'bg-warn-soft text-warn',
+    unmatched: 'bg-stop-soft text-stop',
+    variance: 'bg-warn-soft text-warn',
   };
 
   const columns: Column<InvoiceRow>[] = [
@@ -157,7 +157,7 @@ export function PaymentTrackerPage() {
       render: (row) => (
         <span className={cn(
           'inline-flex px-2 py-0.5 rounded-full text-xs font-medium capitalize',
-          matchColors[row.matchStatus as string] ?? 'bg-gray-100 text-gray-700',
+          matchColors[row.matchStatus as string] ?? 'bg-idle-soft text-ink-2',
         )}>
           {row.matchStatus as string}
         </span>
@@ -235,9 +235,9 @@ export function PaymentTrackerPage() {
           KPI moves — a finance user has no way to tell that apart from a real
           payment release unless the screen tells them. */}
       {currentRole === 'admin' && (
-        <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3">
-          <Info className="mt-0.5 size-4 shrink-0 text-amber-600" />
-          <p className="text-xs text-amber-800">
+        <div className="flex items-start gap-2 rounded-md border border-warn-line bg-warn-soft p-3">
+          <Info className="mt-0.5 size-4 shrink-0 text-warn" />
+          <p className="text-xs text-warn">
             <strong>Internal tracker only.</strong> Scheduling and releasing here records the payment
             state in this platform. No payment is sent, and no upstream payment or banking system is
             contacted — that execution is an R2 integration.

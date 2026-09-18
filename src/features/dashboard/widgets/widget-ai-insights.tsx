@@ -17,23 +17,23 @@ function buildInsights(requests: ProcurementRequest[], suppliers: Supplier[]): I
 
   const stuck = requests.filter((r) => r.status === 'validation' && r.daysInStage > 5).length;
   if (stuck > 0)
-    out.push({ key: 'validation', dot: 'bg-amber-400', text: `${stuck} request${stuck > 1 ? 's have' : ' has'} been in validation for over 5 days.` });
+    out.push({ key: 'validation', dot: 'bg-warn', text: `${stuck} request${stuck > 1 ? 's have' : ' has'} been in validation for over 5 days.` });
 
   const overdue = requests.filter((r) => r.isOverdue).length;
   if (overdue > 0)
-    out.push({ key: 'overdue', dot: 'bg-red-400', text: `${overdue} request${overdue > 1 ? 's are' : ' is'} past the SLA target.` });
+    out.push({ key: 'overdue', dot: 'bg-stop', text: `${overdue} request${overdue > 1 ? 's are' : ' is'} past the SLA target.` });
 
   const sra = suppliers.filter((s) => s.sraStatus === 'expired' || s.sraStatus === 'expiring').length;
   if (sra > 0)
-    out.push({ key: 'sra', dot: 'bg-red-400', text: `${sra} supplier${sra > 1 ? 's have' : ' has'} an expiring or expired risk assessment.` });
+    out.push({ key: 'sra', dot: 'bg-stop', text: `${sra} supplier${sra > 1 ? 's have' : ' has'} an expiring or expired risk assessment.` });
 
   const referred = requests.filter((r) => r.referBackCount > 0).length;
   if (referred > 0)
-    out.push({ key: 'referred', dot: 'bg-amber-400', text: `${referred} request${referred > 1 ? 's were' : ' was'} referred back for rework.` });
+    out.push({ key: 'referred', dot: 'bg-warn', text: `${referred} request${referred > 1 ? 's were' : ' was'} referred back for rework.` });
 
   const highRisk = suppliers.filter((s) => s.riskRating === 'high' || s.riskRating === 'critical').length;
   if (highRisk > 0)
-    out.push({ key: 'risk', dot: 'bg-blue-400', text: `${highRisk} active supplier${highRisk > 1 ? 's are' : ' is'} rated high or critical risk.` });
+    out.push({ key: 'risk', dot: 'bg-accent-solid', text: `${highRisk} active supplier${highRisk > 1 ? 's are' : ' is'} rated high or critical risk.` });
 
   return out.slice(0, 4);
 }
@@ -45,14 +45,14 @@ export function WidgetAIInsights() {
 
   if (insights.length === 0) {
     return (
-      <p className="text-sm text-gray-500">
+      <p className="text-sm text-ink-3">
         Nothing needs attention right now — the pipeline is healthy.
       </p>
     );
   }
 
   return (
-    <ul className="space-y-2 text-sm text-gray-700">
+    <ul className="space-y-2 text-sm text-ink-2">
       {insights.map((i) => (
         <li key={i.key} className="flex items-start gap-2">
           <span className={`mt-1 size-1.5 shrink-0 rounded-full ${i.dot}`} />

@@ -28,10 +28,10 @@ interface SupplierAutocompleteProps {
 }
 
 const riskBadgeStyles: Record<string, string> = {
-  low: 'bg-green-100 text-green-700',
-  medium: 'bg-amber-100 text-amber-700',
-  high: 'bg-red-100 text-red-700',
-  critical: 'bg-red-200 text-red-800',
+  low: 'bg-ok-soft text-ok',
+  medium: 'bg-warn-soft text-warn',
+  high: 'bg-stop-soft text-stop',
+  critical: 'bg-stop-soft text-stop',
 };
 
 const sraLabels: Record<string, string> = {
@@ -96,14 +96,14 @@ export function SupplierAutocomplete({
                 {canCreate ? (
                   <button
                     type="button"
-                    className="flex w-full items-center gap-2 px-2 py-1.5 text-left text-sm hover:bg-gray-50 disabled:opacity-50"
+                    className="flex w-full items-center gap-2 px-2 py-1.5 text-left text-sm hover:bg-card-2 disabled:opacity-50"
                     onClick={() => void handleCreate()}
                     disabled={creating}
                   >
-                    <UserPlus className="size-4 text-blue-600" />
+                    <UserPlus className="size-4 text-accent-solid" />
                     <span>
                       Add <strong>{trimmed}</strong> as a new supplier
-                      <span className="block text-xs text-gray-500">
+                      <span className="block text-xs text-ink-3">
                         Creates a prospective record — screening and onboarding follow
                       </span>
                     </span>
@@ -122,11 +122,11 @@ export function SupplierAutocomplete({
                       setOpen(false);
                     }}
                   >
-                    <Building2 className="size-4 text-gray-400" />
+                    <Building2 className="size-4 text-ink-3" />
                     <div className="flex flex-1 items-center justify-between">
                       <div>
                         <span className="font-medium">{supplier.name}</span>
-                        <span className="ml-2 text-xs text-gray-400">{supplier.country}</span>
+                        <span className="ml-2 text-xs text-ink-3">{supplier.country}</span>
                       </div>
                       <Badge variant="outline" className={riskBadgeStyles[supplier.riskRating]}>
                         {supplier.riskRating}
@@ -141,25 +141,25 @@ export function SupplierAutocomplete({
       </Popover>
 
       {selectedSupplier && (
-        <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+        <div className="rounded-lg border border-line bg-card-2 p-3">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-2">
-              <Building2 className="size-4 text-gray-500" />
+              <Building2 className="size-4 text-ink-3" />
               <span className="text-sm font-semibold">{selectedSupplier.name}</span>
               <Badge variant="outline" className={riskBadgeStyles[selectedSupplier.riskRating]}>
                 {selectedSupplier.riskRating} risk
               </Badge>
             </div>
-            <span className="text-xs text-gray-500">Tier {selectedSupplier.tier}</span>
+            <span className="text-xs text-ink-3">Tier {selectedSupplier.tier}</span>
           </div>
           <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
             <div className="flex items-center gap-1.5">
               {selectedSupplier.activeContracts > 0 ? (
-                <ShieldCheck className="size-3.5 text-green-500" />
+                <ShieldCheck className="size-3.5 text-ok" />
               ) : (
-                <ShieldX className="size-3.5 text-gray-400" />
+                <ShieldX className="size-3.5 text-ink-3" />
               )}
-              <span className="text-gray-600">
+              <span className="text-ink-2">
                 {selectedSupplier.activeContracts > 0
                   ? `${selectedSupplier.activeContracts} active contract(s)`
                   : 'No active contracts'}
@@ -167,18 +167,18 @@ export function SupplierAutocomplete({
             </div>
             <div className="flex items-center gap-1.5">
               {selectedSupplier.sraStatus === 'valid' ? (
-                <ShieldCheck className="size-3.5 text-green-500" />
+                <ShieldCheck className="size-3.5 text-ok" />
               ) : selectedSupplier.sraStatus === 'expiring' ? (
-                <AlertTriangle className="size-3.5 text-amber-500" />
+                <AlertTriangle className="size-3.5 text-warn" />
               ) : (
-                <ShieldAlert className="size-3.5 text-red-500" />
+                <ShieldAlert className="size-3.5 text-stop" />
               )}
-              <span className="text-gray-600">{sraLabels[selectedSupplier.sraStatus]}</span>
+              <span className="text-ink-2">{sraLabels[selectedSupplier.sraStatus]}</span>
             </div>
-            <div className="text-gray-600">
+            <div className="text-ink-2">
               Onboarding: <span className="font-medium">{selectedSupplier.onboardingStatus}</span>
             </div>
-            <div className="text-gray-600">
+            <div className="text-ink-2">
               12m spend: <span className="font-medium">{formatCurrency(selectedSupplier.totalSpend12m)}</span>
             </div>
           </div>

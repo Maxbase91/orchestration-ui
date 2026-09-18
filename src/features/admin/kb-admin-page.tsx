@@ -51,27 +51,27 @@ function EntryForm({
   return (
     <Card className="p-5 space-y-4 border-[#1B2A4A]/20 ring-1 ring-[#1B2A4A]/10">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-gray-800">{initial ? 'Edit entry' : 'New entry'}</p>
-        <button onClick={onCancel} className="rounded p-1 text-gray-400 hover:text-gray-600">
+        <p className="text-sm font-medium text-ink">{initial ? 'Edit entry' : 'New entry'}</p>
+        <button onClick={onCancel} className="rounded p-1 text-ink-3 hover:text-ink-2">
           <X className="size-4" />
         </button>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-1">
-          <label className="text-xs font-medium text-gray-500">ID</label>
+          <label className="text-xs font-medium text-ink-3">ID</label>
           <Input value={id} onChange={(e) => setId(e.target.value)} placeholder="KB-001" className="h-8 text-sm font-mono" />
         </div>
         <div className="space-y-1">
-          <label className="text-xs font-medium text-gray-500">Source / policy reference</label>
+          <label className="text-xs font-medium text-ink-3">Source / policy reference</label>
           <Input value={source} onChange={(e) => setSource(e.target.value)} placeholder="Procurement Policy v3.1 — Section 4" className="h-8 text-sm" />
         </div>
       </div>
       <div className="space-y-1">
-        <label className="text-xs font-medium text-gray-500">Title *</label>
+        <label className="text-xs font-medium text-ink-3">Title *</label>
         <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Approval thresholds" className="h-8 text-sm" />
       </div>
       <div className="space-y-1">
-        <label className="text-xs font-medium text-gray-500">Body * (markdown supported)</label>
+        <label className="text-xs font-medium text-ink-3">Body * (markdown supported)</label>
         <textarea
           value={body}
           onChange={(e) => setBody(e.target.value)}
@@ -81,7 +81,7 @@ function EntryForm({
         />
       </div>
       <div className="space-y-1">
-        <label className="text-xs font-medium text-gray-500">Tags (comma-separated)</label>
+        <label className="text-xs font-medium text-ink-3">Tags (comma-separated)</label>
         <Input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="threshold, approval, limit" className="h-8 text-sm" />
       </div>
       <div className="flex justify-end gap-2">
@@ -107,29 +107,29 @@ function EntryRow({
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="border-b border-gray-100 last:border-0">
-      <div className="flex items-start gap-3 px-5 py-3.5 hover:bg-gray-50/60">
+    <div className="border-b border-line-2 last:border-0">
+      <div className="flex items-start gap-3 px-5 py-3.5 hover:bg-card-2/60">
         <button
           onClick={() => setExpanded((v) => !v)}
-          className="mt-0.5 shrink-0 text-gray-400 hover:text-gray-600"
+          className="mt-0.5 shrink-0 text-ink-3 hover:text-ink-2"
         >
           {expanded ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
         </button>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="shrink-0 font-mono text-[11px] text-gray-400">{entry.id}</span>
-            <span className="truncate text-sm font-medium text-gray-800">{entry.title}</span>
+            <span className="shrink-0 font-mono text-[11px] text-ink-3">{entry.id}</span>
+            <span className="truncate text-sm font-medium text-ink">{entry.title}</span>
           </div>
           <div className="mt-0.5 flex flex-wrap gap-1">
             {entry.tags.slice(0, 6).map((t) => (
-              <span key={t} className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500">{t}</span>
+              <span key={t} className="rounded-full bg-idle-soft px-1.5 py-0.5 text-[10px] text-ink-3">{t}</span>
             ))}
           </div>
           {expanded && (
             <div className="mt-2 space-y-1.5">
-              <p className="whitespace-pre-wrap text-xs leading-relaxed text-gray-600">{entry.body}</p>
+              <p className="whitespace-pre-wrap text-xs leading-relaxed text-ink-2">{entry.body}</p>
               {entry.source && (
-                <p className="text-[10px] text-gray-400 italic">Source: {entry.source}</p>
+                <p className="text-[10px] text-ink-3 italic">Source: {entry.source}</p>
               )}
             </div>
           )}
@@ -137,14 +137,14 @@ function EntryRow({
         <div className="flex shrink-0 items-center gap-1">
           <button
             onClick={() => onEdit(entry)}
-            className="flex size-7 items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+            className="flex size-7 items-center justify-center rounded text-ink-3 hover:bg-idle-soft hover:text-ink-2 transition-colors"
             title="Edit"
           >
             <Pencil className="size-3.5" />
           </button>
           <button
             onClick={() => onDelete(entry.id)}
-            className="flex size-7 items-center justify-center rounded text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+            className="flex size-7 items-center justify-center rounded text-ink-3 hover:bg-stop-soft hover:text-stop transition-colors"
             title="Delete"
           >
             <Trash2 className="size-3.5" />
@@ -196,7 +196,7 @@ export function KBAdminPage() {
       />
 
       {entries.length === 0 && !loading && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <div className="rounded-xl border border-warn-line bg-warn-soft px-4 py-3 text-sm text-warn">
           <strong>Built-in KB active.</strong> No stored entries yet — the assistant is using the built-in knowledge base. Add entries here to override or supplement it.
         </div>
       )}
@@ -227,16 +227,16 @@ export function KBAdminPage() {
       )}
 
       <Card className="overflow-hidden">
-        <div className="flex items-center gap-2 border-b border-gray-100 px-5 py-3">
-          <BookOpen className="size-4 text-gray-400" />
-          <span className="text-sm font-medium text-gray-700">
+        <div className="flex items-center gap-2 border-b border-line-2 px-5 py-3">
+          <BookOpen className="size-4 text-ink-3" />
+          <span className="text-sm font-medium text-ink-2">
             {loading ? 'Loading…' : `${filtered.length} ${filtered.length === 1 ? 'entry' : 'entries'}`}
           </span>
         </div>
         {loading ? (
-          <p className="px-5 py-8 text-center text-sm text-gray-400">Loading…</p>
+          <p className="px-5 py-8 text-center text-sm text-ink-3">Loading…</p>
         ) : filtered.length === 0 ? (
-          <p className="px-5 py-8 text-center text-sm text-gray-400">
+          <p className="px-5 py-8 text-center text-sm text-ink-3">
             {search ? 'No entries match your filter.' : 'No entries yet. Add your first entry above.'}
           </p>
         ) : (

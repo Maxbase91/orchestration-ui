@@ -78,25 +78,25 @@ interface StepDetailCardProps {
 }
 
 const statusConfig: Record<string, { borderClass: string; badgeClass: string; label: string }> = {
-  completed: { borderClass: 'border-l-green-500', badgeClass: 'bg-green-100 text-green-700', label: 'Completed' },
-  current: { borderClass: 'border-l-amber-500', badgeClass: 'bg-amber-100 text-amber-700', label: 'In Progress' },
-  future: { borderClass: 'border-l-gray-300', badgeClass: 'bg-gray-100 text-gray-500', label: 'Pending' },
-  skipped: { borderClass: 'border-l-gray-300', badgeClass: 'bg-gray-100 text-gray-400', label: 'Skipped' },
-  blocked: { borderClass: 'border-l-red-500', badgeClass: 'bg-red-100 text-red-700', label: 'Blocked' },
+  completed: { borderClass: 'border-l-green-500', badgeClass: 'bg-ok-soft text-ok', label: 'Completed' },
+  current: { borderClass: 'border-l-amber-500', badgeClass: 'bg-warn-soft text-warn', label: 'In Progress' },
+  future: { borderClass: 'border-l-gray-300', badgeClass: 'bg-idle-soft text-ink-3', label: 'Pending' },
+  skipped: { borderClass: 'border-l-gray-300', badgeClass: 'bg-idle-soft text-ink-3', label: 'Skipped' },
+  blocked: { borderClass: 'border-l-red-500', badgeClass: 'bg-stop-soft text-stop', label: 'Blocked' },
 };
 
 const outcomeConfig: Record<string, { className: string; label: string }> = {
-  approved: { className: 'bg-green-100 text-green-700', label: 'Approved' },
-  rejected: { className: 'bg-red-100 text-red-700', label: 'Rejected' },
-  'referred-back': { className: 'bg-amber-100 text-amber-700', label: 'Referred Back' },
-  escalated: { className: 'bg-purple-100 text-purple-700', label: 'Escalated' },
-  completed: { className: 'bg-blue-100 text-blue-700', label: 'Completed' },
+  approved: { className: 'bg-ok-soft text-ok', label: 'Approved' },
+  rejected: { className: 'bg-stop-soft text-stop', label: 'Rejected' },
+  'referred-back': { className: 'bg-warn-soft text-warn', label: 'Referred Back' },
+  escalated: { className: 'bg-accent-soft text-accent-solid', label: 'Escalated' },
+  completed: { className: 'bg-accent-soft text-accent-solid', label: 'Completed' },
 };
 
 const slaConfig: Record<string, { className: string; label: string }> = {
-  'on-track': { className: 'bg-green-100 text-green-700', label: 'On Track' },
-  'at-risk': { className: 'bg-amber-100 text-amber-700', label: 'At Risk' },
-  breached: { className: 'bg-red-100 text-red-700', label: 'SLA Breached' },
+  'on-track': { className: 'bg-ok-soft text-ok', label: 'On Track' },
+  'at-risk': { className: 'bg-warn-soft text-warn', label: 'At Risk' },
+  breached: { className: 'bg-stop-soft text-stop', label: 'SLA Breached' },
 };
 
 function getDurationLabel(enteredAt: string, completedAt?: string): string {
@@ -147,7 +147,7 @@ export const StepDetailCard = forwardRef<HTMLDivElement, StepDetailCardProps>(
             <CardContent className="py-3 px-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <p className="text-sm font-medium text-gray-400">{stageLabel}</p>
+                  <p className="text-sm font-medium text-ink-3">{stageLabel}</p>
                   <Badge variant="outline" className={config.badgeClass}>
                     {config.label}
                   </Badge>
@@ -165,21 +165,21 @@ export const StepDetailCard = forwardRef<HTMLDivElement, StepDetailCardProps>(
           className={cn(
             'border-l-4 transition-shadow',
             config.borderClass,
-            status === 'current' && 'ring-1 ring-amber-200',
-            isHighlighted && 'ring-2 ring-blue-400 shadow-md',
+            status === 'current' && 'ring-1 ring-warn-line',
+            isHighlighted && 'ring-2 ring-accent-solid shadow-md',
           )}
         >
           {/* Collapsed header - always visible */}
           <button
             type="button"
             onClick={onToggle}
-            className="w-full text-left px-4 py-3 hover:bg-gray-50/50 transition-colors"
+            className="w-full text-left px-4 py-3 hover:bg-card-2/50 transition-colors"
           >
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0 flex-1">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-sm font-semibold text-gray-900">{stageLabel}</p>
+                    <p className="text-sm font-semibold text-ink">{stageLabel}</p>
                     <Badge variant="outline" className={config.badgeClass}>
                       {config.label}
                     </Badge>
@@ -188,7 +188,7 @@ export const StepDetailCard = forwardRef<HTMLDivElement, StepDetailCardProps>(
                         variant="outline"
                         className={cn(
                           'text-[10px]',
-                          systemColors[sysKey] ?? 'bg-gray-100 text-gray-700 border-gray-200',
+                          systemColors[sysKey] ?? 'bg-idle-soft text-ink-2 border-line',
                         )}
                       >
                         {systemLabels[sysKey] ?? sysInv.systemLabel}
@@ -199,14 +199,14 @@ export const StepDetailCard = forwardRef<HTMLDivElement, StepDetailCardProps>(
                     <span className="flex items-center gap-1">
                       <User className="size-3" />
                       {handlerName}
-                      {handlerRole && <span className="text-gray-400">({handlerRole})</span>}
+                      {handlerRole && <span className="text-ink-3">({handlerRole})</span>}
                     </span>
                     {daysInStep !== undefined && enteredAt && (
                       <span className="flex items-center gap-1">
                         <Clock className="size-3" />
                         {daysInStep} day(s)
                         {completedAt && (
-                          <span className="text-gray-400">
+                          <span className="text-ink-3">
                             ({getDurationLabel(enteredAt, completedAt)})
                           </span>
                         )}
@@ -214,14 +214,14 @@ export const StepDetailCard = forwardRef<HTMLDivElement, StepDetailCardProps>(
                     )}
                   </div>
                   {actionSummary && (
-                    <p className="mt-1 text-xs text-gray-600 truncate">{actionSummary}</p>
+                    <p className="mt-1 text-xs text-ink-2 truncate">{actionSummary}</p>
                   )}
                 </div>
               </div>
               {isExpanded ? (
-                <ChevronUp className="size-4 text-gray-400 shrink-0" />
+                <ChevronUp className="size-4 text-ink-3 shrink-0" />
               ) : (
-                <ChevronDown className="size-4 text-gray-400 shrink-0" />
+                <ChevronDown className="size-4 text-ink-3 shrink-0" />
               )}
             </div>
           </button>
@@ -235,14 +235,14 @@ export const StepDetailCard = forwardRef<HTMLDivElement, StepDetailCardProps>(
                   Rendered first so they catch the user's eye when the card
                   opens. */}
               {events?.referBack && (
-                <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3">
-                  <RotateCcw className="mt-0.5 size-4 shrink-0 text-amber-600" />
+                <div className="flex items-start gap-2 rounded-md border border-warn-line bg-warn-soft p-3">
+                  <RotateCcw className="mt-0.5 size-4 shrink-0 text-warn" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-amber-800">Referred back</p>
-                    <p className="text-xs text-amber-700/80">
+                    <p className="text-sm font-medium text-warn">Referred back</p>
+                    <p className="text-xs text-warn/80">
                       {events.referBack.notes ?? 'No reason provided'}
                     </p>
-                    <p className="mt-0.5 text-[11px] text-amber-600/80">
+                    <p className="mt-0.5 text-[11px] text-warn/80">
                       {events.referBack.by ? `by ${events.referBack.by} · ` : ''}
                       {formatDate(events.referBack.at)}
                     </p>
@@ -250,14 +250,14 @@ export const StepDetailCard = forwardRef<HTMLDivElement, StepDetailCardProps>(
                 </div>
               )}
               {events?.escalated && (
-                <div className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 p-3">
-                  <ArrowUpRight className="mt-0.5 size-4 shrink-0 text-red-600" />
+                <div className="flex items-start gap-2 rounded-md border border-stop-line bg-stop-soft p-3">
+                  <ArrowUpRight className="mt-0.5 size-4 shrink-0 text-stop" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-red-800">Escalated</p>
-                    <p className="text-xs text-red-700/80">
+                    <p className="text-sm font-medium text-stop">Escalated</p>
+                    <p className="text-xs text-stop/80">
                       {events.escalated.notes ?? 'No reason provided'}
                     </p>
-                    <p className="mt-0.5 text-[11px] text-red-600/80">
+                    <p className="mt-0.5 text-[11px] text-stop/80">
                       {events.escalated.by ? `by ${events.escalated.by} · ` : ''}
                       {formatDate(events.escalated.at)}
                     </p>
@@ -265,14 +265,14 @@ export const StepDetailCard = forwardRef<HTMLDivElement, StepDetailCardProps>(
                 </div>
               )}
               {events?.infoRequested && (
-                <div className="flex items-start gap-2 rounded-md border border-yellow-200 bg-yellow-50 p-3">
-                  <HelpCircle className="mt-0.5 size-4 shrink-0 text-yellow-600" />
+                <div className="flex items-start gap-2 rounded-md border border-warn-line bg-warn-soft p-3">
+                  <HelpCircle className="mt-0.5 size-4 shrink-0 text-warn" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-yellow-800">Additional information requested</p>
-                    <p className="text-xs text-yellow-700/80">
+                    <p className="text-sm font-medium text-warn">Additional information requested</p>
+                    <p className="text-xs text-warn/80">
                       {events.infoRequested.comments ?? 'No details provided'}
                     </p>
-                    <p className="mt-0.5 text-[11px] text-yellow-600/80">
+                    <p className="mt-0.5 text-[11px] text-warn/80">
                       {events.infoRequested.by ? `by ${events.infoRequested.by} · ` : ''}
                       {formatDate(events.infoRequested.at)}
                     </p>
@@ -283,19 +283,19 @@ export const StepDetailCard = forwardRef<HTMLDivElement, StepDetailCardProps>(
               {/* Handler section */}
               {handler && (
                 <div className="space-y-1">
-                  <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-ink-3 uppercase tracking-wide">
                     <User className="size-3.5" />
                     Handler
                   </div>
                   <div className="flex items-center gap-3 pl-5">
-                    <div className="flex size-8 items-center justify-center rounded-full bg-gray-100 text-xs font-medium text-gray-700">
+                    <div className="flex size-8 items-center justify-center rounded-full bg-idle-soft text-xs font-medium text-ink-2">
                       {handler.name
                         .split(' ')
                         .map((n) => n[0])
                         .join('')}
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-900">{handler.name}</p>
+                      <p className="text-sm font-medium text-ink">{handler.name}</p>
                       <p className="text-xs text-muted-foreground">
                         {handler.role} &middot; {handler.department}
                       </p>
@@ -307,7 +307,7 @@ export const StepDetailCard = forwardRef<HTMLDivElement, StepDetailCardProps>(
               {/* Decision section */}
               {detail?.decision && (
                 <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-ink-3 uppercase tracking-wide">
                     <Shield className="size-3.5" />
                     Decision
                   </div>
@@ -316,18 +316,18 @@ export const StepDetailCard = forwardRef<HTMLDivElement, StepDetailCardProps>(
                       variant="outline"
                       className={
                         outcomeConfig[detail.decision.outcome]?.className ??
-                        'bg-gray-100 text-gray-700'
+                        'bg-idle-soft text-ink-2'
                       }
                     >
                       {outcomeConfig[detail.decision.outcome]?.label ?? detail.decision.outcome}
                     </Badge>
                     {detail.decision.reason && (
-                      <p className="text-sm text-gray-700">{detail.decision.reason}</p>
+                      <p className="text-sm text-ink-2">{detail.decision.reason}</p>
                     )}
                     {detail.decision.conditions && detail.decision.conditions.length > 0 && (
                       <div>
-                        <p className="text-xs font-medium text-gray-500 mb-1">Conditions:</p>
-                        <ul className="list-disc list-inside text-sm text-gray-700 space-y-0.5">
+                        <p className="text-xs font-medium text-ink-3 mb-1">Conditions:</p>
+                        <ul className="list-disc list-inside text-sm text-ink-2 space-y-0.5">
                           {detail.decision.conditions.map((cond, i) => (
                             <li key={i}>{cond}</li>
                           ))}
@@ -341,23 +341,23 @@ export const StepDetailCard = forwardRef<HTMLDivElement, StepDetailCardProps>(
               {/* System Integration */}
               {sysInv && (
                 <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-ink-3 uppercase tracking-wide">
                     <Server className="size-3.5" />
                     System Integration
                   </div>
-                  <div className="pl-5 rounded-md bg-gray-50 p-3 space-y-1">
+                  <div className="pl-5 rounded-md bg-card-2 p-3 space-y-1">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-gray-900">
+                      <span className="text-sm font-medium text-ink">
                         {sysInv.systemLabel}
                       </span>
                       {sysInv.referenceId && (
-                        <Badge variant="outline" className="text-[10px] bg-white">
+                        <Badge variant="outline" className="text-[10px] bg-card">
                           {sysInv.referenceId}
                         </Badge>
                       )}
                     </div>
-                    <p className="text-xs text-gray-600">Status: {sysInv.status}</p>
-                    <p className="text-xs text-gray-600">{sysInv.detail}</p>
+                    <p className="text-xs text-ink-2">Status: {sysInv.status}</p>
+                    <p className="text-xs text-ink-2">{sysInv.detail}</p>
                   </div>
                 </div>
               )}
@@ -388,11 +388,11 @@ export const StepDetailCard = forwardRef<HTMLDivElement, StepDetailCardProps>(
               {/* Duration & SLA */}
               {detail?.duration && (
                 <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-ink-3 uppercase tracking-wide">
                     <Timer className="size-3.5" />
                     Duration & SLA
                   </div>
-                  <div className="pl-5 flex items-center gap-4 text-sm text-gray-700">
+                  <div className="pl-5 flex items-center gap-4 text-sm text-ink-2">
                     <span>
                       {getDurationLabel(
                         detail.duration.enteredAt,
@@ -405,7 +405,7 @@ export const StepDetailCard = forwardRef<HTMLDivElement, StepDetailCardProps>(
                     <Badge
                       variant="outline"
                       className={
-                        slaConfig[detail.slaStatus]?.className ?? 'bg-gray-100 text-gray-700'
+                        slaConfig[detail.slaStatus]?.className ?? 'bg-idle-soft text-ink-2'
                       }
                     >
                       {slaConfig[detail.slaStatus]?.label ?? detail.slaStatus}
@@ -417,8 +417,8 @@ export const StepDetailCard = forwardRef<HTMLDivElement, StepDetailCardProps>(
               {/* Fallback for stage history notes without detail */}
               {!detail && stageHistory?.notes && (
                 <div className="pl-0">
-                  <p className="text-xs font-medium text-gray-500 mb-1">Notes</p>
-                  <p className="text-sm text-gray-700">{stageHistory.notes}</p>
+                  <p className="text-xs font-medium text-ink-3 mb-1">Notes</p>
+                  <p className="text-sm text-ink-2">{stageHistory.notes}</p>
                 </div>
               )}
             </CardContent>
@@ -457,25 +457,25 @@ function ServiceDescriptionSummary({ stage, requestId }: { stage: string; reques
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+      <div className="flex items-center gap-2 text-xs font-semibold text-ink-3 uppercase tracking-wide">
         <FileText className="size-3.5" />
         Service description
         {typeof score === 'number' && (
           <span
             className={cn(
               'rounded-full px-1.5 py-0.5 text-[10px] font-semibold',
-              score >= 80 ? 'bg-green-100 text-green-700'
-                : score >= 60 ? 'bg-amber-100 text-amber-700'
-                : 'bg-red-100 text-red-700',
+              score >= 80 ? 'bg-ok-soft text-ok'
+                : score >= 60 ? 'bg-warn-soft text-warn'
+                : 'bg-stop-soft text-stop',
             )}
           >
             {score}/100
           </span>
         )}
       </div>
-      <p className="pl-5 text-sm leading-relaxed text-gray-700 whitespace-pre-line">{narrative}</p>
+      <p className="pl-5 text-sm leading-relaxed text-ink-2 whitespace-pre-line">{narrative}</p>
       {missing.length > 0 && (
-        <p className="pl-5 text-xs text-amber-700">
+        <p className="pl-5 text-xs text-warn">
           Missing {missing.length} section{missing.length === 1 ? '' : 's'} this demand&apos;s
           materiality and sourcing require: {missing.join(', ')}
         </p>
@@ -590,7 +590,7 @@ function FormsSection({
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+      <div className="flex items-center gap-2 text-xs font-semibold text-ink-3 uppercase tracking-wide">
         <ClipboardList className="size-3.5" />
         {status === 'current' && hasTriggeredForms ? 'Forms' : 'Forms Completed'}
       </div>
@@ -608,19 +608,19 @@ function FormsSection({
       {/* Legacy forms (only show if no real submission for this stage) */}
       {!hasSubmissions && hasLegacyForms && detail?.formsCompleted?.map((form, fi) => (
         <div key={fi} className="pl-5 space-y-1">
-          <p className="text-sm font-medium text-gray-800">{form.formName}</p>
+          <p className="text-sm font-medium text-ink">{form.formName}</p>
           <p className="text-[11px] text-muted-foreground">
             Completed {formatDate(form.completedAt)}
           </p>
-          <div className="mt-1 rounded-md border border-gray-200 overflow-hidden">
+          <div className="mt-1 rounded-md border border-line overflow-hidden">
             <table className="w-full text-xs">
               <tbody>
                 {form.fields.map((field, idx) => (
-                  <tr key={idx} className={idx % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
-                    <td className="px-3 py-1.5 font-medium text-gray-600 w-1/3">
+                  <tr key={idx} className={idx % 2 === 0 ? 'bg-card-2' : 'bg-card'}>
+                    <td className="px-3 py-1.5 font-medium text-ink-2 w-1/3">
                       {field.label}
                     </td>
-                    <td className="px-3 py-1.5 text-gray-900">{field.value}</td>
+                    <td className="px-3 py-1.5 text-ink">{field.value}</td>
                   </tr>
                 ))}
               </tbody>
@@ -632,9 +632,9 @@ function FormsSection({
       {/* Triggered forms for current step that need completion */}
       {triggeredForms.map((form) => (
         <div key={form.id} className="pl-5 space-y-2">
-          <div className="rounded-md border border-amber-200 bg-amber-50/50 p-3">
-            <p className="text-sm font-medium text-gray-800">{form.name}</p>
-            <p className="mt-0.5 text-xs text-gray-500">{form.description}</p>
+          <div className="rounded-md border border-warn-line bg-warn-soft/50 p-3">
+            <p className="text-sm font-medium text-ink">{form.name}</p>
+            <p className="mt-0.5 text-xs text-ink-3">{form.description}</p>
             {expandedFormId === form.id ? (
               <div className="mt-3">
                 <DynamicForm

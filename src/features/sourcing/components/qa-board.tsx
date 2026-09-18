@@ -67,18 +67,18 @@ export function QABoard() {
         {mockQAItems.map((item) => (
           <div key={item.id} className="rounded-lg border p-4">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-blue-600">{item.supplierName}</span>
+              <span className="text-xs font-medium text-accent-solid">{item.supplierName}</span>
               <span className="text-xs text-muted-foreground">{item.askedAt}</span>
             </div>
-            <p className="mt-1 text-sm font-medium text-gray-900">{item.question}</p>
+            <p className="mt-1 text-sm font-medium text-ink">{item.question}</p>
             {item.answer ? (
-              <div className="mt-2 rounded bg-green-50 p-2">
-                <span className="text-xs font-medium text-green-700">Answer ({item.answeredAt})</span>
-                <p className="mt-0.5 text-sm text-gray-700">{item.answer}</p>
+              <div className="mt-2 rounded bg-ok-soft p-2">
+                <span className="text-xs font-medium text-ok">Answer ({item.answeredAt})</span>
+                <p className="mt-0.5 text-sm text-ink-2">{item.answer}</p>
               </div>
             ) : (
-              <div className="mt-2 rounded bg-amber-50 p-2">
-                <span className="text-xs font-medium text-amber-700">Awaiting response</span>
+              <div className="mt-2 rounded bg-warn-soft p-2">
+                <span className="text-xs font-medium text-warn">Awaiting response</span>
               </div>
             )}
           </div>

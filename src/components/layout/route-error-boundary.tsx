@@ -32,8 +32,8 @@ export class RouteErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       return (
         <div className="flex flex-col items-center justify-center py-24 gap-4">
-          <AlertTriangle className="size-12 text-amber-500" />
-          <h2 className="text-xl font-semibold text-gray-900">Something went wrong</h2>
+          <AlertTriangle className="size-12 text-warn" />
+          <h2 className="text-xl font-semibold text-ink">Something went wrong</h2>
           <p className="text-sm text-muted-foreground max-w-sm text-center">{this.state.message}</p>
           <div className="flex gap-3">
             <Button variant="outline" onClick={this.reset}>Try again</Button>

@@ -34,10 +34,10 @@ interface TabActivityProps {
 }
 
 const KIND_CONFIG: Record<ActivityKind, { label: string; icon: typeof MessageSquare; color: string }> = {
-  comment:      { label: 'Comment',      icon: MessageSquare, color: 'text-blue-600' },
-  stage:        { label: 'Stage event',  icon: GitBranch,     color: 'text-emerald-600' },
-  audit:        { label: 'Audit',        icon: ShieldCheck,   color: 'text-gray-500' },
-  notification: { label: 'Notification', icon: Bell,          color: 'text-amber-600' },
+  comment:      { label: 'Comment',      icon: MessageSquare, color: 'text-accent-solid' },
+  stage:        { label: 'Stage event',  icon: GitBranch,     color: 'text-ok' },
+  audit:        { label: 'Audit',        icon: ShieldCheck,   color: 'text-ink-3' },
+  notification: { label: 'Notification', icon: Bell,          color: 'text-warn' },
 };
 
 type Filter = 'all' | 'comments' | 'events' | 'mine';
@@ -153,8 +153,8 @@ export function TabActivity({ request }: TabActivityProps) {
                 onClick={() => setFilter(f.id)}
                 className={`rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors ${
                   filter === f.id
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    ? 'bg-accent-solid text-paper'
+                    : 'bg-idle-soft text-ink-2 hover:bg-line'
                 }`}
               >
                 {f.label} · {f.count}
@@ -174,27 +174,27 @@ export function TabActivity({ request }: TabActivityProps) {
               const cfg = KIND_CONFIG[e.kind];
               const Icon = cfg.icon;
               return (
-                <li key={e.id} className="flex items-start gap-3 border-b border-gray-100 pb-3 last:border-0">
+                <li key={e.id} className="flex items-start gap-3 border-b border-line-2 pb-3 last:border-0">
                   <div className={`mt-0.5 ${cfg.color}`}>
                     <Icon className="size-4" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">{cfg.label}</span>
+                      <span className="text-xs font-medium text-ink-3 uppercase tracking-wide">{cfg.label}</span>
                       {e.stage && (
                         <Badge variant="outline" className="text-[10px]">{getStatusLabel(e.stage)}</Badge>
                       )}
                       {e.mentionsMe && (
-                        <Badge variant="outline" className="gap-1 border-blue-200 bg-blue-50 text-blue-700 text-[10px]">
+                        <Badge variant="outline" className="gap-1 border-accent-line bg-accent-soft text-accent-solid text-[10px]">
                           <AtSign className="size-3" /> mentioned you
                         </Badge>
                       )}
-                      {e.actor && <span className="text-xs text-gray-600">{e.actor}</span>}
-                      <span className="text-[11px] text-gray-400 ml-auto">{formatDate(e.timestamp)}</span>
+                      {e.actor && <span className="text-xs text-ink-2">{e.actor}</span>}
+                      <span className="text-[11px] text-ink-3 ml-auto">{formatDate(e.timestamp)}</span>
                     </div>
-                    <p className="mt-1 whitespace-pre-wrap text-sm text-gray-800">{e.title}</p>
+                    <p className="mt-1 whitespace-pre-wrap text-sm text-ink">{e.title}</p>
                     {e.detail && e.detail !== e.title && (
-                      <p className="mt-0.5 text-xs text-gray-600">{e.detail}</p>
+                      <p className="mt-0.5 text-xs text-ink-2">{e.detail}</p>
                     )}
                   </div>
                 </li>

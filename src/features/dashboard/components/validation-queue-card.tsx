@@ -49,51 +49,51 @@ export function ValidationQueueCard({ request }: ValidationQueueCardProps) {
   const assessments = getAiAssessment(request);
 
   return (
-    <div className="rounded-md border border-gray-200 bg-white p-4 shadow-sm cursor-pointer hover:border-gray-300 transition-colors" onClick={() => navigate(`/requests/${request.id}`)}>
+    <div className="rounded-md border border-line bg-card p-4 shadow-sm cursor-pointer hover:border-line transition-colors" onClick={() => navigate(`/requests/${request.id}`)}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs font-mono text-gray-400">{request.id}</span>
+            <span className="text-xs font-mono text-ink-3">{request.id}</span>
             <StatusBadge status={request.status} size="sm" />
           </div>
-          <p className="mt-1 text-sm font-semibold text-gray-900">{request.title}</p>
+          <p className="mt-1 text-sm font-semibold text-ink">{request.title}</p>
         </div>
         <div className="text-right shrink-0">
-          <p className="text-sm font-semibold text-gray-900">{formatCurrency(request.value, request.currency)}</p>
+          <p className="text-sm font-semibold text-ink">{formatCurrency(request.value, request.currency)}</p>
         </div>
       </div>
 
-      <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-600">
+      <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-ink-2">
         <div>
-          <span className="text-gray-400">Buying Channel:</span>{' '}
+          <span className="text-ink-3">Buying Channel:</span>{' '}
           <span className="font-medium">{getStatusLabel(request.buyingChannel)}</span>
         </div>
         <div>
-          <span className="text-gray-400">Commodity:</span>{' '}
+          <span className="text-ink-3">Commodity:</span>{' '}
           <span className="font-medium">{request.commodityCode}</span>
         </div>
         <div>
-          <span className="text-gray-400">Requestor:</span>{' '}
+          <span className="text-ink-3">Requestor:</span>{' '}
           <span className="font-medium">{requestor?.name ?? request.requestorId}</span>
         </div>
         <div>
-          <span className="text-gray-400">Days in stage:</span>{' '}
+          <span className="text-ink-3">Days in stage:</span>{' '}
           <span className="font-medium">{request.daysInStage}d</span>
         </div>
       </div>
 
       {/* AI Pre-Validation */}
-      <div className="mt-3 rounded border border-blue-100 bg-blue-50/50 p-2.5">
-        <p className="text-xs font-medium text-blue-600 mb-1.5">AI Pre-Validation</p>
+      <div className="mt-3 rounded border border-accent-line bg-accent-soft/50 p-2.5">
+        <p className="text-xs font-medium text-accent-solid mb-1.5">AI Pre-Validation</p>
         <div className="space-y-1">
           {assessments.map((a, i) => (
             <div key={i} className="flex items-center gap-1.5 text-xs">
               {a.ok ? (
-                <CheckCircle className="size-3.5 text-green-500 shrink-0" />
+                <CheckCircle className="size-3.5 text-ok shrink-0" />
               ) : (
-                <AlertTriangle className="size-3.5 text-amber-500 shrink-0" />
+                <AlertTriangle className="size-3.5 text-warn shrink-0" />
               )}
-              <span className={a.ok ? 'text-gray-600' : 'text-amber-700 font-medium'}>{a.label}</span>
+              <span className={a.ok ? 'text-ink-2' : 'text-warn font-medium'}>{a.label}</span>
             </div>
           ))}
         </div>

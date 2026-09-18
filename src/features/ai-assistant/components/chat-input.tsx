@@ -30,7 +30,7 @@ export function ChatInput({ onSend, disabled, placeholder = 'Ask anything…' }:
     <div className="flex items-center gap-2">
       <input
         type="text"
-        className="flex-1 rounded-full border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm placeholder:text-gray-400 focus:bg-white focus:border-[#2D5F8A] focus:ring-2 focus:ring-[#2D5F8A]/10 focus:outline-none transition-colors"
+        className="flex-1 rounded-full border border-line bg-card-2 px-4 py-2.5 text-sm placeholder:text-ink-3 focus:bg-card focus:border-[#2D5F8A] focus:ring-2 focus:ring-[#2D5F8A]/10 focus:outline-none transition-colors"
         placeholder={placeholder}
         value={value}
         onChange={(e) => setValue(e.target.value)}

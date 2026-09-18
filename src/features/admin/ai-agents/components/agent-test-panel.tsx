@@ -57,14 +57,14 @@ export function AgentTestPanel({ agent }: AgentTestPanelProps) {
   }
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4">
-      <h4 className="text-sm font-semibold text-gray-900">Test Agent</h4>
-      <p className="mt-0.5 text-xs text-gray-500">
+    <div className="rounded-lg border border-line bg-card p-4">
+      <h4 className="text-sm font-semibold text-ink">Test Agent</h4>
+      <p className="mt-0.5 text-xs text-ink-3">
         Provide sample input to test {agent.name}
       </p>
 
       <div className="mt-4">
-        <Label className="text-xs text-gray-500">Sample Input</Label>
+        <Label className="text-xs text-ink-3">Sample Input</Label>
         <Textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -87,19 +87,19 @@ export function AgentTestPanel({ agent }: AgentTestPanelProps) {
 
       {result && (
         <div className="mt-4 space-y-3">
-          <div className="rounded-lg border border-green-200 bg-green-50 p-3">
+          <div className="rounded-lg border border-ok-line bg-ok-soft p-3">
             <div className="flex items-center justify-between">
-              <p className="text-xs font-medium text-green-700">Result</p>
-              <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+              <p className="text-xs font-medium text-ok">Result</p>
+              <span className="rounded-full bg-ok-soft px-2 py-0.5 text-xs font-medium text-ok">
                 {result.confidence}% confidence
               </span>
             </div>
-            <p className="mt-1 text-sm font-semibold text-gray-900">{result.label}</p>
+            <p className="mt-1 text-sm font-semibold text-ink">{result.label}</p>
           </div>
 
-          <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-            <p className="text-xs font-medium text-gray-500">Reasoning</p>
-            <p className="mt-1 text-xs text-gray-600 leading-relaxed">{result.reasoning}</p>
+          <div className="rounded-lg border border-line bg-card-2 p-3">
+            <p className="text-xs font-medium text-ink-3">Reasoning</p>
+            <p className="mt-1 text-xs text-ink-2 leading-relaxed">{result.reasoning}</p>
           </div>
         </div>
       )}

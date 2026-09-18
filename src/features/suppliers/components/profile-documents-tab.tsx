@@ -87,7 +87,7 @@ export function ProfileDocumentsTab({ supplier }: ProfileDocumentsTabProps) {
               <div className="flex items-center gap-3 min-w-0">
                 <FileText className="size-4 shrink-0 text-muted-foreground" />
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{doc.name}</p>
+                  <p className="text-sm font-medium text-ink truncate">{doc.name}</p>
                   <p className="text-xs text-muted-foreground">
                     {doc.type} &middot; Expires: {doc.expiryDate}
                   </p>

@@ -59,29 +59,29 @@ export function SupplierPerformancePage() {
       {/* Top + Bottom Performers */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Top Performers */}
-        <div className="rounded-md bg-white p-4 shadow-[0_1px_4px_rgba(0,0,0,0.08)]">
-          <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-gray-900">
-            <Star className="size-4 text-amber-500" />
+        <div className="rounded-md bg-card p-4 shadow-[0_1px_4px_rgba(0,0,0,0.08)]">
+          <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-ink">
+            <Star className="size-4 text-warn" />
             Top 5 Performers
           </h3>
           <div className="space-y-3">
             {topPerformers.map((s, i) => (
               <div
                 key={s.id}
-                className="flex items-center justify-between rounded-md border border-gray-100 p-3"
+                className="flex items-center justify-between rounded-md border border-line-2 p-3"
               >
                 <div className="flex items-center gap-3">
-                  <span className="flex size-7 items-center justify-center rounded-full bg-green-100 text-xs font-bold text-green-700">
+                  <span className="flex size-7 items-center justify-center rounded-full bg-ok-soft text-xs font-bold text-ok">
                     {i + 1}
                   </span>
                   <div>
-                    <p className="text-sm font-medium text-gray-900">{s.name}</p>
-                    <p className="text-xs text-gray-500">{s.categories[0]}</p>
+                    <p className="text-sm font-medium text-ink">{s.name}</p>
+                    <p className="text-xs text-ink-3">{s.categories[0]}</p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-lg font-bold text-green-700">{s.performanceScore}</p>
-                  <p className="text-xs text-gray-500">score</p>
+                  <p className="text-lg font-bold text-ok">{s.performanceScore}</p>
+                  <p className="text-xs text-ink-3">score</p>
                 </div>
               </div>
             ))}
@@ -89,29 +89,29 @@ export function SupplierPerformancePage() {
         </div>
 
         {/* Bottom Performers */}
-        <div className="rounded-md bg-white p-4 shadow-[0_1px_4px_rgba(0,0,0,0.08)]">
-          <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-gray-900">
-            <AlertTriangle className="size-4 text-red-500" />
+        <div className="rounded-md bg-card p-4 shadow-[0_1px_4px_rgba(0,0,0,0.08)]">
+          <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-ink">
+            <AlertTriangle className="size-4 text-stop" />
             Bottom 5 Performers
           </h3>
           <div className="space-y-3">
             {bottomPerformers.map((s, i) => (
               <div
                 key={s.id}
-                className="flex items-center justify-between rounded-md border border-red-100 p-3"
+                className="flex items-center justify-between rounded-md border border-stop-line p-3"
               >
                 <div className="flex items-center gap-3">
-                  <span className="flex size-7 items-center justify-center rounded-full bg-red-100 text-xs font-bold text-red-700">
+                  <span className="flex size-7 items-center justify-center rounded-full bg-stop-soft text-xs font-bold text-stop">
                     {scoredSuppliers.length - i}
                   </span>
                   <div>
-                    <p className="text-sm font-medium text-gray-900">{s.name}</p>
-                    <p className="text-xs text-gray-500">{s.categories[0]}</p>
+                    <p className="text-sm font-medium text-ink">{s.name}</p>
+                    <p className="text-xs text-ink-3">{s.categories[0]}</p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-lg font-bold text-red-600">{s.performanceScore}</p>
-                  <p className="text-xs text-gray-500">score</p>
+                  <p className="text-lg font-bold text-stop">{s.performanceScore}</p>
+                  <p className="text-xs text-ink-3">score</p>
                 </div>
               </div>
             ))}
@@ -120,8 +120,8 @@ export function SupplierPerformancePage() {
       </div>
 
       {/* Performance by Category */}
-      <div className="rounded-md bg-white p-4 shadow-[0_1px_4px_rgba(0,0,0,0.08)]">
-        <h3 className="mb-4 text-sm font-semibold text-gray-900">Performance by Category</h3>
+      <div className="rounded-md bg-card p-4 shadow-[0_1px_4px_rgba(0,0,0,0.08)]">
+        <h3 className="mb-4 text-sm font-semibold text-ink">Performance by Category</h3>
         <BarChartWidget
           data={perfByCategoryData}
           dataKeys={[{ key: 'value', color: '#1B2A4A', label: 'Avg Score' }]}
@@ -130,12 +130,12 @@ export function SupplierPerformancePage() {
       </div>
 
       {/* Risk vs Spend Matrix */}
-      <div className="rounded-md bg-white p-4 shadow-[0_1px_4px_rgba(0,0,0,0.08)]">
-        <h3 className="mb-4 text-sm font-semibold text-gray-900">Risk vs Spend Matrix</h3>
+      <div className="rounded-md bg-card p-4 shadow-[0_1px_4px_rgba(0,0,0,0.08)]">
+        <h3 className="mb-4 text-sm font-semibold text-ink">Risk vs Spend Matrix</h3>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
-              <tr className="border-b border-gray-200 text-xs font-medium uppercase text-gray-500">
+              <tr className="border-b border-line text-xs font-medium uppercase text-ink-3">
                 <th className="pb-2 pr-4">Supplier</th>
                 <th className="pb-2 pr-4">Risk Level</th>
                 <th className="pb-2 pr-4 text-right">Spend (12m)</th>
@@ -144,25 +144,25 @@ export function SupplierPerformancePage() {
             </thead>
             <tbody>
               {riskSpendMatrix.map((s) => (
-                <tr key={s.id} className="border-b border-gray-50">
-                  <td className="py-2 pr-4 font-medium text-gray-900">{s.name}</td>
+                <tr key={s.id} className="border-b border-line-2">
+                  <td className="py-2 pr-4 font-medium text-ink">{s.name}</td>
                   <td className="py-2 pr-4">
                     <span
                       className={cn(
                         'inline-block rounded-full px-2 py-0.5 text-xs font-medium',
-                        s.riskRating === 'critical' && 'bg-red-100 text-red-700',
-                        s.riskRating === 'high' && 'bg-orange-100 text-orange-700',
-                        s.riskRating === 'medium' && 'bg-amber-100 text-amber-700',
-                        s.riskRating === 'low' && 'bg-green-100 text-green-700',
+                        s.riskRating === 'critical' && 'bg-stop-soft text-stop',
+                        s.riskRating === 'high' && 'bg-warn-soft text-warn',
+                        s.riskRating === 'medium' && 'bg-warn-soft text-warn',
+                        s.riskRating === 'low' && 'bg-ok-soft text-ok',
                       )}
                     >
                       {s.riskRating}
                     </span>
                   </td>
-                  <td className="py-2 pr-4 text-right text-gray-700">
+                  <td className="py-2 pr-4 text-right text-ink-2">
                     {formatCurrency(s.totalSpend12m)}
                   </td>
-                  <td className="py-2 text-right font-medium text-gray-900">
+                  <td className="py-2 text-right font-medium text-ink">
                     {s.performanceScore > 0 ? s.performanceScore : 'N/A'}
                   </td>
                 </tr>

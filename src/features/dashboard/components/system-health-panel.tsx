@@ -35,10 +35,10 @@ export function SystemHealthPanel() {
   // The only upstream the SPA depends on in R1 is its own data source, so the
   // status reflects the actual query health rather than a hardcoded "Healthy".
   const dataSource = isLoading
-    ? { label: 'Checking…', dot: 'bg-gray-400', ping: false, note: 'Verifying the data source' }
+    ? { label: 'Checking…', dot: 'bg-idle', ping: false, note: 'Verifying the data source' }
     : isError
-      ? { label: 'Degraded', dot: 'bg-red-500', ping: false, note: 'Data source unreachable' }
-      : { label: 'Healthy', dot: 'bg-green-500', ping: true, note: 'Data source responding' };
+      ? { label: 'Degraded', dot: 'bg-stop', ping: false, note: 'Data source unreachable' }
+      : { label: 'Healthy', dot: 'bg-ok', ping: true, note: 'Data source responding' };
 
   return (
     <div className="grid grid-cols-3 gap-4">
@@ -47,18 +47,18 @@ export function SystemHealthPanel() {
         label="Requests (today / 7d / month)"
         value={`${stats.today} / ${stats.week} / ${stats.month}`}
       />
-      <div className="rounded-md bg-white p-4 shadow-[0_1px_4px_rgba(0,0,0,0.08)]">
+      <div className="rounded-md bg-card p-4 shadow-[0_1px_4px_rgba(0,0,0,0.08)]">
         <p className="text-xs font-medium text-muted-foreground">Data Source</p>
         <div className="mt-1 flex items-center gap-2">
           <span className="relative flex size-2.5">
             {dataSource.ping && (
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-ok opacity-75" />
             )}
             <span className={`relative inline-flex size-2.5 rounded-full ${dataSource.dot}`} />
           </span>
-          <p className="text-2xl font-semibold text-gray-900">{dataSource.label}</p>
+          <p className="text-2xl font-semibold text-ink">{dataSource.label}</p>
         </div>
-        <p className="mt-0.5 text-xs text-gray-500">{dataSource.note}</p>
+        <p className="mt-0.5 text-xs text-ink-3">{dataSource.note}</p>
       </div>
     </div>
   );

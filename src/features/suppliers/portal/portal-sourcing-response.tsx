@@ -121,8 +121,8 @@ export function PortalSourcingResponse() {
 
       <div>
         <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-xl font-semibold text-gray-900">{event.title}</h1>
-          <span className="rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
+          <h1 className="text-xl font-semibold text-ink">{event.title}</h1>
+          <span className="rounded bg-idle-soft px-2 py-0.5 text-xs font-medium text-ink-2">
             {event.type}
           </span>
           <StatusBadge status={response.status} size="sm" />
@@ -136,7 +136,7 @@ export function PortalSourcingResponse() {
         <Card>
           <CardHeader><CardTitle className="text-base">Overview</CardTitle></CardHeader>
           <CardContent>
-            <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-700">
+            <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink-2">
               {event.description}
             </p>
           </CardContent>
@@ -149,7 +149,7 @@ export function PortalSourcingResponse() {
           <CardContent>
             <ul className="space-y-2">
               {event.requirements.map((r, i) => (
-                <li key={i} className="whitespace-pre-wrap text-sm leading-relaxed text-gray-700">
+                <li key={i} className="whitespace-pre-wrap text-sm leading-relaxed text-ink-2">
                   {r}
                 </li>
               ))}
@@ -166,7 +166,7 @@ export function PortalSourcingResponse() {
         </CardHeader>
         <CardContent className="space-y-4">
           {closed && (
-            <p className="rounded border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-800">
+            <p className="rounded border border-warn-line bg-warn-soft p-2.5 text-xs text-warn">
               This event has closed. Your response is shown for reference and can no longer be changed.
             </p>
           )}

@@ -166,7 +166,7 @@ export function LifecycleStepper({ request, onStepClick }: LifecycleStepperProps
   return (
     <div className="space-y-3">
       {inconsistentTerminalState && (
-        <p role="status" className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+        <p role="status" className="rounded-md border border-warn-line bg-warn-soft px-3 py-2 text-sm text-warn">
           This request is marked complete but has no recorded lifecycle history. It is being shown as intake until the record is repaired.
         </p>
       )}

@@ -35,7 +35,7 @@ export function BulkApproveDialog({
           <DialogTitle>Approve {requests.length} requests</DialogTitle>
           <DialogDescription>
             You are about to approve the following requests with a combined value of{' '}
-            <span className="font-semibold text-gray-900">{formatCurrency(totalValue)}</span>.
+            <span className="font-semibold text-ink">{formatCurrency(totalValue)}</span>.
           </DialogDescription>
         </DialogHeader>
 
@@ -43,13 +43,13 @@ export function BulkApproveDialog({
           {requests.map((r) => (
             <li
               key={r.id}
-              className="flex items-center justify-between rounded-md border px-3 py-2 text-sm"
+              className="flex items-center justify-between rounded-md border px-3 py-2 text-body"
             >
               <div>
-                <span className="font-medium text-gray-900">{r.title}</span>
-                <span className="ml-2 text-gray-500">{r.id}</span>
+                <span className="font-medium text-ink">{r.title}</span>
+                <span className="ml-2 text-ink-3">{r.id}</span>
               </div>
-              <span className="shrink-0 text-gray-700">{formatCurrency(r.value)}</span>
+              <span className="shrink-0 text-ink-2">{formatCurrency(r.value)}</span>
             </li>
           ))}
         </ul>
@@ -59,7 +59,7 @@ export function BulkApproveDialog({
             Cancel
           </Button>
           <Button
-            className="bg-green-600 hover:bg-green-700 text-white"
+            className="bg-ok text-paper hover:brightness-110"
             onClick={onConfirm}
           >
             Approve All

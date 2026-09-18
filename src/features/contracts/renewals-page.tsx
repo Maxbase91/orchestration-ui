@@ -108,7 +108,7 @@ export function RenewalsPage() {
         return (
           <span className={cn(
             'text-sm font-semibold',
-            days <= 0 ? 'text-red-700' : days <= 30 ? 'text-red-600' : days <= 90 ? 'text-amber-600' : 'text-gray-700',
+            days <= 0 ? 'text-stop' : days <= 30 ? 'text-stop' : days <= 90 ? 'text-warn' : 'text-ink-2',
           )}>
             {days <= 0 ? `${Math.abs(days)}d overdue` : `${days}d`}
           </span>
@@ -158,13 +158,13 @@ export function RenewalsPage() {
             className={cn(
               'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
               activeTab === tab.key
-                ? 'border-gray-900 text-gray-900'
-                : 'border-transparent text-muted-foreground hover:text-gray-700',
+                ? 'border-ink text-ink'
+                : 'border-transparent text-muted-foreground hover:text-ink-2',
             )}
             onClick={() => setActiveTab(tab.key)}
           >
             {tab.label}
-            <span className="ml-1.5 inline-flex items-center rounded-full bg-gray-100 px-1.5 py-0.5 text-xs">
+            <span className="ml-1.5 inline-flex items-center rounded-full bg-idle-soft px-1.5 py-0.5 text-xs">
               {tab.count}
             </span>
           </button>

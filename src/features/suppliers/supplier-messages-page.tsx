@@ -279,8 +279,8 @@ export function SupplierMessagesPage() {
                 className={cn(
                   'cursor-pointer py-3 transition-colors',
                   selectedThread === thread.id
-                    ? 'border-blue-300 bg-blue-50/50'
-                    : 'hover:bg-gray-50',
+                    ? 'border-accent-line bg-accent-soft/50'
+                    : 'hover:bg-card-2',
                 )}
                 onClick={() => {
                   setSelectedThread(thread.id);
@@ -296,7 +296,7 @@ export function SupplierMessagesPage() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <Building2 className="size-3.5 shrink-0 text-muted-foreground" />
-                        <span className="text-xs font-medium text-blue-600 truncate">
+                        <span className="text-xs font-medium text-accent-solid truncate">
                           {thread.supplierName}
                         </span>
                         {thread.relatedTo && (
@@ -309,8 +309,8 @@ export function SupplierMessagesPage() {
                         className={cn(
                           'mt-1 text-sm truncate',
                           thread.unread
-                            ? 'font-semibold text-gray-900'
-                            : 'font-medium text-gray-700',
+                            ? 'font-semibold text-ink'
+                            : 'font-medium text-ink-2',
                         )}
                       >
                         {thread.subject}
@@ -320,7 +320,7 @@ export function SupplierMessagesPage() {
                       </p>
                     </div>
                     {thread.unread && (
-                      <span className="mt-1 size-2 shrink-0 rounded-full bg-blue-500" />
+                      <span className="mt-1 size-2 shrink-0 rounded-full bg-accent-solid" />
                     )}
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">
@@ -340,13 +340,13 @@ export function SupplierMessagesPage() {
               <div className="shrink-0 border-b px-4 py-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h2 className="text-sm font-semibold text-gray-900">
+                    <h2 className="text-sm font-semibold text-ink">
                       {activeThread.subject}
                     </h2>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       with {activeThread.supplierName}
                       {activeThread.relatedTo && (
-                        <span className="ml-2 text-blue-600">
+                        <span className="ml-2 text-accent-solid">
                           #{activeThread.relatedTo}
                         </span>
                       )}
@@ -368,7 +368,7 @@ export function SupplierMessagesPage() {
                     <div
                       className={cn(
                         'flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-medium text-white',
-                        msg.isInternal ? 'bg-[#1B2A4A]' : 'bg-amber-500',
+                        msg.isInternal ? 'bg-[#1B2A4A]' : 'bg-warn',
                       )}
                     >
                       {msg.senderInitials}
@@ -376,18 +376,18 @@ export function SupplierMessagesPage() {
                     <div
                       className={cn(
                         'max-w-[75%] rounded-lg p-3',
-                        msg.isInternal ? 'bg-blue-50' : 'bg-gray-50',
+                        msg.isInternal ? 'bg-accent-soft' : 'bg-card-2',
                       )}
                     >
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-medium text-gray-900">
+                        <span className="text-xs font-medium text-ink">
                           {msg.sender}
                         </span>
                         <span className="text-xs text-muted-foreground">
                           {msg.timestamp}
                         </span>
                       </div>
-                      <p className="mt-1 text-sm text-gray-700">{msg.content}</p>
+                      <p className="mt-1 text-sm text-ink-2">{msg.content}</p>
                     </div>
                   </div>
                 ))}

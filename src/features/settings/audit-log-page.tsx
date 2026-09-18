@@ -83,14 +83,14 @@ const baseUniqueObjectTypes = [...new Set(seedAuditEntries.map((e) => e.objectTy
 const PAGE_SIZE = 15;
 
 const actionColors: Record<string, string> = {
-  Approved: 'bg-green-50 text-green-700',
-  Rejected: 'bg-red-50 text-red-700',
-  'SLA Breach': 'bg-red-50 text-red-700',
-  'SLA Warning': 'bg-amber-50 text-amber-700',
-  Escalated: 'bg-red-50 text-red-700',
-  Submitted: 'bg-blue-50 text-blue-700',
-  'Referred Back': 'bg-amber-50 text-amber-700',
-  Alert: 'bg-amber-50 text-amber-700',
+  Approved: 'bg-ok-soft text-ok',
+  Rejected: 'bg-stop-soft text-stop',
+  'SLA Breach': 'bg-stop-soft text-stop',
+  'SLA Warning': 'bg-warn-soft text-warn',
+  Escalated: 'bg-stop-soft text-stop',
+  Submitted: 'bg-accent-soft text-accent-solid',
+  'Referred Back': 'bg-warn-soft text-warn',
+  Alert: 'bg-warn-soft text-warn',
 };
 
 const columns: Column<AuditRow>[] = [
@@ -116,7 +116,7 @@ const columns: Column<AuditRow>[] = [
     sortable: true,
     className: 'w-[130px]',
     render: (item) => (
-      <Badge variant="secondary" className={actionColors[item.action] ?? 'bg-gray-50 text-gray-700'}>
+      <Badge variant="secondary" className={actionColors[item.action] ?? 'bg-card-2 text-ink-2'}>
         {item.action}
       </Badge>
     ),

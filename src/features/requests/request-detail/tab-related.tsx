@@ -133,7 +133,7 @@ export function TabRelated({ request }: TabRelatedProps) {
                       contract and PO without offering a way to open either;
                       the only place a requester could actually follow them was
                       the separate Simple detail page, now removed. */}
-                  <Link to={`/contracts/${contract.id}`} className="text-sm font-medium text-blue-600 hover:underline">
+                  <Link to={`/contracts/${contract.id}`} className="text-sm font-medium text-accent-solid hover:underline">
                     {contract.title}
                   </Link>
                   <p className="text-xs text-muted-foreground">{contract.id}</p>
@@ -174,10 +174,10 @@ export function TabRelated({ request }: TabRelatedProps) {
               <Link
                 key={e.id}
                 to={`/sourcing/${e.id}`}
-                className="flex items-center justify-between gap-4 rounded-lg border px-4 py-3 hover:bg-gray-50 transition-colors"
+                className="flex items-center justify-between gap-4 rounded-lg border px-4 py-3 hover:bg-card-2 transition-colors"
               >
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{e.title}</p>
+                  <p className="text-sm font-medium text-ink truncate">{e.title}</p>
                   <p className="text-xs text-muted-foreground">
                     {e.id} &middot; {e.type}
                     {e.deadline ? ` · closes ${formatDate(e.deadline)}` : ''}
@@ -203,11 +203,11 @@ export function TabRelated({ request }: TabRelatedProps) {
                     the deep link from the removed Simple detail page and is not
                     lost with it. */}
                 {canOpenPurchaseOrders ? (
-                  <Link to={`/purchasing/orders/${request.poId}`} className="text-sm font-medium text-blue-600 hover:underline">
+                  <Link to={`/purchasing/orders/${request.poId}`} className="text-sm font-medium text-accent-solid hover:underline">
                     {request.poId}
                   </Link>
                 ) : (
-                  <p className="text-sm font-medium text-gray-900">{request.poId}</p>
+                  <p className="text-sm font-medium text-ink">{request.poId}</p>
                 )}
                 <p className="text-xs text-muted-foreground">
                   {formatCurrency(request.value, request.currency)}
@@ -226,7 +226,7 @@ export function TabRelated({ request }: TabRelatedProps) {
             <CardTitle className="text-base">
               Other Requests -{' '}
               {supplier ? (
-                <Link to={`/suppliers/${supplier.id}`} className="text-blue-600 hover:underline">
+                <Link to={`/suppliers/${supplier.id}`} className="text-accent-solid hover:underline">
                   {supplier.name}
                 </Link>
               ) : (
@@ -241,10 +241,10 @@ export function TabRelated({ request }: TabRelatedProps) {
                 <Link
                   key={req.id}
                   to={`/requests/${req.id}`}
-                  className="flex items-center justify-between gap-4 rounded-lg border px-4 py-3 hover:bg-gray-50 transition-colors"
+                  className="flex items-center justify-between gap-4 rounded-lg border px-4 py-3 hover:bg-card-2 transition-colors"
                 >
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{req.title}</p>
+                    <p className="text-sm font-medium text-ink truncate">{req.title}</p>
                     <p className="text-xs text-muted-foreground">{req.id} &middot; {formatCurrency(req.value)}</p>
                   </div>
                   <StatusBadge status={req.status} size="sm" />
@@ -262,7 +262,7 @@ export function TabRelated({ request }: TabRelatedProps) {
             <CardTitle className="text-base">
               Other Contracts -{' '}
               {supplier && (
-                <Link to={`/suppliers/${supplier.id}`} className="text-blue-600 hover:underline">
+                <Link to={`/suppliers/${supplier.id}`} className="text-accent-solid hover:underline">
                   {supplier.name}
                 </Link>
               )}{' '}
@@ -274,7 +274,7 @@ export function TabRelated({ request }: TabRelatedProps) {
               {supplierContracts.map((c) => (
                 <div key={c.id} className="flex items-center justify-between gap-4 rounded-lg border px-4 py-3">
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{c.title}</p>
+                    <p className="text-sm font-medium text-ink truncate">{c.title}</p>
                     <p className="text-xs text-muted-foreground">{c.id} &middot; {formatCurrency(c.value)}</p>
                   </div>
                   <StatusBadge status={c.status} size="sm" />

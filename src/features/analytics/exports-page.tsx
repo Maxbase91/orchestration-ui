@@ -113,7 +113,7 @@ export function ExportsPage() {
         const Icon = formatIcons[fmt];
         return (
           <div className="flex items-center gap-2">
-            <Icon className="size-4 text-gray-500" />
+            <Icon className="size-4 text-ink-3" />
             <span className="text-sm font-medium">{row.name as string}</span>
           </div>
         );
@@ -128,7 +128,7 @@ export function ExportsPage() {
       key: 'format',
       label: 'Format',
       render: (row) => (
-        <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 uppercase">
+        <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-idle-soft text-ink-2 uppercase">
           {row.format as string}
         </span>
       ),
@@ -175,8 +175,8 @@ export function ExportsPage() {
     <div className="space-y-6">
       <PageHeader title="Exports" subtitle="Export data in various formats" />
 
-      <div className="rounded-md border bg-white p-6 shadow-sm">
-        <h3 className="text-sm font-semibold text-gray-900 mb-4">New Export</h3>
+      <div className="rounded-md border bg-card p-6 shadow-sm">
+        <h3 className="text-sm font-semibold text-ink mb-4">New Export</h3>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-1.5">
             <Label htmlFor="data-type">Data Type</Label>
@@ -223,8 +223,8 @@ export function ExportsPage() {
                     className={cn(
                       'flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors',
                       format === fmt
-                        ? 'border-gray-900 bg-gray-900 text-white'
-                        : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50',
+                        ? 'border-ink bg-ink text-white'
+                        : 'border-line bg-card text-ink-2 hover:bg-card-2',
                     )}
                     onClick={() => setFormat(fmt)}
                   >
@@ -245,9 +245,9 @@ export function ExportsPage() {
         </div>
       </div>
 
-      <div className="rounded-md border bg-white shadow-sm">
+      <div className="rounded-md border bg-card shadow-sm">
         <div className="border-b px-4 py-3">
-          <h3 className="text-sm font-semibold text-gray-900">Recent Exports</h3>
+          <h3 className="text-sm font-semibold text-ink">Recent Exports</h3>
         </div>
         <DataTable
           columns={columns}

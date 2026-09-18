@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 
 export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
   return (
-    <header className="h-14 shrink-0 bg-white border-b border-border flex items-center justify-between px-4">
+    <header className="h-14 shrink-0 bg-card border-b border-border flex items-center justify-between px-4">
       <div className="flex min-w-0 items-center gap-2">
         <Button
           variant="ghost"

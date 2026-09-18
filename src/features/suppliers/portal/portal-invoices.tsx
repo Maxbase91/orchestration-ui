@@ -31,7 +31,7 @@ const columns: Column<InvoiceRow>[] = [
     key: 'id',
     label: 'Invoice',
     sortable: true,
-    render: (inv) => <span className="font-medium text-gray-900">{inv.id as string}</span>,
+    render: (inv) => <span className="font-medium text-ink">{inv.id as string}</span>,
   },
   {
     key: 'amount',
@@ -158,7 +158,7 @@ export function PortalInvoices() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-gray-900">Invoices & Payments</h1>
+        <h1 className="text-xl font-semibold text-ink">Invoices & Payments</h1>
         <Button onClick={() => setOpen(true)}>
           <Plus className="size-4" />
           Submit Invoice
@@ -216,7 +216,7 @@ export function PortalInvoices() {
               return (
                 <div key={status} className="flex items-center">
                   <div className="flex flex-col items-center gap-1 px-3 py-2">
-                    <span className="text-lg font-semibold text-gray-900">{count}</span>
+                    <span className="text-lg font-semibold text-ink">{count}</span>
                     <span className="text-xs text-muted-foreground capitalize">
                       {status.replace('-', ' ')}
                     </span>

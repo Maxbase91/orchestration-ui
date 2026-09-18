@@ -150,74 +150,79 @@ if (/--spacing-\d+:/.test(css)) {
   bad('the spacing scale is not redefined', 'overriding a step shifts every existing use');
 } else ok('spacing is left to Tailwind’s 4px base');
 
-// Files that have moved onto tokens. Add one when its screen migrates; the
-// guard tightens with the work rather than arriving after it.
-const MIGRATED = [
-  'src/components/shared/async-boundary.tsx',
-  'src/components/shared/ai-confidence-badge.tsx',
-  'src/components/shared/ai-suggestion-card.tsx',
-  'src/components/shared/compliance-report-card.tsx',
-  'src/components/shared/confirm-delete-dialog.tsx',
-  'src/components/shared/data-table.tsx',
-  'src/components/shared/dynamic-form.tsx',
-  'src/components/shared/form-submission-view.tsx',
-  'src/components/shared/kpi-card.tsx',
-  'src/components/shared/page-header.tsx',
-  'src/components/shared/priority-indicator.tsx',
-  'src/components/shared/process-stepper.tsx',
-  'src/components/shared/sla-countdown.tsx',
-  'src/components/shared/system-integration-badge.tsx',
-  'src/components/shared/system-integration-timeline.tsx',
-  'src/components/charts/sparkline.tsx',
+// ── Nothing names a colour that cannot follow the theme ────────────────────
+//
+// This began as a list of migrated files and is now its inverse: every .tsx is
+// checked, and the exemptions are named with a reason. The list flipped because
+// per-file migration turned out to be unsafe for dark — a migrated TEXT on an
+// unmigrated SURFACE renders one theme's ink on the other theme's ground, which
+// measured 1.16:1 on the approvals card. The colours had to move together, so
+// they did: 2,538 classes in one pass.
+//
+// `bg-white` is called out separately because it reads as harmless. It is a
+// literal, so it cannot flip, and it was the surface under most of the app.
+import { readdirSync, statSync } from 'node:fs';
+
+/**
+ * Files allowed to name a palette colour, and why.
+ *
+ * The workflow designer's node types encode WHICH KIND of node a chip is — AI
+ * agent, notification, start, end — not a status. Folding them into
+ * ok/warn/stop would destroy the distinction, so they keep a categorical
+ * palette until that screen is designed properly in Phase 3.
+ */
+const EXEMPT = [
+  'src/features/admin/workflow-designer/components/custom-nodes/',
+  'src/features/admin/workflow-designer/components/node-palette.tsx',
+  'src/components/layout/supplier-portal-layout.tsx',
 ];
 
-// ── Text on a status fill must flip with the theme ─────────────────────────
-console.log('\nText on a coloured fill survives both themes');
-// `bg-ok text-white` reads perfectly in light and is unreadable in dark, where
-// --ok inverts from #0F7048 to a light tint: white-on-that measures 2.32:1.
-// --paper flips with the theme and clears 4.5:1 on every status in both.
+function tsxFiles(dir, out = []) {
+  for (const entry of readdirSync(new URL(dir, ROOT))) {
+    const rel = `${dir}${entry}`;
+    if (statSync(new URL(rel, ROOT)).isDirectory()) tsxFiles(`${rel}/`, out);
+    else if (entry.endsWith('.tsx')) out.push(rel);
+  }
+  return out;
+}
+
+const RAW = /\b(?:text|bg|border|ring|divide)-(?:gray|slate|zinc|neutral|stone|red|green|blue|amber|yellow|indigo|purple|teal|orange|emerald|sky|rose)-\d{2,3}\b/g;
+const all = tsxFiles('src/').filter((f) => !EXEMPT.some((e) => f.startsWith(e)));
+
+console.log(`\nNo component names a colour that cannot follow the theme (${all.length} files)`);
 {
-  const ON_FILL = ['ok', 'warn', 'stop', 'idle'];
-  const failures = [];
-  for (const fill of ON_FILL) {
-    for (const [theme, set] of [['light', light], ['dark', dark]]) {
-      if (!set?.[fill] || !set?.paper) continue;
-      const ratio = contrast(set.paper, set[fill]);
-      if (ratio < AA_BODY) failures.push(`${theme} --paper on --${fill}: ${ratio.toFixed(2)}`);
-    }
+  const offenders = [];
+  let whites = 0;
+  for (const file of all) {
+    const source = read(file);
+    const code = source.split('\n')
+      .filter((l) => !l.trim().startsWith('//') && !l.trim().startsWith('*') && !l.trim().startsWith('/*'))
+      .join('\n');
+    const hits = [...new Set(code.match(RAW) ?? [])];
+    if (hits.length) offenders.push(`${file.replace('src/', '')}: ${hits.slice(0, 3).join(', ')}`);
+    // A literal white surface cannot flip; --card is #FFFFFF in light, so the
+    // swap was pixel-identical there and is what makes dark readable.
+    whites += (code.match(/(?<![\w-])bg-white(?![\w-])/g) ?? []).length;
   }
-  if (failures.length) bad('--paper reads on every status fill, both themes', failures.join(' · '));
-  else ok('--paper reads on every status fill, both themes');
-
-  // And nothing pins white against one, which only works in light.
-  const pinned = [];
-  for (const file of MIGRATED) {
-    for (const [, before] of read(file).matchAll(/(bg-(?:ok|warn|stop|idle|accent-solid)\b[^'"`]{0,80}?)\btext-white\b/g)) {
-      pinned.push(`${file}: ${before.trim().slice(0, 40)}…text-white`);
-    }
-  }
-  if (pinned.length) {
-    bad('no migrated file pins text-white to a status fill',
-      `${pinned.join(' · ')} — correct in light, 2.3:1 in dark`);
-  } else ok('no migrated file pins text-white to a status fill');
+  if (offenders.length) bad(`${offenders.length} file(s) still name a palette colour`, offenders.slice(0, 6).join(' | '));
+  else ok(`all ${all.length} files name tokens only`);
+  if (whites) bad(`${whites} literal bg-white remain`, 'a literal surface cannot follow the theme');
+  else ok('no literal bg-white surface');
 }
 
-// ── Migrated screens hold no raw palette class ─────────────────────────────
-//
-// Add a file here when its screen moves onto tokens. Empty until Phase 1, and
-// that is deliberate: the guard exists from the start so the first migrated
-// file is covered by it, rather than the rule arriving after the work.
-console.log(`\nMigrated files name tokens, never palette colours (${MIGRATED.length})`);
-const RAW = /\b(?:text|bg|border|ring|divide|from|to|via)-(?:gray|slate|zinc|neutral|stone|red|green|blue|amber|yellow|indigo|purple|teal|orange)-\d{2,3}\b/g;
-for (const file of MIGRATED) {
-  const source = read(file);
-  const code = source.split('\n')
-    .filter((l) => !l.trim().startsWith('//') && !l.trim().startsWith('*') && !l.trim().startsWith('/*'))
-    .join('\n');
-  const hits = [...new Set(code.match(RAW) ?? [])];
-  if (hits.length) bad(`${file} names no palette colour`, hits.join(', '));
-  else ok(`${file}`);
+// The aliases are what let an unmigrated component follow the theme at all.
+console.log('\nshadcn roles resolve to the semantic tokens');
+for (const [role, token] of [
+  ['--color-background', '--paper'], ['--color-card', '--card'],
+  ['--color-foreground', '--ink'], ['--color-muted-foreground', '--ink-3'],
+  ['--color-border', '--line'], ['--color-destructive', '--stop'],
+  ['--color-text-primary', '--ink'], ['--color-status-success', '--ok'],
+]) {
+  if (!new RegExp(`${role}:\\s*var\\(${token}\\)`).test(css)) {
+    bad(`${role} is aliased to ${token}`, 'a fixed hex here does not flip, and dark breaks wherever it is used');
+  }
 }
+if (failures === 0) ok('every shadcn and legacy role follows a token');
 
 console.log('');
 if (failures) { console.error(`FAILED: ${failures} check(s)`); process.exit(1); }

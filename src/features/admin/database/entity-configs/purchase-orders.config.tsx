@@ -22,7 +22,7 @@ const columns: Column<PORow>[] = [
     label: 'Status',
     sortable: true,
     render: (p) => (
-      <span className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-700">
+      <span className="inline-flex rounded-full bg-idle-soft px-2 py-0.5 text-[11px] font-medium text-ink-2">
         {p.status}
       </span>
     ),
@@ -34,7 +34,7 @@ const columns: Column<PORow>[] = [
   {
     key: 'lineItems',
     label: 'Line items',
-    render: (p) => <span className="text-xs text-gray-500">{p.lineItems.length}</span>,
+    render: (p) => <span className="text-xs text-ink-3">{p.lineItems.length}</span>,
   },
 ];
 
@@ -94,10 +94,10 @@ export const purchaseOrdersConfig: EntityConfig<'purchaseOrder'> = {
   ],
   renderComplexFields: ({ record }) => (
     <div>
-      <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500">
+      <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-ink-3">
         Line items ({record.lineItems.length})
       </h4>
-      <div className="rounded-md border border-gray-100 bg-gray-50 p-3 text-xs text-gray-700">
+      <div className="rounded-md border border-line-2 bg-card-2 p-3 text-xs text-ink-2">
         {record.lineItems.length === 0 ? (
           <p className="italic text-muted-foreground">No line items.</p>
         ) : (

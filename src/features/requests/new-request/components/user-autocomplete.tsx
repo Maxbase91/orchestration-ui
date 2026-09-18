@@ -50,13 +50,13 @@ export function UserAutocomplete({ selectedId, excludeIds = [], placeholder = 'T
                     setOpen(false);
                   }}
                 >
-                  <UserIcon className="size-4 text-gray-400" />
+                  <UserIcon className="size-4 text-ink-3" />
                   <div className="flex flex-1 items-center justify-between gap-2">
                     <div className="min-w-0">
                       <span className="font-medium">{u.name}</span>
-                      <span className="ml-2 text-xs text-gray-400">{u.department}</span>
+                      <span className="ml-2 text-xs text-ink-3">{u.department}</span>
                     </div>
-                    {u.country && <span className="shrink-0 text-xs text-gray-400">{u.country}</span>}
+                    {u.country && <span className="shrink-0 text-xs text-ink-3">{u.country}</span>}
                   </div>
                 </CommandItem>
               ))}

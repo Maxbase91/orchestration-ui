@@ -133,7 +133,7 @@ export function PortalMessages() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-semibold text-gray-900">Messages</h1>
+      <h1 className="text-xl font-semibold text-ink">Messages</h1>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {/* Thread List */}
@@ -144,8 +144,8 @@ export function PortalMessages() {
               className={cn(
                 'cursor-pointer py-3 transition-colors',
                 selectedThread === thread.id
-                  ? 'border-blue-300 bg-blue-50/50'
-                  : 'hover:bg-gray-50',
+                  ? 'border-accent-line bg-accent-soft/50'
+                  : 'hover:bg-card-2',
               )}
               onClick={() => setSelectedThread(thread.id)}
             >
@@ -154,7 +154,7 @@ export function PortalMessages() {
                   <div className="min-w-0">
                     <p className={cn(
                       'text-sm truncate',
-                      thread.unread ? 'font-semibold text-gray-900' : 'font-medium text-gray-700',
+                      thread.unread ? 'font-semibold text-ink' : 'font-medium text-ink-2',
                     )}>
                       {thread.subject}
                     </p>
@@ -163,7 +163,7 @@ export function PortalMessages() {
                     </p>
                   </div>
                   {thread.unread && (
-                    <span className="mt-1 size-2 shrink-0 rounded-full bg-blue-500" />
+                    <span className="mt-1 size-2 shrink-0 rounded-full bg-accent-solid" />
                   )}
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">{thread.lastTimestamp}</p>
@@ -177,7 +177,7 @@ export function PortalMessages() {
           <CardContent>
             {activeThread ? (
               <div className="space-y-4">
-                <h2 className="text-sm font-semibold text-gray-900 border-b pb-3">
+                <h2 className="text-sm font-semibold text-ink border-b pb-3">
                   {activeThread.subject}
                 </h2>
 
@@ -192,19 +192,19 @@ export function PortalMessages() {
                     >
                       <div className={cn(
                         'flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-medium text-white',
-                        msg.isSupplier ? 'bg-amber-500' : 'bg-[#1B2A4A]',
+                        msg.isSupplier ? 'bg-warn' : 'bg-[#1B2A4A]',
                       )}>
                         {msg.senderInitials}
                       </div>
                       <div className={cn(
                         'max-w-[75%] rounded-lg p-3',
-                        msg.isSupplier ? 'bg-amber-50' : 'bg-gray-50',
+                        msg.isSupplier ? 'bg-warn-soft' : 'bg-card-2',
                       )}>
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-medium text-gray-900">{msg.sender}</span>
+                          <span className="text-xs font-medium text-ink">{msg.sender}</span>
                           <span className="text-xs text-muted-foreground">{msg.timestamp}</span>
                         </div>
-                        <p className="mt-1 text-sm text-gray-700">{msg.content}</p>
+                        <p className="mt-1 text-sm text-ink-2">{msg.content}</p>
                       </div>
                     </div>
                   ))}

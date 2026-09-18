@@ -155,8 +155,8 @@ export function StepCatalogue({ onPlaceOrder }: StepCatalogueProps) {
     return (
       <div className="space-y-4">
         <div>
-          <h3 className="text-sm font-semibold text-gray-900 mb-1">Browse Catalogues</h3>
-          <p className="text-xs text-gray-500">
+          <h3 className="text-sm font-semibold text-ink mb-1">Browse Catalogues</h3>
+          <p className="text-xs text-ink-3">
             Select a catalogue to browse approved items and add them to your order.
           </p>
         </div>
@@ -168,13 +168,13 @@ export function StepCatalogue({ onPlaceOrder }: StepCatalogueProps) {
                 key={cat.id}
                 type="button"
                 onClick={() => setSelectedCatalogue(cat.id)}
-                className="flex flex-col items-center gap-2 rounded-lg border border-gray-200 bg-white p-4 text-center transition-colors hover:bg-blue-50 hover:border-blue-200"
+                className="flex flex-col items-center gap-2 rounded-lg border border-line bg-card p-4 text-center transition-colors hover:bg-accent-soft hover:border-accent-line"
               >
-                <div className="flex size-10 items-center justify-center rounded-full bg-gray-100">
-                  <Icon className="size-5 text-gray-600" />
+                <div className="flex size-10 items-center justify-center rounded-full bg-idle-soft">
+                  <Icon className="size-5 text-ink-2" />
                 </div>
-                <span className="text-sm font-medium text-gray-900">{cat.name}</span>
-                <span className="text-xs text-gray-500">{cat.items.length} items</span>
+                <span className="text-sm font-medium text-ink">{cat.name}</span>
+                <span className="text-xs text-ink-3">{cat.items.length} items</span>
               </button>
             );
           })}
@@ -182,15 +182,15 @@ export function StepCatalogue({ onPlaceOrder }: StepCatalogueProps) {
 
         {/* Cart summary at bottom if items exist */}
         {cart.length > 0 && (
-          <div className="rounded-lg border border-green-200 bg-green-50 p-4 space-y-3">
+          <div className="rounded-lg border border-ok-line bg-ok-soft p-4 space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <ShoppingCart className="size-4 text-green-600" />
-                <span className="text-sm font-medium text-green-800">
+                <ShoppingCart className="size-4 text-ok" />
+                <span className="text-sm font-medium text-ok">
                   {cart.length} item{cart.length !== 1 ? 's' : ''} in cart
                 </span>
               </div>
-              <span className="text-sm font-semibold text-green-900">
+              <span className="text-sm font-semibold text-ok">
                 {'\u20AC'}{cartTotal.toLocaleString('de-DE', { minimumFractionDigits: 2 })}
               </span>
             </div>
@@ -219,7 +219,7 @@ export function StepCatalogue({ onPlaceOrder }: StepCatalogueProps) {
           <ArrowLeft className="size-4" />
           Back
         </Button>
-        <h3 className="text-sm font-semibold text-gray-900">{activeCatalogue?.name}</h3>
+        <h3 className="text-sm font-semibold text-ink">{activeCatalogue?.name}</h3>
       </div>
 
       <div className="flex gap-4">
@@ -227,7 +227,7 @@ export function StepCatalogue({ onPlaceOrder }: StepCatalogueProps) {
         <div className="flex-1 space-y-3">
           {/* Search */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-ink-3" />
             <Input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -243,13 +243,13 @@ export function StepCatalogue({ onPlaceOrder }: StepCatalogueProps) {
               return (
                 <div
                   key={item.id}
-                  className="rounded-md border border-gray-200 bg-white p-3 space-y-2"
+                  className="rounded-md border border-line bg-card p-3 space-y-2"
                 >
                   <div>
                     <div className="flex items-start justify-between gap-2">
                       <button
                         type="button"
-                        className="text-left text-sm font-medium text-gray-900 hover:text-blue-700 hover:underline"
+                        className="text-left text-sm font-medium text-ink hover:text-accent-solid hover:underline"
                         onClick={() => navigate(`/catalogue/items/${encodeURIComponent(item.id)}`)}
                       >
                         {item.name}
@@ -261,14 +261,14 @@ export function StepCatalogue({ onPlaceOrder }: StepCatalogueProps) {
                         </Badge>
                       )}
                     </div>
-                    <p className="text-xs text-gray-500 mt-0.5">{item.description}</p>
+                    <p className="text-xs text-ink-3 mt-0.5">{item.description}</p>
                   </div>
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-semibold text-gray-900">
+                      <p className="text-sm font-semibold text-ink">
                         {'\u20AC'}{item.unitPrice.toLocaleString('de-DE', { minimumFractionDigits: 2 })}
                       </p>
-                      <p className="text-[10px] text-gray-400">
+                      <p className="text-[10px] text-ink-3">
                         per {item.unit} &middot; {item.leadTime}
                       </p>
                     </div>
@@ -276,7 +276,7 @@ export function StepCatalogue({ onPlaceOrder }: StepCatalogueProps) {
                       <button
                         type="button"
                         onClick={() => setQty(item.id, getQty(item.id) - 1)}
-                        className="flex size-6 items-center justify-center rounded border border-gray-200 hover:bg-gray-50"
+                        className="flex size-6 items-center justify-center rounded border border-line hover:bg-card-2"
                       >
                         <Minus className="size-3" />
                       </button>
@@ -286,7 +286,7 @@ export function StepCatalogue({ onPlaceOrder }: StepCatalogueProps) {
                       <button
                         type="button"
                         onClick={() => setQty(item.id, getQty(item.id) + 1)}
-                        className="flex size-6 items-center justify-center rounded border border-gray-200 hover:bg-gray-50"
+                        className="flex size-6 items-center justify-center rounded border border-line hover:bg-card-2"
                       >
                         <Plus className="size-3" />
                       </button>
@@ -302,7 +302,7 @@ export function StepCatalogue({ onPlaceOrder }: StepCatalogueProps) {
           </div>
 
           {filteredItems.length === 0 && (
-            <p className="text-center text-sm text-gray-400 py-8">
+            <p className="text-center text-sm text-ink-3 py-8">
               No items match your search.
             </p>
           )}
@@ -310,16 +310,16 @@ export function StepCatalogue({ onPlaceOrder }: StepCatalogueProps) {
 
         {/* Cart sidebar */}
         <div className="w-[250px] shrink-0">
-          <div className="sticky top-0 rounded-lg border border-gray-200 bg-gray-50 p-3 space-y-3">
+          <div className="sticky top-0 rounded-lg border border-line bg-card-2 p-3 space-y-3">
             <div className="flex items-center gap-2">
-              <ShoppingCart className="size-4 text-gray-600" />
-              <h4 className="text-sm font-semibold text-gray-900">
+              <ShoppingCart className="size-4 text-ink-2" />
+              <h4 className="text-sm font-semibold text-ink">
                 Cart ({cart.length})
               </h4>
             </div>
 
             {cart.length === 0 ? (
-              <p className="text-xs text-gray-400 py-4 text-center">
+              <p className="text-xs text-ink-3 py-4 text-center">
                 No items added yet.
               </p>
             ) : (
@@ -328,24 +328,24 @@ export function StepCatalogue({ onPlaceOrder }: StepCatalogueProps) {
                   {cart.map((item) => (
                     <div
                       key={item.itemId}
-                      className="flex items-start justify-between rounded-md bg-white border border-gray-100 p-2"
+                      className="flex items-start justify-between rounded-md bg-card border border-line-2 p-2"
                     >
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium text-gray-900 truncate">
+                        <p className="text-xs font-medium text-ink truncate">
                           {item.name}
                         </p>
-                        <p className="text-[10px] text-gray-500">
+                        <p className="text-[10px] text-ink-3">
                           {item.quantity} x {'\u20AC'}{item.unitPrice.toLocaleString('de-DE', { minimumFractionDigits: 2 })}
                         </p>
                       </div>
                       <div className="flex items-center gap-1.5 ml-2">
-                        <span className="text-xs font-semibold text-gray-900">
+                        <span className="text-xs font-semibold text-ink">
                           {'\u20AC'}{(item.quantity * item.unitPrice).toLocaleString('de-DE', { minimumFractionDigits: 2 })}
                         </span>
                         <button
                           type="button"
                           onClick={() => removeFromCart(item.itemId)}
-                          className="text-gray-400 hover:text-red-500"
+                          className="text-ink-3 hover:text-stop"
                         >
                           <Trash2 className="size-3" />
                         </button>
@@ -354,10 +354,10 @@ export function StepCatalogue({ onPlaceOrder }: StepCatalogueProps) {
                   ))}
                 </div>
 
-                <div className="border-t border-gray-200 pt-2">
+                <div className="border-t border-line pt-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-700">Total</span>
-                    <span className="text-sm font-bold text-gray-900">
+                    <span className="text-sm font-medium text-ink-2">Total</span>
+                    <span className="text-sm font-bold text-ink">
                       {'\u20AC'}{cartTotal.toLocaleString('de-DE', { minimumFractionDigits: 2 })}
                     </span>
                   </div>

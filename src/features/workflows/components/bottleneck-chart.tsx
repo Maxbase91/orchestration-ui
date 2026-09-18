@@ -61,8 +61,8 @@ export function BottleneckChart({ requests }: BottleneckChartProps) {
   const globalSlaTarget = (stageSlaDays(slaTargets, 'approval') ?? 0); // representative line
 
   return (
-    <div className="rounded-md border bg-white p-4 shadow-sm">
-      <h3 className="text-sm font-semibold text-gray-900 mb-4">
+    <div className="rounded-md border bg-card p-4 shadow-sm">
+      <h3 className="text-sm font-semibold text-ink mb-4">
         Average Days per Stage
       </h3>
       <ResponsiveContainer width="100%" height={320}>

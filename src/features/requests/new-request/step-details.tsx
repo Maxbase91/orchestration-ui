@@ -117,11 +117,11 @@ export function StepDetails({ category, data, onUpdate }: StepDetailsProps) {
           could not act on. What is shown here is what has been captured so far. */}
       <div className="space-y-1.5">
         <Label>Supplier</Label>
-        <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2">
-          <p className="text-sm text-gray-800">
+        <div className="rounded-md border border-line bg-card-2 px-3 py-2">
+          <p className="text-sm text-ink">
             {data.supplier || 'Not identified yet'}
           </p>
-          <p className="mt-0.5 text-xs text-gray-500">
+          <p className="mt-0.5 text-xs text-ink-3">
             {data.supplier
               ? 'Confirm or change this at the determination step, where risk and screening are shown.'
               : 'Suppliers are identified at the determination step, alongside risk and screening.'}

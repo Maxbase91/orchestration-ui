@@ -26,12 +26,12 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 const TYPE_COLORS: Record<string, string> = {
-  classification: 'bg-purple-100 text-purple-700',
-  validation: 'bg-blue-100 text-blue-700',
-  extraction: 'bg-emerald-100 text-emerald-700',
-  recommendation: 'bg-amber-100 text-amber-700',
+  classification: 'bg-accent-soft text-accent-solid',
+  validation: 'bg-accent-soft text-accent-solid',
+  extraction: 'bg-ok-soft text-ok',
+  recommendation: 'bg-warn-soft text-warn',
   'knowledge-base': 'bg-cyan-100 text-cyan-700',
-  'anomaly-detection': 'bg-red-100 text-red-700',
+  'anomaly-detection': 'bg-stop-soft text-stop',
 };
 
 interface AgentLibraryProps {
@@ -49,7 +49,7 @@ export function AgentLibrary({ agents, onSelectAgent, onAddAgent, onDeleteAgent 
       label: 'Agent Name',
       sortable: true,
       render: (agent) => (
-        <span className="font-medium text-gray-900">{agent.name}</span>
+        <span className="font-medium text-ink">{agent.name}</span>
       ),
     },
     {
@@ -57,7 +57,7 @@ export function AgentLibrary({ agents, onSelectAgent, onAddAgent, onDeleteAgent 
       label: 'Type',
       sortable: true,
       render: (agent) => (
-        <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${TYPE_COLORS[agent.type as string] ?? 'bg-gray-100 text-gray-700'}`}>
+        <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${TYPE_COLORS[agent.type as string] ?? 'bg-idle-soft text-ink-2'}`}>
           {TYPE_LABELS[agent.type as string] ?? agent.type}
         </span>
       ),
@@ -73,7 +73,7 @@ export function AgentLibrary({ agents, onSelectAgent, onAddAgent, onDeleteAgent 
       label: 'Accuracy',
       sortable: true,
       render: (agent) => (
-        <span className="text-sm font-medium text-gray-900">{agent.accuracy as number}%</span>
+        <span className="text-sm font-medium text-ink">{agent.accuracy as number}%</span>
       ),
     },
     {
@@ -81,7 +81,7 @@ export function AgentLibrary({ agents, onSelectAgent, onAddAgent, onDeleteAgent 
       label: 'Decisions',
       sortable: true,
       render: (agent) => (
-        <span className="text-sm text-gray-600">{(agent.decisionsMade as number).toLocaleString()}</span>
+        <span className="text-sm text-ink-2">{(agent.decisionsMade as number).toLocaleString()}</span>
       ),
     },
     {
@@ -89,7 +89,7 @@ export function AgentLibrary({ agents, onSelectAgent, onAddAgent, onDeleteAgent 
       label: 'Last Updated',
       sortable: true,
       render: (agent) => (
-        <span className="text-sm text-gray-500">{formatDate(agent.lastUpdated as string)}</span>
+        <span className="text-sm text-ink-3">{formatDate(agent.lastUpdated as string)}</span>
       ),
     },
     {
@@ -101,7 +101,7 @@ export function AgentLibrary({ agents, onSelectAgent, onAddAgent, onDeleteAgent 
         return (
           <div className="flex flex-wrap gap-1">
             {affects.map((surface) => (
-              <span key={surface} className="inline-flex rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-700 border border-blue-100">
+              <span key={surface} className="inline-flex rounded-full bg-accent-soft px-2 py-0.5 text-xs text-accent-solid border border-accent-line">
                 {surface}
               </span>
             ))}
@@ -116,7 +116,7 @@ export function AgentLibrary({ agents, onSelectAgent, onAddAgent, onDeleteAgent 
         <Button
           variant="ghost"
           size="sm"
-          className="text-red-500 hover:text-red-700"
+          className="text-stop hover:text-stop"
           // The row itself opens the agent, so the click must not do both.
           onClick={(e) => { e.stopPropagation(); onDeleteAgent(agent as unknown as AIAgent); }}
         >
@@ -132,8 +132,8 @@ export function AgentLibrary({ agents, onSelectAgent, onAddAgent, onDeleteAgent 
     <div>
       <div className="mb-4 flex items-center justify-between">
         <div>
-          <h2 className="text-sm font-semibold text-gray-900">Agent Library</h2>
-          <p className="text-xs text-gray-500">{agents.length} agents configured</p>
+          <h2 className="text-sm font-semibold text-ink">Agent Library</h2>
+          <p className="text-xs text-ink-3">{agents.length} agents configured</p>
         </div>
         <Button size="sm" onClick={onAddAgent}>
           <Plus className="size-3.5" />

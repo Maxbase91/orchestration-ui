@@ -19,18 +19,32 @@ that gets harder the longer it waits. **Low** — polish.
 
 ## Summary
 
-| # | Finding | Severity | Scale |
-|---|---|---|---|
-| 1 | Text at 2.54:1 contrast — fails WCAG AA | **High** | 194 uses |
-| 2 | 24 of 31 async surfaces have no error state | **High** | 24 files |
-| 3 | No semantic token layer; components name raw palette colours | **High** | 1,390 uses |
-| 4 | `Inter` is named as the UI font and never fetched | **High** | whole app |
-| 5 | Numbers do not align in any table | **Medium** | 5 of 65 files |
-| 6 | No dark mode, and the 42 `dark:` classes present do nothing | **Medium** | 42 uses |
-| 7 | Type scale is 11 sizes, 7 of them arbitrary pixels | **Medium** | 221 uses |
-| 8 | Tables have no column widths — layout shifts on load | **Medium** | all tables |
-| 9 | Three clickable `<div>`s are keyboard-unreachable | **Medium** | 3 sites |
-| 10 | Theme's own `--color-text-muted` and amber fail AA | **Medium** | theme |
+Status is as of Phase 1's colour work. "Closed" means a guard now fails if it
+comes back, not that it was fixed once.
+
+| # | Finding | Severity | Scale | Status |
+|---|---|---|---|---|
+| 1 | Text at 2.54:1 contrast — fails WCAG AA | **High** | 194 uses | **Closed** — `text-gray-400` → `--ink-3` (4.71–5.09:1) |
+| 2 | 24 of 31 async surfaces have no error state | **High** | 24 files | Open — `<AsyncBoundary>` exists; 24 call sites to convert |
+| 3 | No semantic token layer; components name raw palette colours | **High** | 1,390 uses | **Closed** — 2,538 classes remapped, 267 files hold none |
+| 4 | `Inter` is named as the UI font and never fetched | **High** | whole app | **Closed** — Inter + IBM Plex Mono fetched |
+| 5 | Numbers do not align in any table | **Medium** | 5 of 65 files | Partly — `DataTable` supports `numeric`; per-column adoption outstanding |
+| 6 | No dark mode, and the 42 `dark:` classes present do nothing | **Medium** | 42 uses | **Closed** — three-state theme live; dead `dark:` classes removed |
+| 7 | Type scale is 11 sizes, 7 of them arbitrary pixels | **Medium** | 221 uses | Open — six role-named sizes exist; screens adopt them per phase |
+| 8 | Tables have no column widths — layout shifts on load | **Medium** | all tables | Partly — `DataTable` supports `width`; per-column adoption outstanding |
+| 9 | Three clickable `<div>`s are keyboard-unreachable | **Medium** | 3 sites | Partly — `KPICard` and `DataTable` rows fixed; one site left |
+| 10 | Theme's own `--color-text-muted` and amber fail AA | **Medium** | theme | **Closed** — both roles now alias AA-passing tokens |
+
+### Found during the work, not in the original audit
+
+| Finding | Where |
+|---|---|
+| A migrated text on an unmigrated surface renders at **1.16:1** — per-file migration was never safe for dark | the whole phasing; fixed by aliasing shadcn's roles to the tokens |
+| `bg-white`, 136 uses: a literal surface that cannot follow the theme | swapped to `--card`, byte-identical in light |
+| `text-text-primary` — reads like a token, was a fixed near-black | aliased; it was why the header user name vanished in dark |
+| `text-white` on a status fill: 6.12:1 light, **2.32:1 dark** | 15 sites, now `--paper`, which flips |
+| `Sparkline` derived its gradient id from the colour string, so a `var()` colour silently produced no fill | fixed with `useId` |
+| An approvals card asserted AI-generated facts present in no record | removed; see the commit |
 
 ---
 

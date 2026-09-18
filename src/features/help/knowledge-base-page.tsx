@@ -162,7 +162,7 @@ export function KnowledgeBasePage() {
       <div className="space-y-6">
         {filteredCategories.map((cat) => (
           <div key={cat.name}>
-            <h2 className="mb-3 text-sm font-semibold text-gray-900 uppercase tracking-wide">
+            <h2 className="mb-3 text-sm font-semibold text-ink uppercase tracking-wide">
               {cat.name}
             </h2>
             <div className="space-y-2">
@@ -171,7 +171,7 @@ export function KnowledgeBasePage() {
                 return (
                   <Card key={article.id} className="overflow-hidden">
                     <button
-                      className="flex w-full items-center justify-between px-5 py-3.5 text-left hover:bg-gray-50"
+                      className="flex w-full items-center justify-between px-5 py-3.5 text-left hover:bg-card-2"
                       onClick={() => toggleArticle(article.id)}
                     >
                       <span className="text-sm font-medium">
@@ -190,7 +190,7 @@ export function KnowledgeBasePage() {
                           .map((paragraph, idx) => (
                             <p
                               key={idx}
-                              className="text-sm text-gray-700 leading-relaxed"
+                              className="text-sm text-ink-2 leading-relaxed"
                             >
                               {paragraph}
                             </p>

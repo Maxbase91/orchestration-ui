@@ -462,19 +462,19 @@ export function SmartCommandBar() {
   // ============================================================
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+    <div className="rounded-xl border border-line bg-card shadow-sm overflow-hidden">
       <div className="h-1 bg-gradient-to-r from-[#1B2A4A] via-[#2D5F8A] to-[#D4782F]" />
 
       <div className="p-6">
         {/* Title */}
         <div className="flex items-center justify-center gap-2 mb-4">
           <Sparkles className="size-5 text-[#2D5F8A]" />
-          <h2 className="text-lg font-semibold text-gray-900">What do you need?</h2>
+          <h2 className="text-lg font-semibold text-ink">What do you need?</h2>
         </div>
 
         {/* Search Input */}
         <form onSubmit={handleSubmit} className="relative max-w-2xl mx-auto">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-5 text-gray-400" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-5 text-ink-3" />
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -487,7 +487,7 @@ export function SmartCommandBar() {
             </div>
           )}
           {!loading && (input || proposal || showCatalogue) && (
-            <button type="button" onClick={handleClear} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+            <button type="button" onClick={handleClear} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-3 hover:text-ink-2">
               <X className="size-4" />
             </button>
           )}
@@ -495,7 +495,7 @@ export function SmartCommandBar() {
 
         {/* AI hint */}
         {!proposal && !showCatalogue && !loading && (
-          <p className="mt-2 text-center text-xs text-gray-400">
+          <p className="mt-2 text-center text-xs text-ink-3">
             Describe what you need and we&apos;ll route it — or ask a question and the{' '}
             <span className="font-medium text-[#2D5F8A]">AI assistant</span> takes it →
           </p>
@@ -503,7 +503,7 @@ export function SmartCommandBar() {
 
         {/* Loading */}
         {loading && (
-          <div className="flex items-center justify-center gap-2 mt-6 text-sm text-gray-500">
+          <div className="flex items-center justify-center gap-2 mt-6 text-sm text-ink-3">
             <Loader2 className="size-4 animate-spin" />
             Analysing...
           </div>
@@ -516,19 +516,19 @@ export function SmartCommandBar() {
         {proposal?.type === 'identified' && !showCatalogue && !loading && (
           <div className="mt-6 max-w-2xl mx-auto space-y-3">
             <div className="flex items-start gap-2">
-              <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-blue-100 mt-0.5">
+              <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-accent-soft mt-0.5">
                 <Sparkles className="size-3 text-[#2D5F8A]" />
               </div>
-              <p className="text-sm text-gray-700">{proposal.message}</p>
+              <p className="text-sm text-ink-2">{proposal.message}</p>
             </div>
             {proposal.catalogueItems.map((item) => (
               <div
                 key={item.id}
-                className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white p-4"
+                className="flex items-center justify-between gap-3 rounded-lg border border-line bg-card p-4"
               >
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-gray-900">{item.name}</p>
-                  <p className="mt-0.5 truncate text-xs text-gray-500">
+                  <p className="truncate text-sm font-semibold text-ink">{item.name}</p>
+                  <p className="mt-0.5 truncate text-xs text-ink-3">
                     {formatCurrency(item.unitPrice)} / {item.unit} · {item.supplierName} · {item.leadTime}
                   </p>
                 </div>
@@ -543,14 +543,14 @@ export function SmartCommandBar() {
             <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
               <button
                 type="button"
-                className="text-xs font-medium text-blue-600 hover:underline"
+                className="text-xs font-medium text-accent-solid hover:underline"
                 onClick={() => handleLinkClick(`/requests/new?q=${encodeURIComponent(proposal.query ?? '')}`)}
               >
                 Not what you need? Describe it in full →
               </button>
               <button
                 type="button"
-                className="text-xs text-gray-500 hover:text-gray-700 hover:underline"
+                className="text-xs text-ink-3 hover:text-ink-2 hover:underline"
                 onClick={() => { setProposal(null); setCatalogueResults([]); setShowCatalogue(true); }}
               >
                 Browse the whole catalogue
@@ -562,15 +562,15 @@ export function SmartCommandBar() {
         {/* ── PROPOSAL CARD (non-catalogue) ── */}
         {proposal && proposal.type !== 'identified' && !showCatalogue && !loading && (
           <div className="mt-6 max-w-2xl mx-auto">
-            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-3">
+            <div className="rounded-lg border border-line bg-card-2 p-4 space-y-3">
               <div className="flex items-start gap-2">
-                <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-blue-100 mt-0.5">
+                <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-accent-soft mt-0.5">
                   <Sparkles className="size-3 text-[#2D5F8A]" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm text-gray-700">{proposal.message}</p>
+                  <p className="text-sm text-ink-2">{proposal.message}</p>
                   {proposal.agent?.name && proposal.agent.status === 'active' && (
-                    <p className="mt-1 text-[11px] text-gray-400">
+                    <p className="mt-1 text-[11px] text-ink-3">
                       via {proposal.agent.name} ({proposal.agent.id}) · accuracy {proposal.agent.accuracy ?? 0}%
                     </p>
                   )}
@@ -602,10 +602,10 @@ export function SmartCommandBar() {
             {/* Catalogue message */}
             {proposal && (
               <div className="flex items-start gap-2">
-                <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-blue-100 mt-0.5">
+                <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-accent-soft mt-0.5">
                   <Sparkles className="size-3 text-[#2D5F8A]" />
                 </div>
-                <p className="text-sm text-gray-700">{proposal.message}</p>
+                <p className="text-sm text-ink-2">{proposal.message}</p>
               </div>
             )}
 
@@ -619,7 +619,7 @@ export function SmartCommandBar() {
                     key={cat.id}
                     type="button"
                     onClick={() => handleBrowseCategory(cat.id)}
-                    className={`flex flex-col items-center gap-1.5 rounded-lg border p-3 text-center transition-colors ${isActive ? 'border-[#2D5F8A] bg-blue-50 text-[#2D5F8A]' : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-gray-600'}`}
+                    className={`flex flex-col items-center gap-1.5 rounded-lg border p-3 text-center transition-colors ${isActive ? 'border-[#2D5F8A] bg-accent-soft text-[#2D5F8A]' : 'border-line hover:border-line hover:bg-card-2 text-ink-2'}`}
                   >
                     <Icon className="size-5" />
                     <span className="text-[10px] font-medium leading-tight">{cat.name}</span>
@@ -634,29 +634,29 @@ export function SmartCommandBar() {
                 {catalogueResults.slice(0, 9).map((item) => {
                   const inCart = cart.find((c) => c.item.id === item.id);
                   return (
-                    <div key={item.id} className="rounded-lg border border-gray-200 bg-white p-3 space-y-2">
+                    <div key={item.id} className="rounded-lg border border-line bg-card p-3 space-y-2">
                       <div>
                         <button
                           type="button"
-                          className="text-left text-sm font-medium text-gray-900 hover:text-[#2D5F8A] hover:underline"
+                          className="text-left text-sm font-medium text-ink hover:text-[#2D5F8A] hover:underline"
                           onClick={() => { navigate(`/catalogue/items/${encodeURIComponent(item.id)}`); setProposal(null); setShowCatalogue(false); }}
                         >
                           {item.name}
                           <span className="sr-only"> View item details</span>
                         </button>
-                        <p className="text-xs text-gray-500 mt-0.5">{item.supplierName} &middot; {item.leadTime}</p>
+                        <p className="text-xs text-ink-3 mt-0.5">{item.supplierName} &middot; {item.leadTime}</p>
                       </div>
                       <div className="flex items-center justify-between">
-                        <p className="text-sm font-semibold text-gray-900">
-                          {formatCurrency(item.unitPrice)} <span className="text-xs font-normal text-gray-400">/ {item.unit}</span>
+                        <p className="text-sm font-semibold text-ink">
+                          {formatCurrency(item.unitPrice)} <span className="text-xs font-normal text-ink-3">/ {item.unit}</span>
                         </p>
                         {inCart && <Badge variant="secondary" className="text-[10px]">In cart</Badge>}
                       </div>
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-1">
-                          <button type="button" onClick={() => setQty(item.id, getQty(item.id) - 1)} className="flex size-7 items-center justify-center rounded border border-gray-200 hover:bg-gray-50"><Minus className="size-3" /></button>
+                          <button type="button" onClick={() => setQty(item.id, getQty(item.id) - 1)} className="flex size-7 items-center justify-center rounded border border-line hover:bg-card-2"><Minus className="size-3" /></button>
                           <span className="w-7 text-center text-xs font-medium">{getQty(item.id)}</span>
-                          <button type="button" onClick={() => setQty(item.id, getQty(item.id) + 1)} className="flex size-7 items-center justify-center rounded border border-gray-200 hover:bg-gray-50"><Plus className="size-3" /></button>
+                          <button type="button" onClick={() => setQty(item.id, getQty(item.id) + 1)} className="flex size-7 items-center justify-center rounded border border-line hover:bg-card-2"><Plus className="size-3" /></button>
                         </div>
                         <Button size="sm" variant="outline" onClick={() => addToCart(item)}><Plus className="size-3 mr-1" />Add</Button>
                       </div>
@@ -668,37 +668,37 @@ export function SmartCommandBar() {
 
             {/* Cart */}
             {cart.length > 0 && (
-              <div className="rounded-lg border border-green-200 bg-green-50 p-4 space-y-3">
+              <div className="rounded-lg border border-ok-line bg-ok-soft p-4 space-y-3">
                 <div className="flex items-center gap-2">
-                  <ShoppingCart className="size-4 text-green-600" />
-                  <h4 className="text-sm font-semibold text-green-900">Your Order</h4>
-                  <Badge variant="secondary" className="text-[10px] bg-green-100 text-green-700">{cart.length} item{cart.length !== 1 ? 's' : ''}</Badge>
+                  <ShoppingCart className="size-4 text-ok" />
+                  <h4 className="text-sm font-semibold text-ok">Your Order</h4>
+                  <Badge variant="secondary" className="text-[10px] bg-ok-soft text-ok">{cart.length} item{cart.length !== 1 ? 's' : ''}</Badge>
                 </div>
                 <div className="space-y-2">
                   {cart.map((c) => (
-                    <div key={c.item.id} className="flex items-center justify-between rounded-md bg-white border border-green-100 p-2">
+                    <div key={c.item.id} className="flex items-center justify-between rounded-md bg-card border border-ok-line p-2">
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium text-gray-900 truncate">{c.item.name}</p>
-                        <p className="text-[10px] text-gray-500">{c.quantity} x {formatCurrency(c.item.unitPrice)} = {formatCurrency(c.quantity * c.item.unitPrice)}</p>
+                        <p className="text-xs font-medium text-ink truncate">{c.item.name}</p>
+                        <p className="text-[10px] text-ink-3">{c.quantity} x {formatCurrency(c.item.unitPrice)} = {formatCurrency(c.quantity * c.item.unitPrice)}</p>
                       </div>
-                      <button type="button" onClick={() => removeFromCart(c.item.id)} className="ml-2 text-gray-400 hover:text-red-500"><X className="size-3.5" /></button>
+                      <button type="button" onClick={() => removeFromCart(c.item.id)} className="ml-2 text-ink-3 hover:text-stop"><X className="size-3.5" /></button>
                     </div>
                   ))}
                 </div>
-                <div className="border-t border-green-200 pt-2 flex items-center justify-between">
-                  <span className="text-sm font-semibold text-green-900">Total</span>
-                  <span className="text-sm font-bold text-green-900">{formatCurrency(cartTotal)}</span>
+                <div className="border-t border-ok-line pt-2 flex items-center justify-between">
+                  <span className="text-sm font-semibold text-ok">Total</span>
+                  <span className="text-sm font-bold text-ok">{formatCurrency(cartTotal)}</span>
                 </div>
-                <Button className="w-full bg-green-600 hover:bg-green-700 text-white" onClick={handleOrderNow}>
+                <Button className="w-full bg-ok hover:bg-ok text-paper" onClick={handleOrderNow}>
                   <Package className="size-4 mr-1.5" />Review order
                 </Button>
-                <p className="text-[11px] text-green-700 text-center">Pre-approved catalogue items. Estimated delivery: 2-3 business days.</p>
+                <p className="text-[11px] text-ok text-center">Pre-approved catalogue items. Estimated delivery: 2-3 business days.</p>
               </div>
             )}
 
             {/* Footer */}
             <div className="flex items-center gap-3 pt-1">
-                <Button variant="link" size="sm" className="text-xs text-gray-500 px-0" onClick={() => { navigate('/requests/new'); handleClear(); }}>
+                <Button variant="link" size="sm" className="text-xs text-ink-3 px-0" onClick={() => { navigate('/requests/new'); handleClear(); }}>
                   Not in the catalogue? Create a procurement request <ArrowRight className="size-3 ml-1" />
                 </Button>
             </div>

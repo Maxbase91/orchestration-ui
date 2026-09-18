@@ -19,13 +19,13 @@ const typeConfig: Record<
   Notification['type'],
   { icon: typeof CheckCircle; color: string; bg: string }
 > = {
-  'approval-request': { icon: CheckCircle, color: 'text-amber-600', bg: 'bg-amber-50' },
-  'status-update': { icon: RefreshCw, color: 'text-blue-600', bg: 'bg-blue-50' },
-  'sla-warning': { icon: AlertTriangle, color: 'text-red-600', bg: 'bg-red-50' },
-  escalation: { icon: ArrowUp, color: 'text-red-600', bg: 'bg-red-50' },
-  comment: { icon: MessageSquare, color: 'text-blue-600', bg: 'bg-blue-50' },
-  'system-alert': { icon: Shield, color: 'text-gray-600', bg: 'bg-gray-50' },
-  'ai-insight': { icon: Sparkles, color: 'text-purple-600', bg: 'bg-purple-50' },
+  'approval-request': { icon: CheckCircle, color: 'text-warn', bg: 'bg-warn-soft' },
+  'status-update': { icon: RefreshCw, color: 'text-accent-solid', bg: 'bg-accent-soft' },
+  'sla-warning': { icon: AlertTriangle, color: 'text-stop', bg: 'bg-stop-soft' },
+  escalation: { icon: ArrowUp, color: 'text-stop', bg: 'bg-stop-soft' },
+  comment: { icon: MessageSquare, color: 'text-accent-solid', bg: 'bg-accent-soft' },
+  'system-alert': { icon: Shield, color: 'text-ink-2', bg: 'bg-card-2' },
+  'ai-insight': { icon: Sparkles, color: 'text-accent-solid', bg: 'bg-accent-soft' },
 };
 
 interface NotificationItemProps {
@@ -42,8 +42,8 @@ export function NotificationItem({ notification, onMarkRead }: NotificationItemP
     <div
       className={cn(
         'group relative flex gap-3 rounded-lg border p-3 transition-colors',
-        notification.isRead ? 'bg-white border-gray-100' : 'bg-blue-50/30 border-blue-100',
-        'hover:bg-gray-50 cursor-pointer'
+        notification.isRead ? 'bg-card border-line-2' : 'bg-accent-soft/30 border-accent-line',
+        'hover:bg-card-2 cursor-pointer'
       )}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -51,7 +51,7 @@ export function NotificationItem({ notification, onMarkRead }: NotificationItemP
     >
       {/* Unread indicator */}
       {!notification.isRead && (
-        <div className="absolute top-3.5 left-1 size-2 rounded-full bg-blue-500" />
+        <div className="absolute top-3.5 left-1 size-2 rounded-full bg-accent-solid" />
       )}
 
       {/* Type icon */}

@@ -75,19 +75,19 @@ export function DelegationManager() {
     <div className="space-y-6">
       {delegations.length > 0 && (
         <div className="space-y-3">
-          <h3 className="text-sm font-medium text-gray-900">Active Delegations</h3>
+          <h3 className="text-body font-medium text-ink">Active Delegations</h3>
           {delegations.map((d) => (
             <div
               key={d.id}
-              className="flex items-center justify-between rounded-md border border-blue-200 bg-blue-50 px-4 py-3"
+              className="flex items-center justify-between rounded-md border border-accent-line bg-accent-soft px-4 py-3"
             >
               <div className="flex items-center gap-3">
-                <UserCheck className="size-4 text-blue-600" />
+                <UserCheck className="size-4 text-accent-solid" />
                 <div>
-                  <p className="text-sm font-medium text-gray-900">
+                  <p className="text-body font-medium text-ink">
                     Delegated to {d.delegateName}
                   </p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-caption text-ink-3">
                     {d.fromDate} to {d.toDate} &middot; {d.scope}
                   </p>
                 </div>
@@ -111,7 +111,7 @@ export function DelegationManager() {
         </Button>
       ) : (
         <div className="rounded-md border p-4 space-y-4">
-          <h3 className="text-sm font-medium text-gray-900">Set up delegation</h3>
+          <h3 className="text-body font-medium text-ink">Set up delegation</h3>
 
           <div className="space-y-2">
             <Label htmlFor="delegate">Delegate</Label>

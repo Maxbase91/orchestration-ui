@@ -83,8 +83,8 @@ export function PipelineDashboardPage() {
       />
 
       {/* Funnel Visualization */}
-      <div className="rounded-md bg-white p-6 shadow-[0_1px_4px_rgba(0,0,0,0.08)]">
-        <h3 className="mb-6 text-sm font-semibold text-gray-900">Request Funnel</h3>
+      <div className="rounded-md bg-card p-6 shadow-[0_1px_4px_rgba(0,0,0,0.08)]">
+        <h3 className="mb-6 text-sm font-semibold text-ink">Request Funnel</h3>
         <div className="space-y-3">
           {funnelData.map((stage, i) => {
             const widthPct = Math.max((stage.count / maxFunnelCount) * 100, 8);
@@ -97,7 +97,7 @@ export function PipelineDashboardPage() {
             return (
               <div key={stage.label}>
                 <div className="flex items-center gap-4">
-                  <span className="w-28 shrink-0 text-sm font-medium text-gray-700">
+                  <span className="w-28 shrink-0 text-sm font-medium text-ink-2">
                     {stage.label}
                   </span>
                   <div className="flex-1">
@@ -113,7 +113,7 @@ export function PipelineDashboardPage() {
                     </div>
                   </div>
                   {conversionRate !== null && (
-                    <span className="w-16 shrink-0 text-right text-xs text-gray-500">
+                    <span className="w-16 shrink-0 text-right text-xs text-ink-3">
                       {conversionRate}% &darr;
                     </span>
                   )}
@@ -122,15 +122,15 @@ export function PipelineDashboardPage() {
             );
           })}
         </div>
-        <p className="mt-4 text-xs text-gray-500">
+        <p className="mt-4 text-xs text-ink-3">
           Total active requests in funnel: {totalFunnel}
         </p>
       </div>
 
       {/* Cycle Time Distribution + Throughput */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="rounded-md bg-white p-4 shadow-[0_1px_4px_rgba(0,0,0,0.08)]">
-          <h3 className="mb-4 text-sm font-semibold text-gray-900">
+        <div className="rounded-md bg-card p-4 shadow-[0_1px_4px_rgba(0,0,0,0.08)]">
+          <h3 className="mb-4 text-sm font-semibold text-ink">
             Cycle Time Distribution (Avg Days per Stage)
           </h3>
           <BarChartWidget
@@ -139,8 +139,8 @@ export function PipelineDashboardPage() {
             height={300}
           />
         </div>
-        <div className="rounded-md bg-white p-4 shadow-[0_1px_4px_rgba(0,0,0,0.08)]">
-          <h3 className="mb-4 text-sm font-semibold text-gray-900">Throughput (Completed per Month)</h3>
+        <div className="rounded-md bg-card p-4 shadow-[0_1px_4px_rgba(0,0,0,0.08)]">
+          <h3 className="mb-4 text-sm font-semibold text-ink">Throughput (Completed per Month)</h3>
           <LineChartWidget
             data={throughputData}
             dataKeys={[{ key: 'value', color: '#2E7D4F', label: 'Requests Completed' }]}
@@ -150,8 +150,8 @@ export function PipelineDashboardPage() {
       </div>
 
       {/* Ageing Analysis */}
-      <div className="rounded-md bg-white p-4 shadow-[0_1px_4px_rgba(0,0,0,0.08)]">
-        <h3 className="mb-4 text-sm font-semibold text-gray-900">Ageing Analysis</h3>
+      <div className="rounded-md bg-card p-4 shadow-[0_1px_4px_rgba(0,0,0,0.08)]">
+        <h3 className="mb-4 text-sm font-semibold text-ink">Ageing Analysis</h3>
         <BarChartWidget
           data={ageingData}
           dataKeys={[{ key: 'value', color: '#D4782F', label: 'Requests' }]}

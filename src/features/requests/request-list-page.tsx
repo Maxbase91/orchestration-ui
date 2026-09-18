@@ -46,7 +46,7 @@ export function RequestListPage({ title, filterMine = false }: RequestListPagePr
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-semibold text-gray-900">{title}</h1>
+      <h1 className="text-xl font-semibold text-ink">{title}</h1>
       {loading && (
         <p className="text-sm text-muted-foreground">Loading requests...</p>
       )}
@@ -71,13 +71,13 @@ export function RequestListPage({ title, filterMine = false }: RequestListPagePr
                 return (
                   <TableRow
                     key={req.id}
-                    className="cursor-pointer hover:bg-gray-50"
+                    className="cursor-pointer hover:bg-card-2"
                     onClick={() => navigate(`/requests/${req.id}`)}
                   >
                     <TableCell className="text-xs font-mono text-muted-foreground">
                       {req.id}
                     </TableCell>
-                    <TableCell className="text-sm font-medium text-gray-900 max-w-[300px] truncate">
+                    <TableCell className="text-sm font-medium text-ink max-w-[300px] truncate">
                       {req.title}
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
@@ -93,7 +93,7 @@ export function RequestListPage({ title, filterMine = false }: RequestListPagePr
                       {owner?.name ?? '-'}
                     </TableCell>
                     <TableCell className="text-center">
-                      <span className={`text-xs font-medium ${req.isOverdue ? 'text-red-600' : 'text-gray-600'}`}>
+                      <span className={`text-xs font-medium ${req.isOverdue ? 'text-stop' : 'text-ink-2'}`}>
                         {req.daysInStage}
                       </span>
                     </TableCell>

@@ -75,8 +75,8 @@ export function DemandPipelinePage() {
         <KPICard label="Conversion Rate" value={conversionRate} format="percentage" />
       </div>
 
-      <div className="rounded-md border bg-white p-4 shadow-sm">
-        <h3 className="text-sm font-semibold text-gray-900 mb-4">Pipeline Distribution</h3>
+      <div className="rounded-md border bg-card p-4 shadow-sm">
+        <h3 className="text-sm font-semibold text-ink mb-4">Pipeline Distribution</h3>
         <DemandPipelineChart />
       </div>
 
@@ -85,19 +85,19 @@ export function DemandPipelinePage() {
           const stageRequests = grouped[stage.key] ?? [];
           const isExpanded = expandedStages.has(stage.key);
           return (
-            <div key={stage.key} className="rounded-md border bg-white shadow-sm">
+            <div key={stage.key} className="rounded-md border bg-card shadow-sm">
               <button
-                className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-gray-50"
+                className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-card-2"
                 onClick={() => toggleStage(stage.key)}
               >
                 <div className="flex items-center gap-3">
                   {isExpanded ? (
-                    <ChevronDown className="size-4 text-gray-500" />
+                    <ChevronDown className="size-4 text-ink-3" />
                   ) : (
-                    <ChevronRight className="size-4 text-gray-500" />
+                    <ChevronRight className="size-4 text-ink-3" />
                   )}
-                  <span className="text-sm font-semibold text-gray-900">{stage.label}</span>
-                  <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
+                  <span className="text-sm font-semibold text-ink">{stage.label}</span>
+                  <span className="inline-flex items-center rounded-full bg-idle-soft px-2 py-0.5 text-xs font-medium text-ink-2">
                     {stageRequests.length}
                   </span>
                 </div>
@@ -109,7 +109,7 @@ export function DemandPipelinePage() {
                 <div className="border-t">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b bg-gray-50">
+                      <tr className="border-b bg-card-2">
                         <th className="px-4 py-2 text-left font-medium text-muted-foreground">ID</th>
                         <th className="px-4 py-2 text-left font-medium text-muted-foreground">Title</th>
                         <th className="px-4 py-2 text-left font-medium text-muted-foreground">Priority</th>
@@ -122,7 +122,7 @@ export function DemandPipelinePage() {
                       {stageRequests.map((r) => (
                         <tr
                           key={r.id}
-                          className={cn('cursor-pointer hover:bg-gray-50', r.isOverdue && 'bg-red-50')}
+                          className={cn('cursor-pointer hover:bg-card-2', r.isOverdue && 'bg-stop-soft')}
                           onClick={() => navigate(`/requests/${r.id}`)}
                         >
                           <td className="px-4 py-2 font-mono text-xs">{r.id}</td>
@@ -133,7 +133,7 @@ export function DemandPipelinePage() {
                           <td className="px-4 py-2 text-right">{formatCurrency(r.value)}</td>
                           <td className="px-4 py-2 text-center">
                             {/* More than 5 days in one stage is treated as stalling. */}
-                            <span className={cn('font-semibold', r.daysInStage > 5 ? 'text-red-600' : 'text-gray-700')}>
+                            <span className={cn('font-semibold', r.daysInStage > 5 ? 'text-stop' : 'text-ink-2')}>
                               {r.daysInStage}
                             </span>
                           </td>

@@ -203,7 +203,7 @@ export function EventEvaluationPage() {
         </CardHeader>
         <CardContent className="space-y-3">
           {leader ? (
-            <p className="text-sm text-gray-700">
+            <p className="text-sm text-ink-2">
               Based on weighted scoring, the recommended award is to{' '}
               <strong>{leader.supplierName}</strong>
               {leader.price != null && <> at {formatCurrency(leader.price, event.currency)}</>}

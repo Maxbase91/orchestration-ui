@@ -18,11 +18,11 @@ export function OOOWarning({
   onDismiss,
 }: OOOWarningProps) {
   return (
-    <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
+    <div className="rounded-md border border-warn-line bg-warn-soft p-3">
       <div className="flex items-start gap-2">
-        <AlertTriangle className="size-4 shrink-0 text-amber-600 mt-0.5" />
+        <AlertTriangle className="size-4 shrink-0 text-warn mt-0.5" />
         <div className="min-w-0 flex-1">
-          <p className="text-sm text-amber-800">
+          <p className="text-body text-warn">
             This approval requires <span className="font-medium">{approverName}</span> who is
             currently OOO. Would you like to route to their delegate{' '}
             <span className="font-medium">{delegateName}</span>?

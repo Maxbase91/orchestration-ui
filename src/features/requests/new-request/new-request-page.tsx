@@ -69,9 +69,9 @@ class StepErrorBoundary extends Component<{ children: ReactNode; onReset: () => 
     if (this.state.error) {
       return (
         <div className="flex flex-col items-center justify-center py-12 text-center">
-          <AlertTriangle className="size-8 text-amber-500 mb-3" />
-          <p className="text-sm font-medium text-gray-900 mb-1">Something went wrong in this step</p>
-          <p className="text-xs text-gray-500 mb-4 max-w-md">{this.state.error.message}</p>
+          <AlertTriangle className="size-8 text-warn mb-3" />
+          <p className="text-sm font-medium text-ink mb-1">Something went wrong in this step</p>
+          <p className="text-xs text-ink-3 mb-4 max-w-md">{this.state.error.message}</p>
           <Button size="sm" variant="outline" onClick={() => { this.setState({ error: null }); this.props.onReset(); }}>
             Start Over
           </Button>
@@ -636,10 +636,10 @@ export function NewRequestPage() {
         {/* The header sat outside the confirmation guard, so a submitted
             request was still headed "Start a request" — inviting the one thing
             the requester had just finished doing. */}
-        <h1 className="mt-1 text-xl font-semibold text-gray-900">
+        <h1 className="mt-1 text-xl font-semibold text-ink">
           {stepId === 'confirmation' ? 'Request submitted' : 'Start a request'}
         </h1>
-        <p className="mt-0.5 text-sm text-gray-500">
+        <p className="mt-0.5 text-sm text-ink-3">
           {stepId === 'confirmation'
             ? `${requestId} is with procurement. Track it from your dashboard.`
             : isCatalogue
@@ -661,10 +661,10 @@ export function NewRequestPage() {
                   className={cn(
                     'flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-medium transition-colors',
                     position < current
-                      ? 'bg-green-600 text-white'
+                      ? 'bg-ok text-paper'
                       : position === current
-                        ? 'bg-blue-600 text-white'
-                        : 'border-2 border-gray-200 bg-white text-gray-400'
+                        ? 'bg-accent-solid text-paper'
+                        : 'border-2 border-line bg-card text-ink-3'
                   )}
                 >
                   {position < current ? (
@@ -679,7 +679,7 @@ export function NewRequestPage() {
                   <div
                     className={cn(
                       'mx-1 h-0.5 flex-1',
-                      position < current ? 'bg-green-600' : 'bg-gray-200'
+                      position < current ? 'bg-ok' : 'bg-line'
                     )}
                   />
                 )}
@@ -688,10 +688,10 @@ export function NewRequestPage() {
                 className={cn(
                   'text-xs text-center',
                   position === current
-                    ? 'font-semibold text-blue-600'
+                    ? 'font-semibold text-accent-solid'
                     : position < current
-                      ? 'font-medium text-green-700'
-                      : 'text-gray-400'
+                      ? 'font-medium text-ok'
+                      : 'text-ink-3'
                 )}
               >
                 {step.label}
@@ -701,7 +701,7 @@ export function NewRequestPage() {
                   turned into a wall of text. The titles still show the whole
                   path; the detail belongs to where you actually are. */}
               {position === current && (
-                <span className="hidden text-center text-[10px] leading-tight text-gray-500 sm:block">
+                <span className="hidden text-center text-[10px] leading-tight text-ink-3 sm:block">
                   {stepDescription(step.id, route)}
                 </span>
               )}
@@ -716,7 +716,7 @@ export function NewRequestPage() {
           need?" was the same words twice within one screen height. */}
 
       {/* Step Content */}
-      <div className="rounded-lg border border-gray-200 bg-white p-6">
+      <div className="rounded-lg border border-line bg-card p-6">
         {/* What this step is for, what it needs, and what follows from it. The
             confirmation step carries its own version of this and is excluded in
             the guidance map. */}
@@ -807,9 +807,9 @@ export function NewRequestPage() {
           ) : <StepCatalogue onPlaceOrder={(order) => void submitCatalogueOrder(order)} />
         )}
         {stepId === 'details' && formData.preCheckOutcome === 'contract' && (
-          <div className="mb-4 rounded-lg border border-blue-100 bg-blue-50/40 p-4 text-sm">
-            <p className="font-medium text-blue-900">Contract call-off</p>
-            <p className="mt-0.5 text-blue-800">
+          <div className="mb-4 rounded-lg border border-accent-line bg-accent-soft/40 p-4 text-sm">
+            <p className="font-medium text-accent-solid">Contract call-off</p>
+            <p className="mt-0.5 text-accent-solid">
               Confirm the value and timing for this purchase against{' '}
               {formData.contractTitle || 'the selected contract'}. The contract ceiling is not
               the value of this individual call-off.
@@ -978,7 +978,7 @@ export function NewRequestPage() {
             {/* A disabled Next that does not say why is a dead end. Name what is
                 still outstanding, in the requester's terms. */}
             {stepId === 'details' && isChatIntakePath && outstanding.length > 0 && (
-              <p className="mr-1 max-w-md text-right text-xs text-gray-500">
+              <p className="mr-1 max-w-md text-right text-xs text-ink-3">
                 Still needed:{' '}
                 {outstanding
                   .map((slot) => slot.target.field.replace(/([A-Z])/g, ' $1').toLowerCase())
@@ -989,7 +989,7 @@ export function NewRequestPage() {
             {/* The form paths need the same courtesy: a disabled Next that does
                 not say why is a dead end wherever it appears. */}
             {stepId === 'details' && !isChatIntakePath && missingDetailFields.length > 0 && (
-              <p className="mr-1 max-w-md text-right text-xs text-gray-500">
+              <p className="mr-1 max-w-md text-right text-xs text-ink-3">
                 To review this request, add {missingDetailFields.join(', ')}.
               </p>
             )}

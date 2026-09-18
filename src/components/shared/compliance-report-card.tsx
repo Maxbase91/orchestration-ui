@@ -41,7 +41,7 @@ export function ComplianceReportCard({ report, defaultExpanded = false }: Compli
         <div className="flex items-center gap-2">
           <Sparkles className="size-4 shrink-0 text-ink-3" />
           <span className="text-sm font-semibold text-ink-2">PR Compliance Review</span>
-          <span className="rounded-full border border-line bg-white px-2 py-0.5 text-xs text-ink-3">
+          <span className="rounded-full border border-line bg-card px-2 py-0.5 text-xs text-ink-3">
             {agent.name} is {agent.status}
           </span>
         </div>
