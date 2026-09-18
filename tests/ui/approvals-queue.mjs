@@ -31,7 +31,11 @@ const ADMIN = {
 const LAUNCH = process.env.PW_CHROMIUM_PATH ? { executablePath: process.env.PW_CHROMIUM_PATH } : {};
 
 let failures = 0;
+let checks = 0;
+/** Set only once the assertions have actually been reached — see the end. */
+let ran = false;
 const check = (name, cond, detail = '') => {
+  checks += 1;
   if (cond) console.log(`  \x1b[32m✓\x1b[0m ${name}`);
   else { failures++; console.error(`  \x1b[31m✗\x1b[0m ${name}${detail ? ` — ${detail}` : ''}`); }
 };
@@ -113,6 +117,7 @@ try {
 
   check('no page errors', errors.length === 0, errors.slice(0, 2).join(' | '));
   await context.close();
+  ran = true;
 } catch (err) {
   console.error('approvals queue UI smoke errored:', err.message);
   process.exitCode = 1;
@@ -122,5 +127,17 @@ try {
 }
 
 console.log('');
-if (failures) { console.error(`FAILED: ${failures} check(s)`); process.exitCode = 1; }
-else console.log('All approvals queue UI checks passed.');
+// `ran` matters as much as `failures`. On the first CI run this suite printed
+// "All approvals queue UI checks passed" AFTER Chromium failed to launch —
+// zero checks executed, reported as a pass, which is precisely the
+// "a check that did not run recorded as clear" failure the platform refuses.
+// A harness that never got to the assertions is a failure, not a pass.
+if (!ran) {
+  console.error('FAILED: the suite did not reach its assertions.');
+  process.exitCode = 1;
+} else if (failures) {
+  console.error(`FAILED: ${failures} check(s)`);
+  process.exitCode = 1;
+} else {
+  console.log(`All ${checks} approvals queue UI checks passed.`);
+}
