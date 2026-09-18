@@ -114,6 +114,7 @@
     "test:service-description-ui": "node tests/ui/service-description-admin.mjs",
     "test:routing-rules-ui": "node tests/ui/routing-rules-admin.mjs",
     "test:approval-chains-ui": "node tests/ui/approval-chains-admin.mjs",
+    "test:approvals-ui": "node tests/ui/approvals-queue.mjs",
     "test:form-builder-ui": "node tests/ui/form-builder-admin.mjs",
     "test:intake-guidance-ui": "node tests/ui/intake-guidance-ui.mjs",
     "test:request-detail-ui": "node tests/ui/request-detail-e2e.mjs",

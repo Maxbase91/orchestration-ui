@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { cn } from '@/lib/utils';
 import { Link } from 'react-router-dom';
 import {
   Check,
@@ -163,115 +164,10 @@ export function ApprovalCard({
     }
   };
 
-  return (
-    <div className="rounded-lg border bg-card p-4 shadow-sm">
-      <div className="flex items-start gap-3">
-        <Checkbox
-          checked={selected}
-          onCheckedChange={(checked) => onSelectChange(checked === true)}
-          className="mt-1"
-        />
-
-        <div className="min-w-0 flex-1 space-y-3">
-          {/* Header.
-              Three tiers, so the row answers "what am I approving, how much,
-              and how urgently" before anything else is read:
-                1. the request, and the amount — tabular figures, so a column of
-                   decisions can be compared down the page;
-                2. which decision this is (step and role) and who asked;
-                3. everything else, below.
-              The amount was already on the card, as a small span among the
-              badges. It is the fact this screen exists to present, so it leads
-              rather than sits in a row of chips. */}
-          <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <Link
-                  to={`/requests/${request.id}`}
-                  className="group inline-flex items-center gap-1.5 text-body font-semibold text-ink hover:text-accent-solid"
-                >
-                  {request.title}
-                  <ExternalLink className="size-3 text-ink-3 group-hover:text-accent-solid" aria-hidden="true" />
-                </Link>
-                <Link
-                  to={`/requests/${request.id}`}
-                  className="font-mono text-caption text-ink-3 hover:text-accent-solid hover:underline"
-                >
-                  {request.id}
-                </Link>
-              </div>
-              <p className="text-caption text-ink-3 mt-0.5">
-                {approval.approverRole} &middot; requested by{' '}
-                {requestor?.name ?? 'Unknown'}
-              </p>
-            </div>
-            <div className="flex flex-col items-end gap-1 shrink-0 text-right">
-              <span className="text-heading font-semibold tabular-nums text-ink leading-none">
-                {formatCurrency(request.value, request.currency)}
-              </span>
-              {request.slaDeadline && (
-                <SLACountdown deadline={request.slaDeadline} compact />
-              )}
-              {request.isOverdue && !request.slaDeadline && (
-                <span className="text-caption font-medium text-stop">Overdue</span>
-              )}
-            </div>
-          </div>
-
-          {/* Badges row.
-              The amount used to sit here, as a small span among the badges. It
-              has moved to the header — same fact, given the weight the decision
-              deserves — so it is not repeated here. */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <Badge variant="secondary" className={priorityCfg.color}>
-              {getStatusLabel(request.priority)}
-            </Badge>
-            <Badge variant="outline">
-              {categoryLabels[request.category] ?? request.category}
-            </Badge>
-            <StatusBadge status={approval.status} size="sm" />
-          </div>
-
-          {/* Key data points. An empty one renders an em dash rather than a
-              bare label: "Budget Owner:" followed by nothing reads as a broken
-              field, and every cost centre in the seed is in fact unowned. */}
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-caption text-ink-2 sm:grid-cols-4">
-            {[
-              ['Cost centre', request.costCentre],
-              ['Budget owner', request.budgetOwner],
-              ['Channel', getStatusLabel(request.buyingChannel)],
-              ['Needed by', request.deliveryDate],
-            ].map(([label, value]) => (
-              <div key={label}>
-                <span className="text-ink-3">{label}:</span>{' '}
-                {value || <span className="text-ink-3">&mdash;</span>}
-              </div>
-            ))}
-          </div>
-
-          {/* OOO Warning */}
-          {oooApprover && oooDelegate && !showOOOWarning && (
-            <OOOWarning
-              approverName={oooApprover.name}
-              delegateName={oooDelegate.name}
-              onAcceptDelegate={() => {
-                setShowOOOWarning(true);
-                toast.success(`Routed to ${oooDelegate.name}`);
-              }}
-              onDismiss={() => setShowOOOWarning(true)}
-            />
-          )}
-
-          {/* Action buttons — only the assigned approver can act on a pending
-              approval. Others see who it's with (consistent with the
-              request-detail Approvals tab); resolved approvals show no actions. */}
-          {approval.status !== 'pending' ? null : !isCurrentUserApprover ? (
-            <p className="text-caption text-ink-3">
-              Awaiting <span className="font-medium text-ink-2">{approval.approverName || approval.approverRole}</span>
-              {' '}— switch to that role to act on it.
-            </p>
-          ) : (
-          <div className="flex items-center gap-2 flex-wrap">
+  // The four actions, defined here so the right column can render them beside
+  // the amount. They were a fifth stacked band at the bottom of the card.
+  const actionButtons = (
+    <>
             <Button
               size="sm"
               className="bg-ok text-paper hover:brightness-110"
@@ -317,7 +213,143 @@ export function ApprovalCard({
               <UserPlus className="size-3.5" />
               Delegate
             </Button>
+    </>
+  );
+
+  return (
+    // The POC's approval row. Two things it does that a uniform card cannot:
+    //
+    //   IT SAYS WHICH ROW IS YOURS. A queue mixes decisions awaiting you with
+    //   ones awaiting somebody else, and they looked identical — you had to
+    //   read to the bottom of each card to find out whether there were buttons.
+    //   The one you can act on now carries the accent border and ground, which
+    //   is the POC's `data-mine` row exactly.
+    //
+    //   IT PUTS THE ACTIONS BESIDE THE DECISION rather than under four stacked
+    //   bands. The card was header / badges / key data / actions; it is now
+    //   content and actions, side by side, which is the same object the request
+    //   detail's Approvals tab and the home queue use.
+    <div
+      data-mine={isCurrentUserApprover && approval.status === 'pending'}
+      className={cn(
+        'rounded-lg border p-4 shadow-sm transition-colors',
+        isCurrentUserApprover && approval.status === 'pending'
+          ? 'border-accent-line bg-accent-soft'
+          : 'border-line bg-card',
+      )}
+    >
+      <div className="flex items-start gap-3">
+        <Checkbox
+          checked={selected}
+          onCheckedChange={(checked) => onSelectChange(checked === true)}
+          className="mt-1"
+        />
+
+        <div className="min-w-0 flex-1 space-y-3">
+          {/* Header.
+              Three tiers, so the row answers "what am I approving, how much,
+              and how urgently" before anything else is read:
+                1. the request, and the amount — tabular figures, so a column of
+                   decisions can be compared down the page;
+                2. which decision this is (step and role) and who asked;
+                3. everything else, below.
+              The amount was already on the card, as a small span among the
+              badges. It is the fact this screen exists to present, so it leads
+              rather than sits in a row of chips. */}
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Link
+                  to={`/requests/${request.id}`}
+                  className="group inline-flex items-center gap-1.5 text-body font-semibold text-ink hover:text-accent-solid"
+                >
+                  {request.title}
+                  <ExternalLink className="size-3 text-ink-3 group-hover:text-accent-solid" aria-hidden="true" />
+                </Link>
+                <Link
+                  to={`/requests/${request.id}`}
+                  className="font-mono text-caption text-ink-3 hover:text-accent-solid hover:underline"
+                >
+                  {request.id}
+                </Link>
+              </div>
+              <p className="text-caption text-ink-3 mt-0.5">
+                {approval.approverRole} &middot; requested by{' '}
+                {requestor?.name ?? 'Unknown'}
+              </p>
+            </div>
+            {/* The right column: what it costs, how long is left, and what you
+                can do about it — the POC's actions-right row. Stacking the
+                buttons under the amount uses the space the figure leaves and
+                puts the decision next to the thing being decided, rather than
+                four bands down. All four actions stay; none is demoted into an
+                overflow menu. */}
+            <div className="flex shrink-0 flex-col items-end gap-2 text-right">
+              <span className="text-heading font-semibold tabular-nums text-ink leading-none">
+                {formatCurrency(request.value, request.currency)}
+              </span>
+              {request.slaDeadline && (
+                <SLACountdown deadline={request.slaDeadline} compact />
+              )}
+              {request.isOverdue && !request.slaDeadline && (
+                <span className="text-caption font-medium text-stop">Overdue</span>
+              )}
+              {approval.status === 'pending' && isCurrentUserApprover && (
+                <div className="mt-1 flex flex-wrap justify-end gap-2">{actionButtons}</div>
+              )}
+            </div>
           </div>
+
+          {/* One meta line, not two bands.
+              Badges and the key-data grid were separate rows saying the same
+              kind of thing — facts about the request that are needed before
+              deciding but not while scanning. Collapsed into a single wrapped
+              line of `label value` pairs, in reading order: what kind of
+              demand, then where the money comes from, then when it is needed.
+
+              Nothing was dropped: priority, category, approval status, cost
+              centre, budget owner, channel and delivery date are all still
+              here. The approval status keeps its badge because it is a state
+              rather than a fact, and it is what the tab filters on. */}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-caption">
+            <Badge variant="secondary" className={priorityCfg.color}>
+              {getStatusLabel(request.priority)}
+            </Badge>
+            <StatusBadge status={approval.status} size="sm" />
+            {([
+              ['Category', categoryLabels[request.category] ?? request.category],
+              ['Cost centre', request.costCentre],
+              ['Budget owner', request.budgetOwner],
+              ['Channel', getStatusLabel(request.buyingChannel)],
+              ['Needed by', request.deliveryDate],
+            ] as [string, string | undefined][]).map(([label, value]) => (
+              <span key={label} className="text-ink-2">
+                <span className="text-ink-3">{label} </span>
+                {value || <span className="text-ink-3">&mdash;</span>}
+              </span>
+            ))}
+          </div>
+
+          {/* OOO Warning */}
+          {oooApprover && oooDelegate && !showOOOWarning && (
+            <OOOWarning
+              approverName={oooApprover.name}
+              delegateName={oooDelegate.name}
+              onAcceptDelegate={() => {
+                setShowOOOWarning(true);
+                toast.success(`Routed to ${oooDelegate.name}`);
+              }}
+              onDismiss={() => setShowOOOWarning(true)}
+            />
+          )}
+
+          {/* Not yours to act on: say whose it is, where the buttons would be.
+              The actions themselves render in the right column above. */}
+          {approval.status === 'pending' && !isCurrentUserApprover && (
+            <p className="text-caption text-ink-3">
+              Awaiting <span className="font-medium text-ink-2">{approval.approverName || approval.approverRole}</span>
+              {' '}&mdash; switch to that role to act on it.
+            </p>
           )}
 
           {/* Expanded inline forms */}

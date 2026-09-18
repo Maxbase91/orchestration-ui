@@ -281,6 +281,9 @@ npm run test:ui-lifecycle         # static guard that call-offs, stage actions a
 npm run test:service-description-ui # browser smoke — /admin/service-description renders all four config areas
 npm run test:routing-rules-ui     # browser smoke — /admin/rules shows governed thresholds by name and real approval chains
 npm run test:approval-chains-ui   # browser smoke — /admin/approvals band editor, governed bounds, and gap reporting
+npm run test:approvals-ui         # the approvals queue — nothing claims to be AI, the amount is measurably
+                                  #   larger than the metadata beside it, the row awaiting you looks different
+                                  #   from one that does not, and every control the old card had is reachable
 npm run test:form-builder-ui      # browser smoke — /admin/forms offers every stage, sets blocking, and reports a form that cannot fire
 npm run test:intake-guidance-ui   # browser smoke — step-1 single classification block, per-step header panels, the step gate
 npm run test:reference-data-ui    # browser smoke — admin maintains cost centres and delivery locations, and
