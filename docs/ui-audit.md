@@ -25,7 +25,7 @@ comes back, not that it was fixed once.
 | # | Finding | Severity | Scale | Status |
 |---|---|---|---|---|
 | 1 | Text at 2.54:1 contrast — fails WCAG AA | **High** | 194 uses | **Closed** — `text-gray-400` → `--ink-3` (4.71–5.09:1) |
-| 2 | 24 of 31 async surfaces have no error state | **High** | 24 files | Open — `<AsyncBoundary>` exists; 24 call sites to convert |
+| 2 | 24 of 31 async surfaces have no error state | **High** | 24 files | Partly — `<AsyncBoundary>` exists; the 5 dashboard widgets converted and guarded, 19 call sites left |
 | 3 | No semantic token layer; components name raw palette colours | **High** | 1,390 uses | **Closed** — 2,538 classes remapped, 267 files hold none |
 | 4 | `Inter` is named as the UI font and never fetched | **High** | whole app | **Closed** — Inter + IBM Plex Mono fetched |
 | 5 | Numbers do not align in any table | **Medium** | 5 of 65 files | Partly — `DataTable` supports `numeric`; per-column adoption outstanding |
@@ -98,6 +98,12 @@ Five of those are **dashboard widgets**, where "0 expiring contracts" and
 **Rule:** every async surface needs loading, empty *and* error. **Fix:** a
 shared `<AsyncBoundary>` that takes the query result, rather than 24 hand-rolled
 branches. Worth doing before the redesign touches these files.
+
+The five dashboard widgets are converted. Proving it needed a way to make a read
+fail from a browser test — `installDbStub(page, {}, { fail: [...] })` — because
+the error state is unreachable while the stub always answers, and `tsc` proves
+the component compiles rather than that the alert renders. The remaining 19 are
+the admin pages listed above.
 
 ```bash
 comm -23 <(grep -rl isLoading src/features --include="*.tsx" | sort) \

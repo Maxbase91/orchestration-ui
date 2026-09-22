@@ -290,6 +290,10 @@ npm run test:reference-data-ui    # browser smoke — admin maintains cost centr
                                   # a retired row disappears from every requester picker
 npm run test:dashboard-ui         # browser smoke — the role's default dashboard covers its work, and adding or
                                   # removing a widget survives a reload
+npm run test:dashboard-widgets    # static — every widget id is in both the registry and the renderer, and
+                                  #   each role's default layout resolves to widgets that role may have
+npm run test:dashboard-widget-states # browser smoke — with every table failing, the five converted widgets
+                                  #   each name what they could not read; with the tables answering, no alert at all
 npm run test:request-detail-ui    # browser check on fixtures (no credentials, no network) — the request detail renders, every
                                   # workflow step opens, and the risk form pre-populates from the service description
 npm run test:interactions-ui      # interaction E2E — wizard submit, admin save, AI assistant (self-cleaning)

@@ -326,17 +326,33 @@ function compare(rowValue, op, raw) {
 /**
  * Install the stub on a Playwright page or context.
  *
+ * `options.fail` is a list of relation names the stub answers with a 500, the
+ * shape `/api/db` returns when a read cannot be served. Without it a suite can
+ * only reach a screen's loading and loaded states — the *error* state, which is
+ * the one the audit found 24 surfaces lacked, would be unreachable in a test
+ * and therefore unproven. `db-client` turns a non-ok response into a thrown
+ * error, so the query lands in `isError` exactly as it does in production.
+ *
  * Returns a handle carrying `unsupported` — filters the stub did not understand.
  * A test should fail on a non-empty list rather than trust its assertions: a
  * dropped filter means the app was answered with rows it never asked for.
  */
-export async function installDbStub(target, overrides = {}) {
+export async function installDbStub(target, overrides = {}, options = {}) {
   const tables = structuredClone(FIXTURES);
   for (const [name, rows] of Object.entries(overrides)) tables[name] = structuredClone(rows);
   const unsupported = [];
+  const failing = new Set(options.fail ?? []);
 
   await target.route('**/api/db', async (route) => {
     const payload = JSON.parse(route.request().postData() || '{}');
+
+    if (payload.table && failing.has(payload.table)) {
+      // The message is the endpoint's shape, not a stack trace: the surface
+      // under test must render its own words, never the database's.
+      await route.fulfill({ status: 500, contentType: 'application/json',
+        body: JSON.stringify({ data: null, error: 'Database request failed' }) });
+      return;
+    }
 
     if (payload.operation === 'rpc') {
       // Per-function shapes, not `${name}-1`: request ids are now minted here

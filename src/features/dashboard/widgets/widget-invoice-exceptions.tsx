@@ -10,10 +10,17 @@ import { ReceiptText, TriangleAlert } from 'lucide-react';
 import { differenceInDays, parseISO } from 'date-fns';
 import { useInvoices } from '@/lib/db/hooks/use-invoices';
 import { formatCurrency } from '@/lib/format';
+import { AsyncBoundary } from '@/components/shared/async-boundary';
 
 export function WidgetInvoiceExceptions() {
   const navigate = useNavigate();
-  const { data: invoices = [], isLoading } = useInvoices();
+  // The query object, not just its data: `data ?? []` on its own cannot tell
+  // an empty result from a failed read, and this widget's empty state is
+  // reassuring — so a database failure reported that everything was fine.
+  const query = useInvoices();
+  // Memoised because `?? []` mints a new array on every render, which would
+  // invalidate the memo below each time and re-sort on every parent update.
+  const invoices = useMemo(() => query.data ?? [], [query.data]);
 
   const exceptions = useMemo(() => {
     const now = new Date();
@@ -38,31 +45,34 @@ export function WidgetInvoiceExceptions() {
       .slice(0, 5);
   }, [invoices]);
 
-  if (isLoading) return <p className="text-sm text-muted-foreground">Loading invoices…</p>;
-  if (exceptions.length === 0) {
-    return <p className="text-sm text-muted-foreground">No invoice exceptions — nothing needs a decision.</p>;
-  }
-
   return (
-    <div className="space-y-1">
-      {exceptions.map(({ invoice, reason }) => (
-        <button
-          key={invoice.id}
-          type="button"
-          onClick={() => navigate('/purchasing/invoices')}
-          aria-label={`Open invoices — ${invoice.id} from ${invoice.supplierName} needs attention: ${reason}`}
-          className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted/50"
-        >
-          <div className="flex min-w-0 items-center gap-2">
-            {invoice.status === 'disputed'
-              ? <TriangleAlert className="size-3.5 shrink-0 text-stop" />
-              : <ReceiptText className="size-3.5 shrink-0 text-warn" />}
-            <span className="truncate">{invoice.supplierName}</span>
-            <span className="shrink-0 text-xs text-ink-3">{formatCurrency(invoice.amount, invoice.currency)}</span>
-          </div>
-          <span className="ml-2 shrink-0 text-xs font-medium text-warn">{reason}</span>
-        </button>
-      ))}
-    </div>
+    <AsyncBoundary
+      query={query}
+      of="invoices"
+      isEmpty={exceptions.length === 0}
+      empty="No invoice exceptions — nothing needs a decision."
+      minHeight={72}
+    >
+      <div className="space-y-1">
+        {exceptions.map(({ invoice, reason }) => (
+          <button
+            key={invoice.id}
+            type="button"
+            onClick={() => navigate('/purchasing/invoices')}
+            aria-label={`Open invoices — ${invoice.id} from ${invoice.supplierName} needs attention: ${reason}`}
+            className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted/50"
+          >
+            <div className="flex min-w-0 items-center gap-2">
+              {invoice.status === 'disputed'
+                ? <TriangleAlert className="size-3.5 shrink-0 text-stop" />
+                : <ReceiptText className="size-3.5 shrink-0 text-warn" />}
+              <span className="truncate">{invoice.supplierName}</span>
+              <span className="shrink-0 text-xs text-ink-3">{formatCurrency(invoice.amount, invoice.currency)}</span>
+            </div>
+            <span className="ml-2 shrink-0 text-xs font-medium text-warn">{reason}</span>
+          </button>
+        ))}
+      </div>
+    </AsyncBoundary>
   );
 }

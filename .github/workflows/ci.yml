@@ -86,3 +86,5 @@ jobs:
           npm run test:requester-entry-ui
           npm run test:service-description-ui
           npm run test:intake-guidance-ui
+          npm run test:approvals-ui
+          npm run test:dashboard-widget-states

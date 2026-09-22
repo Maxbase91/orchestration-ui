@@ -9,6 +9,7 @@ import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRequests } from '@/lib/db/hooks/use-requests';
 import type { RequestStatus } from '@/data/types';
+import { AsyncBoundary } from '@/components/shared/async-boundary';
 
 /** The stages worth counting, in lifecycle order. */
 const ACTIVE_STAGES: { status: RequestStatus; label: string }[] = [
@@ -24,7 +25,13 @@ const ACTIVE_STAGES: { status: RequestStatus; label: string }[] = [
 
 export function WidgetRequestsByStage() {
   const navigate = useNavigate();
-  const { data: requests = [], isLoading } = useRequests();
+  // The query object, not just its data: `data ?? []` on its own cannot tell
+  // an empty result from a failed read, and this widget's empty state is
+  // reassuring — so a database failure reported that everything was fine.
+  const query = useRequests();
+  // Memoised because `?? []` mints a new array on every render, which would
+  // invalidate the memo below each time and re-sort on every parent update.
+  const requests = useMemo(() => query.data ?? [], [query.data]);
 
   const counts = useMemo(() => {
     const byStatus = new Map<string, number>();
@@ -36,31 +43,34 @@ export function WidgetRequestsByStage() {
       .filter((stage) => stage.count > 0);
   }, [requests]);
 
-  if (isLoading) return <p className="text-sm text-muted-foreground">Loading requests…</p>;
-  if (counts.length === 0) {
-    return <p className="text-sm text-muted-foreground">No requests are in an active stage.</p>;
-  }
-
   return (
-    <div className="space-y-1">
-      {counts.map((stage) => (
-        <button
-          key={stage.status}
-          type="button"
-          onClick={() => navigate(`/requests?status=${stage.status}`)}
-          aria-label={`Open the ${stage.count} request(s) in ${stage.label}`}
-          className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted/50"
-        >
-          <span className={stage.status === 'referred-back' ? 'text-warn' : 'text-ink-2'}>
-            {stage.label}
-          </span>
-          <span className={`ml-2 shrink-0 text-xs font-semibold ${
-            stage.status === 'referred-back' ? 'text-warn' : 'text-ink'
-          }`}>
-            {stage.count}
-          </span>
-        </button>
-      ))}
-    </div>
+    <AsyncBoundary
+      query={query}
+      of="requests"
+      isEmpty={counts.length === 0}
+      empty="No requests are in an active stage."
+      minHeight={72}
+    >
+      <div className="space-y-1">
+        {counts.map((stage) => (
+          <button
+            key={stage.status}
+            type="button"
+            onClick={() => navigate(`/requests?status=${stage.status}`)}
+            aria-label={`Open the ${stage.count} request(s) in ${stage.label}`}
+            className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted/50"
+          >
+            <span className={stage.status === 'referred-back' ? 'text-warn' : 'text-ink-2'}>
+              {stage.label}
+            </span>
+            <span className={`ml-2 shrink-0 text-xs font-semibold ${
+              stage.status === 'referred-back' ? 'text-warn' : 'text-ink'
+            }`}>
+              {stage.count}
+            </span>
+          </button>
+        ))}
+      </div>
+    </AsyncBoundary>
   );
 }
