@@ -1,3 +1,9 @@
+// The top of a request: where it is, what it is, and what can be done with it.
+//
+// The actions used to share a row with the title, so a two-line title and a
+// seven-button toolbar squeezed each other into two rows apiece. The ID and the
+// actions now share the first line — both are short — and the title gets the
+// page's full width beneath them.
 import type { ProcurementRequest } from '@/data/types';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { PriorityIndicator } from '@/components/shared/priority-indicator';
@@ -15,33 +21,31 @@ export function RequestHeader({ request }: RequestHeaderProps) {
   const navigate = useNavigate();
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon-sm" aria-label="Back to requests" onClick={() => navigate('/requests')}>
-          <ArrowLeft className="size-4" />
-        </Button>
-        <span className="text-sm text-muted-foreground">{request.id}</span>
-      </div>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-1.5">
-          <h1 className="text-xl font-semibold text-ink">{request.title}</h1>
-          <div className="flex items-center gap-3 flex-wrap">
-            <StatusBadge status={request.status} />
-            <PriorityIndicator priority={request.priority} showLabel />
-            {request.slaDeadline && <SLACountdown deadline={request.slaDeadline} />}
-            {request.isOverdue && (
-              <span className="rounded-full bg-stop-soft px-2.5 py-0.5 text-xs font-medium text-stop">
-                Overdue
-              </span>
-            )}
-            {request.referBackCount > 0 && (
-              <span className="rounded-full bg-warn-soft px-2.5 py-0.5 text-xs font-medium text-warn">
-                Referred back {request.referBackCount}x
-              </span>
-            )}
-          </div>
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-1.5">
+          <Button variant="ghost" size="icon-sm" aria-label="Back to requests" onClick={() => navigate('/requests')}>
+            <ArrowLeft className="size-4" />
+          </Button>
+          <span className="font-mono text-caption text-ink-3">{request.id}</span>
         </div>
         <ActionButtons request={request} />
+      </div>
+      <h1 className="text-balance text-heading font-semibold text-ink">{request.title}</h1>
+      <div className="flex flex-wrap items-center gap-3">
+        <StatusBadge status={request.status} />
+        <PriorityIndicator priority={request.priority} showLabel />
+        {request.slaDeadline && <SLACountdown deadline={request.slaDeadline} />}
+        {request.isOverdue && (
+          <span className="rounded-full bg-stop-soft px-2.5 py-0.5 text-caption font-medium text-stop">
+            Overdue
+          </span>
+        )}
+        {request.referBackCount > 0 && (
+          <span className="rounded-full bg-warn-soft px-2.5 py-0.5 text-caption font-medium text-warn">
+            Referred back {request.referBackCount}×
+          </span>
+        )}
       </div>
     </div>
   );

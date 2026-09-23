@@ -1,3 +1,9 @@
+// One request: header and actions, the lifecycle stepper, and seven tabs.
+//
+// Loading, a failed read and a request that does not exist are three different
+// screens. They were one — anything but data rendered "does not exist or has
+// been removed", so a slow network and an unreachable database both told the
+// reader their request was gone.
 import { useCallback, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useRequest } from '@/lib/db/hooks/use-requests';
@@ -13,10 +19,12 @@ import { TabDocuments } from './tab-documents';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
 import { FileQuestion } from 'lucide-react';
+import { AsyncBoundary } from '@/components/shared/async-boundary';
 
 export function RequestDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { data: request } = useRequest(id);
+  const query = useRequest(id);
+  const request = query.data;
   const [activeTab, setActiveTab] = useState('overview');
   const [focusStageId, setFocusStageId] = useState<string | null>(null);
 
@@ -26,12 +34,16 @@ export function RequestDetailPage() {
     setFocusStageId(stepId);
   }, []);
 
+  if (query.isLoading || query.isError) {
+    return <AsyncBoundary query={query} of="this request" minHeight={240}>{null}</AsyncBoundary>;
+  }
+
   if (!request) {
     return (
       <div className="flex flex-col items-center justify-center py-24 gap-3">
-        <FileQuestion className="size-12 text-muted-foreground" />
-        <h2 className="text-xl font-semibold text-ink">Request not found</h2>
-        <p className="text-sm text-muted-foreground">
+        <FileQuestion className="size-10 text-ink-3" />
+        <h2 className="text-heading font-semibold text-ink">Request not found</h2>
+        <p className="text-body text-ink-3">
           The request {id ? `"${id}"` : ''} does not exist or has been removed.
         </p>
       </div>
@@ -39,11 +51,11 @@ export function RequestDetailPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <RequestHeader request={request} />
 
       <Card>
-        <CardContent className="py-4">
+        <CardContent className="py-3">
           <LifecycleStepper request={request} onStepClick={handleStepClick} />
         </CardContent>
       </Card>

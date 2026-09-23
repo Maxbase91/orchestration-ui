@@ -61,7 +61,17 @@ const segmentLabels: Record<string, string> = {
   contact: 'Contact Support',
 };
 
+/**
+ * A record id — REQ-2024-0001, PO-0042, SUP-013 — is shown exactly as stored.
+ * Title-casing it split it on its hyphens, so the breadcrumb said "REQ 2024
+ * 0001" beside a header saying REQ-2024-0001, and the id could not be copied
+ * from either one and searched for. Anything containing a digit is treated as
+ * an id: route names never have one.
+ */
+const looksLikeId = (segment: string) => /\d/.test(segment);
+
 function humanize(segment: string): string {
+  if (!segmentLabels[segment] && looksLikeId(segment)) return decodeURIComponent(segment);
   return segmentLabels[segment] ?? segment
     .split('-')
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))

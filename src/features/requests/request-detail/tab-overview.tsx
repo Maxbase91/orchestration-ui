@@ -1,39 +1,28 @@
+// The Overview tab: the request's facts, grouped as a reader asks about them —
+// what is being bought, who is involved, and when — and its service
+// description.
+//
+// Removed: an "AI-generated · Request Summary" panel. It was a sentence template
+// in lib/mock-ai.ts filled with fields already on this tab, in their raw ids
+// ("the "risk" stage", "buying channel: procurement-led"), under a claim that a
+// model had written it. Same defect, same decision, as the approvals card.
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FileText, Copy, CheckCircle, ChevronDown, ChevronUp, ShieldCheck } from 'lucide-react';
+import { FileText, Copy, ChevronDown, ChevronUp, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import type { ProcurementRequest } from '@/data/types';
 import { useUserLookup, useUsers } from '@/lib/db/hooks/use-users';
 import { useSupplierLookup, useSuppliers } from '@/lib/db/hooks/use-suppliers';
 import { formatCurrency, formatDate } from '@/lib/format';
-import { getAISummary } from '@/lib/mock-ai';
-import { AISuggestionCard } from '@/components/shared/ai-suggestion-card';
+import { useCategoryLabel } from '@/lib/db/hooks/use-procurement-categories';
+import { buyingChannelLabel } from '@/lib/routing/evaluate-routing-rules';
 import { useServiceDescription } from '@/lib/db/hooks/use-service-descriptions';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
-const BUYING_CHANNEL_LABELS: Record<string, string> = {
-  'procurement-led': 'Procurement-Led',
-  'business-led': 'Business-Led',
-  'direct-po': 'Direct PO',
-  'framework-call-off': 'Framework Call-Off',
-  'catalogue': 'Catalogue',
-  'p-card': 'P-card route',
-};
-
-const CATEGORY_LABELS: Record<string, string> = {
-  goods: 'Goods',
-  services: 'Services',
-  software: 'Software',
-  consulting: 'Consulting',
-  'contingent-labour': 'Contingent Labour',
-  'contract-renewal': 'Contract Renewal',
-  'supplier-onboarding': 'Supplier Onboarding',
-};
-
 // The sourcing route determined at intake. Requests created before this was
-// persisted have no value, so the row renders '-' rather than being hidden —
-// consistent with every other DetailRow.
+// persisted have no value, so the fact renders an em dash rather than being
+// hidden — consistent with every other Fact.
 const SOURCING_TYPE_LABELS: Record<string, string> = {
   'new-event': 'New Event',
   renewal: 'Renewal',
@@ -45,29 +34,38 @@ interface TabOverviewProps {
   request: ProcurementRequest;
 }
 
-function DetailRow({
+/** One fact: label over value, so a group reads down a narrow column. */
+function Fact({
   label,
   value,
   to,
 }: {
   label: string;
   value: string | undefined;
-  /** When set and `value` is present, renders the value as a link (e.g. to the
-   *  supplier's full 360 profile) instead of plain text. */
+  /** When set and `value` is present, the value links (e.g. to the supplier's profile). */
   to?: string;
 }) {
   return (
-    <div className="flex flex-col sm:flex-row sm:gap-4 py-2 border-b border-line-2 last:border-b-0">
-      <dt className="text-sm font-medium text-muted-foreground sm:w-40 shrink-0">{label}</dt>
-      <dd className="text-sm text-ink">
+    <div className="min-w-0">
+      <dt className="text-caption text-ink-3">{label}</dt>
+      <dd className="mt-0.5 truncate text-body text-ink" title={value}>
         {value && to ? (
-          <Link to={to} className="text-accent-solid hover:underline">
-            {value}
-          </Link>
+          <Link to={to} className="text-accent hover:underline">{value}</Link>
         ) : (
-          value ?? '-'
+          // An em dash, not a hyphen: a hyphen reads as a value in a column of values.
+          value ?? <span className="text-ink-3">—</span>
         )}
       </dd>
+    </div>
+  );
+}
+
+/** A titled group of facts, laid out as one of three columns. */
+function FactGroup({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-3">
+      <h3 className="text-eyebrow font-semibold uppercase tracking-wide text-ink-3">{title}</h3>
+      <dl className="space-y-3">{children}</dl>
     </div>
   );
 }
@@ -92,69 +90,60 @@ export function TabOverview({ request }: TabOverviewProps) {
   const requestor = lookupUser(request.requestorId);
   const owner = lookupUser(request.ownerId);
   const supplier = lookupSupplier(request.supplierId);
-  const summary = getAISummary('request', request.id);
+  const categoryLabel = useCategoryLabel();
   const { data: svcDesc } = useServiceDescription(request.id);
   const [sowExpanded, setSowExpanded] = useState(true);
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Request Details</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <dl className="space-y-0">
-                <DetailRow label="Category" value={CATEGORY_LABELS[request.category] ?? request.category} />
-                <DetailRow
-                  label="Supplier"
-                  value={supplier?.name ?? (suppliersQuery.isLoading && request.supplierId ? 'Loading supplier…' : undefined)}
-                  to={supplier ? `/suppliers/${supplier.id}` : undefined}
-                />
-                <DetailRow label="Value" value={formatCurrency(request.value, request.currency)} />
-                <DetailRow label="Buying Channel" value={BUYING_CHANNEL_LABELS[request.buyingChannel] ?? request.buyingChannel} />
-                <DetailRow
-                  label="Sourcing Type"
-                  value={
-                    request.sourcingType
-                      ? SOURCING_TYPE_LABELS[request.sourcingType] ?? request.sourcingType
-                      : undefined
-                  }
-                />
-                <DetailRow label="Commodity / service family" value={`${request.commodityCode} - ${request.commodityCodeLabel}`} />
-                <DetailRow label="Cost Centre" value={request.costCentre} />
-                <DetailRow label="Budget Owner" value={request.budgetOwner} />
-                <DetailRow label="Requestor" value={requestor?.name} />
-                {request.requesterCountry && (
-                  <DetailRow label="Requester Location" value={request.requesterCountry} />
-                )}
-                <DetailRow
-                  label="Buying For"
-                  value={
-                    request.beneficiaryId && request.beneficiaryId !== request.requestorId
-                      ? `${request.beneficiaryName ?? 'Someone else'}${request.beneficiaryCountry ? ` · ${request.beneficiaryCountry}` : ''}`
-                      : `${requestor?.name ?? 'Requestor'} (self)`
-                  }
-                />
-                <DetailRow label="Current Owner" value={owner?.name} />
-                <DetailRow label="Delivery Date" value={formatDate(request.deliveryDate)} />
-                <DetailRow label="Created" value={formatDate(request.createdAt)} />
-                <DetailRow label="Last Updated" value={formatDate(request.updatedAt)} />
-                <DetailRow label="Days in Stage" value={String(request.daysInStage)} />
-              </dl>
-              {!svcDesc?.narrative && request.businessJustification && <div className="mt-4 pt-4 border-t border-line-2"><p className="text-sm font-medium text-muted-foreground mb-1">Request description</p><p className="text-sm text-ink-2">{request.businessJustification}</p></div>}
-            </CardContent>
-          </Card>
-        </div>
-        <div>
-          <AISuggestionCard title="Request Summary">
-            <p>{summary}</p>
-          </AISuggestionCard>
-          {/* Compliance report moved to the Workflow tab's approval
-              stage card to avoid duplicating content across tabs. */}
-        </div>
-      </div>
+      <Card>
+        <CardContent>
+          <div className="grid grid-cols-1 gap-x-10 gap-y-6 md:grid-cols-3">
+            <FactGroup title="What">
+              <Fact label="Category" value={categoryLabel(request.category)} />
+              <Fact label="Commodity / service family" value={`${request.commodityCode} · ${request.commodityCodeLabel}`} />
+              <Fact label="Value" value={formatCurrency(request.value, request.currency)} />
+              <Fact label="Buying channel" value={buyingChannelLabel(request.buyingChannel)} />
+              <Fact
+                label="Sourcing type"
+                value={request.sourcingType ? SOURCING_TYPE_LABELS[request.sourcingType] ?? request.sourcingType : undefined}
+              />
+              <Fact
+                label="Supplier"
+                value={supplier?.name ?? (suppliersQuery.isLoading && request.supplierId ? 'Loading supplier…' : undefined)}
+                to={supplier ? `/suppliers/${supplier.id}` : undefined}
+              />
+            </FactGroup>
+            <FactGroup title="Who">
+              <Fact label="Requester" value={requestor?.name} />
+              <Fact
+                label="Buying for"
+                value={
+                  request.beneficiaryId && request.beneficiaryId !== request.requestorId
+                    ? `${request.beneficiaryName ?? 'Someone else'}${request.beneficiaryCountry ? ` · ${request.beneficiaryCountry}` : ''}`
+                    : `${requestor?.name ?? 'Requester'} (self)`
+                }
+              />
+              {request.requesterCountry && <Fact label="Requester location" value={request.requesterCountry} />}
+              <Fact label="Current owner" value={owner?.name} />
+              <Fact label="Budget owner" value={request.budgetOwner} />
+              <Fact label="Cost centre" value={request.costCentre} />
+            </FactGroup>
+            <FactGroup title="When">
+              <Fact label="Needed by" value={formatDate(request.deliveryDate)} />
+              <Fact label="Days in current stage" value={String(request.daysInStage)} />
+              <Fact label="Created" value={formatDate(request.createdAt)} />
+              <Fact label="Last updated" value={formatDate(request.updatedAt)} />
+            </FactGroup>
+          </div>
+          {!svcDesc?.narrative && request.businessJustification && (
+            <div className="mt-6 border-t border-line-2 pt-4">
+              <p className="mb-1 text-caption text-ink-3">Request description</p>
+              <p className="max-w-[75ch] text-body text-ink-2">{request.businessJustification}</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Service Description / SOW */}
       {svcDesc && (
@@ -168,14 +157,17 @@ export function TabOverview({ request }: TabOverviewProps) {
               >
                 <FileText className="size-4 text-accent" />
                 <CardTitle className="text-base">Service Description</CardTitle>
-                {(svcDesc as unknown as Record<string, unknown>).quality_score !== undefined && (
-                  <span className={`inline-flex items-center gap-1 text-[10px] font-semibold rounded-full px-2 py-0.5 ml-1 ${
-                    ((svcDesc as unknown as Record<string, unknown>).quality_score as number) >= 80 ? 'bg-ok-soft text-ok' :
-                    ((svcDesc as unknown as Record<string, unknown>).quality_score as number) >= 60 ? 'bg-warn-soft text-warn' :
-                    'bg-stop-soft text-stop'
+                {/* This read `quality_score` through a double cast on a record the
+                    mapper had already camel-cased, so it was always undefined
+                    and the badge never rendered once. */}
+                {svcDesc.qualityScore != null && (
+                  <span className={`ml-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-eyebrow font-semibold ${
+                    svcDesc.qualityScore >= 80 ? 'bg-ok-soft text-ok'
+                      : svcDesc.qualityScore >= 60 ? 'bg-warn-soft text-warn'
+                        : 'bg-stop-soft text-stop'
                   }`}>
-                    <ShieldCheck className="size-3" />
-                    {((svcDesc as unknown as Record<string, unknown>).quality_score as number)}/100
+                    <ShieldCheck className="size-3" aria-hidden="true" />
+                    Quality {svcDesc.qualityScore}/100
                   </span>
                 )}
                 {sowExpanded ? <ChevronUp className="size-4 text-ink-3" /> : <ChevronDown className="size-4 text-ink-3" />}
@@ -205,12 +197,11 @@ export function TabOverview({ request }: TabOverviewProps) {
                   const value = svcDesc[key as keyof typeof svcDesc];
                   if (typeof value !== 'string' || !value || key === 'narrative') return null;
                   return (
+                    // No green tick per section: it read as "checked and passed"
+                    // when all it meant was "this field has text".
                     <div key={key} className="space-y-1">
-                      <div className="flex items-center gap-1.5">
-                        <CheckCircle className="size-3.5 text-ok shrink-0" />
-                        <p className="text-xs font-semibold text-ink-3 uppercase tracking-wider">{label}</p>
-                      </div>
-                      <p className="text-sm text-ink-2 leading-relaxed pl-5">{value}</p>
+                      <p className="text-eyebrow font-semibold uppercase tracking-wide text-ink-3">{label}</p>
+                      <p className="text-body leading-relaxed text-ink-2">{value}</p>
                     </div>
                   );
                 })}
@@ -218,9 +209,9 @@ export function TabOverview({ request }: TabOverviewProps) {
 
               {/* Narrative Summary */}
               <div className="pt-4 border-t border-line-2">
-                <p className="text-xs font-semibold text-ink-3 uppercase tracking-wider mb-2">Narrative Summary</p>
+                <p className="mb-2 text-eyebrow font-semibold uppercase tracking-wide text-ink-3">Narrative summary</p>
                 <div className="rounded-lg bg-card-2 border border-line p-4">
-                  <p className="text-sm text-ink-2 leading-relaxed whitespace-pre-wrap">{svcDesc.narrative}</p>
+                  <p className="max-w-[75ch] whitespace-pre-wrap text-body leading-relaxed text-ink-2">{svcDesc.narrative}</p>
                 </div>
               </div>
             </CardContent>

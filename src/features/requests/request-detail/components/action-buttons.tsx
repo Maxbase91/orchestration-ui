@@ -1,7 +1,15 @@
+// The request's actions, for whoever is looking at it: the current stage's next
+// step, an approval if one is waiting on this user, and — in the More menu —
+// refer back, reassign, escalate and cancel. Which of these appear is decided by
+// role, stage and the approval chain; every write goes through the workflow
+// engine and transition primitive rather than updating the row here.
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Check, X, RotateCcw, UserPlus, ArrowUpRight, Ban, ShoppingCart, Loader2, Gavel, ArrowRight } from 'lucide-react';
+import { Check, X, RotateCcw, UserPlus, ArrowUpRight, Ban, ShoppingCart, Loader2, Gavel, ArrowRight, ChevronDown } from 'lucide-react';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { canActOnApproval } from '@/lib/procurement/approval-derivation';
 import { useIsCategoryManager } from '@/lib/db/hooks/use-category-managers';
 import { useFormTemplates } from '@/lib/db/hooks/use-form-templates';
@@ -198,8 +206,12 @@ export function ActionButtons({ request }: ActionButtonsProps) {
       { id: currentUser.id, role: currentRole },
     ));
   const canApprove = Boolean(myPendingApproval);
+  // Reassign and escalate: the routing roles. Written twice inline before.
+  const canRoute = ['procurement-manager', 'operations-lead', 'admin'].includes(currentRole);
   const canManageRequest = ['procurement-manager', 'vendor-manager', 'operations-lead', 'admin'].includes(currentRole)
     || (currentRole === 'service-owner' && request.requestorId === currentUser.id);
+  /** A stage-specific action is on offer, so Approve is not this page's first step. */
+  const hasStageAction = showGateAction || isSourcingStage || isPOStage;
 
   async function handleConfirm() {
     if (!confirmAction) return;
@@ -458,11 +470,71 @@ export function ActionButtons({ request }: ActionButtonsProps) {
 
   return (
     <>
-      <div className="flex items-center gap-2 flex-wrap">
+      {/* One filled button: this stage's next step. Everything else is outline
+          or in the menu. The header used to carry up to seven buttons across two
+          rows, three of them solid — green, red and blue competing — so nothing
+          said which one the page was for. Every action is still here; the four
+          rarer ones are one click further in. */}
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        {showGateAction && outstandingForms.length > 0 && (
+          <span className="text-caption text-warn">
+            Needs {outstandingForms.map((f) => f.name).join(' and ')} before this stage can close
+          </span>
+        )}
+        {canApprove && (
+          <>
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-stop-line text-stop hover:bg-stop-soft"
+              onClick={() => setConfirmAction('reject')}
+            >
+              <X className="size-3.5" />
+              Reject
+            </Button>
+            <Button
+              size="sm"
+              // Filled only when there is no stage action to take instead —
+              // then the approval IS this page's next step.
+              variant={hasStageAction ? 'outline' : 'default'}
+              className={hasStageAction ? 'border-ok-line text-ok hover:bg-ok-soft' : undefined}
+              onClick={() => setConfirmAction('approve')}
+            >
+              <Check className="size-3.5" />
+              Approve
+            </Button>
+          </>
+        )}
+        {isSourcingStage && (
+          existingEvent ? (
+            <Button size="sm" variant="outline" onClick={() => navigate(`/sourcing/${existingEvent.id}`)}>
+              <Gavel className="size-3.5" />
+              Open sourcing event
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              variant={showGateAction ? 'outline' : 'default'}
+              onClick={() => setEventDialogOpen(true)}
+            >
+              <Gavel className="size-3.5" />
+              Create sourcing event
+            </Button>
+          )
+        )}
+        {isPOStage && (
+          <Button
+            size="sm"
+            variant={showGateAction ? 'outline' : 'default'}
+            onClick={() => { setPoDeliveryDate(request.deliveryDate ?? ''); setPoDialogOpen(true); }}
+          >
+            <ShoppingCart className="size-3.5" />
+            Create PO
+          </Button>
+        )}
         {showGateAction && (
           <Button
             size="sm"
-            className="bg-accent-solid hover:bg-accent-solid text-paper"
             onClick={handleCompleteStage}
             // Disabled, not hidden, with the reason on the button: a control
             // that vanishes leaves the user hunting for why.
@@ -475,74 +547,45 @@ export function ActionButtons({ request }: ActionButtonsProps) {
             {gateActionLabel(request.status)}
           </Button>
         )}
-        {showGateAction && outstandingForms.length > 0 && (
-          <span className="text-xs text-warn">
-            Needs {outstandingForms.map((f) => f.name).join(' and ')} before this stage can close
-          </span>
+        {(canManageRequest || canRoute) && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline" aria-label="More actions">
+                More
+                <ChevronDown className="size-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              {canManageRequest && (
+                <DropdownMenuItem onSelect={() => setReferBackOpen(true)}>
+                  <RotateCcw />
+                  Refer back
+                </DropdownMenuItem>
+              )}
+              {canRoute && (
+                <DropdownMenuItem onSelect={() => setReassignOpen(true)}>
+                  <UserPlus />
+                  Reassign
+                </DropdownMenuItem>
+              )}
+              {canRoute && (
+                <DropdownMenuItem onSelect={() => setEscalateOpen(true)}>
+                  <ArrowUpRight />
+                  Escalate
+                </DropdownMenuItem>
+              )}
+              {canManageRequest && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem variant="destructive" onSelect={() => setConfirmAction('cancel')}>
+                    <Ban />
+                    Cancel request
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
-        {isSourcingStage && (
-          existingEvent ? (
-            <Button size="sm" variant="outline" onClick={() => navigate(`/sourcing/${existingEvent.id}`)}>
-              <Gavel className="size-3.5" />
-              Open sourcing event
-            </Button>
-          ) : (
-            <Button
-              size="sm"
-              className="bg-accent-solid hover:bg-accent-solid text-paper"
-              onClick={() => setEventDialogOpen(true)}
-            >
-              <Gavel className="size-3.5" />
-              Create sourcing event
-            </Button>
-          )
-        )}
-        {isPOStage && (
-          <Button
-            size="sm"
-            className="bg-accent-solid hover:bg-accent-solid text-paper"
-            onClick={() => setPoDialogOpen(true)}
-          >
-            <ShoppingCart className="size-3.5" />
-            Create PO
-          </Button>
-        )}
-        {canApprove && (
-          <>
-            <Button
-              size="sm"
-              className="bg-ok hover:bg-ok text-paper"
-              onClick={() => setConfirmAction('approve')}
-            >
-              <Check className="size-3.5" />
-              Approve
-            </Button>
-            <Button
-              size="sm"
-              variant="destructive"
-              onClick={() => setConfirmAction('reject')}
-            >
-              <X className="size-3.5" />
-              Reject
-            </Button>
-          </>
-        )}
-        {canManageRequest && <Button size="sm" variant="outline" className="text-warn border-warn-line hover:bg-warn-soft" onClick={() => setReferBackOpen(true)}>
-          <RotateCcw className="size-3.5" />
-          Refer Back
-        </Button>}
-        {['procurement-manager', 'operations-lead', 'admin'].includes(currentRole) && <Button size="sm" variant="outline" onClick={() => setReassignOpen(true)}>
-          <UserPlus className="size-3.5" />
-          Reassign
-        </Button>}
-        {['procurement-manager', 'operations-lead', 'admin'].includes(currentRole) && <Button size="sm" variant="outline" onClick={() => setEscalateOpen(true)}>
-          <ArrowUpRight className="size-3.5" />
-          Escalate
-        </Button>}
-        {canManageRequest && <Button size="sm" variant="outline" className="text-stop border-stop-line hover:bg-stop-soft" onClick={() => setConfirmAction('cancel')}>
-          <Ban className="size-3.5" />
-          Cancel
-        </Button>}
       </div>
 
       <ReferBackDialog open={referBackOpen} onOpenChange={setReferBackOpen} request={request} />
@@ -645,7 +688,7 @@ export function ActionButtons({ request }: ActionButtonsProps) {
           </DialogHeader>
           <div className="space-y-3 py-2">
             <div className="grid grid-cols-2 gap-3 text-sm">
-              <div><span className="text-muted-foreground">Supplier</span><p className="font-medium">{request.supplierId ?? '—'}</p></div>
+              <div><span className="text-muted-foreground">Supplier</span><p className="font-medium">{lookupSupplier(request.supplierId)?.name ?? '—'}</p></div>
               <div><span className="text-muted-foreground">Value</span><p className="font-medium">€{request.value.toLocaleString()}</p></div>
             </div>
             <div className="space-y-1.5">
@@ -655,7 +698,6 @@ export function ActionButtons({ request }: ActionButtonsProps) {
                 type="date"
                 value={poDeliveryDate}
                 onChange={(e) => setPoDeliveryDate(e.target.value)}
-                defaultValue={request.deliveryDate}
               />
             </div>
           </div>

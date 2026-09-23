@@ -52,6 +52,12 @@ comes back, not that it was fixed once.
 | Status badges came from a `.ts` map of palette classes the colour guard never scanned — light chips in dark mode, and six ordinary stages coloured amber, the warning hue | `src/config/theme.ts` now maps status → tone → tokens |
 | 57 `text-[#…]` / `bg-[#…]` hex classes in 21 files — primary buttons, chat bubbles, the command bar — fixed at their light value | replaced with tokens; the guard rejects hex classes |
 | The priority dot had no text, no title and no accessible name | named in every mode |
+| **`cn()` dropped every role-named size that a colour followed** — tailwind-merge took `text-caption` for a colour. The stepper's stage names rendered at 17px | the six sizes registered with tailwind-merge; `test:design-tokens` fails if the list and the stylesheet disagree |
+| A second fabricated "AI" panel: request detail's summary, a sentence template | removed. Six more "AI" cards remain (supplier profile ×3, intake, invoice queue, workflow monitor), to be checked with their screens |
+| Request detail said "does not exist or has been removed" while loading and when the read failed | three states: loading, error, not found |
+| The service-description quality badge read `quality_score` from a camel-cased record — never rendered | reads `qualityScore` |
+| Breadcrumbs title-cased record ids: "REQ 2024 0001" | ids shown as stored |
+| The PO dialog said "pre-filled" over an empty date and a raw supplier id | pre-filled on open; supplier by name |
 | The app shell is not responsive — the sidebar is a fixed 260px at every width, leaving ~115px of content at 375px | **Not a defect, by decision (2026-09-23):** the platform is desktop-only. Recorded so it is not re-raised |
 
 ---

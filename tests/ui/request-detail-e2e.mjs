@@ -183,6 +183,67 @@ try {
     gateBody.slice(0, 300));
   await gateContext.close();
 
+  // ── The redesigned header, stepper and overview ─────────────────────────
+  console.log('\nOne next step, the rest in a menu, and nothing claimed that is not true');
+  const viewContext = await browser.newContext({ viewport: { width: 1360, height: 1000 } });
+  await installDbStub(viewContext);
+  await viewContext.addInitScript((user) => {
+    localStorage.setItem('auth', JSON.stringify({ state: { currentRole: 'admin', currentUser: user }, version: 0 }));
+  }, ADMIN);
+  const view = await viewContext.newPage();
+  await view.goto(`${BASE}/requests/${REQUEST_ID}`, { waitUntil: 'domcontentloaded' });
+  await view.getByText('Advisory support for a supplier consolidation programme').first().waitFor({ timeout: 20000 });
+  await view.waitForTimeout(1000);
+
+  // Seven buttons across two rows, three of them solid, became one filled
+  // button for the stage's next step. "Filled" is read from the computed
+  // background, not a class name, so a restyle cannot pass by renaming.
+  const header = view.locator('main').locator('div').filter({ has: view.getByRole('button', { name: 'More actions' }) }).first();
+  const filled = await header.evaluate((root) =>
+    [...root.querySelectorAll('button')].filter((b) => {
+      const bg = getComputedStyle(b).backgroundColor;
+      return bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent' && !/rgb\(2[45]\d, 2[45]\d, 2[45]\d\)/.test(bg);
+    }).map((b) => b.textContent.trim()));
+  check('exactly one filled action in the header', filled.length === 1, filled.join(' | '));
+  check('it is the stage’s next step', /Record risk decision/.test(filled[0] ?? ''), filled.join(' | '));
+
+  await view.getByRole('button', { name: 'More actions' }).click();
+  for (const item of ['Refer back', 'Reassign', 'Escalate', 'Cancel request']) {
+    check(`"${item}" is still reachable, in More`, (await view.getByRole('menuitem', { name: item }).count()) === 1);
+  }
+  await view.keyboard.press('Escape');
+
+  const body = await view.locator('main').innerText();
+  // The panel was a sentence template in lib/mock-ai.ts labelled as a model's.
+  check('nothing on the overview claims to be AI-generated', !/AI-generated/i.test(body));
+  // It read `quality_score` from a camel-cased record and never rendered once.
+  check('the service description’s quality score renders', /Quality 82\/100/.test(body));
+  check('the breadcrumb shows the id as stored, not title-cased',
+    (await view.locator('header, nav').filter({ hasText: REQUEST_ID }).count()) > 0);
+
+  // cn() dropped the role sizes whenever a colour followed them, so the stage
+  // names rendered at the inherited 17px. Measured, not assumed.
+  const stageSize = await view.getByRole('button', { name: /^Intake:/ }).evaluate((b) =>
+    parseFloat(getComputedStyle(b.querySelector('span:nth-child(2)')).fontSize));
+  check('stage names are set in the type scale (≤ 13px), not inherited', stageSize <= 13, `${stageSize}px`);
+  check('the current stage says so to a screen reader',
+    (await view.getByRole('button', { name: /Risk Assessment: current stage/ }).count()) === 1);
+  await viewContext.close();
+
+  // A failed read is not a missing request.
+  const failContext = await browser.newContext();
+  await installDbStub(failContext, {}, { fail: ['requests_with_derived'] });
+  await failContext.addInitScript((user) => {
+    localStorage.setItem('auth', JSON.stringify({ state: { currentRole: 'admin', currentUser: user }, version: 0 }));
+  }, ADMIN);
+  const failPage = await failContext.newPage();
+  await failPage.goto(`${BASE}/requests/${REQUEST_ID}`, { waitUntil: 'domcontentloaded' });
+  await failPage.waitForTimeout(3000);
+  const failBody = await failPage.locator('main').innerText();
+  check('an unreadable request says it could not be loaded', /could not be loaded/.test(failBody), failBody.slice(0, 160));
+  check('…and does not claim the request was removed', !/does not exist or has been removed/.test(failBody));
+  await failContext.close();
+
   console.log('\nThe stub answered every query it was given');
   check('no filter was silently dropped', stub.unsupported.length === 0,
     [...new Set(stub.unsupported)].slice(0, 5).join(', '));

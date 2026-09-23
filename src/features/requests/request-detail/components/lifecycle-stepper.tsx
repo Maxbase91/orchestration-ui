@@ -5,7 +5,7 @@ import { useStageHistoryByRequest } from '@/lib/db/hooks/use-stage-history';
 import { useUserLookup, useUsers } from '@/lib/db/hooks/use-users';
 import { formatDate } from '@/lib/format';
 import { useIntegrationsByRequest } from '@/lib/db/hooks/use-system-integrations';
-import { systemLabels, systemColors } from '@/data/system-integrations';
+import { systemLabels } from '@/data/system-integrations';
 import { useApprovalLookup } from '@/lib/db/hooks/use-approvals';
 import { isStageSkippedForChannel, lifecycleStagesFrom } from '@/lib/workflow/channel-stages';
 import { labelledStages } from '@/lib/workflow/stage-labels';
@@ -158,7 +158,6 @@ export function LifecycleStepper({ request, onStepClick }: LifecycleStepperProps
         system: integration.system,
         systemLabel: systemLabels[integration.system],
         status: integration.status,
-        colorClass: systemColors[integration.system],
       };
     }
   }

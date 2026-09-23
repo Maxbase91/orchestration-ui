@@ -149,6 +149,19 @@ for (const own of ['--text-eyebrow', '--text-caption', '--text-body', '--text-pr
   if (!css.includes(`${own}:`)) bad(`${own} is defined`);
 }
 if (failures === 0) ok('six role-named sizes, none of them Tailwind’s');
+// cn() must know the same six names. tailwind-merge took `text-caption` for a
+// colour and dropped it whenever a colour followed, so role sizes silently
+// vanished inside every component that merged classes — found when the request
+// stepper's stage names rendered at 17px.
+{
+  const utils = read('src/lib/utils.ts');
+  const declared = [...(utils.match(/TYPE_SCALE\s*=\s*\[([^\]]*)\]/)?.[1] ?? '').matchAll(/"([a-z]+)"/g)].map((m) => m[1]);
+  const inCss = [...css.matchAll(/--text-([a-z]+):/g)].map((m) => m[1]);
+  const missing = inCss.filter((n) => !declared.includes(n));
+  if (declared.length === 0) bad('cn() registers the type scale with tailwind-merge', 'no TYPE_SCALE found in src/lib/utils.ts');
+  else if (missing.length) bad('cn() knows every role size', `missing from TYPE_SCALE: ${missing.join(', ')} — cn() would drop them beside a colour`);
+  else ok(`cn() registers all ${declared.length} role sizes, so a colour beside one cannot erase it`);
+}
 // Same argument for spacing: overriding a step shifts every p-6 in the tree.
 if (/--spacing-\d+:/.test(css)) {
   bad('the spacing scale is not redefined', 'overriding a step shifts every existing use');

@@ -304,7 +304,9 @@ npm run test:request-list-filters # static — the request list's URL filters ro
 npm run test:request-list-ui      # browser smoke — the band's and Requests-by-Stage's links show the rows they
                                   #   counted, filters show as removable chips, priority is written, badges are tokens
 npm run test:request-detail-ui    # browser check on fixtures (no credentials, no network) — the request detail renders, every
-                                  # workflow step opens, and the risk form pre-populates from the service description
+                                  # workflow step opens, and the risk form pre-populates from the service description;
+                                  # one filled header action with the rest in More, no "AI-generated" claim, stage names
+                                  # in the type scale, and a failed read is not reported as a removed request
 npm run test:interactions-ui      # interaction E2E — wizard submit, admin save, AI assistant (self-cleaning)
 npm run test:link-route-integrity # static deep-link contract for active request/dashboard destinations
 npm run test:link-navigation      # deployed role-aware link navigation and requester read-only details
@@ -336,12 +338,16 @@ npm run backfill:c10-debris       # removes configuration nothing reads: the nin
 `test:ui` uses Playwright. First-time setup: `npm install` then `npx playwright install chromium`.
 It boots the dev server itself and needs `.env.local` with `NEON_DATABASE_URL` set.
 
-Four suites are the exception — `test:request-detail-ui`, `test:requester-entry-ui`,
-`test:service-description-ui`, `test:routing-rules-ui`, `test:approval-chains-ui`,
-`test:form-builder-ui` and `test:intake-guidance-ui`. They stub the data API inside the browser
-(`installDbStub()` in `tests/ui/db-stub.mjs`) and run with **no credentials and no network**, so all
-four run in CI (`test:requester-entry-ui` was named here before it was actually wired in; it is now). Use that harness for any screen worth checking where the database is unreachable — a
-suite that can only run against a live database does not run in CI or in a sandbox, which is how a
+The stub-backed suites are the exception. They stub the data API inside the browser
+(`installDbStub()` in `tests/ui/db-stub.mjs`) and run with **no credentials and no network**;
+`installDbStub(page, rows, { fail: ['<relation>'] })` makes a relation answer with the
+endpoint's 500, which is the only way a suite reaches a screen's error state. Seven run in CI
+(`.github/workflows/ci.yml`): `test:request-detail-ui`, `test:requester-entry-ui`,
+`test:service-description-ui`, `test:intake-guidance-ui`, `test:approvals-ui`,
+`test:dashboard-widget-states` and `test:request-list-ui`. `test:routing-rules-ui`,
+`test:approval-chains-ui` and `test:form-builder-ui` are stub-backed too but not yet in that list.
+Use that harness for any screen worth checking where the database is unreachable — a suite that
+can only run against a live database does not run in CI or in a sandbox, which is how a
 render crash on the request detail reached production unnoticed.
 
 Stub the boundary the client actually posts to, `/api/db`. That suite (now `test:requester-entry-ui`) intercepted
