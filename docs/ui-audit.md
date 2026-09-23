@@ -49,7 +49,7 @@ comes back, not that it was fixed once.
 | "Healthy" set at display size — the largest text on Home, above the user's name | system health panel; now the size of the figures beside it |
 | Empty widgets reserved 72–120px and centred one sentence in it; the grid read as half-rendered | `AsyncBoundary` empty state is now one left-aligned line; `minHeight` applies to loading only |
 | `col-span-3` in a one-column grid creates implicit columns — the dashboard would scroll sideways on a phone | spans now widen with breakpoints |
-| **The app shell is not responsive.** The sidebar is a fixed 260px at every width, leaving ~115px of content at 375px | open — shell-wide, not a dashboard fix; raised for a decision |
+| The app shell is not responsive — the sidebar is a fixed 260px at every width, leaving ~115px of content at 375px | **Not a defect, by decision (2026-09-23):** the platform is desktop-only. Recorded so it is not re-raised |
 
 ---
 

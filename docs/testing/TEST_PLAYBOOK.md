@@ -263,7 +263,7 @@ shown to everyone behind collapsed disclosures, and simplification that comes fr
 | TC-UI1-04 | Intake: describe catalogue, contract-covered, P-card-eligible, and new needs | One recommended route with a plain-language explanation; only route-specific fields are requested |
 | TC-UI1-05 | Intake: use an ineligible P-card category/value | P-card is not offered and the reason is explained; no payment or upstream write occurs |
 | TC-UI1-06 | Home command bar → type a demand → Enter | The typed demand opens on the commodity assessment already classified, the original text is visible, and the requester is not asked for it again. This handoff used to belong to the Simple home's demand box (`test:requester-entry-ui`) |
-| TC-UI1-07 | Resize to 320px and 375px | Sidebar becomes a drawer, menu button is labelled, controls remain reachable, and no horizontal overflow occurs |
+| ~~TC-UI1-07~~ | ~~Resize to 320px and 375px~~ | **Withdrawn (2026-09-23): the platform is desktop-only.** The case described a drawer the app never had — the sidebar has always been a fixed column — so it could not have passed as written |
 
 | ID | Steps | Expected |
 |---|---|---|

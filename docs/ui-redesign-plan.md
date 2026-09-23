@@ -203,8 +203,10 @@ despite being the second-largest.
 2. Migrate to tokens; delete the raw utilities.
 3. Add the screen's files to `test:design-tokens`' migrated list — so the guard
    tightens as the work proceeds rather than all at the end.
-4. Browser check at 1360px and 375px, light and dark, confirming no horizontal
-   overflow and no layout shift between loading and loaded.
+4. Browser check at 1360px, light and dark, confirming no horizontal
+   overflow and no layout shift between loading and loaded. **Desktop only**
+   (decided 2026-09-23): the platform is used at a desk, so there is no phone
+   layout and no 375px check. The sidebar stays a fixed column at every width.
 5. `npm run test:all` + the stub-backed browser suite for that area.
 6. Commit per screen, so any single screen can be reverted alone.
 
