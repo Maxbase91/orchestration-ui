@@ -347,6 +347,24 @@ export function StepBuyRoute({
     setShowEnrich(false);
   };
 
+  // Nothing described means nothing was checked. Reached by "Browse the
+  // catalogue" and then Back, this step used to say "No catalogue item covers
+  // what was described" and "We found possible coverage" about an empty
+  // description — the matcher ranks contracts against nothing and returns
+  // some — which are claims about input that does not exist.
+  if (!`${title ?? ''} ${demandDetail}`.trim()) {
+    return (
+      <div className="space-y-2 rounded-md border border-line bg-card-2 p-4">
+        <h2 className="text-body font-semibold text-ink">Nothing has been checked yet</h2>
+        <p className="text-body text-ink-2">
+          Describe what you need first. We look for a catalogue item and an existing contract
+          before anything else — go back to describe it, or browse the catalogue if you already
+          know the item.
+        </p>
+      </div>
+    );
+  }
+
   // An unreachable source is not a reason to spin forever. With no catalogue and
   // no contract register loaded there is nothing true to say about either, so
   // say that and offer the one route that is still valid — rather than leaving

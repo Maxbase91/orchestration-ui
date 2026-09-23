@@ -30,6 +30,7 @@ import { getDbAdmin } from './_db-admin.js';
 import { loadPolicyConfigWith as loadPolicy } from './_policy.js';
 import { approvalRows, deriveApprovalsFor, resolveChainId } from '../src/lib/db/approvals-core.js';
 import { nodeIdForStatus } from '../src/lib/workflow/node-config.js';
+import { templateForChannel } from '../src/lib/workflow/channel-stages.js';
 import { slaDeadlineFor } from '../src/lib/workflow/business-days.js';
 
 type CheckoutPayload = {
@@ -129,24 +130,36 @@ function assertString(value: unknown, name: string): string {
  * Designer left the server writing ids that no longer meant what it thought.
  * The node is resolved from the stored template by stage — see nodeIdForStatus.
  */
-function lifecycleEntry(route: string, status: GovernedCheckoutDecision['status']): {
-  templateId: string; stage: ProcurementRequest['status'];
-} {
+/** The buying channel a governed checkout route runs as. */
+function channelForRoute(route: string): 'catalogue' | 'framework-call-off' {
+  return route === 'catalogue' ? 'catalogue' : 'framework-call-off';
+}
+
+/**
+ * Where the new request enters its lifecycle: the stage from the decision, the
+ * template from the channel.
+ *
+ * The template used to be a literal — 'WF-002' for catalogue and 'WF-001' for
+ * EVERY contract call-off — so a call-off ran on the procurement-led lifecycle.
+ * Once that lifecycle was corrected to go Approval → Sourcing, an approved
+ * call-off would have been sent to market. It is resolved from the stored
+ * templates by the channel each one claims, like the intake writer does.
+ */
+function lifecycleStage(route: string, status: GovernedCheckoutDecision['status']): ProcurementRequest['status'] {
   if (route === 'catalogue') {
     // A catalogue order has no sourcing, contracting or risk stage to enter;
     // anything that is not auto-approved waits at manager approval.
-    if (status === 'approved') return { templateId: 'WF-002', stage: 'po' };
-    return { templateId: 'WF-002', stage: 'approval' };
+    return status === 'approved' ? 'po' : 'approval';
   }
   switch (status) {
-    case 'approved': return { templateId: 'WF-001', stage: 'po' };
-    case 'risk-review': return { templateId: 'WF-001', stage: 'risk' };
-    case 'contract-amendment-required': return { templateId: 'WF-001', stage: 'contracting' };
-    default: return { templateId: 'WF-001', stage: 'approval' };
+    case 'approved': return 'po';
+    case 'risk-review': return 'risk';
+    case 'contract-amendment-required': return 'contracting';
+    default: return 'approval';
   }
 }
 
-function requestDb(request: Partial<ProcurementRequest>, fields: { id: string; requisitionId: string; decision: GovernedCheckoutDecision; now: string; templateId: string; stage: ProcurementRequest['status']; slaDeadline: string | null }): { columns: string[]; values: unknown[] } {
+function requestDb(request: Partial<ProcurementRequest>, fields: { id: string; requisitionId: string; decision: GovernedCheckoutDecision; now: string; templateId: string; stage: ProcurementRequest['status']; slaDeadline: string | null; channel: string }): { columns: string[]; values: unknown[] } {
   // The first actionable stage is part of the persisted request state. Keeping
   // every checkout in `intake` made a completed catalogue request appear
   // stuck even when the policy had already created its internal PO.
@@ -161,7 +174,8 @@ function requestDb(request: Partial<ProcurementRequest>, fields: { id: string; r
     supplier_id: fields.decision.resolved.supplierId, supplier_name: null,
     contract_id: fields.decision.resolved.contractId,
     risk_assessment_id: fields.decision.resolved.riskAssessmentId,
-    buying_channel: request.buyingChannel ?? 'catalogue', commodity_code: request.commodityCode ?? fields.decision.resolved.commodityCodes[0] ?? '',
+    // The server's own reading of the validated route, not the browser's claim.
+    buying_channel: fields.channel, commodity_code: request.commodityCode ?? fields.decision.resolved.commodityCodes[0] ?? '',
     commodity_code_label: request.commodityCodeLabel ?? fields.decision.resolved.commodityCodes[0] ?? '',
     cost_centre: fields.decision.resolved.costCentre ?? request.costCentre ?? '', budget_owner: fields.decision.resolved.budgetOwner ?? request.budgetOwner ?? '',
     business_justification: request.businessJustification ?? request.description ?? '',
@@ -369,15 +383,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     if (!sameDecision(payload?.decision, decision)) throw new CheckoutError('The governance decision changed; review the checkout and submit again.', 'governance_mismatch', 409);
     if (!decision.ok) throw new CheckoutError(decision.errors.join(' '), 'governance_rejected', 422);
     const now = new Date().toISOString();
-    const entry = lifecycleEntry(checkout.route, decision.status);
+    const templateRows = await queryRows(sql, 'SELECT id, channels, nodes FROM workflow_templates', []);
+    const templateId = templateForChannel(
+      templateRows.map((row) => ({
+        id: String(row.id), channels: Array.isArray(row.channels) ? row.channels as string[] : [],
+        nodes: [], edges: [],
+      })),
+      channelForRoute(checkout.route),
+    );
+    if (!templateId) {
+      throw new CheckoutError('No workflow is configured for this kind of order. Ask an administrator to assign one in the Workflow Designer.', 'no_workflow', 422);
+    }
+    const entry = { templateId, stage: lifecycleStage(checkout.route, decision.status) };
 
     // The node and its SLA come from the stored template, not from literals.
     // A template with no node for this stage still gets a request and a stage
     // row — only the workflow instance is skipped, because an instance pointing
     // at a node that does not exist is harder to detect than a missing one.
-    const [entryTemplate] = await queryRows(
-      sql, 'SELECT nodes FROM workflow_templates WHERE id = $1', [entry.templateId],
-    );
+    const entryTemplate = templateRows.find((row) => String(row.id) === templateId);
     const entryNodes = Array.isArray(entryTemplate?.nodes)
       ? entryTemplate.nodes as Array<{ id: string; type?: string; label?: string; slaDays?: number }>
       : [];
@@ -402,7 +425,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
           await resolveChainId(getDbAdmin(), request.approvalChain ?? null, decision.totalValue),
         )
       : [];
-    const reqData = requestDb(request, { id: requestId, requisitionId, decision, now, templateId: entry.templateId, stage: entry.stage, slaDeadline: entrySlaDeadline });
+    const reqData = requestDb(request, { id: requestId, requisitionId, decision, now, templateId: entry.templateId, stage: entry.stage, slaDeadline: entrySlaDeadline, channel: channelForRoute(checkout.route) });
     const requisitionData: Record<string, unknown> = {
       id: requisitionId, request_id: requestId, route: checkout.route, status: decision.status,
       supplier_id: decision.resolved.supplierId, contract_id: decision.resolved.contractId,

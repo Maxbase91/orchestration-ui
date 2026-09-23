@@ -269,7 +269,9 @@ npm run test:approval-bands       # a chain with no value band never shadows one
 npm run test:form-gates           # the blocking form gate is a subset of what renders, so a form can never strand a request
 npm run test:form-builder         # the builder offers every stage a form uses, the shared condition editor, and reports a form that cannot fire
 npm run test:channel-stages      # the workflow templates are the only definition of a channel lifecycle; no code restates one
-npm run test:edge-conditions     # a decision node actually decides, and every palette type the designer offers round-trips
+npm run test:edge-conditions     # a decision node actually decides, every palette type round-trips, every workflow signal evaluates
+                                  #   both ways, a rejected approval goes back to the requester in every template, and no shipped or
+                                  #   live template has a node the engine cannot branch from unambiguously
 npm run test:models               # each pinned Groq/Gemini model is still served by its provider (calls the providers, so it is outside the default gate — run it on demand or via `test:all -- --external`)
 npm run test:table-lists          # hand-maintained relation lists match db/schema.sql
 npm run test:requester-entry-ui   # browser smoke (stubbed) — requester entry screen renders and fits 320px

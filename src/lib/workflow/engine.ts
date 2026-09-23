@@ -261,7 +261,7 @@ async function advanceInstance(
   // Load request context for decision-node condition evaluation
   const { data: reqRow } = await db
     .from('requests')
-    .select('value, category, status, risk_assessment_required, inherent_risk_tier, supplier_id')
+    .select('value, category, status, risk_assessment_required, inherent_risk_tier, supplier_id, fulfilment_status')
     .eq('id', instance.requestId)
     .maybeSingle();
   const row = (reqRow ?? {}) as Record<string, unknown>;
@@ -272,6 +272,9 @@ async function advanceInstance(
     riskRequired: row.risk_assessment_required === true,
     riskTier: row.inherent_risk_tier as string | undefined,
     onboardingRequired: await needsOnboarding(row.supplier_id as string | null),
+    // Written by the governed checkout; the call-off template's amendment
+    // detour branches on it.
+    contractAmendmentRequired: row.fulfilment_status === 'contract-amendment-required',
     outcome,
   };
 

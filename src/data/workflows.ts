@@ -20,7 +20,6 @@ export const workflowTemplates: WorkflowTemplate[] = [
       { id: 'n2', type: 'stage', label: 'Intake', x: 200, y: 200, role: 'Business Requestor', slaDays: 1, gate: 'auto' as const, purpose: 'Demand captured and classified. Completed by submission.' },
       { id: 'n3', type: 'stage', label: 'Validation', x: 350, y: 200, role: 'Category Manager', slaDays: 3, gate: 'manual' as const, purpose: 'Demand is complete, correctly categorised and routed to the right channel.' },
       { id: 'n14', type: 'stage', label: 'Risk Assessment', x: 350, y: 330, role: 'Third-party risk', slaDays: 7, gate: 'manual' as const, purpose: 'Third-party risk assessed and a decision recorded, or an existing assessment reused.' },
-      { id: 'n4', type: 'decision', label: 'Auto-Route', x: 500, y: 200 },
       { id: 'n5', type: 'stage', label: 'Approval', x: 650, y: 100, role: 'Approver', slaDays: 5, gate: 'manual' as const, purpose: 'All approvers in the value-banded chain have responded.' },
       { id: 'n6', type: 'stage', label: 'Sourcing', x: 650, y: 300, role: 'Procurement Lead', slaDays: 20, gate: 'manual' as const, purpose: 'A supplier has been selected and the event awarded.' },
       { id: 'n7', type: 'stage', label: 'Contracting', x: 800, y: 200, role: 'Legal', slaDays: 10, gate: 'manual' as const, purpose: 'Contract agreed and signed by both parties.' },
@@ -42,15 +41,19 @@ export const workflowTemplates: WorkflowTemplate[] = [
       // one was needed. 'Risk required' is listed first so it is evaluated first;
       // 'Skip risk' is the catch-all for demand that does not need one.
       { source: 'n3', target: 'n14', label: 'Risk required' },
-      { source: 'n3', target: 'n4', label: 'Skip risk' },
-      // Onboarding is entered only when the supplier is not yet on the register.
-      // 'Onboarding required' is listed first so it is evaluated first.
+      { source: 'n3', target: 'n5', label: 'Skip risk' },
+      // Onboarding is entered only when the supplier the requester named is not
+      // yet on the register — so it can be invited to market. 'Onboarding
+      // required' is listed first so it is evaluated first.
       { source: 'n14', target: 'n15', label: 'Onboarding required' },
-      { source: 'n15', target: 'n4' },
-      { source: 'n14', target: 'n4', label: 'Skip onboarding' },
-      { source: 'n4', target: 'n5', label: 'Needs Approval' },
-      { source: 'n4', target: 'n6', label: 'Direct to Sourcing' },
-      { source: 'n5', target: 'n7', label: 'Approved' },
+      { source: 'n15', target: 'n5' },
+      { source: 'n14', target: 'n5', label: 'Skip onboarding' },
+      // Approval, THEN sourcing. There used to be an "Auto-Route" decision here
+      // whose two exits ("Needs Approval" / "Direct to Sourcing") were captions,
+      // not conditions — so the engine always took the first, and Approval led
+      // straight to Contracting. Sourcing never ran on the engine path; three
+      // live requests went approval → contracting without a sourcing event.
+      { source: 'n5', target: 'n6', label: 'Approved' },
       { source: 'n5', target: 'n13', label: 'Rejected' },
       { source: 'n6', target: 'n7' },
       { source: 'n7', target: 'n8' },
@@ -85,6 +88,9 @@ export const workflowTemplates: WorkflowTemplate[] = [
       { id: 'n9', type: 'stage', label: 'Invoice', x: 950, y: 150, role: 'Accounts Payable', slaDays: 5, gate: 'manual' as const, purpose: 'Invoice received and matched to the PO and receipt.' },
       { id: 'n10', type: 'stage', label: 'Payment', x: 1100, y: 150, role: 'Finance', slaDays: 3, gate: 'manual' as const, purpose: 'Payment released to the supplier.' },
       { id: 'n8', type: 'end', label: 'Complete', x: 1250, y: 150 },
+      // Manager Approval had only an "Approved" exit, so a rejected order fell
+      // through to the PO.
+      { id: 'n11', type: 'error', label: 'Referred Back', x: 500, y: 300, slaDays: 3 },
     ],
     edges: [
       { source: 'n1', target: 'n2' },
@@ -105,6 +111,8 @@ export const workflowTemplates: WorkflowTemplate[] = [
       // does not hold.
       { source: 'n3', target: 'n5', label: 'Auto-approve' },
       { source: 'n4', target: 'n6', label: 'Approved' },
+      { source: 'n4', target: 'n11', label: 'Rejected' },
+      { source: 'n11', target: 'n2', label: 'Resubmit' },
       { source: 'n5', target: 'n6' },
       { source: 'n6', target: 'n7' },
       { source: 'n7', target: 'n9' },
@@ -122,7 +130,6 @@ export const workflowTemplates: WorkflowTemplate[] = [
       { id: 'n1', type: 'start', label: 'Onboarding Request', x: 50, y: 200 },
       { id: 'n2', type: 'stage', label: 'Initial Review', x: 200, y: 200, slaDays: 2 },
       { id: 'n3', type: 'stage', label: 'Due Diligence', x: 350, y: 200, slaDays: 5 },
-      { id: 'n4', type: 'parallel', label: 'Parallel Checks', x: 500, y: 200 },
       { id: 'n5', type: 'stage', label: 'Sanctions Screening', x: 650, y: 80, slaDays: 2 },
       { id: 'n6', type: 'stage', label: 'Financial Check', x: 650, y: 200, slaDays: 3 },
       { id: 'n7', type: 'stage', label: 'SRA Assessment', x: 650, y: 320, slaDays: 7 },
@@ -135,12 +142,12 @@ export const workflowTemplates: WorkflowTemplate[] = [
     edges: [
       { source: 'n1', target: 'n2' },
       { source: 'n2', target: 'n3' },
-      { source: 'n3', target: 'n4' },
-      { source: 'n4', target: 'n5' },
-      { source: 'n4', target: 'n6' },
-      { source: 'n4', target: 'n7' },
-      { source: 'n5', target: 'n8' },
-      { source: 'n6', target: 'n8' },
+      // In sequence, not in parallel. A "Parallel Checks" split sent three
+      // unconditioned edges out of one node and the engine follows exactly one
+      // — the first — so Financial Check and SRA Assessment could never run.
+      { source: 'n3', target: 'n5' },
+      { source: 'n5', target: 'n6' },
+      { source: 'n6', target: 'n7' },
       { source: 'n7', target: 'n8' },
       // Both branches were unconditional, so the engine took "Pass" every time
       // and "Fail" was unreachable — a risk decision that could not reject.
@@ -156,6 +163,7 @@ export const workflowTemplates: WorkflowTemplate[] = [
       },
       { source: 'n8', target: 'n9', label: 'To compliance approval' },
       { source: 'n9', target: 'n10', label: 'Approved' },
+      { source: 'n9', target: 'n12', label: 'Rejected' },
       { source: 'n10', target: 'n11' },
     ],
   },
@@ -175,6 +183,9 @@ export const workflowTemplates: WorkflowTemplate[] = [
       { id: 'n7', type: 'stage', label: 'Approval', x: 800, y: 300, slaDays: 5 },
       { id: 'n8', type: 'stage', label: 'Contract Execution', x: 1000, y: 200, slaDays: 10 },
       { id: 'n9', type: 'end', label: 'Active Contract', x: 1200, y: 200 },
+      // A rejected renewal goes back for renegotiation. There was no Rejected
+      // branch at all, so a rejection fell through to Contract Execution.
+      { id: 'n10', type: 'error', label: 'Referred Back', x: 800, y: 420, slaDays: 3 },
     ],
     edges: [
       { source: 'n1', target: 'n2' },
@@ -196,6 +207,8 @@ export const workflowTemplates: WorkflowTemplate[] = [
       { source: 'n5', target: 'n7' },
       { source: 'n6', target: 'n8' },
       { source: 'n7', target: 'n8', label: 'Approved' },
+      { source: 'n7', target: 'n10', label: 'Rejected' },
+      { source: 'n10', target: 'n5', label: 'Resubmit' },
       { source: 'n8', target: 'n9' },
     ],
   },
@@ -242,10 +255,12 @@ export const workflowTemplates: WorkflowTemplate[] = [
     name: 'Business-Led Buying',
     description: 'The business runs the buy against an existing framework or a known supplier. Procurement assures risk and onboarding rather than running the deal.',
     type: 'business-led',
-    // Both channels, because they traverse the same stages: a framework
-    // call-off and a business-led buy differ in what covers the spend, not in
-    // what the platform asks of them.
-    channels: ['business-led', 'framework-call-off'],
+    // Business-led only. It used to claim framework-call-off too, on the view
+    // that the two traverse the same stages — they do not: a call-off against
+    // a transactable contract needs no vendor onboarding (the contract supplier
+    // is set up) and no fresh risk assessment when the contract's one can be
+    // reused. WF-008 carries the call-off.
+    channels: ['business-led'],
     nodes: [
       { id: 'n1', type: 'start', label: 'Request Submitted', x: 50, y: 200 },
       { id: 'n2', type: 'stage', label: 'Intake', x: 200, y: 200, role: 'Business Requestor', slaDays: 1, gate: 'auto' as const, purpose: 'Demand captured and classified. Completed by submission.' },
@@ -262,8 +277,8 @@ export const workflowTemplates: WorkflowTemplate[] = [
     edges: [
       { source: 'n1', target: 'n2' },
       { source: 'n2', target: 'n3' },
-      // Risk and onboarding are entered only when the triage said so, the same
-      // conditional shape WF-001 uses; the stepper draws the rest as skipped.
+      // Business-led buying always gets a risk review — the supplier is the
+      // business's own choice. Onboarding is conditional on it being new.
       { source: 'n3', target: 'n4', label: 'Onboarding required' },
       { source: 'n3', target: 'n5', label: 'Skip onboarding' },
       { source: 'n4', target: 'n5' },
@@ -295,6 +310,45 @@ export const workflowTemplates: WorkflowTemplate[] = [
       { source: 'n3', target: 'n4', label: 'Approved' },
       { source: 'n3', target: 'n5', label: 'Rejected' },
       { source: 'n5', target: 'n2', label: 'Resubmit' },
+    ],
+  },
+  {
+    id: 'WF-008',
+    name: 'Contract Call-Off',
+    description: 'A call-off against a transactable contract. The contract already governs the supplier and the price, so there is no sourcing and no vendor onboarding; risk is assessed only when the contract supplier\'s assessment cannot be reused.',
+    type: 'call-off',
+    channels: ['framework-call-off'],
+    nodes: [
+      { id: 'n1', type: 'start', label: 'Call-off Submitted', x: 50, y: 200 },
+      { id: 'n2', type: 'stage', label: 'Intake', x: 200, y: 200, role: 'Business Requestor', slaDays: 1, gate: 'auto' as const, purpose: 'Call-off captured against the contract. Completed by submission.' },
+      { id: 'n3', type: 'stage', label: 'Contracting', x: 350, y: 80, role: 'Legal', slaDays: 10, gate: 'manual' as const, purpose: 'The contract is amended so this call-off falls within it.' },
+      { id: 'n4', type: 'stage', label: 'Risk Assessment', x: 350, y: 320, role: 'Third-party risk', slaDays: 7, gate: 'manual' as const, purpose: 'The contract supplier\'s assessment is extended to this scope.' },
+      { id: 'n5', type: 'stage', label: 'Approval', x: 500, y: 200, role: 'Approver', slaDays: 5, gate: 'manual' as const, purpose: 'All approvers in the value-banded chain have responded.' },
+      { id: 'n6', type: 'stage', label: 'PO Creation', x: 650, y: 200, role: 'Procurement Ops', slaDays: 2, gate: 'manual' as const, purpose: 'Purchase order raised against the contract.' },
+      { id: 'n7', type: 'stage', label: 'Receipt', x: 800, y: 200, role: 'Business Requestor', slaDays: 5, gate: 'manual' as const, purpose: 'Goods or services received and confirmed.' },
+      { id: 'n8', type: 'stage', label: 'Invoice', x: 950, y: 200, role: 'Accounts Payable', slaDays: 5, gate: 'manual' as const, purpose: 'Invoice received and matched to the PO and receipt.' },
+      { id: 'n9', type: 'stage', label: 'Payment', x: 1100, y: 200, role: 'Finance', slaDays: 3, gate: 'manual' as const, purpose: 'Payment released to the supplier.' },
+      { id: 'n10', type: 'end', label: 'Completed', x: 1250, y: 200 },
+      { id: 'n11', type: 'error', label: 'Referred Back', x: 500, y: 380, slaDays: 3 },
+    ],
+    edges: [
+      { source: 'n1', target: 'n2' },
+      // Each detour is taken only when its signal says so; the plain path is
+      // Intake → Approval. The first matching condition wins, so an amendment
+      // is dealt with before the risk question is asked.
+      { source: 'n2', target: 'n3', label: 'Contract amendment required' },
+      { source: 'n2', target: 'n4', label: 'Risk required' },
+      { source: 'n2', target: 'n5' },
+      { source: 'n3', target: 'n4', label: 'Risk required' },
+      { source: 'n3', target: 'n5' },
+      { source: 'n4', target: 'n5' },
+      { source: 'n5', target: 'n6', label: 'Approved' },
+      { source: 'n5', target: 'n11', label: 'Rejected' },
+      { source: 'n6', target: 'n7' },
+      { source: 'n7', target: 'n8' },
+      { source: 'n8', target: 'n9' },
+      { source: 'n9', target: 'n10' },
+      { source: 'n11', target: 'n2', label: 'Resubmit' },
     ],
   },
 ];

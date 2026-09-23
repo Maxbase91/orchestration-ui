@@ -109,21 +109,27 @@ try {
   check('full-request escape opens the adaptive details path', await page.getByPlaceholder('Type your answer...').isVisible().catch(() => false));
   check('full-request escape does not open catalogue selection', (await page.getByText('Choose your items', { exact: true }).count()) === 0);
 
-  // "Browse the catalogue", then change your mind. The shortcut wrote
-  // `category: 'catalogue'` as well as the route; Back and "Raise a full
-  // request" then reached Details with a catalogue category on the full-request
-  // route, which matched no branch — an empty step whose gate asked for a title
-  // and a value it offered no field for.
+  // "Browse the catalogue", then change your mind. Two defects lived on this
+  // path. The shortcut stored the catalogue ROUTE as the form's CATEGORY, so
+  // a later switch to a full request reached a Details step that rendered
+  // nothing. And How you'll buy, reached with nothing described, claimed
+  // "No catalogue item covers what was described" and "We found possible
+  // coverage" — the matcher ranks contracts against an empty string.
   await page.goto(`${BASE}/requests/new`, { waitUntil: 'networkidle' });
   await page.getByRole('button', { name: /Browse the catalogue/ }).click();
   await page.getByRole('button', { name: /^Back$/ }).click();
-  await Promise.race([
-    page.getByText("How you'll buy this", { exact: true }).waitFor({ timeout: 15000 }),
-    page.getByText('We could not check what already exists', { exact: true }).waitFor({ timeout: 15000 }),
-  ]).catch(() => {});
-  await page.getByRole('button', { name: /^Start$|^Continue$/ }).last().click();
-  check('catalogue → back → full request opens the conversation, not an empty step',
-    await page.getByPlaceholder('Type your answer...').isVisible({ timeout: 10000 }).catch(() => false));
+  await page.getByText('Nothing has been checked yet', { exact: true }).waitFor({ timeout: 15000 }).catch(() => {});
+  const emptyRoute = await page.locator('main').innerText();
+  check('with nothing described, How you\'ll buy says nothing was checked',
+    emptyRoute.includes('Nothing has been checked yet'));
+  check('…and makes no coverage claim about an empty description',
+    !/We found possible coverage|covers what was described/.test(emptyRoute), emptyRoute.slice(0, 200));
+
+  // The category is not left behind as "catalogue": describing the need from
+  // here gets the conversation, not an empty Details step.
+  await page.getByRole('button', { name: /^Back$/ }).click();
+  check('Back from an empty route returns to Describe',
+    await page.getByText('Describe what you need', { exact: true }).isVisible({ timeout: 10000 }).catch(() => false));
 
   await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(500);

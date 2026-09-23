@@ -362,17 +362,29 @@ export function ActionButtons({ request }: ActionButtonsProps) {
     }
   }
 
+  /**
+   * What a PO cannot be raised without. It used to invent both: a request with
+   * no supplier got `SUP-001` — a real supplier nobody chose — with the id
+   * stored as its name, and a missing date became "today + 30 days". A PO is a
+   * record other systems act on, so it says what is missing instead.
+   */
+  const poBlockers = [
+    ...(request.supplierId ? [] : ['a supplier — award one in sourcing or set it on the request']),
+    ...(poDeliveryDate || request.deliveryDate ? [] : ['an expected delivery date']),
+  ];
+
   async function handleCreatePO() {
+    if (!request.supplierId || poBlockers.length > 0) return;
     const poId = `PO-${Date.now().toString().slice(-6)}`;
     try {
       await createPO.mutateAsync({
         id: poId,
-        supplierId: request.supplierId ?? 'SUP-001',
-        supplierName: request.supplierId ?? 'Supplier',
+        supplierId: request.supplierId,
+        supplierName: lookupSupplier(request.supplierId)?.name ?? request.supplierId,
         value: request.value,
         status: 'submitted',
         createdAt: new Date().toISOString(),
-        deliveryDate: poDeliveryDate || request.deliveryDate || new Date(Date.now() + 30 * 86400_000).toISOString().slice(0, 10),
+        deliveryDate: poDeliveryDate || request.deliveryDate,
         contractId: request.contractId,
         requestId: request.id,
         lineItems: [{ description: request.title, quantity: 1, unitPrice: request.value, received: 0 }],
@@ -703,7 +715,10 @@ export function ActionButtons({ request }: ActionButtonsProps) {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setPoDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleCreatePO} disabled={createPO.isPending}>
+            {poBlockers.length > 0 && (
+              <span className="mr-auto self-center text-caption text-warn">Needs {poBlockers.join(' and ')}.</span>
+            )}
+            <Button onClick={handleCreatePO} disabled={createPO.isPending || poBlockers.length > 0}>
               {createPO.isPending ? <Loader2 className="mr-1.5 size-3.5 animate-spin" /> : null}
               Create PO
             </Button>

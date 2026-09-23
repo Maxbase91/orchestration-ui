@@ -589,6 +589,10 @@ not in a component — because RLS is currently `USING (true)`.
 
 | ID | Steps | Expected |
 |---|---|---|
+| TC-WF-00a | Approve a procurement-led request | It moves to **Sourcing**, then Contracting. WF-001's "Auto-Route" decision had two captioned exits the engine could not tell apart, so it always took Approval, and Approval led to Contracting — three live requests skipped sourcing (`test:edge-conditions`) |
+| TC-WF-00b | Reject an approval, in any template | The request goes back to the requester (Referred Back). Workflow signals were evaluated by the routing evaluator, which does not know them, so "Rejected" never matched and the engine took the first exit — "Approved". WF-002, WF-003 and WF-004 also had no Rejected branch at all (`test:edge-conditions`) |
+| TC-WF-00c | Submit a contract call-off | It runs WF-008: no sourcing and no vendor onboarding; Contracting only if the contract needs amending, risk only if the supplier's assessment cannot be reused. Call-offs ran WF-001 (governed checkout) or WF-006 (with onboarding) before (`test:edge-conditions`) |
+| TC-WF-00d | Raise a PO for a request with no supplier or no date | The dialog says what is missing and does not create the PO. It used to invent supplier SUP-001 and "today + 30 days" (`test:ui-lifecycle`) |
 | TC-WF-01 | `/workflows` Kanban | Stage columns, value subtotals, quick filters (Stuck>5d/My Action/High value/Escalated), integration badges |
 | TC-WF-02 | Drag a card between stages (permitted) | Moves + persists; audit entry |
 | TC-WF-03 | Table view | Sortable/filterable, System column |

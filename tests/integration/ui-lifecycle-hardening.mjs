@@ -25,6 +25,11 @@ const checks = [
   ['Vendor-manager risk action requires a rationale', profileRisk.includes('recordRiskDecision') && profileRisk.includes('Risk decision rationale')],
   ['Procurement onboarding completion requires a note', onboardingPipeline.includes('Completion note') && onboardingPipeline.includes("onboardingStatus: 'completed'")],
   ['Terminal status without history is shown as intake', lifecycleStepper.includes('inconsistentTerminalState') && lifecycleStepper.includes('shown as intake until the record is repaired')],
+  // A PO names a supplier other systems act on. Create PO fell back to
+  // SUP-001 — a real supplier nobody chose — with the id as its name, and to
+  // "today + 30 days" for a missing delivery date.
+  ['A PO is never raised against an invented supplier', !/\?\?\s*'SUP-\d/.test(actionButtons) && actionButtons.includes('poBlockers')],
+  ['A PO is never given an invented delivery date', !/Date\.now\(\)\s*\+\s*30\s*\*\s*86400/.test(actionButtons)],
 ];
 
 let failures = 0;

@@ -36,7 +36,37 @@ export interface EdgeCondition {
  * the designer can offer them, and so `diagnoseTemplate` can tell a typo from a
  * legitimate signal.
  */
-export const EDGE_SIGNAL_FIELDS = ['outcome', 'riskRequired', 'onboardingRequired'] as const;
+export const EDGE_SIGNAL_FIELDS = ['outcome', 'riskRequired', 'onboardingRequired', 'contractAmendmentRequired'] as const;
+
+const SIGNAL_FIELD_SET: ReadonlySet<string> = new Set(EDGE_SIGNAL_FIELDS);
+
+/**
+ * A workflow signal — the action's outcome, riskRequired, onboardingRequired,
+ * contractAmendmentRequired — evaluated here, not by the routing evaluator.
+ *
+ * These went to `evalCondition`, whose field lookup knows only the routing
+ * vocabulary (category, value, supplier, …) and answers `undefined` for
+ * anything else, so EVERY signal condition was false. The engine then fell
+ * through to a node's first edge: an approval stage took "Approved" whatever
+ * the approver decided — a rejected request moved on to the next stage — and
+ * risk and onboarding were entered whatever the triage said. The labels read
+ * correctly on the canvas the whole time.
+ */
+function signalHolds(condition: EdgeCondition, ctx: EdgeEvalContext | undefined): boolean {
+  const raw = (ctx as Record<string, unknown> | undefined)?.[condition.field];
+  // Booleans compare as 'true' / 'false'; an absent signal is false, so
+  // "Skip risk" (not_equals 'true') holds when nobody asked for a review.
+  const actual = typeof raw === 'boolean' ? String(raw) : raw == null ? (condition.field === 'outcome' ? '' : 'false') : String(raw);
+  const wanted = condition.value.split(',').map((v) => v.trim().toLowerCase());
+  const a = actual.toLowerCase();
+  switch (condition.operator) {
+    case 'equals': return a === wanted[0];
+    case 'not_equals': return a !== wanted[0];
+    case 'in': return wanted.includes(a);
+    case 'not_in': return !wanted.includes(a);
+    default: return false;
+  }
+}
 
 /** Everything an edge condition may name: request fields plus workflow signals. */
 export const EDGE_FIELDS: readonly string[] = [...SUPPORTED_FIELDS, ...EDGE_SIGNAL_FIELDS];
@@ -50,6 +80,8 @@ export interface EdgeEvalContext {
   outcome?: string;
   riskRequired?: boolean;
   onboardingRequired?: boolean;
+  /** The governed checkout found the contract must be amended before this call-off fits it. */
+  contractAmendmentRequired?: boolean;
   riskTier?: string;
   supplierId?: string;
   contractId?: string;
@@ -76,6 +108,8 @@ const SIGNAL_LABELS: Record<string, EdgeCondition> = {
   'onboarding required': { field: 'onboardingRequired', operator: 'equals', value: 'true' },
   'skip onboarding': { field: 'onboardingRequired', operator: 'not_equals', value: 'true' },
   'no onboarding': { field: 'onboardingRequired', operator: 'not_equals', value: 'true' },
+  'contract amendment required': { field: 'contractAmendmentRequired', operator: 'equals', value: 'true' },
+  'no contract amendment': { field: 'contractAmendmentRequired', operator: 'not_equals', value: 'true' },
 };
 
 /** The condition an edge actually evaluates: the typed one, else a known signal label. */
@@ -101,6 +135,7 @@ export function edgeConditionHolds(
 ): boolean {
   const condition = conditionForEdge(edge);
   if (!condition) return true;
+  if (SIGNAL_FIELD_SET.has(condition.field)) return signalHolds(condition, ctx);
   return evalCondition(
     condition.field,
     condition.operator,
@@ -177,19 +212,30 @@ export function diagnoseTemplate(
     }
   }
 
-  // A decision every branch of which is conditional has no default, so a
-  // request matching none falls through to whichever edge happens to be first.
+  // Every node, not only decisions: the engine follows exactly one branch out
+  // of ANY node. This was checked for `decision` nodes alone, so a `parallel`
+  // split (WF-003's three checks, of which only the first ever ran) and a
+  // stage with two captioned exits passed — and nothing ran it over the
+  // shipped templates, which is how WF-001's "Needs Approval" / "Direct to
+  // Sourcing" fork kept Sourcing unreachable. test:edge-conditions now does.
   for (const node of template.nodes ?? []) {
-    if (node.type !== 'decision') continue;
     const outgoing = (template.edges ?? []).filter((e) => e.source === node.id);
-    if (outgoing.length === 0) {
+    if (node.type === 'decision' && outgoing.length === 0) {
       add(node.id, 'This decision has no outgoing branches, so nothing can follow it.');
       continue;
     }
     const unconditional = outgoing.filter(isUnconditional);
-    if (unconditional.length === 0) {
+    // A decision every branch of which is conditional has no default, so a
+    // request matching none falls through to whichever edge happens to be first.
+    if (node.type === 'decision' && unconditional.length === 0) {
       add(node.id, 'Every branch has a condition, so a request matching none falls through to the first. Leave one unconditional as the default.');
-    } else if (unconditional.length > 1) {
+      continue;
+    }
+    if (outgoing.length < 2) continue;
+    if (node.type === 'parallel') {
+      add(node.id, 'Branches here do not run in parallel — the engine follows one. Put the steps in sequence.');
+    }
+    if (unconditional.length > 1) {
       // The first unconditional edge is the default and the rest are
       // unreachable. Saying "arbitrary" would be wrong — it is deterministic,
       // just invisible — and naming the unreachable branches is what an admin
@@ -200,6 +246,17 @@ export function diagnoseTemplate(
         .map((n) => `"${n}"`)
         .join(', ');
       add(node.id, `${names} can never be reached: ${unreachable.length === 1 ? 'it has' : 'they have'} no condition, and an earlier branch with no condition is always taken. Give ${unreachable.length === 1 ? 'it' : 'them'} a condition, or remove ${unreachable.length === 1 ? 'it' : 'them'}.`);
+    }
+  }
+
+  // An approval that can be approved must be able to be rejected. WF-004's
+  // Approval had only an "Approved" exit; a rejection matched nothing and fell
+  // through to it, so a rejected renewal went on to Contract Execution.
+  for (const node of template.nodes ?? []) {
+    const exits = (template.edges ?? []).filter((e) => e.source === node.id);
+    const outcomes = exits.map((e) => conditionForEdge(e)).filter((c) => c?.field === 'outcome').map((c) => c!.value);
+    if (outcomes.includes('approved') && !outcomes.includes('rejected')) {
+      add(node.id, 'This step can be approved but has no "Rejected" branch, so a rejection falls through to the approved path.');
     }
   }
 

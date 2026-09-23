@@ -16,7 +16,7 @@ config plane that is actually read at runtime.
 | `stage-labels.ts` | What a stage is called. Was ten copies with five different answers for `po` |
 | `stage-sla.ts` | A stage's SLA in working days, from the template node that owns it. Returns **null**, never a default — replaced `src/lib/db/sla-targets.ts`, whose `resolveSla` answered 5 for any stage nobody had configured |
 | `business-days.ts` | `slaDeadlineFor` / `addBusinessDays` — the one place a deadline is computed, dependency-free so `api/` can use it |
-| `edge-conditions.ts` | What decides which way a decision node branches: a typed condition in the routing vocabulary, plus `getNextNodeIds` |
+| `edge-conditions.ts` | What decides which way a node branches: a typed condition in the routing vocabulary, or a workflow signal (`outcome`, `riskRequired`, `onboardingRequired`, `contractAmendmentRequired`) evaluated here — the routing evaluator does not know the signals, and handing them to it made every one false, so a rejected approval took "Approved". Also `getNextNodeIds` and `diagnoseTemplate`, which flags any node the engine cannot branch from unambiguously: two unconditioned exits, a `parallel` split (the engine follows one branch), or an approval with no "Rejected" exit |
 | `workflow-steps.ts` | The template-derived lifecycle preview shown at intake |
 
 ## Why `transition.ts` exists
@@ -149,3 +149,21 @@ a stage that will not appear.
     npm run test:workflow-steps  # the template-derived lifecycle preview
     npm run test:approval-chain-persistence # selected chain foreign-key persistence
     npm run test:e2e             # request → approval, end to end (needs NEON_DATABASE_URL)
+
+## Which template runs which channel
+
+Each channel is claimed by exactly one template (`channels`), and every writer
+resolves the template by the channel — the intake writer, the governed checkout
+and the backfills. Never by a literal id: the checkout wrote `'WF-001'` for every
+contract call-off, so call-offs ran the procurement-led lifecycle.
+
+| Channel | Template |
+|---|---|
+| procurement-led | WF-001 Standard Procurement — Intake → Validation → (risk) → (onboarding, for a named new supplier) → Approval → Sourcing → Contracting → PO → Receipt → Invoice → Payment |
+| catalogue | WF-002 Catalogue Purchase |
+| direct-po | WF-005 Direct Purchase Order |
+| business-led | WF-006 Business-Led Buying — always a risk review; onboarding only for a new supplier |
+| p-card | WF-007 Purchasing Card |
+| framework-call-off | WF-008 Contract Call-Off — no sourcing, no onboarding; Contracting only when the checkout found the contract needs amending, risk only when the supplier's assessment cannot be reused |
+
+WF-003 (supplier onboarding) and WF-004 (contract renewal) are side processes and claim no channel.

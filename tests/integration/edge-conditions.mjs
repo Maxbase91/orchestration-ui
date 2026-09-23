@@ -169,16 +169,80 @@ console.log('\nThe shipped templates');
 const seedProblems = workflowTemplates.flatMap(
   (t) => diagnoseTemplate(t, CONFIG).map((d) => `${t.id} ${d.nodeId}: ${d.problems.join(' ')}`),
 );
-// WF-001's Auto-Route is a known, deliberate gap: "Direct to Sourcing" has no
-// condition because nobody has decided what earns it, and inventing one would
-// change who gets approved. It stays reported rather than quietly wired.
-const unexpected = seedProblems.filter((p) => !p.startsWith('WF-001 n4:'));
-if (unexpected.length) bad('no unexpected template problem', unexpected.join(' | '));
-else ok(`${seedProblems.length} known problem(s), all expected`);
-if (!seedProblems.some((p) => p.startsWith('WF-001 n4:'))) {
-  bad("WF-001's undecided Auto-Route is still reported",
-    'it was silently taking the first branch; it must stay visible until someone decides');
-} else ok("WF-001's Auto-Route stays reported as undecided");
+// No exemptions. WF-001's Auto-Route used to be allowed here as "a known,
+// deliberate gap" — nobody had decided what earns "Direct to Sourcing". What
+// that missed is where the branch it always took led: Approval → Contracting,
+// so Sourcing never ran on the engine path. The fork is gone; every
+// procurement-led request is approved and then sourced, which is who was
+// approved before (the first branch was always Approval).
+// Two nodes with one id make every edge that names it ambiguous — nearly
+// shipped when WF-002 gained a Referred Back node beside an existing n9.
+const dupes = workflowTemplates.flatMap((t) => t.nodes.map((n) => n.id)
+  .filter((id, i, ids) => ids.indexOf(id) !== i).map((id) => `${t.id} ${id}`));
+if (dupes.length) bad('every node id is unique within its template', dupes.join(', '));
+else ok('every node id is unique within its template');
+if (seedProblems.length) bad('every shipped template branches unambiguously', seedProblems.join(' | '));
+else ok(`all ${workflowTemplates.length} shipped templates branch unambiguously`);
+
+// The path itself, walked the way the engine walks it.
+function walk(template, ctx, outcomeAt = {}) {
+  const byId = new Map(template.nodes.map((n) => [n.id, n]));
+  let id = template.nodes.find((n) => n.type === 'start')?.id;
+  const seen = [];
+  for (let i = 0; id && i < 40; i++) {
+    const node = byId.get(id);
+    if (node?.type === 'stage') seen.push(node.label);
+    const next = getNextNodeIds(id, template.edges, outcomeAt[node?.label] ?? 'completed', ctx, CONFIG);
+    id = next[0];
+    if (node?.type === 'end') break;
+  }
+  return seen;
+}
+// ── Workflow signals evaluate, both ways ────────────────────────────────────
+// They went to the routing evaluator, whose field lookup does not know them, so
+// every one was false and the engine fell through to a node's first edge — a
+// REJECTED approval took "Approved" and moved on. Each label, each direction.
+console.log('\nWorkflow signals evaluate');
+for (const [label, holds, fails] of [
+  ['Approved', { outcome: 'approved' }, { outcome: 'rejected' }],
+  ['Rejected', { outcome: 'rejected' }, { outcome: 'approved' }],
+  ['Risk required', { riskRequired: true }, { riskRequired: false }],
+  ['Skip risk', { riskRequired: false }, { riskRequired: true }],
+  ['Onboarding required', { onboardingRequired: true }, { onboardingRequired: false }],
+  ['Skip onboarding', { onboardingRequired: false }, { onboardingRequired: true }],
+  ['Contract amendment required', { contractAmendmentRequired: true }, { contractAmendmentRequired: false }],
+]) {
+  const yes = edgeConditionHolds({ label }, holds, CONFIG);
+  const no = edgeConditionHolds({ label }, fails, CONFIG);
+  if (!yes || no) bad(`"${label}" holds for ${JSON.stringify(holds)} and not for ${JSON.stringify(fails)}`, `got ${yes} / ${no}`);
+  else ok(`"${label}" evaluates both ways`);
+}
+
+// A rejection goes back to the requester in every template with an approval.
+for (const t of workflowTemplates) {
+  const approval = t.nodes.find((n) => n.type === 'stage' && n.label === 'Approval');
+  if (!approval) continue;
+  const [next] = getNextNodeIds(approval.id, t.edges, 'rejected', {}, CONFIG);
+  const target = t.nodes.find((n) => n.id === next);
+  if (target?.type !== 'error') bad(`${t.id}: a rejected approval goes back to the requester`, `it went to "${target?.label}"`);
+  else ok(`${t.id}: a rejected approval goes to "${target.label}"`);
+}
+
+const wf001 = workflowTemplates.find((t) => t.id === 'WF-001');
+const procurementPath = walk(wf001, { riskRequired: false, onboardingRequired: false }, { Approval: 'approved' });
+const afterApproval = procurementPath[procurementPath.indexOf('Approval') + 1];
+if (afterApproval !== 'Sourcing') bad('WF-001: an approved request goes on to Sourcing', procurementPath.join(' → '));
+else ok(`WF-001 runs ${procurementPath.join(' → ')}`);
+
+const wf008 = workflowTemplates.find((t) => t.id === 'WF-008');
+const plainCallOff = walk(wf008, { riskRequired: false, contractAmendmentRequired: false }, { Approval: 'approved' });
+if (plainCallOff.includes('Vendor Onboarding') || plainCallOff.includes('Risk Assessment') || plainCallOff.includes('Sourcing')) {
+  bad('a plain call-off skips onboarding, risk and sourcing', plainCallOff.join(' → '));
+} else ok(`a plain call-off runs ${plainCallOff.join(' → ')}`);
+const riskyCallOff = walk(wf008, { riskRequired: true, contractAmendmentRequired: true }, { Approval: 'approved' });
+if (!riskyCallOff.includes('Contracting') || !riskyCallOff.includes('Risk Assessment')) {
+  bad('a call-off needing an amendment and a risk review gets both', riskyCallOff.join(' → '));
+} else ok(`a call-off needing both runs ${riskyCallOff.join(' → ')}`);
 
 // ── Live ───────────────────────────────────────────────────────────────────
 const env = loadEnv();
@@ -200,9 +264,9 @@ if (!connection) {
   const liveProblems = rows.flatMap(
     (r) => diagnoseTemplate({ nodes: r.nodes ?? [], edges: r.edges ?? [] }, CONFIG)
       .map((d) => `${r.id} ${d.nodeId}: ${d.problems.join(' ')}`),
-  ).filter((p) => !p.startsWith('WF-001 n4:'));
-  if (liveProblems.length) bad('no unexpected live template problem', liveProblems.join(' | '));
-  else ok('no unexpected problem in any live template');
+  );
+  if (liveProblems.length) bad('every live template branches unambiguously', liveProblems.join(' | '));
+  else ok(`all ${rows.length} live templates branch unambiguously`);
 }
 
 console.log(failures === 0 ? '\n\x1b[32medge-conditions passed\x1b[0m' : `\n\x1b[31m${failures} failed\x1b[0m`);
