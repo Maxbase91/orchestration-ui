@@ -1,8 +1,9 @@
 // Admin — category taxonomy CRUD. Edits the procurement categories that drive
-// intake classification, routing rules, and analytics groupings in the front door.
+// intake classification, routing rules, and analytics groupings in the front door,
+// and who is attached to each: its managers, and its preferred suppliers.
 
 import { createElement, useMemo, useState } from 'react';
-import { AlertTriangle, Loader2, Pencil, Plus, Trash2, Users } from 'lucide-react';
+import { AlertTriangle, Building2, Loader2, Pencil, Plus, Trash2, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,13 +27,15 @@ import type { ProcurementCategory } from '@/lib/db/procurement-categories';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useUsers } from '@/lib/db/hooks/use-users';
 import { useCategoryManagers, useSetCategoryManagers } from '@/lib/db/hooks/use-category-managers';
+import { useCategoryPreferredSuppliers, useSetCategoryPreferredSuppliers } from '@/lib/db/hooks/use-category-preferred-suppliers';
+import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
 import { CATEGORY_ICON_NAMES, resolveCategoryIcon } from '@/data/category-icons';
 
 type EditForm = Omit<ProcurementCategory, 'sortOrder'>;
 
 // A new category is NOT catalogue-eligible until an admin says so — see the
 // column comment in schema.sql for why the safe default points this way.
-const EMPTY_FORM: EditForm = { id: '', label: '', description: '', icon: 'Package', timelineDays: 5, active: true, catalogueEligible: false };
+const EMPTY_FORM: EditForm = { id: '', label: '', description: '', icon: 'Package', timelineDays: 5, active: true, catalogueEligible: false, supplierTags: [] };
 
 export function CategoriesPage() {
   const { data: categories = [], isLoading } = useProcurementCategories();
@@ -90,6 +93,56 @@ export function CategoriesPage() {
     }
   }
 
+  // Preferred suppliers. Read by the intake panel and the request detail, and
+  // every one is invited when a sourcing event is created for the category.
+  const { data: pslRows = [] } = useCategoryPreferredSuppliers();
+  const { data: suppliers = [] } = useSuppliers();
+  const setPreferred = useSetCategoryPreferredSuppliers();
+  const [pslDialog, setPslDialog] = useState<ProcurementCategory | null>(null);
+  const [selectedPsl, setSelectedPsl] = useState<string[]>([]);
+  const pslByCategory = useMemo(() => {
+    const byId = new Map(suppliers.map((sup) => [sup.id, sup.name]));
+    const map = new Map<string, { id: string; name: string }[]>();
+    for (const row of pslRows) {
+      const list = map.get(row.categoryId) ?? [];
+      list.push({ id: row.supplierId, name: byId.get(row.supplierId) ?? row.supplierId });
+      map.set(row.categoryId, list);
+    }
+    return map;
+  }, [pslRows, suppliers]);
+  /** Suppliers that already cover the category first, then everyone else. */
+  const pslCandidates = useMemo(() => {
+    if (!pslDialog) return { covering: [], other: [] };
+    const tags = (pslDialog.supplierTags ?? []).map((t) => t.toLowerCase());
+    const covers = (sup: (typeof suppliers)[number]) => (sup.categories ?? [])
+      .some((c) => tags.some((t) => c.toLowerCase().includes(t)));
+    return {
+      covering: suppliers.filter(covers),
+      other: suppliers.filter((sup) => !covers(sup)),
+    };
+  }, [pslDialog, suppliers]);
+
+  function openPsl(cat: ProcurementCategory) {
+    setSelectedPsl((pslByCategory.get(cat.id) ?? []).map((sup) => sup.id));
+    setPslDialog(cat);
+  }
+
+  async function handleSavePsl() {
+    if (!pslDialog) return;
+    try {
+      await setPreferred.mutateAsync({ categoryId: pslDialog.id, supplierIds: selectedPsl });
+      toast.success(
+        selectedPsl.length === 0
+          ? `"${pslDialog.label}" now has no preferred suppliers`
+          : `${selectedPsl.length} preferred supplier${selectedPsl.length > 1 ? 's' : ''} for "${pslDialog.label}"`,
+      );
+      setPslDialog(null);
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to save preferred suppliers');
+    }
+  }
+
   function openNew() {
     setForm({ ...EMPTY_FORM, id: `cat-${Date.now()}` });
     setIsNew(true);
@@ -97,7 +150,7 @@ export function CategoriesPage() {
   }
 
   function openEdit(cat: ProcurementCategory) {
-    setForm({ id: cat.id, label: cat.label, description: cat.description, icon: cat.icon ?? 'Package', timelineDays: cat.timelineDays, active: cat.active, catalogueEligible: cat.catalogueEligible });
+    setForm({ id: cat.id, label: cat.label, description: cat.description, icon: cat.icon ?? 'Package', timelineDays: cat.timelineDays, active: cat.active, catalogueEligible: cat.catalogueEligible, supplierTags: cat.supplierTags ?? [] });
     setIsNew(false);
     setDialogOpen(true);
   }
@@ -177,6 +230,24 @@ export function CategoriesPage() {
           >
             <Users className="size-3.5 shrink-0 text-muted-foreground" />
             <span>{assigned.map((m) => m.name).join(', ')}</span>
+          </button>
+        );
+      },
+    },
+    {
+      key: 'preferred', label: 'Preferred suppliers',
+      render: (r) => {
+        const listed = pslByCategory.get(r.id as string) ?? [];
+        return (
+          <button
+            type="button"
+            className="inline-flex items-center gap-1.5 rounded px-1.5 py-0.5 text-left text-sm hover:bg-card-2"
+            onClick={(e) => { e.stopPropagation(); openPsl(r as unknown as ProcurementCategory); }}
+          >
+            <Building2 className="size-3.5 shrink-0 text-muted-foreground" />
+            {listed.length === 0
+              ? <span className="text-ink-3">None set</span>
+              : <span>{listed.map((sup) => sup.name).join(', ')}</span>}
           </button>
         );
       },
@@ -271,12 +342,74 @@ export function CategoriesPage() {
                 onCheckedChange={(v) => setForm((p) => ({ ...p, catalogueEligible: v }))}
               />
             </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="cat-supplier-tags">Supplier tags that cover this category</Label>
+              <Input
+                id="cat-supplier-tags"
+                value={(form.supplierTags ?? []).join(', ')}
+                onChange={(e) => setForm((p) => ({
+                  ...p,
+                  supplierTags: e.target.value.split(',').map((t) => t.trim()).filter(Boolean),
+                }))}
+                placeholder="e.g. Consulting, Advisory, Strategy"
+              />
+              <p className="text-xs text-muted-foreground">
+                A supplier whose capabilities include one of these is suggested for this
+                category's requests, and listed first when choosing its preferred suppliers.
+              </p>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
             <Button onClick={handleSave} disabled={upsert.isPending}>
               {upsert.isPending ? <Loader2 className="mr-1.5 size-3.5 animate-spin" /> : null}
               Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Preferred suppliers — the category's PSL. */}
+      <Dialog open={pslDialog !== null} onOpenChange={(open) => { if (!open) setPslDialog(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Preferred suppliers — {pslDialog?.label}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Shown to requesters beside the request's supplier, and invited to every sourcing event
+            raised for this category.
+          </p>
+          <div className="max-h-80 space-y-3 overflow-y-auto rounded-md border p-2">
+            {[
+              { title: 'Cover this category', list: pslCandidates.covering },
+              { title: 'Other suppliers', list: pslCandidates.other },
+            ].filter((group) => group.list.length > 0).map((group) => (
+              <div key={group.title}>
+                <p className="px-2 pb-1 text-eyebrow font-semibold uppercase tracking-wide text-ink-3">{group.title}</p>
+                {group.list.map((sup) => (
+                  <label key={sup.id} className="flex cursor-pointer items-center gap-3 rounded px-2 py-1.5 hover:bg-card-2">
+                    <Checkbox
+                      checked={selectedPsl.includes(sup.id)}
+                      onCheckedChange={(value) => setSelectedPsl((prev) => (
+                        value === true ? [...prev, sup.id] : prev.filter((id) => id !== sup.id)
+                      ))}
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium">{sup.name}</span>
+                      <span className="block truncate text-xs text-muted-foreground">
+                        {sup.country} · screening {sup.screeningStatus} · onboarding {sup.onboardingStatus}
+                      </span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPslDialog(null)}>Cancel</Button>
+            <Button onClick={handleSavePsl} disabled={setPreferred.isPending}>
+              {setPreferred.isPending ? <Loader2 className="mr-1.5 size-3.5 animate-spin" /> : null}
+              Save preferred suppliers
             </Button>
           </DialogFooter>
         </DialogContent>

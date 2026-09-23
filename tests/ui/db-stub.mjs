@@ -169,11 +169,22 @@ export const FIXTURES = {
     id: 'SUP-CAT-001', name: 'Lenovo', country: 'Germany', country_code: 'DE', risk_rating: 'low',
     active_contracts: 1, total_spend_12m: 0, onboarding_status: 'active', sra_status: 'valid',
     sra_expiry_date: '2027-12-31', screening_status: 'cleared', categories: ['goods'], tier: 2,
+  }, {
+    // Preferred for consulting (category_preferred_suppliers below), so the
+    // request detail can show the category's list beside a request whose own
+    // supplier is still unknown.
+    id: 'SUP-ADV-001', name: 'Advisory Partner A', country: 'Ireland', country_code: 'IE', risk_rating: 'low',
+    active_contracts: 1, total_spend_12m: 0, onboarding_status: 'active', sra_status: 'valid',
+    sra_expiry_date: '2027-12-31', screening_status: 'cleared', categories: ['Management Consulting'], tier: 1,
   }],
   suppliers_with_derived: [{
     id: 'SUP-CAT-001', name: 'Lenovo', country: 'Germany', country_code: 'DE', risk_rating: 'low',
     active_contracts_live: 1, total_spend_12m_live: 0, onboarding_status: 'active', sra_status: 'valid',
     sra_expiry_date: '2027-12-31', screening_status: 'cleared', categories: ['goods'], tier: 2,
+  }, {
+    id: 'SUP-ADV-001', name: 'Advisory Partner A', country: 'Ireland', country_code: 'IE', risk_rating: 'low',
+    active_contracts_live: 1, total_spend_12m_live: 0, onboarding_status: 'active', sra_status: 'valid',
+    sra_expiry_date: '2027-12-31', screening_status: 'cleared', categories: ['Management Consulting'], tier: 1,
   }],
   contracts: [{
     id: 'CON-CAT-001', title: 'IT Equipment Framework', supplier_id: 'SUP-CAT-001', supplier_name: 'Lenovo',
@@ -213,6 +224,9 @@ export const FIXTURES = {
   // and the single case are both exercised; contract-renewal has none, which is
   // the state the screen must warn about — with no manager, nobody but an admin
   // can move that category's requests out of validation.
+  category_preferred_suppliers: [
+    { category_id: 'consulting', supplier_id: 'SUP-ADV-001' },
+  ],
   category_managers: [
     { category_id: 'consulting', user_id: 'u11' },
     { category_id: 'consulting', user_id: 'u3' },

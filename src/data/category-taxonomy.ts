@@ -21,13 +21,15 @@ import type { ProcurementCategory } from '../lib/db/procurement-categories.js';
  * catalogue stage, so a consulting or services demand is never offered a
  * catalogue item (see `lib/procurement/intake-routing.ts`).
  */
+// `supplierTags` were a hard-coded map in the supplier recommender; they are
+// seeded here with the same values and edited in /admin/categories.
 export const DEFAULT_CATEGORY_TAXONOMY: ProcurementCategory[] = [
-  { id: 'catalogue', label: 'Catalogue Purchase', description: 'Order from pre-approved catalogues — fast track, no sourcing needed', icon: 'ShoppingBag', timelineDays: 2, sortOrder: 1, active: true, catalogueEligible: true },
-  { id: 'goods', label: 'Goods', description: 'Physical products, hardware, equipment, furniture', icon: 'Package', timelineDays: 5, sortOrder: 2, active: true, catalogueEligible: true },
-  { id: 'services', label: 'Services', description: 'Facilities, catering, cleaning, travel management', icon: 'Wrench', timelineDays: 10, sortOrder: 3, active: true, catalogueEligible: false },
-  { id: 'software', label: 'Software / IT', description: 'Licences, SaaS platforms, cloud services, subscriptions', icon: 'Monitor', timelineDays: 8, sortOrder: 4, active: true, catalogueEligible: false },
-  { id: 'consulting', label: 'Consulting', description: 'Strategy advisory, audits, assessments, transformation', icon: 'BrainCircuit', timelineDays: 15, sortOrder: 5, active: true, catalogueEligible: false },
-  { id: 'contingent-labour', label: 'Contingent Labour', description: 'Temporary staff, contractors, IT staffing, augmentation', icon: 'Users', timelineDays: 7, sortOrder: 6, active: true, catalogueEligible: false },
-  { id: 'contract-renewal', label: 'Contract Renewal', description: 'Extend or renew an existing supplier contract', icon: 'RefreshCw', timelineDays: 12, sortOrder: 7, active: true, catalogueEligible: false },
-  { id: 'supplier-onboarding', label: 'Supplier Onboarding', description: 'Register and onboard a new vendor to the platform', icon: 'UserPlus', timelineDays: 20, sortOrder: 8, active: true, catalogueEligible: false },
+  { id: 'catalogue', label: 'Catalogue Purchase', description: 'Order from pre-approved catalogues — fast track, no sourcing needed', icon: 'ShoppingBag', timelineDays: 2, sortOrder: 1, active: true, catalogueEligible: true, supplierTags: [] },
+  { id: 'goods', label: 'Goods', description: 'Physical products, hardware, equipment, furniture', icon: 'Package', timelineDays: 5, sortOrder: 2, active: true, catalogueEligible: true, supplierTags: ['Hardware', 'Equipment', 'Goods'] },
+  { id: 'services', label: 'Services', description: 'Facilities, catering, cleaning, travel management', icon: 'Wrench', timelineDays: 10, sortOrder: 3, active: true, catalogueEligible: false, supplierTags: ['Services', 'Facilities', 'Marketing'] },
+  { id: 'software', label: 'Software / IT', description: 'Licences, SaaS platforms, cloud services, subscriptions', icon: 'Monitor', timelineDays: 8, sortOrder: 4, active: true, catalogueEligible: false, supplierTags: ['Software', 'Cloud', 'SaaS', 'Licensing'] },
+  { id: 'consulting', label: 'Consulting', description: 'Strategy advisory, audits, assessments, transformation', icon: 'BrainCircuit', timelineDays: 15, sortOrder: 5, active: true, catalogueEligible: false, supplierTags: ['Consulting', 'Advisory', 'Strategy', 'Transformation'] },
+  { id: 'contingent-labour', label: 'Contingent Labour', description: 'Temporary staff, contractors, IT staffing, augmentation', icon: 'Users', timelineDays: 7, sortOrder: 6, active: true, catalogueEligible: false, supplierTags: ['Contingent Labour', 'Staffing', 'Recruitment'] },
+  { id: 'contract-renewal', label: 'Contract Renewal', description: 'Extend or renew an existing supplier contract', icon: 'RefreshCw', timelineDays: 12, sortOrder: 7, active: true, catalogueEligible: false, supplierTags: ['Software Licensing', 'Cloud Services', 'Managed Services'] },
+  { id: 'supplier-onboarding', label: 'Supplier Onboarding', description: 'Register and onboard a new vendor to the platform', icon: 'UserPlus', timelineDays: 20, sortOrder: 8, active: true, catalogueEligible: false, supplierTags: [] },
 ];

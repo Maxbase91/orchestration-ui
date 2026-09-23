@@ -218,6 +218,12 @@ try {
   check('nothing on the overview claims to be AI-generated', !/AI-generated/i.test(body));
   // It read `quality_score` from a camel-cased record and never rendered once.
   check('the service description’s quality score renders', /Quality 82\/100/.test(body));
+  // The supplier was a dash here. It is an attribute of the request, and
+  // "currently unknown" is a real state — with the category's preferred
+  // suppliers beside it, since they are who sourcing will ask.
+  check('the supplier is shown as currently unknown, not a dash', /Supplier\s*Currently unknown/.test(body), body.slice(0, 200));
+  check('the category\u2019s preferred suppliers are listed beside it',
+    /Preferred suppliers for this category\s*Advisory Partner A/.test(body));
   check('the breadcrumb shows the id as stored, not title-cased',
     (await view.locator('header, nav').filter({ hasText: REQUEST_ID }).count()) > 0);
 

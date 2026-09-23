@@ -17,6 +17,9 @@ import { formatCurrency, formatDate } from '@/lib/format';
 import { useCategoryLabel } from '@/lib/db/hooks/use-procurement-categories';
 import { buyingChannelLabel } from '@/lib/routing/evaluate-routing-rules';
 import { useServiceDescription } from '@/lib/db/hooks/use-service-descriptions';
+import { SupplierFacts } from '@/components/shared/supplier-facts';
+import { useChannelStageMap } from '@/lib/db/hooks/use-channel-stage-map';
+import { getStagesForChannel } from '@/lib/workflow/channel-stages';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
@@ -83,7 +86,8 @@ const SOW_LABELS: Record<string, string> = {
 };
 
 export function TabOverview({ request }: TabOverviewProps) {
-  const suppliersQuery = useSuppliers();
+  useSuppliers();
+  const { data: stageMap, isLoading: stageMapLoading } = useChannelStageMap();
   useUsers();
   const lookupSupplier = useSupplierLookup();
   const lookupUser = useUserLookup();
@@ -98,7 +102,7 @@ export function TabOverview({ request }: TabOverviewProps) {
     <div className="space-y-6">
       <Card>
         <CardContent>
-          <div className="grid grid-cols-1 gap-x-10 gap-y-6 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-x-10 gap-y-6 md:grid-cols-2 xl:grid-cols-4">
             <FactGroup title="What">
               <Fact label="Category" value={categoryLabel(request.category)} />
               <Fact label="Commodity / service family" value={`${request.commodityCode} · ${request.commodityCodeLabel}`} />
@@ -107,11 +111,6 @@ export function TabOverview({ request }: TabOverviewProps) {
               <Fact
                 label="Sourcing type"
                 value={request.sourcingType ? SOURCING_TYPE_LABELS[request.sourcingType] ?? request.sourcingType : undefined}
-              />
-              <Fact
-                label="Supplier"
-                value={supplier?.name ?? (suppliersQuery.isLoading && request.supplierId ? 'Loading supplier…' : undefined)}
-                to={supplier ? `/suppliers/${supplier.id}` : undefined}
               />
             </FactGroup>
             <FactGroup title="Who">
@@ -129,6 +128,23 @@ export function TabOverview({ request }: TabOverviewProps) {
               <Fact label="Budget owner" value={request.budgetOwner} />
               <Fact label="Cost centre" value={request.costCentre} />
             </FactGroup>
+            <section className="space-y-3" aria-label="Supplier">
+              <h3 className="text-eyebrow font-semibold uppercase tracking-wide text-ink-3">Supplier</h3>
+              {/* Whether preferred suppliers are invited depends on whether this
+                  request's workflow has a Sourcing stage — read from the
+                  template that claims its channel, not from a list of channels. */}
+              <SupplierFacts
+                supplierId={request.supplierId}
+                category={request.category}
+                sourcing={stageMapLoading ? 'unknown'
+                  : getStagesForChannel(stageMap, request.buyingChannel).includes('sourcing') ? 'will-source' : 'no-sourcing'}
+              />
+              {supplier && (
+                <Link to={`/suppliers/${supplier.id}`} className="text-caption text-accent hover:underline">
+                  Open the supplier's profile
+                </Link>
+              )}
+            </section>
             <FactGroup title="When">
               <Fact label="Needed by" value={formatDate(request.deliveryDate)} />
               <Fact label="Days in current stage" value={String(request.daysInStage)} />

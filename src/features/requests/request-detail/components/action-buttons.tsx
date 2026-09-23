@@ -30,6 +30,8 @@ import {
   sectionValuesOf,
 } from '@/lib/procurement/service-description-seed';
 import { useSupplierLookup } from '@/lib/db/hooks/use-suppliers';
+import { usePreferredSupplierIds } from '@/lib/db/hooks/use-category-preferred-suppliers';
+import { sourcingInvitees } from '@/lib/procurement/sourcing-invitees';
 import { invalidateRequestViews, queryClient } from '@/lib/query-client';
 import { ReferBackDialog } from './refer-back-dialog';
 import { ReassignDialog } from './reassign-dialog';
@@ -86,6 +88,7 @@ export function ActionButtons({ request }: ActionButtonsProps) {
   const createEvent = useCreateSourcingEvent();
   const inviteSuppliers = useInviteSuppliers();
   const lookupSupplier = useSupplierLookup();
+  const preferredSupplierIds = usePreferredSupplierIds(request.category);
   // When an event already exists the button opens it rather than creating a
   // second one for the same demand.
   const { data: linkedEvents = [] } = useSourcingEventsForRequest(request.id);
@@ -452,24 +455,28 @@ export function ActionButtons({ request }: ActionButtonsProps) {
       // The named supplier is included because the determination screened
       // against them; the rest come from the shortlist. Deduplicated, because a
       // requester can name the same supplier both ways.
-      const invitees = new Map<string, { id: string; name: string }>();
-      const named = lookupSupplier(request.supplierId);
-      if (named) invitees.set(named.id, { id: named.id, name: named.name });
-      for (const candidate of shortlist) {
-        const supplier = lookupSupplier(candidate.supplierId);
-        if (supplier) invitees.set(supplier.id, { id: supplier.id, name: supplier.name });
-      }
-      if (invitees.size > 0) {
+      //
+      // And every preferred supplier for the request's category — the category
+      // has already agreed to prefer them, so an event that goes out without
+      // them undoes that agreement (sourcing-invitees.ts).
+      const invitees = sourcingInvitees({
+        namedSupplierId: request.supplierId,
+        shortlistIds: shortlist.map((candidate) => candidate.supplierId),
+        preferredIds: preferredSupplierIds,
+        lookup: lookupSupplier,
+      });
+      if (invitees.length > 0) {
         await inviteSuppliers.mutateAsync({
           eventId: id,
-          suppliers: [...invitees.values()],
+          suppliers: invitees.map(({ id: supplierId, name }) => ({ id: supplierId, name })),
           actor: { id: currentUser.id, name: currentUser.name },
         });
       }
 
       setEventDialogOpen(false);
-      toast.success(invitees.size > 1
-        ? `Sourcing event ${id} created — ${invitees.size} suppliers invited from the shortlist`
+      const preferredCount = invitees.filter((i) => i.reason === 'preferred').length;
+      toast.success(invitees.length > 0
+        ? `Sourcing event ${id} created — ${invitees.length} supplier${invitees.length > 1 ? 's' : ''} invited${preferredCount ? `, ${preferredCount} of them preferred for this category` : ''}`
         : `Sourcing event ${id} created`);
       navigate(`/sourcing/${id}`);
     } catch (e) {

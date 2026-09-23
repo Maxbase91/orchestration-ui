@@ -299,6 +299,8 @@ npm run test:dashboard-widget-states # browser smoke — with every table failin
                                   #   each name what they could not read; with the tables answering, no alert at all;
                                   #   the attention band counts delegated approvals, is absent when nothing waits,
                                   #   and reports an unreadable queue instead of going quiet
+npm run test:preferred-suppliers  # the category's preferred-supplier list decides "preferred", every preferred supplier is
+                                  #   invited to sourcing, and the recommender reads the category's supplier tags
 npm run test:personal-queue       # static — one definition of "mine" (assigned or delegated), and no other
                                   #   module tests approval ownership itself
 npm run test:request-list-filters # static — the request list's URL filters round-trip, a misspelt one is reported,

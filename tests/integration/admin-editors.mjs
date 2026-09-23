@@ -200,6 +200,39 @@ async function categoryManagersRoundTrip() {
 }
 
 /**
+ * Preferred suppliers are a set per category, like managers — and unlike
+ * managers they are exercised live: one row written, read back and removed.
+ * Supplier tags round-trip on the category itself, and are restored.
+ */
+async function categoryPreferredSuppliersRoundTrip() {
+  const page = readFileSync(new URL('../../src/features/admin/categories-page.tsx', import.meta.url), 'utf8');
+  assert(page.includes('setPreferred.mutateAsync'), 'preferred suppliers: the page saves the list');
+  assert(page.includes('supplierTags:'), 'supplier tags: the category form carries them');
+
+  const { data: cats } = await sb.from('procurement_categories').select('id, supplier_tags').limit(1);
+  const { data: sups } = await sb.from('suppliers').select('id').limit(50);
+  const { data: listed } = await sb.from('category_preferred_suppliers').select('category_id, supplier_id');
+  const cat = cats?.[0];
+  if (!cat || !sups?.length) { fail('preferred suppliers: fixtures to exercise', 'no category or supplier'); return; }
+  const taken = new Set((listed ?? []).filter((r) => r.category_id === cat.id).map((r) => r.supplier_id));
+  const sup = sups.find((row) => !taken.has(row.id));
+  if (!sup) { assert(true, 'preferred suppliers: every supplier already listed — nothing to add'); return; }
+
+  const { error: insErr } = await sb.from('category_preferred_suppliers').insert({ category_id: cat.id, supplier_id: sup.id });
+  assert(!insErr, 'preferred suppliers: a row saves', insErr?.message);
+  const { data: back } = await sb.from('category_preferred_suppliers').select('supplier_id').eq('category_id', cat.id);
+  assert((back ?? []).some((r) => r.supplier_id === sup.id), 'preferred suppliers: it reads back');
+  await sb.from('category_preferred_suppliers').delete().eq('category_id', cat.id).eq('supplier_id', sup.id);
+
+  const original = cat.supplier_tags ?? [];
+  const marked = [...original, 'admin-editors-probe'];
+  await sb.from('procurement_categories').update({ supplier_tags: marked }).eq('id', cat.id);
+  const { data: tagged } = await sb.from('procurement_categories').select('supplier_tags').eq('id', cat.id).maybeSingle();
+  assert(JSON.stringify(tagged?.supplier_tags) === JSON.stringify(marked), 'supplier tags: a change persists');
+  await sb.from('procurement_categories').update({ supplier_tags: original }).eq('id', cat.id);
+}
+
+/**
  * Surfaces with no persistence, on purpose. Listed so that "not covered" is a
  * decision someone made rather than something nobody noticed.
  */
@@ -226,6 +259,7 @@ async function main() {
   }
   await policyConfigRoundTrip();
   await categoryManagersRoundTrip();
+  await categoryPreferredSuppliersRoundTrip();
   deliberatelyReadOnly();
 
   const failed = results.filter((r) => r.o === 'FAIL').length;

@@ -67,6 +67,8 @@ export interface MatchingRiskAssessmentSummary {
 
 export interface IntakeDeterminationInput {
   category: string;
+  /** The category's preferred suppliers (/admin/categories). */
+  preferredSupplierIds?: readonly string[];
   estimatedValue: number;
   supplierId: string;
   isUrgent: boolean;
@@ -183,6 +185,8 @@ export function generatePolicyChecks(
   supplierId: string,
   suppliers: Supplier[],
   config: PolicyConfig,
+  /** The category's preferred-supplier list; decides "preferred" when set. */
+  preferredSupplierIds: readonly string[] = [],
 ): { label: string; passed: boolean; detail: string }[] {
   const supplier = suppliers.find((s) => s.id === supplierId);
   const checks: { label: string; passed: boolean; detail: string }[] = [];
@@ -227,7 +231,7 @@ export function generatePolicyChecks(
       : 'Supplier not selected; SRA status unknown',
   });
 
-  const isPreferred = isPreferredSupplier(supplier);
+  const isPreferred = isPreferredSupplier(supplier, { preferredIds: preferredSupplierIds });
   checks.push(competitiveSourcingCheck({ value, category, isPreferred }));
   checks.push(preferredSupplierCheck({ supplier, isPreferred }));
 
@@ -412,7 +416,7 @@ export function evaluateIntakeDetermination(input: IntakeDeterminationInput): In
 
   const validatorActive = validatorAgent?.status === 'active';
   const policyChecks = validatorActive
-    ? generatePolicyChecks(estimatedValue, category, supplierId, suppliers, policy)
+    ? generatePolicyChecks(estimatedValue, category, supplierId, suppliers, policy, input.preferredSupplierIds)
     : [
         {
           label: 'Request Validator agent',

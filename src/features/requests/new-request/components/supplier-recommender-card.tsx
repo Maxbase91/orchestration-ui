@@ -10,6 +10,8 @@ import { formatCurrency } from '@/lib/format';
 import { SupplierAutocomplete } from './supplier-autocomplete';
 import { isPreferredSupplier } from '@/lib/procurement/supplier-preference';
 import { isProspective } from '@/lib/workflow/onboarding-stage';
+import { useProcurementCategories } from '@/lib/db/hooks/use-procurement-categories';
+import { usePreferredSupplierIds } from '@/lib/db/hooks/use-category-preferred-suppliers';
 import type { Supplier } from '@/data/types';
 
 interface Props {
@@ -45,28 +47,22 @@ const EMPTY_CANDIDATES: readonly string[] = [];
 
 type SupplierOutcome = 'preferred' | 'recommend-existing' | 'onboard-new';
 
-// Map a request category to the supplier-side category tags we expect to
-// find in suppliers.categories[]. The admin can extend this by adding
-// category tags to suppliers directly.
-const CATEGORY_KEYWORDS: Record<string, string[]> = {
-  goods: ['Hardware', 'Equipment', 'Goods'],
-  services: ['Services', 'Facilities', 'Marketing'],
-  software: ['Software', 'Cloud', 'SaaS', 'Licensing'],
-  consulting: ['Consulting', 'Advisory', 'Strategy', 'Transformation'],
-  'contingent-labour': ['Contingent Labour', 'Staffing', 'Recruitment'],
-  'contract-renewal': ['Software Licensing', 'Cloud Services', 'Managed Services'],
-  'supplier-onboarding': [],
-};
-
-function categoryMatchScore(supplier: Supplier, category: string): number {
-  const keywords = CATEGORY_KEYWORDS[category] ?? [];
-  if (keywords.length === 0) return 0;
-  const tags = (supplier.categories ?? []).map((c) => c.toLowerCase());
+/**
+ * How well a supplier's capabilities cover a category: the share of the
+ * category's supplier tags it carries.
+ *
+ * The tags are the category's own (/admin/categories → "Supplier tags that
+ * cover this category"). They were a hard-coded category → keyword map here,
+ * so a new category matched no supplier until someone edited this file.
+ */
+function categoryMatchScore(supplier: Supplier, tags: readonly string[]): number {
+  if (tags.length === 0) return 0;
+  const caps = (supplier.categories ?? []).map((c) => c.toLowerCase());
   let hits = 0;
-  for (const kw of keywords) {
-    if (tags.some((t) => t.includes(kw.toLowerCase()))) hits += 1;
+  for (const tag of tags) {
+    if (caps.some((cap) => cap.includes(tag.toLowerCase()))) hits += 1;
   }
-  return hits / keywords.length; // 0..1
+  return hits / tags.length; // 0..1
 }
 
 const RISK_WEIGHT: Record<string, number> = {
@@ -82,6 +78,9 @@ export function SupplierRecommenderCard({
   const createProspective = useCreateProspectiveSupplier();
   const { data: suppliers = [] } = useSuppliers();
   const { data: contracts = [] } = useContracts();
+  const { data: categories = [] } = useProcurementCategories();
+  const preferredIds = usePreferredSupplierIds(category);
+  const tags = useMemo(() => categories.find((c) => c.id === category)?.supplierTags ?? [], [categories, category]);
   const active = agent?.status === 'active';
 
   const selectedSupplier = useMemo(
@@ -94,17 +93,19 @@ export function SupplierRecommenderCard({
     const scored = suppliers
       .filter((s) => s.id !== selectedSupplierId && s.performanceScore > 0)
       .map((s) => {
-        const match = categoryMatchScore(s, category);
+        // A preferred supplier for the category is a full match whatever its tags say.
+        const match = preferredIds.includes(s.id) ? 1 : categoryMatchScore(s, tags);
         const riskFactor = RISK_WEIGHT[s.riskRating] ?? 0.5;
         // Composite: category fit × performance × risk
         const score = match * (s.performanceScore / 100) * riskFactor;
         return { supplier: s, score, match };
       })
       .filter((r) => r.match > 0)
-      .sort((a, b) => b.score - a.score)
+      // Preferred suppliers first, then by score.
+      .sort((a, b) => Number(preferredIds.includes(b.supplier.id)) - Number(preferredIds.includes(a.supplier.id)) || b.score - a.score)
       .slice(0, 3);
     return scored;
-  }, [active, suppliers, category, selectedSupplierId]);
+  }, [active, suppliers, category, selectedSupplierId, preferredIds, tags]);
 
   // Classify the overall supplier outcome so the wizard can tell the user
   // exactly which path the request will take downstream.
@@ -113,13 +114,13 @@ export function SupplierRecommenderCard({
       const hasActiveContract = contracts.some(
         (c) => c.supplierId === selectedSupplier.id && (c.status === 'active' || c.status === 'expiring'),
       );
-      if (isPreferredSupplier(selectedSupplier, { hasActiveContract })) {
+      if (isPreferredSupplier(selectedSupplier, { hasActiveContract, preferredIds })) {
         return 'preferred';
       }
     }
     if (recommendations.length > 0) return 'recommend-existing';
     return 'onboard-new';
-  }, [selectedSupplier, contracts, recommendations]);
+  }, [selectedSupplier, contracts, recommendations, preferredIds]);
 
   const outcomeCopy: Record<SupplierOutcome, { label: string; detail: string; icon: typeof CheckCircle; color: string }> = {
     preferred: {
@@ -158,10 +159,13 @@ export function SupplierRecommenderCard({
           Supplier
         </CardTitle>
         <span className="text-[11px] text-ink-3">
+          {/* No accuracy figure: the stored one (78.6%) was measured by
+              nothing, and the ranking is category fit × performance × risk,
+              which is what this now says. */}
           {!agent
-            ? 'Recommender unavailable'
+            ? 'Suggestions unavailable'
             : active
-              ? `${agent.name} (AI-005) · accuracy ${agent.accuracy}%`
+              ? 'Suggested by category fit, performance and risk'
               : `${agent.name} is ${agent.status}`}
         </span>
       </CardHeader>

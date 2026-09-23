@@ -19,18 +19,22 @@ export const PREFERRED_MIN_PERFORMANCE = DEFAULT_POLICY_CONFIG.preferredMinPerfo
 /**
  * Preferred-supplier (PSL) determination — a soft preference, not a hard gate.
  *
- * An explicit `preferred` flag on the supplier record (PSL reference data) wins
- * when present. Otherwise it falls back to an established-relationship heuristic:
+ * The category's preferred-supplier list (category_preferred_suppliers,
+ * maintained in /admin/categories) decides when the category has one: the
+ * supplier is preferred exactly when it is on it. Only a category with no list
+ * set falls back — first to an explicit `preferred` flag, then to an
+ * established-relationship heuristic:
  * a contracted, non-critical-risk, well-performing supplier. The caller may pass
  * `hasActiveContract` when it already knows the relationship (e.g. from a
  * contract lookup); otherwise the supplier's own `activeContracts` is used.
  */
 export function isPreferredSupplier(
   supplier: Supplier | undefined,
-  opts: { hasActiveContract?: boolean } = {},
+  opts: { hasActiveContract?: boolean; preferredIds?: readonly string[] } = {},
   config: PolicyConfig = getActivePolicyConfig(),
 ): boolean {
   if (!supplier) return false;
+  if (opts.preferredIds && opts.preferredIds.length > 0) return opts.preferredIds.includes(supplier.id);
   if (typeof supplier.preferred === 'boolean') return supplier.preferred;
   const established = opts.hasActiveContract ?? supplier.activeContracts > 0;
   return (

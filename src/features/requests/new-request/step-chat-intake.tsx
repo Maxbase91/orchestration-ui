@@ -37,6 +37,7 @@ import type {
   ServiceDescriptionSectionKey,
   SectionCapture,
 } from './intake-form-data';
+import { SupplierFacts } from '@/components/shared/supplier-facts';
 
 interface StepChatIntakeProps {
   category: string;
@@ -1342,16 +1343,11 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
                 })}
               </div>
 
-              {/* Only shown when a supplier is already known (named in the
-                  demand); otherwise the supplier is chosen later in compliance. */}
-              {data.supplier && (
-                <div className="rounded-md bg-ok-soft border border-ok-line px-2 py-1.5">
-                  <p className="text-[11px] font-medium uppercase tracking-wider text-ok">
-                    {data.supplierId ? 'Supplier Matched' : 'Supplier Named'}
-                  </p>
-                  <p className="text-xs text-ok">{data.supplier}</p>
-                </div>
-              )}
+              {/* Always shown. It appeared only once a supplier was named, so on
+                  most requests the supplier was invisible — and "currently
+                  unknown" is exactly when the preferred suppliers matter. Not
+                  counted in the progress: it is chosen later, not missing. */}
+              <SupplierFacts supplierId={data.supplierId} supplierName={data.supplier} category={category} />
               {/* SERVICE DESCRIPTION — the master document, same panel as the facts above */}
               <div className="pt-3 border-t border-line-2 space-y-3">
               {/* Header row — the service description builds automatically from

@@ -17,6 +17,12 @@ export interface ProcurementCategory {
    * Defaults false so an unmapped category is never offered the catalogue.
    */
   catalogueEligible: boolean;
+  /**
+   * Supplier capability tags that cover this category — how a supplier record
+   * ("Management Consulting") is recognised as serving it. Read by the supplier
+   * recommender and by the preferred-supplier picker.
+   */
+  supplierTags?: string[];
 }
 
 const TABLE = 'procurement_categories';
@@ -31,6 +37,7 @@ function mapRow(row: Record<string, unknown>): ProcurementCategory {
     sortOrder: (row.sort_order as number) ?? 0,
     active: (row.active as boolean) ?? true,
     catalogueEligible: (row.catalogue_eligible as boolean) ?? false,
+    supplierTags: Array.isArray(row.supplier_tags) ? (row.supplier_tags as string[]) : [],
   };
 }
 
@@ -55,6 +62,7 @@ export async function upsertProcurementCategory(cat: ProcurementCategory): Promi
       sort_order: cat.sortOrder,
       active: cat.active,
       catalogue_eligible: cat.catalogueEligible,
+      supplier_tags: cat.supplierTags ?? [],
     }, { onConflict: 'id' })
     .select('*')
     .single();

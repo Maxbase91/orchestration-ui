@@ -15,8 +15,9 @@ preferred suppliers to sourcing.
 - [x] D1 WF-001 never reaches Sourcing after Approval. Auto-Route's two exits
       ("Needs Approval" / "Direct to Sourcing") are not conditions, so the engine
       always takes Approval, and Approval → Contracting. Live: 3 requests went
-      approval → contracting. Fix the graph (seed + live): Approval → Sourcing;
-      Vendor Onboarding after Sourcing (the awarded supplier is only known then).
+      approval → contracting. Fix the graph (seed + live): Approval → Sourcing.
+      Vendor Onboarding stays before Sourcing — it is for a supplier the
+      requester named, so it can be invited to market.
 - [x] D2 WF-003 "Parallel Checks" has three unconditioned exits; the engine takes
       the first, so Financial Check and SRA never run. Make them sequential.
 - [x] D3 Contract call-off shares WF-006 (business-led), which includes vendor
@@ -36,19 +37,21 @@ call-offs and trusted the browser's channel; 13 live requests re-pointed.
 ## Phase 3 — configurable in the EXISTING admin tabs
 - [ ] Workflows: channel headline + description on the template (replaces the
       hard-coded BUYING_CHANNEL_PLAIN); "what the requester does" per stage.
-- [ ] Categories: commodity codes per category (replaces category-code.ts
-      tables); preferred suppliers per category.
+- [x] Categories: preferred suppliers per category; supplier tags per category
+      (replaces the recommender's hard-coded keyword map).
+- [ ] Categories: commodity codes per category (replaces category-code.ts tables).
 - [ ] Service description: front-door prompt, examples and door copy; the
       "one detail decides it" question; residual risk question wording;
       per-category writing guidance (replaces CATEGORY_GUIDANCE in generate-sow).
 - [ ] Decisioning thresholds: direct call-off limit; preferred-supplier override
-      needs a reason + category-manager approval.
+      needs a reason + category-manager approval; competitive-sourcing exempt
+      categories (a code default in supplier-preference.ts).
 - [ ] Database: catalogue items (save/delete hooks exist, nothing uses them).
 
 ## Phase 4 — supplier on screen, preferred suppliers invited
-- [ ] Intake side panel and request detail: "Supplier: name / Currently unknown"
+- [x] Intake side panel and request detail: "Supplier: name / Currently unknown"
       + "Preferred suppliers for this category".
-- [ ] Creating a sourcing event invites the category's preferred suppliers.
+- [x] Creating a sourcing event invites the category's preferred suppliers.
 
 ## Verification
 tsc, lint, `test:all`, the offline browser suites, each new guard verified by

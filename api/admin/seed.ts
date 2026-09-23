@@ -364,6 +364,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         timeline_days: c.timelineDays,
         sort_order: c.sortOrder,
         active: c.active,
+        // Both were missing, so a freshly seeded store had the catalogue
+        // switched off for every category and no supplier tags to match on.
+        catalogue_eligible: c.catalogueEligible,
+        supplier_tags: c.supplierTags ?? [],
       })),
       'id',
     );

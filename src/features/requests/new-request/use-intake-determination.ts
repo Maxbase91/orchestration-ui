@@ -14,6 +14,7 @@ import { useRoutingRules } from '@/lib/db/hooks/use-routing-rules';
 import { useAiAgent } from '@/lib/db/hooks/use-ai-agents';
 import { useWorkflowTemplates } from '@/lib/db/hooks/use-workflow-templates';
 import { useApprovalChains } from '@/lib/db/hooks/use-approval-chains';
+import { usePreferredSupplierIds } from '@/lib/db/hooks/use-category-preferred-suppliers';
 import { selectWorkflowTemplateForCategory } from '@/lib/workflow/workflow-steps';
 import {
   evaluateIntakeDetermination,
@@ -64,6 +65,7 @@ export function useIntakeDetermination(
   const { data: validatorAgent } = useAiAgent('AI-002');
   const { data: workflowTemplates = EMPTY_TEMPLATES } = useWorkflowTemplates();
   const { data: approvalChains = EMPTY_APPROVAL_CHAINS } = useApprovalChains();
+  const preferredSupplierIds = usePreferredSupplierIds(input.category);
 
   // A fetch is pending if we have a supplierId and the matching-SRA lookup
   // hasn't resolved yet. Without a supplierId the query is disabled, so treat
@@ -91,6 +93,7 @@ export function useIntakeDetermination(
       // evaluation, so every date-sensitive check sees the same day.
       now: new Date().toISOString().slice(0, 10),
       suppliers,
+      preferredSupplierIds,
       contracts,
       matchingRiskAssessments: matches,
       routingRules,
@@ -99,7 +102,7 @@ export function useIntakeDetermination(
     });
   }, [
     loading, category, estimatedValue, supplierId, isUrgent, requestTitle, serviceDescription, commodityCode,
-    miniIrq, contractId, suppliers, contracts, matches, routingRules, approvalChains, validatorAgent,
+    miniIrq, contractId, suppliers, preferredSupplierIds, contracts, matches, routingRules, approvalChains, validatorAgent,
   ]);
 
   const derivedWorkflowTemplateId = useMemo(

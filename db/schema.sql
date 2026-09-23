@@ -1446,6 +1446,28 @@ CREATE TABLE IF NOT EXISTS category_managers (
 
 CREATE INDEX IF NOT EXISTS category_managers_user_idx ON category_managers(user_id);
 
+-- ── Preferred suppliers per category ─────────────────────────────────────────
+-- The preferred-supplier list (PSL), maintained in /admin/categories beside the
+-- category's managers. There was no list: `Supplier.preferred` was read by the
+-- preferred-supplier check and no column held it, so every answer came from a
+-- performance heuristic nobody could see or correct. Every preferred supplier
+-- for a category is invited when sourcing starts, and the requester sees them
+-- beside the request's supplier.
+CREATE TABLE IF NOT EXISTS category_preferred_suppliers (
+  category_id TEXT NOT NULL REFERENCES procurement_categories(id) ON DELETE CASCADE,
+  supplier_id TEXT NOT NULL REFERENCES suppliers(id) ON DELETE CASCADE,
+  added_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (category_id, supplier_id)
+);
+
+CREATE INDEX IF NOT EXISTS category_preferred_suppliers_supplier_idx ON category_preferred_suppliers(supplier_id);
+
+-- Which supplier capability tags cover a category. Supplier records carry free
+-- text capabilities ("Management Consulting", "Strategy Consulting") that never
+-- equal a category id, so the supplier recommender kept its own hard-coded
+-- category → keyword map. It is category configuration, edited on the category.
+ALTER TABLE procurement_categories ADD COLUMN IF NOT EXISTS supplier_tags TEXT[] NOT NULL DEFAULT '{}';
+
 -- ── Approval entries: role-based assignment and who actually decided ────────
 -- An entry could only ever name one person, and nothing recorded who acted on
 -- it. Approving showed a success toast while writing nothing at all.
