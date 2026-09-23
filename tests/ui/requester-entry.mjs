@@ -109,6 +109,22 @@ try {
   check('full-request escape opens the adaptive details path', await page.getByPlaceholder('Type your answer...').isVisible().catch(() => false));
   check('full-request escape does not open catalogue selection', (await page.getByText('Choose your items', { exact: true }).count()) === 0);
 
+  // "Browse the catalogue", then change your mind. The shortcut wrote
+  // `category: 'catalogue'` as well as the route; Back and "Raise a full
+  // request" then reached Details with a catalogue category on the full-request
+  // route, which matched no branch — an empty step whose gate asked for a title
+  // and a value it offered no field for.
+  await page.goto(`${BASE}/requests/new`, { waitUntil: 'networkidle' });
+  await page.getByRole('button', { name: /Browse the catalogue/ }).click();
+  await page.getByRole('button', { name: /^Back$/ }).click();
+  await Promise.race([
+    page.getByText("How you'll buy this", { exact: true }).waitFor({ timeout: 15000 }),
+    page.getByText('We could not check what already exists', { exact: true }).waitFor({ timeout: 15000 }),
+  ]).catch(() => {});
+  await page.getByRole('button', { name: /^Start$|^Continue$/ }).last().click();
+  check('catalogue → back → full request opens the conversation, not an empty step',
+    await page.getByPlaceholder('Type your answer...').isVisible({ timeout: 10000 }).catch(() => false));
+
   await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(500);
   // One home for every role. A requester's default widget layout is their own
@@ -126,6 +142,11 @@ try {
   await page.waitForTimeout(500);
   const menuButton = page.getByRole('button', { name: 'Open navigation' });
   check('mobile navigation exposes a labelled menu button', await menuButton.isVisible().catch(() => false));
+  // The half this suite never checked: the drawer must be SHUT until opened.
+  // cn() merged `hidden` away, so the sidebar was always on screen and the
+  // "opens the drawer" check below passed against a drawer that never closed.
+  check('the sidebar is hidden until the menu is opened',
+    (await page.locator('aside').evaluate((el) => getComputedStyle(el).display).catch(() => '')) === 'none');
   await menuButton.click({ force: true, timeout: 3000 });
   const drawerText = await page.locator('aside nav').innerText().catch(() => '');
   check('mobile navigation opens the drawer with labels', drawerText.includes('Requests'), drawerText.slice(0, 120));

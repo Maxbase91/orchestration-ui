@@ -2,7 +2,6 @@ import { useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Sparkles,
-  Search,
   ShoppingCart,
   ArrowRight,
   Plus,
@@ -468,14 +467,18 @@ export function SmartCommandBar() {
     // Results still get a surface, because only they are a separate object.
     <section aria-label="What do you need?">
       <div>
+        {/* Flat, but not grey. Stripped of its card it read as one more search
+            box — the header already has one — and requesters stopped noticing
+            it was the way in. The accent edge and the sparkle say "this is the
+            assistant", without the 170px panel it used to be. */}
         <form onSubmit={handleSubmit} className="relative">
-          <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-ink-3" aria-hidden="true" />
+          <Sparkles className="absolute left-4 top-1/2 size-4 -translate-y-1/2 text-accent" aria-hidden="true" />
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
             aria-label="What do you need?"
             placeholder="What do you need? e.g. 'buy paper', 'consulting services', 'find a supplier' — press Enter"
-            className="h-11 rounded-md bg-card pl-10 pr-10 text-prose"
+            className="h-12 rounded-lg border-accent-line bg-card pl-11 pr-10 text-prose shadow-[var(--shadow)] focus-visible:border-accent focus-visible:ring-accent/15"
           />
           {loading && (
             <div className="absolute right-3 top-1/2 -translate-y-1/2">

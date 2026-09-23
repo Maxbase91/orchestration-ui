@@ -348,7 +348,7 @@ export function StepCategory({ prefill, onUpdate, onAutoAdvance, onBrowseCatalog
           <Sparkles className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-ink-3" />
           <Input
             id="need-input"
-            placeholder='e.g. "I need business consulting from Accenture for a digital transformation project"'
+            placeholder='e.g. "I need business consulting for a digital transformation project"'
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             className="text-base h-12 pl-10 pr-28"

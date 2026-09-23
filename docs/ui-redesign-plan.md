@@ -205,8 +205,11 @@ despite being the second-largest.
    tightens as the work proceeds rather than all at the end.
 4. Browser check at 1360px, light and dark, confirming no horizontal
    overflow and no layout shift between loading and loaded. **Desktop only**
-   (decided 2026-09-23): the platform is used at a desk, so there is no phone
-   layout and no 375px check. The sidebar stays a fixed column at every width.
+   (decided 2026-09-23): the platform is used at a desk, so redesigned screens
+   are not checked at 375px and no phone layout is designed. Below 768px — a
+   narrow or half-screen desktop window — the sidebar becomes a drawer behind
+   a menu button; that existing behaviour is kept and `test:requester-entry-ui`
+   covers it.
 5. `npm run test:all` + the stub-backed browser suite for that area.
 6. Commit per screen, so any single screen can be reverted alone.
 

@@ -337,7 +337,11 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
         mobileOpen
           ? 'fixed inset-y-0 left-0 z-50 flex w-[260px] md:static md:z-auto'
           : 'hidden md:flex',
-        'h-screen bg-navy-800 flex flex-col shrink-0 transition-all duration-300 ease-in-out',
+        // No `flex` here: each branch above sets its own display. A shared
+        // `flex` made cn() — tailwind-merge — treat `hidden` as a conflict and
+        // drop it, so below 768px the drawer's menu button appeared and the
+        // sidebar never went away, leaving ~115px for the page.
+        'h-screen bg-navy-800 flex-col shrink-0 transition-all duration-300 ease-in-out',
         mobileOpen ? 'w-[260px]' : collapsed ? 'w-16' : 'w-[260px]',
       )}
     >

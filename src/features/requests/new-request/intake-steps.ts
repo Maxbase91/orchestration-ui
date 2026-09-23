@@ -155,7 +155,10 @@ export const INTAKE_STEPS: readonly IntakeStepDefinition[] = [
       },
     },
     canProceed: ({ data, isChatIntakePath, conversationCtx, conversationSlots }) => {
-      if (data.preCheckOutcome === 'catalogue' || data.category === 'catalogue') {
+      // The route alone. `|| data.category === 'catalogue'` held a full request
+      // to the catalogue's rule — items in the basket — so after switching
+      // route the step could never be completed.
+      if (data.preCheckOutcome === 'catalogue') {
         return data.catalogueItems.length > 0;
       }
       if (data.preCheckOutcome === 'contract') return !!data.contractId;

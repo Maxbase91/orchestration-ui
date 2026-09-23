@@ -157,8 +157,7 @@ export function parseCatalogueDeepLink(
       }],
     },
     patch: {
-      category: 'catalogue',
-      categoryDescription: 'Catalogue Purchase',
+      // The route, not a category — see onBrowseCatalogue in new-request-page.
       preCheckOutcome: 'catalogue',
       buyingChannelResult: 'catalogue',
       title: item.name,

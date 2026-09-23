@@ -58,7 +58,7 @@ comes back, not that it was fixed once.
 | The service-description quality badge read `quality_score` from a camel-cased record — never rendered | reads `qualityScore` |
 | Breadcrumbs title-cased record ids: "REQ 2024 0001" | ids shown as stored |
 | The PO dialog said "pre-filled" over an empty date and a raw supplier id | pre-filled on open; supplier by name |
-| The app shell is not responsive — the sidebar is a fixed 260px at every width, leaving ~115px of content at 375px | **Not a defect, by decision (2026-09-23):** the platform is desktop-only. Recorded so it is not re-raised |
+| Below 768px the sidebar never hid: the drawer and its menu button existed, but `cn('hidden md:flex', 'flex …')` let tailwind-merge drop `hidden`, leaving ~115px of page. An earlier version of this row called the shell unresponsive by design; it was a merge bug | fixed; `test:requester-entry-ui` now asserts the sidebar is hidden before the menu opens. The platform is desktop-only (2026-09-23), so no phone layout is designed beyond this |
 
 ---
 

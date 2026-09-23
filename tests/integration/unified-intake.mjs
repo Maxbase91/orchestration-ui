@@ -104,6 +104,27 @@ check('only an explicit catalogue outcome takes the fast track',
 
 const params = (obj) => ({ get: (key) => (key in obj ? String(obj[key]) : null) });
 
+// No intake module writes the ROUTE into the form's category. The catalogue
+// shortcut and the catalogue deep link both did, and category outlives a change
+// of route: switching to a full request then reached a Details step that
+// matched no branch and rendered nothing. The route lives in preCheckOutcome.
+{
+  const { readdirSync, readFileSync } = await import('node:fs');
+  const dir = new URL('../../src/features/requests/new-request/', import.meta.url);
+  // The one legitimate site: the STORED request for a completed catalogue
+  // order, built in submitCatalogueOrder, where 'catalogue' is the recorded
+  // category (ROUTE_LIKE_CATEGORY). It is typed `as RequestCategory`; a form
+  // write is not.
+  const writers = readdirSync(dir)
+    .filter((f) => /\.tsx?$/.test(f))
+    .flatMap((f) => readFileSync(new URL(f, dir), 'utf8').split('\n')
+      .filter((line) => !/^\s*(\/\/|\*|\{\/\*)/.test(line))
+      .filter((line) => /category:\s*'catalogue'/.test(line) && !/as RequestCategory/.test(line))
+      .map((line) => `${f}: ${line.trim()}`));
+  check(`no intake module stores the catalogue route as a form category${writers.length ? ` — ${writers.join(' | ')}` : ''}`,
+    writers.length === 0);
+}
+
 const directory = [
   { id: 'SUP-1', name: 'Accenture plc', supplierName: 'Accenture plc' },
   { id: 'SUP-2', name: 'Sodexo', supplierName: 'Sodexo' },

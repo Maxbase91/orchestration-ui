@@ -242,9 +242,13 @@ export function NewRequestPage() {
   // form-based paths have their own completeness rules below.
   const { data: sdTemplate } = useServiceDescriptionTemplate(formData.category);
   const conversationSlots = useMemo(() => resolveSlots(sdTemplate?.slots), [sdTemplate]);
+  // Keyed on the route; 'catalogue' is not in the list because it is not a
+  // category the form can hold (see onBrowseCatalogue). A draft saved before
+  // that fix may still carry it, and on the full-request route it must get the
+  // conversation, not nothing.
   const isChatIntakePath =
     formData.preCheckOutcome === 'full-request' &&
-    !['catalogue', 'contract-renewal', 'supplier-onboarding'].includes(formData.category);
+    !['contract-renewal', 'supplier-onboarding'].includes(formData.category);
   const conversationCtx = useMemo(
     () => ({
       category: formData.category,
@@ -730,9 +734,16 @@ export function NewRequestPage() {
             onBrowseCatalogue={() => {
               // Direct catalogue entry — the user already knows it's an
               // off-the-shelf item, so skip the funnel and go to the catalogue.
+              //
+              // The ROUTE only. This also wrote `category: 'catalogue'`, and
+              // category outlives a change of route: Back to How you'll buy,
+              // then "Raise a full request", reached Details with the route
+              // saying full request and the category saying catalogue — which
+              // matched neither the form branch nor the chat branch, so the
+              // step rendered nothing and its gate asked for a title and a
+              // value it offered no field for. A dead end on the most common
+              // correction a requester makes.
               updateFormData({
-                category: 'catalogue',
-                categoryDescription: 'Catalogue Purchase',
                 preCheckOutcome: 'catalogue',
                 buyingChannelResult: 'catalogue',
               });
@@ -823,12 +834,12 @@ export function NewRequestPage() {
             onSubmit={(draft) => void submitContractCallOff(draft)}
           />
         )}
-        {/* There is no `full-request && category === 'catalogue'` branch.
-            It rendered the same checkout as the catalogue route above and could
-            never fire: the only action that sets `category: 'catalogue'`
-            (Browse the catalogue) sets `preCheckOutcome: 'catalogue'` in the
-            same call, and ROUTE_LIKE_CATEGORY stops a classifier producing it.
-            A fifth capture variant nobody could reach. */}
+        {/* Details on the full-request route is exactly one of two things: the
+            plain form for renewal/onboarding, or the conversation for
+            everything else — `isChatIntakePath`, so the render and the gate
+            cannot disagree. They did: this said a catalogue category on the
+            full-request route "could never fire", and the Back button made it
+            fire, rendering an empty step. */}
         {stepId === 'details' && formData.preCheckOutcome === 'full-request' && ['contract-renewal', 'supplier-onboarding'].includes(formData.category) && (
           <StepDetails
             category={formData.category}
@@ -848,7 +859,7 @@ export function NewRequestPage() {
             onUpdate={(d) => updateFormData(d)}
           />
         )}
-        {stepId === 'details' && formData.preCheckOutcome === 'full-request' && !['catalogue', 'contract-renewal', 'supplier-onboarding'].includes(formData.category) && (
+        {stepId === 'details' && isChatIntakePath && (
           <StepChatIntake
             category={formData.category}
             categoryDescription={formData.categoryDescription}
