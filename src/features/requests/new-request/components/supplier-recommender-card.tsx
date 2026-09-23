@@ -154,7 +154,7 @@ export function SupplierRecommenderCard({
     <Card>
       <CardHeader className="pb-3 flex flex-row items-center justify-between">
         <CardTitle className="text-sm flex items-center gap-2">
-          <Sparkles className="size-4 text-[#2D5F8A]" />
+          <Sparkles className="size-4 text-accent" />
           Supplier
         </CardTitle>
         <span className="text-[11px] text-ink-3">

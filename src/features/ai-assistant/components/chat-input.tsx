@@ -30,7 +30,7 @@ export function ChatInput({ onSend, disabled, placeholder = 'Ask anything…' }:
     <div className="flex items-center gap-2">
       <input
         type="text"
-        className="flex-1 rounded-full border border-line bg-card-2 px-4 py-2.5 text-sm placeholder:text-ink-3 focus:bg-card focus:border-[#2D5F8A] focus:ring-2 focus:ring-[#2D5F8A]/10 focus:outline-none transition-colors"
+        className="flex-1 rounded-full border border-line bg-card-2 px-4 py-2.5 text-sm placeholder:text-ink-3 focus:bg-card focus:border-accent focus:ring-2 focus:ring-accent/10 focus:outline-none transition-colors"
         placeholder={placeholder}
         value={value}
         onChange={(e) => setValue(e.target.value)}
@@ -38,7 +38,7 @@ export function ChatInput({ onSend, disabled, placeholder = 'Ask anything…' }:
         disabled={disabled}
       />
       <button
-        className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#1B2A4A] text-white shadow-sm hover:bg-[#273957] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent-solid text-paper shadow-sm hover:bg-accent-solid/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         onClick={handleSubmit}
         disabled={disabled || !value.trim()}
       >

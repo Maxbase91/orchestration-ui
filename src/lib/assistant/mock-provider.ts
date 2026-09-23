@@ -6,6 +6,7 @@ import { lookupObject } from './capabilities/lookup';
 import { proposeAction, executeAction } from './capabilities/action';
 import { createTicket } from './capabilities/handover';
 import { startDemand } from './capabilities/intake';
+import { requestListHref } from '@/lib/procurement/request-list-filters';
 
 // ─── Action intent extraction ─────────────────────────────────────────────────
 // Returns null when a required parameter is missing (triggers clarification).
@@ -168,7 +169,7 @@ function tryNavigationShortcut(input: string): AssistantTurn[] | null {
   if (/\b(overdue (requests?|demands?)|requests? (that are |which are )?overdue)\b/.test(t)) {
     return [
       { type: 'chat-answer', content: 'Here are all requests currently overdue. Filter further by status or category on the page.' },
-      { type: 'deep-link', label: 'Overdue Requests', description: 'All requests past their SLA deadline', path: '/requests?overdue=true' },
+      { type: 'deep-link', label: 'Overdue Requests', description: 'All requests past their SLA deadline', path: requestListHref({ overdue: true }) },
     ];
   }
 

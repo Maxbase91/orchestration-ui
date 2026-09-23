@@ -10,6 +10,7 @@ import { formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { RiskRating } from '@/data/types';
+import { riskColors } from './supplier-display';
 
 interface SupplierRow extends Record<string, unknown> {
   id: string;
@@ -22,13 +23,6 @@ interface SupplierRow extends Record<string, unknown> {
   expiringCerts: number;
   tier: number;
 }
-
-const riskColors: Record<RiskRating, string> = {
-  low: 'bg-ok-soft text-ok',
-  medium: 'bg-warn-soft text-warn',
-  high: 'bg-warn-soft text-warn',
-  critical: 'bg-stop-soft text-stop',
-};
 
 const sraColors: Record<string, string> = {
   valid: 'bg-ok-soft text-ok',

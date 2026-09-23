@@ -82,8 +82,8 @@ try {
   // The home demand box moved: it was on the separate Simple home page, and the
   // one home carries the smart command bar instead. The handoff it has to make
   // is the same one — the text becomes `?q=` on intake, already classified.
-  await page.locator('input[placeholder*="Press Enter"]').fill(homeDemand);
-  await page.locator('input[placeholder*="Press Enter"]').press('Enter');
+  await page.getByRole('textbox', { name: 'What do you need?' }).fill(homeDemand);
+  await page.getByRole('textbox', { name: 'What do you need?' }).press('Enter');
   await page.waitForURL(`${BASE}/requests/new?q=${encodeURIComponent(homeDemand)}`, { timeout: 10000 });
   await page.waitForLoadState('networkidle');
   const classified = await page.getByText(/suggested commodity or service family/i)
@@ -115,7 +115,7 @@ try {
   // requests rather than KPIs, so the simplification that used to come from
   // picking "Simple" now comes from the role — without asking them to choose.
   check('home has a clear start-request entry point',
-    await page.locator('input[placeholder*="Press Enter"]').isVisible().catch(() => false)
+    await page.getByRole('textbox', { name: 'What do you need?' }).isVisible().catch(() => false)
       || await page.getByRole('button', { name: /New Request/i }).first().isVisible().catch(() => false));
   check('home shows the requester their own work',
     (await page.locator('main').innerText()).toLowerCase().includes('request'));

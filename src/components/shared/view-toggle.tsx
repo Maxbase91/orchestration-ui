@@ -42,7 +42,7 @@ export function ViewToggle({ views, activeView, onChange }: ViewToggleProps) {
             className={cn(
               'inline-flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-medium transition-colors',
               isActive
-                ? 'bg-[#1B2A4A] text-white'
+                ? 'bg-accent-solid text-paper'
                 : 'text-muted-foreground hover:text-foreground'
             )}
             title={view.label}

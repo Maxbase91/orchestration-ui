@@ -1,7 +1,8 @@
-// Home. A platform-owned attention band, the front-door command bar, the
-// user's quick actions, and their widget grid — in that order, because the
-// only part of this screen the platform can guarantee is worth reading is the
-// part the user cannot rearrange.
+// Home. A one-line greeting, the front-door command bar, a platform-owned
+// attention band, the user's quick actions, and their widget grid. The top of
+// the page is kept short on purpose: it used to spend ~330px on a two-line
+// greeting and a centred, titled panel around one text field before anything
+// the reader could act on.
 //
 // Customising is a mode rather than a permanent set of controls: it used to be
 // three separate affordances in three places, one of them ("Customise" in the
@@ -31,7 +32,6 @@ import { format } from 'date-fns';
 import { useAuthStore } from '@/stores/auth-store';
 import { useDashboardStore } from '@/stores/dashboard-store';
 import { Button } from '@/components/ui/button';
-import { roles } from '@/config/roles';
 import { widgetRegistry, allQuickActions } from './widget-registry';
 import { widgetComponents } from './widgets';
 import { DashboardWidgetCard } from './components/dashboard-widget-card';
@@ -63,8 +63,6 @@ export function DashboardPage() {
     .map((id) => allQuickActions.find((a) => a.id === id))
     .filter(Boolean);
 
-  const roleConfig = roles.find((r) => r.id === currentRole);
-  const roleLabel = roleConfig?.label ?? currentRole;
   const today = format(new Date(), 'EEEE, d MMMM yyyy');
 
   const sensors = useSensors(
@@ -93,16 +91,16 @@ export function DashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Welcome — leads the page so the greeting sets context before the tools. */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-heading font-semibold text-ink">
+    <div className="space-y-4">
+      {/* One line. The role was repeated here beneath the name, and the header's
+          user menu already shows it; the date stays because it is the one thing
+          on this line the reader does not already know. */}
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex min-w-0 items-baseline gap-3">
+          <h1 className="truncate text-heading font-semibold text-ink">
             Welcome back, {currentUser.name}
           </h1>
-          <p className="mt-0.5 text-caption text-ink-3">
-            {roleLabel} &middot; {today}
-          </p>
+          <span className="shrink-0 text-caption text-ink-3">{today}</span>
         </div>
         <Button
           variant={editing ? 'default' : 'ghost'}
@@ -115,9 +113,13 @@ export function DashboardPage() {
         </Button>
       </div>
 
-      <AttentionBand />
-
+      {/* The front door first: it is always there, so it never moves. The band
+          below it appears only once the queue has loaded and has something in
+          it — placed above the command bar, its arrival pushed the field down
+          under the reader's cursor. */}
       <SmartCommandBar />
+
+      <AttentionBand />
 
       {/* Customise mode — every control that changes the dashboard, together.
           Out of the mode none of this is on screen; in it, nothing else is. */}

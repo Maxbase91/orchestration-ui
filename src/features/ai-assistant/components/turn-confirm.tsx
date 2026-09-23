@@ -42,7 +42,7 @@ export function TurnConfirm({ turn, onConfirm, onCancel, disabled }: Props) {
       <div className="flex gap-2">
         <Button
           size="sm"
-          className="h-8 px-4 text-[12px] bg-[#1B2A4A] hover:bg-[#273957] text-white"
+          className="h-8 px-4 text-[12px] bg-accent-solid hover:bg-accent-solid/90 text-paper"
           disabled={disabled}
           onClick={() => onConfirm(turn)}
         >

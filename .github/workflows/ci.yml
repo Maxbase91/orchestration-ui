@@ -88,3 +88,4 @@ jobs:
           npm run test:intake-guidance-ui
           npm run test:approvals-ui
           npm run test:dashboard-widget-states
+          npm run test:request-list-ui

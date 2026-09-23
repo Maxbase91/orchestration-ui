@@ -244,7 +244,7 @@ function QuickFilterButton({
       onClick={onClick}
       className={cn(
         'gap-1.5 text-xs',
-        active && 'bg-[#1B2A4A] text-white hover:bg-[#1B2A4A]/90',
+        active && 'bg-accent-solid text-paper hover:bg-accent-solid/90',
       )}
     >
       {icon}

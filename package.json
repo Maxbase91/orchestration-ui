@@ -88,6 +88,8 @@
     "test:dashboard-widgets": "node --import tsx/esm tests/integration/dashboard-widgets.mjs",
     "test:dashboard-widget-states": "node tests/ui/dashboard-widget-states.mjs",
     "test:personal-queue": "node --import tsx/esm tests/integration/personal-queue.mjs",
+    "test:request-list-filters": "node --import tsx/esm tests/integration/request-list-filters.mjs",
+    "test:request-list-ui": "node tests/ui/request-list.mjs",
     "test:intake-evidence": "node --import tsx/esm tests/integration/intake-evidence-honesty.mjs",
     "test:mode-equivalence": "node --import tsx/esm tests/integration/mode-equivalence.mjs",
     "test:governed-checkout": "node --import tsx/esm tests/integration/governed-checkout.mjs",

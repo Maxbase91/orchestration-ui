@@ -31,7 +31,7 @@ export function StepHeaderPanel({ guidance, nextOverride }: StepHeaderPanelProps
   return (
     <div className="mb-5 rounded-lg border border-accent-line bg-accent-soft/40 px-4 py-3">
       <div className="flex items-start gap-2.5">
-        <Info className="mt-0.5 size-4 shrink-0 text-[#2D5F8A]" />
+        <Info className="mt-0.5 size-4 shrink-0 text-accent" />
         <div className="min-w-0 flex-1">
           {/* A step with nothing worth saying about what comes next says
               nothing, rather than spending a line of the panel on it. */}
@@ -59,7 +59,7 @@ export function StepHeaderPanel({ guidance, nextOverride }: StepHeaderPanelProps
         <button
           type="button"
           onClick={() => setOpen((previous) => !previous)}
-          className="shrink-0 rounded px-1.5 py-0.5 text-xs text-[#2D5F8A] hover:bg-accent-soft/60"
+          className="shrink-0 rounded px-1.5 py-0.5 text-xs text-accent hover:bg-accent-soft/60"
           aria-expanded={open}
         >
           <span className="flex items-center gap-1">

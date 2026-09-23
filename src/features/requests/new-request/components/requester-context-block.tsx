@@ -65,7 +65,7 @@ export function RequesterContextBlock({
         {/* Requester location — read-only, from profile */}
         <div className="flex items-center gap-2">
           <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-accent-soft">
-            <MapPin className="size-3.5 text-[#2D5F8A]" />
+            <MapPin className="size-3.5 text-accent" />
           </div>
           <div className="min-w-0">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-3">Requesting from</p>
@@ -79,7 +79,7 @@ export function RequesterContextBlock({
         {/* Beneficiary — default self, changeable */}
         <div className="flex items-start gap-2">
           <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-accent-soft">
-            <UserRound className="size-3.5 text-[#2D5F8A]" />
+            <UserRound className="size-3.5 text-accent" />
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-3">Buying for</p>
@@ -134,7 +134,7 @@ export function RequesterContextBlock({
         {/* Charged to — derived from the profile, correctable here. */}
         <div className="flex items-start gap-2">
           <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-accent-soft">
-            <Wallet className="size-3.5 text-[#2D5F8A]" />
+            <Wallet className="size-3.5 text-accent" />
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-3">Charged to</p>

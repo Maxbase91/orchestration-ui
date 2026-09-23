@@ -166,7 +166,7 @@ export function TabOverview({ request }: TabOverviewProps) {
                 onClick={() => setSowExpanded(!sowExpanded)}
                 className="flex items-center gap-2 text-left"
               >
-                <FileText className="size-4 text-[#2D5F8A]" />
+                <FileText className="size-4 text-accent" />
                 <CardTitle className="text-base">Service Description</CardTitle>
                 {(svcDesc as unknown as Record<string, unknown>).quality_score !== undefined && (
                   <span className={`inline-flex items-center gap-1 text-[10px] font-semibold rounded-full px-2 py-0.5 ml-1 ${

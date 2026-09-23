@@ -362,7 +362,7 @@ export function StepCategory({ prefill, onUpdate, onAutoAdvance, onBrowseCatalog
           </Button>
           {loading && (
             <div className="absolute right-3 top-1/2 -translate-y-1/2">
-              <Loader2 className="size-4 animate-spin text-[#2D5F8A]" />
+              <Loader2 className="size-4 animate-spin text-accent" />
             </div>
           )}
         </form>
@@ -387,12 +387,12 @@ export function StepCategory({ prefill, onUpdate, onAutoAdvance, onBrowseCatalog
           controls lock rather than the block vanishing, so the requester is not
           shown an empty screen while the wizard advances. */}
       {aiResult && !loading && (
-        <div className="rounded-lg border-l-2 border-[#2D5F8A] bg-accent-soft/50 p-4 space-y-3">
+        <div className="rounded-lg border-l-2 border-accent bg-accent-soft/50 p-4 space-y-3">
           <div className="flex items-start gap-2">
-            <Sparkles className="size-4 text-[#2D5F8A] mt-0.5 shrink-0" />
+            <Sparkles className="size-4 text-accent mt-0.5 shrink-0" />
             <div className="flex-1 space-y-3">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs font-medium text-[#2D5F8A]">AI Classification</span>
+                <span className="text-xs font-medium text-accent">AI Classification</span>
                 {/* Provenance, not a confidence score: the model returns no
                     confidence, so any percentage here would be invented. */}
                 <Badge variant="outline" className="text-[10px] border-accent-line text-accent-solid">

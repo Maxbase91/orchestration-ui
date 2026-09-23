@@ -367,8 +367,8 @@ export function SupplierMessagesPage() {
                   >
                     <div
                       className={cn(
-                        'flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-medium text-white',
-                        msg.isInternal ? 'bg-[#1B2A4A]' : 'bg-warn',
+                        'flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-medium text-paper',
+                        msg.isInternal ? 'bg-accent-solid' : 'bg-warn',
                       )}
                     >
                       {msg.senderInitials}

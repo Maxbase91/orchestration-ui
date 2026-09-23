@@ -462,28 +462,24 @@ export function SmartCommandBar() {
   // ============================================================
 
   return (
-    <div className="rounded-xl border border-line bg-card shadow-sm overflow-hidden">
-      <div className="h-1 bg-gradient-to-r from-[#1B2A4A] via-[#2D5F8A] to-[#D4782F]" />
-
-      <div className="p-6">
-        {/* Title */}
-        <div className="flex items-center justify-center gap-2 mb-4">
-          <Sparkles className="size-5 text-[#2D5F8A]" />
-          <h2 className="text-lg font-semibold text-ink">What do you need?</h2>
-        </div>
-
-        {/* Search Input */}
-        <form onSubmit={handleSubmit} className="relative max-w-2xl mx-auto">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-5 text-ink-3" />
+    // No card, no gradient strip and no centred heading: the input asks the
+    // question itself. The block used to take ~170px — a titled, bordered panel
+    // with the field floating in its middle — for one text box and a hint.
+    // Results still get a surface, because only they are a separate object.
+    <section aria-label="What do you need?">
+      <div>
+        <form onSubmit={handleSubmit} className="relative">
+          <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-ink-3" aria-hidden="true" />
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Press Enter — e.g. 'buy paper', 'consulting services', 'find a supplier'"
-            className="h-12 pl-12 pr-10 text-base rounded-lg"
+            aria-label="What do you need?"
+            placeholder="What do you need? e.g. 'buy paper', 'consulting services', 'find a supplier' — press Enter"
+            className="h-11 rounded-md bg-card pl-10 pr-10 text-prose"
           />
           {loading && (
             <div className="absolute right-3 top-1/2 -translate-y-1/2">
-              <Loader2 className="size-4 animate-spin text-[#2D5F8A]" />
+              <Loader2 className="size-4 animate-spin text-accent" />
             </div>
           )}
           {!loading && (input || proposal || showCatalogue) && (
@@ -495,15 +491,15 @@ export function SmartCommandBar() {
 
         {/* AI hint */}
         {!proposal && !showCatalogue && !loading && (
-          <p className="mt-2 text-center text-xs text-ink-3">
+          <p className="mt-1.5 text-caption text-ink-3">
             Describe what you need and we&apos;ll route it — or ask a question and the{' '}
-            <span className="font-medium text-[#2D5F8A]">AI assistant</span> takes it →
+            <span className="font-medium text-accent">AI assistant</span> takes it.
           </p>
         )}
 
         {/* Loading */}
         {loading && (
-          <div className="flex items-center justify-center gap-2 mt-6 text-sm text-ink-3">
+          <div className="mt-3 flex items-center gap-2 text-body text-ink-3">
             <Loader2 className="size-4 animate-spin" />
             Analysing...
           </div>
@@ -514,10 +510,10 @@ export function SmartCommandBar() {
             requester would be faster and worse: a wrong match would land them
             in a checkout for the wrong thing. */}
         {proposal?.type === 'identified' && !showCatalogue && !loading && (
-          <div className="mt-6 max-w-2xl mx-auto space-y-3">
+          <div className="mt-3 space-y-3 rounded-md border border-line bg-card p-4">
             <div className="flex items-start gap-2">
               <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-accent-soft mt-0.5">
-                <Sparkles className="size-3 text-[#2D5F8A]" />
+                <Sparkles className="size-3 text-accent" />
               </div>
               <p className="text-sm text-ink-2">{proposal.message}</p>
             </div>
@@ -561,11 +557,11 @@ export function SmartCommandBar() {
 
         {/* ── PROPOSAL CARD (non-catalogue) ── */}
         {proposal && proposal.type !== 'identified' && !showCatalogue && !loading && (
-          <div className="mt-6 max-w-2xl mx-auto">
+          <div className="mt-3 rounded-md border border-line bg-card p-4">
             <div className="rounded-lg border border-line bg-card-2 p-4 space-y-3">
               <div className="flex items-start gap-2">
                 <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-accent-soft mt-0.5">
-                  <Sparkles className="size-3 text-[#2D5F8A]" />
+                  <Sparkles className="size-3 text-accent" />
                 </div>
                 <div className="flex-1">
                   <p className="text-sm text-ink-2">{proposal.message}</p>
@@ -598,12 +594,12 @@ export function SmartCommandBar() {
 
         {/* ── CATALOGUE VIEW ── */}
         {showCatalogue && !loading && (
-          <div className="mt-6 max-w-3xl mx-auto space-y-4">
+          <div className="mt-3 space-y-4 rounded-md border border-line bg-card p-4">
             {/* Catalogue message */}
             {proposal && (
               <div className="flex items-start gap-2">
                 <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-accent-soft mt-0.5">
-                  <Sparkles className="size-3 text-[#2D5F8A]" />
+                  <Sparkles className="size-3 text-accent" />
                 </div>
                 <p className="text-sm text-ink-2">{proposal.message}</p>
               </div>
@@ -619,7 +615,7 @@ export function SmartCommandBar() {
                     key={cat.id}
                     type="button"
                     onClick={() => handleBrowseCategory(cat.id)}
-                    className={`flex flex-col items-center gap-1.5 rounded-lg border p-3 text-center transition-colors ${isActive ? 'border-[#2D5F8A] bg-accent-soft text-[#2D5F8A]' : 'border-line hover:border-line hover:bg-card-2 text-ink-2'}`}
+                    className={`flex flex-col items-center gap-1.5 rounded-lg border p-3 text-center transition-colors ${isActive ? 'border-accent bg-accent-soft text-accent' : 'border-line hover:border-line hover:bg-card-2 text-ink-2'}`}
                   >
                     <Icon className="size-5" />
                     <span className="text-[10px] font-medium leading-tight">{cat.name}</span>
@@ -638,7 +634,7 @@ export function SmartCommandBar() {
                       <div>
                         <button
                           type="button"
-                          className="text-left text-sm font-medium text-ink hover:text-[#2D5F8A] hover:underline"
+                          className="text-left text-sm font-medium text-ink hover:text-accent hover:underline"
                           onClick={() => { navigate(`/catalogue/items/${encodeURIComponent(item.id)}`); setProposal(null); setShowCatalogue(false); }}
                         >
                           {item.name}
@@ -705,6 +701,6 @@ export function SmartCommandBar() {
           </div>
         )}
       </div>
-    </div>
+    </section>
   );
 }

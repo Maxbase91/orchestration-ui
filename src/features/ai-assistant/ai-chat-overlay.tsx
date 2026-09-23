@@ -150,7 +150,7 @@ export function AIChatOverlay() {
       {/* Floating trigger button */}
       {!open && (
         <button
-          className="fixed bottom-6 right-6 z-50 flex size-14 items-center justify-center rounded-full bg-[#1B2A4A] text-white shadow-lg shadow-gray-900/20 hover:bg-[#273957] hover:scale-105 transition-all duration-200"
+          className="fixed bottom-6 right-6 z-50 flex size-14 items-center justify-center rounded-full bg-accent-solid text-paper shadow-lg shadow-gray-900/20 hover:bg-accent-solid/90 hover:scale-105 transition-all duration-200"
           onClick={() => setOpen(true)}
           aria-label="Open AI assistant"
         >
@@ -167,7 +167,7 @@ export function AIChatOverlay() {
           </SheetHeader>
           {/* Header */}
           <div className="flex items-center gap-2 bg-card border-b border-line-2 px-4 py-3">
-            <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#1B2A4A] to-[#2D5F8A]">
+            <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-accent-solid to-accent-2">
               <Sparkles className="size-3.5 text-white" />
             </div>
             {isLoading ? (

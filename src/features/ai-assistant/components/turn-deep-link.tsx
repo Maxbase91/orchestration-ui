@@ -14,7 +14,7 @@ export function TurnDeepLink({ turn, onNavigate }: Props) {
     >
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-[#2D5F8A] leading-none mb-1">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-accent leading-none mb-1">
             {turn.label}
           </p>
           {turn.description && (

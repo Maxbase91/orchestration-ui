@@ -299,6 +299,10 @@ npm run test:dashboard-widget-states # browser smoke — with every table failin
                                   #   and reports an unreadable queue instead of going quiet
 npm run test:personal-queue       # static — one definition of "mine" (assigned or delegated), and no other
                                   #   module tests approval ownership itself
+npm run test:request-list-filters # static — the request list's URL filters round-trip, a misspelt one is reported,
+                                  #   the personal views are personal-queue.ts, and no module hand-builds a list URL
+npm run test:request-list-ui      # browser smoke — the band's and Requests-by-Stage's links show the rows they
+                                  #   counted, filters show as removable chips, priority is written, badges are tokens
 npm run test:request-detail-ui    # browser check on fixtures (no credentials, no network) — the request detail renders, every
                                   # workflow step opens, and the risk form pre-populates from the service description
 npm run test:interactions-ui      # interaction E2E — wizard submit, admin save, AI assistant (self-cleaning)
@@ -445,6 +449,7 @@ src/
 │   │                #   compliance record, governed checkout, …) + service description config (SERVICE_DESCRIPTION.md)
 │   │                #   personal-queue.ts is the one definition of what is on a person's plate
 │   │                #   (approvals assigned or delegated to them, referred back, overdue)
+│   │                #   request-list-filters.ts is the /requests URL contract every link builds with
 │   ├── routing/     # Routing-rule evaluator + diagnostics, and the one buying-channel resolver both the
 │   │                #   buy-route screen and the determination call (plus its plain-English requester copy)
 │   ├── assistant/   # Assistant providers, intents and capability handlers

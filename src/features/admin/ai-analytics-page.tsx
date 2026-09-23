@@ -40,8 +40,8 @@ function StatCard({ label, value, icon: Icon, sub }: {
           <p className="mt-1.5 text-2xl font-semibold text-ink">{value}</p>
           {sub && <p className="mt-0.5 text-xs text-ink-3">{sub}</p>}
         </div>
-        <div className="flex size-9 items-center justify-center rounded-lg bg-[#1B2A4A]/8">
-          <Icon className="size-4 text-[#1B2A4A]" />
+        <div className="flex size-9 items-center justify-center rounded-lg bg-accent-soft">
+          <Icon className="size-4 text-ink" />
         </div>
       </div>
     </Card>

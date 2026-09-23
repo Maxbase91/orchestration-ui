@@ -78,7 +78,7 @@ function renderTurns(
 
 function AssistantAvatar() {
   return (
-    <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#1B2A4A] to-[#2D5F8A]">
+    <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-accent-solid to-accent-2">
       <Sparkles className="size-3.5 text-white" />
     </div>
   );
@@ -159,7 +159,7 @@ export function MessagePane({
             <div
               className={cn(
                 'flex size-8 shrink-0 items-center justify-center rounded-full',
-                isUser ? 'bg-ink-2' : 'bg-gradient-to-br from-[#1B2A4A] to-[#2D5F8A]'
+                isUser ? 'bg-ink-2' : 'bg-gradient-to-br from-accent-solid to-accent-2'
               )}
             >
               {isUser ? (
@@ -172,7 +172,7 @@ export function MessagePane({
             {/* Content */}
             <div className={cn('max-w-[85%]', isUser ? 'items-end' : 'items-start')}>
               {isUser ? (
-                <div className="rounded-[18px] rounded-br-[4px] bg-[#1B2A4A] px-4 py-2.5 text-[13.5px] leading-relaxed text-white">
+                <div className="rounded-[18px] rounded-br-[4px] bg-accent-solid px-4 py-2.5 text-[13.5px] leading-relaxed text-paper">
                   <p className="whitespace-pre-wrap">{msg.content}</p>
                 </div>
               ) : (

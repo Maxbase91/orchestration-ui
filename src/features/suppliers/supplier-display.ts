@@ -18,10 +18,17 @@ export const countryFlags: Record<string, string> = {
   CH: '\u{1F1E8}\u{1F1ED}',
 };
 
-/** Badge classes by risk rating. Keep in step with the RiskRating union. */
+/**
+ * Badge classes by risk rating. Keep in step with the RiskRating union.
+ *
+ * The only copy: risk-compliance-page.tsx kept its own, which coloured `high`
+ * as a warning where this one coloured it as a stop, so one supplier's risk
+ * looked different depending on which screen showed it. Four distinct steps,
+ * with critical as the one solid fill.
+ */
 export const riskColors: Record<string, string> = {
-  low: 'bg-green-100 text-green-700',
-  medium: 'bg-amber-100 text-amber-700',
-  high: 'bg-red-100 text-red-700',
-  critical: 'bg-red-200 text-red-900',
+  low: 'bg-ok-soft text-ok',
+  medium: 'bg-warn-soft text-warn',
+  high: 'bg-stop-soft text-stop',
+  critical: 'bg-stop text-paper',
 };

@@ -49,7 +49,7 @@ function EntryForm({
   }
 
   return (
-    <Card className="p-5 space-y-4 border-[#1B2A4A]/20 ring-1 ring-[#1B2A4A]/10">
+    <Card className="p-5 space-y-4 border-accent-line ring-1 ring-accent-line">
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium text-ink">{initial ? 'Edit entry' : 'New entry'}</p>
         <button onClick={onCancel} className="rounded p-1 text-ink-3 hover:text-ink-2">
@@ -86,7 +86,7 @@ function EntryForm({
       </div>
       <div className="flex justify-end gap-2">
         <Button variant="outline" size="sm" onClick={onCancel}>Cancel</Button>
-        <Button size="sm" disabled={!valid} onClick={submit} className="bg-[#1B2A4A] hover:bg-[#273957] text-white">
+        <Button size="sm" disabled={!valid} onClick={submit} className="bg-accent-solid hover:bg-accent-solid/90 text-paper">
           <Save className="mr-1.5 size-3.5" />
           Save entry
         </Button>
@@ -210,7 +210,7 @@ export function KBAdminPage() {
         />
         <Button
           size="sm"
-          className="ml-auto bg-[#1B2A4A] hover:bg-[#273957] text-white"
+          className="ml-auto bg-accent-solid hover:bg-accent-solid/90 text-paper"
           onClick={() => { setEditingEntry(null); setShowForm(true); }}
         >
           <Plus className="mr-1.5 size-3.5" />

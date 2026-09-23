@@ -364,7 +364,7 @@ export function StepBuyRoute({
         </div>
         <RouteOption
           recommended
-          icon={<PenLine className="size-4 text-[#2D5F8A]" />}
+          icon={<PenLine className="size-4 text-accent" />}
           headline="Raise a full request"
           detail="We will collect a service description, identify suppliers and assess risk before routing."
           action={onProceedToFullRequest}
@@ -441,7 +441,7 @@ export function StepBuyRoute({
                       {' · '}{formatCurrency(item.unitPrice)} / {item.unit}
                       {' · '}{item.leadTime}
                     </span>
-                    <span className="flex shrink-0 items-center gap-1 font-medium text-[#2D5F8A]">
+                    <span className="flex shrink-0 items-center gap-1 font-medium text-accent">
                       Order this<ArrowRight className="size-3" />
                     </span>
                   </button>
@@ -486,7 +486,7 @@ export function StepBuyRoute({
                         <span className="font-medium text-ink">{contract.title}</span>
                         {' · '}{contract.supplierName}
                       </span>
-                      <span className="flex shrink-0 items-center gap-1 font-medium text-[#2D5F8A]">
+                      <span className="flex shrink-0 items-center gap-1 font-medium text-accent">
                         Call it off<ArrowRight className="size-3" />
                       </span>
                     </button>
@@ -509,7 +509,7 @@ export function StepBuyRoute({
 
         <RouteOption
           recommended={recommended === 'new-demand'}
-          icon={<PenLine className="size-4 text-[#2D5F8A]" />}
+          icon={<PenLine className="size-4 text-accent" />}
           headline="Raise a full request"
           detail={fullRequestDetail}
           timelineDays={timelineByCategory.get(category)}

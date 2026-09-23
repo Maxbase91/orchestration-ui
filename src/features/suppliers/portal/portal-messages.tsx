@@ -191,8 +191,8 @@ export function PortalMessages() {
                       )}
                     >
                       <div className={cn(
-                        'flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-medium text-white',
-                        msg.isSupplier ? 'bg-warn' : 'bg-[#1B2A4A]',
+                        'flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-medium text-paper',
+                        msg.isSupplier ? 'bg-warn' : 'bg-accent-solid',
                       )}>
                         {msg.senderInitials}
                       </div>

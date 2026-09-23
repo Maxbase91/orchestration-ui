@@ -73,7 +73,7 @@ function ConversationSidebar({
       <div className="p-3">
         <button
           onClick={onNew}
-          className="flex w-full items-center gap-2 rounded-lg bg-[#1B2A4A] px-3 py-2 text-sm font-medium text-white hover:bg-[#273957] transition-colors"
+          className="flex w-full items-center gap-2 rounded-lg bg-accent-solid px-3 py-2 text-sm font-medium text-paper hover:bg-accent-solid/90 transition-colors"
         >
           <Plus className="size-4 shrink-0" />
           New chat

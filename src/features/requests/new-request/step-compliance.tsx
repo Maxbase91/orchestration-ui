@@ -922,7 +922,7 @@ function SmartAssessmentSection({
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="text-sm flex items-center gap-2">
-          <Sparkles className="size-4 text-[#2D5F8A]" />
+          <Sparkles className="size-4 text-accent" />
           Smart Assessment — Estimated Processing Path
         </CardTitle>
       </CardHeader>
@@ -1041,7 +1041,7 @@ function SmartAssessmentSection({
             ))}
           </div>
           <div className="flex items-center gap-2 pt-2 border-t border-line-2">
-            <Clock className="size-4 text-[#2D5F8A]" />
+            <Clock className="size-4 text-accent" />
             <span className="text-sm font-semibold text-ink">
               Estimated total: ~{assessment.totalDays} business days
             </span>

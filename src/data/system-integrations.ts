@@ -34,11 +34,17 @@ export const systemLabels: Record<ExternalSystem, string> = {
   'sap': 'SAP S/4HANA',
 };
 
+/**
+ * One neutral chip for every system. The four used to be blue, purple, teal and
+ * amber — palette literals that stayed light in dark mode, and hues that meant
+ * nothing a reader could use: the chip already says which system it is, and on
+ * the screens that show these, amber and red are reserved for state.
+ */
 export const systemColors: Record<ExternalSystem, string> = {
-  'ariba': 'bg-blue-100 text-blue-700 border-blue-200',
-  'coupa-risk': 'bg-purple-100 text-purple-700 border-purple-200',
-  'sirion': 'bg-teal-100 text-teal-700 border-teal-200',
-  'sap': 'bg-amber-100 text-amber-700 border-amber-200',
+  'ariba': 'bg-card-2 text-ink-2 border-line',
+  'coupa-risk': 'bg-card-2 text-ink-2 border-line',
+  'sirion': 'bg-card-2 text-ink-2 border-line',
+  'sap': 'bg-card-2 text-ink-2 border-line',
 };
 
 export const systemIntegrations: SystemIntegration[] = [

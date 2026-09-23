@@ -53,8 +53,8 @@ export function referredBackToMe(requests: ProcurementRequest[], userId: string)
 /**
  * Past its stage SLA and mine either way: the owner is accountable for moving
  * it and the requester is the one waiting, and both need to know.
- * `isOverdue` is the stored flag, so this reports what the record says rather
- * than recomputing a deadline the record may not agree with.
+ * `isOverdue` is derived from `sla_deadline` in the request mapper, not read
+ * from the stored `is_overdue` column, which nothing has ever set true.
  */
 export function overdueOnMyPlate(requests: ProcurementRequest[], userId: string): ProcurementRequest[] {
   return requests.filter((r) => r.isOverdue && (r.ownerId === userId || r.requestorId === userId));

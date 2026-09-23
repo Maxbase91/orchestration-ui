@@ -73,6 +73,10 @@ const PAIRS = [
   ['warn', ['card', 'paper', 'warn-soft']],
   ['stop', ['card', 'paper', 'stop-soft']],
   ['idle', ['card', 'paper', 'idle-soft']],
+  // --paper as TEXT, on the solid fills it is set on: primary buttons, chat
+  // bubbles and avatars (accent), and the status fills. `text-white` was used
+  // here and measured 2.32:1 on --ok in dark; --paper flips with the fill.
+  ['paper', ['accent', 'ok', 'warn', 'stop']],
 ];
 
 console.log('Every text token clears WCAG AA on every ground it is used on');
@@ -181,15 +185,23 @@ function tsxFiles(dir, out = []) {
   for (const entry of readdirSync(new URL(dir, ROOT))) {
     const rel = `${dir}${entry}`;
     if (statSync(new URL(rel, ROOT)).isDirectory()) tsxFiles(`${rel}/`, out);
-    else if (entry.endsWith('.tsx')) out.push(rel);
+    else if (entry.endsWith('.tsx') || entry.endsWith('.ts')) out.push(rel);
   }
   return out;
 }
 
 const RAW = /\b(?:text|bg|border|ring|divide)-(?:gray|slate|zinc|neutral|stone|red|green|blue|amber|yellow|indigo|purple|teal|orange|emerald|sky|rose)-\d{2,3}\b/g;
+// A hex in an arbitrary-value class — `text-[#2D5F8A]`, `bg-[#1B2A4A]/90`. The
+// palette scan above could not see these, and 57 of them survived the colour
+// migration in 21 files: the command bar's gradient, every primary chat bubble
+// and hand-styled button, all fixed at their light-mode value.
+const HEX = /-\[#[0-9A-Fa-f]{3,8}\]/g;
+// .ts as well as .tsx. Class strings live in .ts lookup tables too, and the one
+// that coloured every status badge in the product (src/config/theme.ts) was
+// never scanned — so the badges stayed light-mode chips in dark mode.
 const all = tsxFiles('src/').filter((f) => !EXEMPT.some((e) => f.startsWith(e)));
 
-console.log(`\nNo component names a colour that cannot follow the theme (${all.length} files)`);
+console.log(`\nNo source file names a colour that cannot follow the theme (${all.length} files)`);
 {
   const offenders = [];
   let whites = 0;
@@ -198,7 +210,7 @@ console.log(`\nNo component names a colour that cannot follow the theme (${all.l
     const code = source.split('\n')
       .filter((l) => !l.trim().startsWith('//') && !l.trim().startsWith('*') && !l.trim().startsWith('/*'))
       .join('\n');
-    const hits = [...new Set(code.match(RAW) ?? [])];
+    const hits = [...new Set([...(code.match(RAW) ?? []), ...(code.match(HEX) ?? [])])];
     if (hits.length) offenders.push(`${file.replace('src/', '')}: ${hits.slice(0, 3).join(', ')}`);
     // A literal white surface cannot flip; --card is #FFFFFF in light, so the
     // swap was pixel-identical there and is what makes dark readable.

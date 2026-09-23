@@ -1,63 +1,81 @@
-export const theme = {
-  colors: {
-    navy: { DEFAULT: '#1B2A4A', light: '#2D5F8A' },
-    amber: { DEFAULT: '#D4782F' },
-    background: '#F3F5F9',
-    card: '#FFFFFF',
-    text: { primary: '#1E1E1E', secondary: '#4A5568', muted: '#718096' },
-    status: {
-      success: '#2E7D4F',
-      warning: '#D4782F',
-      danger: '#B5392E',
-      info: '#2D5F8A',
-    },
-  },
-} as const;
+// What a status MEANS, and the one set of badge classes each meaning gets.
+//
+// This file used to map ~45 statuses straight to Tailwind palette classes
+// (`bg-amber-100 text-amber-700`), which had two faults. They were literals, so
+// no status badge anywhere followed the theme — in dark mode every one was a
+// light chip on a dark row; the colour migration scanned .tsx files and this is
+// .ts, so it was missed. And the hues did not mean anything consistent: six
+// ordinary lifecycle stages (sourcing through payment) were amber, the warning
+// colour, so a request progressing normally looked like one in trouble.
+//
+// Now each status names a tone, and the tone names tokens. Five tones, chosen
+// for what the reader should do: nothing (progress), watch for a decision
+// (waiting), nothing ever again (done), act (stopped), or ignore (idle).
+export type StatusTone = 'progress' | 'waiting' | 'done' | 'stopped' | 'idle';
 
-export const statusColorMap = {
-  draft: 'bg-gray-100 text-gray-700',
-  intake: 'bg-blue-100 text-blue-700',
-  validation: 'bg-blue-100 text-blue-700',
-  approval: 'bg-amber-100 text-amber-700',
-  sourcing: 'bg-amber-100 text-amber-700',
-  contracting: 'bg-amber-100 text-amber-700',
-  po: 'bg-amber-100 text-amber-700',
-  receipt: 'bg-amber-100 text-amber-700',
-  invoice: 'bg-amber-100 text-amber-700',
-  payment: 'bg-amber-100 text-amber-700',
-  completed: 'bg-green-100 text-green-700',
-  cancelled: 'bg-red-100 text-red-700',
-  'referred-back': 'bg-red-100 text-red-700',
-  active: 'bg-green-100 text-green-700',
-  expired: 'bg-red-100 text-red-700',
-  expiring: 'bg-amber-100 text-amber-700',
-  blocked: 'bg-red-100 text-red-700',
-  pending: 'bg-amber-100 text-amber-700',
-  approved: 'bg-green-100 text-green-700',
-  rejected: 'bg-red-100 text-red-700',
-  overdue: 'bg-red-100 text-red-700',
-  // Sourcing statuses
-  published: 'bg-blue-100 text-blue-700',
-  'in-evaluation': 'bg-amber-100 text-amber-700',
-  'award-pending': 'bg-purple-100 text-purple-700',
-  // Contract statuses
-  'under-review': 'bg-blue-100 text-blue-700',
-  terminated: 'bg-red-100 text-red-700',
-  // PO statuses
-  submitted: 'bg-blue-100 text-blue-700',
-  acknowledged: 'bg-blue-100 text-blue-700',
-  received: 'bg-green-100 text-green-700',
-  'partially-received': 'bg-amber-100 text-amber-700',
-  closed: 'bg-gray-100 text-gray-700',
-  // Invoice statuses
-  matched: 'bg-green-100 text-green-700',
-  scheduled: 'bg-blue-100 text-blue-700',
-  paid: 'bg-green-100 text-green-700',
-  disputed: 'bg-red-100 text-red-700',
-  // Match statuses
-  'partial-match': 'bg-amber-100 text-amber-700',
-  unmatched: 'bg-red-100 text-red-700',
-  variance: 'bg-amber-100 text-amber-700',
-} as const;
+export const TONE_CLASS: Record<StatusTone, string> = {
+  progress: 'bg-accent-soft text-accent',
+  waiting: 'bg-warn-soft text-warn',
+  done: 'bg-ok-soft text-ok',
+  stopped: 'bg-stop-soft text-stop',
+  idle: 'bg-idle-soft text-idle',
+};
 
-export type StatusKey = keyof typeof statusColorMap;
+export const statusTone = {
+  // Request lifecycle. Moving through stages is progress, not a warning.
+  draft: 'idle',
+  intake: 'progress',
+  validation: 'progress',
+  risk: 'progress',
+  onboarding: 'progress',
+  sourcing: 'progress',
+  contracting: 'progress',
+  po: 'progress',
+  receipt: 'progress',
+  invoice: 'progress',
+  payment: 'progress',
+  // Approval is the one stage that waits on a named person's decision.
+  approval: 'waiting',
+  completed: 'done',
+  // Cancelled is over, not failing: nobody has anything to do about it.
+  cancelled: 'idle',
+  'referred-back': 'stopped',
+  // Shared across records
+  active: 'done',
+  expired: 'stopped',
+  expiring: 'waiting',
+  blocked: 'stopped',
+  pending: 'waiting',
+  approved: 'done',
+  rejected: 'stopped',
+  overdue: 'stopped',
+  // Sourcing events
+  published: 'progress',
+  'in-evaluation': 'waiting',
+  'award-pending': 'waiting',
+  // Contracts
+  'under-review': 'progress',
+  terminated: 'stopped',
+  // Purchase orders
+  submitted: 'progress',
+  acknowledged: 'progress',
+  received: 'done',
+  'partially-received': 'waiting',
+  closed: 'idle',
+  // Invoices
+  matched: 'done',
+  scheduled: 'progress',
+  paid: 'done',
+  disputed: 'stopped',
+  // Three-way match
+  'partial-match': 'waiting',
+  unmatched: 'stopped',
+  variance: 'waiting',
+} as const satisfies Record<string, StatusTone>;
+
+export type StatusKey = keyof typeof statusTone;
+
+/** Badge classes by status — derived, so a status cannot carry a colour its tone does not. */
+export const statusColorMap = Object.fromEntries(
+  Object.entries(statusTone).map(([status, tone]) => [status, TONE_CLASS[tone]]),
+) as Record<StatusKey, string>;

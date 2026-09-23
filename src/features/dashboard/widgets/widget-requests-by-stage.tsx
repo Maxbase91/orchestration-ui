@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { useRequests } from '@/lib/db/hooks/use-requests';
 import type { RequestStatus } from '@/data/types';
 import { AsyncBoundary } from '@/components/shared/async-boundary';
+import { requestListHref } from '@/lib/procurement/request-list-filters';
 
 /** The stages worth counting, in lifecycle order. */
 const ACTIVE_STAGES: { status: RequestStatus; label: string }[] = [
@@ -56,7 +57,7 @@ export function WidgetRequestsByStage() {
           <button
             key={stage.status}
             type="button"
-            onClick={() => navigate(`/requests?status=${stage.status}`)}
+            onClick={() => navigate(requestListHref({ status: stage.status }))}
             aria-label={`Open the ${stage.count} request(s) in ${stage.label}`}
             className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted/50"
           >

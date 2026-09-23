@@ -20,6 +20,7 @@ import { useRequests } from '@/lib/db/hooks/use-requests';
 import {
   approvalsAwaiting, overdueOnMyPlate, referredBackToMe,
 } from '@/lib/procurement/personal-queue';
+import { requestListHref } from '@/lib/procurement/request-list-filters';
 
 /** Ordered by how much the delay costs: late, then blocked, then queued. */
 interface Item {
@@ -56,14 +57,14 @@ export function AttentionBand() {
       key: 'overdue',
       count: overdueRows.length,
       label: `${plural(overdueRows.length, 'request is', 'requests are')} past the stage SLA`,
-      to: '/requests?overdue=1',
+      to: requestListHref({ view: 'my-overdue' }),
       tone: 'stop',
     },
     {
       key: 'referred',
       count: referredRows.length,
       label: `${plural(referredRows.length, 'request was', 'requests were')} sent back to you`,
-      to: '/requests?status=referred-back',
+      to: requestListHref({ view: 'sent-back-to-me' }),
       tone: 'warn',
     },
     {

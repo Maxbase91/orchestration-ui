@@ -15,6 +15,16 @@ export function useProcurementCategories() {
   return useQuery({ queryKey: KEYS.list(), queryFn: listProcurementCategories, staleTime: 5 * 60 * 1000 });
 }
 
+/**
+ * `id → label` from the configured categories. Screens used to keep their own
+ * label maps, which fell behind the moment an admin added a category; an id
+ * nobody has configured falls back to itself rather than to a blank.
+ */
+export function useCategoryLabel(): (id: string) => string {
+  const { data = [] } = useProcurementCategories();
+  return (id: string) => data.find((c) => c.id === id)?.label ?? id;
+}
+
 export function useUpsertProcurementCategory() {
   const qc = useQueryClient();
   return useMutation({

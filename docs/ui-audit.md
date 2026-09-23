@@ -26,7 +26,7 @@ comes back, not that it was fixed once.
 |---|---|---|---|---|
 | 1 | Text at 2.54:1 contrast — fails WCAG AA | **High** | 194 uses | **Closed** — `text-gray-400` → `--ink-3` (4.71–5.09:1) |
 | 2 | 24 of 31 async surfaces have no error state | **High** | 24 files | Partly — `<AsyncBoundary>` exists; the 5 dashboard widgets converted and guarded, 19 call sites left |
-| 3 | No semantic token layer; components name raw palette colours | **High** | 1,390 uses | **Closed** — 2,538 classes remapped, 267 files hold none |
+| 3 | No semantic token layer; components name raw palette colours | **High** | 1,390 uses | **Closed** — 2,538 classes remapped; the guard now also scans `.ts` and hex classes, which found 57 hex classes and every status badge still on raw palette (fixed) |
 | 4 | `Inter` is named as the UI font and never fetched | **High** | whole app | **Closed** — Inter + IBM Plex Mono fetched |
 | 5 | Numbers do not align in any table | **Medium** | 5 of 65 files | Partly — `DataTable` supports `numeric`; per-column adoption outstanding |
 | 6 | No dark mode, and the 42 `dark:` classes present do nothing | **Medium** | 42 uses | **Closed** — three-state theme live; dead `dark:` classes removed |
@@ -49,6 +49,9 @@ comes back, not that it was fixed once.
 | "Healthy" set at display size — the largest text on Home, above the user's name | system health panel; now the size of the figures beside it |
 | Empty widgets reserved 72–120px and centred one sentence in it; the grid read as half-rendered | `AsyncBoundary` empty state is now one left-aligned line; `minHeight` applies to loading only |
 | `col-span-3` in a one-column grid creates implicit columns — the dashboard would scroll sideways on a phone | spans now widen with breakpoints |
+| Status badges came from a `.ts` map of palette classes the colour guard never scanned — light chips in dark mode, and six ordinary stages coloured amber, the warning hue | `src/config/theme.ts` now maps status → tone → tokens |
+| 57 `text-[#…]` / `bg-[#…]` hex classes in 21 files — primary buttons, chat bubbles, the command bar — fixed at their light value | replaced with tokens; the guard rejects hex classes |
+| The priority dot had no text, no title and no accessible name | named in every mode |
 | The app shell is not responsive — the sidebar is a fixed 260px at every width, leaving ~115px of content at 375px | **Not a defect, by decision (2026-09-23):** the platform is desktop-only. Recorded so it is not re-raised |
 
 ---

@@ -179,7 +179,7 @@ export function SpendDashboardPage() {
               <div className="flex-1">
                 <div className="h-5 rounded bg-idle-soft">
                   <div
-                    className="h-5 rounded bg-[#1B2A4A]"
+                    className="h-5 rounded bg-accent-solid"
                     style={{
                       width: `${(s.totalSpend12m / maxSupplierSpend) * 100}%`,
                     }}

@@ -76,8 +76,13 @@ try {
   // remain a keyboard-accessible button and land on the selected contract.
   await page.goto(`${BASE}/`, { waitUntil: 'networkidle', timeout: 60000 });
   await page.waitForTimeout(2200);
-  const reset = page.getByRole('button', { name: 'Reset to Default' });
-  if (await reset.count()) { await reset.click(); await page.waitForTimeout(600); }
+  // Reset lives inside customise mode now. Entering the mode first matters: the
+  // old `if (count)` guard would otherwise skip the reset silently and test
+  // whatever layout a previous run left behind.
+  await page.getByRole('button', { name: /Customise/ }).click();
+  await page.getByRole('button', { name: /Reset to default/i }).click();
+  await page.getByRole('button', { name: /Done/ }).click();
+  await page.waitForTimeout(600);
   const expiring = page.getByRole('button', { name: /Open contract details for/i }).first();
   if (await expiring.count()) {
     await openAndAssert(page, expiring, '/contracts/', 'expiring-contract');

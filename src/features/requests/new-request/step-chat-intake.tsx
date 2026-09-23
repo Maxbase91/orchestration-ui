@@ -1118,7 +1118,7 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
         <CardHeader className="shrink-0 border-b border-accent-line py-3">
           <CardTitle className="flex items-center gap-2 text-sm">
             <div className="flex size-6 items-center justify-center rounded-full bg-accent-soft">
-              <Sparkles className="size-3.5 text-[#2D5F8A]" />
+              <Sparkles className="size-3.5 text-accent" />
             </div>
             Procurement assistant
             <span className="text-[11px] font-normal text-ink-3">AI-guided intake</span>
@@ -1131,16 +1131,16 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
             <div key={i} className={cn('flex gap-2', msg.role === 'user' ? 'flex-row-reverse' : '')}>
               <div className={cn(
                 'flex size-7 shrink-0 items-center justify-center rounded-full',
-                msg.role === 'user' ? 'bg-[#1B2A4A]' : 'bg-accent-soft'
+                msg.role === 'user' ? 'bg-accent-solid' : 'bg-accent-soft'
               )}>
                 {msg.role === 'user'
-                  ? <User className="size-3.5 text-white" />
-                  : <Sparkles className="size-3.5 text-[#2D5F8A]" />
+                  ? <User className="size-3.5 text-paper" />
+                  : <Sparkles className="size-3.5 text-accent" />
                 }
               </div>
               <div className={cn(
                 'max-w-[80%] rounded-lg px-3 py-2 text-sm',
-                msg.role === 'user' ? 'bg-[#1B2A4A] text-white' : 'bg-accent-soft text-ink'
+                msg.role === 'user' ? 'bg-accent-solid text-paper' : 'bg-accent-soft text-ink'
               )}>
                 <p className="whitespace-pre-wrap">{msg.content}</p>
                 {/* A worked example, shown as a hint UNDER the question and
@@ -1215,7 +1215,7 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
           {isTyping && (
             <div className="flex gap-2">
               <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-accent-soft">
-                <Sparkles className="size-3.5 text-[#2D5F8A]" />
+                <Sparkles className="size-3.5 text-accent" />
               </div>
               <div className="rounded-lg bg-accent-soft px-3 py-2">
                 <div className="flex gap-1">
@@ -1297,7 +1297,7 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
                   <span className="text-ink-3">{unifiedDone} of {unifiedTotal}</span>
                 </div>
                 <div className="h-1.5 overflow-hidden rounded-full bg-idle-soft">
-                  <div className="h-full rounded-full bg-[#2D5F8A] transition-all duration-500" style={{ width: `${unifiedPct}%` }} />
+                  <div className="h-full rounded-full bg-accent-solid transition-all duration-500" style={{ width: `${unifiedPct}%` }} />
                 </div>
                 <p className="mt-1.5 text-[11px] text-ink-3">
                   What you write here is reused across the process — it is what suppliers
@@ -1323,7 +1323,7 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
                         <p className="text-[11px] font-medium uppercase tracking-wider text-ink-3">{label}</p>
                         {editable ? (
                           <input
-                            className="w-full rounded border border-transparent bg-transparent px-1 py-0.5 text-xs text-ink transition-colors hover:border-line focus:border-[#2D5F8A] focus:bg-card focus:outline-none"
+                            className="w-full rounded border border-transparent bg-transparent px-1 py-0.5 text-xs text-ink transition-colors hover:border-line focus:border-accent focus:bg-card focus:outline-none"
                             value={key === 'estimatedValue' ? (data.estimatedValue || '') : data.title}
                             placeholder={key === 'estimatedValue' ? 'Estimated value' : 'Describe what you need'}
                             inputMode={key === 'estimatedValue' ? 'numeric' : undefined}
@@ -1358,7 +1358,7 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
                   the conversation; there is no manual generate action. */}
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-1.5">
-                  <FileText className="size-3.5 text-[#2D5F8A]" />
+                  <FileText className="size-3.5 text-accent" />
                   <h4 className="text-sm font-semibold text-ink">Service description</h4>
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -1442,7 +1442,7 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
                     </div>
                     {value ? (
                       <textarea
-                        className="mt-0.5 w-full text-[11px] text-ink-2 leading-relaxed bg-transparent border border-transparent hover:border-line focus:border-[#2D5F8A] focus:bg-card focus:outline-none rounded px-1.5 py-1 resize-none transition-colors"
+                        className="mt-0.5 w-full text-[11px] text-ink-2 leading-relaxed bg-transparent border border-transparent hover:border-line focus:border-accent focus:bg-card focus:outline-none rounded px-1.5 py-1 resize-none transition-colors"
                         rows={Math.max(2, Math.ceil(value.length / 80))}
                         value={value}
                         onChange={(e) => handleSowEdit(id, e.target.value)}
