@@ -152,7 +152,7 @@ function catalogueRoute(
 /**
  * Openers that make a phrase a lookup rather than a demand.
  *
- * Deliberately anchored: "find Accenture" is a lookup, "we need to find a
+ * Deliberately anchored: "find a supplier" is a lookup, "we need to find a
  * cleaning supplier" is a demand that happens to contain the word.
  */
 const LOOKUP_OPENERS = /^\s*(find|show|list|open|search|where|which|who|when|how many)\b/;
@@ -196,7 +196,7 @@ function localClassify(
   //
   // This used to be a hardcoded buy-verb list, which meant the most natural
   // ways of asking — "business consulting", "IT strategy consulting with
-  // Accenture for 6 months", "cleaning services for the Berlin office" — were
+  // a named firm for 6 months", "cleaning services for the Berlin office" — were
   // not recognised and went to the chat assistant, which cannot route or
   // submit anything. Naming something procurable counts, and the category
   // rules already know what that looks like.
@@ -478,7 +478,7 @@ export function SmartCommandBar() {
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Press Enter — e.g. 'buy paper', 'consulting services', 'find Accenture'"
+            placeholder="Press Enter — e.g. 'buy paper', 'consulting services', 'find a supplier'"
             className="h-12 pl-12 pr-10 text-base rounded-lg"
           />
           {loading && (

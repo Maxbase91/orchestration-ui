@@ -10,6 +10,7 @@
 // can use it; the caller supplies the reference data it has already read.
 // Relative imports only — this module is reachable from api/.
 import type { Role } from '../../config/roles.js';
+import { isMyApproval } from './personal-queue.js';
 
 /** Chain/functional role → the system role whose holders may act. */
 export const CHAIN_ROLE_TO_SYSTEM_ROLE: Record<string, Role> = {
@@ -193,5 +194,5 @@ export function canActOnApproval(
     const required = entry.role ? CHAIN_ROLE_TO_SYSTEM_ROLE[entry.role] : undefined;
     return required ? user.role === required : false;
   }
-  return entry.approverId === user.id || entry.delegatedTo === user.id;
+  return isMyApproval(entry, user.id);
 }

@@ -18,6 +18,7 @@ import { BulkApproveDialog } from './components/bulk-approve-dialog';
 import { useApprovals, useUpdateApproval } from '@/lib/db/hooks/use-approvals';
 import { useRequests } from '@/lib/db/hooks/use-requests';
 import { useAuthStore } from '@/stores/auth-store';
+import { isMyApproval } from '@/lib/procurement/personal-queue';
 import type { ApprovalStatus, ProcurementRequest, ApprovalEntry } from '@/data/types';
 
 
@@ -52,7 +53,7 @@ export function ApprovalsPage() {
   // queue. Approver identities are the canonical switchable users (one set).
   const allItems: ApprovalItem[] = useMemo(() => {
     return approvalEntries
-      .filter((a) => a.approverId === currentUser.id || a.delegatedTo === currentUser.id)
+      .filter((a) => isMyApproval(a, currentUser.id))
       .map((a) => {
         const req = requests.find((r) => r.id === a.requestId);
         if (!req) return null;

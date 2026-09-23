@@ -45,6 +45,11 @@ comes back, not that it was fixed once.
 | `text-white` on a status fill: 6.12:1 light, **2.32:1 dark** | 15 sites, now `--paper`, which flips |
 | `Sparkline` derived its gradient id from the colour string, so a `var()` colour silently produced no fill | fixed with `useId` |
 | An approvals card asserted AI-generated facts present in no record | removed; see the commit |
+| Card in card: KPI tiles, each with border and shadow, inside a widget card with border and shadow | dashboard health panels; replaced by `FactGrid` — one surface, hairline dividers |
+| "Healthy" set at display size — the largest text on Home, above the user's name | system health panel; now the size of the figures beside it |
+| Empty widgets reserved 72–120px and centred one sentence in it; the grid read as half-rendered | `AsyncBoundary` empty state is now one left-aligned line; `minHeight` applies to loading only |
+| `col-span-3` in a one-column grid creates implicit columns — the dashboard would scroll sideways on a phone | spans now widen with breakpoints |
+| **The app shell is not responsive.** The sidebar is a fixed 260px at every width, leaving ~115px of content at 375px | open — shell-wide, not a dashboard fix; raised for a decision |
 
 ---
 

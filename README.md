@@ -288,12 +288,17 @@ npm run test:form-builder-ui      # browser smoke — /admin/forms offers every 
 npm run test:intake-guidance-ui   # browser smoke — step-1 single classification block, per-step header panels, the step gate
 npm run test:reference-data-ui    # browser smoke — admin maintains cost centres and delivery locations, and
                                   # a retired row disappears from every requester picker
-npm run test:dashboard-ui         # browser smoke — the role's default dashboard covers its work, and adding or
-                                  # removing a widget survives a reload
+npm run test:dashboard-ui         # browser smoke — the role's default dashboard covers its work, customising is a
+                                  # mode whose controls exist only inside it, and adding or removing a widget
+                                  # survives a reload
 npm run test:dashboard-widgets    # static — every widget id is in both the registry and the renderer, and
                                   #   each role's default layout resolves to widgets that role may have
 npm run test:dashboard-widget-states # browser smoke — with every table failing, the five converted widgets
-                                  #   each name what they could not read; with the tables answering, no alert at all
+                                  #   each name what they could not read; with the tables answering, no alert at all;
+                                  #   the attention band counts delegated approvals, is absent when nothing waits,
+                                  #   and reports an unreadable queue instead of going quiet
+npm run test:personal-queue       # static — one definition of "mine" (assigned or delegated), and no other
+                                  #   module tests approval ownership itself
 npm run test:request-detail-ui    # browser check on fixtures (no credentials, no network) — the request detail renders, every
                                   # workflow step opens, and the risk form pre-populates from the service description
 npm run test:interactions-ui      # interaction E2E — wizard submit, admin save, AI assistant (self-cleaning)
@@ -438,6 +443,8 @@ src/
 │   ├── procurement/ # Pure decisioning modules (classify, materiality, risk, residual risk questions and
 │   │                #   their conversation-slot adapter, intake determination + its
 │   │                #   compliance record, governed checkout, …) + service description config (SERVICE_DESCRIPTION.md)
+│   │                #   personal-queue.ts is the one definition of what is on a person's plate
+│   │                #   (approvals assigned or delegated to them, referred back, overdue)
 │   ├── routing/     # Routing-rule evaluator + diagnostics, and the one buying-channel resolver both the
 │   │                #   buy-route screen and the determination call (plus its plain-English requester copy)
 │   ├── assistant/   # Assistant providers, intents and capability handlers
@@ -445,10 +452,11 @@ src/
 ├── components/
 │   ├── ui/          # shadcn/ui primitives
 │   ├── layout/      # App shell, sidebar, topbar, portal layout
-│   ├── shared/      # Reusable components (badges, cards, tables, charts)
+│   ├── shared/      # Reusable components (badges, cards, tables, charts, FactGrid, AsyncBoundary)
 │   └── charts/      # Recharts wrappers
 └── features/        # Feature modules
-    ├── dashboard/   # Role-based dashboards, the command bar, and the Simple requester home
+    ├── dashboard/   # Role-based dashboards, the command bar, and the Simple requester home;
+    │                #   a platform-owned attention band above a grid customised in one mode
     ├── requests/    # Intake — ONE four-step page for both densities (intake-steps.ts owns the order,
     │                #   gates and guidance; use-intake-determination.ts mounts the determination once;
     │                #   see its README), request detail

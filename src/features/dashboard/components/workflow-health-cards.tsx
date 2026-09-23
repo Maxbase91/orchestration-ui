@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useRequests } from '@/lib/db/hooks/use-requests';
-import { KPICard } from '@/components/shared/kpi-card';
+import { FactGrid } from '@/components/shared/fact-grid';
 
 const activeStatuses = new Set([
   'intake', 'validation', 'approval', 'sourcing', 'contracting', 'po', 'receipt', 'invoice', 'referred-back',
@@ -26,12 +26,15 @@ export function WorkflowHealthCards() {
   }, [requests]);
 
   return (
-    <div className="grid grid-cols-3 gap-4">
-      {/* Counts are live; no trend is shown rather than a fabricated one (there
-          is no historical snapshot to compute a real period-over-period delta). */}
-      <KPICard label="Active Workflows" value={activeCount} />
-      <KPICard label="Stuck / Blocked" value={stuckCount} />
-      <KPICard label="Avg Days in Current Step" value={`${avgDays}d`} />
-    </div>
+    /* Counts are live; no trend is shown rather than a fabricated one (there
+       is no historical snapshot to compute a real period-over-period delta). */
+    <FactGrid
+      facts={[
+        { label: 'Active workflows', value: activeCount },
+        // The only figure here that is a problem when it is not zero.
+        { label: 'Stuck or blocked', value: stuckCount, tone: stuckCount > 0 ? 'stop' : 'ink' },
+        { label: 'Avg days in current step', value: `${avgDays}d` },
+      ]}
+    />
   );
 }

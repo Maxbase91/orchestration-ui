@@ -87,6 +87,7 @@
     "test:dashboard-ui": "node tests/ui/dashboard-customisation.mjs",
     "test:dashboard-widgets": "node --import tsx/esm tests/integration/dashboard-widgets.mjs",
     "test:dashboard-widget-states": "node tests/ui/dashboard-widget-states.mjs",
+    "test:personal-queue": "node --import tsx/esm tests/integration/personal-queue.mjs",
     "test:intake-evidence": "node --import tsx/esm tests/integration/intake-evidence-honesty.mjs",
     "test:mode-equivalence": "node --import tsx/esm tests/integration/mode-equivalence.mjs",
     "test:governed-checkout": "node --import tsx/esm tests/integration/governed-checkout.mjs",

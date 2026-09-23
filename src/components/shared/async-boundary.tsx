@@ -40,7 +40,12 @@ export interface AsyncBoundaryProps {
   isEmpty?: boolean;
   /** Shown instead of the default empty line. */
   empty?: ReactNode;
-  /** Height for the loading and empty states, so the panel does not collapse. */
+  /**
+   * Height for the LOADING state only, so a panel does not collapse and then
+   * jump when its rows arrive. The empty state deliberately does not reserve
+   * it: five widgets with nothing to report left five tall blank boxes on the
+   * dashboard, and a hole in the grid reads as something failing to render.
+   */
   minHeight?: number;
   children: ReactNode;
 }
@@ -103,14 +108,9 @@ export function AsyncBoundary({
   }
 
   if (isEmpty) {
-    return (
-      <div
-        className="flex items-center justify-center text-caption text-ink-3"
-        style={{ minHeight }}
-      >
-        {empty ?? `No ${of} yet.`}
-      </div>
-    );
+    // Left-aligned and one line tall: it sits under the widget's own title the
+    // way a row would, rather than centring itself in reserved space.
+    return <p className="py-1 text-caption text-ink-3">{empty ?? `No ${of} yet.`}</p>;
   }
 
   return <>{children}</>;

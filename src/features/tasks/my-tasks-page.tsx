@@ -3,6 +3,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { DataTable, type Column } from '@/components/shared/data-table';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { useAuthStore } from '@/stores/auth-store';
+import { approvalsAwaiting } from '@/lib/procurement/personal-queue';
 import { useRequests } from '@/lib/db/hooks/use-requests';
 import { useApprovals } from '@/lib/db/hooks/use-approvals';
 import { formatDate } from '@/lib/format';
@@ -76,10 +77,10 @@ export function MyTasksPage() {
       });
     }
 
-    // Pending approvals assigned to current user
-    const pendingApprovals = approvalEntries.filter(
-      (a) => a.approverId === currentUser.id && a.status === 'pending'
-    );
+    // Pending approvals assigned to current user — including ones delegated to
+    // them. This checked `approverId` alone, so an approver covering for
+    // someone out of office saw the approval in /approvals and not here.
+    const pendingApprovals = approvalsAwaiting(approvalEntries, currentUser.id);
     for (const a of pendingApprovals) {
       const req = requests.find((r) => r.id === a.requestId);
       if (!req) continue;

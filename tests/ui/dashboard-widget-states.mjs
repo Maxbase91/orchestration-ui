@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// A dashboard widget that cannot read its table says so.
+// The dashboard says what it could not read, and what is waiting on you.
 //
 // Five widgets rendered `data ?? []` and branched on `isLoading` alone, so a
 // failed read reached the user as "No open purchase orders.", "No contracts
@@ -17,6 +17,13 @@
 //     it could not load, and none of them shows its reassuring empty line;
 //   · with the tables answering, no alert appears at all — otherwise an
 //     always-on error banner would pass the first half.
+//
+// The attention band is held to the same rule from the other side. It is
+// absent when nothing is waiting — but it must never be absent *because* a read
+// failed, or silence would mean "checked, nothing found" about a queue nobody
+// checked. It also carries the one definition of "an approval that is mine",
+// which includes one delegated to you while its approver is out of office; two
+// surfaces disagreed about that and the band would have been a third.
 //
 // Run: npm run test:dashboard-widget-states
 
@@ -65,9 +72,9 @@ async function waitForServer(timeoutMs = 40000) {
  * role's default carries all five, so the suite seeds one rather than asserting
  * against whichever widgets a role happens to ship with today.
  */
-async function dashboardText(browser, { fail }) {
+async function dashboardText(browser, { fail = [], rows = {} } = {}) {
   const context = await browser.newContext({ viewport: { width: 1360, height: 1400 } });
-  await installDbStub(context, {}, { fail });
+  await installDbStub(context, rows, { fail });
   await context.addInitScript(([user, ids]) => {
     localStorage.setItem('auth', JSON.stringify({ state: { currentRole: 'admin', currentUser: user }, version: 0 }));
     localStorage.setItem('dashboard-layout', JSON.stringify({
@@ -85,9 +92,20 @@ async function dashboardText(browser, { fail }) {
   await page.waitForTimeout(2500);
   const text = await page.locator('main').innerText();
   const alerts = await page.getByRole('alert').allInnerTexts();
+  const band = await page.getByRole('region', { name: 'Needs your attention' }).count();
   await context.close();
-  return { text, alerts, errors };
+  return { text, alerts, errors, band };
 }
+
+/** The stub's own approval rows, so a variant changes one field, not the set. */
+const APPROVALS = [
+  {
+    id: 'APR-TEST-1', request_id: 'REQ-TEST-0001', approver_id: 'u11',
+    approver_name: 'Christine Dupont', approver_role: 'VP Procurement',
+    status: 'pending', requested_at: '2026-09-15T09:00:00Z',
+    step_order: 3, assignment_mode: 'role',
+  },
+];
 
 const server = spawn('npm', ['run', 'dev'], { stdio: 'ignore' });
 let browser;
@@ -118,6 +136,31 @@ try {
   check('no database internals are shown', !/Database request failed/.test(broken.text),
     broken.text.slice(0, 160));
   check('no page errors', broken.errors.length === 0, broken.errors.slice(0, 2).join(' | '));
+
+  console.log('\nThe attention band shows what is waiting on the person reading it');
+  check('the pending approval is named', healthy.text.includes('approval is waiting on you'),
+    healthy.text.slice(0, 160).replace(/\n/g, ' / '));
+  check('the band is a landmark, not a floating row', healthy.band === 1, `${healthy.band} regions`);
+
+  // The reason `isMyApproval` exists: an approval assigned to someone else and
+  // delegated here is mine to decide. /approvals counted it, /tasks did not.
+  const delegated = await dashboardText(browser, {
+    rows: { approval_entries: [{ ...APPROVALS[0], approver_id: 'u05', delegated_to: 'u11' }] },
+  });
+  check('an approval delegated to you counts as yours',
+    delegated.text.includes('approval is waiting on you'),
+    delegated.text.slice(0, 160).replace(/\n/g, ' / '));
+
+  // Silence has to mean "checked, nothing found".
+  const quiet = await dashboardText(browser, { rows: { approval_entries: [] } });
+  check('with nothing waiting the band is absent entirely', quiet.band === 0);
+  check('and it does not leave an all-clear card behind',
+    !quiet.text.includes('Needs your attention'));
+
+  const unreadable = await dashboardText(browser, { fail: ['approval_entries'] });
+  check('an unreadable queue is reported, not passed over as empty',
+    unreadable.text.includes('Your queue could not be read'),
+    unreadable.text.slice(0, 200).replace(/\n/g, ' / '));
 
   ran = true;
 } catch (err) {

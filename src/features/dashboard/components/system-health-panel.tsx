@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useRequests } from '@/lib/db/hooks/use-requests';
-import { KPICard } from '@/components/shared/kpi-card';
+import { FactGrid } from '@/components/shared/fact-grid';
 
 // Requests still moving through the pipeline (mirrors the live-KPI definition).
 const OPEN_STATUSES = new Set(['intake', 'validation', 'approval', 'sourcing', 'referred-back']);
@@ -41,25 +41,33 @@ export function SystemHealthPanel() {
       : { label: 'Healthy', dot: 'bg-ok', ping: true, note: 'Data source responding' };
 
   return (
-    <div className="grid grid-cols-3 gap-4">
-      <KPICard label="Active Users" value={stats.activeUsers} />
-      <KPICard
-        label="Requests (today / 7d / month)"
-        value={`${stats.today} / ${stats.week} / ${stats.month}`}
-      />
-      <div className="rounded-md bg-card p-4 shadow-[0_1px_4px_rgba(0,0,0,0.08)]">
-        <p className="text-xs font-medium text-muted-foreground">Data Source</p>
-        <div className="mt-1 flex items-center gap-2">
-          <span className="relative flex size-2.5">
-            {dataSource.ping && (
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-ok opacity-75" />
-            )}
-            <span className={`relative inline-flex size-2.5 rounded-full ${dataSource.dot}`} />
-          </span>
-          <p className="text-2xl font-semibold text-ink">{dataSource.label}</p>
-        </div>
-        <p className="mt-0.5 text-xs text-ink-3">{dataSource.note}</p>
-      </div>
-    </div>
+    <FactGrid
+      facts={[
+        { label: 'People with open work', value: stats.activeUsers },
+        {
+          label: 'Requests raised (today / 7d / month)',
+          value: `${stats.today} / ${stats.week} / ${stats.month}`,
+        },
+        {
+          label: 'Data source',
+          // A word, not a figure, so it is set at the same size as the numbers
+          // beside it rather than shouted — "Healthy" was the largest text on
+          // the dashboard, above the user's own name.
+          value: (
+            <span className="flex items-center gap-2">
+              <span className="relative flex size-2.5">
+                {dataSource.ping && (
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-ok opacity-75" />
+                )}
+                <span className={`relative inline-flex size-2.5 rounded-full ${dataSource.dot}`} />
+              </span>
+              {dataSource.label}
+            </span>
+          ),
+          tone: isError ? 'stop' : 'ink',
+          note: dataSource.note,
+        },
+      ]}
+    />
   );
 }
