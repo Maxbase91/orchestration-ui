@@ -368,6 +368,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // switched off for every category and no supplier tags to match on.
         catalogue_eligible: c.catalogueEligible,
         supplier_tags: c.supplierTags ?? [],
+        commodity_codes: c.commodityCodes ?? [],
+        default_code: c.defaultCode?.code ?? null,
+        default_code_label: c.defaultCode?.label ?? null,
       })),
       'id',
     );

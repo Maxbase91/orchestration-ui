@@ -158,6 +158,44 @@ try {
   check('assigning a manager clears the warning', noManagerCount === 0,
     `${noManagerCount} still flagged`);
 
+  // ── Commodity codes ───────────────────────────────────────────────────────
+  // Two tables in code until now; each category carries its own list and its
+  // default. What is saved here is what the next demand is coded as.
+  console.log('\nAn administrator maintains the commodity codes');
+  const codesText = await page.locator('main').innerText();
+  check('a category shows its default code and keyword codes',
+    /31160000\s*\+ 1 keyword code/.test(codesText), codesText.slice(0, 300));
+  check('a category with no codes is flagged', /No codes/.test(codesText));
+
+  await page.getByRole('button', { name: /80101600/ }).click();
+  await page.getByRole('dialog').waitFor({ timeout: 10000 });
+  check('the dialog shows the default code',
+    (await page.getByLabel('Default code', { exact: true }).inputValue()) === '80101600');
+  await page.getByRole('button', { name: 'Add code' }).click();
+  await page.getByLabel('Code 1', { exact: true }).fill('84111500');
+  await page.getByLabel('Label 1', { exact: true }).fill('Tax advisory services');
+  // A code with no keywords can never match — refused, not saved.
+  await page.getByRole('button', { name: 'Save commodity codes' }).click();
+  await page.getByText('Code 84111500 needs at least one keyword').waitFor({ timeout: 5000 }).catch(() => {});
+  check('a code without keywords is refused',
+    await page.getByRole('dialog').isVisible() && (await page.getByText('Code 84111500 needs at least one keyword').count()) > 0);
+  await page.getByLabel('Keywords 1', { exact: true }).fill('tax, transfer pricing');
+  await page.getByRole('button', { name: 'Save commodity codes' }).click();
+  await page.getByRole('dialog').waitFor({ state: 'hidden', timeout: 10000 });
+  await page.waitForTimeout(500);
+  check('the saved code shows on the category',
+    /80101600\s*\+ 1 keyword code/.test(await page.locator('main').innerText()));
+
+  // Editing the category itself must not erase them — the main dialog saves
+  // the same row, and it used to write only the fields it showed.
+  await page.getByRole('row', { name: /Consulting/ }).getByRole('button').filter({ has: page.locator('svg.lucide-pencil') }).click();
+  await page.getByRole('dialog').waitFor({ timeout: 10000 });
+  await page.getByRole('button', { name: /^Save$/ }).click();
+  await page.getByRole('dialog').waitFor({ state: 'hidden', timeout: 10000 });
+  await page.waitForTimeout(500);
+  check('saving the category keeps its commodity codes',
+    /80101600\s*\+ 1 keyword code/.test(await page.locator('main').innerText()));
+
   check('no page errors while maintaining reference data', errors.length === 0, errors.join(' | '));
 } catch (error) {
   console.error(`\n  \x1b[31m✗\x1b[0m suite error — ${error.message.split('\n')[0]}`);

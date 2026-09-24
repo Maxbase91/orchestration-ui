@@ -1,4 +1,6 @@
+import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { codeBookFromCategories, type CommodityCodeBook } from '@/lib/procurement/category-code';
 import type { ProcurementCategory } from '@/lib/db/procurement-categories';
 import {
   listProcurementCategories,
@@ -23,6 +25,16 @@ export function useProcurementCategories() {
 export function useCategoryLabel(): (id: string) => string {
   const { data = [] } = useProcurementCategories();
   return (id: string) => data.find((c) => c.id === id)?.label ?? id;
+}
+
+/**
+ * The configured commodity codes of every active category, as one book to
+ * classify against. Memoised on the query data so the resolvers' callers can
+ * list it as a dependency without re-running every render.
+ */
+export function useCommodityCodeBook(): CommodityCodeBook {
+  const { data } = useProcurementCategories();
+  return useMemo(() => codeBookFromCategories(data ?? []), [data]);
 }
 
 export function useUpsertProcurementCategory() {

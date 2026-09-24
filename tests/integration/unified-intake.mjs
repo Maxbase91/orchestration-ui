@@ -2,6 +2,8 @@
 // Regression coverage for the unified requester intake primitives.
 
 import { resolveCommodityCandidates } from '../../src/lib/procurement/commodity-candidates.ts';
+import { codeBookFromCategories } from '../../src/lib/procurement/category-code.ts';
+import { DEFAULT_CATEGORY_TAXONOMY } from '../../src/data/category-taxonomy.ts';
 import { seedServiceDescriptionFromText } from '../../src/lib/procurement/intake-seed.ts';
 import { existsSync, readFileSync } from 'node:fs';
 import {
@@ -18,10 +20,11 @@ import {
 let failures = 0;
 function check(name, condition) { if (condition) console.log(`  \x1b[32m✓\x1b[0m ${name}`); else { failures++; console.error(`  \x1b[31m✗\x1b[0m ${name}`); } }
 
-const candidates = resolveCommodityCandidates('Buy laptop computers and workstation equipment for the new team', 'goods');
+const codeBook = codeBookFromCategories(DEFAULT_CATEGORY_TAXONOMY);
+const candidates = resolveCommodityCandidates('Buy laptop computers and workstation equipment for the new team', 'goods', codeBook);
 check('specific commodity candidates are returned', candidates.length > 0 && candidates[0].code === '43211500');
 check('candidate list follows high-confidence cap', candidates.length <= 3);
-check('low-confidence classification shows one fallback', resolveCommodityCandidates('something unknown', 'goods').length === 1);
+check('low-confidence classification shows one fallback', resolveCommodityCandidates('something unknown', 'goods', codeBook).length === 1);
 
 const seeded = seedServiceDescriptionFromText('We need a new customer analytics platform for the sales team. The work should include implementation, data migration and training. Deliverables include a configured platform and handover report.');
 const intakePage = readFileSync('src/features/requests/new-request/new-request-page.tsx', 'utf8');

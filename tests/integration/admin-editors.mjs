@@ -75,6 +75,9 @@ const SURFACES = [
     label: 'procurement categories', table: 'procurement_categories', key: 'id', field: 'label',
     page: 'src/features/admin/categories-page.tsx',
     hook: 'useUpsertProcurementCategory', mutate: 'upsert.mutateAsync',
+    // The category's commodity codes live on the same row; a label edit must
+    // leave them intact.
+    jsonb: ['commodity_codes'],
   },
   {
     label: 'cost centres', table: 'cost_centres', key: 'id', field: 'description',

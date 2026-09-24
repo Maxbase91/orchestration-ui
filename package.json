@@ -43,7 +43,7 @@
     "test:connectors": "node tests/integration/source-connectors.mjs",
     "test:preference": "node tests/integration/supplier-preference.mjs",
     "test:materiality": "node tests/integration/materiality.mjs",
-    "test:category-code": "node tests/integration/category-code.mjs",
+    "test:category-code": "node --import tsx/esm tests/integration/category-code.mjs",
     "test:risk-segmentation": "node tests/integration/risk-segmentation.mjs",
     "test:risk-reuse": "node tests/integration/risk-reuse.mjs",
     "test:handoff": "node tests/integration/handoff.mjs",
@@ -157,7 +157,8 @@
     "backfill:c10-debris": "node --import tsx/esm db/backfills/2026-09-17-c10-debris.mjs",
     "backfill:workflow-graph-fixes": "node --import tsx/esm db/backfills/2026-09-23-workflow-graph-fixes.mjs",
     "backfill:category-psl": "node --import tsx/esm db/backfills/2026-09-23-category-psl.mjs",
-    "backfill:channel-wording": "node --import tsx/esm db/backfills/2026-09-24-channel-wording.mjs"
+    "backfill:channel-wording": "node --import tsx/esm db/backfills/2026-09-24-channel-wording.mjs",
+    "backfill:category-commodity-codes": "node --import tsx/esm db/backfills/2026-09-24-category-commodity-codes.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

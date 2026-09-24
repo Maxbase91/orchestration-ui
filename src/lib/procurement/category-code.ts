@@ -1,17 +1,24 @@
 // Category-code mapping (taxonomy translation).
 //
-// Translates a demand into a standardised commodity/category code (UNSPSC-style)
-// + label. Two signals, in order: keyword match on the free-text description,
-// then a per-category default so every demand resolves to *some* code (a
-// guaranteed translation) even when no keyword hits.
+// Translates a demand into a standardised commodity code (UNSPSC-style) + label.
+// Two signals, in order: keyword match on the free-text description, then the
+// category's default code, so every demand in a configured category resolves to
+// *some* code even when no keyword hits.
 //
-// Standardised / white-label: codes are illustrative reference data, not tied to
-// any organisation's scheme. Move these tables into the configurable store when a
-// real code set is supplied — call sites depend only on `resolveCategoryCode`.
+// The codes are category configuration — each category carries its own list and
+// its default, edited in Admin → Categories. They were two tables in this file,
+// so a deployment with its own code set had to change code to use it. Pure and
+// dependency-free: the browser builds the book from the categories query, the
+// commodity-match handler from the same rows read on the server.
 
 export interface CategoryCode {
   code: string;
   label: string;
+}
+
+/** A code a category offers, and the words in a description that point at it. */
+export interface CommodityCodeEntry extends CategoryCode {
+  keywords: string[];
 }
 
 export interface CategoryCodeResult extends CategoryCode {
@@ -19,57 +26,95 @@ export interface CategoryCodeResult extends CategoryCode {
   source: 'keyword' | 'category-default';
 }
 
-/** Keyword → code table. First/strongest keyword match wins. */
-export const KEYWORD_CODES: { keywords: string[]; code: string; label: string }[] = [
-  { keywords: ['cloud', 'hosting', 'aws', 'azure'], code: '81112200', label: 'Cloud computing services' },
-  { keywords: ['laptop', 'computer', 'workstation', 'pc'], code: '43211500', label: 'Laptop computers' },
-  { keywords: ['sap', 'erp', 'enterprise software'], code: '43231500', label: 'Enterprise application software' },
-  { keywords: ['consulting', 'advisory', 'strategy'], code: '80101600', label: 'Management consulting' },
-  { keywords: ['security', 'audit', 'penetration', 'cyber'], code: '81111800', label: 'Information security' },
-  { keywords: ['furniture', 'desk', 'chair', 'table'], code: '56101500', label: 'Office furniture' },
-  { keywords: ['marketing', 'campaign', 'brand', 'advertising'], code: '80141600', label: 'Marketing campaign management' },
-  { keywords: ['temp', 'contractor', 'staffing', 'contingent'], code: '80111600', label: 'Temporary IT staffing' },
-  { keywords: ['catering', 'food', 'meal', 'canteen'], code: '90101600', label: 'Catering services' },
-  { keywords: ['cleaning', 'janitorial', 'housekeeping'], code: '76111500', label: 'Cleaning services' },
-  { keywords: ['print', 'printer', 'copier', 'scan'], code: '44103100', label: 'Managed print services' },
-  { keywords: ['sensor', 'iot', 'industrial'], code: '41113600', label: 'Industrial sensors' },
-  { keywords: ['network', 'switch', 'router', 'cisco'], code: '43222600', label: 'Network switches' },
-  { keywords: ['travel', 'flight', 'hotel', 'booking'], code: '90121500', label: 'Travel management services' },
-  { keywords: ['insurance', 'policy', 'coverage', 'indemnity'], code: '84131500', label: 'Insurance services' },
-  { keywords: ['tax', 'accounting', 'transfer pricing'], code: '84111500', label: 'Tax advisory services' },
-  { keywords: ['data', 'analytics', 'ml', 'ai', 'databricks'], code: '43232100', label: 'Data analytics platforms' },
-  { keywords: ['crm', 'salesforce', 'customer'], code: '43231500', label: 'CRM software' },
-  { keywords: ['translation', 'localisation', 'language'], code: '82121500', label: 'Translation services' },
-  { keywords: ['facility', 'building', 'maintenance'], code: '80131500', label: 'Facilities management' },
-  { keywords: ['warehouse', 'racking', 'storage', 'shelving'], code: '24102000', label: 'Industrial shelving and racking' },
-  { keywords: ['energy', 'renewable', 'solar', 'wind'], code: '83101800', label: 'Renewable energy services' },
-  { keywords: ['event', 'venue', 'conference', 'summit'], code: '80141800', label: 'Event management' },
-  { keywords: ['integration', 'middleware', 'api'], code: '43232300', label: 'Integration middleware' },
-  { keywords: ['records', 'archive', 'document', 'storage'], code: '80161500', label: 'Records management' },
-];
+/** The codes of every active category, ready to match against. */
+export interface CommodityCodeBook {
+  entries: (CommodityCodeEntry & { category: string })[];
+  defaults: Record<string, CategoryCode>;
+}
 
-/** Per-category baseline code, applied when no keyword matches. */
-export const CATEGORY_DEFAULT_CODES: Record<string, CategoryCode> = {
-  catalogue: { code: '44120000', label: 'Office supplies and stationery' },
-  goods: { code: '31160000', label: 'General hardware and goods' },
-  services: { code: '80100000', label: 'Business and professional services' },
-  software: { code: '43230000', label: 'Software' },
-  consulting: { code: '80101600', label: 'Management consulting' },
-  'contingent-labour': { code: '80111600', label: 'Temporary staffing services' },
-  'contract-renewal': { code: '80100000', label: 'Professional services (renewal)' },
-  'supplier-onboarding': { code: '80100000', label: 'Supplier onboarding services' },
-};
+/** The category fields the book is built from. */
+export interface CategoryCodeSource {
+  id: string;
+  active?: boolean;
+  commodityCodes?: CommodityCodeEntry[];
+  defaultCode?: CategoryCode | null;
+}
 
-function matchKeywords(text: string): { code: string; label: string; matchCount: number } | null {
-  const normalised = text.toLowerCase();
-  let best: { code: string; label: string; matchCount: number } | null = null;
-  for (const entry of KEYWORD_CODES) {
-    let matchCount = 0;
-    for (const keyword of entry.keywords) {
-      if (normalised.includes(keyword)) matchCount += 1;
+export const EMPTY_CODE_BOOK: CommodityCodeBook = { entries: [], defaults: {} };
+
+/**
+ * Read the commodity-code columns off a `procurement_categories` row. Shared by
+ * the browser mapper and the server handler so the two cannot read the same
+ * row differently.
+ */
+export function commodityFieldsFromRow(row: Record<string, unknown>): Pick<CategoryCodeSource, 'commodityCodes' | 'defaultCode'> {
+  const raw = Array.isArray(row.commodity_codes) ? row.commodity_codes : [];
+  const commodityCodes = raw
+    .filter((e): e is Record<string, unknown> => Boolean(e) && typeof e === 'object')
+    .map((e) => ({
+      code: String(e.code ?? '').trim(),
+      label: String(e.label ?? '').trim(),
+      keywords: Array.isArray(e.keywords) ? e.keywords.map((k) => String(k)) : [],
+    }))
+    .filter((e) => e.code !== '');
+  const code = typeof row.default_code === 'string' ? row.default_code.trim() : '';
+  const label = typeof row.default_code_label === 'string' ? row.default_code_label.trim() : '';
+  return { commodityCodes, defaultCode: code ? { code, label: label || code } : null };
+}
+
+/**
+ * Build the book from the configured categories. An inactive category offers
+ * nothing — it is not offered at intake either. Keywords are lower-cased here
+ * because the matchers compare against a lower-cased description, and an admin
+ * typing "AWS" should not silently match nothing.
+ */
+export function codeBookFromCategories(categories: CategoryCodeSource[]): CommodityCodeBook {
+  const entries: CommodityCodeBook['entries'] = [];
+  const defaults: CommodityCodeBook['defaults'] = {};
+  for (const cat of categories) {
+    if (cat.active === false) continue;
+    for (const entry of cat.commodityCodes ?? []) {
+      const keywords = entry.keywords.map((k) => k.trim().toLowerCase()).filter(Boolean);
+      if (!entry.code.trim() || keywords.length === 0) continue;
+      entries.push({ code: entry.code.trim(), label: entry.label.trim() || entry.code.trim(), keywords, category: cat.id });
     }
-    if (matchCount > 0 && (!best || matchCount > best.matchCount)) {
-      best = { code: entry.code, label: entry.label, matchCount };
+    if (cat.defaultCode?.code.trim()) defaults[cat.id] = cat.defaultCode;
+  }
+  return { entries, defaults };
+}
+
+/** Lower-case, punctuation to spaces — the form keywords are matched against. */
+export function normaliseForMatch(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+/**
+ * How many of an entry's keywords the description contains, each counted at
+ * the START of a word. Plain substring matching let "ai" hit "campaign",
+ * "chair" and "maintenance", and "api" hit "capital"; which code then won was
+ * decided by table order. A prefix still matches its longer forms — "temp"
+ * finds "temporary", "print" finds "printing".
+ */
+export function keywordHits(normalisedText: string, keywords: string[]): number {
+  const padded = ` ${normalisedText}`;
+  return keywords.filter((keyword) => {
+    const k = normaliseForMatch(keyword);
+    return k !== '' && padded.includes(` ${k}`);
+  }).length;
+}
+
+function matchKeywords(text: string, book: CommodityCodeBook, category?: string): { code: string; label: string; matchCount: number } | null {
+  const normalised = normaliseForMatch(text);
+  let best: { code: string; label: string; matchCount: number; own: boolean } | null = null;
+  for (const entry of book.entries) {
+    const matchCount = keywordHits(normalised, entry.keywords);
+    if (matchCount === 0) continue;
+    // Strongest match wins. On a tie the demand's own category's code wins,
+    // then the first in the book — ties used to go to whichever row came first
+    // in a code table, an order that meant nothing.
+    const own = entry.category === category;
+    if (!best || matchCount > best.matchCount || (matchCount === best.matchCount && own && !best.own)) {
+      best = { code: entry.code, label: entry.label, matchCount, own };
     }
   }
   return best;
@@ -79,13 +124,13 @@ function matchKeywords(text: string): { code: string; label: string; matchCount:
  * Resolve a demand to a category code. Keyword match wins (confidence scales
  * with the number of hits); otherwise the category's default code is returned
  * at modest confidence so the demand always carries a code. Returns null only
- * when there is neither a keyword match nor a known category.
+ * when there is neither a keyword match nor a default for the category.
  */
-export function resolveCategoryCode(input: {
-  text?: string;
-  category?: string;
-}): CategoryCodeResult | null {
-  const kw = input.text ? matchKeywords(input.text) : null;
+export function resolveCategoryCode(
+  input: { text?: string; category?: string },
+  book: CommodityCodeBook,
+): CategoryCodeResult | null {
+  const kw = input.text ? matchKeywords(input.text, book, input.category) : null;
   if (kw) {
     return {
       code: kw.code,
@@ -94,7 +139,7 @@ export function resolveCategoryCode(input: {
       source: 'keyword',
     };
   }
-  const fallback = input.category ? CATEGORY_DEFAULT_CODES[input.category] : undefined;
+  const fallback = input.category ? book.defaults[input.category] : undefined;
   if (fallback) {
     return { ...fallback, confidence: 0.5, source: 'category-default' };
   }

@@ -1468,6 +1468,14 @@ CREATE INDEX IF NOT EXISTS category_preferred_suppliers_supplier_idx ON category
 -- category → keyword map. It is category configuration, edited on the category.
 ALTER TABLE procurement_categories ADD COLUMN IF NOT EXISTS supplier_tags TEXT[] NOT NULL DEFAULT '{}';
 
+-- The commodity codes a category classifies demand into, and its default when
+-- no keyword matches. Two tables in lib/procurement/category-code.ts until now,
+-- so a deployment with its own code set had to change code to use it.
+-- commodity_codes is [{ code, label, keywords: [..] }].
+ALTER TABLE procurement_categories ADD COLUMN IF NOT EXISTS commodity_codes JSONB NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE procurement_categories ADD COLUMN IF NOT EXISTS default_code TEXT;
+ALTER TABLE procurement_categories ADD COLUMN IF NOT EXISTS default_code_label TEXT;
+
 -- ── Approval entries: role-based assignment and who actually decided ────────
 -- An entry could only ever name one person, and nothing recorded who acted on
 -- it. Approving showed a success toast while writing nothing at all.

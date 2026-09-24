@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
 import { useAiAgent } from '@/lib/db/hooks/use-ai-agents';
-import { useProcurementCategories } from '@/lib/db/hooks/use-procurement-categories';
+import { useProcurementCategories, useCommodityCodeBook } from '@/lib/db/hooks/use-procurement-categories';
 import { DEFAULT_CATEGORY_TAXONOMY } from '@/data/category-taxonomy';
 import { resolveCategoryIcon } from '@/data/category-icons';
 import {
@@ -144,6 +144,7 @@ export function StepCategory({ prefill, onUpdate, onAutoAdvance, onBrowseCatalog
   const { data: suppliers = [] } = useSuppliers();
   const { data: classifierAgent } = useAiAgent('AI-001');
   const { data: dbCategories = [] } = useProcurementCategories();
+  const codeBook = useCommodityCodeBook();
 
   // One taxonomy source: the configurable store when populated, else the
   // canonical default. Both carry their own icon name, resolved the same way,
@@ -212,7 +213,7 @@ export function StepCategory({ prefill, onUpdate, onAutoAdvance, onBrowseCatalog
 
     // Derive the commodity code — the specific, meaningful classification (the
     // high-level category only drives the fulfilment routing).
-    const cc = resolveCategoryCode({ text, category: result.category });
+    const cc = resolveCategoryCode({ text, category: result.category }, codeBook);
     if (cc) {
       result.commodityCode = cc.code;
       result.commodityCodeLabel = cc.label;
@@ -220,9 +221,9 @@ export function StepCategory({ prefill, onUpdate, onAutoAdvance, onBrowseCatalog
 
     try {
       const candidates = await requestCommodityCandidates({ text, category: result.category });
-      result.commodityCandidates = candidates.length > 0 ? candidates : resolveCommodityCandidates(text, result.category);
+      result.commodityCandidates = candidates.length > 0 ? candidates : resolveCommodityCandidates(text, result.category, codeBook);
     } catch {
-      result.commodityCandidates = resolveCommodityCandidates(text, result.category);
+      result.commodityCandidates = resolveCommodityCandidates(text, result.category, codeBook);
     }
 
     setAiResult(result);

@@ -40,7 +40,7 @@ call-offs and trusted the browser's channel; 13 live requests re-pointed.
 - [ ] Workflows: "what the requester does" per stage.
 - [x] Categories: preferred suppliers per category; supplier tags per category
       (replaces the recommender's hard-coded keyword map).
-- [ ] Categories: commodity codes per category (replaces category-code.ts tables).
+- [x] Categories: commodity codes per category (replaces category-code.ts tables).
 - [ ] Service description: front-door prompt, examples and door copy; the
       "one detail decides it" question; residual risk question wording;
       per-category writing guidance (replaces CATEGORY_GUIDANCE in generate-sow).

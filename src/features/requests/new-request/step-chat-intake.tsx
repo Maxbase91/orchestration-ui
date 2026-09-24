@@ -13,7 +13,8 @@ import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
 import { useServiceDescriptionTemplate } from '@/lib/db/hooks/use-service-description-templates';
 import { computeDemandSignals } from '@/lib/procurement/demand-signals';
 import type { DemandSlot } from '@/lib/procurement/demand-conversation';
-import { getAICommodityCode } from '@/lib/mock-ai';
+import { resolveCategoryCode } from '@/lib/procurement/category-code';
+import { useCommodityCodeBook } from '@/lib/db/hooks/use-procurement-categories';
 import { formatCurrency } from '@/lib/format';
 import { assessAnswer, type AnswerVerdict } from '@/lib/procurement/answer-quality';
 import { parseDeliveryDate } from '@/lib/parse-delivery-date';
@@ -403,6 +404,7 @@ function buildWelcomeMessage(
 
 export function StepChatIntake({ category, categoryDescription: _categoryDescription, data, onUpdate, riskQuestions = EMPTY_RISK_QUESTIONS, riskAnswers = EMPTY_RISK_ANSWERS }: StepChatIntakeProps) {
   const { data: suppliers = [] } = useSuppliers();
+  const codeBook = useCommodityCodeBook();
   // Which questions get asked, and which sections compose the compact narrative,
   // are admin config (/admin/service-description). Resolution is category-first
   // with a `default` row and the built-in template beneath, so an empty table
@@ -749,7 +751,7 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
         }
         // Auto-derive commodity code from title/description
         if (updates.title && typeof updates.title === 'string') {
-          const commodity = getAICommodityCode(updates.title, category);
+          const commodity = resolveCategoryCode({ text: updates.title, category }, codeBook);
           if (commodity) {
             updates.commodityCode = commodity.code;
             updates.commodityCodeLabel = commodity.label;
@@ -913,7 +915,7 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
     } finally {
       setIsTyping(false);
     }
-  }, [inputValue, isTyping, messages, category, data, svcDesc, riskAnswers, onUpdate, suppliers, slots, challenged, noteUnresolvedAttempt]);
+  }, [inputValue, isTyping, messages, category, data, svcDesc, riskAnswers, onUpdate, suppliers, codeBook, slots, challenged, noteUnresolvedAttempt]);
 
   /**
    * True while the conversation is waiting on a yes/no governance answer.

@@ -161,7 +161,7 @@ npm run test:contract-matching    # deterministic scope matching, exclusions, da
 npm run test:contract-match-api   # read-only live Neon contract-match endpoint check
 npm run test:preference           # preferred-supplier (PSL) + competitive-sourcing controls
 npm run test:materiality          # materiality & criticality determination
-npm run test:category-code        # category-code mapping (taxonomy translation)
+npm run test:category-code        # commodity codes per category (Admin → Categories) and the resolvers that read them
 npm run test:risk-segmentation    # inherent-risk cascade + risk outcome (reuse/amend/change/new)
 npm run test:risk-reuse           # structured risk-register reuse model (supplier/scope/data-class/validity)
 npm run test:handoff              # downstream handoff / next-steps model (systems, status, deep-links)

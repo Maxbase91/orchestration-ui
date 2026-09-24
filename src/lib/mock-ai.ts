@@ -1,7 +1,6 @@
 import type { AIResponse, Supplier, Contract, ProcurementRequest } from '@/data/types';
 import { aiResponses } from '@/data/ai-responses';
 import { queryClient } from '@/lib/query-client';
-import { resolveCategoryCode } from '@/lib/procurement/category-code';
 
 function getSupplierFromCache(id: string): Supplier | undefined {
   const list = queryClient.getQueryData<Supplier[]>(['suppliers', 'list']);
@@ -152,17 +151,3 @@ export function getAICategorySuggestions(input: string): { category: string; con
   return suggestions.slice(0, 3);
 }
 
-/**
- * Map free text (and optionally the selected category) to a standardised
- * commodity/category code. Delegates to the shared category-code resolver; when
- * a category is supplied, an unmatched description still resolves via the
- * category's default code. See `@/lib/procurement/category-code`.
- */
-export function getAICommodityCode(
-  description: string,
-  category?: string,
-): { code: string; label: string; confidence: number } | null {
-  const result = resolveCategoryCode({ text: description, category });
-  if (!result) return null;
-  return { code: result.code, label: result.label, confidence: result.confidence };
-}

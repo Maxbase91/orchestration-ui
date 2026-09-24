@@ -4,19 +4,13 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AISuggestionCard } from '@/components/shared/ai-suggestion-card';
-import { getAICommodityCode } from '@/lib/mock-ai';
+import { resolveCategoryCode } from '@/lib/procurement/category-code';
+import { useCommodityCodeBook } from '@/lib/db/hooks/use-procurement-categories';
 import { UrgencyChannelNote } from './components/urgency-channel-note';
 
-const CATEGORY_TITLES: Record<string, string> = {
-  goods: 'Procurement request',
-  services: 'Procurement request',
-  software: 'Procurement request',
-  consulting: 'Procurement request',
-  'contingent-labour': 'Procurement request',
-  'contract-renewal': 'Procurement request',
-  'supplier-onboarding': 'Procurement request',
-  catalogue: 'Procurement request',
-};
+// Every category got the same placeholder title from a per-category map, so a
+// category added in Admin → Categories got none. One default, for all of them.
+const DEFAULT_TITLE = 'Procurement request';
 
 interface StepDetailsData {
   title: string;
@@ -39,6 +33,7 @@ interface StepDetailsProps {
 }
 
 export function StepDetails({ category, data, onUpdate }: StepDetailsProps) {
+  const codeBook = useCommodityCodeBook();
   // The suggestion is stored WITH the input it was computed for, so "is this
   // still relevant?" is answered by comparing it to what is typed now rather
   // than by clearing state from inside the debounce effect. That clear was a
@@ -56,7 +51,7 @@ export function StepDetails({ category, data, onUpdate }: StepDetailsProps) {
   // Auto-suggest title based on category
   useEffect(() => {
     if (!data.title && category) {
-      onUpdate({ title: CATEGORY_TITLES[category] ?? '' });
+      onUpdate({ title: DEFAULT_TITLE });
     }
   }, [category]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -65,13 +60,13 @@ export function StepDetails({ category, data, onUpdate }: StepDetailsProps) {
   useEffect(() => {
     if (commodityInput.length < 3) return;
     const timer = setTimeout(() => {
-      const result = getAICommodityCode(commodityInput, category);
+      const result = resolveCategoryCode({ text: commodityInput, category }, codeBook);
       if (result && !commodityAccepted) {
         setCommoditySuggestion({ ...result, forInput: commodityInput });
       }
     }, 400);
     return () => clearTimeout(timer);
-  }, [commodityInput, commodityAccepted, category]);
+  }, [commodityInput, commodityAccepted, category, codeBook]);
 
   // Shown only while it still matches what is typed.
   const activeSuggestion =

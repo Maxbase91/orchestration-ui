@@ -2,6 +2,7 @@
 // category taxonomy used across intake and classification). Lists in admin-
 // defined sort_order so display order is data, not code.
 import { db } from '@/lib/db-client';
+import { commodityFieldsFromRow, type CategoryCode, type CommodityCodeEntry } from '@/lib/procurement/category-code';
 
 export interface ProcurementCategory {
   id: string;
@@ -23,6 +24,14 @@ export interface ProcurementCategory {
    * recommender and by the preferred-supplier picker.
    */
   supplierTags?: string[];
+  /**
+   * The commodity codes demand in this category is classified into, each with
+   * the description words that point at it. Read by intake classification and
+   * the commodity-match endpoint (see lib/procurement/category-code.ts).
+   */
+  commodityCodes?: CommodityCodeEntry[];
+  /** The code a demand gets when no keyword matches. */
+  defaultCode?: CategoryCode | null;
 }
 
 const TABLE = 'procurement_categories';
@@ -38,6 +47,7 @@ function mapRow(row: Record<string, unknown>): ProcurementCategory {
     active: (row.active as boolean) ?? true,
     catalogueEligible: (row.catalogue_eligible as boolean) ?? false,
     supplierTags: Array.isArray(row.supplier_tags) ? (row.supplier_tags as string[]) : [],
+    ...commodityFieldsFromRow(row),
   };
 }
 
@@ -63,6 +73,9 @@ export async function upsertProcurementCategory(cat: ProcurementCategory): Promi
       active: cat.active,
       catalogue_eligible: cat.catalogueEligible,
       supplier_tags: cat.supplierTags ?? [],
+      commodity_codes: cat.commodityCodes ?? [],
+      default_code: cat.defaultCode?.code || null,
+      default_code_label: cat.defaultCode?.label || null,
     }, { onConflict: 'id' })
     .select('*')
     .single();

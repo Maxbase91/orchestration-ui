@@ -1,9 +1,10 @@
 // Admin — category taxonomy CRUD. Edits the procurement categories that drive
 // intake classification, routing rules, and analytics groupings in the front door,
-// and who is attached to each: its managers, and its preferred suppliers.
+// and what is attached to each: its managers, its preferred suppliers, and the
+// commodity codes its demand is classified into.
 
 import { createElement, useMemo, useState } from 'react';
-import { AlertTriangle, Building2, Loader2, Pencil, Plus, Trash2, Users } from 'lucide-react';
+import { AlertTriangle, Building2, Hash, Loader2, Pencil, Plus, Trash2, Users, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -143,6 +144,49 @@ export function CategoriesPage() {
     }
   }
 
+  // Commodity codes. Intake classification and the commodity-match endpoint
+  // both read them, so what is saved here is what the next demand is coded as.
+  // Keywords are edited as comma-separated text and split on save, so a comma
+  // can be typed without the field eating it.
+  type CodeRow = { code: string; label: string; keywords: string };
+  const [codesDialog, setCodesDialog] = useState<ProcurementCategory | null>(null);
+  const [codeRows, setCodeRows] = useState<CodeRow[]>([]);
+  const [defaultCode, setDefaultCode] = useState<{ code: string; label: string }>({ code: '', label: '' });
+
+  function openCodes(cat: ProcurementCategory) {
+    setCodeRows((cat.commodityCodes ?? []).map((e) => ({ code: e.code, label: e.label, keywords: e.keywords.join(', ') })));
+    setDefaultCode({ code: cat.defaultCode?.code ?? '', label: cat.defaultCode?.label ?? '' });
+    setCodesDialog(cat);
+  }
+
+  async function handleSaveCodes() {
+    if (!codesDialog) return;
+    const entries = codeRows
+      .map((r) => ({ code: r.code.trim(), label: r.label.trim(), keywords: r.keywords.split(',').map((k) => k.trim()).filter(Boolean) }))
+      .filter((r) => r.code || r.label || r.keywords.length > 0);
+    // A code without keywords can never be matched, and keywords without a
+    // code have nothing to resolve to — both would save and silently do nothing.
+    const incomplete = entries.find((r) => !r.code || r.keywords.length === 0);
+    if (incomplete) {
+      toast.error(incomplete.code ? `Code ${incomplete.code} needs at least one keyword` : 'Every row needs a code');
+      return;
+    }
+    try {
+      await upsert.mutateAsync({
+        ...codesDialog,
+        commodityCodes: entries,
+        defaultCode: defaultCode.code.trim()
+          ? { code: defaultCode.code.trim(), label: defaultCode.label.trim() || defaultCode.code.trim() }
+          : null,
+      });
+      toast.success(`Commodity codes saved for "${codesDialog.label}"`);
+      setCodesDialog(null);
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to save commodity codes');
+    }
+  }
+
   function openNew() {
     setForm({ ...EMPTY_FORM, id: `cat-${Date.now()}` });
     setIsNew(true);
@@ -150,7 +194,9 @@ export function CategoriesPage() {
   }
 
   function openEdit(cat: ProcurementCategory) {
-    setForm({ id: cat.id, label: cat.label, description: cat.description, icon: cat.icon ?? 'Package', timelineDays: cat.timelineDays, active: cat.active, catalogueEligible: cat.catalogueEligible, supplierTags: cat.supplierTags ?? [] });
+    // Codes are edited in their own dialog but saved on the same row, so they
+    // ride along here — leaving them out made this save erase them.
+    setForm({ id: cat.id, label: cat.label, description: cat.description, icon: cat.icon ?? 'Package', timelineDays: cat.timelineDays, active: cat.active, catalogueEligible: cat.catalogueEligible, supplierTags: cat.supplierTags ?? [], commodityCodes: cat.commodityCodes ?? [], defaultCode: cat.defaultCode ?? null });
     setIsNew(false);
     setDialogOpen(true);
   }
@@ -186,18 +232,24 @@ export function CategoriesPage() {
   type CatRow = ProcurementCategory & Record<string, unknown>;
 
   const columns: Column<CatRow>[] = [
-    { key: 'id', label: 'ID', render: (r) => <span className="font-mono text-xs text-muted-foreground">{r.id as string}</span> },
-    { key: 'label', label: 'Label', render: (r) => <span className="font-medium">{r.label as string}</span> },
-    { key: 'description', label: 'Description', render: (r) => <span className="text-sm text-muted-foreground truncate max-w-xs">{r.description as string}</span> },
-    { key: 'timelineDays', label: 'Timeline', render: (r) => <span className="text-sm">~{r.timelineDays as number}d</span> },
+    // One cell for who the category is: label, id beneath, and an Inactive chip
+    // only when it is inactive. Separate ID, Description and Active columns, with
+    // managers, preferred suppliers and commodity codes on the row, pushed the
+    // last column off a 1440px screen; the description stays on hover and in the
+    // edit dialog.
     {
-      key: 'active', label: 'Active',
+      key: 'label', label: 'Category',
       render: (r) => (
-        <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${r.active ? 'bg-ok-soft text-ok' : 'bg-idle-soft text-ink-3'}`}>
-          {r.active ? 'Active' : 'Inactive'}
+        <span className="block" title={r.description as string}>
+          <span className="flex items-center gap-2">
+            <span className="font-medium">{r.label as string}</span>
+            {!r.active && <span className="rounded-full bg-idle-soft px-2 py-0.5 text-xs font-medium text-ink-3">Inactive</span>}
+          </span>
+          <span className="block font-mono text-xs text-muted-foreground">{r.id as string}</span>
         </span>
       ),
     },
+    { key: 'timelineDays', label: 'Timeline', render: (r) => <span className="text-sm">~{r.timelineDays as number}d</span> },
     {
       key: 'catalogueEligible', label: 'Catalogue',
       render: (r) => (
@@ -248,6 +300,40 @@ export function CategoriesPage() {
             {listed.length === 0
               ? <span className="text-ink-3">None set</span>
               : <span>{listed.map((sup) => sup.name).join(', ')}</span>}
+          </button>
+        );
+      },
+    },
+    {
+      key: 'codes', label: 'Commodity codes',
+      render: (r) => {
+        const cat = r as unknown as ProcurementCategory;
+        const count = cat.commodityCodes?.length ?? 0;
+        if (!cat.defaultCode && count === 0) {
+          return (
+            <button
+              type="button"
+              className="inline-flex items-center gap-1.5 rounded px-1.5 py-0.5 text-xs font-medium text-warn hover:bg-warn-soft"
+              onClick={(e) => { e.stopPropagation(); openCodes(cat); }}
+            >
+              <AlertTriangle className="size-3.5" />
+              No codes
+            </button>
+          );
+        }
+        return (
+          <button
+            type="button"
+            className="inline-flex items-center gap-1.5 rounded px-1.5 py-0.5 text-left text-sm hover:bg-card-2"
+            onClick={(e) => { e.stopPropagation(); openCodes(cat); }}
+          >
+            <Hash className="size-3.5 shrink-0 self-start mt-0.5 text-muted-foreground" />
+            <span className="block">
+              <span className="block font-mono tabular-nums">{cat.defaultCode ? cat.defaultCode.code : 'No default'}</span>
+              <span className="block text-xs text-ink-3">
+                {count > 0 ? `+ ${count} keyword code${count > 1 ? 's' : ''}` : 'Default only'}
+              </span>
+            </span>
           </button>
         );
       },
@@ -369,9 +455,63 @@ export function CategoriesPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Commodity codes — what this category's demand is classified into. */}
+      <Dialog open={codesDialog !== null} onOpenChange={(open) => { if (!open) setCodesDialog(null); }}>
+        <DialogContent className="sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Commodity codes — {codesDialog?.label}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            A demand is coded by the words in its description: the code with the most keywords
+            found wins, and a tie goes to the demand&apos;s own category. With no keyword found,
+            it gets this category&apos;s default.
+          </p>
+          <div className="grid grid-cols-[10rem_1fr] gap-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="default-code">Default code</Label>
+              <Input id="default-code" className="font-mono" value={defaultCode.code} onChange={(e) => setDefaultCode((p) => ({ ...p, code: e.target.value }))} placeholder="e.g. 80100000" />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="default-code-label">Default code label</Label>
+              <Input id="default-code-label" value={defaultCode.label} onChange={(e) => setDefaultCode((p) => ({ ...p, label: e.target.value }))} placeholder="e.g. Business and professional services" />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <div className="grid grid-cols-[8rem_14rem_1fr_2rem] gap-2 px-0.5 text-eyebrow font-semibold uppercase tracking-wide text-ink-3">
+              <span>Code</span><span>Label</span><span>Keywords (comma-separated)</span><span />
+            </div>
+            <div className="max-h-72 space-y-1.5 overflow-y-auto">
+              {codeRows.map((row, i) => (
+                <div key={i} className="grid grid-cols-[8rem_14rem_1fr_2rem] items-center gap-2">
+                  <Input aria-label={`Code ${i + 1}`} className="font-mono" value={row.code} onChange={(e) => setCodeRows((rows) => rows.map((r, j) => (j === i ? { ...r, code: e.target.value } : r)))} />
+                  <Input aria-label={`Label ${i + 1}`} value={row.label} onChange={(e) => setCodeRows((rows) => rows.map((r, j) => (j === i ? { ...r, label: e.target.value } : r)))} />
+                  <Input aria-label={`Keywords ${i + 1}`} value={row.keywords} onChange={(e) => setCodeRows((rows) => rows.map((r, j) => (j === i ? { ...r, keywords: e.target.value } : r)))} placeholder="e.g. laptop, workstation" />
+                  <Button variant="ghost" size="sm" aria-label={`Remove code ${i + 1}`} onClick={() => setCodeRows((rows) => rows.filter((_, j) => j !== i))}>
+                    <X className="size-3.5" />
+                  </Button>
+                </div>
+              ))}
+              {codeRows.length === 0 && (
+                <p className="px-0.5 text-sm text-ink-3">No keyword codes — every demand in this category gets the default.</p>
+              )}
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setCodeRows((rows) => [...rows, { code: '', label: '', keywords: '' }])}>
+              <Plus className="mr-1.5 size-3.5" />Add code
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCodesDialog(null)}>Cancel</Button>
+            <Button onClick={handleSaveCodes} disabled={upsert.isPending}>
+              {upsert.isPending ? <Loader2 className="mr-1.5 size-3.5 animate-spin" /> : null}
+              Save commodity codes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Preferred suppliers — the category's PSL. */}
       <Dialog open={pslDialog !== null} onOpenChange={(open) => { if (!open) setPslDialog(null); }}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Preferred suppliers — {pslDialog?.label}</DialogTitle>
           </DialogHeader>
@@ -419,7 +559,7 @@ export function CategoriesPage() {
           is assigned the approval step becomes role-open and names them all,
           rather than picking one arbitrarily. */}
       <Dialog open={managerDialog !== null} onOpenChange={(open) => { if (!open) setManagerDialog(null); }}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Managers — {managerDialog?.label}</DialogTitle>
           </DialogHeader>
