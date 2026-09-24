@@ -289,8 +289,9 @@ npm run test:approvals-ui         # the approvals queue — nothing claims to be
                                   #   from one that does not, and every control the old card had is reachable
 npm run test:form-builder-ui      # browser smoke — /admin/forms offers every stage, sets blocking, and reports a form that cannot fire
 npm run test:intake-guidance-ui   # browser smoke — step-1 single classification block, per-step header panels, the step gate
-npm run test:reference-data-ui    # browser smoke — admin maintains cost centres and delivery locations, and
-                                  # a retired row disappears from every requester picker
+npm run test:reference-data-ui    # browser smoke — admin maintains cost centres and delivery locations (a retired
+                                  # row disappears from every picker), category managers, commodity codes, and
+                                  # the category-list thresholds as checklists
 npm run test:dashboard-ui         # browser smoke — the role's default dashboard covers its work, customising is a
                                   # mode whose controls exist only inside it, and adding or removing a widget
                                   # survives a reload

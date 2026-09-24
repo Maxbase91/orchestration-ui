@@ -44,9 +44,12 @@ call-offs and trusted the browser's channel; 13 live requests re-pointed.
 - [ ] Service description: front-door prompt, examples and door copy; the
       "one detail decides it" question; residual risk question wording;
       per-category writing guidance (replaces CATEGORY_GUIDANCE in generate-sow).
-- [ ] Decisioning thresholds: direct call-off limit; preferred-supplier override
-      needs a reason + category-manager approval; competitive-sourcing exempt
-      categories (a code default in supplier-preference.ts).
+- [x] Decisioning thresholds: competitive-sourcing exempt categories (was a
+      code default in supplier-preference.ts); category lists as checklists.
+- [ ] Decisioning thresholds: direct call-off limit (wired into the call-off
+      checks, not just stored).
+- [ ] Decisioning thresholds: preferred-supplier override needs a reason +
+      category-manager approval.
 - [ ] Database: catalogue items (save/delete hooks exist, nothing uses them).
 
 ## Phase 4 — supplier on screen, preferred suppliers invited

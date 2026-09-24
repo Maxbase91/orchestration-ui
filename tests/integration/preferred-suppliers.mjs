@@ -13,7 +13,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { sourcingInvitees } from '../../src/lib/procurement/sourcing-invitees.ts';
-import { isPreferredSupplier } from '../../src/lib/procurement/supplier-preference.ts';
+import { isPreferredSupplier, competitiveSourcingCheck } from '../../src/lib/procurement/supplier-preference.ts';
 import { DEFAULT_POLICY_CONFIG } from '../../src/lib/procurement/policy-config.ts';
 
 const ROOT = new URL('../../', import.meta.url);
@@ -74,6 +74,20 @@ check('Categories maintains preferred suppliers and supplier tags', () =>
   assert.ok(/useSetCategoryPreferredSuppliers/.test(categoriesPage) && /cat-supplier-tags/.test(categoriesPage)));
 check('the preferred-supplier table is reachable through /api/db', () =>
   assert.ok(dbBoundary.includes("'category_preferred_suppliers'")));
+
+// The exempt categories were a default argument in supplier-preference.ts —
+// a literal no admin could change. They are a Decisioning threshold now.
+check('competitive-sourcing exemptions come from Decisioning thresholds', () => {
+  const cfg = { ...DEFAULT_POLICY_CONFIG, competitiveSourcingExemptCategories: ['consulting'] };
+  const over = { value: 100_000, isPreferred: false };
+  assert.equal(competitiveSourcingCheck({ ...over, category: 'consulting' }, cfg).passed, true);
+  assert.equal(competitiveSourcingCheck({ ...over, category: 'contingent-labour' }, cfg).passed, false,
+    'the old literal still exempts a category the config no longer lists');
+});
+check('the shipped default keeps the old behaviour', () =>
+  assert.deepEqual(DEFAULT_POLICY_CONFIG.competitiveSourcingExemptCategories, ['contingent-labour']));
+check('the determination passes its own policy, not the module singleton', () =>
+  assert.ok(/competitiveSourcingCheck\(\{ value, category, isPreferred \}, config\)/.test(read('src/lib/procurement/intake-determination.ts'))));
 
 console.log('');
 if (failures) { console.error(`FAILED: ${failures} check(s)`); process.exit(1); }

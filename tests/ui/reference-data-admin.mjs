@@ -36,6 +36,16 @@ try {
   // The stub's fixtures carry one retired cost centre and one closed location,
   // which is what the "not offered" assertions below turn on.
   await installDbStub(context);
+  // The policy singleton has its own endpoint, not /api/db. Served from the
+  // shipped defaults; a save is captured so its payload can be checked.
+  const { DEFAULT_POLICY_CONFIG } = await import('../../src/lib/procurement/policy-config.ts');
+  let savedPolicy = null;
+  await context.route('**/api/policy-config', async (route) => {
+    const body = route.request().method() === 'POST' ? JSON.parse(route.request().postData() || '{}') : null;
+    if (body?.config) savedPolicy = body.config;
+    await route.fulfill({ status: 200, contentType: 'application/json',
+      body: JSON.stringify({ config: savedPolicy ?? DEFAULT_POLICY_CONFIG, updatedBy: null, updatedAt: null }) });
+  });
   await context.addInitScript(() => {
     localStorage.setItem('auth', JSON.stringify({ state: { currentRole: 'admin' }, version: 0 }));
   });
@@ -195,6 +205,28 @@ try {
   await page.waitForTimeout(500);
   check('saving the category keeps its commodity codes',
     /80101600\s*\+ 1 keyword code/.test(await page.locator('main').innerText()));
+
+  // ── Category-list thresholds ──────────────────────────────────────────────
+  // Were ids typed into text boxes (a typo saved cleanly and matched nothing),
+  // and the competitive-sourcing exemptions were a literal in code.
+  console.log('\nCategory-list thresholds are checklists of the configured categories');
+  await page.goto(`${BASE}/admin/thresholds`, { waitUntil: 'networkidle' });
+  await page.getByText('Competitive sourcing', { exact: true }).waitFor({ timeout: 20000 });
+  check('the exempt categories are a checklist of configured categories',
+    (await page.getByLabel('Exempt from competitive quotes: Consulting', { exact: true }).count()) === 1);
+  // The shipped default names contingent-labour, which this store has no row
+  // for: it is shown and flagged rather than silently kept.
+  check('a stored id that names no category is shown and flagged',
+    (await page.getByText('contingent-labour').count()) > 0 && (await page.getByText('(no such category)').count()) > 0);
+  check('the P-card lists are checklists too',
+    (await page.getByLabel('P-card eligible categories: Goods', { exact: true }).isChecked())
+    && (await page.getByLabel('Never on a P-card: Consulting', { exact: true }).isChecked()));
+  await page.getByLabel('Exempt from competitive quotes: Consulting', { exact: true }).click();
+  await page.getByRole('button', { name: /^Save$/ }).click();
+  await page.waitForTimeout(800);
+  check('saving sends the edited exemptions',
+    JSON.stringify(savedPolicy?.competitiveSourcingExemptCategories?.slice().sort()) === JSON.stringify(['consulting', 'contingent-labour']),
+    JSON.stringify(savedPolicy?.competitiveSourcingExemptCategories));
 
   check('no page errors while maintaining reference data', errors.length === 0, errors.join(' | '));
 } catch (error) {

@@ -232,7 +232,9 @@ export function generatePolicyChecks(
   });
 
   const isPreferred = isPreferredSupplier(supplier, { preferredIds: preferredSupplierIds });
-  checks.push(competitiveSourcingCheck({ value, category, isPreferred }));
+  // The policy this evaluation was given, not the module singleton — which
+  // nothing hydrates on the server, so a server caller got shipped defaults.
+  checks.push(competitiveSourcingCheck({ value, category, isPreferred }, config));
   checks.push(preferredSupplierCheck({ supplier, isPreferred }));
 
   return checks;

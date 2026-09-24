@@ -59,16 +59,17 @@ export function competitiveSourcingCheck(params: {
   value: number;
   category: string;
   isPreferred: boolean;
-  exemptCategories?: string[];
   singleSourceJustified?: boolean;
 }, config: PolicyConfig = getActivePolicyConfig()): PolicyCheck {
   const {
     value,
     category,
     isPreferred,
-    exemptCategories = ['contingent-labour'],
     singleSourceJustified = false,
   } = params;
+  // Decisioning thresholds, not a default argument: the list was a literal
+  // here that no admin could change.
+  const exemptCategories = config.competitiveSourcingExemptCategories;
 
   const belowThreshold = value < config.competitiveSourcingThreshold;
   const categoryExempt = exemptCategories.includes(category);

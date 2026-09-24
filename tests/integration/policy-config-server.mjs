@@ -35,6 +35,16 @@ try {
   check('valid config saves', saved.statusCode === 200 && saved.body?.config?.catalogueAutoApprovalThreshold === changed.catalogueAutoApprovalThreshold, JSON.stringify(saved));
   const loaded = await invoke('GET');
   check('saved config loads from Neon', loaded.statusCode === 200 && loaded.body?.config?.catalogueAutoApprovalThreshold === changed.catalogueAutoApprovalThreshold);
+  // A row saved before a key existed keeps its saved values. GET used to
+  // reject such a row whole and return the shipped defaults, so adding a key
+  // to PolicyConfig reverted every saved threshold in the browser.
+  const older = { ...changed };
+  delete older.competitiveSourcingExemptCategories;
+  await sql.query(`UPDATE procurement_policy_configs SET config = $1::jsonb WHERE singleton_key = 'default'`, [JSON.stringify(older)]);
+  const fromOlder = await invoke('GET');
+  check('a stored row missing a newer key keeps its saved values',
+    fromOlder.body?.config?.catalogueAutoApprovalThreshold === changed.catalogueAutoApprovalThreshold
+    && Array.isArray(fromOlder.body?.config?.competitiveSourcingExemptCategories), JSON.stringify(fromOlder.body?.config ?? {}).slice(0, 200));
   const invalid = await invoke('POST', { config: { ...changed, minCompetitiveQuotes: 0 } });
   check('invalid config is rejected', invalid.statusCode === 400 && invalid.body?.code === 'invalid_policy_config');
 } finally {

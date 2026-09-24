@@ -14,7 +14,7 @@
 // governed home is still written as a literal in the decisioning code.
 import { readFileSync } from 'node:fs';
 import {
-  NUMERIC_POLICY_KEYS, POLICY_KEY_META, CURRENCY_POLICY_KEYS,
+  NUMERIC_POLICY_KEYS, POLICY_KEY_META, CURRENCY_POLICY_KEYS, CATEGORY_LIST_POLICY_KEYS,
   resolvePolicyValue, resolvePolicyList, describePolicyValue, policyToken, policyKeyHolding,
 } from '../../src/lib/procurement/policy-tokens.ts';
 import { DEFAULT_POLICY_CONFIG } from '../../src/lib/procurement/policy-config.ts';
@@ -48,12 +48,24 @@ if (!missingMeta.length && !orphanMeta.length) ok(`${fromMeta.length} numeric ke
 // ── The server accepts every key ───────────────────────────────────────────
 console.log('\nThe server validator accepts every key the admin page offers');
 const apiSource = read('api/_domains/policy-config.ts');
-const keysBlock = apiSource.slice(apiSource.indexOf('const KEYS'), apiSource.indexOf('];', apiSource.indexOf('const KEYS')));
-const unaccepted = NUMERIC_POLICY_KEYS.filter((k) => !keysBlock.includes(`'${k}'`));
-if (unaccepted.length) {
-  bad('every numeric key is in the API KEYS list',
-    `${unaccepted.join(', ')} would be rejected as an incomplete config and fall back to defaults`);
-} else ok(`all ${NUMERIC_POLICY_KEYS.length} keys pass isPolicyConfig`);
+// Derived from the defaults, by type. The hand-kept list here omitted keys as
+// they were added, and a stored config missing one was then rejected whole.
+if (!/const KEYS = Object\.keys\(DEFAULT_POLICY_CONFIG\)/.test(apiSource)) {
+  bad('the API key list is derived from the defaults', 'a hand-kept list is how new keys went missing');
+} else ok('the API validates every key the config has, by its default\u2019s type');
+// And GET merges a stored row key by key rather than all-or-nothing, so adding
+// a key cannot revert every saved threshold in the browser.
+if (!/configFromRow\(rows\[0\]\)/.test(apiSource) || /isPolicyConfig\(rows\[0\]/.test(apiSource)) {
+  bad('GET merges the stored row key by key', 'an older row without the new key would read as all defaults');
+} else ok('GET merges the stored row over the defaults, key by key');
+
+// ── Every category-list key is editable ────────────────────────────────────
+console.log('\nEvery category-list key has a checklist');
+const listFromConfig = Object.entries(DEFAULT_POLICY_CONFIG).filter(([, v]) => Array.isArray(v)).map(([k]) => k).sort();
+const listFromMeta = [...CATEGORY_LIST_POLICY_KEYS].sort();
+if (JSON.stringify(listFromConfig) !== JSON.stringify(listFromMeta)) {
+  bad('CATEGORY_LIST_POLICY_META covers every list key', `config ${listFromConfig.join(', ')} vs meta ${listFromMeta.join(', ')}`);
+} else ok(`${listFromMeta.length} category-list keys, all with a label and help text`);
 
 // ── The admin page cannot go back to a hand-maintained list ────────────────
 console.log('\nThe admin page derives its fields rather than listing them');
@@ -62,6 +74,10 @@ if (!/NUMERIC_POLICY_KEYS\.map/.test(page)) {
   bad('FIELDS is derived from NUMERIC_POLICY_KEYS',
     'a hand-maintained array is how delegatedAuthorityThreshold became uneditable');
 } else ok('FIELDS is a view over the shared key metadata');
+const unrendered = CATEGORY_LIST_POLICY_KEYS.filter((k) => !page.includes(`policyKey="${k}"`));
+if (unrendered.length) bad('every category-list key renders as a checklist', `${unrendered.join(', ')} has no editor`);
+else if (!/for \(const key of CATEGORY_LIST_POLICY_KEYS\)/.test(page)) bad('saving covers every category-list key', 'a list named by hand is the next one saving forgets');
+else ok('every category-list key is a checklist, and saving covers them all');
 
 // ── Resolution ─────────────────────────────────────────────────────────────
 console.log('\nToken resolution');

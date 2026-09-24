@@ -25,6 +25,32 @@ export type NumericPolicyKey = {
   [K in keyof PolicyConfig]: PolicyConfig[K] extends number ? K : never;
 }[keyof PolicyConfig];
 
+/** Keys holding a list of category ids. */
+export type CategoryListPolicyKey = {
+  [K in keyof PolicyConfig]: PolicyConfig[K] extends string[] ? K : never;
+}[keyof PolicyConfig];
+
+/** Admin-facing name for each category-list key, rendered as a checklist of
+ *  the configured categories. Same contract as POLICY_KEY_META: a list key with
+ *  no entry here fails test:policy-tokens instead of becoming uneditable. */
+export const CATEGORY_LIST_POLICY_META: Record<CategoryListPolicyKey, { label: string; help: string }> = {
+  competitiveSourcingExemptCategories: {
+    label: 'Exempt from competitive quotes',
+    help: 'Demand in these categories passes the competitive-sourcing check whatever its value.',
+  },
+  pCardEligibleCategories: {
+    label: 'P-card eligible categories',
+    help: 'Categories the P-card route may handle.',
+  },
+  pCardExcludedCategories: {
+    label: 'Never on a P-card',
+    help: 'Always blocked from the P-card route, even if listed as eligible.',
+  },
+};
+
+export const CATEGORY_LIST_POLICY_KEYS: readonly CategoryListPolicyKey[] =
+  Object.keys(CATEGORY_LIST_POLICY_META) as CategoryListPolicyKey[];
+
 /** Admin-facing name and unit for one key. This is the single copy: the
  *  decisioning-thresholds page renders it, and the routing and form condition
  *  editors offer it. A key added to PolicyConfig without an entry here fails

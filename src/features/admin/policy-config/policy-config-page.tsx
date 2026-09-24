@@ -17,7 +17,10 @@ import { determineApprovalToSource } from '@/lib/procurement/approval-to-source'
 import { formatCurrency } from '@/lib/format';
 import {
   type NumericPolicyKey, NUMERIC_POLICY_KEYS, POLICY_KEY_META,
+  type CategoryListPolicyKey, CATEGORY_LIST_POLICY_META, CATEGORY_LIST_POLICY_KEYS,
 } from '@/lib/procurement/policy-tokens';
+import { useProcurementCategories } from '@/lib/db/hooks/use-procurement-categories';
+import { Checkbox } from '@/components/ui/checkbox';
 
 // Every numeric threshold, derived from the shared key metadata rather than
 // listed here. The hand-maintained copy omitted `delegatedAuthorityThreshold`,
@@ -29,19 +32,67 @@ const FIELDS: { key: NumericPolicyKey; label: string; help: string; unit: string
 
 const RISK_TIERS: RiskTier[] = ['low', 'medium', 'high', 'critical'];
 
+const sameList = (a: string[], b: string[]) => JSON.stringify([...a].sort()) === JSON.stringify([...b].sort());
+
+/**
+ * A category-list threshold as a checklist of the configured categories. These
+ * were comma-separated ids typed into a text box, so a typo saved cleanly and
+ * matched nothing. An id stored here that no longer names a category is still
+ * listed, flagged, so it can be removed rather than lingering unseen.
+ */
+function CategoryChecklist({ policyKey, value, onChange }: {
+  policyKey: CategoryListPolicyKey;
+  value: string[];
+  onChange: (next: string[]) => void;
+}) {
+  const { data: categories = [] } = useProcurementCategories();
+  const meta = CATEGORY_LIST_POLICY_META[policyKey];
+  const known = new Set(categories.map((c) => c.id));
+  const unknown = value.filter((id) => !known.has(id));
+  const toggle = (id: string, on: boolean) => onChange(on ? [...value, id] : value.filter((v) => v !== id));
+  return (
+    <fieldset>
+      <legend className="text-sm text-ink">
+        {meta.label}
+        {!sameList(value, DEFAULT_POLICY_CONFIG[policyKey]) && (
+          <span className="ml-1.5 rounded bg-warn-soft px-1 text-[10px] font-medium text-warn">edited</span>
+        )}
+      </legend>
+      <p className="text-xs text-ink-3">{meta.help}</p>
+      <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1.5">
+        {categories.map((c) => (
+          <label key={c.id} className="flex cursor-pointer items-center gap-2 text-sm text-ink-2">
+            <Checkbox
+              aria-label={`${meta.label}: ${c.label}`}
+              checked={value.includes(c.id)}
+              onCheckedChange={(on) => toggle(c.id, on === true)}
+            />
+            {c.label}
+          </label>
+        ))}
+        {unknown.map((id) => (
+          <label key={id} className="flex cursor-pointer items-center gap-2 text-sm text-warn">
+            <Checkbox aria-label={`${meta.label}: ${id}`} checked onCheckedChange={() => toggle(id, false)} />
+            {id} <span className="text-xs">(no such category)</span>
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
+
 export function PolicyConfigPage() {
   const { overrides, persistOverrides, persistReset } = usePolicyConfigStore();
   const { currentUser } = useAuthStore();
   const [draft, setDraft] = useState<PolicyConfig>(() => resolvePolicyConfig(overrides));
   const [sim, setSim] = useState({ value: 300_000, riskRating: 'medium' as RiskTier, criticalService: false });
 
-  const dirty = useMemo(
-    () => FIELDS.some((f) => draft[f.key] !== resolvePolicyConfig(overrides)[f.key])
-      || draft.pCardEnabled !== resolvePolicyConfig(overrides).pCardEnabled
-      || JSON.stringify(draft.pCardEligibleCategories) !== JSON.stringify(resolvePolicyConfig(overrides).pCardEligibleCategories)
-      || JSON.stringify(draft.pCardExcludedCategories) !== JSON.stringify(resolvePolicyConfig(overrides).pCardExcludedCategories),
-    [draft, overrides],
-  );
+  const dirty = useMemo(() => {
+    const saved = resolvePolicyConfig(overrides);
+    return FIELDS.some((f) => draft[f.key] !== saved[f.key])
+      || draft.pCardEnabled !== saved.pCardEnabled
+      || CATEGORY_LIST_POLICY_KEYS.some((key) => !sameList(draft[key], saved[key]));
+  }, [draft, overrides]);
   const changedFromDefault = (key: NumericPolicyKey) => draft[key] !== DEFAULT_POLICY_CONFIG[key];
 
   const handleSave = async () => {
@@ -50,11 +101,10 @@ export function PolicyConfigPage() {
       if (draft[f.key] !== DEFAULT_POLICY_CONFIG[f.key]) next[f.key] = draft[f.key];
     }
     if (draft.pCardEnabled !== DEFAULT_POLICY_CONFIG.pCardEnabled) next.pCardEnabled = draft.pCardEnabled;
-    if (JSON.stringify(draft.pCardEligibleCategories) !== JSON.stringify(DEFAULT_POLICY_CONFIG.pCardEligibleCategories)) {
-      next.pCardEligibleCategories = draft.pCardEligibleCategories;
-    }
-    if (JSON.stringify(draft.pCardExcludedCategories) !== JSON.stringify(DEFAULT_POLICY_CONFIG.pCardExcludedCategories)) {
-      next.pCardExcludedCategories = draft.pCardExcludedCategories;
+    // Derived from the key metadata, like FIELDS: a list key named here by
+    // hand would be the next one saving forgot.
+    for (const key of CATEGORY_LIST_POLICY_KEYS) {
+      if (!sameList(draft[key], DEFAULT_POLICY_CONFIG[key])) next[key] = draft[key];
     }
     try {
       await persistOverrides(next, currentUser?.id);
@@ -101,134 +151,147 @@ export function PolicyConfigPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
-        {/* Editor */}
-        <Card className="lg:col-span-3">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-sm">Thresholds</CardTitle>
-            <div className="flex items-center gap-2">
-              <Button size="sm" variant="ghost" onClick={handleReset}>Reset to defaults</Button>
-              <Button size="sm" onClick={handleSave} disabled={!dirty}>Save</Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {FIELDS.map((f) => (
-              <div key={f.key} className="flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <Label htmlFor={`cfg-${f.key}`} className="text-sm text-ink">
-                    {f.label}
-                    {changedFromDefault(f.key) && (
-                      <span className="ml-1.5 rounded bg-warn-soft px-1 text-[10px] font-medium text-warn">edited</span>
-                    )}
-                  </Label>
-                  <p className="text-xs text-ink-3">{f.help} · default {DEFAULT_POLICY_CONFIG[f.key].toLocaleString()}</p>
+      {/* Settings on the left, the simulation beside them. Each card spanned
+          three of five columns on its own, so they wrapped and left the right
+          two fifths empty beside every card but the last. */}
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-5">
+        <div className="space-y-6 lg:col-span-3">
+          {/* Editor */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Thresholds</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {FIELDS.map((f) => (
+                <div key={f.key} className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <Label htmlFor={`cfg-${f.key}`} className="text-sm text-ink">
+                      {f.label}
+                      {changedFromDefault(f.key) && (
+                        <span className="ml-1.5 rounded bg-warn-soft px-1 text-[10px] font-medium text-warn">edited</span>
+                      )}
+                    </Label>
+                    <p className="text-xs text-ink-3">{f.help} · default {DEFAULT_POLICY_CONFIG[f.key].toLocaleString()}</p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <Input
+                      id={`cfg-${f.key}`}
+                      type="number"
+                      className="h-8 w-32 text-right"
+                      value={draft[f.key]}
+                      onChange={(e) => setDraft((d) => ({ ...d, [f.key]: Number(e.target.value) }))}
+                    />
+                    {f.unit && <span className="w-8 text-xs text-ink-3">{f.unit}</span>}
+                  </div>
                 </div>
-                <div className="flex shrink-0 items-center gap-1">
-                  <Input
-                    id={`cfg-${f.key}`}
-                    type="number"
-                    className="h-8 w-32 text-right"
-                    value={draft[f.key]}
-                    onChange={(e) => setDraft((d) => ({ ...d, [f.key]: Number(e.target.value) }))}
-                  />
-                  {f.unit && <span className="w-8 text-xs text-ink-3">{f.unit}</span>}
+              ))}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Competitive sourcing</CardTitle>
+              <p className="text-xs text-ink-3">
+                Above the competitive-sourcing threshold a demand needs competitive quotes, unless it goes
+                to a preferred supplier or its category is exempt.
+              </p>
+            </CardHeader>
+            <CardContent>
+              <CategoryChecklist
+                policyKey="competitiveSourcingExemptCategories"
+                value={draft.competitiveSourcingExemptCategories}
+                onChange={(next) => setDraft((d) => ({ ...d, competitiveSourcingExemptCategories: next }))}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">P-card route policy</CardTitle>
+              <p className="text-xs text-ink-3">
+                Controls whether eligible low-value demands may be routed to the approved P-card process.
+                This setting never charges a card or writes to an upstream system.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="cfg-pCardEnabled" className="text-sm text-ink">Enable P-card route</Label>
+                  <p className="text-xs text-ink-3">When disabled, no routing rule can offer P-card.</p>
                 </div>
+                <Switch
+                  id="cfg-pCardEnabled"
+                  checked={draft.pCardEnabled}
+                  onCheckedChange={(value) => setDraft((d) => ({ ...d, pCardEnabled: value }))}
+                />
               </div>
-            ))}
-          </CardContent>
-        </Card>
+              <CategoryChecklist
+                policyKey="pCardEligibleCategories"
+                value={draft.pCardEligibleCategories}
+                onChange={(next) => setDraft((d) => ({ ...d, pCardEligibleCategories: next }))}
+              />
+              <CategoryChecklist
+                policyKey="pCardExcludedCategories"
+                value={draft.pCardExcludedCategories}
+                onChange={(next) => setDraft((d) => ({ ...d, pCardExcludedCategories: next }))}
+              />
+            </CardContent>
+          </Card>
 
-        <Card className="lg:col-span-3">
-          <CardHeader>
-            <CardTitle className="text-sm">P-card route policy</CardTitle>
-            <p className="text-xs text-ink-3">
-              Controls whether eligible low-value demands may be routed to the approved P-card process.
-              This setting never charges a card or writes to an upstream system.
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <Label htmlFor="cfg-pCardEnabled" className="text-sm text-ink">Enable P-card route</Label>
-                <p className="text-xs text-ink-3">When disabled, no routing rule can offer P-card.</p>
+        </div>
+
+        {/* Save sits with the simulation, which stays in view: in the first
+            card's header it was out of sight while the lists further down were
+            being edited. */}
+        <div className="space-y-4 lg:sticky lg:top-6 lg:col-span-2">
+          <div className="flex items-center justify-end gap-2">
+            {dirty && <span className="mr-auto text-xs font-medium text-warn">Unsaved changes</span>}
+            <Button size="sm" variant="ghost" onClick={handleReset}>Reset to defaults</Button>
+            <Button size="sm" onClick={handleSave} disabled={!dirty}>Save</Button>
+          </div>
+          {/* Simulation */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Simulation</CardTitle>
+              <p className="text-xs text-muted-foreground">Outcomes for a sample demand under the edited thresholds.</p>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="space-y-1">
+                <Label htmlFor="sim-value" className="text-xs text-ink-2">Estimated value</Label>
+                <Input id="sim-value" type="number" className="h-8" value={sim.value}
+                  onChange={(e) => setSim((s) => ({ ...s, value: Number(e.target.value) }))} />
               </div>
-              <Switch
-                id="cfg-pCardEnabled"
-                checked={draft.pCardEnabled}
-                onCheckedChange={(value) => setDraft((d) => ({ ...d, pCardEnabled: value }))}
-              />
-            </div>
-            <div>
-              <Label htmlFor="cfg-pCardEligibleCategories" className="text-sm text-ink">Eligible categories</Label>
-              <p className="text-xs text-ink-3">Comma-separated category IDs permitted for P-card.</p>
-              <Input
-                id="cfg-pCardEligibleCategories"
-                className="mt-1"
-                value={draft.pCardEligibleCategories.join(', ')}
-                onChange={(e) => setDraft((d) => ({
-                  ...d,
-                  pCardEligibleCategories: e.target.value.split(',').map((v) => v.trim().toLowerCase()).filter(Boolean),
-                }))}
-              />
-            </div>
-            <div>
-              <Label htmlFor="cfg-pCardExcludedCategories" className="text-sm text-ink">Excluded categories</Label>
-              <p className="text-xs text-ink-3">Comma-separated category IDs always blocked from P-card.</p>
-              <Input
-                id="cfg-pCardExcludedCategories"
-                className="mt-1"
-                value={draft.pCardExcludedCategories.join(', ')}
-                onChange={(e) => setDraft((d) => ({
-                  ...d,
-                  pCardExcludedCategories: e.target.value.split(',').map((v) => v.trim().toLowerCase()).filter(Boolean),
-                }))}
-              />
-            </div>
-          </CardContent>
-        </Card>
+              <div className="space-y-1">
+                <Label className="text-xs text-ink-2">Supplier risk rating</Label>
+                <Select value={sim.riskRating} onValueChange={(v) => setSim((s) => ({ ...s, riskRating: v as RiskTier }))}>
+                  <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {RISK_TIERS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="sim-critical" className="text-xs text-ink-2">Critical service</Label>
+                <Switch id="sim-critical" checked={sim.criticalService}
+                  onCheckedChange={(v) => setSim((s) => ({ ...s, criticalService: v }))} />
+              </div>
 
-        {/* Simulation */}
-        <Card className="lg:col-span-2">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Simulation</CardTitle>
-            <p className="text-xs text-muted-foreground">Outcomes for a sample demand under the edited thresholds.</p>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="space-y-1">
-              <Label htmlFor="sim-value" className="text-xs text-ink-2">Estimated value</Label>
-              <Input id="sim-value" type="number" className="h-8" value={sim.value}
-                onChange={(e) => setSim((s) => ({ ...s, value: Number(e.target.value) }))} />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs text-ink-2">Supplier risk rating</Label>
-              <Select value={sim.riskRating} onValueChange={(v) => setSim((s) => ({ ...s, riskRating: v as RiskTier }))}>
-                <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {RISK_TIERS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-center justify-between">
-              <Label htmlFor="sim-critical" className="text-xs text-ink-2">Critical service</Label>
-              <Switch id="sim-critical" checked={sim.criticalService}
-                onCheckedChange={(v) => setSim((s) => ({ ...s, criticalService: v }))} />
-            </div>
-
-            <div className="mt-2 space-y-2 rounded-md border border-line-2 bg-card-2 p-3 text-sm">
-              <p className="flex justify-between"><span className="text-ink-3">Value</span><span className="font-medium">{formatCurrency(sim.value)}</span></p>
-              <p className="flex justify-between"><span className="text-ink-3">Materiality</span>
-                <span className={outcome.materiality.material ? 'font-semibold text-warn' : 'font-medium text-ink-2'}>
-                  {outcome.materiality.material ? `Material — ${outcome.materiality.criticality}` : 'Not material'}
-                </span></p>
-              <p className="flex justify-between"><span className="text-ink-3">Inherent risk</span>
-                <span className="font-medium text-ink">{outcome.inherentRisk.tier}</span></p>
-              <p className="flex justify-between"><span className="text-ink-3">Approval gate</span>
-                <span className={`font-semibold ${outcome.approval.tier === 'full' ? 'text-warn' : 'text-ink-2'}`}>
-                  {outcome.approval.tier}
-                </span></p>
-            </div>
-          </CardContent>
-        </Card>
+              <div className="mt-2 space-y-2 rounded-md border border-line-2 bg-card-2 p-3 text-sm">
+                <p className="flex justify-between"><span className="text-ink-3">Value</span><span className="font-medium">{formatCurrency(sim.value)}</span></p>
+                <p className="flex justify-between"><span className="text-ink-3">Materiality</span>
+                  <span className={outcome.materiality.material ? 'font-semibold text-warn' : 'font-medium text-ink-2'}>
+                    {outcome.materiality.material ? `Material — ${outcome.materiality.criticality}` : 'Not material'}
+                  </span></p>
+                <p className="flex justify-between"><span className="text-ink-3">Inherent risk</span>
+                  <span className="font-medium text-ink">{outcome.inherentRisk.tier}</span></p>
+                <p className="flex justify-between"><span className="text-ink-3">Approval gate</span>
+                  <span className={`font-semibold ${outcome.approval.tier === 'full' ? 'text-warn' : 'text-ink-2'}`}>
+                    {outcome.approval.tier}
+                  </span></p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

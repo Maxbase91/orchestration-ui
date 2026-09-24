@@ -2,29 +2,28 @@
 // domain-specific so checkout and browser previews read the same Neon row.
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getNeonClient } from '../_neon.js';
+import { configFromRow } from '../_policy.js';
 import { DEFAULT_POLICY_CONFIG, resolvePolicyConfig, type PolicyConfig } from '../../src/lib/procurement/policy-config.js';
 
-const KEYS: (keyof PolicyConfig)[] = [
-  'catalogueAutoApprovalThreshold', 'approvalFullThreshold', 'materialityValueThreshold',
-  'criticalServiceThreshold', 'continuityThreshold', 'riskHighValue', 'riskMediumValue',
-  'competitiveSourcingThreshold', 'minCompetitiveQuotes', 'preferredMinPerformance',
-  'contractUtilisationHeadroom', 'contractExpiryBufferDays', 'delegatedAuthorityThreshold',
-  'contractRequiredThreshold', 'budgetApprovalThreshold', 'businessLedCeiling',
-  'catalogueMatchThreshold', 'catalogueMinContentMatches', 'pCardEnabled', 'pCardMaxValue',
-  'pCardEligibleCategories', 'pCardExcludedCategories',
-];
+// Every key the config has, by its default's type — not a hand-kept list. The
+// list omitted keys as they were added, and a stored config missing one was
+// then rejected whole.
+const KEYS = Object.keys(DEFAULT_POLICY_CONFIG) as (keyof PolicyConfig)[];
+const NUMERIC_KEYS = KEYS.filter((key) => typeof DEFAULT_POLICY_CONFIG[key] === 'number');
+const BOOLEAN_KEYS = KEYS.filter((key) => typeof DEFAULT_POLICY_CONFIG[key] === 'boolean');
+const LIST_KEYS = KEYS.filter((key) => Array.isArray(DEFAULT_POLICY_CONFIG[key]));
 
 function isPolicyConfig(value: unknown): value is PolicyConfig {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const candidate = value as Record<string, unknown>;
   for (const key of KEYS) if (!(key in candidate)) return false;
-  const numeric = KEYS.filter((key) => key !== 'pCardEnabled' && key !== 'pCardEligibleCategories' && key !== 'pCardExcludedCategories');
-  if (numeric.some((key) => typeof candidate[key] !== 'number' || !Number.isFinite(candidate[key]) || (candidate[key] as number) < 0)) return false;
-  if (typeof candidate.pCardEnabled !== 'boolean' || typeof candidate.pCardMaxValue !== 'number') return false;
-  if (!Array.isArray(candidate.pCardEligibleCategories) || !Array.isArray(candidate.pCardExcludedCategories)) return false;
-  if (typeof candidate.minCompetitiveQuotes !== 'number' || typeof candidate.catalogueMinContentMatches !== 'number' || candidate.minCompetitiveQuotes < 1 || candidate.catalogueMinContentMatches < 1) return false;
-  if (typeof candidate.contractUtilisationHeadroom !== 'number' || typeof candidate.preferredMinPerformance !== 'number' || candidate.contractUtilisationHeadroom > 100 || candidate.preferredMinPerformance > 100) return false;
-  return [...candidate.pCardEligibleCategories, ...candidate.pCardExcludedCategories].every((item) => typeof item === 'string' && item.length > 0);
+  if (NUMERIC_KEYS.some((key) => typeof candidate[key] !== 'number' || !Number.isFinite(candidate[key]) || (candidate[key] as number) < 0)) return false;
+  if (BOOLEAN_KEYS.some((key) => typeof candidate[key] !== 'boolean')) return false;
+  if (LIST_KEYS.some((key) => !Array.isArray(candidate[key])
+    || !(candidate[key] as unknown[]).every((item) => typeof item === 'string' && item.length > 0))) return false;
+  if ((candidate.minCompetitiveQuotes as number) < 1 || (candidate.catalogueMinContentMatches as number) < 1) return false;
+  if ((candidate.contractUtilisationHeadroom as number) > 100 || (candidate.preferredMinPerformance as number) > 100) return false;
+  return true;
 }
 
 function cleanError(error: unknown): string {
@@ -36,7 +35,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     const sql = getNeonClient();
     if (req.method === 'GET') {
       const rows = await sql.query('SELECT config, updated_by, created_at, updated_at FROM procurement_policy_configs WHERE singleton_key = $1', ['default']) as unknown as Array<Record<string, unknown>>;
-      const config = rows[0]?.config && isPolicyConfig(rows[0].config) ? rows[0].config : DEFAULT_POLICY_CONFIG;
+      // Key by key, as checkout reads it. All-or-nothing here meant that adding
+      // a key to PolicyConfig reverted every saved threshold in the browser: the
+      // stored row lacks the new key, fails the check, and defaults came back.
+      const config = configFromRow(rows[0]);
       res.status(200).json({ config, updatedBy: rows[0]?.updated_by ?? null, updatedAt: rows[0]?.updated_at ?? null });
       return;
     }

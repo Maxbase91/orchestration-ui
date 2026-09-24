@@ -28,6 +28,12 @@ export interface PolicyConfig {
   competitiveSourcingThreshold: number;
   /** Minimum competitive quotes required above the threshold. */
   minCompetitiveQuotes: number;
+  /**
+   * Categories where competitive quotes are not expected — the market for them
+   * is a managed panel rather than an open field. Was a default argument in
+   * supplier-preference.ts, so it could not be changed without a code change.
+   */
+  competitiveSourcingExemptCategories: string[];
   /** Minimum performance score for a supplier to qualify as preferred. */
   preferredMinPerformance: number;
   /** Second contract check: utilisation headroom % (below → transactable). */
@@ -89,6 +95,8 @@ export const DEFAULT_POLICY_CONFIG: PolicyConfig = {
   riskMediumValue: 50_000,
   competitiveSourcingThreshold: 25_000,
   minCompetitiveQuotes: 3,
+  // The literal supplier-preference.ts defaulted to. Same list, so no change.
+  competitiveSourcingExemptCategories: ['contingent-labour'],
   preferredMinPerformance: 75,
   contractUtilisationHeadroom: 95,
   contractExpiryBufferDays: 60,
