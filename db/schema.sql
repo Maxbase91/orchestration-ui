@@ -1560,6 +1560,13 @@ ALTER TABLE approval_chains ADD COLUMN IF NOT EXISTS max_value TEXT;
 -- route: those are selected by category and no request has ever used one.
 ALTER TABLE workflow_templates ADD COLUMN IF NOT EXISTS channels TEXT[] NOT NULL DEFAULT '{}';
 
+-- What a requester is told about the channel this template runs: a headline
+-- ("Procurement runs a sourcing exercise") and one sentence of what happens.
+-- It was a hard-coded map in evaluate-routing-rules.ts, so the screen wording
+-- could not follow a template an admin reshaped. Edited in the Workflow Designer.
+ALTER TABLE workflow_templates ADD COLUMN IF NOT EXISTS requester_headline TEXT;
+ALTER TABLE workflow_templates ADD COLUMN IF NOT EXISTS requester_description TEXT;
+
 -- ── Configuration debris ────────────────────────────────────────────────────
 -- `routing_rules.match_count` was seeded with real-looking numbers — 187 for
 -- the catalogue rule, 62 for IT hardware, 42 for a rule that had never matched

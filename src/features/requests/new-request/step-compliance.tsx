@@ -14,7 +14,7 @@ const SOW_SECTION_LABELS: Record<string, string> = {
   pricingModel: 'Pricing Model', location: 'Location', dependencies: 'Dependencies',
 };
 import { buildDeterminationExport } from '@/lib/procurement/determination-export';
-import { buyingChannelPlain } from '@/lib/routing/evaluate-routing-rules';
+import { useChannelCopy } from '@/lib/db/hooks/use-channel-stage-map';
 import type { Supplier, Contract } from '@/data/types';
 import { useFormTemplate } from '@/lib/db/hooks/use-form-templates';
 import type { IntakeDetermination, MatchingRiskAssessmentSummary } from '@/lib/procurement/intake-determination';
@@ -139,6 +139,7 @@ export function StepCompliance({
   miniIrq,
   onMiniIrqChange,
 }: StepComplianceProps) {
+  const channelWording = useChannelCopy();
   // The supplier directory is still read here: the export and the triage view
   // name the selected supplier. Every *decision* arrives as a prop.
   const { data: suppliers = [] } = useSourceData<Supplier>('supplier');
@@ -326,7 +327,7 @@ export function StepCompliance({
           <Info className="mt-0.5 size-4 shrink-0 text-accent-solid" />
           <div>
             {(() => {
-              const plain = buyingChannelPlain(result.buyingChannelSlug);
+              const plain = channelWording(result.buyingChannelSlug);
               return (
                 <>
                   <p className="text-sm font-semibold text-ink">{plain.headline}</p>

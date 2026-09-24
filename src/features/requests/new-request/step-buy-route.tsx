@@ -17,7 +17,8 @@
 //     behind a large green button pointing the other way.
 //  2. **The recommendation leads, in outcome language.** "Procurement-Led
 //     Sourcing" is precise and means nothing to someone buying a laptop.
-//     `buyingChannelPlain` says what will happen and roughly how long it takes.
+//     the channel's template says what will happen (its requester wording, set
+//     in the Workflow Designer) and roughly how long it takes.
 //  3. **The evidence moved behind a disclosure.** Matched words, fit
 //     percentages, contract utilisation and routing rule IDs are how a buyer
 //     audits the decision, not how a requester makes one. They are still there,
@@ -38,7 +39,8 @@ import { useProcurementCategories } from '@/lib/db/hooks/use-procurement-categor
 import { DEFAULT_CATEGORY_TAXONOMY } from '@/data/category-taxonomy';
 import { decideIntakeRoute, type IntakeRoute } from '@/lib/procurement/intake-routing';
 import { useRoutingRules } from '@/lib/db/hooks/use-routing-rules';
-import { buyingChannelPlain, buyingChannelLabel } from '@/lib/routing/evaluate-routing-rules';
+import { buyingChannelLabel } from '@/lib/routing/evaluate-routing-rules';
+import { useChannelCopy } from '@/lib/db/hooks/use-channel-stage-map';
 import { resolveDemandChannel } from '@/lib/routing/demand-channel';
 import { usePolicyConfig } from '@/lib/procurement/use-policy-config';
 import { computeDemandSignals } from '@/lib/procurement/demand-signals';
@@ -147,6 +149,7 @@ export function StepBuyRoute({
   isUrgent, commodityCode,
   onChooseCatalogue, onChooseContract, onProceedToFullRequest, onEnrich,
 }: StepBuyRouteProps) {
+  const channelWording = useChannelCopy();
   // Reads go through the standardised source-connector layer (own store today,
   // live source later) rather than directly to the data layer.
   const { data: catalogueItems = [], isLoading: catLoading, isError: catError } =
@@ -401,8 +404,8 @@ export function StepBuyRoute({
     );
   }
 
-  const catalogueChannel = buyingChannelPlain('catalogue');
-  const contractChannel = buyingChannelPlain('framework-call-off');
+  const catalogueChannel = channelWording('catalogue');
+  const contractChannel = channelWording('framework-call-off');
 
   // The third option is "this is new demand", and its headline says exactly
   // that. The resolved channel describes what happens *after* — but it can come
@@ -410,7 +413,7 @@ export function StepBuyRoute({
   // on this screen, and borrowing their copy here labelled the full-request
   // escape "Order it from the catalogue". Only a channel that genuinely means
   // a new request is allowed to speak for it.
-  const resolved = buyingChannelPlain(routing.channel);
+  const resolved = channelWording(routing.channel);
   const channelDescribesNewDemand =
     routing.channel !== 'catalogue' && routing.channel !== 'framework-call-off';
   const fullRequestDetail = channelDescribesNewDemand

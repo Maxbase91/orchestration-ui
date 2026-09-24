@@ -268,7 +268,7 @@ npm run test:routing-fallback     # the catch-all rules reproduce the deleted if
 npm run test:approval-bands       # a chain with no value band never shadows one that has it; gaps and overlaps are reported
 npm run test:form-gates           # the blocking form gate is a subset of what renders, so a form can never strand a request
 npm run test:form-builder         # the builder offers every stage a form uses, the shared condition editor, and reports a form that cannot fire
-npm run test:channel-stages      # the workflow templates are the only definition of a channel lifecycle; no code restates one
+npm run test:channel-stages      # the workflow templates are the only definition of a channel lifecycle — and of the requester's wording for it; no code restates either
 npm run test:edge-conditions     # a decision node actually decides, every palette type round-trips, every workflow signal evaluates
                                   #   both ways, a rejected approval goes back to the requester in every template, and no shipped or
                                   #   live template has a node the engine cannot branch from unambiguously

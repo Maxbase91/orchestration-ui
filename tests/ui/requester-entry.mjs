@@ -3,7 +3,7 @@
 // The REST surface is stubbed so this test never writes request or production data.
 import { spawn } from 'node:child_process';
 import { chromium } from 'playwright';
-import { installDbStub } from './db-stub.mjs';
+import { installDbStub, FIXTURES, channelTemplate } from './db-stub.mjs';
 
 const BASE = 'http://localhost:5179';
 const USER = { id: 'u6', name: "James O'Brien", email: 'james.obrien@company.com', role: 'service-owner', department: 'Marketing', initials: 'JO' };
@@ -37,7 +37,14 @@ try {
   // the Neon cutover. The client posts to /api/db, so it caught nothing: every
   // data call 404'd and the pre-check screen rendered its heading over no
   // catalogue and no contracts. Two checks here failed for months on that.
-  await installDbStub(context);
+  // A catalogue template carrying admin-written wording, so the buy-route
+  // screen is checked to read it (Admin → Workflows) rather than a code table.
+  await installDbStub(context, {
+    workflow_templates: [
+      ...FIXTURES.workflow_templates,
+      channelTemplate('WF-002', 'catalogue', 'Configured catalogue headline', 'Configured catalogue description.'),
+    ],
+  });
   // The pre-check also calls the server matcher directly. "No contract covers
   // this" is a legitimate answer and is what sends the screen to its contract
   // stage — but it has to be the real ContractMatchResponse shape
@@ -105,6 +112,8 @@ try {
     page.getByText('We could not check what already exists', { exact: true }).waitFor({ timeout: 15000 }).then(() => true),
   ]).catch(() => false);
   check('accepting the classification reaches the buy-route decision', reachedRouteScreen);
+  check('the catalogue option reads its wording from the workflow template',
+    await page.getByText('Configured catalogue headline', { exact: true }).isVisible().catch(() => false));
   await page.getByRole('button', { name: /^Start$|^Continue$/ }).last().click();
   check('full-request escape opens the adaptive details path', await page.getByPlaceholder('Type your answer...').isVisible().catch(() => false));
   check('full-request escape does not open catalogue selection', (await page.getByText('Choose your items', { exact: true }).count()) === 0);

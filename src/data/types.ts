@@ -544,6 +544,10 @@ export interface WorkflowTemplate {
      *  included. */
     condition?: { field: string; operator: string; value: string } | null;
   }[];
+  /** What the requester is told about the channel this template runs — a headline. */
+  requesterHeadline?: string;
+  /** One sentence under the headline: what happens, in the requester's words. */
+  requesterDescription?: string;
 }
 
 export type RiskAssessmentCategory =

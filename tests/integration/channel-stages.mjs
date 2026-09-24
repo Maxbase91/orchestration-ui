@@ -21,7 +21,9 @@ import {
   BUYING_CHANNELS, channelStageMapFromTemplates, stagesFromTemplate,
   unclaimedChannels, contestedChannels, lifecycleStagesFrom,
   getStagesForChannel, isStageSkippedForChannel, nextStageAfter, firstActionableStage, isSideProcess,
+  channelCopy, templateForChannel,
 } from '../../src/lib/workflow/channel-stages.ts';
+import { mapDbToWorkflowTemplate, mapWorkflowTemplateToDb } from '../../src/lib/db/mappers.ts';
 import { LABELLED_STAGE_IDS, stageLabel } from '../../src/lib/workflow/stage-labels.ts';
 import { workflowTemplates } from '../../src/data/workflows.ts';
 
@@ -195,6 +197,60 @@ if (/Object\.keys\(STAGE_LABEL/.test(analysis)) {
   bad('the bottleneck analysis covers the whole lifecycle', 'it does not derive its stages from the templates');
 } else ok('the bottleneck analysis covers every stage the templates define');
 
+// ── The requester's wording comes from the template ────────────────────────
+// "How this will be bought" was a table in evaluate-routing-rules.ts, so an
+// admin could rebuild a channel's lifecycle in the designer and the requester
+// still read the old promise. It is now the template's own headline and
+// description, edited beside the channels it claims.
+console.log('\nThe requester’s wording for a channel comes from its template');
+{
+  for (const channel of BUYING_CHANNELS) {
+    const id = templateForChannel(workflowTemplates, channel);
+    const template = workflowTemplates.find((t) => t.id === id);
+    const copy = channelCopy(workflowTemplates, channel, 'FALLBACK');
+    if (!template?.requesterHeadline?.trim() || !template?.requesterDescription?.trim()) {
+      bad(`${channel}: its template (${id}) carries a headline and a description`, 'the requester would see the bare channel name');
+    } else if (copy.headline !== template.requesterHeadline || copy.detail !== template.requesterDescription) {
+      bad(`${channel}: channelCopy reads the template`, JSON.stringify(copy));
+    }
+  }
+  if (failures === 0) ok(`all ${BUYING_CHANNELS.length} channels read their wording from the claiming template`);
+
+  // A template with no wording falls back to the channel's label — never to a
+  // sentence written for some other channel.
+  const bare = [{ id: 'X', channels: ['direct-po'], nodes: [], edges: [] }];
+  const fallback = channelCopy(bare, 'direct-po', 'Direct PO');
+  if (fallback.headline !== 'Direct PO' || fallback.detail !== '') bad('no wording falls back to the label', JSON.stringify(fallback));
+  else ok('a template with no wording falls back to the channel label');
+
+  // Both halves survive the store: a mapper that drops them saves silently.
+  const round = mapDbToWorkflowTemplate(mapWorkflowTemplateToDb({
+    ...workflowTemplates[0], requesterHeadline: 'H', requesterDescription: 'D',
+  }));
+  if (round.requesterHeadline !== 'H' || round.requesterDescription !== 'D') bad('the mapper round-trips the wording', JSON.stringify(round));
+  else ok('the mapper round-trips the headline and description');
+
+  const routing = read('src/lib/routing/evaluate-routing-rules.ts');
+  if (/BUYING_CHANNEL_PLAIN\s*[:=]|export function buyingChannelPlain/.test(routing)) {
+    bad('the hard-coded channel wording is gone', 'BUYING_CHANNEL_PLAIN is back in evaluate-routing-rules.ts');
+  } else ok('no hard-coded channel wording remains');
+  for (const file of [
+    'src/features/requests/new-request/step-buy-route.tsx',
+    'src/features/requests/new-request/step-compliance.tsx',
+  ]) {
+    if (!/useChannelCopy\(\)/.test(read(file))) bad(`${file} reads the configured wording`);
+  }
+  const designer = read('src/features/admin/workflow-designer/workflow-designer-page.tsx');
+  if (!/requesterHeadline: editedWording\.headline/.test(designer)) bad('the designer saves the wording');
+  // A switch between templates must drop the unsaved buffer, or the next save
+  // writes one template's wording onto another.
+  const switchBody = designer.slice(designer.indexOf('const handleTemplateChange'), designer.indexOf('const handleNodeClick'));
+  if (!/setEditedWording\(null\)/.test(switchBody) || !/setEditedChannels\(null\)/.test(switchBody)) {
+    bad('switching template discards unsaved channel and wording edits');
+  }
+  if (failures === 0) ok('both intake screens read it, the designer edits it, a template switch resets it');
+}
+
 // ── Live ───────────────────────────────────────────────────────────────────
 const env = loadEnv();
 const connection = env.NEON_DATABASE_URL || env.DATABASE_URL;
@@ -214,6 +270,10 @@ if (!connection) {
       bad(`${channel}: live derives what the seed derives`, `seed ${fromSeed}\n      live ${fromLive}`);
     }
   }
+  const worded = await sql`SELECT id, channels, requester_headline FROM workflow_templates`;
+  const silent = worded.filter((r) => (r.channels ?? []).length > 0 && !r.requester_headline?.trim());
+  if (silent.length) bad('every live channel template has a requester headline', silent.map((r) => r.id).join(', '));
+  else ok('every live channel template has a requester headline');
   const liveUnclaimed = unclaimedChannels(liveMap, BUYING_CHANNELS);
   if (liveUnclaimed.length) bad('no live channel is unclaimed', liveUnclaimed.join(', '));
   else if (failures === 0) ok(`all ${BUYING_CHANNELS.length} live channels derive the seed's path`);

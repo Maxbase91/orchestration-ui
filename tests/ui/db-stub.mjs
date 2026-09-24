@@ -250,6 +250,9 @@ export const FIXTURES = {
     // at all — the same class of miss as leaving a chain with only its display
     // label when bands became structured.
     channels: ['procurement-led'],
+    // What the requester reads about the channel, as live WF-001 carries it.
+    requester_headline: 'Procurement runs a sourcing exercise',
+    requester_description: 'A buyer takes this on, approaches the market and negotiates on your behalf.',
     nodes: [
       { id: 'n1', type: 'start', label: 'Request Submitted' },
       { id: 'n2', type: 'stage', label: 'Intake', role: 'Business Requestor', slaDays: 1, gate: 'auto' },
@@ -335,6 +338,30 @@ function compare(rowValue, op, raw) {
     }
     default: return null; // "not understood", distinct from "no match"
   }
+}
+
+/**
+ * A minimal channel template carrying the requester's wording for its channel.
+ *
+ * The buy-route options read their headline and sentence from the template
+ * that claims the channel (Admin → Workflows), so a suite that asserts on that
+ * copy has to serve it. The wording is deliberately not the seed's: a check
+ * that finds these strings proves the screen read the template, not a table.
+ */
+export function channelTemplate(id, channel, headline, description) {
+  return {
+    id, name: `${headline} (fixture)`, description: '', type: 'procurement',
+    channels: [channel], requester_headline: headline, requester_description: description,
+    nodes: [
+      { id: `${id}-start`, type: 'start', label: 'Request Submitted' },
+      { id: `${id}-intake`, type: 'stage', label: 'Intake', role: 'Business Requestor', slaDays: 1, gate: 'auto' },
+      { id: `${id}-po`, type: 'stage', label: 'PO Created', role: 'Procurement', slaDays: 2, gate: 'auto' },
+    ],
+    edges: [
+      { id: `${id}-e1`, source: `${id}-start`, target: `${id}-intake` },
+      { id: `${id}-e2`, source: `${id}-intake`, target: `${id}-po` },
+    ],
+  };
 }
 
 /**

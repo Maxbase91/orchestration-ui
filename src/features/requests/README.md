@@ -129,10 +129,12 @@ AI visual language (blue-tinted surface, left accent, sparkle, generated-by
 label — `docs/specs/design-document.md` §7.3), rather than the bespoke bordered
 panes and header badge it had.
 
-The plain wording for a channel is `buyingChannelPlain` in
-`lib/routing/evaluate-routing-rules.ts`, deliberately a **second register**
-alongside `buyingChannelLabel`: reviewers, exports and the stored compliance
-record keep the precise label; only requester-facing screens use the plain one. Contract call-offs use the same
+The plain wording for a channel ("Procurement runs a sourcing exercise") is set
+on the workflow template that claims the channel — Workflow Designer → requester
+wording — and read with `useChannelCopy()` / `channelCopy()`. It is deliberately a
+**second register** alongside `buyingChannelLabel`: reviewers, exports and the
+stored compliance record keep the precise label; only requester-facing screens
+use the plain one. A template with no wording set shows the label. Contract call-offs use the same
 server-authoritative request → PR → conditional internal PO seam as catalogue
 orders. Full demand intake creates a structured service description and enters
 the first actionable workflow stage.

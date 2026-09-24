@@ -10,7 +10,7 @@
 
 import { spawn } from 'node:child_process';
 import { chromium } from 'playwright';
-import { installDbStub } from './db-stub.mjs';
+import { installDbStub, FIXTURES, channelTemplate } from './db-stub.mjs';
 
 class LocalServerlessUnavailable extends Error {}
 
@@ -71,6 +71,12 @@ try {
   // catalogue row, without writing to a real database or pretending that a
   // local Vite process can exercise serverless routes.
   await installDbStub(context, {
+    // Each option's headline is the claiming template's requester wording.
+    workflow_templates: [
+      ...FIXTURES.workflow_templates,
+      channelTemplate('WF-002', 'catalogue', 'Order it from the catalogue', 'Pre-approved and pre-priced.'),
+      channelTemplate('WF-008', 'framework-call-off', 'Call it off an existing contract', 'Already negotiated.'),
+    ],
     catalogue_items: [{
       id: 'IT-001', name: 'ThinkPad T14 Gen 5', description: 'Lenovo business laptop, 14-inch, 16GB RAM',
       unit_price: 1299, unit: 'each', catalogue_id: 'it-equipment', catalogue_name: 'IT Equipment',

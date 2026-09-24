@@ -167,3 +167,11 @@ contract call-off, so call-offs ran the procurement-led lifecycle.
 | framework-call-off | WF-008 Contract Call-Off — no sourcing, no onboarding; Contracting only when the checkout found the contract needs amending, risk only when the supplier's assessment cannot be reused |
 
 WF-003 (supplier onboarding) and WF-004 (contract renewal) are side processes and claim no channel.
+
+The template also carries what the **requester reads** about its channel — a
+headline and one sentence (`requesterHeadline` / `requesterDescription`, edited in
+Admin → Workflows beside the channels). `channelCopy(templates, channel, label)`
+returns them, falling back to the channel label when a template has none. They
+used to be a table in the routing code, so a rebuilt lifecycle kept its old promise
+on the intake screens. Filled live from the seed by `npm run backfill:channel-wording`
+(fill-only — an admin's wording is never overwritten).

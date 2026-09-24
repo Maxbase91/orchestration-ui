@@ -201,6 +201,10 @@ export function WorkflowDesignerPage({ scope = 'request' }: { scope?: 'request' 
   // to read and reported nothing. Falling back to the mapped template keeps the
   // edited state authoritative once there is any, without an effect that sets
   // state during render.
+  // Channel claims and the requester's wording, held locally and merged on
+  // save like the graph. Declared here because a template switch resets them.
+  const [editedChannels, setEditedChannels] = useState<string[] | null>(null);
+  const [editedWording, setEditedWording] = useState<{ headline: string; description: string } | null>(null);
   const canvasNodes = editedNodes.length > 0 ? editedNodes : initialNodes;
   const canvasEdges = editedEdges.length > 0 ? editedEdges : initialEdges;
 
@@ -232,6 +236,11 @@ export function WorkflowDesignerPage({ scope = 'request' }: { scope?: 'request' 
     setCanvasNodes(flow.nodes);
     setCanvasEdges(flow.edges);
     setSelectedTemplateId(templateId);
+    // Unsaved channel and wording edits belong to the template they were made
+    // on. They were kept across a switch, so saving the next template wrote
+    // the previous one's channels onto it.
+    setEditedChannels(null);
+    setEditedWording(null);
     setSelectedNode(null);
     setShowSimulation(false);
     setHighlightedNodeId(null);
@@ -275,8 +284,6 @@ export function WorkflowDesignerPage({ scope = 'request' }: { scope?: 'request' 
   // below — with no key to join them on, so renaming a stage here changed the
   // graph the engine walks and not the map the stepper draws.
   //
-  // Held locally and merged on save, the same shape as the graph itself.
-  const [editedChannels, setEditedChannels] = useState<string[] | null>(null);
   // Memoised because it feeds a useMemo and a useCallback below: a fresh
   // array every render would invalidate both on every render.
   const channels = useMemo(
@@ -302,6 +309,12 @@ export function WorkflowDesignerPage({ scope = 'request' }: { scope?: 'request' 
     return [...takenElsewhere, ...orphans];
   }, [channels, workflowTemplates, template?.id]);
 
+  // The requester's wording for the channel(s) this template claims.
+  const wording = editedWording ?? {
+    headline: template?.requesterHeadline ?? '',
+    description: template?.requesterDescription ?? '',
+  };
+
   const handleSave = useCallback(async () => {
     if (!template) {
       toast.error('No template selected.');
@@ -309,14 +322,21 @@ export function WorkflowDesignerPage({ scope = 'request' }: { scope?: 'request' 
     }
     const graph = mapFlowToTemplateGraph(nodesRef.current, edgesRef.current);
     try {
-      await saveTemplate.mutateAsync({ ...template, ...graph, channels });
+      await saveTemplate.mutateAsync({
+        ...template, ...graph, channels,
+        ...(editedWording ? {
+          requesterHeadline: editedWording.headline.trim(),
+          requesterDescription: editedWording.description.trim(),
+        } : {}),
+      });
       setEditedChannels(null);
+      setEditedWording(null);
       toast.success(`Workflow "${template.name}" saved.`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'unknown';
       toast.error(`Save failed: ${msg}`);
     }
-  }, [template, saveTemplate, channels]);
+  }, [template, saveTemplate, channels, editedWording]);
 
   const toggleFullscreen = useCallback(() => {
     setIsFullscreen((prev) => !prev);
@@ -409,6 +429,29 @@ export function WorkflowDesignerPage({ scope = 'request' }: { scope?: 'request' 
             })}
             {channels.length === 0 && (
               <span className="text-xs text-ink-3">none — a side process</span>
+            )}
+            {/* What a requester is told about this channel, on the intake's
+                How you'll buy step and the buying-channel review. It was a
+                hard-coded map in code, so reshaping a template here left the
+                wording describing the old one. */}
+            {channels.length > 0 && (
+              <div className="flex w-full flex-wrap items-center gap-2 pt-1.5">
+                <span className="text-xs text-ink-3">Requester wording</span>
+                <input
+                  aria-label="Requester headline"
+                  value={wording.headline}
+                  onChange={(e) => setEditedWording({ ...wording, headline: e.target.value })}
+                  placeholder="e.g. Procurement runs a sourcing exercise"
+                  className="h-7 min-w-56 flex-1 rounded-md border border-line bg-card px-2 text-xs"
+                />
+                <input
+                  aria-label="Requester description"
+                  value={wording.description}
+                  onChange={(e) => setEditedWording({ ...wording, description: e.target.value })}
+                  placeholder="One sentence: what happens, in the requester's words"
+                  className="h-7 min-w-72 flex-[2] rounded-md border border-line bg-card px-2 text-xs"
+                />
+              </div>
             )}
             {templateProblems.length > 0 && !isFullscreen && (
         <div className="border-b border-warn-line bg-warn-soft px-4 py-2">

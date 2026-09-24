@@ -15,6 +15,8 @@ export const workflowTemplates: WorkflowTemplate[] = [
     description: 'Default end-to-end procurement workflow from intake to payment, covering all standard stages.',
     type: 'procurement',
     channels: ['procurement-led'],
+    requesterHeadline: 'Procurement runs a sourcing exercise',
+    requesterDescription: 'A buyer takes this on, approaches the market and negotiates on your behalf.',
     nodes: [
       { id: 'n1', type: 'start', label: 'Request Submitted', x: 50, y: 200 },
       { id: 'n2', type: 'stage', label: 'Intake', x: 200, y: 200, role: 'Business Requestor', slaDays: 1, gate: 'auto' as const, purpose: 'Demand captured and classified. Completed by submission.' },
@@ -70,6 +72,8 @@ export const workflowTemplates: WorkflowTemplate[] = [
     description: 'Simplified workflow for catalogue-based purchases with minimal approval steps.',
     type: 'catalogue',
     channels: ['catalogue'],
+    requesterHeadline: 'Order it from the catalogue',
+    requesterDescription: 'Pre-approved and pre-priced, so it goes straight through with no sourcing exercise.',
     nodes: [
       { id: 'n1', type: 'start', label: 'Catalogue Order', x: 50, y: 150 },
       // Renamed from "Auto-Validate", which normalised to `validation` — a
@@ -227,6 +231,8 @@ export const workflowTemplates: WorkflowTemplate[] = [
     description: 'A known need from a known supplier: approve, raise the PO, receive, pay. No sourcing, no contracting.',
     type: 'direct-po',
     channels: ['direct-po'],
+    requesterHeadline: 'Raise a purchase order directly',
+    requesterDescription: 'Low enough in value to skip a sourcing exercise; your usual approvals still apply.',
     nodes: [
       { id: 'n1', type: 'start', label: 'Request Submitted', x: 50, y: 150 },
       { id: 'n2', type: 'stage', label: 'Intake', x: 200, y: 150, role: 'Business Requestor', slaDays: 1, gate: 'auto' as const, purpose: 'Demand captured and classified. Completed by submission.' },
@@ -261,6 +267,8 @@ export const workflowTemplates: WorkflowTemplate[] = [
     // is set up) and no fresh risk assessment when the contract's one can be
     // reused. WF-008 carries the call-off.
     channels: ['business-led'],
+    requesterHeadline: 'Your team runs this one',
+    requesterDescription: 'You lead the buying decision; Procurement is available if you want help.',
     nodes: [
       { id: 'n1', type: 'start', label: 'Request Submitted', x: 50, y: 200 },
       { id: 'n2', type: 'stage', label: 'Intake', x: 200, y: 200, role: 'Business Requestor', slaDays: 1, gate: 'auto' as const, purpose: 'Demand captured and classified. Completed by submission.' },
@@ -297,6 +305,8 @@ export const workflowTemplates: WorkflowTemplate[] = [
     description: 'Low-value governed card spend. Two stages and no PO — the card is the payment instrument, so receipt, invoice and payment do not apply.',
     type: 'p-card',
     channels: ['p-card'],
+    requesterHeadline: 'Pay by purchasing card',
+    requesterDescription: 'Small enough to put on a card under the card policy.',
     nodes: [
       { id: 'n1', type: 'start', label: 'Request Submitted', x: 50, y: 150 },
       { id: 'n2', type: 'stage', label: 'Intake', x: 200, y: 150, role: 'Business Requestor', slaDays: 1, gate: 'auto' as const, purpose: 'Demand captured and checked against the P-card policy.' },
@@ -318,6 +328,8 @@ export const workflowTemplates: WorkflowTemplate[] = [
     description: 'A call-off against a transactable contract. The contract already governs the supplier and the price, so there is no sourcing and no vendor onboarding; risk is assessed only when the contract supplier\'s assessment cannot be reused.',
     type: 'call-off',
     channels: ['framework-call-off'],
+    requesterHeadline: 'Call it off an existing contract',
+    requesterDescription: 'The agreement is already negotiated, so there is no new sourcing exercise.',
     nodes: [
       { id: 'n1', type: 'start', label: 'Call-off Submitted', x: 50, y: 200 },
       { id: 'n2', type: 'stage', label: 'Intake', x: 200, y: 200, role: 'Business Requestor', slaDays: 1, gate: 'auto' as const, purpose: 'Call-off captured against the contract. Completed by submission.' },

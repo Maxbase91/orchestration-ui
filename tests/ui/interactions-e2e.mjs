@@ -316,6 +316,10 @@ try {
     await page.locator('.react-flow__node').first().waitFor({ timeout: 15000 }).catch(() => {});
     const nodeCount = await page.locator('.react-flow__node').count();
     check('designer canvas renders the template nodes on first load (not blank)', nodeCount > 0, `nodes=${nodeCount}`);
+    // The requester's wording for the channel sits beside the channels the
+    // template claims — it replaced a table in the routing code.
+    const headline = await page.getByLabel('Requester headline').inputValue().catch(() => '');
+    check('designer shows the channel headline the requester will read', headline.trim().length > 0, `headline=${JSON.stringify(headline)}`);
     check('no uncaught errors on the workflow designer', errors.length === 0, errors[0]);
     await ctx.close();
   }

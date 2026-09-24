@@ -21,6 +21,8 @@ export type ChannelStageMap = Readonly<Record<string, readonly RequestStatus[]>>
 export interface TemplateLike {
   id: string;
   channels?: string[] | null;
+  requesterHeadline?: string | null;
+  requesterDescription?: string | null;
   nodes: Array<{ id: string; type?: string; label?: string }>;
   edges: Array<{ source: string; target: string; label?: string }>;
 }
@@ -290,4 +292,25 @@ export function firstActionableStage(
   // Every channel reaches `approval` at the latest, so this guards an unknown
   // channel rather than an expected path.
   return stage ?? 'approval';
+}
+
+/**
+ * What a requester is told about a channel: the headline and sentence set on
+ * the template that claims it (Workflow Designer → requester wording).
+ *
+ * These were a hard-coded map in evaluate-routing-rules.ts, so the wording
+ * could not follow a template an admin reshaped. With no wording set, the
+ * channel's own label stands in — never a sentence nobody configured.
+ */
+export function channelCopy(
+  templates: TemplateLike[],
+  channel: string | undefined,
+  fallbackLabel: string,
+): { headline: string; detail: string } {
+  const id = templateForChannel(templates, channel);
+  const template = templates.find((t) => t.id === id);
+  return {
+    headline: template?.requesterHeadline?.trim() || fallbackLabel,
+    detail: template?.requesterDescription?.trim() || '',
+  };
 }

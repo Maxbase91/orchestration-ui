@@ -222,45 +222,11 @@ export function buyingChannelLabel(channel: BuyingChannel): string {
   return BUYING_CHANNEL_LABELS[channel] ?? channel;
 }
 
-/**
- * The channel in the requester's words, not procurement's.
- *
- * "Procurement-Led Sourcing" is precise and means nothing to someone buying a
- * laptop; the labels above stay as they are because reviewers, exports and the
- * compliance record use them. This is the second register: what will actually
- * happen, said as an outcome. Used on the buy-route and review screens, which
- * a requester reads, never in a stored record.
- */
-const BUYING_CHANNEL_PLAIN: Record<BuyingChannel, { headline: string; detail: string }> = {
-  catalogue: {
-    headline: 'Order it from the catalogue',
-    detail: 'Pre-approved and pre-priced, so it goes straight through with no sourcing exercise.',
-  },
-  'direct-po': {
-    headline: 'Raise a purchase order directly',
-    detail: 'Low enough in value to skip a sourcing exercise; your usual approvals still apply.',
-  },
-  'business-led': {
-    headline: 'Your team runs this one',
-    detail: 'You lead the buying decision; Procurement is available if you want help.',
-  },
-  'procurement-led': {
-    headline: 'Procurement runs a sourcing exercise',
-    detail: 'A buyer takes this on, approaches the market and negotiates on your behalf.',
-  },
-  'framework-call-off': {
-    headline: 'Call it off an existing contract',
-    detail: 'The agreement is already negotiated, so there is no new sourcing exercise.',
-  },
-  'p-card': {
-    headline: 'Pay by purchasing card',
-    detail: 'Small enough to put on a card under the card policy.',
-  },
-};
+// The requester's wording for a channel ("Procurement runs a sourcing
+// exercise") used to be a map here. It lives on the workflow template that
+// claims the channel now — channelCopy() in lib/workflow/channel-stages.ts —
+// so it is edited in the Workflow Designer with the lifecycle it describes.
 
-export function buyingChannelPlain(channel: BuyingChannel): { headline: string; detail: string } {
-  return BUYING_CHANNEL_PLAIN[channel] ?? { headline: buyingChannelLabel(channel), detail: '' };
-}
 
 function fieldValue(ctx: RoutingContext, field: string): string | number | boolean | undefined {
   switch (field) {

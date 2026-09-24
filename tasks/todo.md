@@ -35,8 +35,9 @@ WF-002/003/004 had no Rejected branch; governed checkout hard-wired WF-001 for
 call-offs and trusted the browser's channel; 13 live requests re-pointed.
 
 ## Phase 3 — configurable in the EXISTING admin tabs
-- [ ] Workflows: channel headline + description on the template (replaces the
-      hard-coded BUYING_CHANNEL_PLAIN); "what the requester does" per stage.
+- [x] Workflows: channel headline + description on the template (replaces the
+      hard-coded BUYING_CHANNEL_PLAIN).
+- [ ] Workflows: "what the requester does" per stage.
 - [x] Categories: preferred suppliers per category; supplier tags per category
       (replaces the recommender's hard-coded keyword map).
 - [ ] Categories: commodity codes per category (replaces category-code.ts tables).
