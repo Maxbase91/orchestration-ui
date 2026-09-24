@@ -70,8 +70,11 @@ check('each section is revealed exactly when the previous one is complete', () =
 
 console.log('\nThe reveal and the step gate are the same predicate');
 
+// What submit requires is present, so these checks isolate the reveal rule;
+// the requirement itself is checked below and in test:submission-requirements.
+const SUBMITTABLE = { title: 'A demand', costCentre: 'CC-1', deliveryDate: '2027-01-15' };
 const gate = (over = {}) => stepById('details').canProceed({
-  data: { ...INITIAL_INTAKE_DATA, preCheckOutcome: 'full-request', category: 'consulting' },
+  data: { ...INITIAL_INTAKE_DATA, ...SUBMITTABLE, preCheckOutcome: 'full-request', category: 'consulting' },
   isChatIntakePath: true,
   conversationCtx: ctx(over),
   conversationSlots: SLOTS,
@@ -121,6 +124,22 @@ check('the catalogue route gates on its cart, not on a conversation', () => {
   }), true);
 });
 
+check('a finished conversation still waits for what submit requires', () => {
+  const finished = { ...INITIAL_INTAKE_DATA, ...SUBMITTABLE, preCheckOutcome: 'full-request', category: 'consulting' };
+  for (const missing of ['costCentre', 'deliveryDate']) {
+    const without = stepById('details').canProceed({
+      data: { ...finished, [missing]: '' }, isChatIntakePath: true,
+      conversationCtx: ctx({ risk: { privilegedAccess: false } }), conversationSlots: SLOTS, hasDetermination: true,
+    });
+    const complete = stepById('details').canProceed({
+      data: finished, isChatIntakePath: true,
+      conversationCtx: ctx({ risk: { privilegedAccess: false } }), conversationSlots: SLOTS, hasDetermination: true,
+    });
+    assert.equal(complete, true, 'the fixture conversation is not complete, so this proves nothing');
+    assert.equal(without, false, `${missing} missing still passed Details`);
+  }
+});
+
 check('the form paths keep their title-and-value gate', () => {
   const step = stepById('details');
   const formData = { ...INITIAL_INTAKE_DATA, preCheckOutcome: 'full-request', category: 'contract-renewal' };
@@ -128,7 +147,7 @@ check('the form paths keep their title-and-value gate', () => {
     data: formData, isChatIntakePath: false, conversationCtx: ctx(), conversationSlots: SLOTS, hasDetermination: true,
   }), false);
   assert.equal(step.canProceed({
-    data: { ...formData, title: 'Renewal', estimatedValue: 1000 },
+    data: { ...formData, title: 'Renewal', estimatedValue: 1000, costCentre: 'CC-1', deliveryDate: '2027-01-15' },
     isChatIntakePath: false, conversationCtx: ctx(), conversationSlots: SLOTS, hasDetermination: true,
   }), true);
 });

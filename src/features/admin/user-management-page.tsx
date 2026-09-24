@@ -20,6 +20,7 @@ import { DataTable, type Column } from '@/components/shared/data-table';
 import { useUsers, useCreateUser, useUpdateUser, useDeleteUser } from '@/lib/db/hooks/use-users';
 import { roles as canonicalRoles } from '@/config/roles';
 import type { User } from '@/data/types';
+import { initialsOf } from '@/lib/format';
 
 /** Canonical system role id → friendly label (falls back to the raw value). */
 const roleLabel = (id: string) => canonicalRoles.find((r) => r.id === id)?.label ?? id;
@@ -36,8 +37,6 @@ interface UserRow {
 
 
 const blankForm = { name: '', email: '', role: '', department: '' };
-const initialsOf = (name: string) =>
-  name.split(/\s+/).filter(Boolean).map((w) => w[0]).join('').slice(0, 2).toUpperCase() || 'U';
 
 export function UserManagementPage() {
   const { data: users = [] } = useUsers();
@@ -63,7 +62,7 @@ export function UserManagementPage() {
       email: form.email.trim(),
       role: form.role.trim() || 'service-owner',
       department: form.department.trim() || 'General',
-      initials: initialsOf(form.name),
+      initials: initialsOf(form.name, 'U'),
       isOOO: false,
     };
     try {

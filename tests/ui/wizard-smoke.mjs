@@ -313,7 +313,28 @@ try {
   check('choosing it says so, and is reversible',
     (await page.getByText(/No supplier in mind — sourcing will identify candidates/).count()) > 0
     && (await page.getByRole('button', { name: /I do have one/ }).count()) > 0);
-  check('Next opens once every risk question is answered',
+  // Submit requires a cost centre (submission-requirements.ts), and this user
+  // has none on their profile. Details used to let them through and the server
+  // refused on the final click; now Details holds Next and says where to add it.
+  check('with every question answered, Next still waits for a cost centre',
+    !(await page.getByRole('button', { name: /^Next$/ }).isEnabled().catch(() => true)));
+  check('…and the footer says where to add it',
+    (await page.getByText(/Add a cost centre under Charged to/).count()) > 0);
+  check('Charged to says it is needed, not that it can wait',
+    (await page.getByText('Not set yet — needed before you submit').count()) > 0);
+  await page.getByText('Charged to', { exact: true }).locator('xpath=..').getByRole('button', { name: /Change/ }).click();
+  const centre = page.getByLabel('Cost centre', { exact: true });
+  const firstCentre = await centre.evaluate((el) => [...el.options].map((o) => o.value).find(Boolean) ?? '');
+  await centre.selectOption(firstCentre);
+  await page.waitForTimeout(400);
+  // The conversation gave up on the need-by date inside that long answer. It
+  // used to be read-only in Key facts, so a skipped date could never be added
+  // and the request could never be submitted.
+  check('a skipped need-by date is named, with where to add it',
+    (await page.getByText('Add a need-by date under Key facts.').count()) > 0);
+  await page.locator('#key-facts-need-by').fill('2027-01-15');
+  await page.waitForTimeout(400);
+  check('Next opens once every risk question is answered and a cost centre and date are given',
     await page.getByRole('button', { name: /^Next$/ }).isEnabled().catch(() => false));
 
   // 3f. BUDGET "NOT KNOWN" — THE REPORTED DEFECT. Budget used to be slot #2,
@@ -398,6 +419,17 @@ try {
   check('residual question is criteria-triggered (shows its rationale)',
     (await page.getByText(/Asked because:/).count()) > 0);
   await page.locator('#mini-irq-critical').click();
+  // Submit needs a need-by date and a cost centre; the form path asks for the
+  // date in the form, and names both until they are given.
+  check('the form path names what submit will need',
+    (await page.getByText(/To review this request, add a need-by date/).count()) > 0
+    && (await page.getByText('Add a cost centre under Charged to.').count()) > 0);
+  await page.locator('#delivery-date').fill('2027-03-31');
+  await page.getByText('Charged to', { exact: true }).locator('xpath=..').getByRole('button', { name: /Change/ }).click();
+  {
+    const centre = page.getByLabel('Cost centre', { exact: true });
+    await centre.selectOption(await centre.evaluate((el) => [...el.options].map((o) => o.value).find(Boolean) ?? ''));
+  }
 
   // 5. Review & submit — EVERY conclusion, and nothing to fill in: the buying
   //    channel, the risk read, who approves it, and which checks ran. This was

@@ -46,6 +46,7 @@ import {
   stepGuidance,
   stepNumber,
   submitStepFor,
+  detailsSubmissionGaps,
   type IntakeStepId,
 } from './intake-steps';
 import { sectionValuesOf } from '@/lib/procurement/service-description-seed';
@@ -287,12 +288,21 @@ export function NewRequestPage() {
       : []),
     [isChatIntakePath, conversationCtx, conversationSlots, riskSlots],
   );
-  // Named, not counted: the gate is `title && estimatedValue > 0` on the form
-  // paths, and a requester staring at a disabled button needs to know which.
+  // Named, not counted: a requester staring at a disabled button needs to know
+  // which. The submission gaps are the server's own list; a slot the assistant
+  // is still going to ask about is left to the assistant rather than named twice.
+  const outstandingFields = new Set<string>(outstanding.map((slot) => slot.target.field));
+  const gapsToName = detailsSubmissionGaps(formData).filter((gap) => !outstandingFields.has(gap.field));
+  // Where each is entered depends on the path: the form path asks for the title
+  // and date in the form itself; the conversation path has them in Key facts.
+  // The cost centre is under Charged to on both.
+  const formFields = new Set<string>(isChatIntakePath ? [] : ['title', 'deliveryDate']);
   const missingDetailFields = [
-    !formData.title ? 'a title' : null,
+    ...gapsToName.filter((gap) => formFields.has(gap.field)).map((gap) => gap.label),
     !(formData.estimatedValue > 0) ? 'an estimated value' : null,
   ].filter((field): field is string => Boolean(field));
+  const whereEntered = (field: string) => (field === 'costCentre' ? 'Charged to' : 'Key facts');
+  const gapsOutsideForm = gapsToName.filter((gap) => !formFields.has(gap.field));
 
   const wizardSteps = progressStepsForRoute(route);
   const submitStepId = submitStepFor(route);
@@ -1002,6 +1012,13 @@ export function NewRequestPage() {
             {stepId === 'details' && !isChatIntakePath && missingDetailFields.length > 0 && (
               <p className="mr-1 max-w-md text-right text-xs text-ink-3">
                 To review this request, add {missingDetailFields.join(', ')}.
+              </p>
+            )}
+            {/* What submit will require and nothing on this step has asked for
+                yet — a need-by date the conversation skipped, a cost centre. */}
+            {stepId === 'details' && route === 'full-request' && gapsOutsideForm.length > 0 && (
+              <p className="mr-1 max-w-md text-right text-xs text-ink-3">
+                {gapsOutsideForm.map((gap) => `Add ${gap.label} under ${whereEntered(gap.field)}`).join('; ')}.
               </p>
             )}
             {(stepId === 'details' || stepId === 'review') && (

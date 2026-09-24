@@ -290,7 +290,8 @@ check("the stepper renders each step's description", /stepDescription\(step\.id,
     },
   };
   const gate = (conversationCtx) => stepById('details').canProceed({
-    data: { preCheckOutcome: 'full-request', category: 'consulting', catalogueItems: [], title: '', estimatedValue: 0 },
+    // What submit requires is present; the floor is what is under test here.
+    data: { preCheckOutcome: 'full-request', category: 'consulting', catalogueItems: [], title: 'A demand', estimatedValue: 0, costCentre: 'CC-1', deliveryDate: '2027-01-15' },
     isChatIntakePath: true, conversationCtx, conversationSlots: resolveSlots(), hasDetermination: true,
   });
   check('the details gate holds the conversation to its mandatory floor', !gate(emptyCtx));
@@ -382,7 +383,9 @@ console.log('\nA question with a parser behind it cannot loop forever');
 check('an unreadable answer is given up on rather than re-asked',
   /unresolvedAttemptsRef/.test(CHAT_SRC)
   && /attempts >= 2/.test(CHAT_SRC)
-  && /leave the need-by date open/.test(CHAT_SRC)
+  // It says where to add the date instead of promising it can stay open —
+  // submit requires one (submission-requirements.ts).
+  && /add the need-by date under Key facts/.test(CHAT_SRC)
   && /skippedSlots/.test(CHAT_SRC));
 // Both fields with a parser behind them, not just the date.
 check('the budget gives up too, rather than a second copy of the rule',

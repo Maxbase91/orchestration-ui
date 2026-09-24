@@ -11,6 +11,7 @@ import {
 } from '../../src/lib/workflow/channel-stages.js';
 import { nodeIdForStatus } from '../../src/lib/workflow/node-config.js';
 import { slaDeadlineFor } from '../../src/lib/workflow/business-days.js';
+import { submissionGaps, describeGaps } from '../../src/lib/procurement/submission-requirements.js';
 
 type JsonRecord = Record<string, unknown>;
 type IntakePayload = {
@@ -84,7 +85,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     const request = record(payload.request);
     const id = requiredString(request.id, 'requestId');
     const requestorId = requiredString(request.requestorId, 'requestorId');
-    const title = requiredString(request.title, 'title');
     const category = requiredString(request.category, 'category');
     const buyingChannel = requiredString(payload.buyingChannel ?? request.buyingChannel, 'buyingChannel').toLowerCase();
     // From the channel map, not a second hand-written list. The copy that used
@@ -97,8 +97,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     const value = Number(request.value ?? 0);
     if (!Number.isFinite(value) || value < 0) throw new IntakeError('validation_error', 422, 'Estimated value must be zero or greater.', { value: 'Enter a valid amount' });
     const deliveryDate = optionalIsoDate(request.deliveryDate, 'deliveryDate');
-    if (!deliveryDate) throw new IntakeError('missing_required_field', 422, 'A specific need-by date is required before submission.', { deliveryDate: 'Enter a date such as 2026-12-31' });
-    const costCentre = requiredString(request.costCentre, 'costCentre');
+    // The same list the Details step gates on, so the requester is asked for
+    // these before this refusal can ever be reached.
+    const gaps = submissionGaps({
+      title: typeof request.title === 'string' ? request.title : null,
+      costCentre: typeof request.costCentre === 'string' ? request.costCentre : null,
+      deliveryDate,
+    });
+    if (gaps.length > 0) {
+      throw new IntakeError('missing_required_field', 422, `Before submitting, add ${describeGaps(gaps)}.`,
+        Object.fromEntries(gaps.map((gap) => [gap.field, `Add ${gap.label}`])));
+    }
+    const title = (request.title as string).trim();
+    const costCentre = (request.costCentre as string).trim();
     const beneficiaryId = requiredString(request.beneficiaryId ?? requestorId, 'beneficiaryId');
     const sow = payload.serviceDescription ? record(payload.serviceDescription) : null;
     const compliance = payload.compliance ? record(payload.compliance) : null;

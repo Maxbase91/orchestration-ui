@@ -27,6 +27,8 @@
 import type { DemandConversationContext, DemandSlot } from '../../../lib/procurement/demand-conversation.js';
 import { descriptionComplete } from './details-sections.js';
 import type { IntakeFormData } from './intake-form-data.js';
+import { submissionGaps, type SubmissionGap } from '../../../lib/procurement/submission-requirements.js';
+import { parseDeliveryDate } from '../../../lib/parse-delivery-date.js';
 
 /** Which fulfilment path the demand is on. Decides which steps apply. */
 export type IntakeStepRoute = 'full-request' | 'catalogue' | 'contract';
@@ -66,6 +68,20 @@ export interface IntakeGateState {
   conversationSlots: DemandSlot[];
   /** Null while the determination is still resolving. */
   hasDetermination: boolean;
+}
+
+/**
+ * What the full request still lacks for submit to accept it — the server's own
+ * list (submission-requirements.ts), so the Details step asks for it rather than
+ * the submit refusing it. The need-by date is checked as the server will see
+ * it: parsed, because "end of next month" is only a date once it parses.
+ */
+export function detailsSubmissionGaps(data: IntakeFormData): SubmissionGap[] {
+  return submissionGaps({
+    title: data.title,
+    costCentre: data.costCentre,
+    deliveryDate: parseDeliveryDate(data.deliveryDate),
+  });
 }
 
 export interface IntakeStepDefinition {
@@ -173,9 +189,10 @@ export const INTAKE_STEPS: readonly IntakeStepDefinition[] = [
       // sections, so holding them to the same floor would block them forever.
       // The same predicate the screen uses to reveal the last section, so the
       // gate and the reveal cannot disagree about what "done" means.
-      return isChatIntakePath
+      const described = isChatIntakePath
         ? descriptionComplete({ isChatIntakePath, conversationCtx, conversationSlots })
         : !!data.title && data.estimatedValue > 0;
+      return described && detailsSubmissionGaps(data).length === 0;
     },
   },
   {

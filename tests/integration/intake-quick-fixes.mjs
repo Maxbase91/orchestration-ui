@@ -102,11 +102,15 @@ check('an expired contract is named rather than reported as none', () => {
     'the requester knows a contract exists and would read "no contract" as a miss');
 });
 
-console.log('\nAn optional cost centre does not look unfilled');
+console.log('\nAn unset cost centre says when it is needed');
 
-check('it says it can be added later', () => {
-  assert.match(read('src/features/requests/new-request/components/requester-context-block.tsx'),
-    /you can add it later/, '"Not set on your profile" reads as a field they failed to fill');
+// This pinned "you can add it later", which was untrue: submit refuses a
+// request without a cost centre (submission-requirements.ts). It now says the
+// true thing — still not "Not set on your profile", which reads as a failure.
+check('it says it is needed before submit', () => {
+  const block = read('src/features/requests/new-request/components/requester-context-block.tsx');
+  assert.match(block, /needed before you submit/, 'the requester would first hear of it on the final click');
+  assert.doesNotMatch(block, /you can add it later|Not set on your profile/);
 });
 
 if (failures > 0) { console.error(`\nintake-quick-fixes: ${failures} check(s) failed.`); process.exit(1); }

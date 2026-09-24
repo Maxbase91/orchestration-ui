@@ -44,6 +44,7 @@
     "test:preference": "node tests/integration/supplier-preference.mjs",
     "test:materiality": "node tests/integration/materiality.mjs",
     "test:category-code": "node --import tsx/esm tests/integration/category-code.mjs",
+    "test:submission-requirements": "node --import tsx/esm tests/integration/submission-requirements.mjs",
     "test:risk-segmentation": "node tests/integration/risk-segmentation.mjs",
     "test:risk-reuse": "node tests/integration/risk-reuse.mjs",
     "test:handoff": "node tests/integration/handoff.mjs",

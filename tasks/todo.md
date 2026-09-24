@@ -54,6 +54,12 @@ call-offs and trusted the browser's channel; 13 live requests re-pointed.
       + "Preferred suppliers for this category".
 - [x] Creating a sourcing event invites the category's preferred suppliers.
 
+## Found while verifying (2026-09-24)
+- [x] Submit refused a full request with no need-by date or cost centre that
+      Details had let through; the conversation promised both could wait, and a
+      skipped date could not be entered anywhere. One shared list now.
+- [x] Approver avatars rendered every word's initial ("CM—RFoAM").
+
 ## Verification
 tsc, lint, `test:all`, the offline browser suites, each new guard verified by
 reinstating its defect; live backfills idempotent and read back.

@@ -42,3 +42,16 @@ export function formatRelativeTime(date: string | Date): string {
 export function formatNumber(value: number): string {
   return numberFormatter.format(value);
 }
+
+/**
+ * At most two initials for an avatar. A role-open approver reads "Category
+ * Manager — Robert Fischer or Anna Müller"; taking a letter from every word
+ * rendered "CM—RFoAM" across a 32px circle. It is named by its role — the part
+ * before the dash — and "Any" is a qualifier, not a name, as is a title such as
+ * "Dr." (a word ending in a full stop).
+ */
+export function initialsOf(name: string, fallback = '?'): string {
+  const head = name.split(/\s+[—–-]\s+/)[0] ?? '';
+  const words = head.split(/\s+/).filter((w) => /^\p{L}/u.test(w) && !w.endsWith('.') && w.toLowerCase() !== 'any');
+  return words.map((w) => w[0]).join('').slice(0, 2).toUpperCase() || fallback;
+}

@@ -107,6 +107,14 @@ try {
     }
     await page.locator('#title').fill('E2E submit test');
     await page.locator('#value').fill('60000');
+    // Submit requires a need-by date and a cost centre (submission-requirements.ts);
+    // Details now asks for both instead of the server refusing on the final click.
+    await page.locator('#delivery-date').fill('2027-03-31');
+    if (await page.getByText('Not set yet — needed before you submit').count()) {
+      await page.getByText('Charged to', { exact: true }).locator('xpath=..').getByRole('button', { name: /Change/ }).click();
+      const centre = page.getByLabel('Cost centre', { exact: true });
+      await centre.selectOption(await centre.evaluate((el) => [...el.options].map((o) => o.value).find(Boolean) ?? ''));
+    }
     // The risk questions are asked on Details, beside the demand they refer to.
     await page.getByText('Mini risk questionnaire').waitFor({ timeout: 15000 });
     await page.getByRole('button', { name: /Next/ }).click();          // → review & submit

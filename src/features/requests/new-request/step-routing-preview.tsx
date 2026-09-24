@@ -15,6 +15,7 @@ import {
   selectWorkflowTemplateForCategory,
 } from '@/lib/workflow/workflow-steps';
 import { usePolicyConfig } from '@/lib/procurement/use-policy-config';
+import { initialsOf } from '@/lib/format';
 
 interface StepRoutingPreviewProps {
   category: string;
@@ -159,7 +160,7 @@ export function StepRoutingPreview({
               >
                 <div className="flex items-center gap-3">
                   <div className="flex size-8 items-center justify-center rounded-full bg-idle-soft text-xs font-medium text-ink-2">
-                    {approver.name.split(' ').map((n) => n[0]).join('')}
+                    {initialsOf(approver.name)}
                   </div>
                   <div>
                     <p className="text-sm font-medium text-ink">{approver.name}</p>

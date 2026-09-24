@@ -148,7 +148,7 @@ const FIELD_LABELS: { key: string; label: string }[] = [
   { key: 'title', label: 'Description' },
   { key: 'category', label: 'Commodity Code' },
   { key: 'estimatedValue', label: 'Estimated Value' },
-  { key: 'deliveryDate', label: 'Delivery Timeline' },
+  { key: 'deliveryDate', label: 'Need-by date' },
 ];
 
 // The service-description components come from the resolved template, not from
@@ -460,7 +460,7 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
       unresolvedAttemptsRef.current[field] = 0;
       return {
         hint: field === 'deliveryDate'
-          ? 'No problem — we will leave the need-by date open and you can add it later.\n\n'
+          ? 'No problem — add the need-by date under Key facts once you know it. It is needed before you can submit.\n\n'
           : 'No problem — we will leave the budget open and you can add it once it is known.\n\n',
         skipped: true,
       };
@@ -1319,6 +1319,28 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
                   // header they could not correct without going back — the
                   // sections beside them have always been editable.
                   const editable = key === 'title' || key === 'estimatedValue';
+                  // The need-by date too: the conversation drops it after two
+                  // unreadable answers, and submit requires it — read-only here,
+                  // a skipped date could never be added and the request could
+                  // never be submitted.
+                  if (key === 'deliveryDate') {
+                    const iso = parseDeliveryDate(data.deliveryDate);
+                    return (
+                      <div key={key} className="flex items-start gap-2">
+                        {iso ? <CheckCircle className="size-3.5 text-ok mt-0.5 shrink-0" /> : <Circle className="size-3.5 text-ink-3 mt-0.5 shrink-0" />}
+                        <div className="min-w-0 flex-1">
+                          <label htmlFor="key-facts-need-by" className="block text-[11px] font-medium uppercase tracking-wider text-ink-3">Need-by date</label>
+                          <input
+                            id="key-facts-need-by"
+                            type="date"
+                            className="w-full rounded border border-transparent bg-transparent px-1 py-0.5 text-xs text-ink transition-colors hover:border-line focus:border-accent focus:bg-card focus:outline-none"
+                            value={iso ?? ''}
+                            onChange={(e) => onUpdate({ deliveryDate: e.target.value })}
+                          />
+                        </div>
+                      </div>
+                    );
+                  }
                   return (
                     <div key={key} className="flex items-start gap-2">
                       {filled ? <CheckCircle className="size-3.5 text-ok mt-0.5 shrink-0" /> : <Circle className="size-3.5 text-ink-3 mt-0.5 shrink-0" />}
