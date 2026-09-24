@@ -9,7 +9,8 @@
 
 import { spawn } from 'node:child_process';
 import { chromium } from 'playwright';
-import { neonClient } from '../lib/live.mjs';
+import { neon } from '@neondatabase/serverless';
+import { neonClient, loadEnv } from '../lib/live.mjs';
 
 // A deployed base exercises Vercel functions as well as the SPA. Without it,
 // this suite starts Vite for fast UI-only development feedback.
@@ -20,6 +21,16 @@ const ADMIN = { id: 'u11', name: 'Christine Dupont', email: 'christine.dupont@co
 // neonClient hydrates .env.local into process.env, so E2E_UI_BASE above still
 // resolves, and skips the suite cleanly when no database is configured.
 const sb = await neonClient('interactions-ui');
+/** The live policy row before Flow 4 changed it — restored in the finally. */
+let policySnapshot = null;
+// The policy row is not behind /api/db (it has its own endpoint), so `sb` cannot
+// read or write it: the snapshot came back null and the restore was skipped
+// without a word. A direct connection, as the other live suites use.
+const policySql = (() => {
+  const env = loadEnv();
+  const url = env.NEON_DATABASE_URL || env.DATABASE_URL;
+  return url ? neon(url) : null;
+})();
 
 let failures = 0;
 function check(name, cond, detail = '') {
@@ -218,7 +229,20 @@ try {
   // the default 250k threshold; after the admin lowers it to 10k and saves, the
   // same demand becomes a FULL gate.
   console.log('Flow 4 — admin threshold edit drives the live determination');
+  // This flow SAVES a threshold to the live policy row, and nothing put it back:
+  // a run left production's full-approval threshold at €10,000. The row is
+  // snapshotted here and restored in the suite's finally, so a flow that throws
+  // part-way cannot skip the restore.
+  if (policySql) {
+    const rows = await policySql`SELECT config FROM procurement_policy_configs WHERE singleton_key = 'default'`;
+    policySnapshot = rows[0]?.config ?? null;
+  }
   flow4: {
+    // Without a snapshot there is no way back, so the live row is not touched.
+    if (!policySnapshot) {
+      skip('config-wiring check needs a snapshot of the live policy row to restore — none could be read');
+      break flow4;
+    }
     const ctx = await browser.newContext();
     await ctx.addInitScript((u) => localStorage.setItem('auth', JSON.stringify({ state: { currentRole: 'admin', currentUser: u }, version: 0 })), ADMIN);
     const page = await ctx.newPage();
@@ -245,6 +269,13 @@ try {
     }
     await page.locator('#title').fill('Config wiring test');
     await page.locator('#value').fill('50000');
+    // What submit requires (submission-requirements.ts) — Details holds Next without it.
+    await page.locator('#delivery-date').fill('2027-03-31');
+    if (await page.getByText('Not set yet — needed before you submit').count()) {
+      await page.getByText('Charged to', { exact: true }).locator('xpath=..').getByRole('button', { name: /Change/ }).click();
+      const centre = page.getByLabel('Cost centre', { exact: true });
+      await centre.selectOption(await centre.evaluate((el) => [...el.options].map((o) => o.value).find(Boolean) ?? ''));
+    }
     await page.getByRole('button', { name: /Next/ }).click();   // → review & submit
     await page.getByText('Approval to source', { exact: true }).waitFor({ timeout: 15000 });
     const fullGate = await page.getByText('full gate', { exact: true }).count();
@@ -343,10 +374,12 @@ try {
     const page = await ctx.newPage();
     const errors = []; page.on('pageerror', e => errors.push(e.message));
     await page.goto(`${BASE}/`, { waitUntil: 'networkidle' });
-    await page.getByText('Data Source', { exact: true }).waitFor({ timeout: 15000 });
+    // Labels as the Home redesign (2026-09-23) writes them; this live-only suite
+    // was not re-run then, so it kept waiting for the old capitalisation.
+    await page.getByText('Data source', { exact: true }).waitFor({ timeout: 15000 });
     await page.waitForTimeout(800);
     check('System Health shows the real Data Source status (not a hardcoded API tile)',
-      (await page.getByText(/Requests \(today/).count()) > 0);
+      (await page.getByText(/Requests raised \(today/).count()) > 0);
     check('the fabricated "AI Insights" analysis claim is gone',
       (await page.getByText(/Based on analysis of current request pipeline/).count()) === 0);
     check('no uncaught errors on the dashboard', errors.length === 0, errors[0]);
@@ -360,6 +393,20 @@ try {
   console.error('Interaction E2E errored:', err.message);
   process.exitCode = 1;
 } finally {
+  if (policySnapshot && policySql) {
+    try {
+      await policySql`UPDATE procurement_policy_configs
+        SET config = ${JSON.stringify(policySnapshot)}::jsonb, updated_by = 'interactions-e2e-restore', updated_at = now()
+        WHERE singleton_key = 'default'`;
+      const [row] = await policySql`SELECT config FROM procurement_policy_configs WHERE singleton_key = 'default'`;
+      const restored = JSON.stringify(row?.config?.approvalFullThreshold) === JSON.stringify(policySnapshot.approvalFullThreshold);
+      console.log(restored ? '  (live policy row restored)' : '  ✗ the live policy row did not restore');
+      if (!restored) process.exitCode = 1;
+    } catch (error) {
+      console.error('  ✗ could not restore the live policy row:', error.message);
+      process.exitCode = 1;
+    }
+  }
   if (browser) await browser.close();
   server?.kill('SIGTERM');
 }
