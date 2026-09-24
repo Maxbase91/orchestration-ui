@@ -210,6 +210,27 @@ try {
   check('ordering the matched item opens its detail page',
     new URL(page.url()).pathname === '/catalogue/items/IT-001');
 
+  // 3a. THE DIRECT CALL-OFF LIMIT. Above it a call-off needs a mini-competition,
+  //     and the checkout refuses it — so the form says so beside the value and
+  //     holds Review, rather than the refusal arriving after submit.
+  await page.goto(`${BASE}/requests/new`, { waitUntil: 'networkidle' });
+  await page.locator('#need-input').fill('a few standard office laptops for a new starter');
+  await page.locator('#need-input').press('Enter');
+  await page.getByRole('button', { name: /Accept & continue/ }).click();
+  await page.getByText("How you'll buy this", { exact: true }).waitFor({ timeout: 15000 });
+  const callOff = page.getByRole('button', { name: /Call it off/ }).first();
+  check('the covering contract can be called off', (await callOff.count()) > 0);
+  await callOff.click();
+  await page.locator('#calloff-value').waitFor({ timeout: 10000 });
+  await page.locator('#calloff-value').fill('300000');
+  check('a call-off above the limit is named as needing a mini-competition',
+    (await page.getByRole('alert').filter({ hasText: /direct call-off limit/ }).count()) > 0);
+  check('…and Review is held',
+    !(await page.getByRole('button', { name: 'Review request' }).isEnabled()));
+  await page.locator('#calloff-value').fill('20000');
+  check('under the limit the warning goes',
+    (await page.getByRole('alert').filter({ hasText: /direct call-off limit/ }).count()) === 0);
+
   // 3b. THE REPORTED DEFECT. "business consulting" used to match the catalogue
   //     item "Business Cards 500" — the word "business" hit the item name and
   //     carried the whole match, while "consulting" matched nothing and cost

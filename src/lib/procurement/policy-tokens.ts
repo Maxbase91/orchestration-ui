@@ -73,6 +73,7 @@ export const POLICY_KEY_META: Record<NumericPolicyKey, { label: string; help: st
   minCompetitiveQuotes: { label: 'Minimum competitive quotes', help: 'Quotes required above the competitive-sourcing threshold', unit: '' },
   preferredMinPerformance: { label: 'Preferred-supplier performance bar', help: 'Minimum performance score to qualify as preferred', unit: '/100' },
   contractUtilisationHeadroom: { label: 'Contract utilisation headroom', help: 'Below this %, an active contract is transactable', unit: '%' },
+  directCallOffLimit: { label: 'Direct call-off limit', help: 'Above this value a contract call-off needs a mini-competition, so it goes in as a new request', unit: '€' },
   contractExpiryBufferDays: { label: 'Contract expiry buffer', help: 'Days-to-expiry that flag a contract as expiring', unit: 'days' },
   catalogueMatchThreshold: { label: 'Catalogue match threshold', help: 'Minimum score for a catalogue item to be offered at intake', unit: '' },
   catalogueMinContentMatches: { label: 'Catalogue naming-word matches', help: 'Naming words (not adjectives) a catalogue match must hit', unit: '' },

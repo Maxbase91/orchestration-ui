@@ -85,4 +85,22 @@ const selfApproved = evaluateGovernedCheckout({
 check('a location the profile claims to approve is still rejected if the table does not have it',
   !selfApproved.ok && selfApproved.errors.some((error) => /delivery location is not active/i.test(error)));
 
+// The direct call-off limit: above it a call-off is not a direct award, and the
+// server refuses it whatever the browser offered.
+{
+  const { DEFAULT_POLICY_CONFIG } = await import('../../src/lib/procurement/policy-config.ts');
+  const bigContract = { ...contract, value: 10_000_000 };
+  const callOff = (unitPrice, config = DEFAULT_POLICY_CONFIG, route = 'contract-call-off') => evaluateGovernedCheckout({
+    route, lines: [{ ...line, unitPrice }], supplier, contract: bigContract, riskAssessment: risk, profile, ...reference,
+    purpose: 'Call-off limit', now: new Date('2026-08-29'),
+  }, config);
+  check('a call-off under the direct call-off limit is accepted', callOff(200_000).ok);
+  const over = callOff(300_000);
+  check('a call-off over the limit is refused, saying it needs a mini-competition',
+    !over.ok && over.errors.some((e) => /direct call-off limit/.test(e) && /mini-competition/.test(e)));
+  check('the limit is read from the policy', callOff(300_000, { ...DEFAULT_POLICY_CONFIG, directCallOffLimit: 500_000 }).ok);
+  check('a catalogue order is not held to the call-off limit',
+    !callOff(300_000, DEFAULT_POLICY_CONFIG, 'catalogue').errors.some((e) => /direct call-off limit/.test(e)));
+}
+
 if (failures > 0) process.exitCode = 1;

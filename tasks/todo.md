@@ -46,7 +46,7 @@ call-offs and trusted the browser's channel; 13 live requests re-pointed.
       per-category writing guidance (replaces CATEGORY_GUIDANCE in generate-sow).
 - [x] Decisioning thresholds: competitive-sourcing exempt categories (was a
       code default in supplier-preference.ts); category lists as checklists.
-- [ ] Decisioning thresholds: direct call-off limit (wired into the call-off
+- [x] Decisioning thresholds: direct call-off limit (wired into the call-off
       checks, not just stored).
 - [ ] Decisioning thresholds: preferred-supplier override needs a reason +
       category-manager approval.

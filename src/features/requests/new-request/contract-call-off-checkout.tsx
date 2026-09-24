@@ -13,6 +13,8 @@ import { useProcurementProfile } from '@/lib/db/hooks/use-procurement-profile';
 import { useCostCentres } from '@/lib/db/hooks/use-cost-centres';
 import { useDeliveryLocations } from '@/lib/db/hooks/use-delivery-locations';
 import { cn } from '@/lib/utils';
+import { usePolicyConfig } from '@/lib/procurement/use-policy-config';
+import { formatCurrency } from '@/lib/format';
 
 export interface ContractCallOffDraft {
   title: string;
@@ -97,7 +99,11 @@ export function ContractCallOffCheckout({ contract, initialValues, onSubmit }: C
     // this agrees with `evaluateGovernedCheckout`.
     !costCentre && 'a cost centre',
   ].filter((entry): entry is string => typeof entry === 'string');
-  const canSubmit = missing.length === 0 && validDates;
+  // Above the direct call-off limit the award needs a mini-competition, and the
+  // checkout refuses it — so it is said here, beside the value, not after submit.
+  const { directCallOffLimit } = usePolicyConfig();
+  const overCallOffLimit = value > directCallOffLimit;
+  const canSubmit = missing.length === 0 && validDates && !overCallOffLimit;
 
   const submit = () => {
     if (!canSubmit) return;
@@ -129,6 +135,12 @@ export function ContractCallOffCheckout({ contract, initialValues, onSubmit }: C
               the controlled state still blocks Review. */}
           <div className="space-y-1.5"><Label htmlFor="calloff-need-by">Need by</Label><Input id="calloff-need-by" type="date" value={needBy} onInput={(e) => setNeedBy(e.currentTarget.value)} /></div>
         </div>
+        {overCallOffLimit && (
+          <p role="alert" className="text-xs text-stop">
+            {formatCurrency(value)} is above the {formatCurrency(directCallOffLimit)} direct call-off limit. A call-off this
+            size needs a mini-competition among the contract&apos;s suppliers — go back and raise it as a new request.
+          </p>
+        )}
         {needsServiceDates && <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5"><Label htmlFor="calloff-start">Service start</Label><Input id="calloff-start" type="date" value={serviceStartDate} onInput={(e) => setServiceStartDate(e.currentTarget.value)} /></div>
           <div className="space-y-1.5"><Label htmlFor="calloff-end">Service end</Label><Input id="calloff-end" type="date" value={serviceEndDate} onInput={(e) => setServiceEndDate(e.currentTarget.value)} /></div>
@@ -171,7 +183,9 @@ export function ContractCallOffCheckout({ contract, initialValues, onSubmit }: C
           <p className="text-center text-xs text-muted-foreground">
             {missing.length > 0
               ? `Still needed: ${missing.join(', ')}.`
-              : 'Service end must be on or after service start.'}
+              : overCallOffLimit
+                ? 'Above the direct call-off limit — raise it as a new request.'
+                : 'Service end must be on or after service start.'}
           </p>
         )}
       </CardContent>

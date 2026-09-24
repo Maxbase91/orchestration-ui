@@ -156,6 +156,11 @@ export function evaluateGovernedCheckout(
   const remainingValue = Math.max(0, input.contract.value * (1 - input.contract.utilisationPercentage / 100));
   const capacityExceeded = totalValue > remainingValue;
   if (capacityExceeded) errors.push(`The order exceeds the contract's remaining capacity of ${remainingValue.toFixed(2)}.`);
+  // Server-authoritative twin of the buy-route rule: above the limit a call-off
+  // is not a direct award, whatever the browser offered.
+  if (input.route === 'contract-call-off' && totalValue > config.directCallOffLimit) {
+    errors.push(`This call-off is above the ${config.directCallOffLimit.toLocaleString('en-IE')} direct call-off limit, so it needs a mini-competition — raise it as a new request.`);
+  }
   if (input.supplier.screeningStatus === 'flagged') errors.push('The supplier is flagged for screening and cannot be used.');
   const riskAssessment = input.riskAssessment;
   const riskReviewRequired = !assessmentIsValid(riskAssessment, now);

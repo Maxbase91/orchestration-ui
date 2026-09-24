@@ -7,7 +7,8 @@
 // bought — matched nothing and cost nothing. Of 37 live catalogue items, zero
 // contain "consult", so the catalogue could not fulfil that demand at all.
 //
-// Self-contained — mirrors src/lib/procurement/intake-routing.ts. Keep in sync.
+// Runs the real modules — the route decision and the channel resolver — over
+// the seeded rules. It used to carry copies of both.
 // Run: npm run test:intake-routing
 
 let failures = 0;
@@ -18,137 +19,14 @@ function check(name, cond, detail = '') {
 
 // ── mirrors intake-routing.ts ───────────────────────────────────────────────
 
-const STOP_WORDS = new Set([
-  'i', 'a', 'an', 'the', 'of', 'for', 'to', 'we', 'us', 'our', 'my',
-  'need', 'want', 'would', 'like', 'please', 'can', 'new', 'some',
-  'buy', 'buying', 'purchase', 'purchasing', 'procure', 'order', 'get',
-  'looking', 'require', 'requires', 'and', 'with', 'from', 'about',
-]);
+// The real module, not a copy. This file used to carry its own version of the
+// routing ("Self-contained — mirrors intake-routing.ts. Keep in sync"), so it
+// tested the copy: a change to the module could pass here unseen.
+import { decideIntakeRoute as decideReal, matchContracts } from '../../src/lib/procurement/intake-routing.ts';
+import { DEFAULT_POLICY_CONFIG } from '../../src/lib/procurement/policy-config.ts';
 
-const MODIFIER_WORDS = new Set([
-  'business', 'premium', 'professional', 'standard', 'basic', 'advanced',
-  'small', 'large', 'high', 'low', 'good', 'best', 'quality', 'general',
-  'corporate', 'company', 'team', 'office', 'annual', 'monthly', 'daily',
-]);
-
-const CONFIG = { catalogueMatchThreshold: 0.5, catalogueMinContentMatches: 1 };
-
-const tokenize = (text) =>
-  text.toLowerCase().split(/\s+/)
-    .map((w) => w.replace(/[^a-z0-9-]/g, ''))
-    .filter((w) => w.length > 2 && !STOP_WORDS.has(w));
-
-const contentTokens = (tokens) => tokens.filter((t) => !MODIFIER_WORDS.has(t));
-
-function tokenMatches(haystack, token) {
-  if (haystack.includes(token)) return true;
-  if (token.endsWith('s') && token.length > 3 && haystack.includes(token.slice(0, -1))) return true;
-  return false;
-}
-
-function scoreCatalogueItem(item, tokens) {
-  const name = item.name.toLowerCase();
-  const haystack = `${item.description} ${item.catalogueName}`.toLowerCase();
-  let score = 0;
-  const matched = [];
-  for (const t of tokens) {
-    if (tokenMatches(name, t)) { score += 1.0; matched.push(t); }
-    else if (tokenMatches(haystack, t)) { score += 0.5; matched.push(t); }
-  }
-  return { score, matched, matchedContent: contentTokens(matched) };
-}
-
-function matchCatalogue(demand, items, eligible, config = CONFIG) {
-  const tokens = tokenize(demand.text);
-  const content = contentTokens(tokens);
-  if (!demand.text.trim()) return { matches: [], ruledOut: 'Nothing captured yet to match against.' };
-  if (!eligible.includes(demand.category)) {
-    return {
-      matches: [],
-      ruledOut: demand.category
-        ? `${demand.category} demand isn't fulfilled from the catalogue.`
-        : 'The category is not yet known, so the catalogue cannot be checked.',
-    };
-  }
-  if (content.length === 0) {
-    return { matches: [], ruledOut: 'The description is all general words — nothing specific to match on yet.' };
-  }
-  const scored = items
-    .map((item) => ({ item, ...scoreCatalogueItem(item, tokens) }))
-    .filter((r) => r.matchedContent.length >= config.catalogueMinContentMatches)
-    .filter((r) => r.score >= config.catalogueMatchThreshold)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 6);
-  if (scored.length === 0) return { matches: [], ruledOut: 'No catalogue item covers what was described.' };
-  return { matches: scored.map((r) => ({ item: r.item, score: r.score, matched: r.matched })) };
-}
-
-function scoreContract(contract, ctx, fmt) {
-  if (contract.status !== 'active' && contract.status !== 'expiring') return null;
-  let score = 0;
-  const reasons = [];
-  let primary = false;
-  if (ctx.supplierId && contract.supplierId === ctx.supplierId) {
-    score += 0.5; primary = true; reasons.push(`matches selected supplier ${contract.supplierName}`);
-  }
-  if (contract.category.toLowerCase().includes(ctx.category) && ctx.category) {
-    score += 0.3; primary = true; reasons.push(`contract category is ${contract.category}`);
-  }
-  const haystack = `${contract.title} ${contract.category}`.toLowerCase();
-  let kwHits = 0;
-  for (const t of ctx.tokens) {
-    if (haystack.includes(t)) {
-      kwHits += 1;
-      if (!reasons.some((r) => r.includes(t))) reasons.push(`matches "${t}"`);
-    }
-  }
-  score += kwHits * 0.15;
-  if (kwHits >= 2) primary = true;
-  if (!primary) return null;
-  const remainingPct = Math.max(0, 100 - (contract.utilisationPercentage ?? 0));
-  if (remainingPct < 5) return null;
-  if (ctx.estimatedValue > 0 && contract.value > 0) {
-    const remaining = contract.value * (remainingPct / 100);
-    if (remaining >= ctx.estimatedValue) { score += 0.2; reasons.push(`has ~${fmt(remaining)} remaining capacity`); }
-  }
-  return score >= 0.3 ? { score, reasons } : null;
-}
-
-function matchContracts(demand, contracts, fmt) {
-  if (!demand.text && !demand.supplierId) return { matches: [], ruledOut: 'Nothing captured yet to match against.' };
-  const tokens = tokenize(demand.text);
-  const out = [];
-  for (const c of contracts) {
-    const m = scoreContract(c, { tokens, category: demand.category, estimatedValue: demand.estimatedValue, supplierId: demand.supplierId }, fmt);
-    if (m) out.push({ contract: c, ...m });
-  }
-  if (out.length === 0) return { matches: [], ruledOut: 'No active contract appears to cover this.' };
-  return { matches: out.sort((a, b) => b.score - a.score).slice(0, 4) };
-}
-
-const LLM_INTENT_TO_ROUTE = { catalogue: 'catalogue', 'new-request': 'new-demand' };
-
-function decideIntakeRoute(demand, data, config = CONFIG, fmt = (n) => String(Math.round(n))) {
-  const cat = matchCatalogue(demand, data.catalogueItems, data.catalogueEligibleCategories, config);
-  const con = matchContracts(demand, data.contracts, fmt);
-  const ruledOut = {};
-  if (cat.ruledOut) ruledOut.catalogue = cat.ruledOut;
-  if (con.ruledOut) ruledOut.contract = con.ruledOut;
-  const base = { catalogueMatches: cat.matches, contractMatches: con.matches, ruledOut };
-
-  const rules = cat.matches.length > 0
-    ? { route: 'catalogue', reasons: ['catalogue covers this'], confidence: cat.matches[0].score >= config.catalogueMatchThreshold * 2 ? 'high' : 'medium' }
-    : con.matches.length > 0
-      ? { route: 'contract', reasons: [`${con.matches[0].contract.title} may already cover this`], confidence: con.matches[0].score >= 0.8 ? 'high' : 'medium' }
-      : { route: 'new-demand', reasons: [cat.ruledOut, con.ruledOut].filter(Boolean), confidence: 'high' };
-
-  const llmRoute = demand.llmIntent ? LLM_INTENT_TO_ROUTE[demand.llmIntent] : undefined;
-  if (!llmRoute) return { ...base, decidedBy: 'rules', ...rules };
-  if (llmRoute === 'catalogue' && cat.matches.length === 0) {
-    return { ...base, decidedBy: 'rules', ...rules, llmOverruled: `overruled: ${cat.ruledOut}` };
-  }
-  return { ...base, route: llmRoute, decidedBy: 'llm', confidence: 'high', reasons: ['from the assistant'] };
-}
+const CONFIG = DEFAULT_POLICY_CONFIG;
+const decideIntakeRoute = (demand, data, config = CONFIG, fmt = (n) => String(Math.round(n))) => decideReal(demand, data, config, fmt);
 
 // ── fixtures: the real live catalogue rows that produced the defect ─────────
 
@@ -268,6 +146,27 @@ for (const [text, cat] of [['I want to buy business consulting', 'consulting'], 
   check(`"${text}" gives at least one reason`, d.reasons.length > 0);
 }
 
+// ── The direct call-off limit ───────────────────────────────────────────────
+// Above it a covering contract is not a direct award: the call-off needs a
+// mini-competition, so the contract route is ruled out in place, naming the
+// contract — not offered here and refused at checkout.
+console.log('\nThe direct call-off limit');
+{
+  const ask = (value, config = CONFIG) => decideIntakeRoute(
+    { text: 'strategy consulting advisory', category: 'consulting', estimatedValue: value, supplierId: '' },
+    { catalogueItems: ITEMS, contracts: CONTRACTS, catalogueEligibleCategories: ELIGIBLE }, config);
+  const under = ask(200_000);
+  const over = ask(300_000);
+  check('under the limit a covering contract is offered', under.route === 'contract' && under.contractMatches.length > 0, under.route);
+  check('over the limit it is ruled out, and the request goes in as new demand',
+    over.route === 'new-demand' && over.contractMatches.length === 0, over.route);
+  check('…saying why, and naming the contract',
+    /direct call-off limit/.test(over.ruledOut.contract ?? '') && /Strategy consulting framework/.test(over.ruledOut.contract ?? ''),
+    over.ruledOut.contract);
+  check('the limit is the configured one, not a literal',
+    ask(300_000, { ...CONFIG, directCallOffLimit: 500_000 }).route === 'contract');
+}
+
 // ── The anti-drift gate: step 2 and step 5 must give the same channel ───────
 //
 // The channel is now shown on the pre-check, four steps before the
@@ -275,80 +174,20 @@ for (const [text, cat] of [['I want to buy business consulting', 'consulting'], 
 // SAME answer — a second derivation on the pre-check would be exactly the drift
 // this codebase has paid for repeatedly (three narrative composers, two
 // classifiers, a test panel that implemented its own evaluator). Both screens
-// call `resolveDemandChannel`; this mirrors it once and checks that a single
-// resolver is enough to reproduce both.
+// call `resolveDemandChannel`; this checks that one resolver, over the seeded
+// rules, gives both screens the same answer.
 
-const RISK_ORDER = { low: 0, medium: 1, high: 2, critical: 3 };
-const RULE_FIELDS = new Set([
-  'category', 'value', 'supplierId', 'commodityCode', 'priority',
-  'isUrgent', 'riskRating', 'material', 'contractId', 'region',
-]);
+// The real resolver and the seeded rule set. This section carried its own
+// evaluator and the if-ladder fallback that C3 replaced with catch-all rules —
+// so it went on passing against a rule the product no longer has.
+import { resolveDemandChannel as resolveReal } from '../../src/lib/routing/demand-channel.ts';
+import { routingRules as RULES } from '../../src/data/routing-rules.ts';
 
-function evalCond(field, operator, value, ctx) {
-  const actual = RULE_FIELDS.has(field) ? ctx[field] : undefined;
-  const empty = actual === undefined || actual === null || actual === '' || actual === false;
-  if (operator === 'is_empty') return empty;
-  if (operator === 'is_not_empty') return !empty;
-  if (actual === undefined) return false;
-  const num = (v) => (typeof v === 'number' ? v : Number.isFinite(Number(v)) ? Number(v) : null);
-  switch (operator) {
-    case 'equals': return String(actual) === value;
-    case 'greater_than': return num(actual) !== null && num(value) !== null && num(actual) > num(value);
-    case 'less_than': return num(actual) !== null && num(value) !== null && num(actual) < num(value);
-    case 'in': return value.split(',').map((x) => x.trim()).includes(String(actual));
-    case 'starts_with': return String(actual).startsWith(value);
-    case 'contains': return String(actual).toLowerCase().includes(value.toLowerCase());
-    case 'between': {
-      const [lo, hi] = value.split(',').map((x) => Number(x.trim()));
-      return num(actual) !== null && num(actual) >= lo && num(actual) <= hi;
-    }
-    case 'risk_rating': return RISK_ORDER[actual] !== undefined && RISK_ORDER[value] !== undefined
-      && RISK_ORDER[actual] >= RISK_ORDER[value];
-    default: return false;
-  }
-}
-
-function fallbackChannel(ctx) {
-  const value = ctx.value ?? 0;
-  if (value < 25000) return 'catalogue';
-  if (ctx.category === 'consulting' || value > 100000) return 'procurement-led';
-  if (ctx.category === 'contingent-labour') return 'framework-call-off';
-  if (value <= 50000) return 'business-led';
-  return 'procurement-led';
-}
-
-/** Mirrors resolveDemandChannel — the one derivation both screens call. */
-function resolveDemandChannel(rules, input) {
-  const ctx = {
-    category: input.category,
-    value: input.value,
-    supplierId: input.supplierId,
-    contractId: input.contractId,
-    // priority is DERIVED from isUrgent: the two are one fact, and RR-010
-    // requires both, so setting one without the other disarms the rule.
-    priority: input.isUrgent ? 'urgent' : undefined,
-    isUrgent: input.isUrgent,
-    riskRating: input.riskRating,
-    material: input.material,
-  };
-  const matched = rules.find((r) => r.status === 'active' && (r.conditions ?? []).length > 0
-    && r.conditions.every((c) => evalCond(c.field, c.operator, c.value, ctx)));
-  return { channel: matched ? matched.action.buyingChannel : fallbackChannel(ctx), matchedRule: matched ?? null };
-}
-
-// The live rule set, in evaluation order (RR-001 as repaired).
-const RULES = [
-  { id: 'RR-001', name: 'High-value IT software', status: 'active',
-    conditions: [
-      { field: 'category', operator: 'equals', value: 'software' },
-      { field: 'value', operator: 'greater_than', value: '100000' },
-    ], action: { buyingChannel: 'procurement-led' } },
-  { id: 'RR-010', name: 'Urgent request fast-track', status: 'active',
-    conditions: [
-      { field: 'priority', operator: 'equals', value: 'urgent' },
-      { field: 'isUrgent', operator: 'equals', value: 'true' },
-    ], action: { buyingChannel: 'procurement-led' } },
-];
+const NO_SIGNALS = {
+  supplierId: undefined, contractId: undefined, isUrgent: undefined, riskRating: undefined,
+  material: undefined, region: undefined, commodityCode: undefined, pCardEligible: undefined,
+};
+const resolveDemandChannel = (rules, input) => resolveReal(rules, { ...NO_SIGNALS, ...input }, CONFIG);
 
 console.log('\nThe pre-check and the determination give the same channel');
 const LABELLED = [

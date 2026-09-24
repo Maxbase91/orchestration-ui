@@ -38,6 +38,12 @@ export interface PolicyConfig {
   preferredMinPerformance: number;
   /** Second contract check: utilisation headroom % (below → transactable). */
   contractUtilisationHeadroom: number;
+  /**
+   * Above this value a call-off from a contract is not a direct award: it needs
+   * a mini-competition among the contract's suppliers, so it goes in as a new
+   * request. Refused at checkout and ruled out at the buy-route step.
+   */
+  directCallOffLimit: number;
   /** Second contract check: days-to-expiry buffer that flags a contract expiring. */
   contractExpiryBufferDays: number;
   /**
@@ -99,6 +105,8 @@ export const DEFAULT_POLICY_CONFIG: PolicyConfig = {
   competitiveSourcingExemptCategories: ['contingent-labour'],
   preferredMinPerformance: 75,
   contractUtilisationHeadroom: 95,
+  // The figure the front-door design was reviewed against.
+  directCallOffLimit: 250_000,
   contractExpiryBufferDays: 60,
   // Both preserve the literals intake-determination.ts hard-coded in its policy
   // checks before they were governed. Same numbers, so no behaviour change.

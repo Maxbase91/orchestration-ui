@@ -340,7 +340,16 @@ export function decideIntakeRoute(
   formatValue: (n: number) => string = (n) => String(Math.round(n)),
 ): RouteDecision {
   const cat = matchCatalogue(demand, data.catalogueItems, data.catalogueEligibleCategories, config);
-  const con = matchContracts(demand, data.contracts, formatValue);
+  let con = matchContracts(demand, data.contracts, formatValue);
+  // A covering contract is not a direct call-off above the limit: the award
+  // needs a mini-competition, which is a sourcing exercise. Ruled out in place
+  // and naming the contract, rather than offered and refused at checkout.
+  if (con.matches.length > 0 && demand.estimatedValue > config.directCallOffLimit) {
+    con = {
+      matches: [],
+      ruledOut: `${con.matches[0].contract.title} covers this, but ${formatValue(demand.estimatedValue)} is above the ${formatValue(config.directCallOffLimit)} direct call-off limit — a call-off this size needs a mini-competition, so it goes in as a new request.`,
+    };
+  }
 
   const ruledOut: Partial<Record<IntakeRoute, string>> = {};
   if (cat.ruledOut) ruledOut.catalogue = cat.ruledOut;
