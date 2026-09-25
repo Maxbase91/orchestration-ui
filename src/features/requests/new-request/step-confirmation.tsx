@@ -21,7 +21,6 @@ interface StepConfirmationProps {
     isUrgent: boolean;
     buyingChannelResult: string;
     commodityCodeLabel: string;
-    catalogueItems?: { itemId: string; name: string; quantity: number; unitPrice: number; supplierId: string }[];
   };
   onReset: () => void;
 }
@@ -72,28 +71,6 @@ export function StepConfirmation({ requestId, data, nextSteps = [], onReset }: S
           ))}
         </div>
       </div>
-
-      {/* Catalogue items breakdown */}
-      {data.catalogueItems && data.catalogueItems.length > 0 && (
-        <div className="rounded-lg border border-line bg-card">
-          <div className="border-b border-line-2 px-4 py-3">
-            <h3 className="text-sm font-semibold text-ink">Catalogue Items ({data.catalogueItems.length})</h3>
-          </div>
-          <div className="divide-y divide-line-2">
-            {data.catalogueItems.map((item) => (
-              <div key={item.itemId} className="flex items-center justify-between px-4 py-2.5">
-                <div>
-                  <span className="text-sm font-medium text-ink">{item.name}</span>
-                  <span className="text-xs text-ink-3 ml-2">x{item.quantity}</span>
-                </div>
-                <span className="text-sm text-ink-2">
-                  {'\u20AC'}{(item.quantity * item.unitPrice).toLocaleString('de-DE', { minimumFractionDigits: 2 })}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* What happens next.
           Three sentences were removed here, each of which was untrue:

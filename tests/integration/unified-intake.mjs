@@ -11,7 +11,6 @@ import {
   routeFromOutcome,
 } from '../../src/features/requests/new-request/intake-steps.ts';
 import {
-  parseCatalogueDeepLink,
   renewalDemandHref,
 } from '../../src/features/requests/new-request/intake-deep-link.ts';
 
@@ -92,10 +91,11 @@ check('the matcher\'s own question is what the detail box asks',
 check('expert full-request escape cannot be forced back into catalogue steps',
   routeFromOutcome('full-request') === 'full-request'
   && progressStepsForRoute(routeFromOutcome('full-request')).some((step) => step.id === 'review'));
-check('only an explicit catalogue outcome takes the fast track',
-  routeFromOutcome('catalogue') === 'catalogue'
-  && routeFromOutcome('') === 'full-request'
-  && !progressStepsForRoute('catalogue').some((step) => step.id === 'review'));
+// The wizard has no catalogue route any more: a catalogue order is placed on
+// the Catalogue page (ADR-0009), so the only fast track left is a call-off.
+check('an unset outcome is a full request, and a call-off skips the determination',
+  routeFromOutcome('') === 'full-request'
+  && !progressStepsForRoute('contract').some((step) => step.id === 'review'));
 
 
 // ── Deep links carry context in; each one has cost a defect ─────────────────
@@ -113,10 +113,9 @@ const params = (obj) => ({ get: (key) => (key in obj ? String(obj[key]) : null) 
 {
   const { readdirSync, readFileSync } = await import('node:fs');
   const dir = new URL('../../src/features/requests/new-request/', import.meta.url);
-  // The one legitimate site: the STORED request for a completed catalogue
-  // order, built in submitCatalogueOrder, where 'catalogue' is the recorded
-  // category (ROUTE_LIKE_CATEGORY). It is typed `as RequestCategory`; a form
-  // write is not.
+  // A stored request's category is typed `as RequestCategory`; a form write is
+  // not. (The one such site, the wizard's own catalogue order, is gone with the
+  // wizard's catalogue route.)
   const writers = readdirSync(dir)
     .filter((f) => /\.tsx?$/.test(f))
     .flatMap((f) => readFileSync(new URL(f, dir), 'utf8').split('\n')
@@ -155,28 +154,13 @@ check('no category label map remains in the intake form data',
     && !/Renewal initiated for/.test(renewals.replace(/\/\/.*$/gm, '')));
 }
 
-const catalogue = [
-  { id: 'IT-001', name: 'ThinkPad T14', unitPrice: 1299, unit: 'each', supplierId: 'SUP-1', supplierName: 'Acme' },
-];
-const hydrated = parseCatalogueDeepLink(
-  params({ catalogueItem: 'IT-001', quantity: '3', needBy: '2026-12-01', costCentre: 'CC-9' }),
-  catalogue, directory,
-);
-check('the confirmed fulfilment context survives the return trip',
-  hydrated.order.catalogueItems[0].quantity === 3
-  && hydrated.order.estimatedValue === 3897
-  && hydrated.patch.costCentre === 'CC-9'
-  && hydrated.patch.preCheckOutcome === 'catalogue');
-// This becomes `shipToLocationId`, which the governed checkout rejects unless
-// the profile approves it. The two intake pages defaulted it differently, so
-// the same order passed in one and failed in the other.
-check('the delivery location is never defaulted behind the requester',
-  hydrated.patch.deliveryLocation === '');
-check('an unresolvable item does not half-hydrate a checkout',
-  parseCatalogueDeepLink(params({ catalogueItem: 'GONE-1' }), catalogue, directory) === null);
-check('a quantity of zero or nonsense falls back to one, never to zero value',
-  parseCatalogueDeepLink(params({ catalogueItem: 'IT-001', quantity: '0' }), catalogue, directory)
-    .order.catalogueItems[0].quantity === 1);
+// The `?catalogueItem=…` return trip is gone with the one-item checkout it fed:
+// an item's page adds to the basket on the Catalogue page instead.
+{
+  const { readFileSync } = await import('node:fs');
+  check('intake reads no catalogue link',
+    !/catalogueItem/.test(readFileSync('src/features/requests/new-request/use-intake-deep-link.ts', 'utf8').replace(/\/\/.*$/gm, '')));
+}
 
 if (failures) process.exit(1);
 console.log('Unified intake checks passed.');

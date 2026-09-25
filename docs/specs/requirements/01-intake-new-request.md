@@ -15,7 +15,7 @@ The New Request wizard is the platform's primary front door — a single intelli
 | ID | Role | Story | Priority |
 |----|------|-------|----------|
 | FR01-01 | service-owner | I can describe what I need in plain English and the system classifies it into the right procurement category | Must |
-| FR01-02 | service-owner | I can browse and submit an approved catalogue order through governed checkout; eligible low-value orders may auto-approve | Must |
+| FR01-02 | service-owner | I can browse the catalogue and order a basket of approved items through governed checkout; a basket up to the auto-approval threshold (judged on its total) is approved automatically | Must |
 | FR01-03 | service-owner | I can see exactly which approval path my request will follow before submitting | Must |
 | FR01-04 | service-owner | After submitting I can track my request status and see "Track this Request" resolve correctly | Must |
 | FR01-05 | procurement-manager | I can see all requests across the organization, not just my own | Must |
@@ -36,9 +36,11 @@ The New Request wizard is the platform's primary front door — a single intelli
 
     Describe → How you'll buy → Details → Review & submit   (→ confirmation)
 
-The **catalogue route** is `Describe → How you'll buy → Details (order)` and has
-no Review step: pre-approved, pre-priced items reach no determination, and none
-is manufactured so that the step counts match.
+A **catalogue order** is not placed in this wizard: a catalogue match (and
+"Browse the catalogue" on Describe) goes to the **Catalogue page** with the items
+in the basket (FR01-60). Pre-approved, pre-priced items reach no determination,
+and none is manufactured. The wizard's own catalogue route was retired on
+2026-09-25.
 
 ### Step 1 — Describe: unified description and specific classification
 - FR01-11 · A demand typed on Home arrives as `?q=` and seeds this step; classification runs on it without a further keystroke, and the requester is never asked for the text a second time.
@@ -50,7 +52,7 @@ is manufactured so that the step counts match.
 
 ### Step 2 — How you'll buy: catalogue, contract, or a new request
 - FR01-16 · System checks for an existing active contract covering the demand; the server-side matcher (`api/_domains/contract-match.ts`, ADR-0004) confirms coverage and may ask up to three clarifying questions.
-- FR01-17 · Catalogue match: a catalogue-eligible category plus a naming-word match offers a direct-purchase path to the item's governed checkout.
+- FR01-17 · Catalogue match: a catalogue-eligible category plus a naming-word match offers the item; ordering it adds it to the basket on the Catalogue page.
 - FR01-18 · Contract call-off: a matching framework contract offers the call-off path (skips sourcing/contracting stages).
 - FR01-55 · **All three routes render together**, recommendation first and badged, each in requester language — the headline and description on the workflow template that claims the channel, edited in Admin → Workflows (`channelCopy`) — with the category SLA as an indicative timeline. A ruled-out route states its reason **in place** and stays clickable — the previous sequential funnel could hide the correct path behind a wrong match.
 - FR01-56 · The buying channel is resolved here by `resolveDemandChannel`, the same function the Review step calls, so the two cannot disagree. The matched words, item scores, contract fit/utilisation and the routing rule id are evidence behind a **"Why this?"** disclosure, Expert density only.
@@ -118,8 +120,9 @@ components are captured — there is **no manual "Generate SOW" action** and no 
 - FR01-52 · `localClassify()` expanded with consulting keywords: `operating model`, `TOM`, `change management`, `programme management`, `maturity assessment`.
 - FR01-53 · When the requester rejects the inferred commodity family ("None of these"), `accepted` and `aiResult` are reset so the correction propagates through all subsequent steps. There is no category tile grid to override — the broad category is never a requester choice (FR01-14).
 
-### Catalogue "Order Now"
-- FR01-54 · The command-bar catalogue Order Now path (`handleOrderNow`) applies `parseDeliveryDate()` to the item's delivery date field before calling `createRequest()`, preventing the empty-string DATE column error.
+### The Catalogue page (Door 2)
+- FR01-60 · `/catalogue`: the catalogues the items belong to, a search across them, item cards (price, agreement, lead time), and a basket with total, deliver to and charged to (the profile first; active `delivery_locations` and `cost_centres` only), a required purpose, and a note taken from the governed decision. A basket across suppliers is placed as one order per supplier and contract, **approved on the basket total**, all or none (ADR-0009). The Home box, the assistant, an item's page and intake's catalogue match all add to this basket (`/catalogue?add=ID`), once.
+- FR01-54 · ~~The command-bar catalogue Order Now path~~ — retired: the Home box no longer places orders.
 
 ---
 
@@ -146,7 +149,7 @@ formData { title, category, supplierId, deliveryDate (freetext), estimatedValue,
 
 1. Submit wizard with delivery phrase "end of Q3 2026" → request created, no 400, `delivery_date = 2026-09-30`.
 2. Select Consulting category → Step 5 shows "procurement-led" buying channel, "Standard Procurement" template.
-3. Add catalogue item → no compliance step shown; the governed catalogue checkout places the order.
+3. Add catalogue items on the Catalogue page → no compliance step; the basket is placed through the governed checkout, one order per supplier.
 4. Confirmed request → appears in All Requests list immediately.
 
 ---

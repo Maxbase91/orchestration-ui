@@ -103,12 +103,16 @@ second page to drift.
 
 ## Deep links
 
-Two URLs open the intake with context attached, and each has cost a defect:
+One URL opens the intake with context attached:
 
 | Link | From | Trap |
 |---|---|---|
 | `?q=<text>` | the Home box, the assistant (both providers), Start renewal | Must seed the describe step and never ask for the text again |
-| `?catalogueItem=…` | the item detail page | The confirmed fulfilment context must survive; `deliveryLocation` must **not** be defaulted, because it becomes `shipToLocationId` and the governed checkout rejects a value the profile does not approve |
+
+`?catalogueItem=…` was the return trip from an item's page into a one-item
+checkout inside this wizard. Catalogue orders moved to the Catalogue page's
+basket (2026-09-25, ADR-0009), and with them the wizard's catalogue route, its
+catalogue step and that link.
 
 A third, `?step=2&category=…`, carried a second classification of the demand
 past the describe step — and `category` could be `catalogue`, a route, not a
@@ -116,10 +120,9 @@ category. Its last producer went when the Home box and the assistant took one
 question route (2026-09-25), and it is no longer parsed: a demand arrives as its
 words and is classified once, here.
 
-Parsing is pure and lives in `new-request/intake-deep-link.ts`, so those rules
-are asserted by calling them. `use-intake-deep-link.ts` is only the seam: when
-to apply, which query to wait for, and clearing the params so a refresh does not
-replay the link. The page reads no URL parameters itself.
+`use-intake-deep-link.ts` reads `?q=` on the first render; `intake-deep-link.ts`
+builds the links other screens send here (Start renewal). The page reads no URL
+parameters itself.
 
 ## Detail added at the buy-route step
 

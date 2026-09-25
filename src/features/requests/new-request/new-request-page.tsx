@@ -7,7 +7,6 @@ import { cn } from '@/lib/utils';
 import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
 import { useContracts } from '@/lib/db/hooks/use-contracts';
 import { useRiskAssessments } from '@/lib/db/hooks/use-risk-assessments';
-import { useCatalogueItems } from '@/lib/db/hooks/use-catalogue-items';
 import { useUsers } from '@/lib/db/hooks/use-users';
 import { useAuthStore } from '@/stores/auth-store';
 import { createRequest, nextRequestId } from '@/lib/db/requests';
@@ -30,7 +29,6 @@ import { useIntakeDeepLink } from './use-intake-deep-link';
 import { buildIntakeComplianceRecord } from '@/lib/procurement/intake-compliance-record';
 import { StepCategory } from './step-category';
 import { StepChatIntake } from './step-chat-intake';
-import { StepCatalogue } from './step-catalogue';
 import { StepBuyRoute } from './step-buy-route';
 import { StepCompliance } from './step-compliance';
 import { StepRoutingPreview } from './step-routing-preview';
@@ -56,12 +54,11 @@ import { RequesterContextBlock } from './components/requester-context-block';
 import type { Contract } from '@/data/types';
 import type { CatalogueItem } from '@/data/catalogue-items';
 import { getProcurementProfile } from '@/lib/db/procurement-profiles';
-import { evaluateGovernedCheckout, resolveCheckoutRiskAssessment, resolveCheckoutContract } from '@/lib/procurement/governed-checkout';
+import { evaluateGovernedCheckout, resolveCheckoutRiskAssessment } from '@/lib/procurement/governed-checkout';
 import { submitGovernedCheckout } from '@/lib/procurement/submit-governed-checkout';
 import { submitIntake } from '@/lib/procurement/submit-intake';
 import { usePreferredSupplierIds } from '@/lib/db/hooks/use-category-preferred-suppliers';
 import { isPreferredSupplierOverride } from '@/lib/procurement/supplier-preference';
-import { CatalogueOrderCheckout, type CatalogueOrderDraft } from '@/features/catalogue/catalogue-order-checkout';
 import { ContractCallOffCheckout, type ContractCallOffDraft } from './contract-call-off-checkout';
 
 class StepErrorBoundary extends Component<{ children: ReactNode; onReset: () => void }, { error: Error | null }> {
@@ -119,14 +116,6 @@ export function NewRequestPage() {
     return attemptIdRef.current;
   }, []);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [catalogueOrder, setCatalogueOrder] = useState<{
-    title: string;
-    estimatedValue: number;
-    supplier: string;
-    supplierId: string;
-    catalogueItems: { itemId: string; name: string; quantity: number; unitPrice: number; supplierId: string }[];
-  } | null>(null);
-  const [catalogueCheckoutOpen, setCatalogueCheckoutOpen] = useState(false);
   /** The profile default, so the context block can say where the value came from. */
   const [profileCostCentre, setProfileCostCentre] = useState('');
   const { currentUser } = useAuthStore();
@@ -142,7 +131,6 @@ export function NewRequestPage() {
   const activeDeliveryLocationIds = useMemo(
     () => allDeliveryLocations.filter((location) => location.active).map((location) => location.id), [allDeliveryLocations]);
   const { data: riskAssessments = [] } = useRiskAssessments();
-  const { data: catalogueItems = [] } = useCatalogueItems();
   const { data: users = [] } = useUsers();
 
   // One determination for the whole wizard. It used to be computed inside the
@@ -203,20 +191,9 @@ export function NewRequestPage() {
     }
   }, [users, currentUser.id, formData.requesterCountry]);
 
-  // Deep links — the words from the Home box or the assistant, and the return
-  // trip from a catalogue item's detail page. Parsing is pure and lives in
-  // `intake-deep-link.ts`; this only applies the result once its data has
-  // loaded and clears the params so a refresh does not replay it.
-  const { prefill: categoryPrefill } = useIntakeDeepLink({
-    suppliers,
-    catalogueItems,
-    onCatalogueOrder: (link) => {
-      setFormData((prev) => ({ ...prev, ...link.patch }));
-      setCatalogueOrder(link.order);
-      setCatalogueCheckoutOpen(true);
-      setStepId('details');
-    },
-  });
+  // The words from the Home box or the assistant (`?q=`), seeding the describe
+  // step. A catalogue order is placed on the Catalogue page, not here.
+  const { prefill: categoryPrefill } = useIntakeDeepLink();
 
   const updateFormData = useCallback((updates: Partial<IntakeFormData>) => {
     setFormData((prev) => ({ ...prev, ...updates }));
@@ -233,7 +210,6 @@ export function NewRequestPage() {
   // demand used to put the whole wizard on the fast track before the funnel
   // had run.
   const route = routeFromOutcome(formData.preCheckOutcome);
-  const isCatalogue = route === 'catalogue';
 
   // Step 3's floor. The chat path is the only one that captures the service
   // description through the conversation; the catalogue, contract and
@@ -314,97 +290,9 @@ export function NewRequestPage() {
       preferredSupplierIds,
     });
 
-  // Catalogue orders use the same governed endpoint as Simple mode. The
-  // browser can collect a cart, but it must not create a PO directly or claim
-  // that approval is unnecessary before the server checks current policy.
-  const submitCatalogueOrder = async (order: {
-    title: string;
-    estimatedValue: number;
-    supplier: string;
-    supplierId: string;
-    catalogueItems: { itemId: string; name: string; quantity: number; unitPrice: number; supplierId: string }[];
-  }, draft?: CatalogueOrderDraft) => {
-    if (!draft) {
-      // The shared checkout collects only fulfilment details that cannot be
-      // inferred from the catalogue/profile. Governance is evaluated after
-      // those fields are present, so the browser never bypasses that seam.
-      setCatalogueOrder(order);
-      updateFormData(order);
-      setCatalogueCheckoutOpen(true);
-      return;
-    }
-    const id = await claimRequestId();
-    const submittedOrder = {
-      ...order,
-      estimatedValue: draft.quantity * (order.catalogueItems[0]?.unitPrice ?? 0),
-      catalogueItems: order.catalogueItems.map((line, index) => index === 0 ? { ...line, quantity: draft.quantity } : line),
-    };
-    updateFormData({ ...submittedOrder, deliveryDate: draft.needBy, costCentre: draft.costCentre });
-    setIsSubmitting(true);
-    try {
-      const primary = submittedOrder.catalogueItems[0];
-      const item = primary ? catalogueItems.find((candidate) => candidate.id === primary.itemId) : undefined;
-      if (!item) throw new Error('The selected catalogue item is no longer available.');
-      const supplier = suppliers.find((candidate) => candidate.id === item.supplierId);
-      if (!supplier) throw new Error('The catalogue supplier could not be resolved.');
-      const resolved = resolveCheckoutContract(item, contracts);
-      if (!resolved.contract) throw new Error(resolved.error ?? 'No active contract covers this catalogue item.');
-      const storedProfile = await getProcurementProfile(currentUser.id).catch(() => null);
-      const profile = storedProfile ?? {
-        userId: currentUser.id, defaultCurrency: formData.currency, costCentre: formData.costCentre,
-        budgetOwner: currentUser.name, accountType: 'expense', beneficiaryId: formData.beneficiaryId || currentUser.id,
-        // No invented approved list, and no invented default location. This
-        // said `[{ id: 'office' }]` and the server fell back to it when no
-        // profile row existed, so the delivery-location check approved a
-        // location that existed nowhere. `delivery_locations` is the authority.
-        approvedShipToLocations: [], defaultCommodityCode: item.commodityCode,
-      };
-      const riskAssessment = resolveCheckoutRiskAssessment(riskAssessments, supplier.id, resolved.contract.id);
-      const checkout = {
-        route: 'catalogue' as const,
-        lines: submittedOrder.catalogueItems.map((line) => ({ item, description: line.name, quantity: line.quantity, unit: item.unit, unitPrice: item.unitPrice, supplierId: supplier.id, contractId: resolved.contract!.id, riskAssessmentId: riskAssessment?.id, commodityCode: item.commodityCode })),
-        supplier, contract: resolved.contract, riskAssessment, profile,
-        currency: formData.currency, needByDate: draft.needBy,
-        purpose: draft.businessPurpose || submittedOrder.title, costCentre: draft.costCentre,
-        shipToLocationId: draft.deliveryLocation,
-        beneficiaryId: formData.beneficiaryId || currentUser.id, idempotencyKey: `checkout-${id}`,
-        activeCostCentreIds, activeDeliveryLocationIds,
-      };
-      const decision = evaluateGovernedCheckout(checkout);
-      if (!decision.ok) throw new Error(decision.errors.join(' '));
-      const request = {
-        id, title: submittedOrder.title || 'Catalogue order', description: submittedOrder.title || 'Catalogue order',
-        category: 'catalogue' as RequestCategory, status: 'intake' as const,
-        priority: formData.isUrgent ? ('urgent' as const) : ('medium' as const), value: decision.totalValue, currency: formData.currency,
-        supplierId: supplier.id, contractId: resolved.contract.id, buyingChannel: 'catalogue' as BuyingChannel,
-        commodityCode: item.commodityCode, commodityCodeLabel: item.commodityCode,
-        commodityCandidates: formData.commodityCandidates, commodityClassificationConfirmed: formData.commodityClassificationConfirmed,
-        attachments: formData.attachments, costCentre: formData.costCentre, budgetOwner: currentUser.name,
-        businessJustification: '', deliveryDate: parseDeliveryDate(formData.deliveryDate) ?? undefined,
-        isUrgent: formData.isUrgent, requestorId: currentUser.id, ownerId: currentUser.id,
-        daysInStage: 0, isOverdue: false, referBackCount: 0,
-        requesterCountry: formData.requesterCountry || undefined, requesterCountryCode: formData.requesterCountryCode || undefined,
-        beneficiaryId: formData.beneficiaryId || undefined, beneficiaryName: formData.beneficiaryName || undefined,
-        beneficiaryCountry: formData.beneficiaryCountry || undefined, beneficiaryCountryCode: formData.beneficiaryCountryCode || undefined,
-      };
-      const lines = submittedOrder.catalogueItems.map((line) => ({ id: `LINE-${id}-${line.itemId}`, requestId: id, description: line.name, quantity: line.quantity, unit: item.unit, unitPrice: item.unitPrice, supplierId: supplier.id, contractId: resolved.contract!.id, catalogueItemId: line.itemId, riskAssessmentId: riskAssessment?.id, commodityCode: item.commodityCode, deliveryDate: draft.needBy }));
-      await submitGovernedCheckout({ requestId: id, requisitionId: `PR-${id}`, decision, checkout, request, lines });
-      queryClient.invalidateQueries({ queryKey: ['requests'] });
-      toast.success('Catalogue request submitted');
-      setCatalogueCheckoutOpen(false);
-      setRequestId(id);
-      setStepId('confirmation');
-    } catch (e) {
-      console.error('Failed to place catalogue order:', e);
-      toast.error('Failed to place the order. Please try again.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  // Contract call-offs use the same governed persistence seam as catalogue
-  // orders. Keeping this path here prevents Expert mode from falling back to
-  // the generic request writer and losing the PR/PO audit links.
+  // Contract call-offs go through the governed checkout, like catalogue
+  // orders. Keeping this path here prevents it falling back to the generic
+  // request writer and losing the PR/PO audit links.
   const submitContractCallOff = async (draft: ContractCallOffDraft) => {
     const contract = contracts.find((candidate) => candidate.id === formData.contractId);
     if (!contract) { toast.error('The selected contract is no longer available.'); return; }
@@ -652,9 +540,7 @@ export function NewRequestPage() {
         <p className="mt-0.5 text-sm text-ink-3">
           {stepId === 'confirmation'
             ? `${requestId} is with procurement. Track it from your dashboard.`
-            : isCatalogue
-              ? 'Catalogue request — governed checkout'
-              : 'Tell us what you need. We will find the simplest compliant way to handle it.'}
+            : 'Tell us what you need. We will find the simplest compliant way to handle it.'}
         </p>
       </div>
 
@@ -737,24 +623,9 @@ export function NewRequestPage() {
             prefill={categoryPrefill}
             onUpdate={(d) => updateFormData(d)}
             onAutoAdvance={() => setStepId('buy-route')}
-            onBrowseCatalogue={() => {
-              // Direct catalogue entry — the user already knows it's an
-              // off-the-shelf item, so skip the funnel and go to the catalogue.
-              //
-              // The ROUTE only. This also wrote `category: 'catalogue'`, and
-              // category outlives a change of route: Back to How you'll buy,
-              // then "Raise a full request", reached Details with the route
-              // saying full request and the category saying catalogue — which
-              // matched neither the form branch nor the chat branch, so the
-              // step rendered nothing and its gate asked for a title and a
-              // value it offered no field for. A dead end on the most common
-              // correction a requester makes.
-              updateFormData({
-                preCheckOutcome: 'catalogue',
-                buyingChannelResult: 'catalogue',
-              });
-              setStepId('details');
-            }}
+            // The catalogue is its own door: pick items and order them on the
+            // Catalogue page, without a request.
+            onBrowseCatalogue={() => navigate('/catalogue')}
           />
         )}
         {stepId === 'buy-route' && (
@@ -768,11 +639,10 @@ export function NewRequestPage() {
             commodityCode={formData.commodityCode}
             llmIntent={formData.llmIntent}
             onChooseCatalogue={(items: CatalogueItem[]) => {
-              const primary = items[0];
-              if (!primary) return;
-              // A matched catalogue result is a specific buyable item. Keep
-              // that context in the URL so checkout starts on its detail page.
-              navigate(`/catalogue/items/${encodeURIComponent(primary.id)}`);
+              if (items.length === 0) return;
+              // The matched items go into the basket on the Catalogue page,
+              // where catalogue orders are placed — not into this wizard.
+              navigate(`/catalogue?add=${items.map((item) => encodeURIComponent(item.id)).join(',')}`);
             }}
             onChooseContract={(contract: Contract) => {
               updateFormData({
@@ -813,15 +683,6 @@ export function NewRequestPage() {
             profileCostCentre={profileCostCentre}
             onUpdate={(d) => updateFormData(d)}
           />
-        )}
-        {stepId === 'details' && formData.preCheckOutcome === 'catalogue' && (
-          catalogueCheckoutOpen && catalogueOrder ? (
-            <CatalogueOrderCheckout
-              item={catalogueItems.find((candidate) => candidate.id === catalogueOrder.catalogueItems[0]?.itemId) ?? catalogueItems[0]!}
-              initialValues={{ quantity: catalogueOrder.catalogueItems[0]?.quantity, needBy: formData.deliveryDate, deliveryLocation: formData.deliveryLocation, recipient: formData.beneficiaryName, businessPurpose: formData.businessJustification, costCentre: formData.costCentre }}
-              onSubmit={(draft) => void submitCatalogueOrder(catalogueOrder, draft)}
-            />
-          ) : <StepCatalogue onPlaceOrder={(order) => void submitCatalogueOrder(order)} />
         )}
         {stepId === 'details' && formData.preCheckOutcome === 'contract' && (
           <div className="mb-4 rounded-lg border border-accent-line bg-accent-soft/40 p-4 text-sm">
@@ -945,7 +806,6 @@ export function NewRequestPage() {
               isUrgent: formData.isUrgent,
               buyingChannelResult: determination?.buyingChannelResult ?? '',
               commodityCodeLabel: formData.commodityCodeLabel,
-              catalogueItems: formData.catalogueItems,
             }}
             onReset={handleReset}
           />
@@ -989,9 +849,9 @@ export function NewRequestPage() {
                 Save as Draft
               </Button>
             )}
-            {/* Catalogue places the order from the cart itself (single click),
-                so the footer shows no primary action on that step. */}
-            {!(isCatalogue && stepId === 'details') && !(stepId === 'details' && formData.preCheckOutcome === 'contract') && (
+            {/* A call-off is confirmed by its own checkout on the Details step,
+                so the footer shows no primary action there. */}
+            {!(stepId === 'details' && formData.preCheckOutcome === 'contract') && (
               <Button
                 onClick={handleNext}
                 disabled={!canProceed() || isSubmitting}

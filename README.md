@@ -71,6 +71,7 @@ What each Admin item is for, where it is stored and what reads it: [docs/specs/a
 
 | Screen | Description |
 |--------|-------------|
+| Catalogue (Door 2) | Order pre-approved items without a request: the catalogues the items belong to, a search across them, a basket with total, deliver to and charged to (profile first), a purpose, and a note from the real decision (straight to the supplier, the manager approves, or a risk review first). A basket across suppliers is **one order per supplier, approved on the basket total**, placed all or none (ADR-0009). Every other way to a catalogue item — Home, the assistant, an item's page, intake's match — adds to this basket |
 | Smart Command Bar | Free-text entry on the home page, with an **intent step**: a **status question** ("where is REQ-…", "what's waiting for me", a PO, invoice, contract or supplier) is answered in place by the Status Answers agent — only what its configuration lets this role see; a **policy question** is answered in place — a direct answer computed from Decisioning thresholds and approval chains (quotes, approvers, buying channel, catalogue auto-approval) plus the knowledge-base rule with live figures; each offers a follow-up in the assistant. A **demand goes straight into intake**, carrying its wording, so classification starts immediately; anything else reaches the assistant. A demand the **catalogue genuinely serves** is **named** — the matched item, its price and lead time — with a link to its governed checkout and an always-visible "not what you need?" route into full intake; it never navigates on the requester's behalf. The catalogue decision is `lib/procurement/intake-routing.ts` — the same category-gated, naming-word decision the wizard's pre-check makes, so both entry points agree. The order (status → catalogue → policy → demand → assistant) is **one route**, `lib/assistant/question-route.ts`, which **the assistant takes too**; the catalogue can be browsed in place by the catalogues its items belong to |
 | Routing Rules Engine | 3-panel layout: rule tree, visual IF/THEN editor, test panel. The **editor, the test panel and the runtime share one vocabulary** — every field and operator the editor offers is evaluated in production, and the test panel calls the production evaluator rather than reimplementing it. An **active rule that cannot fire is diagnosed** at the top of the page (unknown field, unsupported operator, malformed `between`, no conditions) instead of silently never matching |
 | Decisioning Thresholds | The numbers every decision compares against (approval, materiality, risk, sourcing, contract, catalogue matching). Routing rules, approval chains, workflow branches and forms decide what happens and **name** these numbers (`policy:<key>`) rather than restating them. Under each threshold: **where the code uses it** and the **configuration that names it**, read live — the rules, chain bands, workflow branches, forms, service-description conditions and knowledge-base articles — with a warning when nothing reads it. Save applies them to the live front door; a simulation previews a sample demand |
@@ -472,7 +473,7 @@ src/
 │   │                #   and the only place db-client is imported (see its README for the
 │   │                #   layer rule, the *-core.ts pattern and the two known exceptions).
 │   ├── integrations/# Standardised source-connector layer (own-store → live swap)
-│   ├── procurement/ # Pure decisioning modules (classify, materiality, risk, residual risk questions and
+│   ├── procurement/ # Pure decisioning modules (catalogue-basket.ts plans a basket as orders) (classify, materiality, risk, residual risk questions and
 │   │                #   their conversation-slot adapter, intake determination + its
 │   │                #   compliance record, governed checkout, …) + service description config (SERVICE_DESCRIPTION.md)
 │   │                #   personal-queue.ts is the one definition of what is on a person's plate
@@ -495,7 +496,7 @@ src/
     ├── requests/    # Intake — ONE four-step page for both densities (intake-steps.ts owns the order,
     │                #   gates and guidance; use-intake-determination.ts mounts the determination once;
     │                #   see its README), request detail
-    ├── catalogue/   # Item detail and governed catalogue checkout
+    ├── catalogue/   # Door 2: the Catalogue page and its basket, item detail (see its README)
     ├── workflows/   # Kanban, table, timeline, monitor
     ├── suppliers/   # Directory, profile, portal
     ├── approvals/   # Approval queue, delegation

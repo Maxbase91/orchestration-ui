@@ -209,8 +209,8 @@ check('the classifier can report that no rule matched',
 console.log('\nA catalogue hit is named, and never navigated to');
 // Naming the match and handing over a link is the whole correction budget: a
 // wrong match costs a glance rather than a checkout for the wrong thing.
-check('the identified item links to its governed checkout, never navigated to',
-  /case 'catalogue': setIdentified\(/.test(BAR_SRC) && /\/catalogue\/items\/\$\{encodeURIComponent\(item\.id\)\}/.test(BAR_SRC));
+check('the identified item is offered, never ordered for the requester — "Order this" adds it to the basket',
+  /case 'catalogue': setIdentified\(/.test(BAR_SRC) && /\/catalogue\?add=\$\{encodeURIComponent\(item\.id\)\}/.test(BAR_SRC));
 check('the correction is always offered alongside the match',
   /Not what you need\? Describe it in full/.test(BAR_SRC));
 check('rejecting the match carries the original wording into intake',

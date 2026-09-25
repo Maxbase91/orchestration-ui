@@ -54,9 +54,16 @@ check('the attempt id is held in a ref', () => {
   if (!/attemptIdRef/.test(page)) throw new Error('no ref');
   if (!/attemptIdRef\.current \?\?= await nextRequestId\(\)/.test(page)) throw new Error('not memoised per attempt');
 });
-check('the three submit paths share it', () => {
+// Two in the wizard — a full request and a call-off. The catalogue's orders
+// are minted on the Catalogue page, one per order, kept for a retry.
+check('the wizard\'s two submit paths share it', () => {
   const claims = page.match(/await claimRequestId\(\)/g) ?? [];
-  if (claims.length !== 3) throw new Error(`${claims.length} call sites, expected 3`);
+  if (claims.length !== 2) throw new Error(`${claims.length} call sites, expected 2`);
+});
+check('the Catalogue page mints each order\'s id from the sequence, kept for a retry', () => {
+  const catalogue = readFileSync(new URL('../../src/features/catalogue/catalogue-page.tsx', import.meta.url), 'utf8');
+  if (!/requestIds: await Promise\.all\(plan\.orders\.map\(\(\) => nextRequestId\(\)\)\)/.test(catalogue)) throw new Error('not minted from the sequence');
+  if (!/attempt\.current/.test(catalogue)) throw new Error('not kept per attempt');
 });
 check('draft save deliberately mints its own', () => {
   if (!/const id = await nextRequestId\(\)/.test(page)) throw new Error('draft save does not mint separately');

@@ -51,7 +51,7 @@ export interface ServiceDescription {
 export type ServiceDescriptionSectionKey = Exclude<keyof ServiceDescription, 'captureFlags'>;
 
 /** Which fulfilment path the demand is on. Drives which steps apply. */
-export type IntakeRouteOutcome = 'catalogue' | 'contract' | 'full-request' | '';
+export type IntakeRouteOutcome = 'contract' | 'full-request' | '';
 
 /**
  * Answers to the criteria-driven risk questions.
@@ -159,7 +159,6 @@ export interface IntakeFormData {
   recipient: string;
 
   // ── Catalogue / contract resolution (the buy-route step) ────────────────
-  catalogueItems: { itemId: string; name: string; quantity: number; unitPrice: number; supplierId: string }[];
   preCheckOutcome: IntakeRouteOutcome;
   contractId: string;
   contractTitle: string;
@@ -232,7 +231,6 @@ export const INITIAL_INTAKE_DATA: IntakeFormData = {
   serviceDescription: null,
   demandDetail: '',
   recipient: '',
-  catalogueItems: [],
   preCheckOutcome: '',
   contractId: '',
   contractTitle: '',

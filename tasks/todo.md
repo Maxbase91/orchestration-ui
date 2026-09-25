@@ -45,7 +45,7 @@ Decisions taken (2026-09-25):
 8. [x] Help knowledge base from the knowledge base table (+ breadcrumbs from the navigation)
 9. [x] AI assistant on the Home route (+ conversation titles; Home box off /api/ai; legacy step=2 link retired)
 10. [x] Docs: the Admin map (what each item is for, what reads it)
-11. [ ] Mockups implementation — plan (below), then build
+11. [ ] Mockups implementation — plan (below), then build — Phase 1 (Door 2) done
 
 ## Verification
 tsc, lint, test:all, browser suites, live backfills idempotent and read back,

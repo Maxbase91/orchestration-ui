@@ -80,6 +80,7 @@ import { PaymentTrackerPage } from '@/features/purchasing/payment-tracker-page'
 import { ScheduledReportsPage } from '@/features/analytics/scheduled-reports-page'
 import { ExportsPage } from '@/features/analytics/exports-page'
 import { CatalogueItemDetailPage } from '@/features/catalogue/catalogue-item-detail-page'
+import { CataloguePage } from '@/features/catalogue/catalogue-page'
 
 export function App() {
   return (
@@ -95,6 +96,7 @@ export function App() {
               <Route path="/requests" element={<RequestListPage title="All Requests" />} />
               <Route path="/requests/my" element={<RequestListPage title="My Requests" filterMine />} />
               <Route path="/requests/new" element={<NewRequestPage />} />
+              <Route path="/catalogue" element={<CataloguePage />} />
               <Route path="/catalogue/items/:id" element={<CatalogueItemDetailPage />} />
               <Route path="/requests/:id" element={<RequestDetailPage />} />
             </Route>

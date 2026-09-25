@@ -53,6 +53,44 @@ try {
       { ...FIXTURES.requests[0], id: 'REQ-2026-00078', title: 'Someone else’s demand', status: 'validation', requestor_id: 'u02', owner_id: 'u11' },
     ],
     knowledge_base: [{ id: 'KB-014', title: 'Single Source Justification', body: 'Buying without competition from {{policy:competitiveSourcingThreshold}} needs a single-source justification.', source: 'Decisioning thresholds', tags: ['quotes', 'competitive', 'single source'] }],
+    // Door 2: two catalogues, two suppliers, each with its contract and a
+    // valid risk assessment — so a basket across them is two orders.
+    suppliers: [
+      ...FIXTURES.suppliers,
+      { ...FIXTURES.suppliers[0], id: 'SUP-CAT-002', name: 'OfficeCo' },
+    ],
+    contracts: [
+      ...FIXTURES.contracts,
+      { ...FIXTURES.contracts[0], id: 'CON-CAT-002', title: 'Office Supplies Agreement', supplier_id: 'SUP-CAT-002', supplier_name: 'OfficeCo' },
+    ],
+    // The directory and the register are read through their derived views.
+    suppliers_with_derived: [
+      ...(FIXTURES.suppliers_with_derived ?? FIXTURES.suppliers),
+      { ...(FIXTURES.suppliers_with_derived ?? FIXTURES.suppliers)[0], id: 'SUP-CAT-002', name: 'OfficeCo' },
+    ],
+    contracts_with_derived: [
+      ...(FIXTURES.contracts_with_derived ?? FIXTURES.contracts),
+      { ...(FIXTURES.contracts_with_derived ?? FIXTURES.contracts)[0], id: 'CON-CAT-002', title: 'Office Supplies Agreement', supplier_id: 'SUP-CAT-002', supplier_name: 'OfficeCo' },
+    ],
+    risk_assessments: [
+      ...FIXTURES.risk_assessments,
+      { ...FIXTURES.risk_assessments[0], id: 'RSK-CAT-002', supplier_id: 'SUP-CAT-002', contract_id: 'CON-CAT-002', title: 'OfficeCo assessment' },
+    ],
+    catalogue_items: [
+      { id: 'IT-002', name: 'Monitor 27-inch', description: 'Business monitor', unit_price: 449, unit: 'each', catalogue_id: 'it-equipment', catalogue_name: 'IT Equipment', supplier_name: 'Lenovo', supplier_id: 'SUP-CAT-001', contract_id: 'CON-CAT-001', risk_assessment_id: 'RSK-CAT-001', lead_time: '3-5 days', available: true },
+      { id: 'OS-001', name: 'Copier paper A4, 5 reams', description: 'Copier paper 80gsm', unit_price: 24, unit: 'box', catalogue_id: 'office-supplies', catalogue_name: 'Office Supplies', supplier_name: 'OfficeCo', supplier_id: 'SUP-CAT-002', contract_id: 'CON-CAT-002', risk_assessment_id: 'RSK-CAT-002', lead_time: '2-3 days', available: true },
+    ],
+  });
+  // The basket goes to the governed checkout's basket mode; its real rules are
+  // test:catalogue-basket's. Here the page's half: what it sends, and what it
+  // shows when the orders come back.
+  let placedBasket = null;
+  await context.route('**/api/governed-checkout', async (route) => {
+    placedBasket = JSON.parse(route.request().postData() ?? '{}').basket ?? null;
+    const orders = (placedBasket?.orders ?? []).map((order, index) => ({
+      requestId: `REQ-2026-0910${index}`, requisition: { id: order.requisitionId, status: 'pending-approval' }, lines: order.lines,
+    }));
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ orders }) });
   });
   // The pre-check also calls the server matcher directly. "No contract covers
   // this" is a legitimate answer and is what sends the screen to its contract
@@ -127,27 +165,45 @@ try {
   check('full-request escape opens the adaptive details path', await page.getByPlaceholder('Type your answer...').isVisible().catch(() => false));
   check('full-request escape does not open catalogue selection', (await page.getByText('Choose your items', { exact: true }).count()) === 0);
 
-  // "Browse the catalogue", then change your mind. Two defects lived on this
-  // path. The shortcut stored the catalogue ROUTE as the form's CATEGORY, so
-  // a later switch to a full request reached a Details step that rendered
-  // nothing. And How you'll buy, reached with nothing described, claimed
-  // "No catalogue item covers what was described" and "We found possible
-  // coverage" — the matcher ranks contracts against an empty string.
+  // "Browse the catalogue" is its own door now: the Catalogue page, where
+  // catalogue items are ordered without a request (ADR-0009). It opened a
+  // catalogue step inside this wizard, whose route outlived a change of mind
+  // and left the Details step rendering nothing.
   await page.goto(`${BASE}/requests/new`, { waitUntil: 'networkidle' });
   await page.getByRole('button', { name: /Browse the catalogue/ }).click();
-  await page.getByRole('button', { name: /^Back$/ }).click();
-  await page.getByText('Nothing has been checked yet', { exact: true }).waitFor({ timeout: 15000 }).catch(() => {});
-  const emptyRoute = await page.locator('main').innerText();
-  check('with nothing described, How you\'ll buy says nothing was checked',
-    emptyRoute.includes('Nothing has been checked yet'));
-  check('…and makes no coverage claim about an empty description',
-    !/We found possible coverage|covers what was described/.test(emptyRoute), emptyRoute.slice(0, 200));
+  await page.waitForURL((url) => url.pathname === '/catalogue', { timeout: 10000 });
+  check('"Browse the catalogue" opens the Catalogue page', new URL(page.url()).pathname === '/catalogue');
 
-  // The category is not left behind as "catalogue": describing the need from
-  // here gets the conversation, not an empty Details step.
-  await page.getByRole('button', { name: /^Back$/ }).click();
-  check('Back from an empty route returns to Describe',
-    await page.getByText('Describe what you need', { exact: true }).isVisible({ timeout: 10000 }).catch(() => false));
+  console.log('\nDoor 2 — the Catalogue page');
+  const catalogues = page.getByRole('navigation', { name: 'Catalogues' });
+  await catalogues.getByRole('button', { name: /IT Equipment/ }).waitFor({ timeout: 15000 });
+  check('the catalogues are the ones the items belong to',
+    (await catalogues.getByRole('button').allInnerTexts()).map((t) => t.split('\n')[0]).join(' | ') === 'IT Equipment | Office Supplies');
+  await page.getByRole('button', { name: 'Add Monitor 27-inch' }).click();
+  await catalogues.getByRole('button', { name: /Office Supplies/ }).click();
+  await page.getByRole('button', { name: 'Add Copier paper A4, 5 reams' }).click();
+  const order = page.locator('aside[aria-label="Your order"]');
+  check('two suppliers are two orders, approved on the whole basket',
+    (await order.getByText(/Placed as 2 orders — one per supplier/).count()) === 1, await order.innerText());
+  check('under the threshold it goes straight to the suppliers',
+    (await order.getByText(/goes straight to the supplier — no approval needed/).count()) === 1, await order.innerText());
+  await order.getByRole('button', { name: 'One more Monitor 27-inch' }).click();
+  await order.getByRole('button', { name: 'One more Monitor 27-inch' }).click();
+  check('over it, the manager approves — judged on the basket, €1,371',
+    (await order.getByText(/Over €1,000, so your manager approves/).count()) === 1 && (await order.innerText()).includes('€1,371'));
+  const place = order.getByRole('button', { name: 'Place order' });
+  check('an order waits for its purpose', !(await place.isEnabled()));
+  await order.getByLabel('Deliver to').selectOption('office');
+  await order.getByLabel('Charged to').selectOption('CC-ENG-001');
+  await order.getByLabel('What is it for?').fill('New starters, Berlin office');
+  await place.click();
+  await order.getByText('2 orders placed').waitFor({ timeout: 10000 });
+  check('the basket is sent as one call with two orders, each decided on the total',
+    placedBasket?.orders?.length === 2 && placedBasket.orders.every((o) => o.checkout.approvalBasisValue === 1371 && o.checkout.purpose === 'New starters, Berlin office'),
+    JSON.stringify(placedBasket?.orders?.map((o) => o.checkout.approvalBasisValue)));
+  check('each placed order is named, with what happens next',
+    (await order.getByText('Waiting for approval').count()) === 2);
+  check('the basket is emptied once placed', (await order.getByText(/Add items from the catalogue/).count()) === 1);
 
   console.log('\nHome answers policy and status questions in place');
   const homeBox = page.getByRole('textbox', { name: 'What do you need?' });
@@ -202,10 +258,11 @@ try {
   await chatPolicy.waitFor({ timeout: 15000 });
   check('a policy question gets the answer computed from the thresholds',
     (await chatPolicy.getByText(/^Yes\. At €40,000 you need at least 3 competitive quotes/).count()) === 1, await chatPolicy.innerText());
-  await chatBox.fill('I want to buy 50 monitors for the trading floor');
+  // Something the catalogue cannot serve — a monitor would be offered from it.
+  await chatBox.fill('I want to buy a market research study for the trading floor');
   await chatBox.press('Enter');
   await page.getByRole('button', { name: /Start the request/ }).waitFor({ timeout: 15000 });
-  check('a demand is offered as New Request with its words', (await page.getByText('I want to buy 50 monitors for the trading floor').count()) >= 2);
+  check('a demand is offered as New Request with its words', (await page.getByText('I want to buy a market research study for the trading floor').count()) >= 2);
 
   await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(500);

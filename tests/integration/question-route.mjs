@@ -82,7 +82,7 @@ console.log('\nThe assistant shows what the Home box shows');
   check('and says nothing exists until the requester submits',
     demand.some((t) => t.type === 'chat-answer' && /Nothing is created or sent until you submit it/.test(t.content)));
   const catalogue = routeTurns({ kind: 'catalogue', items: [PAPER] }, 'printer paper');
-  check('a catalogue item links to its governed checkout', catalogue.some((t) => t.path === '/catalogue/items/OS-001'));
+  check('a catalogue item goes into the basket on the Catalogue page', catalogue.some((t) => t.path === '/catalogue?add=OS-001'));
   check('with the correction, carrying the words', catalogue.some((t) => t.path === '/requests/new?q=printer%20paper'));
   check('a status card reads as text for the model\'s history',
     statusAnswerText(STATUS) === 'REQ-2026-00042 · Office move — Status: Validation');

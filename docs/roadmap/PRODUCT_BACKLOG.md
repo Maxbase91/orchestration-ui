@@ -153,9 +153,9 @@ was which.
 | 4.1.2 | As a **Requester**, I want every question in one place. | Details holds the service description, the residual risk questions, the IT security form (software) and supplier selection. Nothing after it asks for anything. | 🟢 |
 | 4.1.3 | As a **Requester**, I want a disabled Next to tell me what is missing. | Chat path names the outstanding slots; form paths name the missing fields ("To review this request, add a title, an estimated value"). | 🟢 |
 | 4.1.4 | As a **Requester**, I want each step to say what it is for and what follows. | A header panel per step: purpose, what you provide, what happens next — held in the same config as the step's order and gate. | 🟢 |
-| 4.1.5 | As a **Buyer**, I want the catalogue fast track to skip governance it does not need. | The catalogue route has no Review step: pre-approved, pre-priced items reach no determination, and none is manufactured to make the step counts match. | 🟢 |
+| 4.1.5 | As a **Buyer**, I want a catalogue order to skip governance it does not need. | A catalogue order is placed on the Catalogue page, not through the intake wizard: pre-approved, pre-priced items reach no determination, and none is manufactured (the wizard's catalogue route was retired on 2026-09-25). | 🟢 |
 | 4.1.6 | As a **Developer**, I want step order to live in one place. | `intake-steps.ts` owns order, per-route applicability, gates and guidance. Renumbering used to mean editing five hand-synced places. | 🟢 |
-| 4.1.7 | As a **Developer**, I want deep links parsed where they can be tested. | `intake-deep-link.ts` is pure: the `?q=` and `?catalogueItem=…` links parse without React (the `?step=2&category=…` link was retired on 2026-09-25 with its last producer), and the page no longer reads `searchParams` at all. Pinned by `test:unified-intake` and `test:assistant-intents`. | 🟢 |
+| 4.1.7 | As a **Developer**, I want deep links parsed where they can be tested. | `?q=` is the one link intake reads (the `?step=2&category=…` and `?catalogueItem=…` links were retired on 2026-09-25 with their producers), and the page no longer reads `searchParams` at all. Pinned by `test:unified-intake` and `test:assistant-intents`. | 🟢 |
 
 ### Feature 4.2 — Risk, asked as questions
 
@@ -272,14 +272,14 @@ from had nowhere to be seen or corrected.
 
 | # | Story | Acceptance criteria | Status |
 |---|---|---|---|
-| 8.1.1 | As a **Requester**, I want to order a catalogue item in a few fields. | The item detail page is the single governed checkout entry point; quantity, need-by, delivery location, recipient, purpose and cost centre. | 🟢 |
+| 8.1.1 | As a **Requester**, I want to order catalogue items in a few fields. | The **Catalogue page** is the single place to order: a basket across catalogues and suppliers, deliver to, charged to and a purpose; one order per supplier, approved on the basket total, all or none (ADR-0009). The Home box, the assistant, an item's page and intake's catalogue match all add to it. | 🟢 |
 | 8.1.2 | As a **Requester**, I want accounting defaults filled from my profile, not asked for. | Cost centre, delivery location and beneficiary come from `procurement_profiles`. All three are **shown pre-filled and changed from a picker**, never typed: the options are the active rows of `cost_centres` and `delivery_locations`, which is exactly what the governed checkout accepts. Before, one checkout offered five **invented** cost centres, the other free text, and the delivery location was validated against a list on the profile that nothing ever populated. | 🟢 |
 | 8.1.3 | As a **Buyer**, I want an ambiguous contract refused, not guessed. | Two active contracts for one item produce an error ("procurement must select one"), never a silent pick. Pinned by `test:mode-equivalence`. | 🟢 |
 | 8.1.4 | As a **Buyer**, I want only real risk assessments used. | Only `completed` assessments count, and an unexpired one is preferred. | 🟢 |
 | 8.1.5 | As a **Requester**, I want a call-off to make clear it is not the whole contract. | The Details step states that the contract ceiling is not the value of this individual call-off. | 🟢 |
 | 8.1.6 | As a **Buyer**, I want delivery locations validated. | `shipToLocationId` must be one the profile approves; a value outside the list is rejected by `evaluateGovernedCheckout`. | 🟢 |
 
-**Technical** — `src/lib/procurement/governed-checkout.ts`, `submit-governed-checkout.ts`, `api/governed-checkout.ts` (ADR-0002), `src/features/catalogue/catalogue-order-checkout.tsx`, `new-request/contract-call-off-checkout.tsx`.
+**Technical** — `src/lib/procurement/governed-checkout.ts`, `submit-governed-checkout.ts`, `api/governed-checkout.ts` (ADR-0002, basket mode ADR-0009), `src/lib/procurement/catalogue-basket.ts`, `src/features/catalogue/catalogue-page.tsx`, `new-request/contract-call-off-checkout.tsx`.
 
 ---
 

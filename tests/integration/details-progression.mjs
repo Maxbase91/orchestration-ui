@@ -112,17 +112,8 @@ check('answering no unblocks it, exactly as answering yes does', () => {
 
 console.log('\nThe other routes are untouched');
 
-check('the catalogue route gates on its cart, not on a conversation', () => {
-  const step = stepById('details');
-  assert.equal(step.canProceed({
-    data: { ...INITIAL_INTAKE_DATA, preCheckOutcome: 'catalogue', catalogueItems: [] },
-    isChatIntakePath: false, conversationCtx: ctx(), conversationSlots: SLOTS, hasDetermination: true,
-  }), false);
-  assert.equal(step.canProceed({
-    data: { ...INITIAL_INTAKE_DATA, preCheckOutcome: 'catalogue', catalogueItems: [{ itemId: 'X', name: 'X', quantity: 1 }] },
-    isChatIntakePath: false, conversationCtx: ctx(), conversationSlots: SLOTS, hasDetermination: true,
-  }), true);
-});
+// (The catalogue route and its cart gate are gone: catalogue orders are placed
+// on the Catalogue page since 2026-09-25 — test:catalogue-ui.)
 
 check('a finished conversation still waits for what submit requires', () => {
   const finished = { ...INITIAL_INTAKE_DATA, ...SUBMITTABLE, preCheckOutcome: 'full-request', category: 'consulting' };

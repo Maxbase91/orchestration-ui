@@ -1,14 +1,15 @@
 /**
- * Deep-linkable catalogue item page. It is the product-details boundary
- * between search results and the governed request/PR checkout.
+ * Deep-linkable catalogue item page: what the item is, who supplies it and
+ * when it arrives. Ordering happens in the basket on the Catalogue page
+ * (Door 2), which this page adds to — it used to run a one-item checkout of
+ * its own through the intake wizard, a second way to place the same order.
  */
-import { ArrowLeft, CheckCircle2, Clock3, ExternalLink, Loader2, ShieldCheck, Store } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Clock3, Loader2, ShieldCheck, ShoppingCart, Store } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { useCatalogueItem } from '@/lib/db/hooks/use-catalogue-items';
-import { CatalogueOrderCheckout, type CatalogueOrderDraft } from './catalogue-order-checkout';
 
 export function CatalogueItemDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -29,25 +30,13 @@ export function CatalogueItemDetailPage() {
     );
   }
 
-  const continueToRequest = (draft: CatalogueOrderDraft) => {
-    const params = new URLSearchParams({
-      catalogueItem: draft.itemId,
-      quantity: String(draft.quantity),
-      needBy: draft.needBy,
-      deliveryLocation: draft.deliveryLocation,
-      recipient: draft.recipient,
-      purpose: draft.businessPurpose,
-      costCentre: draft.costCentre,
-    });
-    navigate(`/requests/new?${params.toString()}`);
-  };
   const available = item.available !== false;
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div className="flex items-center justify-between gap-3">
         <Button type="button" variant="ghost" size="sm" onClick={() => navigate(-1)}><ArrowLeft className="size-4" />Back</Button>
-        <Button asChild variant="outline" size="sm"><Link to="/requests/new">Browse catalogue<ExternalLink className="size-3.5" /></Link></Button>
+        <Button asChild variant="outline" size="sm"><Link to="/catalogue">Browse the catalogue</Link></Button>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_360px] lg:items-start">
@@ -80,7 +69,7 @@ export function CatalogueItemDetailPage() {
               <CardContent className="space-y-3 p-5">
                 <div className="flex items-start gap-3">
                   <ShieldCheck className="mt-0.5 size-5 shrink-0 text-ok" />
-                  <div><p className="text-sm font-medium text-ok">Approved catalogue item</p><p className="mt-1 text-sm text-ok">This item is available from an approved supplier agreement. We’ll check the remaining order details before creating your request.</p></div>
+                  <div><p className="text-sm font-medium text-ok">Approved catalogue item</p><p className="mt-1 text-sm text-ok">This item is available from an approved supplier agreement. The order is checked against its contract and risk assessment when you place it.</p></div>
                 </div>
                 <details className="rounded-lg border border-ok-line bg-card/60">
                   <summary className="cursor-pointer list-none px-3 py-2 text-xs font-medium text-ok">Governance context</summary>
@@ -96,7 +85,14 @@ export function CatalogueItemDetailPage() {
           )}
         </div>
 
-        <CatalogueOrderCheckout item={item} disabled={!available} onSubmit={continueToRequest} />
+        <Card>
+          <CardContent className="space-y-3 p-5">
+            <p className="text-sm text-ink-2">Add it to your order on the Catalogue page — deliver to, charged to and anything else in the basket are placed together.</p>
+            <Button type="button" className="w-full" disabled={!available} onClick={() => navigate(`/catalogue?add=${encodeURIComponent(item.id)}`)}>
+              <ShoppingCart className="size-4" /> Add to order
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

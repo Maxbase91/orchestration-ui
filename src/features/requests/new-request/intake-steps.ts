@@ -32,7 +32,7 @@ import { parseDeliveryDate } from '../../../lib/parse-delivery-date.js';
 import { isPreferredSupplierOverride } from '../../../lib/procurement/supplier-preference.js';
 
 /** Which fulfilment path the demand is on. Decides which steps apply. */
-export type IntakeStepRoute = 'full-request' | 'catalogue' | 'contract';
+export type IntakeStepRoute = 'full-request' | 'contract';
 
 export type IntakeStepId = 'describe' | 'buy-route' | 'details' | 'review' | 'confirmation';
 
@@ -105,12 +105,13 @@ export interface IntakeStepDefinition {
   canProceed: (state: IntakeGateState) => boolean;
 }
 
-// Only the full-request route reaches a determination. Both fast tracks —
-// catalogue and contract call-off — submit through the governed checkout on
-// their Details step and go straight to confirmation, so a Review step on
-// either is a step the stepper advertises and the requester can never reach.
+// Only the full-request route reaches a determination. A contract call-off
+// submits through the governed checkout on its Details step and goes straight
+// to confirmation, so a Review step there is a step the stepper advertises and
+// the requester can never reach. (Catalogue orders are placed on the Catalogue
+// page since 2026-09-25, not in this wizard.)
 const DETERMINED_ONLY = ['full-request'] as const;
-const ALL_ROUTES = ['full-request', 'catalogue', 'contract'] as const;
+const ALL_ROUTES = ['full-request', 'contract'] as const;
 
 export const INTAKE_STEPS: readonly IntakeStepDefinition[] = [
   {
@@ -134,7 +135,6 @@ export const INTAKE_STEPS: readonly IntakeStepDefinition[] = [
     label: 'How you’ll buy',
     description: {
       'full-request': 'Catalogue, contract, or a new request',
-      catalogue: 'Catalogue match',
       contract: 'Contract match',
     },
     routes: ALL_ROUTES,
@@ -153,7 +153,6 @@ export const INTAKE_STEPS: readonly IntakeStepDefinition[] = [
     label: 'Details',
     description: {
       'full-request': 'Everything we need from you',
-      catalogue: 'Pick items & place the order',
       contract: 'Confirm the call-off',
     },
     routes: ALL_ROUTES,
@@ -167,11 +166,6 @@ export const INTAKE_STEPS: readonly IntakeStepDefinition[] = [
           'The supplier, if you already have one in mind',
         ],
       },
-      catalogue: {
-        purpose: 'Pick your items, set quantities and place the order.',
-        youProvide: ['Items and quantities', 'A delivery location and cost centre'],
-        next: 'We validate the agreement, supplier risk and policy before creating the internal request; higher-value orders may need approval.',
-      },
       contract: {
         purpose: 'Confirm the value and timing of this call-off against the matched contract.',
         youProvide: ['The value and timing of this individual call-off', 'A delivery location and cost centre'],
@@ -179,12 +173,6 @@ export const INTAKE_STEPS: readonly IntakeStepDefinition[] = [
       },
     },
     canProceed: ({ data, isChatIntakePath, conversationCtx, conversationSlots, preferredSupplierIds }) => {
-      // The route alone. `|| data.category === 'catalogue'` held a full request
-      // to the catalogue's rule — items in the basket — so after switching
-      // route the step could never be completed.
-      if (data.preCheckOutcome === 'catalogue') {
-        return data.catalogueItems.length > 0;
-      }
       if (data.preCheckOutcome === 'contract') return !!data.contractId;
       // The mandatory floor, not `title && value`. `requiredSlotsFilled` — the
       // guarantee the conversation engine defines to stop an LLM
@@ -205,9 +193,8 @@ export const INTAKE_STEPS: readonly IntakeStepDefinition[] = [
     id: 'review',
     label: 'Review & submit',
     description: 'What we determined',
-    // The fast tracks end at their own governed checkout: a pre-approved
-    // catalogue item and a call-off under an existing contract reach no
-    // determination, and manufacturing one so the step counts match would be
+    // A call-off ends at its own governed checkout and reaches no
+    // determination; manufacturing one so the step counts match would be
     // inventing governance that did not happen.
     routes: DETERMINED_ONLY,
     guidance: {
@@ -225,7 +212,6 @@ export const INTAKE_STEPS: readonly IntakeStepDefinition[] = [
     label: 'Confirmation',
     description: {
       'full-request': 'Submitted',
-      catalogue: 'Order placed',
       contract: 'Call-off submitted',
     },
     routes: ALL_ROUTES,
@@ -286,7 +272,7 @@ export function stepNumber(id: IntakeStepId, route: IntakeStepRoute): number {
 function pickForRoute<T>(value: T | Partial<Record<IntakeStepRoute, T>> | undefined, route: IntakeStepRoute): T | undefined {
   if (value === undefined) return undefined;
   if (typeof value === 'object' && value !== null && !Array.isArray(value)
-    && ('full-request' in value || 'catalogue' in value || 'contract' in value)) {
+    && ('full-request' in value || 'contract' in value)) {
     return (value as Partial<Record<IntakeStepRoute, T>>)[route];
   }
   return value as T;
@@ -308,7 +294,6 @@ export function stepGuidance(id: IntakeStepId, route: IntakeStepRoute): StepGuid
  * put the whole wizard on the fast track before the funnel had run.
  */
 export function routeFromOutcome(outcome: IntakeFormData['preCheckOutcome']): IntakeStepRoute {
-  if (outcome === 'catalogue') return 'catalogue';
   if (outcome === 'contract') return 'contract';
   return 'full-request';
 }

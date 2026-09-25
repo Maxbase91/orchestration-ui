@@ -32,7 +32,8 @@ export function routeTurns(route: Exclude<QuestionRoute, { kind: 'assistant' }>,
           type: 'deep-link',
           label: item.name,
           description: `${euros(item.unitPrice)} / ${item.unit} · ${item.supplierName}`,
-          path: `/catalogue/items/${encodeURIComponent(item.id)}`,
+          // Into the basket on the Catalogue page, where catalogue orders are placed.
+          path: `/catalogue?add=${encodeURIComponent(item.id)}`,
         })),
         // The correction, as on Home: the words go with it, nothing is retyped.
         {

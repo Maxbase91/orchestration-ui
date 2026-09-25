@@ -61,7 +61,9 @@ try {
   // There is one UI; nothing to switch into before navigating.
   await page.goto(`${BASE}/requests/REQ-2025-7833`, { waitUntil: 'networkidle', timeout: 60000 });
   await page.waitForTimeout(2200);
-  const supplierLink = page.getByRole('link', { name: 'Lenovo', exact: true });
+  // The overview names the supplier in its facts and links to the profile by
+  // what the link does; it was the supplier's name as a link.
+  const supplierLink = page.getByRole('link', { name: "Open the supplier's profile" });
   const supplierUrl = await openAndAssert(page, supplierLink, '/suppliers/', 'request-overview-supplier');
   check('requester supplier detail renders the supplier identity', await page.getByText('Lenovo', { exact: true }).count() > 0, supplierUrl);
 

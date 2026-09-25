@@ -34,6 +34,17 @@ export const navigation: NavGroup[] = [
       { id: 'home', label: 'Home', icon: 'Home', path: '/', visibleTo: allRoles },
     ],
   },
+  // The two doors of the Intake Prototype: describe what you need, or pick it
+  // from the catalogue. Who may use them is who may raise a request.
+  {
+    id: 'buy',
+    label: 'Buy something',
+    visibleTo: ['service-owner', 'procurement-manager'],
+    items: [
+      { id: 'new-request', label: 'New Request', icon: 'FilePlus', path: '/requests/new', visibleTo: ['service-owner', 'procurement-manager'] },
+      { id: 'catalogue', label: 'Catalogue', icon: 'ShoppingCart', path: '/catalogue', visibleTo: ['service-owner', 'procurement-manager'] },
+    ],
+  },
   {
     id: 'work',
     label: 'Work',
@@ -47,7 +58,6 @@ export const navigation: NavGroup[] = [
         children: [
           { id: 'my-requests', label: 'My Requests', icon: 'FileText', path: '/requests/my', visibleTo: ['service-owner', 'procurement-manager', 'operations-lead', 'vendor-manager'] },
           { id: 'all-requests', label: 'All Requests', icon: 'Files', path: '/requests', visibleTo: ['procurement-manager', 'operations-lead', 'vendor-manager', 'admin'] },
-          { id: 'new-request', label: 'New Request', icon: 'FilePlus', path: '/requests/new', visibleTo: ['service-owner', 'procurement-manager'] },
         ],
       },
       {

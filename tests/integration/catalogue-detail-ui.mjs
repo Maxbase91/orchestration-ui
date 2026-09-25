@@ -1,14 +1,21 @@
 #!/usr/bin/env node
-// Static regression checks for the catalogue product-details boundary. The
-// browser suite covers rendering; these checks fail fast if either catalogue
-// entry point loses its deep link or the shared checkout contract changes.
-import { readFileSync } from 'node:fs';
+// Door 2 — every catalogue order is placed on the Catalogue page.
+//
+// Catalogue items could be ordered three ways: a one-item checkout on an item's
+// page that ran through the intake wizard, a catalogue step inside the wizard,
+// and a basket inside the Home box. Since 2026-09-25 there is one: the basket on
+// the Catalogue page (ADR-0009), and every other entry point adds to it. These
+// checks fail fast if a second way in grows back; the browser half is
+// test:requester-entry-ui.
+import { existsSync, readFileSync } from 'node:fs';
 
-const detail = readFileSync(new URL('../../src/features/catalogue/catalogue-item-detail-page.tsx', import.meta.url), 'utf8');
-const checkout = readFileSync(new URL('../../src/features/catalogue/catalogue-order-checkout.tsx', import.meta.url), 'utf8');
-const wizard = readFileSync(new URL('../../src/features/requests/new-request/step-catalogue.tsx', import.meta.url), 'utf8');
-const commandBar = readFileSync(new URL('../../src/features/dashboard/components/smart-command-bar.tsx', import.meta.url), 'utf8');
-const requestEntry = readFileSync(new URL('../../src/features/requests/new-request/new-request-page.tsx', import.meta.url), 'utf8');
+const read = (rel) => readFileSync(new URL(`../../${rel}`, import.meta.url), 'utf8');
+const page = read('src/features/catalogue/catalogue-page.tsx');
+const detail = read('src/features/catalogue/catalogue-item-detail-page.tsx');
+const commandBar = read('src/features/dashboard/components/smart-command-bar.tsx');
+const requestEntry = read('src/features/requests/new-request/new-request-page.tsx');
+const routeTurns = read('src/lib/assistant/route-turns.ts');
+const app = read('src/App.tsx');
 
 let failures = 0;
 function check(name, condition) {
@@ -16,32 +23,34 @@ function check(name, condition) {
   else { failures += 1; console.error(`  \x1b[31m✗\x1b[0m ${name}`); }
 }
 
-console.log('Catalogue item detail and governed checkout UI');
-check('dedicated item page is exported', /export function CatalogueItemDetailPage/.test(detail));
-check('item page resolves the selected route id', /useParams<\{ id: string \}>/.test(detail) && /useCatalogueItem\(id\)/.test(detail));
-check('checkout captures fulfilment context', /needBy/.test(checkout) && /deliveryLocation/.test(checkout) && /businessPurpose/.test(checkout) && /costCentre/.test(checkout));
-// Progressive, and now for everyone: the workings used to render only in the
-// Expert density, so half the users could not see why an order was routed the
-// way it was. The disclosure stayed; the gate on it went.
-check('governance details are progressive, not mode-gated',
-  /aria-expanded/.test(checkout) && !/mode === 'expert'/.test(checkout));
-check('wizard catalogue items deep-link to item details', /navigate\(`\/catalogue\/items\//.test(wizard));
-check('home command-bar items deep-link to item details', /go\(`\/catalogue\/items\//.test(commandBar));
-check('the buy-route order CTA deep-links to item details', /onChooseCatalogue[\s\S]*?navigate\(`\/catalogue\/items\//.test(requestEntry));
-// One page now, so this is asserted once. It used to be checked separately per
-// mode because each mode had its own page that could answer differently.
-check('the buy-route order CTA deep-links to item details', /onChooseCatalogue[\s\S]*?navigate\(`\/catalogue\/items\//.test(requestEntry));
-check('checkout uses the atomic governed endpoint', /submitGovernedCheckout/.test(requestEntry) && !/legacy catalogue persistence/.test(requestEntry));
-// The basket is gone: it could order one line and said so only after a second
-// was added. Every item now goes to its own governed checkout.
-check('the command bar orders nothing itself — no basket, no direct write',
-  !/createRequest|createPurchaseOrder|addToCart|Review order/.test(commandBar));
-// Stale-contract filtering lives in the shared resolver, not in a page — which
-// is why this check could previously pass against a page that never mentioned
-// it. `resolveCheckoutContract` is the one place it happens, and
-// test:mode-equivalence pins its behaviour.
-check('catalogue checkout resolves coverage through the shared resolver',
-  /resolveCheckoutContract/.test(requestEntry));
-check('checkout does not claim one-click/no-approval ordering', !/no approval needed/i.test(checkout));
+console.log('The Catalogue page places the order');
+check('the page is routed at /catalogue', /path="\/catalogue" element=\{<CataloguePage \/>\}/.test(app));
+check('its catalogues are the ones the items belong to, not a list in code',
+  /item\.catalogueId/.test(page) && !/CATALOGUE_CATEGORIES|'it-equipment'|'office-supplies'/.test(page));
+check('the basket is planned and placed through the governed basket checkout',
+  /planBasket\(/.test(page) && /basketPayloads\(/.test(page) && /submitGovernedBasket\(/.test(page));
+check('deliver to and charged to come from the reference data, the profile first',
+  /useDeliveryLocations\(\)/.test(page) && /useCostCentres\(\)/.test(page) && /profile\?\.defaultShipToLocationId/.test(page) && /profile\?\.costCentre/.test(page));
+check('the purpose the checkout requires is asked for', /What is it for\?/.test(page));
+check('the note says what the decision says, not a threshold comparison alone',
+  /decision\.approvalRequired/.test(page) && /decision\.riskReviewRequired/.test(page));
+check('a retry reuses its ids and key', /attempt\.current/.test(page) && /requestIds: attempt\.current\.requestIds/.test(page));
 
-if (failures > 0) process.exitCode = 1;
+console.log('\nEvery way in adds to the basket');
+check('the Home box', /go\(`\/catalogue\?add=\$\{encodeURIComponent\(item\.id\)\}`\)/.test(commandBar));
+check('the assistant', /\/catalogue\?add=\$\{encodeURIComponent\(item\.id\)\}/.test(routeTurns));
+check('an item\'s page', /navigate\(`\/catalogue\?add=\$\{encodeURIComponent\(item\.id\)\}`\)/.test(detail));
+check('intake\'s catalogue match', /onChooseCatalogue[\s\S]*?navigate\(`\/catalogue\?add=/.test(requestEntry));
+check('intake\'s "browse the catalogue"', /onBrowseCatalogue=\{\(\) => navigate\('\/catalogue'\)\}/.test(requestEntry));
+
+console.log('\nNo second way to order');
+check('the wizard has no catalogue step or checkout of its own',
+  !/StepCatalogue|CatalogueOrderCheckout|submitCatalogueOrder/.test(requestEntry)
+  && !existsSync(new URL('../../src/features/requests/new-request/step-catalogue.tsx', import.meta.url))
+  && !existsSync(new URL('../../src/features/catalogue/catalogue-order-checkout.tsx', import.meta.url)));
+check('an item\'s page places no order itself', !/submitGovernedCheckout|catalogueItem:/.test(detail));
+check('the Home box orders nothing itself — no basket, no direct write',
+  !/createRequest|createPurchaseOrder|addToCart|Review order/.test(commandBar));
+
+if (failures > 0) { console.error(`\nFAILED: ${failures} check(s)`); process.exitCode = 1; }
+else console.log('\nAll catalogue UI checks passed.');

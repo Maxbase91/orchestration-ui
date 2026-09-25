@@ -2,14 +2,14 @@
 // type takes the shared question route (lib/assistant/question-route.ts) — a
 // status or policy question is answered here, an item the catalogue serves is
 // offered for ordering, a demand goes to intake with their words, and the rest
-// goes to the assistant, which routes the same way.
-import { useState, useMemo } from 'react';
+// goes to the assistant, which routes the same way. Catalogue items are ordered
+// on the Catalogue page (Door 2), which this box links into.
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, ArrowRight, X, Loader2, Package } from 'lucide-react';
+import { Sparkles, ArrowRight, X, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import type { CatalogueItem } from '@/data/catalogue-items';
-import { useCatalogueItems } from '@/lib/db/hooks/use-catalogue-items';
 import { openAIChatWithPrompt } from '@/features/ai-assistant/ai-chat-controls';
 import { formatCurrency } from '@/lib/format';
 import type { StatusAnswer } from '@/lib/assistant/status-answer';
@@ -49,28 +49,10 @@ export function SmartCommandBar() {
   const [answer, setAnswer] = useState<InlineAnswer | null>(null);
   const [identified, setIdentified] = useState<Identified | null>(null);
 
-  const { data: catalogueItems = [] } = useCatalogueItems();
-
-  // Browsing the catalogue in place. The groups are the catalogues the items
-  // belong to — they were six names and icons typed here, which a catalogue
-  // added to the store would never have joined.
-  const [showCatalogue, setShowCatalogue] = useState(false);
-  const [browsing, setBrowsing] = useState<string | null>(null);
-  const catalogues = useMemo(() => {
-    const byId = new Map<string, string>();
-    for (const item of catalogueItems) {
-      if (item.catalogueId && !byId.has(item.catalogueId)) byId.set(item.catalogueId, item.catalogueName || item.catalogueId);
-    }
-    return [...byId].map(([id, name]) => ({ id, name }));
-  }, [catalogueItems]);
-  const browsed = browsing ? catalogueItems.filter((i) => i.catalogueId === browsing) : [];
-
   const handleClear = () => {
     setInput('');
     setAnswer(null);
     setIdentified(null);
-    setShowCatalogue(false);
-    setBrowsing(null);
   };
 
   const go = (path: string) => {
@@ -83,7 +65,6 @@ export function SmartCommandBar() {
     if (!text) return;
     setAnswer(null);
     setIdentified(null);
-    setShowCatalogue(false);
     setLoading(true);
     let routed;
     try {
@@ -134,7 +115,7 @@ export function SmartCommandBar() {
               <Loader2 className="size-4 animate-spin text-accent" />
             </div>
           )}
-          {!loading && (input || identified || answer || showCatalogue) && (
+          {!loading && (input || identified || answer) && (
             <button type="button" aria-label="Clear" onClick={handleClear} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-3 hover:text-ink-2">
               <X className="size-4" />
             </button>
@@ -142,7 +123,7 @@ export function SmartCommandBar() {
         </form>
 
         {/* AI hint */}
-        {!identified && !answer && !showCatalogue && !loading && (
+        {!identified && !answer && !loading && (
           <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-caption text-ink-3">
             <span>Describe what you need, or ask about a policy or a status. Try:</span>
             {EXAMPLES.map((example) => (
@@ -203,7 +184,7 @@ export function SmartCommandBar() {
             Say what was recognised, then hand over a link. Navigating for the
             requester would be faster and worse: a wrong match would land them
             in a checkout for the wrong thing. */}
-        {identified && !showCatalogue && !loading && (
+        {identified && !loading && (
           <div className="mt-3 space-y-3 rounded-md border border-line bg-card p-4">
             <div className="flex items-start gap-2">
               <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-accent-soft mt-0.5">
@@ -226,7 +207,9 @@ export function SmartCommandBar() {
                     {formatCurrency(item.unitPrice)} / {item.unit} · {item.supplierName} · {item.leadTime}
                   </p>
                 </div>
-                <Button size="sm" onClick={() => go(`/catalogue/items/${encodeURIComponent(item.id)}`)}>
+                {/* Into the basket on the Catalogue page — Door 2, where every
+                    catalogue order is placed — never an order on its own. */}
+                <Button size="sm" onClick={() => go(`/catalogue?add=${encodeURIComponent(item.id)}`)}>
                   Order this
                   <ArrowRight className="size-3.5" />
                 </Button>
@@ -245,7 +228,7 @@ export function SmartCommandBar() {
               <button
                 type="button"
                 className="text-xs text-ink-3 hover:text-ink-2 hover:underline"
-                onClick={() => { setIdentified(null); setShowCatalogue(true); setBrowsing(catalogues[0]?.id ?? null); }}
+                onClick={() => go('/catalogue')}
               >
                 Browse the whole catalogue
               </button>
@@ -253,57 +236,6 @@ export function SmartCommandBar() {
           </div>
         )}
 
-        {/* ── CATALOGUE VIEW ──
-            Every item orders through its own governed checkout, so there is no
-            basket here: the one it had could order a single line, and said so
-            only after the second was added. */}
-        {showCatalogue && !loading && (
-          <div className="mt-3 space-y-4 rounded-md border border-line bg-card p-4">
-            <div className="flex flex-wrap gap-2" role="group" aria-label="Catalogues">
-              {catalogues.map((cat) => (
-                <button
-                  key={cat.id}
-                  type="button"
-                  aria-pressed={browsing === cat.id}
-                  onClick={() => setBrowsing(cat.id)}
-                  className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${browsing === cat.id ? 'border-accent bg-accent-soft text-accent' : 'border-line text-ink-2 hover:bg-card-2'}`}
-                >
-                  <Package className="size-3.5" />
-                  {cat.name}
-                </button>
-              ))}
-            </div>
-            {catalogues.length === 0 && <p className="text-sm text-ink-3">The catalogue has no items yet.</p>}
-
-            {browsed.length > 0 && (
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {browsed.slice(0, 9).map((item) => (
-                  <div key={item.id} className="flex flex-col justify-between gap-2 rounded-lg border border-line bg-card p-3">
-                    <div>
-                      <p className="text-sm font-medium text-ink">{item.name}</p>
-                      <p className="mt-0.5 text-xs text-ink-3">{item.supplierName} · {item.leadTime}</p>
-                    </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm font-semibold text-ink tabular-nums">
-                        {formatCurrency(item.unitPrice)} <span className="text-xs font-normal text-ink-3">/ {item.unit}</span>
-                      </p>
-                      <Button size="sm" variant="outline" onClick={() => go(`/catalogue/items/${encodeURIComponent(item.id)}`)}>
-                        Order this
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-            {browsed.length > 9 && <p className="text-xs text-ink-3">Showing 9 of {browsed.length} — search for an item by name above.</p>}
-
-            <div className="flex items-center gap-3 pt-1">
-              <Button variant="link" size="sm" className="px-0 text-xs text-ink-3" onClick={() => go('/requests/new')}>
-                Not in the catalogue? Create a procurement request <ArrowRight className="ml-1 size-3" />
-              </Button>
-            </div>
-          </div>
-        )}
       </div>
     </section>
   );

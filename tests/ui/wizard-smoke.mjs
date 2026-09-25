@@ -83,18 +83,21 @@ try {
       supplier_name: 'Lenovo', supplier_id: 'SUP-CAT-001', lead_time: '5-7 days', available: true,
     }],
   });
+  // The Catalogue page places its basket through the checkout's basket mode;
+  // the rules are test:catalogue-basket's, this answers as the server would.
   await context.route('**/api/governed-checkout', async (route) => {
     const payload = JSON.parse(route.request().postData() || '{}');
+    const orders = (payload.basket?.orders ?? [payload]).map((order) => ({
+      requestId: order.requestId,
+      request: order.request,
+      requisition: { id: order.requisitionId, status: 'po-created' },
+      lines: order.lines ?? [],
+      purchaseOrder: { id: `PO-${order.requestId}`, requestId: order.requestId, status: 'created' },
+    }));
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({
-        requestId: payload.requestId,
-        request: payload.request,
-        requisition: { ...payload.requisition, id: payload.requisitionId, status: 'approved' },
-        lines: payload.lines ?? [],
-        purchaseOrder: { id: `PO-${payload.requestId}`, requestId: payload.requestId, status: 'created' },
-      }),
+      body: JSON.stringify(payload.basket ? { orders } : orders[0]),
     });
   });
   page = await context.newPage();
@@ -202,13 +205,17 @@ try {
   check('the evidence names the words that matched and the rule that decided it',
     (await page.getByText(/matched on/).count()) > 0
     && (await page.getByText(/routing rule|default fallback/).count()) > 0);
-  // Regression: selecting the suggested item must open its product-details
-  // page, preserving the item id for governed checkout, rather than dropping
-  // the requester at the catalogue root.
+  // Ordering the suggested item puts THAT item in the basket on the Catalogue
+  // page — where every catalogue order is placed (ADR-0009) — rather than
+  // dropping the requester at the catalogue root to find it again. Once: the
+  // add used to run twice and order two.
   await page.getByRole('button', { name: /Order this/ }).first().click();
-  await page.waitForURL(`${BASE}/catalogue/items/IT-001`, { timeout: 10000 });
-  check('ordering the matched item opens its detail page',
-    new URL(page.url()).pathname === '/catalogue/items/IT-001');
+  await page.waitForURL((url) => url.pathname === '/catalogue', { timeout: 10000 });
+  const order = page.locator('aside[aria-label="Your order"]');
+  await order.getByText('ThinkPad T14 Gen 5').waitFor({ timeout: 10000 });
+  check('ordering the matched item adds it to the basket on the Catalogue page',
+    (await order.innerText()).includes('ThinkPad T14 Gen 5'));
+  check('…once', (await page.getByRole('button', { name: /Add another ThinkPad T14 Gen 5 \(1 in your order\)/ }).count()) === 1);
 
   // 3a. THE DIRECT CALL-OFF LIMIT. Above it a call-off needs a mini-competition,
   //     and the checkout refuses it — so the form says so beside the value and
@@ -613,76 +620,48 @@ try {
   check('SOW sections build from the conversation (no generate hint)',
     (await page.getByText(/click Generate SOW/i).count()) === 0);
 
-  // 5b. Catalogue entry: item selection leads to an explicit review action.
+  // 5b. The catalogue is its own door. "Browse the catalogue" used to open a
+  //     catalogue step inside this wizard with a one-line cart; since
+  //     2026-09-25 it opens the Catalogue page, whose basket is placed through
+  //     the governed checkout (ADR-0009).
   await page.goto(`${BASE}/requests/new`, { waitUntil: 'networkidle' });
   await page.getByRole('button', { name: /Browse the catalogue/ }).click();
-  await page.getByText('Browse Catalogues').waitFor({ timeout: 10000 });
-  check('catalogue fast track omits the review step entirely',
-    (await page.getByText('Review & submit').count()) === 0 &&
-    (await page.getByText('Determination', { exact: true }).count()) === 0);
-  check('catalogue shows the governed checkout header',
-    (await page.getByText(/Catalogue request — governed checkout/i).count()) > 0);
-  await page.getByRole('button', { name: /IT Equipment/ }).first().click();
-  await page.getByRole('button', { name: /^Add$/ }).first().click();
-  const placeBtn = page.getByRole('button', { name: /Review order/ });
-  check('catalogue cart shows a Review order action', (await placeBtn.count()) > 0);
-  await placeBtn.first().click();
-  // A blocked checkout must say what it wants. It used to read "Complete the
-  // highlighted order details to continue" with nothing highlighted, so a
-  // requester whose blocking field was derived rather than asked for had a dead
-  // button and nothing to act on.
-  const blockedHint = await page.getByText(/Still needed:/).first().textContent().catch(() => '');
-  check('a blocked checkout names the fields it is waiting for',
-    /Still needed:/.test(blockedHint) && /who it is for|a business purpose|a cost centre/.test(blockedHint),
-    `hint was: ${blockedHint || '(absent)'}`);
-  check('the blocked checkout no longer points at a highlight that does not exist',
-    (await page.getByText(/Complete the highlighted/).count()) === 0);
-  await page.locator('#catalogue-recipient').fill('New starter');
-  await page.locator('#catalogue-purpose').fill('Provide standard equipment for the new starter.');
-  // A picker again — but every option is an active row of `cost_centres`, not
-  // the five invented entries ("CC-1001 Marketing", …) this screen once offered
-  // with the authority of a dropdown and nothing behind it. Free text was the
-  // wrong correction: the requester could type anything and the governed
-  // checkout could only check the field was non-empty.
-  const costCentreField = page.locator('#catalogue-cost-centre');
-  check('the cost centre is chosen from the reference table',
-    (await costCentreField.evaluate((el) => el.tagName).catch(() => 'NONE')) === 'SELECT');
+  await page.waitForURL((url) => url.pathname === '/catalogue', { timeout: 10000 });
+  const basket = page.locator('aside[aria-label="Your order"]');
+  await basket.waitFor({ timeout: 10000 });
+  check('"Browse the catalogue" opens the Catalogue page, not a wizard step',
+    new URL(page.url()).pathname === '/catalogue' && !/How you.ll buy/.test(await page.locator('main').innerText()));
+  // The item "Order this" put there earlier is still in the basket: it is
+  // the requester's until placed, across pages.
+  check('the basket keeps what was added from the buy-route screen',
+    (await basket.innerText()).includes('ThinkPad T14 Gen 5'));
+  // A picker, and every option an active row of `cost_centres` — not the five
+  // invented entries ("CC-1001 Marketing", …) a catalogue checkout once offered
+  // with the authority of a dropdown and nothing behind it.
+  const costCentreField = basket.getByLabel('Charged to');
   const offered = await costCentreField.evaluate(
     (el) => [...el.options].map((option) => option.value).filter(Boolean)).catch(() => []);
   check('every cost centre offered is a seeded row, not an invented one',
     offered.length > 0 && offered.every((id) => /^CC-/.test(id)), `offered=${offered.join(', ')}`);
-  check('no invented cost centre is offered',
-    !offered.some((id) => /^CC-1001$|Marketing/.test(id)));
-  if (offered.length) await costCentreField.selectOption(offered[0]);
-  // The delivery location is no longer silently defaulted to an invented
-  // "office": the requester either has one on their profile or picks one. The
-  // old fallback submitted a location nobody had chosen, which the server then
-  // had no way to reject because it was validating against a list the browser
-  // supplied.
-  const locationField = page.locator('#catalogue-delivery-location');
-  const locationOptions = await locationField.evaluate(
+  check('no invented or retired cost centre is offered',
+    !offered.some((id) => /^CC-1001$|Marketing|RETIRED/.test(id)));
+  // No silent default either: without a profile location the requester picks.
+  const locationOptions = await basket.getByLabel('Deliver to').evaluate(
     (el) => [...el.options].map((option) => option.value).filter(Boolean)).catch(() => []);
-  check('delivery locations come from the reference table', locationOptions.length > 0,
+  check('delivery locations come from the reference table, active only', locationOptions.length > 0 && !locationOptions.includes('closed-site'),
     `offered=${locationOptions.join(', ')}`);
-  if (locationOptions.length) await locationField.selectOption(locationOptions[0]);
-  const checkoutSubmit = page.getByRole('button', { name: /Review order/ });
-  check('shared checkout enables submit after required details', await checkoutSubmit.isEnabled().catch(() => false));
-  await checkoutSubmit.click();
-  await page.getByText('Request Submitted Successfully').waitFor({ timeout: 15000 });
-  check('catalogue order placed → confirmation reached without the full wizard', true);
-  check('confirmation lists the catalogue items',
-    (await page.getByText(/Catalogue Items/).count()) > 0);
-
-  // The id on this screen is now minted by the database, not by the wizard.
-  // The stub answers next_request_id with REQ-2026-09001, so seeing that value
-  // proves the RPC was actually called — a client-generated id could not
-  // produce it. Before this change the wizard rolled its own 4-digit random id.
-  const confirmationBody = await page.locator('body').innerText();
-  check('the request id came from the database sequence',
-    /REQ-2026-09001/.test(confirmationBody),
-    `confirmation text did not contain the sequence id`);
-  check('no client-generated REQ-2025 id is minted any more',
-    !/REQ-2025-\d{4}\b/.test(confirmationBody));
+  const place = basket.getByRole('button', { name: 'Place order' });
+  check('an order waits for where, what it is charged to and why', !(await place.isEnabled()));
+  await basket.getByLabel('Deliver to').selectOption(locationOptions[0]);
+  await costCentreField.selectOption(offered[0]);
+  await basket.getByLabel('What is it for?').fill('Standard equipment for a new starter');
+  await place.click();
+  await basket.getByText('Order placed').waitFor({ timeout: 15000 });
+  const placedText = await basket.innerText();
+  // The id is minted by the database, not by the page: the stub answers
+  // next_request_id with REQ-2026-09001, so seeing it proves the RPC ran.
+  check('the order is placed and named by the id the database minted', /REQ-2026-09001/.test(placedText), placedText.slice(0, 200));
+  check('no client-generated REQ-2025 id is minted', !/REQ-2025-\d{4}\b/.test(placedText));
 
   // 6. No runtime errors surfaced during the flow.
   check('no console / page errors during flow', consoleErrors.length === 0,
