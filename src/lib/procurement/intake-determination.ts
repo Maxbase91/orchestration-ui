@@ -349,9 +349,7 @@ export function evaluateIntakeDetermination(input: IntakeDeterminationInput): In
     riskRating: inherentRisk.tier,
     material: materiality.material,
     commodityCode: input.commodityCode,
-    // No region on the demand model yet; named so the gap is visible rather
-    // than an omission. A rule keyed on it is flagged by diagnoseRule.
-    region: undefined,
+    supplierRiskRating: supplierRec?.riskRating,
   }, policy);
 
   // `requests.approval_chain` is an FK to approval_chains.id. Routing rules

@@ -284,9 +284,9 @@ export function StepBuyRoute({
       material: signals.material,
       isUrgent,
       commodityCode,
-      region: undefined,
+      supplierRiskRating: supplierId ? supplierById.get(supplierId)?.riskRating : undefined,
     }, policyConfig),
-    [routingRules, category, estimatedValue, supplierId, contractMatches, signals, isUrgent, commodityCode, policyConfig],
+    [routingRules, category, estimatedValue, supplierId, contractMatches, signals, isUrgent, commodityCode, policyConfig, supplierById],
   );
 
   const timelineByCategory = useMemo(() => {

@@ -13,6 +13,7 @@
 // routing test asserts they agree across the labelled demand set.
 
 import type { RiskTier } from '@/lib/procurement/risk-segmentation';
+import type { RiskRating } from '@/data/types';
 import type { BuyingChannel, RoutingRule } from '@/data/types';
 import type { PolicyConfig } from '@/lib/procurement/policy-config';
 import { resolveRouting, type RoutingMatch } from './evaluate-routing-rules';
@@ -41,7 +42,8 @@ export interface DemandChannelInput {
   riskRating: RiskTier | undefined;
   /** The materiality / regulatory flag, when it has been determined. */
   material: boolean | undefined;
-  region: string | undefined;
+  /** The chosen supplier's own risk rating, when a supplier is known. */
+  supplierRiskRating: RiskRating | undefined;
   /**
    * The demand's commodity classification. `SUPPORTED_FIELDS` has always
    * evaluated it and this type had no member for it, so RR-007 and RR-009 —
@@ -52,13 +54,7 @@ export interface DemandChannelInput {
   commodityCode: string | undefined;
 }
 
-/**
- * Resolve the buying channel for a demand.
- *
- * `priority` is derived from `isUrgent` rather than passed separately: the two
- * are one fact, and RR-010 ("Urgent request fast-track") requires both, so
- * setting one without the other silently disarms the rule.
- */
+/** Resolve the buying channel for a demand. */
 export function resolveDemandChannel(
   rules: RoutingRule[],
   input: DemandChannelInput,
@@ -69,11 +65,10 @@ export function resolveDemandChannel(
     value: input.value,
     supplierId: input.supplierId,
     contractId: input.contractId,
-    priority: input.isUrgent ? 'urgent' : undefined,
     isUrgent: input.isUrgent,
     riskRating: input.riskRating,
+    supplierRiskRating: input.supplierRiskRating,
     material: input.material,
-    region: input.region,
     commodityCode: input.commodityCode,
   }, config);
 }

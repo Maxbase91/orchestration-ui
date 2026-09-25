@@ -22,9 +22,9 @@
 // so it would have gone on passing against code that no longer exists. A
 // mirror that can disagree with the thing it mirrors tests the mirror.
 //
-// The EDITOR lists below are still local, deliberately: they are the thing
-// being compared AGAINST the runtime, so importing both sides would assert
-// nothing.
+// The EDITOR lists are read out of the editor component itself
+// (condition-card.tsx), not copied here: a local copy was the thing that went
+// stale — it still offered `region` and `priority` after both left the editor.
 // Run: npm run test:routing-rule-integrity
 
 let failures = 0;
@@ -33,6 +33,7 @@ function check(name, cond, detail = '') {
   else { failures++; console.error(`  \x1b[31m✗\x1b[0m ${name}${detail ? ` — ${detail}` : ''}`); }
 }
 
+import { readFileSync } from 'node:fs';
 import {
   SUPPORTED_FIELDS, SUPPORTED_OPERATORS, evalCondition, diagnoseRule as diagnoseRuleReal,
   resolveRouting as resolveRoutingReal, evaluateRoutingRules,
@@ -51,16 +52,16 @@ const evaluate = (rules, ctx) => evaluateRoutingRules(rules, ctx, CONFIG);
 const resolveRouting = (rules, ctx) =>
   resolveRoutingReal([...rules, ...CATCH_ALLS], ctx, CONFIG).channel;
 
-// Mirrors the admin editor's lists (condition-card.tsx). These two MUST match
+// The admin editor's own lists, read from condition-card.tsx. They MUST match
 // the runtime's, which is the whole point of this suite.
-const EDITOR_FIELDS = [
-  'value', 'category', 'supplierId', 'contractId', 'riskRating',
-  'material', 'region', 'commodityCode', 'priority', 'isUrgent',
-];
-const EDITOR_OPERATORS = [
-  'equals', 'greater_than', 'less_than', 'contains', 'starts_with',
-  'in', 'between', 'is_empty', 'is_not_empty', 'risk_rating',
-];
+const EDITOR_SOURCE = readFileSync(new URL('../../src/features/admin/routing-rules/components/condition-card.tsx', import.meta.url), 'utf8');
+const optionValues = (name) => {
+  const block = new RegExp(`const ${name} = \\[([\\s\\S]*?)\\];`).exec(EDITOR_SOURCE)?.[1] ?? '';
+  return [...block.matchAll(/value: '([^']+)'/g)].map((m) => m[1]);
+};
+const EDITOR_FIELDS = optionValues('FIELD_OPTIONS');
+const EDITOR_OPERATORS = optionValues('OPERATOR_OPTIONS');
+check('the editor lists were found', EDITOR_FIELDS.length > 5 && EDITOR_OPERATORS.length > 5, `${EDITOR_FIELDS.length} fields, ${EDITOR_OPERATORS.length} operators`);
 
 const mk = (id, conditions, channel = 'procurement-led') => ({
   id, name: id, status: 'active', conditions,
@@ -87,7 +88,6 @@ console.log('\nRR-001, the rule that was active and dead');
 const oldRR001 = mk('RR-001-old', [
   { field: 'contractId', operator: 'less_than', value: 'false' },
   { field: 'supplierId', operator: 'between', value: '100000' },
-  { field: 'priority', operator: 'is_empty', value: '' },
 ]);
 check('it never matched the demand it described',
   evaluate([oldRR001], { category: 'software', value: 150_000 }) === null);
@@ -130,7 +130,11 @@ check('is_not_empty is TRUE when the field is present',
 
 console.log('\nThe fields the editor offered and the engine never read');
 check('contractId', evaluate([mk('f', [{ field: 'contractId', operator: 'equals', value: 'CON-1' }])], { contractId: 'CON-1' }) !== null);
-check('region', evaluate([mk('f', [{ field: 'region', operator: 'equals', value: 'EMEA' }])], { region: 'EMEA' }) !== null);
+// `region` and `priority` left the vocabulary (2026-09-25): nothing supplied a
+// region, and priority was a second name for isUrgent. A rule still on either
+// is diagnosed rather than silently never matching.
+check('a rule on region is diagnosed', diagnoseRule(mk('f', [{ field: 'region', operator: 'equals', value: 'EMEA' }])).length > 0);
+check('a rule on priority is diagnosed', diagnoseRule(mk('f', [{ field: 'priority', operator: 'equals', value: 'urgent' }])).length > 0);
 // riskRating was reachable at runtime but the editor called it riskLevel, so
 // the obvious "route on risk" rule was dead on a name mismatch.
 check('riskRating (was riskLevel in the editor)',
@@ -138,18 +142,28 @@ check('riskRating (was riskLevel in the editor)',
 check('material', evaluate([mk('f', [{ field: 'material', operator: 'equals', value: 'true' }])], { material: true }) !== null);
 
 console.log('\nRR-010 is the one rule that can still move the answer after step 2');
-const rr010 = mk('RR-010', [
-  { field: 'priority', operator: 'equals', value: 'urgent' },
-  { field: 'isUrgent', operator: 'equals', value: 'true' },
-]);
-check('it fires only on urgency', evaluate([rr010], { priority: 'urgent', isUrgent: true }) !== null);
-check('and is quiet otherwise', evaluate([rr010], { priority: 'high', isUrgent: false }) === null);
+const rr010 = routingRules.find((r) => r.id === 'RR-010');
+check('it tests urgency once', rr010.conditions.length === 1 && rr010.conditions[0].field === 'isUrgent');
+check('it fires only on urgency', evaluate([rr010], { isUrgent: true }) !== null);
+check('and is quiet otherwise', evaluate([rr010], { isUrgent: false }) === null);
 // This is why the urgency toggle has to say what it does: the channel shown on
 // the pre-check is settled EXCEPT for this, and the change is user-caused.
 const before = resolveRouting([rr010], { category: 'services', value: 30_000 });
-const after = resolveRouting([rr010], { category: 'services', value: 30_000, priority: 'urgent', isUrgent: true });
+const after = resolveRouting([rr010], { category: 'services', value: 30_000, isUrgent: true });
 check('marking a demand urgent can change its channel', before !== after, `${before} -> ${after}`);
 check('and it only ever escalates to procurement-led', after === 'procurement-led');
+
+console.log('\nRR-012: a high-risk supplier goes through compliance escalation');
+// It compared the supplier's *id* with the risk scale, so it never matched,
+// and it was switched off. Now on the supplier's own rating (2026-09-25).
+const rr012 = routingRules.find((r) => r.id === 'RR-012');
+check('it is active', rr012.status === 'active');
+check('it is keyed on the supplier\'s risk rating', rr012.conditions.every((c) => c.field === 'supplierRiskRating'));
+check('a supplier rated high or critical matches',
+  evaluate([rr012], { supplierRiskRating: 'high' }) !== null && evaluate([rr012], { supplierRiskRating: 'critical' }) !== null);
+check('a medium-rated supplier does not', evaluate([rr012], { supplierRiskRating: 'medium' }) === null);
+check('it names the compliance chain', rr012.action.approvalChain === 'chain-compliance');
+check('it is healthy', diagnoseRule(rr012).length === 0, diagnoseRule(rr012).join('; '));
 
 console.log('');
 if (failures) console.error(`FAILED: ${failures} check(s)`);

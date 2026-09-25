@@ -18,6 +18,7 @@ import {
   resolvePolicyValue, policyKeyHolding,
 } from '@/lib/procurement/policy-tokens';
 import { usePolicyConfig } from '@/lib/procurement/use-policy-config';
+import { useProcurementCategories } from '@/lib/db/hooks/use-procurement-categories';
 import { formatCurrency } from '@/lib/format';
 
 // Every entry here MUST exist in SUPPORTED_FIELDS in evaluate-routing-rules.ts.
@@ -27,13 +28,12 @@ import { formatCurrency } from '@/lib/format';
 const FIELD_OPTIONS = [
   { value: 'value', label: 'Value' },
   { value: 'category', label: 'Category' },
-  { value: 'supplierId', label: 'Supplier Status' },
+  { value: 'supplierId', label: 'Supplier chosen' },
+  { value: 'supplierRiskRating', label: 'Supplier risk rating' },
   { value: 'contractId', label: 'Contract Exists' },
-  { value: 'riskRating', label: 'Risk Rating' },
+  { value: 'riskRating', label: 'Demand risk tier' },
   { value: 'material', label: 'Material / Regulatory Flag' },
-  { value: 'region', label: 'Region' },
   { value: 'commodityCode', label: 'Commodity Code' },
-  { value: 'priority', label: 'Priority' },
   { value: 'isUrgent', label: 'Is Urgent' },
 ];
 
@@ -51,13 +51,7 @@ const OPERATOR_OPTIONS = [
   { value: 'risk_rating', label: 'risk rating is' },
 ];
 
-const CATEGORY_VALUES = [
-  'goods', 'services', 'software', 'consulting',
-  'contingent-labour',
-];
-
 const RISK_VALUES = ['low', 'medium', 'high', 'critical'];
-const PRIORITY_VALUES = ['low', 'medium', 'high', 'urgent'];
 
 interface ConditionCardProps {
   condition: { field: string; operator: string; value: string };
@@ -67,6 +61,10 @@ interface ConditionCardProps {
 
 export function ConditionCard({ condition, onChange, onRemove }: ConditionCardProps) {
   const policyConfig = usePolicyConfig();
+  // The categories an admin configured, not a list typed here — a category
+  // added under Categories could not be picked in a rule.
+  const { data: categories = [] } = useProcurementCategories();
+  const categoryOptions = categories.filter((c) => c.active || c.id === condition.value);
   // Presence checks are unary — hide the value control entirely.
   const needsValueInput = !['is_empty', 'is_not_empty'].includes(condition.operator);
 
@@ -83,8 +81,8 @@ export function ConditionCard({ condition, onChange, onRemove }: ConditionCardPr
             <SelectValue placeholder="Select category" />
           </SelectTrigger>
           <SelectContent>
-            {CATEGORY_VALUES.map((c) => (
-              <SelectItem key={c} value={c}>{c}</SelectItem>
+            {categoryOptions.map((c) => (
+              <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -109,23 +107,6 @@ export function ConditionCard({ condition, onChange, onRemove }: ConditionCardPr
       );
     }
 
-    if (condition.field === 'priority') {
-      return (
-        <Select
-          value={condition.value}
-          onValueChange={(v) => onChange({ ...condition, value: v })}
-        >
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="Select priority" />
-          </SelectTrigger>
-          <SelectContent>
-            {PRIORITY_VALUES.map((p) => (
-              <SelectItem key={p} value={p}>{p}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      );
-    }
 
     // contractId conditions test existence (has a contract: yes/no), not a
     // specific id — hence the boolean select rather than a text input.

@@ -11,19 +11,6 @@ import type { RoutingRule } from './types.js';
 // the two rules written specifically to escalate compliance.
 export const routingRules: RoutingRule[] = [
   {
-    id: 'RR-001',
-    name: 'High-value IT software',
-    status: 'active',
-    conditions: [
-      { field: 'category', operator: 'equals', value: 'software' },
-      { field: 'value', operator: 'greater_than', value: 'policy:budgetApprovalThreshold' },
-    ],
-    action: { buyingChannel: 'procurement-led', approvalChain: '' },
-    description: 'Routes all software requests above €100K to Procurement-led channel with full approval chain.',
-    lastModified: '2024-11-15T10:00:00Z',
-    category: 'Software',
-  },
-  {
     id: 'RR-003',
     name: 'Consulting engagements',
     status: 'active',
@@ -36,53 +23,26 @@ export const routingRules: RoutingRule[] = [
     category: 'Consulting',
   },
   {
-    id: 'RR-006',
-    name: 'Mega-deal threshold (>€1M)',
-    status: 'active',
-    conditions: [
-      { field: 'value', operator: 'greater_than', value: 'policy:materialityValueThreshold' },
-    ],
-    action: { buyingChannel: 'procurement-led', approvalChain: '' },
-    description: 'Any request exceeding €1M requires full approval chain including CPO sign-off.',
-    lastModified: '2024-07-01T09:00:00Z',
-    category: 'All',
-  },
-  {
     id: 'RR-010',
     name: 'Urgent request fast-track',
     status: 'active',
     conditions: [
-      { field: 'priority', operator: 'equals', value: 'urgent' },
       { field: 'isUrgent', operator: 'equals', value: 'true' },
     ],
     action: { buyingChannel: 'procurement-led', approvalChain: '' },
-    description: 'Urgent requests skip finance approval and go directly to VP for expedited processing.',
+    description: 'An urgent request is run by procurement, whatever its value. Approvals follow the value band as usual.',
     lastModified: '2024-08-01T08:00:00Z',
     category: 'All',
   },
   {
-    id: 'RR-011',
-    name: 'Marketing services - mid-tier',
-    status: 'draft',
-    conditions: [
-      { field: 'category', operator: 'equals', value: 'services' },
-      { field: 'commodityCode', operator: 'starts_with', value: '8014' },
-      { field: 'value', operator: 'between', value: '50000,250000' },
-    ],
-    action: { buyingChannel: 'procurement-led', approvalChain: '' },
-    description: 'Mid-tier marketing services require Procurement-led procurement with finance approval. Draft — pending policy committee review.',
-    lastModified: '2025-01-05T10:00:00Z',
-    category: 'Marketing',
-  },
-  {
     id: 'RR-012',
     name: 'High-risk supplier override',
-    status: 'disabled',
+    status: 'active',
     conditions: [
-      { field: 'supplierId', operator: 'risk_rating', value: 'high,critical' },
+      { field: 'supplierRiskRating', operator: 'risk_rating', value: 'high' },
     ],
     action: { buyingChannel: 'procurement-led', approvalChain: 'chain-compliance' },
-    description: 'High/critical risk suppliers require extended approval chain. Disabled — under review after false positive rate exceeded 15%.',
+    description: 'A supplier rated high or critical goes through the Compliance Escalation chain (supplier manager, legal, category manager), whatever the value.',
     lastModified: '2024-12-01T09:00:00Z',
     category: 'Risk Management',
   },

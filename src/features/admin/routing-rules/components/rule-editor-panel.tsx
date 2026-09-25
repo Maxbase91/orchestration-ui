@@ -60,11 +60,10 @@ const FIELD_LABELS: Record<string, string> = {
   category: 'category',
   supplierId: 'supplier',
   contractId: 'contract',
-  riskRating: 'risk rating',
+  riskRating: 'demand risk tier',
+  supplierRiskRating: "supplier's risk rating",
   material: 'material flag',
-  region: 'region',
   commodityCode: 'commodity code',
-  priority: 'priority',
   isUrgent: 'urgent flag',
 };
 

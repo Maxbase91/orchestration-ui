@@ -26,10 +26,15 @@ export interface RoutingContext {
   value?: number;
   supplierId?: string;
   commodityCode?: string;
-  priority?: string;
   isUrgent?: boolean;
   /** Inherent risk tier of the demand (e.g. from the selected supplier). */
   riskRating?: RiskRating;
+  /**
+   * The chosen supplier's own risk rating, from the supplier record. RR-012
+   * ("high-risk supplier → compliance escalation") needs it; it used to test
+   * the supplier's *id* against the risk scale, so it could never match.
+   */
+  supplierRiskRating?: RiskRating;
   /** Whether the demand is material (raises the regulatory/materiality flag). */
   material?: boolean;
   /**
@@ -38,15 +43,17 @@ export interface RoutingContext {
    * "no contract covers this" is a real routing signal.
    */
   contractId?: string;
-  /** Requester or delivery region, for geography-based routing. */
-  region?: string;
 }
 
 /** Fields the evaluator can read. Kept in step with the admin editor's list. */
 export const SUPPORTED_FIELDS = [
-  'category', 'value', 'supplierId', 'commodityCode', 'priority',
-  'isUrgent', 'riskRating', 'material', 'contractId', 'region',
+  'category', 'value', 'supplierId', 'commodityCode',
+  'isUrgent', 'riskRating', 'supplierRiskRating', 'material', 'contractId',
 ] as const;
+// `priority` and `region` were offered too. Nothing ever supplied a region, so
+// a rule on it could never fire; `priority` was only ever "urgent" or empty —
+// a second name for `isUrgent`, offering values ("high", "low") that never
+// occur. Removed 2026-09-25; diagnoseRule flags a rule still using either.
 
 /** Operators the evaluator implements. Kept in step with the editor's list. */
 export const SUPPORTED_OPERATORS = [
@@ -68,19 +75,10 @@ export interface RuleDiagnostic {
  * Returns [] for a healthy rule, so `diagnose(...).length > 0` reads as "this
  * rule is broken".
  */
-/**
- * Fields the vocabulary supports and no production caller supplies.
- *
- * `diagnoseRule` used to check only the vocabulary, so a rule keyed on a field
- * nothing populates read as healthy. `commodityCode` sat here for months —
- * RR-007 and RR-009 were active, showed match counts of 62 and 24, and could
- * never fire. It is supplied now; `region` is not, because the demand model has
- * no such field yet.
- *
- * Anything listed here must be removed from the list the moment a caller starts
- * passing it, or the diagnostic becomes the false alarm instead.
- */
-const UNPOPULATED_FIELDS: readonly string[] = ['region'];
+// There was an UNPOPULATED_FIELDS list here — fields the vocabulary offered and
+// no caller supplied (`commodityCode` for months, then `region`). Every field
+// in SUPPORTED_FIELDS is supplied now, and a field a caller stops supplying is
+// removed from the vocabulary rather than listed, so the list went (2026-09-25).
 
 /**
  * Substitute every `policy:<key>` token in a rule's conditions for the number
@@ -122,9 +120,6 @@ export interface DiagnoseContext {
 export function diagnoseRule(rule: RoutingRule, ctx: DiagnoseContext): string[] {
   const problems: string[] = [];
   for (const c of rule.conditions ?? []) {
-    if (UNPOPULATED_FIELDS.includes(c.field)) {
-      problems.push(`Nothing supplies "${c.field}" yet, so this condition can never be true.`);
-    }
     if (!(SUPPORTED_FIELDS as readonly string[]).includes(c.field)) {
       problems.push(`Unknown field "${c.field}" — this condition can never be true.`);
     }
@@ -230,12 +225,11 @@ function fieldValue(ctx: RoutingContext, field: string): string | number | boole
     case 'value': return ctx.value;
     case 'supplierId': return ctx.supplierId;
     case 'commodityCode': return ctx.commodityCode;
-    case 'priority': return ctx.priority;
     case 'isUrgent': return ctx.isUrgent;
     case 'riskRating': return ctx.riskRating;
+    case 'supplierRiskRating': return ctx.supplierRiskRating;
     case 'material': return ctx.material;
     case 'contractId': return ctx.contractId;
-    case 'region': return ctx.region;
     default: return undefined;
   }
 }

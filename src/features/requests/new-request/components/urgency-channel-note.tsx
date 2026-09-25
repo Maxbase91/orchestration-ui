@@ -45,7 +45,7 @@ export function UrgencyChannelNote({
     isUrgent: undefined,
     riskRating: undefined,
     material: undefined,
-    region: undefined,
+    supplierRiskRating: undefined,
     commodityCode: undefined,
   }, policyConfig);
 

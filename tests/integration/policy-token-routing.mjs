@@ -35,7 +35,9 @@ const CONFIG = DEFAULT_POLICY_CONFIG;
 // ── The migration is behaviour-neutral ─────────────────────────────────────
 // The literals as they stood before the migration, restored onto a copy of the
 // rule set. If tokens resolve correctly these two rule sets are the same rules.
-const PRE_MIGRATION = { 'RR-001': '100000', 'RR-006': '1000000', 'RR-007': '25000' };
+// RR-001, RR-006 and RR-007 are gone (they could never change an outcome);
+// RR-902 carries the budget-approval threshold now.
+const PRE_MIGRATION = { 'RR-902': '100000' };
 const asLiterals = routingRules.map((r) => {
   const literal = PRE_MIGRATION[r.id];
   if (!literal) return r;
@@ -58,7 +60,6 @@ for (const category of CATEGORIES) {
       for (const isUrgent of [false, true]) {
         const ctx = {
           category, value, commodityCode, isUrgent,
-          priority: isUrgent ? 'urgent' : undefined,
           supplierId: 'SUP-001',
         };
         const before = resolveRouting(asLiterals, ctx, CONFIG);
@@ -83,13 +84,13 @@ console.log('\nA governed threshold actually drives the rule');
 const softwareCtx = { category: 'software', value: 120_000, supplierId: 'SUP-001' };
 const atDefault = resolveRouting(routingRules, softwareCtx, CONFIG);
 const raised = resolveRouting(routingRules, softwareCtx, resolvePolicyConfig({ budgetApprovalThreshold: 200_000 }));
-if (atDefault.matchedRule?.id !== 'RR-001') {
-  bad('€120k software matches RR-001 at the default threshold', `matched ${atDefault.matchedRule?.id ?? 'nothing'}`);
-} else if (raised.matchedRule?.id === 'RR-001') {
-  bad('raising the threshold to €200k stops RR-001 matching €120k',
+if (atDefault.matchedRule?.id !== 'RR-902') {
+  bad('€120k software matches RR-902 at the default threshold', `matched ${atDefault.matchedRule?.id ?? 'nothing'}`);
+} else if (raised.matchedRule?.id === 'RR-902') {
+  bad('raising the threshold to €200k stops RR-902 matching €120k',
     'the rule still fired, so the token is not being resolved against the passed config');
 } else {
-  ok('raising budgetApprovalThreshold to €200k takes €120k software out of RR-001');
+  ok('raising budgetApprovalThreshold to €200k takes €120k software out of RR-902');
 }
 
 // ── An unresolved token must never reach the evaluator ─────────────────────

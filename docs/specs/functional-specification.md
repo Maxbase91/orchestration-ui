@@ -1125,17 +1125,14 @@ An interactive condition builder with IF/THEN logic:
 **Panel 3: Test Panel**
 A simulation area where administrators can input test request data and see which rule would match and what routing would result.
 
-**Seeded rules (Door 1).** Routing decides only **business-led** or **procurement-led**. Catalogue and framework call-off are never routed to: they come from a real catalogue item or a transactable contract found by the buy-route checks. Direct PO and P-card were retired on 2026-09-25 (no honest intake path reached either). Thresholds are `policy:` references to the Decisioning Thresholds page, not restated numbers.
+**Seeded rules (Door 1).** Routing decides only **business-led** or **procurement-led**. Every rule can change an outcome: RR-001 (software above the budget-approval threshold), RR-006 (above materiality) and the draft RR-011 were removed on 2026-09-25 because RR-902 already gave the same answer. Rule conditions can use: value, category, supplier chosen, the supplier's risk rating, contract exists, the demand's risk tier, materiality, commodity code, urgent. Catalogue and framework call-off are never routed to: they come from a real catalogue item or a transactable contract found by the buy-route checks. Direct PO and P-card were retired on 2026-09-25 (no honest intake path reached either). Thresholds are `policy:` references to the Decisioning Thresholds page, not restated numbers.
 
 | Rule | Conditions | Buying Channel | Status |
 |---|---|---|---|
-| RR-001 High-value IT software | Software AND value > budget-approval threshold (€100K) | Procurement-Led | Active |
 | RR-003 Consulting engagements | Category = Consulting | Procurement-Led | Active |
 | RR-013 Contingent labour | Category = Contingent Labour (a call-off only when the contract check finds a framework) | Procurement-Led | Active |
-| RR-006 Materiality threshold | Value > materiality threshold (€1M) | Procurement-Led | Active |
-| RR-010 Urgent request fast-track | Priority = Urgent AND urgency flag | Procurement-Led | Active |
-| RR-011 Marketing services — mid-tier | Services AND commodity code starts 8014 AND value €50K–250K | Procurement-Led | Draft |
-| RR-012 High-risk supplier override | Supplier risk rating High/Critical | Procurement-Led (compliance chain) | Disabled |
+| RR-010 Urgent request | Marked urgent | Procurement-Led | Active |
+| RR-012 High-risk supplier | The chosen supplier's own risk rating is high or critical | Procurement-Led, Compliance Escalation chain | Active |
 | RR-902 Catch-all — above budget approval | Value > budget-approval threshold | Procurement-Led | Active |
 | RR-904 Catch-all — business-led ceiling | Value ≤ business-led ceiling (€50K) | Business-Led | Active |
 | RR-905 Catch-all — everything else | Any value | Procurement-Led | Active |

@@ -46,9 +46,11 @@ async function main() {
   // ── Canonical scenarios that should match specific active seed rules ──
   const scenarios = [
     {
-      label: 'High-value IT software (>€100k)',
+      // RR-001 (software above the budget-approval threshold) went: RR-902
+      // already sends anything above that threshold procurement-led.
+      label: 'High-value software (>€100k) is procurement-led',
       ctx: { category: 'software', value: 250000 },
-      expectedRuleId: 'RR-001',
+      expectedRuleId: 'RR-902',
       expectedChannel: 'procurement-led',
     },
     {
@@ -72,15 +74,21 @@ async function main() {
       expectedChannel: 'procurement-led',
     },
     {
-      label: 'Mega-deal threshold (>€1M)',
+      label: 'Above materiality (>€1M) is procurement-led',
       ctx: { category: 'services', value: 1_500_000 },
-      expectedRuleId: 'RR-006',
+      expectedRuleId: 'RR-902',
       expectedChannel: 'procurement-led',
     },
     {
-      label: 'Urgent priority request',
-      ctx: { category: 'goods', value: 30000, priority: 'urgent', isUrgent: true },
+      label: 'Urgent request',
+      ctx: { category: 'goods', value: 30000, isUrgent: true },
       expectedRuleId: 'RR-010',
+      expectedChannel: 'procurement-led',
+    },
+    {
+      label: 'A high-risk supplier goes through compliance escalation',
+      ctx: { category: 'goods', value: 30000, supplierRiskRating: 'high' },
+      expectedRuleId: 'RR-012',
       expectedChannel: 'procurement-led',
     },
   ];
