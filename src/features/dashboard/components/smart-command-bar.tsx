@@ -25,7 +25,7 @@ import { useCatalogueItems } from '@/lib/db/hooks/use-catalogue-items';
 import { openAIChat, openAIChatWithPrompt } from '@/features/ai-assistant/ai-chat-controls';
 import { formatCurrency } from '@/lib/format';
 import { decideIntakeRoute } from '@/lib/procurement/intake-routing';
-import { classifyDemandCategory, matchesDemandCategory } from '@/lib/procurement/classify';
+import { classifyDemandCategory, matchesDemandCategory, type ClassifierCategory } from '@/lib/procurement/classify';
 import { useProcurementCategories } from '@/lib/db/hooks/use-procurement-categories';
 import { DEFAULT_CATEGORY_TAXONOMY } from '@/data/category-taxonomy';
 import { useAuthStore } from '@/stores/auth-store';
@@ -153,12 +153,13 @@ function catalogueRoute(
   query: string,
   items: CatalogueItem[],
   eligibleCategories: string[],
+  categories: ClassifierCategory[],
   llmIntent?: string,
 ) {
   return decideIntakeRoute(
     {
       text: query,
-      category: classifyDemandCategory(query),
+      category: classifyDemandCategory(query, categories),
       estimatedValue: 0,
       supplierId: '',
       llmIntent,
@@ -187,13 +188,14 @@ function localClassify(
   query: string,
   catalogueItems: CatalogueItem[],
   eligibleCategories: string[],
+  categories: ClassifierCategory[],
 ): AIResult {
   const q = query.toLowerCase();
 
   // The catalogue is offered only when the shared decision says the catalogue
   // actually serves this demand — category-gated, and on a word that NAMES what
   // is being bought rather than one that merely describes it.
-  const decision = catalogueRoute(query, catalogueItems, eligibleCategories);
+  const decision = catalogueRoute(query, catalogueItems, eligibleCategories, categories);
   if (decision.route === 'catalogue') {
     const n = decision.catalogueMatches.length;
     return { intent: 'catalogue', message: `Found ${n} matching catalogue item${n === 1 ? '' : 's'}.`, links: [] };
@@ -220,11 +222,11 @@ function localClassify(
   // not recognised and went to the chat assistant, which cannot route or
   // submit anything. Naming something procurable counts, and the category
   // rules already know what that looks like.
-  if (DEMAND_VERBS.some((w) => q.includes(w)) || matchesDemandCategory(query)) {
+  if (DEMAND_VERBS.some((w) => q.includes(w)) || matchesDemandCategory(query, categories)) {
     // One classifier. This branch used to carry its own regex cascade — a
     // fifth copy of the category decision, which could disagree with the
     // wizard about the same sentence.
-    const category = classifyDemandCategory(query);
+    const category = classifyDemandCategory(query, categories);
 
     // Keep broad classification internal. The requester confirms a specific
     // commodity/service family inside the shared intake instead of choosing a
@@ -271,10 +273,16 @@ export function SmartCommandBar() {
   // (`procurement_categories.catalogue_eligible`), falling back to the
   // canonical taxonomy so an empty store behaves identically. Same source the
   // wizard's pre-check reads, so both doors gate on the same setting.
+  // The configured categories (their keywords classify a demand), falling back
+  // to the seed when the store is empty.
+  const classifierCategories = useMemo(
+    () => (dbCategories.length > 0 ? dbCategories : DEFAULT_CATEGORY_TAXONOMY),
+    [dbCategories],
+  );
   const eligibleCategories = useMemo(() => {
-    const src = dbCategories.length > 0 ? dbCategories : DEFAULT_CATEGORY_TAXONOMY;
+    const src = classifierCategories;
     return src.filter((c) => c.catalogueEligible).map((c) => c.id);
-  }, [dbCategories]);
+  }, [classifierCategories]);
 
   // Catalogue state
   const [showCatalogue, setShowCatalogue] = useState(false);
@@ -301,7 +309,7 @@ export function SmartCommandBar() {
     // something procurable, is answering the wrong question.
     if (intent === 'navigation'
       && !LOOKUP_OPENERS.test(query.toLowerCase())
-      && (DEMAND_VERBS.some((w) => query.toLowerCase().includes(w)) || matchesDemandCategory(query))) {
+      && (DEMAND_VERBS.some((w) => query.toLowerCase().includes(w)) || matchesDemandCategory(query, classifierCategories))) {
       intent = 'new-request';
     }
 
@@ -315,7 +323,7 @@ export function SmartCommandBar() {
     // is overruled here exactly as it is in the wizard, and the demand falls
     // through to intake instead of being shown unrelated items.
     if (intent === 'catalogue') {
-      const decision = catalogueRoute(query, catalogueItems, eligibleCategories, 'catalogue');
+      const decision = catalogueRoute(query, catalogueItems, eligibleCategories, classifierCategories, 'catalogue');
       if (decision.route === 'catalogue') {
         const matched = decision.catalogueMatches.map((m) => m.item);
         setProposal({
@@ -333,7 +341,7 @@ export function SmartCommandBar() {
       // Overruled — treat it as the demand it is, and say why the catalogue was
       // ruled out rather than silently showing a different screen.
       intent = 'new-request';
-      category = category ?? classifyDemandCategory(query);
+      category = category ?? classifyDemandCategory(query, classifierCategories);
       if (decision.ruledOut.catalogue) {
         message = `${decision.ruledOut.catalogue} Let's raise this as a request.`;
       }
@@ -406,7 +414,7 @@ export function SmartCommandBar() {
       }
     }
 
-    const localForCatalogue = localClassify(query, catalogueItems, eligibleCategories);
+    const localForCatalogue = localClassify(query, catalogueItems, eligibleCategories, classifierCategories);
     if (localForCatalogue.intent !== 'catalogue' && looksLikePolicyQuestion(query)) {
       setLoading(true);
       try {

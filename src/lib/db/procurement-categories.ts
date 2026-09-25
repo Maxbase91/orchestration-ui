@@ -1,15 +1,23 @@
 // Data access for the `procurement_categories` table (the admin-editable
 // category taxonomy used across intake and classification). Lists in admin-
-// defined sort_order so display order is data, not code.
+// defined sort_order — which is also the classifier's precedence: the first
+// category whose keywords match a demand wins (lib/procurement/classify.ts).
 import { db } from '@/lib/db-client';
 import { commodityFieldsFromRow, type CategoryCode, type CommodityCodeEntry } from '@/lib/procurement/category-code';
 
 export interface ProcurementCategory {
   id: string;
   label: string;
+  /** What the category covers — given to the AI classifier with the label. */
   description: string;
-  icon?: string;
-  timelineDays: number;
+  /**
+   * The words that put a demand in this category when the AI classifier is off
+   * or unavailable, matched at the start of a word. They were a regex list in
+   * classify.ts that no admin could see or change. (`icon` and `timelineDays`
+   * went on 2026-09-25: the icon was never shown, and the timeline disagreed
+   * with the workflow's stage targets, which are the real ones.)
+   */
+  keywords: string[];
   sortOrder: number;
   active: boolean;
   /**
@@ -41,8 +49,7 @@ function mapRow(row: Record<string, unknown>): ProcurementCategory {
     id: row.id as string,
     label: row.label as string,
     description: (row.description as string) ?? '',
-    icon: row.icon as string | undefined,
-    timelineDays: (row.timeline_days as number) ?? 5,
+    keywords: Array.isArray(row.classification_keywords) ? (row.classification_keywords as string[]) : [],
     sortOrder: (row.sort_order as number) ?? 0,
     active: (row.active as boolean) ?? true,
     catalogueEligible: (row.catalogue_eligible as boolean) ?? false,
@@ -67,8 +74,7 @@ export async function upsertProcurementCategory(cat: ProcurementCategory): Promi
       id: cat.id,
       label: cat.label,
       description: cat.description,
-      icon: cat.icon,
-      timeline_days: cat.timelineDays,
+      classification_keywords: cat.keywords ?? [],
       sort_order: cat.sortOrder,
       active: cat.active,
       catalogue_eligible: cat.catalogueEligible,

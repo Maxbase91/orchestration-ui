@@ -101,22 +101,16 @@ console.log('One classifier, not two');
 const intakeSrc = readFileSync(new URL('../../src/lib/assistant/capabilities/intake.ts', import.meta.url), 'utf8');
 check('the assistant has no private category keyword table',
   !intakeSrc.includes('categoryKeywords') && !intakeSrc.includes('guessCategory'));
-check('the assistant classifies through the shared classifier',
-  intakeSrc.includes('classifyDemandCategory'));
+// Since 2026-09-25 the assistant does not classify at all: it hands the words
+// to the describe step (?q=), which classifies with the configured categories —
+// the same route a demand typed on Home takes.
+check('the assistant hands a demand to the describe step with its words',
+  /\/requests\/new\?q=\$\{encodeURIComponent\(text\)\}/.test(intakeSrc) && !/knownSuppliers/.test(intakeSrc));
 
-// Mirrors src/lib/procurement/classify.ts — kept in step with classification-eval.mjs.
-const CATEGORY_RULES = [
-  { category: 'consulting', pattern: /consult|advisory|strategy|audit|transformation|business consult|operating model|tom\b|organisational|organizational|change management|programme management|program management|due diligence|feasibility|business case|maturity assessment|roadmap|target state/ },
-  { category: 'services', pattern: /\bservice\b|cleaning|catering|maintenance|travel|translation|managed print|managed service|facilities|security guard|payroll|hr admin|helpdesk/ },
-  { category: 'software', pattern: /software|saas|license|cloud|platform|subscription|app/ },
-  { category: 'contingent-labour', pattern: /temp|contractor|staff|developer|freelance|hire|interim/ },
-  { category: 'catalogue', pattern: /paper|pen|toner|cable|headset|mouse|keyboard|office supplies/ },
-];
-const classifyDemandCategory = (text) => {
-  const q = text.toLowerCase();
-  for (const r of CATEGORY_RULES) if (r.pattern.test(q)) return r.category;
-  return 'goods';
-};
+// The real classifier with the seeded keywords (it was a copy of the old regex).
+const { classifyDemandCategory: classifyWith } = await import('../../src/lib/procurement/classify.ts');
+const { DEFAULT_CATEGORY_TAXONOMY } = await import('../../src/data/category-taxonomy.ts');
+const classifyDemandCategory = (text) => classifyWith(text, DEFAULT_CATEGORY_TAXONOMY);
 // The reported case: the old table returned `consulting` here too, but only by
 // luck — "advisory" alone tipped either way depending on key order.
 check('"I want to buy business consulting" classifies as consulting',
@@ -186,8 +180,13 @@ const ITEMS_SRC = readFileSync(
 
 console.log('\nClassification does not get to choose the route');
 // The wizard's prompt widened api/ai.ts's category list with a route.
-check('step 1 no longer offers `catalogue` as a category to the model',
-  !/contingent-labour\|catalogue/.test(STEP1_SRC) && /"category":"goods\|/.test(STEP1_SRC));
+// The category list is no longer typed into the client's request at all: the
+// server builds it from the configured categories (api/ai.ts).
+check('step 1 does not type a category list into its request to the model',
+  !/"category":"goods\|/.test(STEP1_SRC) && /one of the configured category ids/.test(STEP1_SRC));
+check('the classifier prompt is built from the configured categories',
+  (() => { const ai = readFileSync(new URL('../../api/ai.ts', import.meta.url), 'utf8').replace(/^\s*\/\/.*$/gm, '');
+    return /systemPromptFor\(categories\)/.test(ai) && /from\('procurement_categories'\)/.test(ai) && !/Pens €8|Items under €500/.test(ai); })());
 check('step 1 guards a route-shaped classification',
   /ROUTE_LIKE_CATEGORY/.test(STEP1_SRC) && /classifyCommodityCategory\(/.test(STEP1_SRC));
 // The signal is corrected, not discarded: "catalogue" becomes an intent, which

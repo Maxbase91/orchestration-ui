@@ -61,7 +61,7 @@
     "test:service-description-config": "node --import tsx/esm tests/integration/service-description-config.mjs",
     "test:demand-signals": "node tests/integration/demand-signals.mjs",
     "test:intake-routing": "node --import tsx/esm tests/integration/intake-routing.mjs",
-    "test:intake-routing-eval": "node tests/integration/intake-routing-eval.mjs",
+    "test:intake-routing-eval": "node --import tsx/esm tests/integration/intake-routing-eval.mjs",
     "test:tickets": "node tests/integration/tickets.mjs",
     "test:ticket-sla": "node tests/integration/ticket-sla.mjs",
     "test:approval-to-source": "node tests/integration/approval-to-source.mjs",
@@ -71,10 +71,10 @@
     "test:intake-guidance": "node --import tsx/esm tests/integration/intake-guidance.mjs",
     "test:unified-intake": "node --import tsx/esm tests/integration/unified-intake.mjs",
     "test:answer-quality": "node tests/integration/answer-quality.mjs",
-    "test:assistant-intents": "node tests/integration/assistant-intents.mjs",
+    "test:assistant-intents": "node --import tsx/esm tests/integration/assistant-intents.mjs",
     "test:assistant-honesty": "node --import tsx/esm tests/integration/assistant-honesty.mjs",
     "test:operational-risk": "node tests/integration/operational-risk.mjs",
-    "test:classification-eval": "node tests/integration/classification-eval.mjs",
+    "test:classification-eval": "node --import tsx/esm tests/integration/classification-eval.mjs",
     "test:referral": "node --import tsx/esm tests/integration/referral.mjs",
     "test:reference-data-ui": "node --import tsx/esm tests/ui/reference-data-admin.mjs",
     "test:reference-data": "node --import tsx/esm tests/integration/reference-data.mjs",
@@ -168,7 +168,8 @@
     "backfill:status-agent": "node --import tsx/esm db/backfills/2026-09-25-status-agent.mjs",
     "backfill:honest-agents": "node --import tsx/esm db/backfills/2026-09-25-honest-agents.mjs",
     "backfill:routing-rules-real": "node --import tsx/esm db/backfills/2026-09-25-routing-rules-real.mjs",
-    "backfill:functional-roles": "node --import tsx/esm db/backfills/2026-09-25-functional-roles.mjs"
+    "backfill:functional-roles": "node --import tsx/esm db/backfills/2026-09-25-functional-roles.mjs",
+    "backfill:category-classifier": "node --import tsx/esm db/backfills/2026-09-25-category-classifier.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

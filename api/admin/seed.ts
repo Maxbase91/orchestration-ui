@@ -352,8 +352,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         id: c.id,
         label: c.label,
         description: c.description,
-        icon: c.icon,
-        timeline_days: c.timelineDays,
+        classification_keywords: c.keywords ?? [],
         sort_order: c.sortOrder,
         active: c.active,
         // Both were missing, so a freshly seeded store had the catalogue

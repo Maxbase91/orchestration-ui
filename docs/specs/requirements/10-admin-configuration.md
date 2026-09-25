@@ -14,7 +14,7 @@ Admin is the platform's control plane — all configuration that changes platfor
 
 ### Taxonomy & Vocabulary
 
-FR10-01 · **Categories** (`/admin/categories`): full CRUD on `procurement_categories` table. Fields: id (slug), label, description, timeline_days, sort_order, active. Changes visible in New Request Step 1 immediately.
+FR10-01 · **Categories** (`/admin/categories`): full CRUD on `procurement_categories`. Fields: id (slug), label, description (read by the AI classifier's prompt, built on the server from the configured categories), **classifier keywords** (the offline classifier, matched at the start of a word), **order** (the classifier's precedence — the first category whose keywords match wins; goods last as the default), active, catalogue eligibility, supplier tags, commodity codes with keywords and a default code; managers and preferred suppliers on the same row. Removed 2026-09-25: `icon` (never shown) and `timeline_days` (a second "how long" that disagreed with the workflow; durations are the channel template's stage targets). The classifier's regex list and the AI prompt's own category rules, catalogue price list and route list were removed with them.
 
 FR10-02 · **SLA Targets** (`/admin/sla-targets`): **read-only view of template-owned stage SLAs.** The workflow template is the single source — a stage's SLA is its node's `slaDays`, set in the Workflow Designer (`/admin/workflows`). The bottleneck chart, stuck requests and timeline view read `useStageSlas()`, which derives from the templates; `requests.sla_deadline` is computed from the same node by `slaDeadlineFor()`. `sla_targets` is no longer a stage-SLA table — it retains only its `stage='ticket'` rows, which set ticket first-response targets by priority.
 

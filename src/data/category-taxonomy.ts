@@ -7,9 +7,10 @@
 // organisation- or industry-specific framing. A deployment can replace the set
 // entirely through Admin without code changes.
 //
-// PURE DATA — no runtime imports, so the server-side seed can import this without
-// pulling in lucide. Icon *names* are strings here; `@/data/category-icons`
-// resolves them to components on the client.
+// PURE DATA — no runtime imports, so the server-side seed can import this.
+//
+// The order (sortOrder) is the classifier's precedence: consulting outranks the
+// broad services bucket, goods comes last because it is the default.
 
 import type { ProcurementCategory } from '../lib/db/procurement-categories.js';
 
@@ -25,10 +26,10 @@ import type { ProcurementCategory } from '../lib/db/procurement-categories.js';
 // `commodityCodes` / `defaultCode` two tables in lib/procurement/category-code.ts;
 // both are seeded here with the same values and edited in /admin/categories.
 export const DEFAULT_CATEGORY_TAXONOMY: ProcurementCategory[] = [
-  { id: 'catalogue', label: 'Catalogue Purchase', description: 'Order from pre-approved catalogues — fast track, no sourcing needed', icon: 'ShoppingBag', timelineDays: 2, sortOrder: 1, active: true, catalogueEligible: true, supplierTags: [],
+  { id: 'catalogue', label: "Catalogue Purchase", description: "Standard items ordered from the catalogue — office supplies, peripherals, stationery. A catalogue order is placed from a real catalogue item; this category marks the demand as catalogue-type.", sortOrder: 5, keywords: ["paper", "pens", "ballpoint", "toner", "cable", "headset", "mouse", "mice", "keyboard", "office supplies", "stationery"], active: true, catalogueEligible: true, supplierTags: [],
     commodityCodes: [],
     defaultCode: { code: '44120000', label: 'Office supplies and stationery' } },
-  { id: 'goods', label: 'Goods', description: 'Physical products, hardware, equipment, furniture', icon: 'Package', timelineDays: 5, sortOrder: 2, active: true, catalogueEligible: true, supplierTags: ['Hardware', 'Equipment', 'Goods'],
+  { id: 'goods', label: "Goods", description: "Physical products: hardware, equipment, furniture, raw materials, branded merchandise. Outcome = a physical item.", sortOrder: 6, keywords: ["hardware", "equipment", "laptop", "computer", "workstation", "monitor", "furniture", "desk", "chair", "sensor", "network switch", "router", "shelving", "racking"], active: true, catalogueEligible: true, supplierTags: ['Hardware', 'Equipment', 'Goods'],
     commodityCodes: [
       { code: '43211500', label: 'Laptop computers', keywords: ['laptop', 'computer', 'workstation', 'pc'] },
       { code: '56101500', label: 'Office furniture', keywords: ['furniture', 'desk', 'chair', 'table'] },
@@ -37,7 +38,7 @@ export const DEFAULT_CATEGORY_TAXONOMY: ProcurementCategory[] = [
       { code: '24102000', label: 'Industrial shelving and racking', keywords: ['warehouse', 'racking', 'storage', 'shelving'] },
     ],
     defaultCode: { code: '31160000', label: 'General hardware and goods' } },
-  { id: 'services', label: 'Services', description: 'Facilities, catering, cleaning, travel management', icon: 'Wrench', timelineDays: 10, sortOrder: 3, active: true, catalogueEligible: false, supplierTags: ['Services', 'Facilities', 'Marketing'],
+  { id: 'services', label: "Services", description: "Ongoing operational service delivery: cleaning, catering, facilities management, security, translation, travel management, HR admin, managed print, maintenance, payroll. Outcome = recurring output from a service provider.", sortOrder: 2, keywords: ["service", "cleaning", "catering", "maintenance", "travel", "translation", "managed print", "managed service", "facilities", "security guard", "payroll", "hr admin", "helpdesk"], active: true, catalogueEligible: false, supplierTags: ['Services', 'Facilities', 'Marketing'],
     commodityCodes: [
       { code: '81111800', label: 'Information security', keywords: ['security', 'audit', 'penetration', 'cyber'] },
       { code: '80141600', label: 'Marketing campaign management', keywords: ['marketing', 'campaign', 'brand', 'advertising'] },
@@ -53,7 +54,7 @@ export const DEFAULT_CATEGORY_TAXONOMY: ProcurementCategory[] = [
       { code: '80161500', label: 'Records management', keywords: ['records', 'archive', 'document', 'storage'] },
     ],
     defaultCode: { code: '80100000', label: 'Business and professional services' } },
-  { id: 'software', label: 'Software / IT', description: 'Licences, SaaS platforms, cloud services, subscriptions', icon: 'Monitor', timelineDays: 8, sortOrder: 4, active: true, catalogueEligible: false, supplierTags: ['Software', 'Cloud', 'SaaS', 'Licensing'],
+  { id: 'software', label: "Software / IT", description: "Software licences, SaaS and PaaS, cloud platforms, subscriptions, APIs and IT tools. Outcome = access or capability, delivered digitally.", sortOrder: 3, keywords: ["software", "saas", "licence", "license", "cloud", "platform", "subscription", "apps", "mobile app", "web app", "application"], active: true, catalogueEligible: false, supplierTags: ['Software', 'Cloud', 'SaaS', 'Licensing'],
     commodityCodes: [
       { code: '81112200', label: 'Cloud computing services', keywords: ['cloud', 'hosting', 'aws', 'azure'] },
       { code: '43231500', label: 'Enterprise application software', keywords: ['sap', 'erp', 'enterprise software'] },
@@ -62,13 +63,13 @@ export const DEFAULT_CATEGORY_TAXONOMY: ProcurementCategory[] = [
       { code: '43232300', label: 'Integration middleware', keywords: ['integration', 'middleware', 'api'] },
     ],
     defaultCode: { code: '43230000', label: 'Software' } },
-  { id: 'consulting', label: 'Consulting', description: 'Strategy advisory, audits, assessments, transformation', icon: 'BrainCircuit', timelineDays: 15, sortOrder: 5, active: true, catalogueEligible: false, supplierTags: ['Consulting', 'Advisory', 'Strategy', 'Transformation'],
+  { id: 'consulting', label: "Consulting", description: "Advisory and project work: strategy, target operating model, transformation, organisational design, change and programme management, business cases, assessments, audits, due diligence, feasibility studies. Outcome = recommendations, a design or a roadmap from consultants.", sortOrder: 1, keywords: ["consult", "advisory", "strategy", "audit", "transformation", "operating model", "organisational", "organizational", "change management", "programme management", "program management", "due diligence", "feasibility", "business case", "maturity assessment", "roadmap", "target state"], active: true, catalogueEligible: false, supplierTags: ['Consulting', 'Advisory', 'Strategy', 'Transformation'],
     commodityCodes: [
       { code: '80101600', label: 'Management consulting', keywords: ['consulting', 'advisory', 'strategy'] },
       { code: '84111500', label: 'Tax advisory services', keywords: ['tax', 'accounting', 'transfer pricing'] },
     ],
     defaultCode: { code: '80101600', label: 'Management consulting' } },
-  { id: 'contingent-labour', label: 'Contingent Labour', description: 'Temporary staff, contractors, IT staffing, augmentation', icon: 'Users', timelineDays: 7, sortOrder: 6, active: true, catalogueEligible: false, supplierTags: ['Contingent Labour', 'Staffing', 'Recruitment'],
+  { id: 'contingent-labour', label: "Contingent Labour", description: "Temporary staff, contractors, developers for hire, interim roles and IT staffing, working under your direction. Outcome = headcount or capacity.", sortOrder: 4, keywords: ["temporary", "temps", "temp staff", "contractor", "staff", "developer", "freelance", "hire", "interim"], active: true, catalogueEligible: false, supplierTags: ['Contingent Labour', 'Staffing', 'Recruitment'],
     commodityCodes: [
       { code: '80111600', label: 'Temporary IT staffing', keywords: ['temp', 'contractor', 'staffing', 'contingent'] },
     ],

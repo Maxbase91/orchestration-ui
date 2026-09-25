@@ -233,13 +233,20 @@ export const FIXTURES = {
   ],
   procurement_categories: [
     // Goods and consulting carry commodity codes; services carries none, the
-    // state the categories screen flags.
-    { id: 'goods', label: 'Goods', description: 'Physical products', active: true, timeline_days: 5, sort_order: 1, catalogue_eligible: true,
+    // state the categories screen flags. The classifier keywords and their
+    // order (consulting before services; goods last, the default) are a subset
+    // of the seed's — the stub is what classifies a demand in these suites.
+    { id: 'consulting', label: 'Consulting', description: 'Advisory services', active: true, sort_order: 1, catalogue_eligible: false,
+      classification_keywords: ['consult', 'advisory', 'strategy', 'audit', 'transformation', 'operating model', 'due diligence', 'feasibility', 'business case', 'roadmap', 'market research'],
+      commodity_codes: [], default_code: '80101600', default_code_label: 'Management consulting' },
+    { id: 'services', label: 'Services', description: 'Operational services', active: true, sort_order: 2, catalogue_eligible: false,
+      classification_keywords: ['service', 'cleaning', 'catering', 'maintenance', 'travel', 'translation', 'facilities', 'payroll', 'helpdesk'] },
+    { id: 'software', label: 'Software / IT', description: 'Licences, SaaS, cloud', active: true, sort_order: 3, catalogue_eligible: false,
+      classification_keywords: ['software', 'saas', 'licence', 'license', 'cloud', 'platform', 'subscription', 'apps', 'application'] },
+    { id: 'goods', label: 'Goods', description: 'Physical products', active: true, sort_order: 6, catalogue_eligible: true,
+      classification_keywords: ['hardware', 'equipment', 'laptop', 'computer', 'workstation', 'furniture', 'desk', 'chair', 'paper', 'toner', 'cards'],
       commodity_codes: [{ code: '43211500', label: 'Laptop computers', keywords: ['laptop', 'workstation'] }],
       default_code: '31160000', default_code_label: 'General hardware and goods' },
-    { id: 'consulting', label: 'Consulting', description: 'Advisory services', active: true, timeline_days: 15, sort_order: 2, catalogue_eligible: false,
-      commodity_codes: [], default_code: '80101600', default_code_label: 'Management consulting' },
-    { id: 'services', label: 'Services', description: 'Operational services', active: true, timeline_days: 12, sort_order: 3, catalogue_eligible: false },
   ],
   // Consulting has two managers and goods has one, so the multi-manager display
   // and the single case are both exercised; services has none, which is
@@ -252,6 +259,7 @@ export const FIXTURES = {
     { category_id: 'consulting', user_id: 'u11' },
     { category_id: 'consulting', user_id: 'u3' },
     { category_id: 'goods', user_id: 'u3' },
+    { category_id: 'software', user_id: 'u1' },
   ],
   // Handover records for /admin/health. Deliberately NOT all green: one
   // completed, one open and one timed out, because the page this replaces

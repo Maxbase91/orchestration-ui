@@ -161,6 +161,12 @@ try {
     /Christine Dupont/.test(categoriesText) && /Sarah Chen/.test(categoriesText), categoriesText.slice(0, 200));
   check('a category with no manager is flagged',
     /No manager/.test(categoriesText), categoriesText.slice(0, 200));
+  // The classifier lives on the categories now: keywords per category, and the
+  // order is its precedence. Icon and timeline are gone (never shown / a second
+  // "how long" that disagreed with the workflow).
+  check('each category shows its classifier keywords', /consult, advisory/.test(categoriesText), categoriesText.slice(0, 300));
+  check('the order can be changed', (await page.getByRole('button', { name: 'Move Services up' }).count()) === 1);
+  check('no timeline or icon column', !/Timeline|~\d+d/.test(categoriesText));
 
   // Assign a manager to the category that has none.
   await page.getByRole('button', { name: /No manager/ }).first().click();

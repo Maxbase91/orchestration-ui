@@ -371,10 +371,11 @@ console.log('\nA renewal comes from the expiring contract');
 }
 {
   const { classifyDemandCategory } = await import('../../src/lib/procurement/classify.ts');
+  const { DEFAULT_CATEGORY_TAXONOMY } = await import('../../src/data/category-taxonomy.ts');
   check('"renew our software licence" is software, not a renewal category', () =>
-    assert.equal(classifyDemandCategory('renew our software licence'), 'software'));
+    assert.equal(classifyDemandCategory('renew our software licence', DEFAULT_CATEGORY_TAXONOMY), 'software'));
   check('"onboard a new supplier for cleaning" is services', () =>
-    assert.equal(classifyDemandCategory('onboard a new supplier for cleaning'), 'services'));
+    assert.equal(classifyDemandCategory('onboard a new supplier for cleaning', DEFAULT_CATEGORY_TAXONOMY), 'services'));
 }
 
 console.log(

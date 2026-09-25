@@ -23,22 +23,12 @@ function check(name, cond, detail = '') {
   else { failures++; console.error(`  \x1b[31m✗\x1b[0m ${name}${detail ? ` — ${detail}` : ''}`); }
 }
 
-// ── mirrors classify.ts ─────────────────────────────────────────────────────
-
-const CATEGORY_RULES = [
-  { category: 'consulting', pattern: /consult|advisory|strategy|audit|transformation|business consult|operating model|tom\b|organisational|organizational|change management|programme management|program management|due diligence|feasibility|business case|maturity assessment|roadmap|target state/ },
-  { category: 'services', pattern: /\bservice\b|cleaning|catering|maintenance|travel|translation|managed print|managed service|facilities|security guard|payroll|hr admin|helpdesk/ },
-  { category: 'software', pattern: /software|saas|license|cloud|platform|subscription|app/ },
-  { category: 'contingent-labour', pattern: /temp|contractor|staff|developer|freelance|hire|interim/ },
-  { category: 'contract-renewal', pattern: /renew|extend|renewal|expir/ },
-  { category: 'supplier-onboarding', pattern: /onboard|new supplier|new vendor|register/ },
-  { category: 'catalogue', pattern: /paper|pen|toner|cable|headset|mouse|keyboard|office supplies/ },
-];
-const classifyDemandCategory = (text) => {
-  const q = text.toLowerCase();
-  for (const r of CATEGORY_RULES) if (r.pattern.test(q)) return r.category;
-  return 'goods';
-};
+// ── the real classifier, with the seeded category keywords ──────────────────
+// (a copy of the old regex rules sat here, still carrying the retired renewal
+// and onboarding categories)
+const { classifyDemandCategory: classifyWith } = await import('../../src/lib/procurement/classify.ts');
+const { DEFAULT_CATEGORY_TAXONOMY } = await import('../../src/data/category-taxonomy.ts');
+const classifyDemandCategory = (text) => classifyWith(text, DEFAULT_CATEGORY_TAXONOMY);
 
 // ── mirrors intake-routing.ts ───────────────────────────────────────────────
 

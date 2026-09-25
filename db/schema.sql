@@ -1509,6 +1509,11 @@ ALTER TABLE procurement_categories ADD COLUMN IF NOT EXISTS supplier_tags TEXT[]
 ALTER TABLE procurement_categories ADD COLUMN IF NOT EXISTS commodity_codes JSONB NOT NULL DEFAULT '[]'::jsonb;
 ALTER TABLE procurement_categories ADD COLUMN IF NOT EXISTS default_code TEXT;
 ALTER TABLE procurement_categories ADD COLUMN IF NOT EXISTS default_code_label TEXT;
+-- The classifier's keywords per category (they were a regex list in code). The
+-- category order (sort_order) is the precedence: the first match wins.
+ALTER TABLE procurement_categories ADD COLUMN IF NOT EXISTS classification_keywords TEXT[] NOT NULL DEFAULT '{}';
+-- icon and timeline_days are no longer read or written (2026-09-25); dropped in
+-- a later step, once no deployed code reads them.
 
 -- ── Approval entries: role-based assignment and who actually decided ────────
 -- An entry could only ever name one person, and nothing recorded who acted on

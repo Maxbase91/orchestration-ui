@@ -13,17 +13,17 @@ import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
 import { useAiAgent } from '@/lib/db/hooks/use-ai-agents';
 import { useProcurementCategories, useCommodityCodeBook } from '@/lib/db/hooks/use-procurement-categories';
 import { DEFAULT_CATEGORY_TAXONOMY } from '@/data/category-taxonomy';
-import { resolveCategoryIcon } from '@/data/category-icons';
 import {
   classifyDemandCategory,
   classifyCommodityCategory,
   ROUTE_LIKE_CATEGORY,
+  type ClassifierCategory,
 } from '@/lib/procurement/classify';
-import { resolveCategoryCode } from '@/lib/procurement/category-code';
+import { resolveCategoryCode, normaliseForMatch } from '@/lib/procurement/category-code';
 import { requestCommodityCandidates } from '@/lib/procurement/commodity-candidates-api';
 import { resolveCommodityCandidates } from '@/lib/procurement/commodity-candidates';
 import { seedServiceDescriptionFromText } from '@/lib/procurement/intake-seed';
-import type { CommodityClassificationCandidate, IntakeAttachment, RequestCategory } from '@/data/types';
+import type { CommodityClassificationCandidate, IntakeAttachment, RequestCategory, Supplier } from '@/data/types';
 import type { ServiceDescription } from './intake-form-data';
 
 interface StepCategoryProps {
@@ -88,7 +88,7 @@ async function classifyWithAI(input: string): Promise<AIClassification | null> {
     const res = await fetch('/api/ai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: `CLASSIFY THIS PROCUREMENT REQUEST. Return the category and the details you can extract.\n\nUser input: "${input}"\n\nIMPORTANT: Respond with JSON containing: {"intent":"new-request","message":"...","catalogueItems":[],"links":[],"category":"goods|services|software|consulting|contingent-labour","extractedTitle":"professional title","extractedSupplier":"supplier name or empty","extractedValue":0}` }),
+      body: JSON.stringify({ query: `CLASSIFY THIS PROCUREMENT REQUEST. Return the category and the details you can extract.\n\nUser input: "${input}"\n\nIMPORTANT: Respond with JSON containing: {"intent":"new-request","message":"...","catalogueItems":[],"links":[],"category":"one of the configured category ids","extractedTitle":"professional title","extractedSupplier":"supplier name or empty","extractedValue":0}` }),
     });
     if (!res.ok) return null;
     const data = await res.json();
@@ -110,20 +110,24 @@ async function classifyWithAI(input: string): Promise<AIClassification | null> {
   }
 }
 
-function localClassify(input: string): AIClassification {
-  const q = input.toLowerCase();
+/**
+ * The offline classification: the configured category keywords, and a supplier
+ * from the directory named in the text. The supplier used to be looked up in a
+ * list typed here (nine names), so any supplier outside it went unnoticed.
+ */
+function localClassify(input: string, categories: ClassifierCategory[], suppliers: Supplier[]): AIClassification {
   // The route-aware classifier on purpose: a demand for paper or toner comes
   // back as `catalogue`, and that signal is worth keeping. The guard in
   // `runClassification` turns it into an intent and a real commodity category,
   // so the offline path and the LLM path are corrected in exactly one place.
-  const category = classifyDemandCategory(input);
-
-  // Extract supplier name if mentioned
-  let supplier = '';
-  const supplierNames = ['accenture', 'sap', 'deloitte', 'kpmg', 'capgemini', 'aws', 'microsoft', 'siemens', 'bosch'];
-  for (const name of supplierNames) {
-    if (q.includes(name)) { supplier = name.charAt(0).toUpperCase() + name.slice(1); break; }
-  }
+  const category = classifyDemandCategory(input, categories);
+  const text = ` ${normaliseForMatch(input)}`;
+  const named = suppliers.find((s) => {
+    const name = normaliseForMatch(s.name);
+    const first = name.split(' ')[0] ?? '';
+    return (name && text.includes(` ${name}`)) || (first.length >= 3 && text.includes(` ${first} `));
+  });
+  const supplier = named?.name ?? '';
 
   return {
     category,
@@ -147,18 +151,11 @@ export function StepCategory({ prefill, onUpdate, onAutoAdvance, onBrowseCatalog
   const codeBook = useCommodityCodeBook();
 
   // One taxonomy source: the configurable store when populated, else the
-  // canonical default. Both carry their own icon name, resolved the same way,
-  // so admin-defined categories render their configured icon.
+  // canonical default (the seed).
   const source = dbCategories.length > 0 ? dbCategories : DEFAULT_CATEGORY_TAXONOMY;
   const activeCategories = source
     .filter((c) => c.active)
-    .map((c) => ({
-      id: c.id as RequestCategory,
-      name: c.label,
-      description: c.description,
-      timeline: `~${c.timelineDays}d`,
-      icon: resolveCategoryIcon(c.icon),
-    }));
+    .map((c) => ({ id: c.id as RequestCategory, name: c.label }));
 
   // AI-001 (Category Classifier) gates LLM classification. When disabled/draft,
   // the step falls back to local keyword classification immediately.
@@ -179,7 +176,7 @@ export function StepCategory({ prefill, onUpdate, onAutoAdvance, onBrowseCatalog
 
     if (!result) {
       // LLM unavailable — use local deterministic classification
-      result = localClassify(text);
+      result = localClassify(text, source, suppliers);
     }
 
     setLoading(false);
@@ -197,7 +194,7 @@ export function StepCategory({ prefill, onUpdate, onAutoAdvance, onBrowseCatalog
     // empty catalogue). Only the category is corrected.
     if (result.category === ROUTE_LIKE_CATEGORY) {
       if (!result.intent) result.intent = 'catalogue';
-      result.category = classifyCommodityCategory(text);
+      result.category = classifyCommodityCategory(text, source);
     }
 
     // Validate the category against the configured taxonomy. An unrecognised
@@ -207,7 +204,7 @@ export function StepCategory({ prefill, onUpdate, onAutoAdvance, onBrowseCatalog
     // exists to fix, re-entered through the back door.
     const validCat = activeCategories.find((c) => c.id === result.category);
     if (!validCat) {
-      const fallback = classifyCommodityCategory(text);
+      const fallback = classifyCommodityCategory(text, source);
       result.category = activeCategories.some((c) => c.id === fallback) ? fallback : 'goods';
     }
 

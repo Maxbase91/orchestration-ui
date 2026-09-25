@@ -5,8 +5,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { WorkflowPreview } from './components/workflow-preview';
 import { useWorkflowTemplate } from '@/lib/db/hooks/use-workflow-templates';
+import { channelTargetDays } from '@/lib/workflow/channel-stages';
 import { useApprovalChains } from '@/lib/db/hooks/use-approval-chains';
-import { useProcurementCategories } from '@/lib/db/hooks/use-procurement-categories';
 import { useUsers } from '@/lib/db/hooks/use-users';
 import { useDerivedApprovers } from '@/lib/db/hooks/use-derived-approvers';
 import {
@@ -36,7 +36,7 @@ interface StepRoutingPreviewProps {
  * outputs — it holds no policy of its own. The lifecycle comes from the attached
  * workflow template (admin Workflow Designer) plus determination-driven Risk /
  * Onboarding steps; approvals from the admin approval chains banded by value;
- * the SLA from the category configuration; reviewers from the user directory.
+ * the timeline from the workflow's stage targets; reviewers from the user directory.
  * Nothing here is hardcoded.
  */
 export function StepRoutingPreview({
@@ -54,7 +54,6 @@ export function StepRoutingPreview({
   const { data: detailTemplate } = useWorkflowTemplate(workflowTemplateId || undefined);
   const { data: chains = [] } = useApprovalChains();
   const policyConfig = usePolicyConfig();
-  const { data: categories = [] } = useProcurementCategories();
   const { data: users = [] } = useUsers();
 
   // The template that claims the determined channel (the page resolves it with
@@ -94,10 +93,14 @@ export function StepRoutingPreview({
     [derived],
   );
 
-  // Timeline ← the category's configured SLA (admin-editable).
-  const matchedCategory = useMemo(
-    () => categories.find((c) => c.id === category || c.label.toLowerCase() === category.toLowerCase()),
-    [categories, category],
+  // Timeline ← the stage targets of this request's workflow, counting risk and
+  // onboarding only when it goes through them. It was the category's own
+  // "timeline days", a second figure that disagreed with the workflow.
+  const targetDays = useMemo(
+    () => (detailTemplate
+      ? channelTargetDays([detailTemplate], detailTemplate.channels?.[0], { risk: riskAssessmentRequired, onboarding: supplierOnboardingRequired })
+      : null),
+    [detailTemplate, riskAssessmentRequired, supplierOnboardingRequired],
   );
 
   // Reviewers ← the internal user directory (suppliers excluded).
@@ -183,15 +186,15 @@ export function StepRoutingPreview({
         )}
       </div>
 
-      {/* Estimated Timeline — the category's configured SLA. */}
-      {matchedCategory && (
+      {/* Estimated Timeline — the workflow's stage targets. */}
+      {targetDays !== null && (
         <div className="flex items-center gap-3 rounded-lg border border-accent-line bg-accent-soft/60 p-4">
           <Clock className="size-5 text-accent-solid" />
           <div>
             <p className="text-sm font-medium text-ink">Estimated Timeline</p>
             <p className="text-sm text-ink-2">
-              {matchedCategory.label} requests target approximately{' '}
-              <span className="font-semibold text-accent-solid">{matchedCategory.timelineDays} business days</span>
+              The stages of this route target about{' '}
+              <span className="font-semibold text-accent-solid">{targetDays} working days</span>
             </p>
           </div>
         </div>

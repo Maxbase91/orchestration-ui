@@ -5,7 +5,7 @@
 // it rather than restating it. `buying-channel-stages.ts` was that restatement
 // and it disagreed with the templates for every channel.
 import { useMemo } from 'react';
-import { channelCopy, channelStageMapFromTemplates, type ChannelStageMap } from '@/lib/workflow/channel-stages';
+import { channelCopy, channelStageMapFromTemplates, type ChannelStageMap, channelTargetDays } from '@/lib/workflow/channel-stages';
 import { buyingChannelLabel } from '@/lib/routing/evaluate-routing-rules';
 import type { BuyingChannel } from '@/data/types';
 import { useWorkflowTemplates } from './use-workflow-templates';
@@ -20,6 +20,18 @@ export function useChannelStageMap(): { data: ChannelStageMap; isLoading: boolea
  * The requester's wording for a channel, from the template that claims it.
  * Returns a function so a screen can ask about several channels at once.
  */
+/**
+ * Working days a channel's stages target (its workflow template). The one
+ * "how long" figure — categories used to carry a second, disagreeing one.
+ */
+export function useChannelTargetDays(): (channel: string | undefined, conditional?: { risk?: boolean; onboarding?: boolean }) => number | null {
+  const { data: templates = [] } = useWorkflowTemplates();
+  return useMemo(
+    () => (channel, conditional) => channelTargetDays(templates, channel, conditional),
+    [templates],
+  );
+}
+
 export function useChannelCopy(): (channel: string) => { headline: string; detail: string } {
   const { data: templates = [] } = useWorkflowTemplates();
   return useMemo(

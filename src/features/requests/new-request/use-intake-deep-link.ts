@@ -20,7 +20,7 @@ import {
 } from './intake-deep-link';
 import type { CatalogueItem } from '@/data/catalogue-items';
 import type { Supplier } from '@/data/types';
-import { useCategoryLabel } from '@/lib/db/hooks/use-procurement-categories';
+import { useCategoryLabel, useProcurementCategories } from '@/lib/db/hooks/use-procurement-categories';
 
 export interface UseIntakeDeepLinkInput {
   suppliers: Supplier[];
@@ -46,6 +46,7 @@ export function useIntakeDeepLink({
   // The label the requester sees for a derived category — the configured one,
   // not a map in code that a category added in Admin was missing from.
   const categoryLabel = useCategoryLabel();
+  const { data: categories = [] } = useProcurementCategories();
   // A lazy initialiser, not a ref: this must be read on the first render,
   // before the effect below clears the params, and reading a ref during render
   // is what the compiler rules (correctly) forbid.
@@ -81,13 +82,13 @@ export function useIntakeDeepLink({
 
     if (searchParams.get('step') && searchParams.get('category')) {
       if (suppliers.length === 0) return;
-      const link = parseDemandDeepLink(searchParams, suppliers, categoryLabel);
+      const link = parseDemandDeepLink(searchParams, suppliers, categoryLabel, categories);
       if (!link) return;
       appliedRef.current = true;
       handlers.current.onDemand(link);
       setSearchParams({}, { replace: true });
     }
-  }, [searchParams, setSearchParams, suppliers, catalogueItems, categoryLabel]);
+  }, [searchParams, setSearchParams, suppliers, catalogueItems, categoryLabel, categories]);
 
   return { prefill };
 }

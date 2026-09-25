@@ -1,48 +1,66 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { callLLM } from './_llm.js';
 import { getAgent, isAgentActive } from './_ai-agents.js';
-import { ServerConfigurationError } from './_db-admin.js';
+import { ServerConfigurationError, getDbAdmin } from './_db-admin.js';
 
 const CLASSIFIER_AGENT_ID = 'AI-001';
 
-const BASE_SYSTEM_PROMPT = `You classify procurement requests. Return ONLY JSON.
+// The categories come from configuration (Admin → Categories): id, label and
+// description, in the configured order. This prompt used to carry its own
+// category rules, a price list of catalogue items that matched nothing in the
+// real catalogue ("A4 Paper €5, Pens €8…"), a catalogue limit of "€500" (the
+// governed figure is €1,000) and a list of routes and supplier ids. The
+// catalogue decision itself is made against real items (decideIntakeRoute), so
+// the model only says whether a demand looks like a catalogue item.
+interface PromptCategory { id: string; label: string; description: string }
+
+/** A worked example for a seeded category — used only if that category is configured. */
+const EXAMPLES: Array<[string, string]> = [
+  ['design a target operating model and lead a digital transformation programme', 'consulting'],
+  ['cleaning services for our Frankfurt office 3 days a week', 'services'],
+  ['new laptops for engineering team', 'goods'],
+  ['Salesforce CRM subscription 200 seats', 'software'],
+  ['10 interim Java developers for 6 months', 'contingent-labour'],
+  ['translation of product documentation into 5 languages', 'services'],
+  ['conduct a cybersecurity maturity assessment', 'consulting'],
+];
+
+function systemPromptFor(categories: PromptCategory[]): string {
+  const ids = categories.map((c) => c.id);
+  const examples = EXAMPLES.filter(([, id]) => ids.includes(id));
+  return `You classify procurement requests. Return ONLY JSON.
 
 INTENTS:
-- "catalogue": standard office items (paper, pens, toner, cables, headsets, mice, keyboards). Items under €500.
-- "new-request": consulting, services, software, custom goods, bulk orders, professional services.
-- "navigation": user wants to FIND/VIEW existing data (suppliers, contracts, approvals, spend).
-- "general": unclear what user needs.
+- "catalogue": a standard item a catalogue would hold (office supplies, stationery, peripherals).
+- "new-request": anything else to buy — services, consulting, software, custom or bulk goods.
+- "navigation": the user wants to find or view existing data (suppliers, contracts, approvals, spend).
+- "general": unclear what the user needs.
 
-CRITICAL: buying/purchasing = "catalogue" or "new-request", NEVER "navigation".
-"buy consulting" = new-request. "buy paper" = catalogue. "find Accenture" = navigation.
+Buying is "catalogue" or "new-request", never "navigation".
 
-CATEGORY DECISION RULES (for new-request):
-- "consulting": advisory, strategy, target operating model (TOM), digital transformation, organisational design, change management, programme management, business case, assessment, audit, due diligence, feasibility study. Delivered by consultants/advisors, outcome = recommendations/design/roadmap.
-- "services": ongoing operational service delivery — cleaning, catering, facilities management, security, translation, travel management, HR admin, managed print, maintenance, payroll. Delivered by service provider, outcome = recurring output.
-- "software": SaaS, PaaS, licences, cloud platforms, subscriptions, APIs, IT tools. Delivered digitally, outcome = access/capability.
-- "contingent-labour": temporary staff, contractors, developers-for-hire, interim roles, IT staffing. Outcome = headcount/capacity.
-- "goods": physical products, hardware, equipment, raw materials, furniture, branded merchandise. Outcome = physical item.
-
-FEW-SHOT EXAMPLES:
-Input: "design a target operating model and lead a digital transformation programme" → consulting
-Input: "cleaning services for our Frankfurt office 3 days a week" → services
-Input: "new laptops for engineering team" → goods
-Input: "Salesforce CRM subscription 200 seats" → software
-Input: "10 interim Java developers for 6 months" → contingent-labour
-Input: "translation of product documentation into 5 languages" → services
-Input: "conduct a cybersecurity maturity assessment" → consulting
-
-Routes: /requests/new, /requests/my, /requests, /approvals, /workflows, /suppliers, /suppliers/SUP-001 (Accenture), /suppliers/SUP-002 (SAP), /suppliers/SUP-003 (Deloitte), /contracts, /purchasing/invoices, /analytics/spend, /tasks, /help/kb
-
-Catalogue items: A4 Paper €5, Pens €8, Sticky Notes €4, Toner €45, Markers €12, Folders €15, USB Hub €59, Mouse €49, Headset €179, Monitor Arm €89, Coffee €22, Safety Gloves €25
-
+CATEGORIES (answer with one of these ids):
+${categories.map((c) => `- "${c.id}" (${c.label}): ${c.description}`).join('\n')}
+${examples.length ? `\nEXAMPLES:\n${examples.map(([text, id]) => `Input: "${text}" → ${id}`).join('\n')}\n` : ''}
 JSON format:
-{"intent":"catalogue|new-request|navigation|general","message":"brief message","catalogueItems":[{"name":"A4 Paper 500pk","price":5,"unit":"pack","id":"paper-1"}],"links":[{"label":"label","path":"/path"}],"category":"consulting|services|software|goods|contingent-labour","extractedTitle":"title","extractedSupplier":"supplier","extractedValue":0,"generatedDescription":"description"}
+{"intent":"catalogue|new-request|navigation|general","message":"brief message","catalogueItems":[],"links":[],"category":"${ids.join('|')}","extractedTitle":"title","extractedSupplier":"supplier","extractedValue":0,"generatedDescription":"description"}
 
-For new-request: include category, extractedTitle, extractedSupplier, extractedValue, generatedDescription.
-For catalogue: include matching catalogueItems.
-For navigation: include relevant links.
-links[0] must be the primary action.`;
+For new-request: include category, extractedTitle, extractedSupplier, extractedValue, generatedDescription.`;
+}
+
+async function configuredCategories(): Promise<PromptCategory[]> {
+  try {
+    const { data } = await getDbAdmin()
+      .from('procurement_categories')
+      .select('id, label, description, active, sort_order')
+      .eq('active', true)
+      .order('sort_order');
+    return ((data ?? []) as Array<Record<string, unknown>>).map((r) => ({
+      id: String(r.id), label: String(r.label), description: String(r.description ?? ''),
+    }));
+  } catch {
+    return [];
+  }
+}
 
 export const config = { maxDuration: 30 };
 
@@ -75,9 +93,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    // Augment the system prompt with the admin-editable agent description so
-    // tweaking the description in the UI influences classifier behaviour.
-    const systemPrompt = `${BASE_SYSTEM_PROMPT}\n\n## AGENT CONTEXT (admin-configured)\n${agent.description}`;
+    const categories = await configuredCategories();
+    const systemPrompt = systemPromptFor(categories);
     const content = await callLLM({
       messages: [
         { role: 'system', content: systemPrompt },

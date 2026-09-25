@@ -3,8 +3,8 @@
 // and what is attached to each: its managers, its preferred suppliers, and the
 // commodity codes its demand is classified into.
 
-import { createElement, useMemo, useState } from 'react';
-import { AlertTriangle, Building2, Hash, Loader2, Pencil, Plus, Trash2, Users, X } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { AlertTriangle, ArrowDown, ArrowUp, Building2, Hash, Loader2, Pencil, Plus, Trash2, Users, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,13 +30,12 @@ import { useUsers } from '@/lib/db/hooks/use-users';
 import { useCategoryManagers, useSetCategoryManagers } from '@/lib/db/hooks/use-category-managers';
 import { useCategoryPreferredSuppliers, useSetCategoryPreferredSuppliers } from '@/lib/db/hooks/use-category-preferred-suppliers';
 import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
-import { CATEGORY_ICON_NAMES, resolveCategoryIcon } from '@/data/category-icons';
 
 type EditForm = Omit<ProcurementCategory, 'sortOrder'>;
 
 // A new category is NOT catalogue-eligible until an admin says so — see the
 // column comment in schema.sql for why the safe default points this way.
-const EMPTY_FORM: EditForm = { id: '', label: '', description: '', icon: 'Package', timelineDays: 5, active: true, catalogueEligible: false, supplierTags: [] };
+const EMPTY_FORM: EditForm = { id: '', label: '', description: '', keywords: [], active: true, catalogueEligible: false, supplierTags: [] };
 
 export function CategoriesPage() {
   const { data: categories = [], isLoading } = useProcurementCategories();
@@ -196,7 +195,7 @@ export function CategoriesPage() {
   function openEdit(cat: ProcurementCategory) {
     // Codes are edited in their own dialog but saved on the same row, so they
     // ride along here — leaving them out made this save erase them.
-    setForm({ id: cat.id, label: cat.label, description: cat.description, icon: cat.icon ?? 'Package', timelineDays: cat.timelineDays, active: cat.active, catalogueEligible: cat.catalogueEligible, supplierTags: cat.supplierTags ?? [], commodityCodes: cat.commodityCodes ?? [], defaultCode: cat.defaultCode ?? null });
+    setForm({ id: cat.id, label: cat.label, description: cat.description, keywords: cat.keywords ?? [], active: cat.active, catalogueEligible: cat.catalogueEligible, supplierTags: cat.supplierTags ?? [], commodityCodes: cat.commodityCodes ?? [], defaultCode: cat.defaultCode ?? null });
     setIsNew(false);
     setDialogOpen(true);
   }
@@ -205,8 +204,8 @@ export function CategoriesPage() {
     if (!form.label.trim()) { toast.error('Label is required'); return; }
     const existing = categories.find((c) => c.id === form.id);
     try {
-      // The form never edits sortOrder: edits keep their position, new
-      // categories append at the end.
+      // The form never edits sortOrder (the Order buttons do): edits keep their
+      // position, new categories append at the end — last in precedence.
       await upsert.mutateAsync({
         ...form,
         sortOrder: existing?.sortOrder ?? categories.length,
@@ -216,6 +215,21 @@ export function CategoriesPage() {
     } catch (e) {
       console.error(e);
       toast.error('Failed to save category');
+    }
+  }
+
+  // Swap with the neighbour and save both: the order is the classifier's
+  // precedence, so it is data an admin sets, not display sugar.
+  async function move(index: number, delta: -1 | 1) {
+    const a = categories[index];
+    const b = categories[index + delta];
+    if (!a || !b) return;
+    try {
+      await upsert.mutateAsync({ ...a, sortOrder: b.sortOrder });
+      await upsert.mutateAsync({ ...b, sortOrder: a.sortOrder });
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to reorder');
     }
   }
 
@@ -249,7 +263,36 @@ export function CategoriesPage() {
         </span>
       ),
     },
-    { key: 'timelineDays', label: 'Timeline', render: (r) => <span className="text-sm">~{r.timelineDays as number}d</span> },
+    {
+      // The classifier's precedence: the first category whose keywords match a
+      // demand wins, so consulting must come before the broad services bucket.
+      key: 'order', label: 'Order',
+      render: (r) => {
+        const index = categories.findIndex((c) => c.id === r.id);
+        return (
+          <span className="inline-flex items-center gap-0.5">
+            <span className="w-4 text-xs tabular-nums text-ink-3">{index + 1}</span>
+            <Button variant="ghost" size="sm" className="h-6 w-6 p-0" aria-label={`Move ${r.label as string} up`} disabled={index <= 0}
+              onClick={(e) => { e.stopPropagation(); void move(index, -1); }}>
+              <ArrowUp className="size-3.5" />
+            </Button>
+            <Button variant="ghost" size="sm" className="h-6 w-6 p-0" aria-label={`Move ${r.label as string} down`} disabled={index >= categories.length - 1}
+              onClick={(e) => { e.stopPropagation(); void move(index, 1); }}>
+              <ArrowDown className="size-3.5" />
+            </Button>
+          </span>
+        );
+      },
+    },
+    {
+      key: 'keywords', label: 'Classifier keywords',
+      render: (r) => {
+        const kws = (r.keywords as string[]) ?? [];
+        return kws.length === 0
+          ? <span className="text-xs text-ink-3">none — reached only as the default</span>
+          : <span className="block max-w-56 truncate text-xs text-ink-2" title={kws.join(', ')}>{kws.join(', ')}</span>;
+      },
+    },
     {
       key: 'catalogueEligible', label: 'Catalogue',
       render: (r) => (
@@ -390,23 +433,18 @@ export function CategoriesPage() {
               <Input value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} placeholder="Short description" />
             </div>
             <div className="space-y-1.5">
-              <Label>Typical Timeline (days)</Label>
-              <Input type="number" min={1} value={form.timelineDays} onChange={(e) => setForm((p) => ({ ...p, timelineDays: parseInt(e.target.value) || 5 }))} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Icon</Label>
-              <div className="flex items-center gap-2">
-                {createElement(resolveCategoryIcon(form.icon), { className: 'size-4 text-muted-foreground' })}
-                <select
-                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
-                  value={form.icon ?? 'Package'}
-                  onChange={(e) => setForm((p) => ({ ...p, icon: e.target.value }))}
-                >
-                  {CATEGORY_ICON_NAMES.map((name) => (
-                    <option key={name} value={name}>{name}</option>
-                  ))}
-                </select>
-              </div>
+              <Label htmlFor="cat-keywords">Classifier keywords</Label>
+              <Input
+                id="cat-keywords"
+                value={form.keywords.join(', ')}
+                onChange={(e) => setForm((p) => ({ ...p, keywords: e.target.value.split(',').map((k) => k.trim()).filter(Boolean) }))}
+                placeholder="e.g. consult, advisory, strategy"
+              />
+              <p className="text-xs text-muted-foreground">
+                Words that put a demand in this category when the AI classifier is off or unavailable — matched at the
+                start of a word, so &ldquo;consult&rdquo; finds &ldquo;consultancy&rdquo;. The first category (in the Order column) whose
+                keywords match wins. The description is what the AI classifier reads.
+              </p>
             </div>
             <div className="flex items-center justify-between">
               <Label>Active</Label>

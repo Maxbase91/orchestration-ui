@@ -40,7 +40,7 @@ import { DEFAULT_CATEGORY_TAXONOMY } from '@/data/category-taxonomy';
 import { decideIntakeRoute, type IntakeRoute } from '@/lib/procurement/intake-routing';
 import { useRoutingRules } from '@/lib/db/hooks/use-routing-rules';
 import { buyingChannelLabel } from '@/lib/routing/evaluate-routing-rules';
-import { useChannelCopy } from '@/lib/db/hooks/use-channel-stage-map';
+import { useChannelCopy, useChannelTargetDays } from '@/lib/db/hooks/use-channel-stage-map';
 import { resolveDemandChannel } from '@/lib/routing/demand-channel';
 import { usePolicyConfig } from '@/lib/procurement/use-policy-config';
 import { computeDemandSignals } from '@/lib/procurement/demand-signals';
@@ -122,7 +122,7 @@ function RouteOption({
               </span>
             )}
             {timelineDays !== undefined && (
-              <span className="text-xs text-ink-3">about {timelineDays} days</span>
+              <span className="text-xs text-ink-3" title="The stage targets of this route's workflow">about {timelineDays} working days</span>
             )}
           </div>
           <p className="mt-0.5 text-xs text-ink-2">{disabledReason ?? detail}</p>
@@ -289,10 +289,9 @@ export function StepBuyRoute({
     [routingRules, category, estimatedValue, supplierId, contractMatches, signals, isUrgent, commodityCode, policyConfig, supplierById],
   );
 
-  const timelineByCategory = useMemo(() => {
-    const src = dbCategories.length > 0 ? dbCategories : DEFAULT_CATEGORY_TAXONOMY;
-    return new Map(src.map((c) => [c.id, c.timelineDays]));
-  }, [dbCategories]);
+  // How long each route takes is its workflow's stage targets — the category
+  // used to carry its own figure, which disagreed with the workflow.
+  const targetDays = useChannelTargetDays();
 
   const catalogueMatches = decision.catalogueMatches.map((m) => m.item);
   const hasCatalogue = catalogueMatches.length > 0;
@@ -439,7 +438,7 @@ export function StepBuyRoute({
           icon={<ShoppingCart className="size-4 text-ok" />}
           headline={catalogueChannel.headline}
           detail={catalogueChannel.detail}
-          timelineDays={hasCatalogue ? timelineByCategory.get('catalogue') : undefined}
+          timelineDays={hasCatalogue ? targetDays('catalogue') ?? undefined : undefined}
           disabledReason={hasCatalogue ? undefined : decision.ruledOut.catalogue}
           action={hasCatalogue ? undefined : promptForDetail}
           actionLabel={hasCatalogue ? undefined : 'Add detail'}
@@ -476,7 +475,7 @@ export function StepBuyRoute({
           icon={<FileText className="size-4 text-accent-solid" />}
           headline={contractChannel.headline}
           detail={contractChannel.detail}
-          timelineDays={canCallOff ? timelineByCategory.get(category) : undefined}
+          timelineDays={canCallOff ? targetDays('framework-call-off') ?? undefined : undefined}
           disabledReason={
             contractMatches.length > 0
               ? (canCallOff
@@ -532,7 +531,7 @@ export function StepBuyRoute({
           icon={<PenLine className="size-4 text-accent" />}
           headline="Raise a full request"
           detail={fullRequestDetail}
-          timelineDays={timelineByCategory.get(category)}
+          timelineDays={targetDays(routing.channel) ?? undefined}
           action={onProceedToFullRequest}
           actionLabel="Start"
         />

@@ -20,7 +20,7 @@
 // The parsing lives here, with no React, so those rules can be asserted by
 // calling them rather than by mounting a wizard and reading the screen.
 
-import { classifyCommodityCategory, ROUTE_LIKE_CATEGORY } from '../../../lib/procurement/classify.js';
+import { classifyCommodityCategory, ROUTE_LIKE_CATEGORY, type ClassifierCategory } from '../../../lib/procurement/classify.js';
 import type { IntakeFormData } from './intake-form-data.js';
 import type { IntakeStepId } from './intake-steps.js';
 import type { CatalogueItem } from '../../../data/catalogue-items.js';
@@ -93,6 +93,8 @@ export function parseDemandDeepLink(
   suppliers: Supplier[],
   /** The configured category's label (Admin → Categories); an unknown id shows as itself. */
   labelFor: (categoryId: string) => string = (id) => id,
+  /** The configured categories, for re-deriving a route-shaped category. */
+  categories: ClassifierCategory[] = [],
 ): DemandDeepLink | null {
   const step = params.get('step');
   const category = params.get('category');
@@ -102,7 +104,7 @@ export function parseDemandDeepLink(
   // A ROUTE is not a category. `catalogue` means "this looks orderable", which
   // the buy-route step decides — so it is re-derived from what is being bought.
   const commodityCategory =
-    category === ROUTE_LIKE_CATEGORY ? classifyCommodityCategory(title) : category;
+    category === ROUTE_LIKE_CATEGORY ? classifyCommodityCategory(title, categories) : category;
   const { supplierId, supplier } = matchSupplierByName(params.get('supplier') ?? '', suppliers);
 
   return {

@@ -1,58 +1,26 @@
 import type { AssistantTurn } from '@/data/types';
-import { classifyDemandCategory } from '@/lib/procurement/classify';
 
-// Category comes from the shared deterministic classifier, not a private
-// keyword table. This module used to carry its own — with `consulting` and
-// `services` both claiming "advisory", and everything unmatched defaulting to
-// `services` — so the assistant and the wizard could disagree about the same
-// sentence. `classify.ts` is ordered, benchmarked (CLS-G1, currently 95.8%) and
-// gated by an eval; one classifier means one thing to tune.
-
-function extractValue(input: string): number | undefined {
-  const match = input.match(/[€$£]?\s*(\d[\d,]*(?:\.\d+)?)\s*[kK]?/);
-  if (!match) return undefined;
-  let val = parseFloat(match[1].replace(/,/g, ''));
-  if (/\d\s*[kK]/.test(match[0])) val *= 1000;
-  return val;
-}
-
-function extractSupplier(input: string): string | undefined {
-  const knownSuppliers = ['Accenture', 'SAP', 'Deloitte', 'Infosys', 'Capgemini', 'Randstad', 'Hays', 'AWS', 'Azure', 'GCP'];
-  return knownSuppliers.find((s) => input.toLowerCase().includes(s.toLowerCase()));
-}
+// A demand raised in the assistant goes where one raised on Home goes: to the
+// describe step, carrying the words, which classifies it with the configured
+// categories and finds a named supplier in the directory.
+//
+// This module used to classify on its own and look the supplier up in a list
+// of ten names typed here, then pass `category`, `value` and `supplier` as
+// query parameters — a second classification that could disagree with the
+// describe step about the same sentence, and a supplier list nobody maintained.
 
 export function startDemand(input: string): AssistantTurn[] {
-  const category = classifyDemandCategory(input);
-  const value = extractValue(input);
-  const supplier = extractSupplier(input);
-
-  // Build query string to pre-populate the wizard
-  const params = new URLSearchParams();
-  params.set('category', category);
-  if (value) params.set('value', String(value));
-  if (supplier) params.set('supplier', supplier);
-  // Carry the original demand text so the wizard's "Describe what you need" is
-  // pre-populated instead of starting blank.
-  if (input.trim()) params.set('q', input.trim().slice(0, 300));
-
-  const prefilledNote = [
-    `Category: **${category}**`,
-    value ? `Estimated value: €${value.toLocaleString()}` : null,
-    supplier ? `Preferred supplier: ${supplier}` : null,
-  ]
-    .filter(Boolean)
-    .join(' · ');
-
+  const text = input.trim().slice(0, 300);
   return [
     {
       type: 'chat-answer',
-      content: `I'll take you to the New Request wizard with the details I've gathered so far:\n${prefilledNote}\n\nYou can refine any of these fields in the form.`,
+      content: "That sounds like something to buy. I'll take you to New Request with your words; it checks the catalogue and existing contracts first, then asks only what is still needed.",
     },
     {
       type: 'deep-link',
-      label: 'New Request Wizard',
-      description: `Pre-filled: ${prefilledNote}`,
-      path: `/requests/new?${params.toString()}`,
+      label: 'Start the request',
+      description: text,
+      path: `/requests/new?q=${encodeURIComponent(text)}`,
     },
   ];
 }

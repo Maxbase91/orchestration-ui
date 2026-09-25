@@ -5,8 +5,15 @@
 // reports accuracy + a per-category breakdown. Gates on a baseline so keyword
 // rule changes can't silently regress classification.
 //
-// Self-contained — mirrors src/lib/procurement/classify.ts (CATEGORY_RULES +
-// classifyDemandCategory). Keep in sync. Run: node tests/integration/classification-eval.mjs
+// Runs the REAL classifier with the seeded category keywords. It used to carry
+// its own copy of the regex rules ("keep in sync"), and passed against the copy;
+// the keywords are configuration now (Admin → Categories), so this benchmarks
+// the configured set a fresh deployment starts with.
+// Run: npm run test:classification-eval
+import { DEFAULT_CATEGORY_TAXONOMY } from '../../src/data/category-taxonomy.ts';
+import {
+  classifyDemandCategory as classifyWith, classifyCommodityCategory as commodityWith, ROUTE_LIKE_CATEGORY,
+} from '../../src/lib/procurement/classify.ts';
 
 let failures = 0;
 function check(name, cond, detail = '') {
@@ -14,19 +21,8 @@ function check(name, cond, detail = '') {
   else { failures++; console.error(`  \x1b[31m✗\x1b[0m ${name}${detail ? ` — ${detail}` : ''}`); }
 }
 
-const DEFAULT_CATEGORY = 'goods';
-const CATEGORY_RULES = [
-  { category: 'consulting', pattern: /consult|advisory|strategy|audit|transformation|business consult|operating model|tom\b|organisational|organizational|change management|programme management|program management|due diligence|feasibility|business case|maturity assessment|roadmap|target state/ },
-  { category: 'services', pattern: /\bservice\b|cleaning|catering|maintenance|travel|translation|managed print|managed service|facilities|security guard|payroll|hr admin|helpdesk/ },
-  { category: 'software', pattern: /software|saas|license|cloud|platform|subscription|app/ },
-  { category: 'contingent-labour', pattern: /temp|contractor|staff|developer|freelance|hire|interim/ },
-  { category: 'catalogue', pattern: /paper|pen|toner|cable|headset|mouse|keyboard|office supplies/ },
-];
-function classifyDemandCategory(text) {
-  const q = text.toLowerCase();
-  for (const rule of CATEGORY_RULES) if (rule.pattern.test(q)) return rule.category;
-  return DEFAULT_CATEGORY;
-}
+const classifyDemandCategory = (text) => classifyWith(text, DEFAULT_CATEGORY_TAXONOMY);
+const classifyCommodityCategory = (text) => commodityWith(text, DEFAULT_CATEGORY_TAXONOMY);
 
 // Labelled benchmark — realistic free-text demands → expected category.
 const LABELLED = [
@@ -94,17 +90,7 @@ for (const cat of ['consulting', 'services', 'software', 'contingent-labour', 'c
 // fault, after the pre-check and the command bar.
 //
 // `classifyCommodityCategory` is the variant for callers that need the
-// commodity answer only. Mirrors src/lib/procurement/classify.ts.
-
-const ROUTE_LIKE_CATEGORY = 'catalogue';
-function classifyCommodityCategory(text) {
-  const q = text.toLowerCase();
-  for (const rule of CATEGORY_RULES) {
-    if (rule.category === ROUTE_LIKE_CATEGORY) continue;
-    if (rule.pattern.test(q)) return rule.category;
-  }
-  return DEFAULT_CATEGORY;
-}
+// commodity answer only.
 
 console.log('\nThe commodity classifier never returns a fulfilment route');
 for (const [text] of LABELLED) {
@@ -133,6 +119,39 @@ check('it differs from the benchmarked classifier ONLY on the route rule',
 // a measured signal, and the fix must not quietly retune the baseline.
 check('the benchmarked classifier still labels a catalogue demand',
   classifyDemandCategory('order printer paper and toner cartridges') === ROUTE_LIKE_CATEGORY);
+
+console.log('\nThe classifier reads configuration');
+{
+  const { readFileSync } = await import('node:fs');
+  const read = (rel) => readFileSync(new URL(`../../${rel}`, import.meta.url), 'utf8').replace(/^\s*\/\/.*$|^\s*\*.*$/gm, '');
+  check('classify.ts holds no keyword table', !/CATEGORY_RULES|pattern: \//.test(read('src/lib/procurement/classify.ts')));
+  check('a category has no icon or timeline (never shown / disagreed with the workflow)',
+    !/icon\?:|timelineDays/.test(read('src/lib/db/procurement-categories.ts')));
+  check('every seeded category but the default carries keywords',
+    DEFAULT_CATEGORY_TAXONOMY.filter((c) => c.id !== 'goods').every((c) => c.keywords.length > 0));
+  check('consulting outranks services, and goods (the default) comes last',
+    (() => { const order = [...DEFAULT_CATEGORY_TAXONOMY].sort((a, b) => a.sortOrder - b.sortOrder).map((c) => c.id);
+      return order.indexOf('consulting') < order.indexOf('services') && order[order.length - 1] === 'goods'; })());
+  check('a keyword matches at the start of a word, not inside one',
+    classifyDemandCategory('quarterly spend review') !== 'catalogue' && classifyDemandCategory('a pending approval') !== 'software');
+  check('the AI prompt is built from the configured categories',
+    /systemPromptFor\(categories\)/.test(read('api/ai.ts')) && !/Pens €8|Items under €500/.test(read('api/ai.ts')));
+}
+
+const { loadEnv } = await import('../lib/live.mjs');
+const env = loadEnv();
+const connection = env.NEON_DATABASE_URL || env.DATABASE_URL;
+if (connection) {
+  console.log('\nLive');
+  const { neon } = await import('@neondatabase/serverless');
+  const sql = neon(connection);
+  const rows = await sql`SELECT id, active, sort_order, classification_keywords FROM procurement_categories WHERE active ORDER BY sort_order`;
+  const bare = rows.filter((r) => r.id !== 'goods' && (r.classification_keywords ?? []).length === 0).map((r) => r.id);
+  check('every active live category but the default has keywords', bare.length === 0, bare.join(', '));
+  check('live order: consulting before services', rows.findIndex((r) => r.id === 'consulting') < rows.findIndex((r) => r.id === 'services'));
+  const liveAccuracy = LABELLED.filter(([text, want]) => classifyWith(text, rows.map((r) => ({ id: r.id, active: r.active, sortOrder: r.sort_order, keywords: r.classification_keywords }))) === want).length / LABELLED.length;
+  check(`the live configuration holds the baseline (${(liveAccuracy * 100).toFixed(1)}%)`, liveAccuracy >= BASELINE);
+}
 
 console.log('');
 if (failures) { console.error(`FAILED: ${failures} check(s)`); process.exitCode = 1; }

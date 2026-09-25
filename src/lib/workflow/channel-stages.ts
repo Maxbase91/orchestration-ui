@@ -15,6 +15,7 @@
 // runtime are exactly why the file it replaces carried the same constraint.
 import type { BuyingChannel, RequestStatus } from '../../data/types.js';
 import { nodeToStatus } from './node-config.js';
+import { stageSlasFromTemplates, stageSlaDays } from './stage-sla.js';
 
 export type ChannelStageMap = Readonly<Record<string, readonly RequestStatus[]>>;
 
@@ -273,6 +274,34 @@ export function firstActionableStage(
   // Every channel reaches `approval` at the latest, so this guards an unknown
   // channel rather than an expected path.
   return stage ?? 'approval';
+}
+
+/**
+ * How many working days a channel's stages target, from its template.
+ *
+ * The one "how long" figure. Categories carried their own ("~15d" for
+ * consulting) while the workflow's stage targets summed to several times that,
+ * and the requester saw both. Risk and onboarding count only when the request
+ * will go through them — they are conditional stages. Null when the channel's
+ * template sets no targets.
+ */
+export function channelTargetDays(
+  templates: Array<TemplateLike & { nodes: Array<{ slaDays?: number | null }> }>,
+  channel: string | undefined,
+  conditional: { risk?: boolean; onboarding?: boolean } = {},
+): number | null {
+  const templateId = templateForChannel(templates, channel);
+  if (!templateId) return null;
+  const stages = getStagesForChannel(channelStageMapFromTemplates(templates), channel)
+    .filter((stage) => (stage === 'risk' ? conditional.risk : stage === 'onboarding' ? conditional.onboarding : true));
+  const slas = stageSlasFromTemplates(templates as Parameters<typeof stageSlasFromTemplates>[0]);
+  let total = 0;
+  let any = false;
+  for (const stage of stages) {
+    const days = stageSlaDays(slas, stage, templateId);
+    if (days !== null) { total += days; any = true; }
+  }
+  return any ? total : null;
 }
 
 /**
