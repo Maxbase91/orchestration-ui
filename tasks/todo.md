@@ -51,7 +51,7 @@ call-offs and trusted the browser's channel; 13 live requests re-pointed.
       checks, not just stored).
 - [x] Decisioning thresholds: preferred-supplier override needs a reason +
       category-manager approval.
-- [ ] Database: catalogue items (save/delete hooks exist, nothing uses them).
+- [x] Database: catalogue items (save/delete hooks exist, nothing uses them).
 
 ## Phase 4 — supplier on screen, preferred suppliers invited
 - [x] Intake side panel and request detail: "Supplier: name / Currently unknown"

@@ -35,7 +35,13 @@ try {
   const context = await browser.newContext({ viewport: { width: 1360, height: 900 } });
   // The stub's fixtures carry one retired cost centre and one closed location,
   // which is what the "not offered" assertions below turn on.
-  await installDbStub(context);
+  await installDbStub(context, {
+    catalogue_items: [{
+      id: 'IT-001', name: 'ThinkPad T14 Gen 5', description: 'Business laptop', unit_price: 1299, unit: 'each',
+      catalogue_id: 'it-equipment', catalogue_name: 'IT Equipment', supplier_name: 'Lenovo', supplier_id: 'SUP-CAT-001',
+      lead_time: '5-7 days', available: true,
+    }],
+  });
   // The policy singleton has its own endpoint, not /api/db. Served from the
   // shipped defaults; a save is captured so its payload can be checked.
   const { DEFAULT_POLICY_CONFIG } = await import('../../src/lib/procurement/policy-config.ts');
@@ -229,6 +235,16 @@ try {
   check('saving sends the edited exemptions',
     JSON.stringify(savedPolicy?.competitiveSourcingExemptCategories?.slice().sort()) === JSON.stringify(['consulting', 'contingent-labour']),
     JSON.stringify(savedPolicy?.competitiveSourcingExemptCategories));
+
+  // ── Catalogue items ───────────────────────────────────────────────────────
+  // What the catalogue page lists and intake matches against. The save and
+  // delete hooks existed and no screen used them.
+  console.log('\nCatalogue items are maintained in Admin → Database');
+  await page.goto(`${BASE}/admin/database`, { waitUntil: 'networkidle' });
+  await page.getByRole('tab', { name: /Catalogue Items/ }).click();
+  await page.getByText('ThinkPad T14 Gen 5').first().waitFor({ timeout: 15000 }).catch(() => {});
+  check('the Catalogue Items tab lists the stored items',
+    (await page.getByText('ThinkPad T14 Gen 5').count()) > 0);
 
   check('no page errors while maintaining reference data', errors.length === 0, errors.join(' | '));
 } catch (error) {

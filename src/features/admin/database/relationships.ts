@@ -93,4 +93,12 @@ export const relationships: Record<EntityKey, EntityRelationships> = {
     // records an admin edits, and the event page already shows them per event.
     incoming: [],
   },
+  // A catalogue item names its supplier and the contract that makes it orderable.
+  catalogueItem: {
+    outgoing: [
+      { to: 'supplier', via: 'supplierId', label: 'Supplier' },
+      { to: 'contract', via: 'contractId', label: 'Contract' },
+    ],
+    incoming: [],
+  },
 };

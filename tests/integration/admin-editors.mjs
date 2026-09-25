@@ -90,6 +90,13 @@ const SURFACES = [
     hook: 'useUpsertDeliveryLocation', mutate: 'upsert.mutateAsync',
   },
   {
+    // Maintained in Admin → Database → Catalogue Items; the save and delete
+    // hooks existed for months with no screen using them.
+    label: 'catalogue items', table: 'catalogue_items', key: 'id', field: 'name',
+    page: 'src/stores/database-admin-store.ts',
+    hook: 'saveCatalogueItem as dbSaveCatalogueItem', mutate: 'dbSaveCatalogueItem(',
+  },
+  {
     label: 'knowledge base', table: 'knowledge_base', key: 'id', field: 'title',
     page: 'src/features/admin/kb-admin-page.tsx',
     hook: 'useSaveKnowledgeBaseEntry', mutate: 'saveEntry.mutateAsync',

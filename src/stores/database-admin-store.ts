@@ -54,6 +54,11 @@ import {
   deleteSourcingEvent as dbDeleteSourcingEvent,
   type SourcingEvent,
 } from '@/lib/db/sourcing-events';
+import type { CatalogueItem } from '@/data/catalogue-items';
+import {
+  saveCatalogueItem as dbSaveCatalogueItem,
+  deleteCatalogueItem as dbDeleteCatalogueItem,
+} from '@/lib/db/catalogue-items';
 
 /**
  * Which entities are backed by the database (edits persist across sessions and
@@ -69,6 +74,7 @@ const LIVE_ENTITIES = new Set<string>([
   'approval',
   'request',
   'sourcingEvent',
+  'catalogueItem',
 ]);
 
 // `workflow` was in this set and had no persistence branch in update/create/
@@ -96,7 +102,8 @@ export type EntityKey =
   | 'request'
   | 'approval'
   | 'workflow'
-  | 'sourcingEvent';
+  | 'sourcingEvent'
+  | 'catalogueItem';
 
 export interface EntityRecordMap {
   supplier: Supplier;
@@ -108,6 +115,7 @@ export interface EntityRecordMap {
   approval: ApprovalEntry;
   workflow: WorkflowTemplate;
   sourcingEvent: SourcingEvent;
+  catalogueItem: CatalogueItem;
 }
 
 interface DatabaseAdminState {
@@ -120,6 +128,7 @@ interface DatabaseAdminState {
   approval: ApprovalEntry[];
   workflow: WorkflowTemplate[];
   sourcingEvent: SourcingEvent[];
+  catalogueItem: CatalogueItem[];
   audit: AuditEntry[];
   /** Replace an entity's cached list — used by the sync hook to mirror stored data into the store. */
   syncList: <K extends EntityKey>(key: K, list: EntityRecordMap[K][]) => void;
@@ -195,6 +204,7 @@ export const useDatabaseAdminStore = create<DatabaseAdminState>((set, get) => ({
   approval: [],
   workflow: [],
   sourcingEvent: [],
+  catalogueItem: [],
   audit: [],
   syncList: (key, list) =>
     set((state) => ({ ...state, [key]: list } as DatabaseAdminState)),
@@ -270,6 +280,19 @@ export const useDatabaseAdminStore = create<DatabaseAdminState>((set, get) => ({
         const next = idx >= 0 ? [...list.slice(0, idx), saved, ...list.slice(idx + 1)] : [saved, ...list];
         const audit = makeAuditEntry('record.update', 'approval', id, detail);
         return { ...state, approval: next, audit: [audit, ...state.audit] };
+      });
+      return;
+    }
+    if (key === 'catalogueItem') {
+      // The store's save is an upsert of the whole item, so merge first.
+      const current = get().catalogueItem.find((i) => i.id === id);
+      if (!current) throw new Error(`Catalogue item ${id} is not loaded.`);
+      const saved = await dbSaveCatalogueItem({ ...current, ...(patch as Partial<CatalogueItem>) });
+      await queryClient.invalidateQueries({ queryKey: ['catalogue-items'] });
+      set((state) => {
+        const next = state.catalogueItem.map((i) => (i.id === id ? saved : i));
+        const audit = makeAuditEntry('record.update', 'catalogueItem', id, detail);
+        return { ...state, catalogueItem: next, audit: [audit, ...state.audit] };
       });
       return;
     }
@@ -353,6 +376,15 @@ export const useDatabaseAdminStore = create<DatabaseAdminState>((set, get) => ({
       set((state) => {
         const audit = makeAuditEntry('record.create', 'approval', saved.id, detail);
         return { ...state, approval: [saved, ...state.approval], audit: [audit, ...state.audit] };
+      });
+      return;
+    }
+    if (key === 'catalogueItem') {
+      const saved = await dbSaveCatalogueItem(record as CatalogueItem);
+      await queryClient.invalidateQueries({ queryKey: ['catalogue-items'] });
+      set((state) => {
+        const audit = makeAuditEntry('record.create', 'catalogueItem', saved.id, detail);
+        return { ...state, catalogueItem: [saved, ...state.catalogueItem], audit: [audit, ...state.audit] };
       });
       return;
     }
@@ -440,6 +472,15 @@ export const useDatabaseAdminStore = create<DatabaseAdminState>((set, get) => ({
       });
       return;
     }
+    if (key === 'catalogueItem') {
+      await dbDeleteCatalogueItem(id);
+      await queryClient.invalidateQueries({ queryKey: ['catalogue-items'] });
+      set((state) => {
+        const audit = makeAuditEntry('record.delete', 'catalogueItem', id, detail);
+        return { ...state, catalogueItem: state.catalogueItem.filter((i) => i.id !== id), audit: [audit, ...state.audit] };
+      });
+      return;
+    }
     if (key === 'sourcingEvent') {
       // Cascades to sourcing_responses — see deleteSourcingEvent's comment.
       await dbDeleteSourcingEvent(id);
@@ -483,6 +524,7 @@ export const useDatabaseAdminStore = create<DatabaseAdminState>((set, get) => ({
     queryClient.invalidateQueries({ queryKey: ['approvals'] });
     queryClient.invalidateQueries({ queryKey: ['requests'] });
     queryClient.invalidateQueries({ queryKey: ['sourcing-events'] });
+    queryClient.invalidateQueries({ queryKey: ['catalogue-items'] });
   },
 }));
 
@@ -496,4 +538,5 @@ export const entityLabels: Record<EntityKey, { singular: string; plural: string;
   approval: { singular: 'Approval', plural: 'Approvals', route: '/approvals' },
   workflow: { singular: 'Workflow', plural: 'Workflows', route: '/admin/workflows' },
   sourcingEvent: { singular: 'Sourcing Event', plural: 'Sourcing Events', route: '/sourcing' },
+  catalogueItem: { singular: 'Catalogue Item', plural: 'Catalogue Items', route: '/catalogue' },
 };
