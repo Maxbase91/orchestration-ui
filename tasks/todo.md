@@ -45,8 +45,37 @@ Decisions taken (2026-09-25):
 8. [x] Help knowledge base from the knowledge base table (+ breadcrumbs from the navigation)
 9. [x] AI assistant on the Home route (+ conversation titles; Home box off /api/ai; legacy step=2 link retired)
 10. [x] Docs: the Admin map (what each item is for, what reads it)
-11. [ ] Mockups implementation — plan, then build
+11. [ ] Mockups implementation — plan (below), then build
 
 ## Verification
 tsc, lint, test:all, browser suites, live backfills idempotent and read back,
 production interaction suite after deploy.
+
+---
+
+# Mockups implementation — the Intake Prototype canvas
+
+Source: the "Intake Prototype" design canvas (4 artboards, 1440×900, desktop).
+Every value on these screens comes from configuration the admin review just
+cleaned up; nothing new is hardcoded.
+
+## What the mockups change
+| Artboard | Today | Mockup |
+|---|---|---|
+| Home — two doors | One box; demand navigates at once; status/policy answered inline; catalogue browsed inside the box | The box (Door 1) beside a "Know exactly what you want?" card (Door 2). Every outcome is one "Understood as …" card — something to buy, a catalogue item, a policy question, a status question — with its source and one next action |
+| Door 1 — the conversation | Four-step wizard: Describe → How you'll buy → Details → Review & submit | One page, three phases (What you need · How it is bought · What it needs). Left: the conversation (category + commodity code confirmed, catalogue and contracts checked, "one detail decides it", call-off offer / catalogue match / new request, service-description questions, preferred suppliers, one risk question, "Buying channel confirmed"). Right: **Your request** — every value grouped (Channel · Who and where · What · Supplier · Service description), each with where it came from (from you / derived / drafted — check it / still to come), editable in place, "N of M known", the executive summary once complete |
+| Door 1 — channel, then submit | Review & submit step | The channel page: headline (template), value, stages that apply, stage targets; **step by step from the template** — stage, purpose, owner, target days, and per request *Applies · condition / If … / Skipped · reason / You are here*, plus what **you** do at a stage; Submit with what happens next. Right: what you are submitting — summary, supplier + preferred suppliers, checks |
+| Door 2 — the catalogue | Browsed inside the Home box; item detail page; one line per checkout | A Catalogue page: catalogues (from the items), item cards, a basket with total, deliver to / charged to, the approval note from the threshold, Place order |
+
+## Phases (each shippable, smallest first)
+1. **Door 2 — Catalogue page** (`/catalogue`): catalogues derived from items; basket; governed checkout per order (see Q1); Home box links to it instead of browsing inside itself.
+2. **Home — two doors**: the Understood-as card for all four outcomes (Q2); the catalogue door card; attention band + my requests stay.
+3. **Channel page**: replaces Review & submit. Stages from the channel's template with applicability evaluated from the request's determination (typed branch conditions — edge-conditions.ts); the requester's action per stage as a node field (Q3); checks from the determination; Submit (existing atomic intake submit).
+4. **The conversation page**: replaces Describe / How you'll buy / Details — one conversation, the live request panel with provenance, inline edits the assistant uses from then on; "one detail decides it".
+Per phase: tsc, lint, test:all, the browser suites (rewritten where they walk the old wizard), docs; screenshots against the artboard.
+
+## Decisions (2026-09-25)
+- Q1 Basket: **one order per supplier, approval judged on the basket total** (so splitting cannot dodge the auto-approval threshold). Server-authoritative: the checkout endpoint takes the whole basket, groups it, and decides approval on the total itself.
+- Q2 Home: **a demand shows the Understood-as card first**, like every other outcome.
+- Q3 **"What you do at this stage" is a new field on each workflow stage**, edited in the Workflow Designer, shown on the channel page and the request's Workflow tab.
+- Q4 **Replace phase by phase** — each phase retires the wizard steps it replaces; one intake flow at any time.

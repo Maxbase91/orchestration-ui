@@ -55,6 +55,7 @@ code. Read these before changing the boundaries they set.
 | [0006](adr/0006-ui-only-lifecycle-e2e.md) | The lifecycle end-to-end proof is driven through the UI. |
 | [0007](adr/0007-atomic-intake-and-lifecycle-stabilisation.md) | Intake and every lifecycle transition commit atomically. |
 | [0008](adr/0008-one-standardised-requester-ui.md) | One standardised requester UI with progressive disclosure. Supersedes 0001. |
+| [0009](adr/0009-catalogue-basket.md) | A catalogue basket is placed as one order per supplier, approved on the basket total, all or nothing. Extends 0002. |
 
 Implementation evidence for the capabilities these decisions cover is indexed in
 [R1_IMPLEMENTATION_EVIDENCE.md](roadmap/R1_IMPLEMENTATION_EVIDENCE.md).

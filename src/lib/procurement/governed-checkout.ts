@@ -53,6 +53,17 @@ export interface GovernedCheckoutInput {
   /** Client-generated key for retries of the same checkout. */
   idempotencyKey?: string;
   /**
+   * The value the auto-approval threshold is judged on, when this order is one
+   * of several placed together: the whole basket's value.
+   *
+   * A catalogue basket spanning suppliers becomes one order per supplier, and
+   * judging each on its own value would let a €1,500 basket split into €800 and
+   * €700 pass as two automatic orders — splitting to stay under the threshold is
+   * the thing the threshold exists to stop. Absent means this order stands alone.
+   * The server computes it from the stored prices; the browser's is advisory.
+   */
+  approvalBasisValue?: number;
+  /**
    * Server-generated match evidence carried from the pre-check for audit.
    * `scopeVersionId` is null when the scope data could not be read: the record
    * then says the coverage check did not run, rather than leaving a blank that
@@ -187,7 +198,7 @@ export function evaluateGovernedCheckout(
   // Home answer and the knowledge base all say. This was `>=`, so an order of
   // exactly the threshold was held for approval here and auto-approved by the
   // workflow the same record then ran through.
-  const approvalRequired = totalValue > config.catalogueAutoApprovalThreshold;
+  const approvalRequired = Math.max(totalValue, input.approvalBasisValue ?? 0) > config.catalogueAutoApprovalThreshold;
   const contractAmendmentRequired = capacityExceeded || (input.contract.status !== 'active' && input.contract.status !== 'expiring');
   const status = contractAmendmentRequired
     ? 'contract-amendment-required'

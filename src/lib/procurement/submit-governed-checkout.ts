@@ -40,3 +40,24 @@ export async function submitGovernedCheckout(input: SubmitGovernedCheckoutInput)
   }
   return body;
 }
+
+/**
+ * Place a catalogue basket — one order per supplier and contract — in one call.
+ * The server recomputes the basket total from its own prices, judges approval
+ * on it, and writes every order or none; a retry returns the same orders.
+ */
+export async function submitGovernedBasket(orders: SubmitGovernedCheckoutInput[]): Promise<SubmitGovernedCheckoutResult[]> {
+  const response = await fetch('/api/governed-checkout', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ basket: { orders } }),
+    signal: AbortSignal.timeout(45_000),
+  });
+  const body = await response.json() as { orders?: SubmitGovernedCheckoutResult[] } & ErrorResponse;
+  if (!response.ok || !body.orders) {
+    const error = new Error(body.error ?? 'The order could not be placed.');
+    error.name = body.code ?? 'governed_checkout_error';
+    throw error;
+  }
+  return body.orders;
+}

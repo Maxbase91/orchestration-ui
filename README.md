@@ -217,6 +217,7 @@ npm run test:csv-export           # one CSV implementation, RFC 4180 quoting, a 
 npm run test:policy-config        # central decisioning thresholds (defaults pinned + override resolver)
 npm run test:policy-config-server # Neon policy singleton save/load/validation (self-cleaning)
 npm run test:governed-checkout    # contract/risk/capacity gates and PR/PO routing decisions
+npm run test:catalogue-basket     # a basket is one order per supplier, approved on the basket total the server computes — all or none (ADR-0009)
 npm run test:governed-checkout-atomic # atomic Neon request → PR → lines → conditional PO, replay/conflict/concurrency
 npm run test:checkout-gates       # a governed check cannot be skipped by the failure of its own data read
 npm run test:workflow-atomic      # transitions commit with their stage history, and write the NEW stage's SLA deadline (or NULL) — never the previous stage's
