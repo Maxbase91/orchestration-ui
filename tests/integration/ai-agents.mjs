@@ -133,7 +133,26 @@ async function scenarioAiRowToggle(id, label) {
   }
 }
 
+/**
+ * Every agent's status as the run found it. This suite flips live agents in the
+ * deployed app, and each scenario restores its own in a `finally` — which does
+ * not run if the process is killed mid-flip. AI-001 was once found active
+ * after a day of runs, having been left in draft deliberately; so the whole set
+ * is restored on a signal too, and the run ends by checking nothing moved.
+ */
+let startingStatuses = [];
+async function restoreStartingStatuses() {
+  for (const { id, status } of startingStatuses) await setAgentStatus(id, status);
+}
+for (const signal of ['SIGINT', 'SIGTERM']) {
+  process.on(signal, () => {
+    restoreStartingStatuses().finally(() => process.exit(130));
+  });
+}
+
 async function main() {
+  const { data: agents } = await sb.from('ai_agents').select('id, status');
+  startingStatuses = agents ?? [];
   console.log(`Testing against ${API_BASE}`);
   await scenarioAi001Classifier();
   await scenarioAi002Validator();
@@ -142,6 +161,12 @@ async function main() {
   await scenarioAiRowToggle('AI-004', 'ai-004 (Spend Anomaly Checks)');
   await scenarioAiRowToggle('AI-005', 'ai-005 (Supplier Recommender)');
   await scenarioAiRowToggle('AI-007', 'ai-007 (Status Answers)');
+
+  const { data: after } = await sb.from('ai_agents').select('id, status');
+  const moved = startingStatuses.filter((a) => (after ?? []).find((b) => b.id === a.id)?.status !== a.status);
+  assert(moved.length === 0, 'every agent ends in the status the run found it in',
+    moved.map((a) => `${a.id} was ${a.status}`).join(', '));
+  if (moved.length) await restoreStartingStatuses();
 
   const failed = results.filter((r) => r.o === 'FAIL').length;
   for (const r of results) {
