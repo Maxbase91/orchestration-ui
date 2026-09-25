@@ -255,6 +255,23 @@ async function ownedPoIds(userId: string): Promise<string[]> {
   return (data ?? []).map((item) => String((item as { id?: unknown }).id ?? '')).filter(Boolean);
 }
 
+/** Messages of history the model sees; the ticket transcript keeps them all. */
+const MODEL_HISTORY_MESSAGES = 12;
+
+/**
+ * The recent part of the conversation, starting on a user turn.
+ *
+ * The page sends the whole saved conversation with every question. Uncapped, a
+ * persona with a long history sent ~5,000 tokens per question against the free
+ * Groq tier's 8,000 per minute, so the assistant failed for exactly the people
+ * who used it most. Older turns add little to a procurement question.
+ */
+function recentForModel<T extends { role: string }>(messages: T[]): T[] {
+  const recent = messages.slice(-MODEL_HISTORY_MESSAGES);
+  const firstUser = recent.findIndex((m) => m.role === 'user');
+  return firstUser > 0 ? recent.slice(firstUser) : recent;
+}
+
 /**
  * lookup_object. Requests, POs, invoices, contracts and suppliers are answered
  * through the Status Answers agent's configuration — which attributes, for
@@ -691,7 +708,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const llmMessages: LLMMessage[] = [
     { role: 'system', content: systemPrompt },
-    ...rawMessages.map((m) => ({ role: m.role as LLMMessage['role'], content: m.content })),
+    ...recentForModel(rawMessages).map((m) => ({ role: m.role as LLMMessage['role'], content: m.content })),
   ];
 
   let lookupType: string | null = null;

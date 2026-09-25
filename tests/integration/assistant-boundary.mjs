@@ -124,6 +124,11 @@ check('lookup_object receives the caller and their role, on every path',
 check('record lookups go through the status agent',
   /statusLookup\(db, await loadStatusContext\(db, userId, role\)/.test(chat) && /statusProjectList/.test(readFileSync(new URL('api/_domains/status-answers.ts', ROOT), 'utf8')));
 
+// The page sends the whole saved conversation; uncapped, a long history
+// exhausted the free Groq tier's per-minute tokens and the assistant failed.
+check('the model sees a capped recent history, not the whole conversation',
+  /const MODEL_HISTORY_MESSAGES = \d+;/.test(chat) && /\.\.\.recentForModel\(rawMessages\)/.test(chat) && !/\.\.\.rawMessages\.map/.test(chat));
+
 console.log('\nStage transitions and audit attribution');
 const workflow = readFileSync(new URL('api/workflow-action.ts', ROOT), 'utf8');
 check('newStatus is checked against the known stages', /REQUEST_STATUSES\.has\(newStatus\.trim\(\)\)/.test(workflow));
