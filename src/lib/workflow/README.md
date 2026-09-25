@@ -167,7 +167,7 @@ rule, and the call-off's instance is created by the checkout alone.
 | procurement-led | WF-001 Standard Procurement — Intake → Validation → (risk) → (onboarding, for a named new supplier) → Approval → Sourcing → Contracting → PO → Receipt → Invoice → Payment |
 | catalogue | WF-002 Catalogue Purchase |
 | direct-po | WF-005 Direct Purchase Order |
-| business-led | WF-006 Business-Led Buying — always a risk review; onboarding only for a new supplier |
+| business-led | WF-006 Business-Led Buying — always a risk review; onboarding only for a new supplier; Contracting (Legal) after approval, before the PO |
 | p-card | WF-007 Purchasing Card |
 | framework-call-off | WF-008 Contract Call-Off — no sourcing, no onboarding; Contracting only when the checkout found the contract needs amending, risk only when the supplier's assessment cannot be reused |
 

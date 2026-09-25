@@ -298,6 +298,18 @@ if (!connection) {
 }
 
 
+// ── Business-led buying has a contract ──────────────────────────────────────
+// WF-006 went Approval → PO with no Contracting stage, so a business-led
+// services purchase reached a purchase order with no contract behind it.
+console.log('\nBusiness-led buying agrees a contract before the PO');
+{
+  const path = getStagesForChannel(seedMap, 'business-led');
+  const c = path.indexOf('contracting');
+  if (c === -1) bad('business-led has a Contracting stage', path.join(' > '));
+  else if (!(path.indexOf('approval') < c && c < path.indexOf('po'))) bad('Contracting sits between Approval and PO', path.join(' > '));
+  else ok('business-led: ' + path.join(' > '));
+}
+
 // ── Side processes are not request lifecycles ──────────────────────────────
 // WF-003 (Supplier Onboarding) and WF-004 (Contract Renewal) govern a supplier
 // and a contract, not a request, and are selected by category rather than by

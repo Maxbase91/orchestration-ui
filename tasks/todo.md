@@ -28,7 +28,7 @@ Decisions taken (2026-09-25):
 ## Commits
 1. [x] fix: a request runs on the template that claims its channel — submit
        ignores the browser's template; category derivation removed.
-2. [ ] feat: WF-006 business-led gets Contracting (Legal, 10 days) — seed, live,
+2. [x] feat: WF-006 business-led gets Contracting (Legal, 10 days) — seed, live,
        tests, docs.
 3. [ ] refactor: routing decides only business-led vs procurement-led — drop
        rules that route to catalogue / call-off / direct-po / renewal /

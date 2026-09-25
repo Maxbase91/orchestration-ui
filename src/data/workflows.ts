@@ -259,7 +259,7 @@ export const workflowTemplates: WorkflowTemplate[] = [
   {
     id: 'WF-006',
     name: 'Business-Led Buying',
-    description: 'The business runs the buy against an existing framework or a known supplier. Procurement assures risk and onboarding rather than running the deal.',
+    description: 'The business runs the buy with a supplier it chooses. Procurement assures risk, onboarding and the contract rather than running the deal.',
     type: 'business-led',
     // Business-led only. It used to claim framework-call-off too, on the view
     // that the two traverse the same stages — they do not: a call-off against
@@ -281,6 +281,10 @@ export const workflowTemplates: WorkflowTemplate[] = [
       { id: 'n9', type: 'stage', label: 'Payment', x: 1250, y: 200, role: 'Finance', slaDays: 3, gate: 'manual' as const, purpose: 'Payment released to the supplier.' },
       { id: 'n10', type: 'end', label: 'Completed', x: 1400, y: 200 },
       { id: 'n11', type: 'error', label: 'Referred Back', x: 650, y: 350, slaDays: 3 },
+      // The business chooses the supplier, but the terms are still agreed and
+      // signed before a PO: without this stage a business-led services buy
+      // reached a purchase order with no contract behind it.
+      { id: 'n12', type: 'stage', label: 'Contracting', x: 725, y: 80, role: 'Legal', slaDays: 10, gate: 'manual' as const, purpose: 'Supplier terms agreed and signed before the PO.' },
     ],
     edges: [
       { source: 'n1', target: 'n2' },
@@ -290,7 +294,8 @@ export const workflowTemplates: WorkflowTemplate[] = [
       { source: 'n3', target: 'n4', label: 'Onboarding required' },
       { source: 'n3', target: 'n5', label: 'Skip onboarding' },
       { source: 'n4', target: 'n5' },
-      { source: 'n5', target: 'n6', label: 'Approved' },
+      { source: 'n5', target: 'n12', label: 'Approved' },
+      { source: 'n12', target: 'n6' },
       { source: 'n5', target: 'n11', label: 'Rejected' },
       { source: 'n6', target: 'n7' },
       { source: 'n7', target: 'n8' },
