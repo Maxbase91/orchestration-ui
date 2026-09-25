@@ -53,7 +53,7 @@ const OPERATOR_OPTIONS = [
 
 const CATEGORY_VALUES = [
   'goods', 'services', 'software', 'consulting',
-  'contingent-labour', 'contract-renewal', 'supplier-onboarding',
+  'contingent-labour',
 ];
 
 const RISK_VALUES = ['low', 'medium', 'high', 'critical'];

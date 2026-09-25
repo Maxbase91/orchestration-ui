@@ -171,7 +171,7 @@ rule, and the call-off's instance is created by the checkout alone.
 
 Direct PO (WF-005) and P-card (WF-007) were retired on 2026-09-25: no path from the intake reached either honestly.
 
-WF-003 (supplier onboarding) and WF-004 (contract renewal) are side processes and claim no channel.
+The side processes WF-003 (supplier onboarding) and WF-004 (contract renewal) were retired on the same day: nothing ever started one. Onboarding is the Vendor Onboarding stage inside a request whose supplier is new; a renewal is a demand like any other, and the contract check recognises it when the covering contract is expiring.
 
 The template also carries what the **requester reads** about its channel — a
 headline and one sentence (`requesterHeadline` / `requesterDescription`, edited in

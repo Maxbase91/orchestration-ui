@@ -216,17 +216,17 @@ export const FIXTURES = {
     { id: 'closed-site', label: 'Closed site', address: '', country_code: '', active: false, sort_order: 3 },
   ],
   procurement_categories: [
-    // Goods and consulting carry commodity codes; contract-renewal carries none,
-    // the state the categories screen flags.
+    // Goods and consulting carry commodity codes; services carries none, the
+    // state the categories screen flags.
     { id: 'goods', label: 'Goods', description: 'Physical products', active: true, timeline_days: 5, sort_order: 1, catalogue_eligible: true,
       commodity_codes: [{ code: '43211500', label: 'Laptop computers', keywords: ['laptop', 'workstation'] }],
       default_code: '31160000', default_code_label: 'General hardware and goods' },
     { id: 'consulting', label: 'Consulting', description: 'Advisory services', active: true, timeline_days: 15, sort_order: 2, catalogue_eligible: false,
       commodity_codes: [], default_code: '80101600', default_code_label: 'Management consulting' },
-    { id: 'contract-renewal', label: 'Contract Renewal', description: 'Renew an existing agreement', active: true, timeline_days: 12, sort_order: 3, catalogue_eligible: false },
+    { id: 'services', label: 'Services', description: 'Operational services', active: true, timeline_days: 12, sort_order: 3, catalogue_eligible: false },
   ],
   // Consulting has two managers and goods has one, so the multi-manager display
-  // and the single case are both exercised; contract-renewal has none, which is
+  // and the single case are both exercised; services has none, which is
   // the state the screen must warn about — with no manager, nobody but an admin
   // can move that category's requests out of validation.
   category_preferred_suppliers: [
@@ -305,9 +305,9 @@ export const FIXTURES = {
     },
     {
       id: 'RR-T2', name: 'Compliance escalation', status: 'active', category: 'Risk',
-      conditions: [{ field: 'category', operator: 'equals', value: 'supplier-onboarding' }],
+      conditions: [{ field: 'category', operator: 'equals', value: 'contingent-labour' }],
       action: { buyingChannel: 'procurement-led', approvalChain: 'chain-compliance' },
-      description: 'Onboarding demand goes through compliance regardless of value.',
+      description: 'Contingent labour goes through compliance regardless of value.',
       last_modified: '2026-09-13T10:00:00Z',
     },
   ],

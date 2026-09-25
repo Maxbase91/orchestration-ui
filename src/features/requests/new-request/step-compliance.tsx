@@ -21,9 +21,7 @@ import type { IntakeDetermination, MatchingRiskAssessmentSummary } from '@/lib/p
 import { DynamicForm } from '@/components/shared/dynamic-form';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
 import { SupplierRecommenderCard } from './components/supplier-recommender-card';
-import type { MiniIrqAnswers } from './intake-form-data';
 
 // Re-exported so consumers that only need the summary shape do not have to know
 // where the determination lives.
@@ -85,15 +83,6 @@ interface StepComplianceProps {
    * sees the conclusion and what it means; Expert also sees the workings.
    */
   /**
-   * Whether this step asks the residual risk questions.
-   *
-   * False on the chat path, where the conversation asks them as its tail — two
-   * places to answer one governance question is how the answers disagree.
-   * The form paths (contract renewal, supplier onboarding) have no conversation,
-   * so the card is still where they are asked.
-   */
-  askRiskQuestions?: boolean;
-  /**
    * Whether supplier selection is on screen yet.
    *
    * False until the conversation is finished, so the requester is asked for one
@@ -101,8 +90,6 @@ interface StepComplianceProps {
    * valid answer and sourcing will identify candidates.
    */
   revealSupplier?: boolean;
-  miniIrq: MiniIrqAnswers;
-  onMiniIrqChange: (m: MiniIrqAnswers) => void;
 }
 
 /** The supplier's SRA state, in the vocabulary the triage form displays. */
@@ -138,10 +125,7 @@ export function StepCompliance({
   requestTitle,
   determination,
   section,
-  askRiskQuestions = true,
   revealSupplier = true,
-  miniIrq,
-  onMiniIrqChange,
 }: StepComplianceProps) {
   const channelWording = useChannelCopy();
   // The supplier directory is still read here: the export and the triage view
@@ -218,45 +202,10 @@ export function StepCompliance({
 
   return (
     <div className="space-y-6">
-      {section === 'inputs' && (<>
-      {/* Mini-IRQ (delta only) — the two inherent-risk attributes that cannot be
-          inferred from the service description. Answers refine the cascade live.
-          On the chat path the conversation asks these instead, so this renders
-          only for the form-based categories. */}
-      {askRiskQuestions && <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm">Mini risk questionnaire</CardTitle>
-          <p className="text-xs text-muted-foreground">
-            We only ask what we couldn&apos;t derive from your service description.
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {(result.residualQuestions?.length ?? 0) === 0 ? (
-            <p className="text-sm text-ink-3">
-              No further questions — your service description already covers what we need to assess.
-            </p>
-          ) : (
-            result.residualQuestions!.map((q) => {
-              const switchId = q.id === 'privileged-access' ? 'mini-irq-access' : 'mini-irq-critical';
-              return (
-                <div key={q.id} className="flex items-center justify-between gap-4">
-                  <label htmlFor={switchId} className="text-sm text-ink-2">
-                    {q.question}
-                    <span className="block text-xs text-ink-3">Asked because: {q.reason}</span>
-                  </label>
-                  <Switch
-                    id={switchId}
-                    checked={miniIrq[q.field] ?? false}
-                    onCheckedChange={(v) => onMiniIrqChange({ ...miniIrq, [q.field]: v })}
-                  />
-                </div>
-              );
-            })
-          )}
-        </CardContent>
-      </Card>}
-
-      </>)}
+      {/* The residual risk questions are the conversation's tail, not a card
+          here: the "Mini risk questionnaire" card existed for the renewal and
+          onboarding form paths, retired on 2026-09-25, and two places to answer
+          one governance question is how the answers disagree. */}
       {section === 'conclusions' && (<>
       {/* The determination is exportable — an operator action, not something a
           requester submitting their own demand reaches for. */}

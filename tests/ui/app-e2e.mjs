@@ -28,7 +28,7 @@ const ADMIN_ROUTES = [
   '/purchasing/orders', '/purchasing/invoices', '/purchasing/match', '/purchasing/receipt', '/purchasing/payments',
   '/analytics/spend', '/analytics/compliance', '/analytics/pipeline', '/analytics/suppliers',
   '/analytics/reports', '/analytics/reports/scheduled', '/analytics/exports',
-  '/admin/rules', '/admin/thresholds', '/admin/workflows', '/admin/workflows/side-processes', '/admin/agents', '/admin/ai-analytics', '/admin/approvals',
+  '/admin/rules', '/admin/thresholds', '/admin/workflows', '/admin/agents', '/admin/ai-analytics', '/admin/approvals',
   '/admin/categories', '/admin/sla-targets', '/admin/forms', '/admin/policies', '/admin/kb',
   '/admin/service-description',
   '/admin/users', '/admin/audit', '/admin/health', '/admin/database',

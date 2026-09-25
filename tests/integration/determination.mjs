@@ -1,8 +1,11 @@
 #!/usr/bin/env node
 // Verifies contract-type and sourcing-type determination.
 //
-// Self-contained — mirrors src/lib/procurement/determination.ts. Keep in sync.
+// Imports the real module. It carried its own copy ("keep in sync"), which
+// still said a 'contract-renewal' category renews after that category was
+// retired and renewal became a fact about the covering contract (2026-09-25).
 // Run: node tests/integration/determination.mjs
+import { determineContractType, determineSourcingType } from '../../src/lib/procurement/determination.ts';
 
 let failures = 0;
 function check(name, cond, detail = '') {
@@ -10,29 +13,10 @@ function check(name, cond, detail = '') {
   else { failures++; console.error(`  \x1b[31m✗\x1b[0m ${name}${detail ? ` — ${detail}` : ''}`); }
 }
 
-function determineContractType(i) {
-  if (i.channel === 'catalogue' || i.channel === 'direct-po') return { type: 'none' };
-  if (i.category === 'contract-renewal') return { type: 'renew' };
-  if (i.channel === 'framework-call-off' || i.hasFrameworkOrContract) {
-    const scopeChange = i.scopeChange ?? 'none';
-    const withinHeadroom = i.withinHeadroom ?? true;
-    if (scopeChange === 'material') return { type: 'change' };
-    if (scopeChange === 'extends' || !withinHeadroom) return { type: 'amend' };
-    return { type: 'sow' };
-  }
-  return { type: 'new-msa' };
-}
-function determineSourcingType(i) {
-  if (i.channel === 'catalogue' || i.channel === 'direct-po' || i.channel === 'framework-call-off') return { type: 'none' };
-  if (i.category === 'contract-renewal') return { type: 'renewal' };
-  if (i.hasExistingSupplierRelationship) return { type: 'benchmarking' };
-  return { type: 'new-event' };
-}
-
 console.log('Contract type');
 check('catalogue → none', determineContractType({ channel: 'catalogue', category: 'goods', hasFrameworkOrContract: false }).type === 'none');
-check('direct-po → none', determineContractType({ channel: 'direct-po', category: 'goods', hasFrameworkOrContract: false }).type === 'none');
-check('contract-renewal category → renew', determineContractType({ channel: 'procurement-led', category: 'contract-renewal', hasFrameworkOrContract: true }).type === 'renew');
+check('an expiring covering contract → renew', determineContractType({ channel: 'procurement-led', category: 'services', hasFrameworkOrContract: true, renewal: true }).type === 'renew');
+check('a category alone no longer says renewal', determineContractType({ channel: 'procurement-led', category: 'contract-renewal', hasFrameworkOrContract: true }).type === 'sow');
 check('framework-call-off → sow', determineContractType({ channel: 'framework-call-off', category: 'services', hasFrameworkOrContract: true }).type === 'sow');
 check('existing contract on supplier → sow', determineContractType({ channel: 'procurement-led', category: 'services', hasFrameworkOrContract: true }).type === 'sow');
 check('existing contract + within headroom (transactable) → sow', determineContractType({ channel: 'procurement-led', category: 'services', hasFrameworkOrContract: true, withinHeadroom: true }).type === 'sow');
@@ -45,7 +29,7 @@ check('no agreement → new-msa (signals ignored)', determineContractType({ chan
 console.log('Sourcing type');
 check('catalogue → none', determineSourcingType({ channel: 'catalogue', category: 'goods', hasExistingSupplierRelationship: false }).type === 'none');
 check('framework-call-off → none', determineSourcingType({ channel: 'framework-call-off', category: 'services', hasExistingSupplierRelationship: true }).type === 'none');
-check('contract-renewal category → renewal', determineSourcingType({ channel: 'procurement-led', category: 'contract-renewal', hasExistingSupplierRelationship: true }).type === 'renewal');
+check('an expiring covering contract → renewal', determineSourcingType({ channel: 'procurement-led', category: 'services', hasExistingSupplierRelationship: true, renewal: true }).type === 'renewal');
 check('incumbent relationship → benchmarking', determineSourcingType({ channel: 'procurement-led', category: 'consulting', hasExistingSupplierRelationship: true }).type === 'benchmarking');
 check('no relationship → new-event', determineSourcingType({ channel: 'procurement-led', category: 'consulting', hasExistingSupplierRelationship: false }).type === 'new-event');
 check('business-led new supplier → new-event', determineSourcingType({ channel: 'business-led', category: 'goods', hasExistingSupplierRelationship: false }).type === 'new-event');

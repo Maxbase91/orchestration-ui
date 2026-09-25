@@ -348,6 +348,35 @@ check('an answer to a question this demand no longer asks is ignored', () => {
   assert.ok(!small.riskQuestionnaire.some((entry) => entry.id === 'critical-service'));
 });
 
+// ── A renewal is a fact about the contract, not a category ─────────────────
+// It took a 'contract-renewal' category to say renewal; the category is
+// retired, and the second contract check — an expiring contract for the
+// supplier — says it instead.
+console.log('\nA renewal comes from the expiring contract');
+{
+  const expiring = {
+    id: 'CON-EXP', title: 'Office cleaning', supplierId: 'SUP-OK', supplierName: 'OK Supplier',
+    category: 'services', status: 'expiring', value: 100000, utilisationPercentage: 40,
+    startDate: '2024-01-01', endDate: '2026-10-15', isFramework: false,
+  };
+  check('an expiring contract for the supplier makes it a renewal', () => {
+    const d = evaluateIntakeDetermination(demand({ contracts: [expiring] }));
+    assert.equal(d.sourcingType.type, 'renewal');
+    assert.equal(d.contractType.type, 'renew');
+  });
+  check('without one it is not', () => {
+    const d = evaluateIntakeDetermination(demand());
+    assert.notEqual(d.sourcingType.type, 'renewal');
+  });
+}
+{
+  const { classifyDemandCategory } = await import('../../src/lib/procurement/classify.ts');
+  check('"renew our software licence" is software, not a renewal category', () =>
+    assert.equal(classifyDemandCategory('renew our software licence'), 'software'));
+  check('"onboard a new supplier for cleaning" is services', () =>
+    assert.equal(classifyDemandCategory('onboard a new supplier for cleaning'), 'services'));
+}
+
 console.log(
   failures === 0
     ? '\nAll intake-determination checks passed.'

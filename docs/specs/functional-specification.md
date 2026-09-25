@@ -300,7 +300,7 @@ Fields are pre-populated from context where possible. For example, if the user m
 
 Before the request can proceed, the system runs automated compliance checks. These happen in real time while the user watches, with each check displaying a pass/fail indicator:
 
-1. **Buying Channel Determination** — The system evaluates the request category, value, and supplier to determine the correct buying channel (Catalogue, Direct PO, Business-Led, Procurement-Led, or Framework Call-Off). The reasoning is displayed.
+1. **Buying Channel Determination** — The system evaluates the request category, value, and supplier to determine the correct buying channel (Catalogue, Framework Call-Off, Business-Led or Procurement-Led). The reasoning is displayed.
 
 2. **Supplier Risk Assessment (SRA) Check** — If a supplier is specified, the system checks whether they have a valid SRA. Statuses: Valid, Expiring (within 90 days), Expired, or Not Assessed.
 
@@ -525,11 +525,12 @@ When a request is submitted, the system automatically performs the following com
 
 **Buying Channel Classification**
 The system evaluates the request's category, value, and supplier to determine the correct buying channel:
-- **Catalogue** — Pre-approved items under EUR 5,000
-- **Direct PO** — Low-value services under EUR 10,000 with existing supplier
-- **Business-Led** — Goods or renewals under EUR 25,000-50,000
-- **Framework Call-Off** — Items covered by an existing framework agreement
-- **Procurement-Led** — High-value items, consulting engagements, or items requiring competitive sourcing
+- **Catalogue** — a pre-approved catalogue item the requester added
+- **Framework Call-Off** — covered by a transactable contract the contract check found, within the direct call-off limit
+- **Business-Led** — any other demand up to the business-led ceiling (€50,000), except consulting and contingent labour; the business agrees a contract with Legal before the PO
+- **Procurement-Led** — consulting, contingent labour, software over the budget-approval threshold, anything over the materiality threshold, and everything above the ceiling
+
+Direct PO and P-card were retired on 2026-09-25: nothing at intake reached either honestly.
 
 The system provides a plain-language explanation of why the channel was selected. For example: "Value (EUR 480,000) exceeds EUR 100K threshold and category is Software — Procurement-Led Sourcing required."
 
@@ -1032,7 +1033,7 @@ The conversational AI assistant covers queries across the following domains:
 - Workflow and pipeline status
 - Policy and process guidance
 - Catalogue ordering
-- Supplier onboarding
+- Supplier onboarding status
 - Sourcing events
 - Report navigation
 
@@ -1125,22 +1126,20 @@ An interactive condition builder with IF/THEN logic:
 **Panel 3: Test Panel**
 A simulation area where administrators can input test request data and see which rule would match and what routing would result.
 
-**12 Pre-Configured Rules:**
+**Seeded rules (Door 1).** Routing decides only **business-led** or **procurement-led**. Catalogue and framework call-off are never routed to: they come from a real catalogue item or a transactable contract found by the buy-route checks. Direct PO and P-card were retired on 2026-09-25 (no honest intake path reached either). Thresholds are `policy:` references to the Decisioning Thresholds page, not restated numbers.
 
-| Rule | Conditions | Buying Channel | Approval Chain |
+| Rule | Conditions | Buying Channel | Status |
 |---|---|---|---|
-| High-value IT software | Software AND value > EUR 100K | Procurement-Led | Category Manager > Finance > VP Procurement |
-| Low-value catalogue purchases | Goods AND value < EUR 5K | Catalogue | Line Manager |
-| Consulting engagements | Category = Consulting | Procurement-Led | Category Manager > Finance > VP Procurement |
-| Contingent labour — framework | Contingent Labour AND supplier in [Randstad, Hays] | Framework Call-Off | Category Manager > Finance |
-| Contract renewals under EUR 50K | Contract Renewal AND value < EUR 50K | Business-Led | Category Manager |
-| Mega-deal threshold (> EUR 1M) | Value > EUR 1M | Procurement-Led | Category Manager > Finance > VP Procurement > CPO |
-| IT hardware — catalogue eligible | Goods AND commodity code starts with 432 AND value < EUR 25K | Catalogue | Line Manager > Category Manager |
-| Supplier onboarding flow | Category = Supplier Onboarding | Procurement-Led | Supplier Manager > Compliance > Category Manager |
-| Facilities services — direct PO | Services AND commodity code starts with 761 AND value < EUR 10K | Direct PO | Line Manager |
-| Urgent request fast-track | Priority = Urgent AND Urgency Flag = true | Procurement-Led | Category Manager > VP Procurement |
-| Marketing services — mid-tier (Draft) | Services AND commodity code starts with 8014 AND value between EUR 50K-250K | Procurement-Led | Category Manager > Finance |
-| High-risk supplier override (Disabled) | Supplier risk rating in [High, Critical] | Procurement-Led | Supplier Manager > Compliance > VP Procurement > CPO |
+| RR-001 High-value IT software | Software AND value > budget-approval threshold (€100K) | Procurement-Led | Active |
+| RR-003 Consulting engagements | Category = Consulting | Procurement-Led | Active |
+| RR-013 Contingent labour | Category = Contingent Labour (a call-off only when the contract check finds a framework) | Procurement-Led | Active |
+| RR-006 Materiality threshold | Value > materiality threshold (€1M) | Procurement-Led | Active |
+| RR-010 Urgent request fast-track | Priority = Urgent AND urgency flag | Procurement-Led | Active |
+| RR-011 Marketing services — mid-tier | Services AND commodity code starts 8014 AND value €50K–250K | Procurement-Led | Draft |
+| RR-012 High-risk supplier override | Supplier risk rating High/Critical | Procurement-Led (compliance chain) | Disabled |
+| RR-902 Catch-all — above budget approval | Value > budget-approval threshold | Procurement-Led | Active |
+| RR-904 Catch-all — business-led ceiling | Value ≤ business-led ceiling (€50K) | Business-Led | Active |
+| RR-905 Catch-all — everything else | Any value | Procurement-Led | Active |
 
 ### 14.2 Form Builder
 
@@ -1308,7 +1307,7 @@ The central entity around which the platform operates.
 - Estimated value and currency
 - Requestor, owner (assigned procurement handler)
 - Supplier reference, contract reference, PO reference
-- Buying channel (Procurement-Led, Business-Led, Direct PO, Framework Call-Off, Catalogue)
+- Buying channel (Procurement-Led, Business-Led, Framework Call-Off, Catalogue)
 - Commodity code and label
 - Cost centre, budget owner
 - Business justification
@@ -1509,33 +1508,24 @@ Temporary workers, contractors, or freelancers working under the company's direc
 
 **Not Contingent Labour:** Consulting firms delivering a project with their own methodology (that is Consulting).
 
-#### Contract Renewal
-Extending or renewing an existing supplier contract that is expiring or has expired.
-
-**Examples:** Renewing a supplier agreement, extending a contract term, renegotiating terms and pricing, annual renewal processes.
-
-#### Supplier Onboarding
-Registering and qualifying a new supplier or vendor that is not yet in the system.
-
-**Examples:** Adding a new vendor to the approved supplier list, first-time onboarding, registering a new service provider.
+#### Renewals and new suppliers are not categories
+There were *Contract Renewal* and *Supplier Onboarding* categories; both were retired on 2026-09-25 (inactive, so historic requests keep them). A renewal is classified by what is being bought and recognised by the contract check when the covering contract is expiring (contract type *renew*, sourcing type *renewal*); "Start renewal" on a contract opens Door 1 with the demand written. A new supplier is the Vendor Onboarding stage inside the request.
 
 ### 17.2 Buying Channel Determination Logic
 
 The system determines the buying channel based on three factors: category, value, and supplier context:
 
+Catalogue and framework call-off come first, and only from a match: a catalogue item the requester adds, or a transactable contract the contract check finds (within the direct call-off limit). Everything else is routed by Door 1, which decides between the two remaining channels by category and value:
+
 | Condition | Buying Channel |
 |---|---|
-| Category is Catalogue AND value < EUR 5,000 | Catalogue |
-| Goods with commodity code starting with 432 AND value < EUR 25K | Catalogue |
-| Services with facilities commodity code AND value < EUR 10K | Direct PO |
-| Contract renewal AND value < EUR 50K | Business-Led |
-| Contingent Labour with framework supplier (Randstad/Hays) | Framework Call-Off |
-| Goods AND value EUR 5K-25K | Business-Led |
-| Category is Consulting (any value) | Procurement-Led |
-| Software AND value > EUR 100K | Procurement-Led |
-| Any category AND value > EUR 100K | Procurement-Led |
-| Any category AND value > EUR 1M | Procurement-Led + CPO sign-off |
-| Priority = Urgent | Procurement-Led (fast-track approval chain) |
+| Category is Consulting or Contingent Labour (any value) | Procurement-Led |
+| Software AND value > budget-approval threshold (€100K) | Procurement-Led |
+| Any category AND value > materiality threshold (€1M) | Procurement-Led |
+| Priority = Urgent | Procurement-Led |
+| Any category AND value > budget-approval threshold (€100K) | Procurement-Led |
+| Any other demand AND value ≤ business-led ceiling (€50K) | Business-Led (the business agrees a contract with Legal before the PO) |
+| Everything else | Procurement-Led |
 
 ### 17.3 Threshold Rules
 

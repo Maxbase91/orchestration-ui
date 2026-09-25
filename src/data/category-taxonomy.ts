@@ -73,10 +73,4 @@ export const DEFAULT_CATEGORY_TAXONOMY: ProcurementCategory[] = [
       { code: '80111600', label: 'Temporary IT staffing', keywords: ['temp', 'contractor', 'staffing', 'contingent'] },
     ],
     defaultCode: { code: '80111600', label: 'Temporary staffing services' } },
-  { id: 'contract-renewal', label: 'Contract Renewal', description: 'Extend or renew an existing supplier contract', icon: 'RefreshCw', timelineDays: 12, sortOrder: 7, active: true, catalogueEligible: false, supplierTags: ['Software Licensing', 'Cloud Services', 'Managed Services'],
-    commodityCodes: [],
-    defaultCode: { code: '80100000', label: 'Professional services (renewal)' } },
-  { id: 'supplier-onboarding', label: 'Supplier Onboarding', description: 'Register and onboard a new vendor to the platform', icon: 'UserPlus', timelineDays: 20, sortOrder: 8, active: true, catalogueEligible: false, supplierTags: [],
-    commodityCodes: [],
-    defaultCode: { code: '80100000', label: 'Supplier onboarding services' } },
 ];

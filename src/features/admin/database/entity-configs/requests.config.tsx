@@ -78,8 +78,6 @@ export const requestsConfig: EntityConfig<'request'> = {
         { value: 'software', label: 'Software' },
         { value: 'consulting', label: 'Consulting' },
         { value: 'contingent-labour', label: 'Contingent labour' },
-        { value: 'contract-renewal', label: 'Contract renewal' },
-        { value: 'supplier-onboarding', label: 'Supplier onboarding' },
         { value: 'catalogue', label: 'Catalogue' },
       ],
     },

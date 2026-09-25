@@ -84,7 +84,6 @@ const ENRICH_GUIDANCE: Record<string, string> = {
   software: 'the product, number of users, hosting, and contract term',
   'contingent-labour': 'the role, seniority, number of people, and engagement length',
   goods: 'the items, quantity, key specifications, and delivery location',
-  'contract-renewal': 'the existing supplier, the term to renew, and any scope change',
 };
 const enrichGuidance = (category: string) =>
   ENRICH_GUIDANCE[category] ?? 'the scope, region, duration, and approximate size';

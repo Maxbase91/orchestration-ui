@@ -67,7 +67,7 @@ is manufactured so that the step counts match.
 - FR01-59a · An answer is **tri-state**. Absent means the question was never put, which is a different fact from "answered no"; the determination reports both in `riskQuestionnaire` and the compliance record carries `risk-question:<id>=yes|no|not-answered`. Both answers used to default to `false`, so a question nobody asked and one answered in the negative produced the same record.
 - FR01-59b · An answer to a question the demand **no longer triggers** is ignored. Answer yes to critical-service at a material value, then drop the value, and the question disappears while the answer used to go on forcing materiality to critical.
 - FR01-60 · Supplier selection happens here, not on the determination: it is an input that *feeds* the determination, so choosing it afterwards would move the conclusion under the reader.
-- FR01-61 · A disabled Next names what is outstanding — the missing conversation slots on the chat path, the missing fields on the form paths.
+- FR01-61 · A disabled Next names what is outstanding — the missing conversation slots, and what submit will require (need-by date, cost centre, override reason).
 
 ### Step 4 — Review & submit: everything the platform concluded
 - FR01-23 · The determination is computed **once per intake** by `useIntakeDetermination` over the pure `evaluateIntakeDetermination`, with stable module-level empty-array defaults; the previous arrangement recomputed it inside the step and mirrored it back into form state through `onUpdate` (the F14 infinite re-render).

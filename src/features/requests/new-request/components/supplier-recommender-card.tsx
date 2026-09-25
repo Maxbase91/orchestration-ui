@@ -146,7 +146,7 @@ export function SupplierRecommenderCard({
     },
     'onboard-new': {
       label: 'New supplier onboarding required',
-      detail: 'No existing supplier matches the required category with acceptable performance/risk. Downstream workflow should trigger the supplier-onboarding process.',
+      detail: 'No existing supplier matches the required category with acceptable performance/risk. The request passes through the Vendor Onboarding stage once a supplier is chosen.',
       icon: UserPlus,
       color: 'text-warn bg-warn-soft border-warn-line',
     },

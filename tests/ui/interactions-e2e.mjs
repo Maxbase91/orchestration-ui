@@ -78,8 +78,38 @@ async function reachBuyRoute(page, demand) {
   ]).catch(() => {});
   if (!(await page.getByText("How you'll buy this", { exact: true }).count())) return false;
   await page.getByRole('button', { name: /^Start$/ }).last().click();
-  await page.locator('#title').waitFor({ timeout: 15000 });
+  await page.getByPlaceholder(/Type your answer/).waitFor({ timeout: 15000 });
   return true;
+}
+
+/**
+ * Answer the demand conversation until Next unlocks: the budget and the date
+ * by what the question asks for, a yes/no risk question with No, anything else
+ * with prose. Every full request is captured this way since the form path went
+ * with the renewal category (2026-09-25). A cost centre is picked if Details
+ * still names it as missing.
+ */
+async function answerConversation(page, budget) {
+  const next = page.getByRole('button', { name: /^Next$/ });
+  for (let turn = 0; turn < 20; turn++) {
+    if (await next.isEnabled().catch(() => false)) break;
+    const no = page.getByRole('button', { name: /^No$/ });
+    if (await no.count()) { await no.last().click(); await page.waitForTimeout(900); continue; }
+    const field = page.getByPlaceholder(/Type your answer/);
+    if (await field.isDisabled().catch(() => true)) break;
+    const text = await page.locator('main').innerText();
+    const q = text.slice(Math.max(0, text.lastIndexOf('?') - 160), text.lastIndexOf('?') + 1);
+    await field.fill(/budget/i.test(q) ? String(budget)
+      : /delivered or started by|need.*by/i.test(q) ? '2027-03-31'
+      : 'A detailed answer covering everything this question needs for the request.');
+    await field.press('Enter');
+    await page.waitForTimeout(1500);
+  }
+  if (await page.getByText('Add a cost centre under Charged to.').count()) {
+    await page.getByText('Charged to', { exact: true }).locator('xpath=..').getByRole('button', { name: /Change/ }).click();
+    const centre = page.getByLabel('Cost centre', { exact: true });
+    await centre.selectOption(await centre.evaluate((el) => [...el.options].map((o) => o.value).find(Boolean) ?? ''));
+  }
 }
 
 const server = USE_DEPLOYED_APP ? null : spawn('npm', ['run', 'dev'], { stdio: 'ignore' });
@@ -110,24 +140,15 @@ try {
     // all three routes and the full-request escape is always startable — this
     // used to be a two-stage funnel ("Contract check" → "Proceed to full
     // request") across seven steps.
-    const reached = await reachBuyRoute(page, 'renew our existing vendor contract for another year');
+    const reached = await reachBuyRoute(page, 'E2E submit test — an analytics software platform for the finance team');
     if (!reached) {
       skip('wizard submit needs the serverless classification endpoints — set E2E_UI_BASE');
       await ctx.close();
       break flow1;
     }
-    await page.locator('#title').fill('E2E submit test');
-    await page.locator('#value').fill('60000');
     // Submit requires a need-by date and a cost centre (submission-requirements.ts);
-    // Details now asks for both instead of the server refusing on the final click.
-    await page.locator('#delivery-date').fill('2027-03-31');
-    if (await page.getByText('Not set yet — needed before you submit').count()) {
-      await page.getByText('Charged to', { exact: true }).locator('xpath=..').getByRole('button', { name: /Change/ }).click();
-      const centre = page.getByLabel('Cost centre', { exact: true });
-      await centre.selectOption(await centre.evaluate((el) => [...el.options].map((o) => o.value).find(Boolean) ?? ''));
-    }
-    // The risk questions are asked on Details, beside the demand they refer to.
-    await page.getByText('Mini risk questionnaire').waitFor({ timeout: 15000 });
+    // the conversation asks for the date and Details names the cost centre.
+    await answerConversation(page, 60000);
     await page.getByRole('button', { name: /Next/ }).click();          // → review & submit
     await page.getByText('Approval to source', { exact: true }).waitFor({ timeout: 15000 });
     await page.getByRole('button', { name: /Submit Request/ }).click();
@@ -262,20 +283,12 @@ try {
 
     // 2. Drive a €50k demand through the wizard to the determination.
     await page.goto(`${BASE}/requests/new`, { waitUntil: 'networkidle' });
-    if (!(await reachBuyRoute(page, 'renew our existing vendor contract for another year'))) {
+    if (!(await reachBuyRoute(page, 'an analytics software platform for the finance team'))) {
       skip('config-wiring check needs the serverless classification endpoints — set E2E_UI_BASE');
       await ctx.close();
       break flow4;
     }
-    await page.locator('#title').fill('Config wiring test');
-    await page.locator('#value').fill('50000');
-    // What submit requires (submission-requirements.ts) — Details holds Next without it.
-    await page.locator('#delivery-date').fill('2027-03-31');
-    if (await page.getByText('Not set yet — needed before you submit').count()) {
-      await page.getByText('Charged to', { exact: true }).locator('xpath=..').getByRole('button', { name: /Change/ }).click();
-      const centre = page.getByLabel('Cost centre', { exact: true });
-      await centre.selectOption(await centre.evaluate((el) => [...el.options].map((o) => o.value).find(Boolean) ?? ''));
-    }
+    await answerConversation(page, 50000);
     await page.getByRole('button', { name: /Next/ }).click();   // → review & submit
     await page.getByText('Approval to source', { exact: true }).waitFor({ timeout: 15000 });
     const fullGate = await page.getByText('full gate', { exact: true }).count();

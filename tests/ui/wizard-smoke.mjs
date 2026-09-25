@@ -430,44 +430,58 @@ try {
   check('the conversation moves on — the next question is delivery date, not budget again',
     (await page.getByText(/When do you need this delivered or started by/i).count()) > 0);
 
-  // 4. Full staged funnel via free text: classify → catalogue (no match) →
-  //    enrich → contract (no match) → proceed to full request → risk step.
+  // 4. A material demand through the conversation to Review. This walked a
+  //    "renew our vendor contract" demand through a separate form path; the
+  //    renewal category and that form are gone (2026-09-25) — a renewal is a
+  //    demand like any other, and every full request is captured by the
+  //    conversation. €150k of software is procurement-led by the value rules,
+  //    and material enough for the critical-service question.
   await page.goto(`${BASE}/requests/new`, { waitUntil: 'networkidle' });
-  await page.locator('#need-input').fill('renew our existing vendor contract for another year');
+  await page.locator('#need-input').fill('an analytics software platform for the finance team');
   await page.locator('#need-input').press('Enter');
   await page.getByRole('button', { name: /Accept & continue/ }).click();
   await page.getByText("How you'll buy this", { exact: true }).waitFor({ timeout: 15000 });
-  check('a renewal demand reaches the buy-route screen', true);
   await page.getByRole('button', { name: /^Start$/ }).last().click();
-  // The parent advances after the route callback; wait for the details control
-  // rather than assuming the React state update is synchronous.
-  await page.locator('#title').waitFor({ timeout: 10000 });
-  await page.locator('#title').fill('Renewal smoke test');
-  await page.locator('#value').fill('150000');  // ≥ critical-service threshold so that residual question triggers
+  await page.getByPlaceholder(/Type your answer/).waitFor({ timeout: 15000 });
 
-  // 4. Details — EVERY input the requester supplies, on one screen: the demand
-  //    form and the risk questions the description could not answer. The risk
-  //    questions used to be a step of their own, four screens after the demand
-  //    they refer to.
-  await page.getByText('Mini risk questionnaire').waitFor({ timeout: 15000 });
-  check('risk questions are asked on the details step, with the demand', true);
-  // The residual questions are criteria-driven (INT-10 stage 5): the
-  // critical-service question shows because the spend is material in size, and
-  // it states why it's being asked.
-  check('residual question is criteria-triggered (shows its rationale)',
-    (await page.getByText(/Asked because:/).count()) > 0);
-  await page.locator('#mini-irq-critical').click();
-  // Submit needs a need-by date and a cost centre; the form path asks for the
-  // date in the form, and names both until they are given.
-  check('the form path names what submit will need',
-    (await page.getByText(/To review this request, add a need-by date/).count()) > 0
-    && (await page.getByText('Add a cost centre under Charged to.').count()) > 0);
-  await page.locator('#delivery-date').fill('2027-03-31');
-  await page.getByText('Charged to', { exact: true }).locator('xpath=..').getByRole('button', { name: /Change/ }).click();
+  // Answer whatever is asked: the budget and the date by what the question
+  // asks for, a yes/no risk question with Yes, anything else with prose —
+  // until Next unlocks. The residual questions are criteria-driven (INT-10
+  // stage 5), so reaching one proves the €150k answer was read.
+  let sawRationale = false;
   {
+    const next = page.getByRole('button', { name: /^Next$/ });
+    for (let turn = 0; turn < 20; turn++) {
+      if (await next.isEnabled().catch(() => false)) break;
+      if (await page.getByText(/^Asked because/).count()) sawRationale = true;
+      const yes = page.getByRole('button', { name: /^Yes$/ });
+      if (await yes.count()) {
+        await yes.last().click();
+        await page.waitForTimeout(900);
+        continue;
+      }
+      const field = page.getByPlaceholder(/Type your answer/);
+      if (await field.isDisabled().catch(() => true)) break;
+      const bubbles = await page.locator('main').innerText();
+      const lastQuestion = bubbles.slice(bubbles.lastIndexOf('?') - 160, bubbles.lastIndexOf('?') + 1);
+      const answer = /budget/i.test(lastQuestion) ? '150000'
+        : /delivered or started by|need.*by/i.test(lastQuestion) ? '2027-03-31'
+        : fillerAnswer;
+      await field.fill(answer);
+      await field.press('Enter');
+      await page.waitForTimeout(1200);
+    }
+  }
+  check('a residual risk question is asked, with its rationale', sawRationale);
+  // Submit needs a cost centre; the profile supplies it on the chat path, and
+  // Details still names it when it is missing.
+  if (await page.getByText('Add a cost centre under Charged to.').count()) {
+    await page.getByText('Charged to', { exact: true }).locator('xpath=..').getByRole('button', { name: /Change/ }).click();
     const centre = page.getByLabel('Cost centre', { exact: true });
     await centre.selectOption(await centre.evaluate((el) => [...el.options].map((o) => o.value).find(Boolean) ?? ''));
   }
+  check('the conversation, a date and a cost centre open Next on the chat path',
+    await page.getByRole('button', { name: /^Next$/ }).isEnabled().catch(() => false));
 
   // 5. Review & submit — EVERY conclusion, and nothing to fill in: the buying
   //    channel, the risk read, who approves it, and which checks ran. This was
@@ -544,8 +558,8 @@ try {
 
   // The routing preview sits on the SAME screen as the determination: the
   // lifecycle, approvals, timeline and reviewers are all DERIVED from admin
-  // config (items 7+11), with no hardcoded literals. The renewal demand
-  // (€150k, no supplier) drives both conditional steps.
+  // config (items 7+11), with no hardcoded literals. The €150k software
+  // demand (no supplier) drives both conditional steps.
   await page.getByText('Workflow Preview', { exact: true }).waitFor({ timeout: 15000 });
   // Wait for the config queries to resolve: a base lifecycle stage proves the
   // template loaded; the chain caption proves the approval chains resolved.

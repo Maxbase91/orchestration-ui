@@ -192,14 +192,12 @@ export const INTAKE_STEPS: readonly IntakeStepDefinition[] = [
       // and never consulted at the gate, so a requester could leave with two
       // fields and no service description at all.
       //
-      // Only on the chat path: the contract-renewal and supplier-onboarding
-      // paths render a plain form that never captures the description
-      // sections, so holding them to the same floor would block them forever.
       // The same predicate the screen uses to reveal the last section, so the
-      // gate and the reveal cannot disagree about what "done" means.
+      // gate and the reveal cannot disagree about what "done" means. Every full
+      // request is a conversation since the renewal and onboarding forms were
+      // retired (2026-09-25); a full request off it describes nothing.
       const described = isChatIntakePath
-        ? descriptionComplete({ isChatIntakePath, conversationCtx, conversationSlots })
-        : !!data.title && data.estimatedValue > 0;
+        && descriptionComplete({ isChatIntakePath, conversationCtx, conversationSlots });
       return described && detailsSubmissionGaps(data, preferredSupplierIds).length === 0;
     },
   },

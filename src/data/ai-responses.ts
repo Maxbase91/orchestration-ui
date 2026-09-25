@@ -40,7 +40,7 @@ export const aiResponses: AIResponse[] = [
     response: 'I have checked the contract register. Please specify which contract is up for renewal. For renewals under €50K, business-led channel applies. Above €50K requires Procurement-led with market benchmark.',
     confidence: 0.85,
     suggestions: ['Review contract performance', 'Benchmark against market rates', 'Consider recompete vs direct renewal'],
-    autoFill: { category: 'contract-renewal' },
+    autoFill: {},
   },
   {
     keywords: ['sap', 'erp', 'license', 'enterprise'],
@@ -464,7 +464,7 @@ export const aiResponses: AIResponse[] = [
     response: 'Managed print services are provided by Konica Minolta (SUP-016). The current contract (REQ-2024-0008) is under renewal. For urgent print needs, contact facilities directly.',
     confidence: 0.88,
     suggestions: ['Check current contract status', 'Contact facilities', 'Request service ticket'],
-    autoFill: { category: 'contract-renewal', commodityCode: '44103100', commodityCodeLabel: 'Managed print services', buyingChannel: 'business-led' },
+    autoFill: { category: 'services', commodityCode: '44103100', commodityCodeLabel: 'Managed print services', buyingChannel: 'business-led' },
   },
   {
     keywords: ['travel', 'flight', 'hotel', 'booking'],

@@ -156,8 +156,6 @@ export function RuleTestPanel({ rules }: RuleTestPanelProps) {
               <SelectItem value="software">Software</SelectItem>
               <SelectItem value="consulting">Consulting</SelectItem>
               <SelectItem value="contingent-labour">Contingent Labour</SelectItem>
-              <SelectItem value="contract-renewal">Contract Renewal</SelectItem>
-              <SelectItem value="supplier-onboarding">Supplier Onboarding</SelectItem>
             </SelectContent>
           </Select>
         </div>

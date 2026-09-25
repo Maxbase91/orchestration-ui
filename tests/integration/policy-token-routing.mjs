@@ -47,7 +47,7 @@ const asLiterals = routingRules.map((r) => {
 });
 
 console.log('\nTokenising changed no routing outcome');
-const CATEGORIES = ['software', 'services', 'goods', 'consulting', 'contingent-labour', 'supplier-onboarding', 'contract-renewal'];
+const CATEGORIES = ['software', 'services', 'goods', 'consulting', 'contingent-labour'];
 const VALUES = [0, 999, 4999, 5000, 9999, 10000, 24999, 25000, 25001, 49999, 50000, 99999, 100000, 100001, 250000, 500000, 999999, 1000000, 1000001, 5000000];
 const COMMODITIES = [undefined, '432100', '761200', '801400'];
 let compared = 0;

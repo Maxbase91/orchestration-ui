@@ -70,7 +70,7 @@ try {
   await page.waitForTimeout(2200);
   check('requester contract detail renders', new URL(page.url()).pathname === '/contracts/CON-002' && await page.getByRole('tab', { name: 'Summary' }).count() > 0);
   check('requester contract editing is read-only', new URL(page.url()).pathname === '/contracts/CON-002' && await page.getByRole('button', { name: 'Save coverage' }).count() === 0);
-  check('requester contract renewal action is hidden', new URL(page.url()).pathname === '/contracts/CON-002' && await page.getByRole('button', { name: /Initiate Renewal/i }).count() === 0);
+  check('requester contract renewal action is hidden', new URL(page.url()).pathname === '/contracts/CON-002' && await page.getByRole('button', { name: /Start renewal/i }).count() === 0);
 
   // The requester expert dashboard includes expiring contracts. Its row must
   // remain a keyboard-accessible button and land on the selected contract.

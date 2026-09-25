@@ -37,9 +37,10 @@ Decisions taken (2026-09-25):
 4. [x] refactor: remove Direct PO and P-card — channel list, WF-005/WF-007,
        RR-009, P-card thresholds and eligibility, 3 live direct-po requests
        moved to business-led.
-5. [ ] refactor: remove the side processes and the renewal / onboarding
+5. [x] refactor: remove the side processes and the renewal / onboarding
        categories — WF-003/WF-004, side-process screen, classifier rules, form
-       path; categories inactive live.
+       path; categories inactive live. Also: both contract screens'
+       "Initiate Renewal" buttons started nothing — now Start renewal → Door 1.
 6. [ ] Mock: only the reachable channels; business-led Contracting no longer
        "proposed"; notes.
 

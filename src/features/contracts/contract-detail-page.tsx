@@ -3,6 +3,7 @@
 // from the own store; obligations/documents are illustrative sample data.
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { renewalDemandHref } from '@/features/requests/new-request/intake-deep-link';
 import { ArrowLeft, RefreshCw, FileText, Link2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -308,9 +309,10 @@ export function ContractDetailPage() {
                   </div>
                 </div>
               </div>
-              {canEditContract && <Button>
+              {/* Opens Door 1 with the renewal written; it had no handler. */}
+              {canEditContract && <Button onClick={() => navigate(renewalDemandHref(contract))}>
                 <RefreshCw className="size-3.5" />
-                Initiate Renewal
+                Start renewal
               </Button>}
             </CardContent>
           </Card>

@@ -1,5 +1,5 @@
 // Renewals & expiries page: contract end-date watchlist with expiry KPIs and
-// an initiate-renewal action per row. Expiry maths is derived from end dates
+// a start-renewal action per row that opens Door 1 with the demand written. Expiry maths is derived from end dates
 // at render time rather than stored, so it never goes stale.
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -12,8 +12,8 @@ import { formatCurrency, formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
-import { toast } from 'sonner';
 import { differenceInDays, parseISO } from 'date-fns';
+import { renewalDemandHref } from '@/features/requests/new-request/intake-deep-link';
 
 type TabFilter = 'all' | 'expiring' | 'expired';
 
@@ -130,11 +130,15 @@ export function RenewalsPage() {
           onClick={(e) => {
             // Keep the row's navigate-to-detail click from firing too.
             e.stopPropagation();
-            toast.success(`Renewal initiated for ${row.title}`);
+            // A renewal is a demand like any other (2026-09-25): it goes
+            // through Door 1, where the contract check finds this contract
+            // expiring and the determination says renew. This button used to
+            // show a "Renewal initiated" toast and start nothing at all.
+            navigate(renewalDemandHref(row));
           }}
         >
           <RefreshCw className="size-3.5 mr-1" />
-          Initiate Renewal
+          Start renewal
         </Button>
       ),
     },

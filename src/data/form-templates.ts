@@ -249,7 +249,6 @@ export const formTemplates: FormTemplate[] = [
           { value: 'software', label: 'Software' },
           { value: 'consulting', label: 'Consulting' },
           { value: 'contingent-labour', label: 'Contingent Labour' },
-          { value: 'contract-renewal', label: 'Contract Renewal' },
         ],
         width: 'half',
       },

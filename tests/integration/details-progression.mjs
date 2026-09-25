@@ -140,16 +140,16 @@ check('a finished conversation still waits for what submit requires', () => {
   }
 });
 
-check('the form paths keep their title-and-value gate', () => {
+// There was a plain form for the renewal and onboarding categories that passed
+// Details on a title and a value. Both were retired (2026-09-25): a full
+// request off the conversation has described nothing, so it cannot pass.
+check('a full request off the conversation does not pass on a title and a value', () => {
   const step = stepById('details');
-  const formData = { ...INITIAL_INTAKE_DATA, preCheckOutcome: 'full-request', category: 'contract-renewal' };
+  const formData = { ...INITIAL_INTAKE_DATA, preCheckOutcome: 'full-request', category: 'services',
+    title: 'Renewal', estimatedValue: 1000, costCentre: 'CC-1', deliveryDate: '2027-01-15' };
   assert.equal(step.canProceed({
     data: formData, isChatIntakePath: false, conversationCtx: ctx(), conversationSlots: SLOTS, hasDetermination: true,
   }), false);
-  assert.equal(step.canProceed({
-    data: { ...formData, title: 'Renewal', estimatedValue: 1000, costCentre: 'CC-1', deliveryDate: '2027-01-15' },
-    isChatIntakePath: false, conversationCtx: ctx(), conversationSlots: SLOTS, hasDetermination: true,
-  }), true);
 });
 
 console.log(failures === 0

@@ -88,7 +88,7 @@ async function classifyWithAI(input: string): Promise<AIClassification | null> {
     const res = await fetch('/api/ai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: `CLASSIFY THIS PROCUREMENT REQUEST. Return the category and the details you can extract.\n\nUser input: "${input}"\n\nIMPORTANT: Respond with JSON containing: {"intent":"new-request","message":"...","catalogueItems":[],"links":[],"category":"goods|services|software|consulting|contingent-labour|contract-renewal|supplier-onboarding","extractedTitle":"professional title","extractedSupplier":"supplier name or empty","extractedValue":0}` }),
+      body: JSON.stringify({ query: `CLASSIFY THIS PROCUREMENT REQUEST. Return the category and the details you can extract.\n\nUser input: "${input}"\n\nIMPORTANT: Respond with JSON containing: {"intent":"new-request","message":"...","catalogueItems":[],"links":[],"category":"goods|services|software|consulting|contingent-labour","extractedTitle":"professional title","extractedSupplier":"supplier name or empty","extractedValue":0}` }),
     });
     if (!res.ok) return null;
     const data = await res.json();

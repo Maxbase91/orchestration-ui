@@ -186,11 +186,6 @@ export function App() {
               <Route path="/admin/forms" element={<FormBuilderPage />} />
               <Route path="/admin/approvals" element={<ApprovalChainsPage />} />
               <Route path="/admin/workflows" element={<WorkflowDesignerPage />} />
-              {/* Same designer, scoped. Supplier onboarding and contract renewal
-                  govern objects the front door does not route, so they get their own
-                  surface and their own framing rather than sitting under a banner
-                  that describes request lifecycles. */}
-              <Route path="/admin/workflows/side-processes" element={<WorkflowDesignerPage scope="side-process" />} />
               <Route path="/admin/agents" element={<AIAgentsPage />} />
               <Route path="/admin/policies" element={<PolicyManagementPage />} />
               <Route path="/admin/users" element={<UserManagementPage />} />

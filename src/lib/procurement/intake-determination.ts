@@ -383,6 +383,7 @@ export function evaluateIntakeDetermination(input: IntakeDeterminationInput): In
     channel: routing.channel,
     category,
     hasFrameworkOrContract: hasContract,
+    renewal: secondContractCheck.recommendation === 'renew',
     // Scope/headroom signals (DET-08): a material demand on an existing
     // agreement needs a change; a transactable contract has capacity (SOW),
     // otherwise the agreement is amended to extend coverage.
@@ -394,6 +395,7 @@ export function evaluateIntakeDetermination(input: IntakeDeterminationInput): In
     channel: routing.channel,
     category,
     hasExistingSupplierRelationship: incumbentRelationship,
+    renewal: secondContractCheck.recommendation === 'renew',
   });
 
   // Approval-to-source gate — which pre-sourcing approvals are required before

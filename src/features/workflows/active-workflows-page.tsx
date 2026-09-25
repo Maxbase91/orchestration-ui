@@ -29,8 +29,6 @@ const FILTER_CONFIG: FilterConfig[] = [
       { value: 'software', label: 'Software' },
       { value: 'consulting', label: 'Consulting' },
       { value: 'contingent-labour', label: 'Contingent Labour' },
-      { value: 'contract-renewal', label: 'Contract Renewal' },
-      { value: 'supplier-onboarding', label: 'Supplier Onboarding' },
     ],
   },
   {

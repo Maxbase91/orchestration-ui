@@ -36,8 +36,6 @@ export const CATEGORY_RULES: CategoryRule[] = [
   { category: 'services', pattern: /\bservice\b|cleaning|catering|maintenance|travel|translation|managed print|managed service|facilities|security guard|payroll|hr admin|helpdesk/ },
   { category: 'software', pattern: /software|saas|license|cloud|platform|subscription|app/ },
   { category: 'contingent-labour', pattern: /temp|contractor|staff|developer|freelance|hire|interim/ },
-  { category: 'contract-renewal', pattern: /renew|extend|renewal|expir/ },
-  { category: 'supplier-onboarding', pattern: /onboard|new supplier|new vendor|register/ },
   { category: 'catalogue', pattern: /paper|pen|toner|cable|headset|mouse|keyboard|office supplies/ },
 ];
 

@@ -94,7 +94,7 @@ const paper = route('A4 paper for the office printer', 'catalogue');
 check('an office-supplies demand still matches', names(paper).includes('A4 Paper 500 sheets'));
 
 console.log('\nCategory eligibility gates the catalogue');
-for (const c of ['consulting', 'services', 'software', 'contingent-labour', 'contract-renewal', 'supplier-onboarding']) {
+for (const c of ['consulting', 'services', 'software', 'contingent-labour']) {
   check(`${c} is never offered a catalogue item`, route('paper laptops cards', c).catalogueMatches.length === 0);
 }
 check('goods is', route('laptops', 'goods').catalogueMatches.length > 0);

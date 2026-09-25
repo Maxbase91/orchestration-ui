@@ -18,6 +18,12 @@ export interface ContractTypeInput {
   /** A transactable framework/contract is in place (matched or via the supplier). */
   hasFrameworkOrContract: boolean;
   /**
+   * The supplier's contract covering this is expiring (second contract check:
+   * `renew`). A renewal is a fact about the contract, not a category — there was
+   * a 'contract-renewal' category, and it was the only way to say renewal.
+   */
+  renewal?: boolean;
+  /**
    * The new demand's relationship to the existing agreement's scope:
    * `none` (fits), `extends` (new scope to add), or `material` (significant
    * change). Drives amend vs change. Defaults to `none`.
@@ -32,11 +38,13 @@ export interface SourcingTypeInput {
   category: string;
   /** The supplier is an incumbent (existing contract or spend). */
   hasExistingSupplierRelationship: boolean;
+  /** The covering contract is expiring — see ContractTypeInput.renewal. */
+  renewal?: boolean;
 }
 
 /**
- * Determine the contract type. Catalogue/direct-PO need none; a renewal category
- * renews; against an existing framework/contract the scope/headroom signals
+ * Determine the contract type. A catalogue order needs none; an expiring
+ * covering contract renews; against an existing framework/contract the scope/headroom signals
  * decide between a statement of work (fits with capacity), an amendment (extends
  * scope or out of capacity), or a change request (material change); otherwise a
  * new master agreement is needed.
@@ -45,7 +53,7 @@ export function determineContractType(input: ContractTypeInput): { type: Contrac
   if (input.channel === 'catalogue') {
     return { type: 'none', reason: 'Catalogue order — no contract required' };
   }
-  if (input.category === 'contract-renewal') {
+  if (input.renewal) {
     return { type: 'renew', reason: 'Renewal of an existing contract' };
   }
   if (input.channel === 'framework-call-off' || input.hasFrameworkOrContract) {
@@ -68,15 +76,15 @@ export function determineContractType(input: ContractTypeInput): { type: Contrac
 }
 
 /**
- * Determine the sourcing type. Catalogue/direct-PO/framework call-offs need no
- * sourcing event; a renewal category renews; an incumbent relationship is
+ * Determine the sourcing type. Catalogue orders and framework call-offs need no
+ * sourcing event; an expiring covering contract renews; an incumbent relationship is
  * benchmarked against the market; otherwise it's a new event.
  */
 export function determineSourcingType(input: SourcingTypeInput): { type: SourcingType; reason: string } {
   if (input.channel === 'catalogue' || input.channel === 'framework-call-off') {
     return { type: 'none', reason: 'Deflected to the catalogue or a contract — no sourcing event' };
   }
-  if (input.category === 'contract-renewal') {
+  if (input.renewal) {
     return { type: 'renewal', reason: 'Renewal of the incumbent engagement' };
   }
   if (input.hasExistingSupplierRelationship) {

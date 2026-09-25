@@ -53,14 +53,16 @@ const endpoint = read('api/_domains/intake-submit.ts');
 check('the endpoint uses the shared list, not its own', /submissionGaps\(/.test(endpoint) && !/A specific need-by date is required/.test(endpoint));
 
 console.log('\nDetails asks for them first');
-// A form-path request with a title and a value — the old gate's whole rule.
+// A full request with a title and a value — the old form path's whole rule.
+// That form is gone (2026-09-25); the gate now also needs the conversation, so
+// the "it opens" cases read the submission gaps the gate applies after it.
 const formPath = { ...INITIAL_INTAKE_DATA, preCheckOutcome: 'full-request', title: 'Office move', estimatedValue: 5000 };
 const gate = (data) => stepById('details').canProceed({
   data, isChatIntakePath: false, conversationCtx: {}, conversationSlots: [], hasDetermination: false,
 });
 check('title and value alone no longer pass Details', gate(formPath) === false);
 check('…with an unparseable date it still does not', gate({ ...formPath, costCentre: 'CC-1', deliveryDate: 'soon' }) === false);
-check('…with a date the parser reads and a cost centre, it does', gate({ ...formPath, costCentre: 'CC-1', deliveryDate: '31.12.2026' }) === true);
+check('…with a date the parser reads and a cost centre, nothing is owed', detailsSubmissionGaps({ ...formPath, costCentre: 'CC-1', deliveryDate: '31.12.2026' }).length === 0);
 check('the footer and the gate read the same list',
   fields(detailsSubmissionGaps({ ...formPath, costCentre: 'CC-1' })) === 'deliveryDate');
 {
@@ -69,8 +71,8 @@ check('the footer and the gate read the same list',
     data, isChatIntakePath: false, conversationCtx: {}, conversationSlots: [], hasDetermination: false, preferredSupplierIds: ['SUP-P'],
   });
   check('…held without a reason', withList(ready) === false);
-  check('…open with one', withList({ ...ready, supplierOverrideReason: 'Only certified supplier' }) === true);
-  check('…and a preferred supplier owes nothing', withList({ ...ready, supplierId: 'SUP-P' }) === true);
+  check('…owe nothing with one', detailsSubmissionGaps({ ...ready, supplierOverrideReason: 'Only certified supplier' }, ['SUP-P']).length === 0);
+  check('…and a preferred supplier owes nothing', detailsSubmissionGaps({ ...ready, supplierId: 'SUP-P' }, ['SUP-P']).length === 0);
 }
 check('catalogue and call-off keep their own gates',
   gate({ ...INITIAL_INTAKE_DATA, preCheckOutcome: 'contract', contractId: 'CON-1' }) === true);

@@ -63,8 +63,9 @@ The gate also requires what **submit** will require: a title, a need-by date
 that parses, and a cost centre (`lib/procurement/submission-requirements.ts`).
 The server refuses a submit with the same list, so Details asks for them rather
 than the final click being the first anyone hears of it. The footer names each
-and where it is entered — the form on the form path, Key facts on the
-conversation path, Charged to for the cost centre. The budget is not on the
+and where it is entered — Key facts for the title and date, Charged to for
+the cost centre. Every full request is a conversation; the plain form for the
+renewal and onboarding categories was retired with them (2026-09-25). The budget is not on the
 list: a requester may not know it yet, and the server accepts zero. A need-by
 date the conversation skipped after two unreadable answers is editable in Key
 facts; it used to be read-only there, so such a request could never be

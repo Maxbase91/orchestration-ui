@@ -110,8 +110,6 @@ const CATEGORY_RULES = [
   { category: 'services', pattern: /\bservice\b|cleaning|catering|maintenance|travel|translation|managed print|managed service|facilities|security guard|payroll|hr admin|helpdesk/ },
   { category: 'software', pattern: /software|saas|license|cloud|platform|subscription|app/ },
   { category: 'contingent-labour', pattern: /temp|contractor|staff|developer|freelance|hire|interim/ },
-  { category: 'contract-renewal', pattern: /renew|extend|renewal|expir/ },
-  { category: 'supplier-onboarding', pattern: /onboard|new supplier|new vendor|register/ },
   { category: 'catalogue', pattern: /paper|pen|toner|cable|headset|mouse|keyboard|office supplies/ },
 ];
 const classifyDemandCategory = (text) => {
@@ -189,7 +187,7 @@ const ITEMS_SRC = readFileSync(
 console.log('\nClassification does not get to choose the route');
 // The wizard's prompt widened api/ai.ts's category list with a route.
 check('step 1 no longer offers `catalogue` as a category to the model',
-  !/supplier-onboarding\|catalogue/.test(STEP1_SRC));
+  !/contingent-labour\|catalogue/.test(STEP1_SRC) && /"category":"goods\|/.test(STEP1_SRC));
 check('step 1 guards a route-shaped classification',
   /ROUTE_LIKE_CATEGORY/.test(STEP1_SRC) && /classifyCommodityCategory\(/.test(STEP1_SRC));
 // The signal is corrected, not discarded: "catalogue" becomes an intent, which

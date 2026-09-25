@@ -91,7 +91,7 @@ reproduced and stale client selections can be rejected.
 **KNOWN_CHANNELS** const array for compile-time hints; type is `string` for admin extensibility.
 
 ### RequestCategory (extensible via admin)
-`goods` | `services` | `software` | `consulting` | `contingent-labour` | `contract-renewal` | `supplier-onboarding` | `catalogue`
+`goods` | `services` | `software` | `consulting` | `contingent-labour` | `catalogue` (`contract-renewal` and `supplier-onboarding` are inactive since 2026-09-25; historic requests keep them)
 **KNOWN_CATEGORIES** const array; type is `string`.
 
 ---

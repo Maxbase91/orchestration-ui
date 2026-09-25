@@ -20,8 +20,6 @@ const CATEGORY_RULES = [
   { category: 'services', pattern: /\bservice\b|cleaning|catering|maintenance|travel|translation|managed print|managed service|facilities|security guard|payroll|hr admin|helpdesk/ },
   { category: 'software', pattern: /software|saas|license|cloud|platform|subscription|app/ },
   { category: 'contingent-labour', pattern: /temp|contractor|staff|developer|freelance|hire|interim/ },
-  { category: 'contract-renewal', pattern: /renew|extend|renewal|expir/ },
-  { category: 'supplier-onboarding', pattern: /onboard|new supplier|new vendor|register/ },
   { category: 'catalogue', pattern: /paper|pen|toner|cable|headset|mouse|keyboard|office supplies/ },
 ];
 function classifyDemandCategory(text) {
@@ -46,11 +44,6 @@ const LABELLED = [
   ['temporary QA contractors for a six month project', 'contingent-labour'],
   ['interim finance manager cover', 'contingent-labour'],
   ['three freelance designers on a short engagement', 'contingent-labour'],
-  ['renew the existing vendor contract for another year', 'contract-renewal'],
-  ['extend the current janitorial agreement', 'contract-renewal'],
-  ['the maintenance contract is about to expire', 'contract-renewal'],
-  ['onboard a new vendor for packaging', 'supplier-onboarding'],
-  ['register a new supplier in the system', 'supplier-onboarding'],
   ['order printer paper and toner cartridges', 'catalogue'],
   ['a box of pens and some network cables', 'catalogue'],
   ['purchase standing desks and ergonomic chairs', 'goods'],
@@ -85,7 +78,7 @@ if (misses.length) {
 const BASELINE = 0.85;
 check(`accuracy ≥ ${(BASELINE * 100).toFixed(0)}% baseline`, accuracy >= BASELINE, `${(accuracy * 100).toFixed(1)}%`);
 // Every category must be represented and reachable by the rules.
-for (const cat of ['consulting', 'services', 'software', 'contingent-labour', 'contract-renewal', 'supplier-onboarding', 'catalogue', 'goods']) {
+for (const cat of ['consulting', 'services', 'software', 'contingent-labour', 'catalogue', 'goods']) {
   check(`category "${cat}" is covered by the benchmark and reachable`,
     (perCategory[cat]?.correct ?? 0) >= 1);
 }

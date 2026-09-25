@@ -129,8 +129,6 @@ export function getAICategorySuggestions(input: string): { category: string; con
     services: ['service', 'cleaning', 'catering', 'facility', 'management', 'maintenance', 'travel', 'security', 'support', 'outsourc', 'manage', 'operate', 'provider'],
     consulting: ['consulting', 'advisory', 'audit', 'strategy', 'assessment', 'review', 'transformation', 'consultant', 'advice', 'expert', 'analyse', 'analyze', 'recommend', 'engage'],
     'contingent-labour': ['temp', 'contractor', 'staffing', 'contingent', 'resource', 'developer', 'analyst', 'freelance', 'interim', 'worker', 'hire', 'augment', 'external staff'],
-    'contract-renewal': ['renewal', 'renew', 'extend', 'extension', 'expir', 'expire', 'continue', 'prolong'],
-    'supplier-onboarding': ['onboard', 'new supplier', 'register supplier', 'vendor registration', 'new vendor', 'add supplier', 'register vendor'],
     'catalogue': ['catalogue', 'catalog', 'standard', 'office supplies', 'stationery', 'toner', 'paper', 'pen', 'notebook', 'cable', 'adapter', 'headset', 'usb', 'batteries', 'labels', 'order', 'reorder'],
   };
 

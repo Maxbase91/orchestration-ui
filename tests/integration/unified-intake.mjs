@@ -15,6 +15,7 @@ import {
   matchSupplierByName,
   parseCatalogueDeepLink,
   parseDemandDeepLink,
+  renewalDemandHref,
 } from '../../src/features/requests/new-request/intake-deep-link.ts';
 
 let failures = 0;
@@ -54,9 +55,10 @@ check('the full-request escape sets an explicit outcome, never an inherited one'
   intakePage.includes("updateFormData({ preCheckOutcome: 'full-request' })"));
 check('contract call-off details explain per-call value and timing',
   intakePage.includes('Contract call-off') && intakePage.includes('contract ceiling is not'));
-check('a disabled Next names what is still missing, on every path',
-  intakePage.includes('missingDetailFields') && intakePage.includes('To review this request, add')
-  && intakePage.includes('Still needed:'));
+// The form path's own footer ("To review this request, add …") went with the
+// form (2026-09-25); the conversation names its slots and the submission gaps.
+check('a disabled Next names what is still missing',
+  intakePage.includes('Still needed:') && /gapsToName\.map\(/.test(intakePage));
 // The stepper is what actually draws the distinction; the deleted Simple
 // detail page only restated it in prose.
 check('call-off lifecycle distinguishes compliance validation from budget approval',
@@ -163,6 +165,20 @@ check('the legacy step number maps to the step that replaced it',
   && parseDemandDeepLink(params({ step: '2', category: 'goods', title: 'x' }), directory).step === 'buy-route');
 check('a link that is not a demand link parses to nothing',
   parseDemandDeepLink(params({ q: 'buy laptops' }), directory) === null);
+
+// A renewal comes in through Door 1 (2026-09-25). Both contract screens had a
+// renewal button that started nothing — a toast on one, no handler on the other.
+{
+  const href = renewalDemandHref({ title: 'Cloud hosting & co', supplierName: 'Acme GmbH' });
+  const url = new URL(href, 'http://x');
+  check('Start renewal opens Door 1 with the renewal written as the demand',
+    url.pathname === '/requests/new' && url.searchParams.get('q') === 'Renew Cloud hosting & co with Acme GmbH');
+  const renewals = readFileSync('src/features/contracts/renewals-page.tsx', 'utf8');
+  const detail = readFileSync('src/features/contracts/contract-detail-page.tsx', 'utf8');
+  check('both contract screens start a renewal through Door 1, and neither only toasts',
+    /navigate\(renewalDemandHref\(/.test(renewals) && /navigate\(renewalDemandHref\(/.test(detail)
+    && !/Renewal initiated for/.test(renewals.replace(/\/\/.*$/gm, '')));
+}
 
 // The link carries what the model extracted; the directory holds the legal
 // name. Matching resolves to the DIRECTORY record, so what is shown and what is

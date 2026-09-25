@@ -27,8 +27,7 @@ export interface IntakeAttachment {
 }
 
 export const KNOWN_CATEGORIES = [
-  'goods', 'services', 'software', 'consulting', 'contingent-labour',
-  'contract-renewal', 'supplier-onboarding', 'catalogue',
+  'goods', 'services', 'software', 'consulting', 'contingent-labour', 'catalogue',
 ] as const;
 
 export const KNOWN_CHANNELS = [
@@ -520,9 +519,10 @@ export interface WorkflowTemplate {
   /**
    * Buying channels whose lifecycle this template defines.
    *
-   * Empty for a side process — WF-003 Supplier Onboarding and WF-004 Contract
-   * Renewal are workflows for different objects, selected by category, and no
-   * request has ever used either.
+   * Every template claims at least one; an unclaimed one runs no request
+   * (`test:channel-stages` holds that). The side-process templates that claimed
+   * none — supplier onboarding and contract renewal — were retired on
+   * 2026-09-25 without ever having run.
    */
   channels?: BuyingChannel[];
   nodes: {

@@ -29,7 +29,6 @@ import { useIntakeDetermination } from './use-intake-determination';
 import { useIntakeDeepLink } from './use-intake-deep-link';
 import { buildIntakeComplianceRecord } from '@/lib/procurement/intake-compliance-record';
 import { StepCategory } from './step-category';
-import { StepDetails } from './step-details';
 import { StepChatIntake } from './step-chat-intake';
 import { StepCatalogue } from './step-catalogue';
 import { StepBuyRoute } from './step-buy-route';
@@ -249,9 +248,10 @@ export function NewRequestPage() {
   // category the form can hold (see onBrowseCatalogue). A draft saved before
   // that fix may still carry it, and on the full-request route it must get the
   // conversation, not nothing.
-  const isChatIntakePath =
-    formData.preCheckOutcome === 'full-request' &&
-    !['contract-renewal', 'supplier-onboarding'].includes(formData.category);
+  // Every full request is a conversation. There was a plain form for the
+  // 'contract-renewal' and 'supplier-onboarding' categories; both are retired
+  // (a renewal is found by the contract check, onboarding is a stage).
+  const isChatIntakePath = formData.preCheckOutcome === 'full-request';
   const conversationCtx = useMemo(
     () => ({
       category: formData.category,
@@ -297,18 +297,10 @@ export function NewRequestPage() {
   const preferredSupplierIds = usePreferredSupplierIds(formData.category);
   const outstandingFields = new Set<string>(outstanding.map((slot) => slot.target.field));
   const gapsToName = detailsSubmissionGaps(formData, preferredSupplierIds).filter((gap) => !outstandingFields.has(gap.field));
-  // Where each is entered depends on the path: the form path asks for the title
-  // and date in the form itself; the conversation path has them in Key facts.
-  // The cost centre is under Charged to on both.
-  const formFields = new Set<string>(isChatIntakePath ? [] : ['title', 'deliveryDate']);
-  const missingDetailFields = [
-    ...gapsToName.filter((gap) => formFields.has(gap.field)).map((gap) => gap.label),
-    !(formData.estimatedValue > 0) ? 'an estimated value' : null,
-  ].filter((field): field is string => Boolean(field));
+  // The title and date are in Key facts, the cost centre under Charged to.
   const whereEntered = (field: string) => (
     field === 'costCentre' ? 'Charged to' : field === 'supplierOverrideReason' ? 'Supplier' : 'Key facts'
   );
-  const gapsOutsideForm = gapsToName.filter((gap) => !formFields.has(gap.field));
 
   const wizardSteps = progressStepsForRoute(route);
   const submitStepId = submitStepFor(route);
@@ -852,31 +844,6 @@ export function NewRequestPage() {
             onSubmit={(draft) => void submitContractCallOff(draft)}
           />
         )}
-        {/* Details on the full-request route is exactly one of two things: the
-            plain form for renewal/onboarding, or the conversation for
-            everything else — `isChatIntakePath`, so the render and the gate
-            cannot disagree. They did: this said a catalogue category on the
-            full-request route "could never fire", and the Back button made it
-            fire, rendering an empty step. */}
-        {stepId === 'details' && formData.preCheckOutcome === 'full-request' && ['contract-renewal', 'supplier-onboarding'].includes(formData.category) && (
-          <StepDetails
-            category={formData.category}
-            data={{
-              title: formData.title,
-              supplier: formData.supplier,
-              supplierId: formData.supplierId,
-              estimatedValue: formData.estimatedValue,
-              currency: formData.currency,
-              businessJustification: formData.businessJustification,
-              deliveryDate: formData.deliveryDate,
-              isUrgent: formData.isUrgent,
-              costCentre: formData.costCentre,
-              commodityCode: formData.commodityCode,
-              commodityCodeLabel: formData.commodityCodeLabel,
-            }}
-            onUpdate={(d) => updateFormData(d)}
-          />
-        )}
         {stepId === 'details' && isChatIntakePath && (
           <StepChatIntake
             category={formData.category}
@@ -909,10 +876,7 @@ export function NewRequestPage() {
         {(stepId === 'details' || stepId === 'review') && formData.preCheckOutcome === 'full-request' && (
           <StepCompliance
             section={stepId === 'details' ? 'inputs' : 'conclusions'}
-            // On the chat path the conversation asks them; the card would be a
-            // second place to answer the same question.
-            askRiskQuestions={!isChatIntakePath}
-            revealSupplier={!isChatIntakePath || detailsDescriptionDone}
+            revealSupplier={detailsDescriptionDone}
             requiredSections={formData.sowRequiredSections}
             qualityScore={formData.sowQualityScore}
             supplierProvenance={formData.supplierProvenance}
@@ -952,9 +916,7 @@ export function NewRequestPage() {
             supplier={formData.supplier}
             serviceDescription={formData.serviceDescription}
             requestTitle={formData.title}
-            miniIrq={formData.miniIrq}
             determination={determination}
-            onMiniIrqChange={(m) => updateFormData({ miniIrq: m })}
           />
         )}
         {stepId === 'review' && (
@@ -1018,18 +980,11 @@ export function NewRequestPage() {
                 {' — '}keep answering the assistant.
               </p>
             )}
-            {/* The form paths need the same courtesy: a disabled Next that does
-                not say why is a dead end wherever it appears. */}
-            {stepId === 'details' && !isChatIntakePath && missingDetailFields.length > 0 && (
-              <p className="mr-1 max-w-md text-right text-xs text-ink-3">
-                To review this request, add {missingDetailFields.join(', ')}.
-              </p>
-            )}
             {/* What submit will require and nothing on this step has asked for
                 yet — a need-by date the conversation skipped, a cost centre. */}
-            {stepId === 'details' && route === 'full-request' && gapsOutsideForm.length > 0 && (
+            {stepId === 'details' && route === 'full-request' && gapsToName.length > 0 && (
               <p className="mr-1 max-w-md text-right text-xs text-ink-3">
-                {gapsOutsideForm.map((gap) => `Add ${gap.label} under ${whereEntered(gap.field)}`).join('; ')}.
+                {gapsToName.map((gap) => `Add ${gap.label} under ${whereEntered(gap.field)}`).join('; ')}.
               </p>
             )}
             {(stepId === 'details' || stepId === 'review') && (

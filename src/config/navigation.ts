@@ -231,7 +231,6 @@ export const navigation: NavGroup[] = [
       { id: 'form-builder', label: 'Form Builder', icon: 'ClipboardList', path: '/admin/forms', visibleTo: ['admin'] },
       { id: 'approval-chains', label: 'Approval Chains', icon: 'Link', path: '/admin/approvals', visibleTo: ['admin'] },
       { id: 'workflow-designer', label: 'Workflow Designer', icon: 'PenTool', path: '/admin/workflows', visibleTo: ['admin'] },
-      { id: 'side-processes', label: 'Side Processes', icon: 'GitBranch', path: '/admin/workflows/side-processes', visibleTo: ['admin'] },
       { id: 'ai-agent-config', label: 'AI Agent Configuration', icon: 'Bot', path: '/admin/agents', visibleTo: ['admin'] },
       { id: 'kb-management', label: 'KB Management', icon: 'BookOpen', path: '/admin/kb', visibleTo: ['admin'] },
       { id: 'ai-analytics', label: 'AI Analytics', icon: 'BarChart2', path: '/admin/ai-analytics', visibleTo: ['admin'] },

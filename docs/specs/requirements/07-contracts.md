@@ -44,7 +44,7 @@ FR07-22 · Click → contract detail page with linked requests, POs, invoices.
 
 FR07-30 · `/contracts/renewals` shows 3 tabs: All, Expiring (<90d), Expired.
 FR07-31 · KPI cards: Expiring <30d, Expiring <90d, Expired, Total Renewal Value (€).
-FR07-32 · "Initiate Renewal" button creates a new `contract-renewal` category request.
+FR07-32 · "Start renewal" (Renewals & Expiries and contract detail) opens Door 1 with the renewal written as the demand (`renewalDemandHref`); the contract check recognises the expiring contract. There is no renewal category or side process (retired 2026-09-25).
 FR07-33 · Total Renewal Value uses EUR (not GBP — F19 fix applied).
 
 ---
