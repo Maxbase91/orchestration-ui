@@ -95,13 +95,26 @@ async function answerConversation(page, budget) {
     if (await next.isEnabled().catch(() => false)) break;
     const no = page.getByRole('button', { name: /^No$/ });
     if (await no.count()) { await no.last().click(); await page.waitForTimeout(900); continue; }
+    // The input is disabled while the model is still replying. Wait for the
+    // reply — an enabled text box, or a yes/no question — rather than read the
+    // wait as the end of the conversation.
+    const ready = await page.waitForFunction(() => {
+      const box = document.querySelector('[placeholder^="Type your answer"]');
+      const yesNo = [...document.querySelectorAll('button')].some((b) => b.textContent.trim() === 'No');
+      return (box && !box.disabled) || yesNo;
+    }, null, { timeout: 30000 }).then(() => true).catch(() => false);
+    if (!ready) break;
+    if (await no.count()) continue;
     const field = page.getByPlaceholder(/Type your answer/);
-    if (await field.isDisabled().catch(() => true)) break;
     const text = await page.locator('main').innerText();
     const q = text.slice(Math.max(0, text.lastIndexOf('?') - 160), text.lastIndexOf('?') + 1);
     await field.fill(/budget/i.test(q) ? String(budget)
       : /delivered or started by|need.*by/i.test(q) ? '2027-03-31'
-      : 'A detailed answer covering everything this question needs for the request.');
+      // A real description, not filler: the live model asks again until the
+      // objective, scope, deliverables and resources are actually there.
+      : 'Objective: replace spreadsheet reporting in finance. Scope: licences for 40 users, implementation and training. '
+        + 'Deliverables: the configured platform, ten management dashboards and admin training. '
+        + 'Resources: one vendor implementation consultant for six weeks. Done when month-end reporting runs on the platform.');
     await field.press('Enter');
     await page.waitForTimeout(1500);
   }
