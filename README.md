@@ -77,6 +77,7 @@ R1 is an internally operated system of record backed by private Neon. It owns re
 | AI Agent Configuration | Agent library, type-specific config forms, test panel, performance dashboard |
 | Categories | The demand taxonomy: label, description, icon, timeline, active — and **whether the category can be fulfilled from the catalogue**, which gates the buy-route screen's catalogue check |
 | Approval Chains | Visual approval chain editor with threshold configuration |
+| Knowledge Base | The policy text the assistant and the Home box answer from. Governed figures are **references**, not restated numbers (`{{policy:…}}`, `{{approval-chains}}`, `{{preferred-suppliers:…}}`), rendered from the live configuration when answered; each entry is marked *Linked to configuration* or *Policy text only*, and a reference that names nothing is flagged |
 
 ### Analytics & Platform
 | Screen | Description |
@@ -165,6 +166,7 @@ npm run test:risk-segmentation    # inherent-risk cascade + risk outcome (reuse/
 npm run test:risk-reuse           # structured risk-register reuse model (supplier/scope/data-class/validity)
 npm run test:handoff              # downstream handoff / next-steps model (systems, status, deep-links)
 npm run test:determination        # contract-type + sourcing-type determination
+npm run test:knowledge-links      # knowledge base linked to configuration — references resolve, no governed amount restated, one renderer both sides
 npm run test:determination-export # exportable determination (structured Markdown)
 npm run test:second-contract      # second contract check (frameworks/MSAs vs transactable)
 npm run test:sourcing             # sourcing: weights, ranking, award write-back, stage gate, entitlement

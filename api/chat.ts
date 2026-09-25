@@ -5,6 +5,8 @@ import type { NeonCompatibleClient } from '../src/lib/neon-compatible-client.js'
 import { createTicketWith } from '../src/lib/db/tickets-core.js';
 import { mergePreferences } from '../src/lib/db/user-preferences-core.js';
 import { knowledgeBase } from '../src/data/knowledge-base.js';
+import { loadKnowledgeContextWith } from '../src/lib/db/knowledge-core.js';
+import { renderKnowledgeBody, stripKnowledgeTokens } from '../src/lib/procurement/knowledge-links.js';
 import { actionSubjects, describeAction } from './_action-description.js';
 
 const db = new Proxy({} as NeonCompatibleClient, {
@@ -181,7 +183,7 @@ function scoreEntry(entry: { title: string; body: string; tags: string[] }, quer
   const q = query.toLowerCase();
   const tags = entry.tags.join(' ').toLowerCase();
   const title = entry.title.toLowerCase();
-  const body = entry.body.toLowerCase();
+  const body = stripKnowledgeTokens(entry.body).toLowerCase();
   for (const word of q.split(/\s+/).filter((w) => w.length > 3)) {
     if (tags.includes(word)) score += 3;
     if (title.includes(word)) score += 2;
@@ -204,12 +206,15 @@ async function execSearchKnowledge(query: string): Promise<string> {
   const top = scored.filter((s) => s.score > 0).sort((a, b) => b.score - a.score).slice(0, 3);
   if (top.length === 0) return JSON.stringify({ found: false });
 
+  // The model is given the figures, not the references: it would otherwise
+  // quote "{{policy:…}}" or guess a number. Same renderer as the browser.
+  const ctx = await loadKnowledgeContextWith(db);
   return JSON.stringify({
     found: true,
     entries: top.map(({ entry }) => ({
       id: entry.id,
       title: entry.title,
-      body: entry.body,
+      body: renderKnowledgeBody(entry.body, ctx).text,
       source: entry.source,
     })),
   });

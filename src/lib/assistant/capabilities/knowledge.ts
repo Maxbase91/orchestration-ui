@@ -1,6 +1,9 @@
 import { knowledgeBase } from '../../../data/knowledge-base.js';
 import { listKnowledgeBase } from '../../db/knowledge-base.js';
 import type { AssistantTurn, KnowledgeEntry } from '../../../data/types.js';
+import { db } from '../../db-client.js';
+import { loadKnowledgeContextWith } from '../../db/knowledge-core.js';
+import { renderKnowledgeBody, stripKnowledgeTokens } from '../../procurement/knowledge-links.js';
 
 // Grounded policy Q&A: the assistant answers from the knowledge base by
 // retrieving the most relevant entries, quoting the best match with its source,
@@ -40,7 +43,8 @@ function score(entry: KnowledgeEntry, query: string): number {
   const q = query.toLowerCase();
   const words = q.split(/\s+/).filter((w) => w.length > 2);
   let s = 0;
-  const text = `${entry.title} ${entry.body} ${entry.tags.join(' ')}`.toLowerCase();
+  // References are scored as the words around them, not as "policy:…" tokens.
+  const text = `${entry.title} ${stripKnowledgeTokens(entry.body)} ${entry.tags.join(' ')}`.toLowerCase();
   for (const w of words) {
     if (entry.tags.some((t) => t.includes(w))) s += 3;
     else if (entry.title.toLowerCase().includes(w)) s += 2;
@@ -101,10 +105,13 @@ export async function searchKnowledge(query: string): Promise<AssistantTurn[]> {
     .filter((r) => r.score >= Math.max(RELEVANCE_FLOOR, best.score * 0.5))
     .slice(0, 2);
 
+  // Figures come from the live configuration, so the answer states what the
+  // platform will actually do — not what the entry said when it was written.
+  const ctx = await loadKnowledgeContextWith(db);
   const turns: AssistantTurn[] = [
     {
       type: 'chat-answer',
-      content: best.entry.body,
+      content: renderKnowledgeBody(best.entry.body, ctx).text,
       source: best.entry.source,
     },
   ];

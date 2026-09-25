@@ -48,6 +48,7 @@
     "test:risk-segmentation": "node tests/integration/risk-segmentation.mjs",
     "test:risk-reuse": "node tests/integration/risk-reuse.mjs",
     "test:handoff": "node tests/integration/handoff.mjs",
+    "test:knowledge-links": "node --import tsx/esm tests/integration/knowledge-links.mjs",
     "test:determination": "node --import tsx/esm tests/integration/determination.mjs",
     "test:intake-determination": "node --import tsx/esm tests/integration/intake-determination.mjs",
     "test:determination-export": "node tests/integration/determination-export.mjs",
@@ -161,7 +162,8 @@
     "backfill:category-commodity-codes": "node --import tsx/esm db/backfills/2026-09-24-category-commodity-codes.mjs",
     "backfill:door1-routing": "node --import tsx/esm db/backfills/2026-09-25-door1-routing.mjs",
     "backfill:retire-direct-po-pcard": "node --import tsx/esm db/backfills/2026-09-25-retire-direct-po-pcard.mjs",
-    "backfill:retire-side-processes": "node --import tsx/esm db/backfills/2026-09-25-retire-side-processes.mjs"
+    "backfill:retire-side-processes": "node --import tsx/esm db/backfills/2026-09-25-retire-side-processes.mjs",
+    "backfill:knowledge-base-linked": "node --import tsx/esm db/backfills/2026-09-25-knowledge-base-linked.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

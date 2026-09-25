@@ -1,20 +1,58 @@
 // Admin — knowledge base management. CRUD over the `knowledge_base`
-// table; entries here override/supplement the built-in KB and are the first
-// source the AI assistant grounds its answers in.
+// table; entries here replace the built-in KB and are what the assistant and
+// the Home box answer policy questions from.
+//
+// An entry names a governed figure ({{policy:…}}, {{approval-chains}},
+// {{preferred-suppliers:…}}) instead of restating it, so it cannot drift from
+// the configuration. Each entry says whether it is linked to configuration or
+// is policy text only, and a reference that names nothing is flagged here
+// rather than shown to a requester as a raw token.
 
-import { useState } from 'react';
-import { Plus, Pencil, Trash2, X, Save, BookOpen, ChevronDown, ChevronUp } from 'lucide-react';
+import { useMemo, useRef, useState } from 'react';
+import { Plus, Pencil, Trash2, X, Save, BookOpen, ChevronDown, ChevronUp, Link2, AlertTriangle } from 'lucide-react';
 import type { KBEntry } from '@/lib/db/knowledge-base';
 import {
   useKnowledgeBase,
+  useKnowledgeContext,
   useSaveKnowledgeBaseEntry,
   useDeleteKnowledgeBaseEntry,
 } from '@/lib/db/hooks/use-knowledge-base';
+import {
+  knowledgeLinks, renderKnowledgeBody, availableKnowledgeTokens,
+  type KnowledgeContext, type KnowledgeLink,
+} from '@/lib/procurement/knowledge-links';
 import { PageHeader } from '@/components/shared/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 
+
+/** "Linked to configuration" with what it links to, or "Policy text only". */
+function LinkBadges({ links }: { links: KnowledgeLink[] }) {
+  const valid = links.filter((l) => l.valid);
+  const invalid = links.filter((l) => !l.valid);
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      {valid.length > 0 ? (
+        <span
+          className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-1.5 py-0.5 text-[10px] text-accent"
+          title={valid.map((l) => l.label).join(' · ')}
+        >
+          <Link2 className="size-3" /> Linked to configuration · {valid.length}
+        </span>
+      ) : (
+        <span className="rounded-full bg-idle-soft px-1.5 py-0.5 text-[10px] text-ink-3" title="Its figures are policy text; no platform check reads them.">
+          Policy text only
+        </span>
+      )}
+      {invalid.map((l) => (
+        <span key={l.token} className="inline-flex items-center gap-1 rounded-full bg-stop-soft px-1.5 py-0.5 font-mono text-[10px] text-stop">
+          <AlertTriangle className="size-3" /> {l.token} names nothing
+        </span>
+      ))}
+    </div>
+  );
+}
 
 function generateId(): string {
   return `KB-${String(Math.floor(Math.random() * 9000) + 1000)}`;
@@ -24,10 +62,15 @@ function EntryForm({
   initial,
   onSave,
   onCancel,
+  ctx,
+  categoryIds,
 }: {
   initial: KBEntry | null;
   onSave: (entry: KBEntry) => void;
   onCancel: () => void;
+  ctx: KnowledgeContext | undefined;
+  /** Undefined until the configuration loads — then nothing is flagged yet. */
+  categoryIds: ReadonlySet<string> | undefined;
 }) {
   const [id, setId] = useState(initial?.id ?? generateId());
   const [title, setTitle] = useState(initial?.title ?? '');
@@ -35,7 +78,18 @@ function EntryForm({
   const [source, setSource] = useState(initial?.source ?? '');
   const [tags, setTags] = useState(initial?.tags.join(', ') ?? '');
 
-  const valid = title.trim().length > 0 && body.trim().length > 0;
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const links = knowledgeLinks(body, categoryIds);
+  // A reference that names nothing would reach a requester as a raw token.
+  const valid = title.trim().length > 0 && body.trim().length > 0 && links.every((l) => l.valid);
+  const tokens = useMemo(() => availableKnowledgeTokens([...(categoryIds ?? [])]), [categoryIds]);
+
+  // Insert at the cursor, so a figure lands where the sentence needs it.
+  function insertToken(token: string) {
+    const el = bodyRef.current;
+    const at = el?.selectionStart ?? body.length;
+    setBody(`${body.slice(0, at)}${token}${body.slice(at)}`);
+  }
 
   function submit() {
     if (!valid) return;
@@ -71,14 +125,34 @@ function EntryForm({
         <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Approval thresholds" className="h-8 text-sm" />
       </div>
       <div className="space-y-1">
-        <label className="text-xs font-medium text-ink-3">Body * (markdown supported)</label>
+        <div className="flex items-center justify-between gap-2">
+          <label htmlFor="kb-body" className="text-xs font-medium text-ink-3">Body * — link a governed figure instead of typing it</label>
+          <select
+            aria-label="Insert a figure from configuration"
+            className="h-7 max-w-64 rounded-md border border-input bg-background px-2 text-xs"
+            value=""
+            onChange={(e) => { if (e.target.value) insertToken(e.target.value); }}
+          >
+            <option value="">Insert a figure…</option>
+            {tokens.map((t) => <option key={t.token} value={t.token}>{t.label}</option>)}
+          </select>
+        </div>
         <textarea
+          id="kb-body"
+          ref={bodyRef}
           value={body}
           onChange={(e) => setBody(e.target.value)}
           rows={6}
           className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm leading-relaxed ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-y"
           placeholder="Policy body…"
         />
+        <LinkBadges links={links} />
+        {ctx && links.length > 0 && (
+          <div className="rounded-md border border-line bg-card-2 p-2">
+            <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-ink-3">As the requester reads it</p>
+            <p className="whitespace-pre-wrap text-xs leading-relaxed text-ink-2">{renderKnowledgeBody(body, ctx).text}</p>
+          </div>
+        )}
       </div>
       <div className="space-y-1">
         <label className="text-xs font-medium text-ink-3">Tags (comma-separated)</label>
@@ -99,10 +173,15 @@ function EntryRow({
   entry,
   onEdit,
   onDelete,
+  ctx,
+  categoryIds,
 }: {
   entry: KBEntry;
   onEdit: (e: KBEntry) => void;
   onDelete: (id: string) => void;
+  ctx: KnowledgeContext | undefined;
+  /** Undefined until the configuration loads — then nothing is flagged yet. */
+  categoryIds: ReadonlySet<string> | undefined;
 }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -120,6 +199,7 @@ function EntryRow({
             <span className="shrink-0 font-mono text-[11px] text-ink-3">{entry.id}</span>
             <span className="truncate text-sm font-medium text-ink">{entry.title}</span>
           </div>
+          <div className="mt-1"><LinkBadges links={knowledgeLinks(entry.body, categoryIds)} /></div>
           <div className="mt-0.5 flex flex-wrap gap-1">
             {entry.tags.slice(0, 6).map((t) => (
               <span key={t} className="rounded-full bg-idle-soft px-1.5 py-0.5 text-[10px] text-ink-3">{t}</span>
@@ -127,7 +207,10 @@ function EntryRow({
           </div>
           {expanded && (
             <div className="mt-2 space-y-1.5">
-              <p className="whitespace-pre-wrap text-xs leading-relaxed text-ink-2">{entry.body}</p>
+              {/* What a requester reads — figures from the live configuration. */}
+              <p className="whitespace-pre-wrap text-xs leading-relaxed text-ink-2">
+                {ctx ? renderKnowledgeBody(entry.body, ctx).text : entry.body}
+              </p>
               {entry.source && (
                 <p className="text-[10px] text-ink-3 italic">Source: {entry.source}</p>
               )}
@@ -163,6 +246,8 @@ export function KBAdminPage() {
   const { data: entries = [], isLoading: loading } = useKnowledgeBase();
   const saveEntry = useSaveKnowledgeBaseEntry();
   const deleteEntry = useDeleteKnowledgeBaseEntry();
+  const { data: ctx } = useKnowledgeContext();
+  const categoryIds = useMemo(() => (ctx ? new Set(Object.keys(ctx.categoryLabels)) : undefined), [ctx]);
 
   const [showForm, setShowForm] = useState(false);
   const [editingEntry, setEditingEntry] = useState<KBEntry | null>(null);
@@ -192,7 +277,7 @@ export function KBAdminPage() {
     <div className="space-y-5">
       <PageHeader
         title="Knowledge Base Management"
-        subtitle="Stored entries override the built-in KB. The AI assistant uses these first."
+        subtitle="What the assistant and the Home box answer policy questions from. Link a governed figure instead of typing it, so the answer always matches what the platform does."
       />
 
       {entries.length === 0 && !loading && (
@@ -223,6 +308,8 @@ export function KBAdminPage() {
           initial={null}
           onSave={handleSave}
           onCancel={() => setShowForm(false)}
+          ctx={ctx}
+          categoryIds={categoryIds}
         />
       )}
 
@@ -248,6 +335,8 @@ export function KBAdminPage() {
                     initial={formEntry}
                     onSave={handleSave}
                     onCancel={() => setEditingEntry(null)}
+                    ctx={ctx}
+                    categoryIds={categoryIds}
                   />
                 </div>
               ) : (
@@ -256,6 +345,8 @@ export function KBAdminPage() {
                   entry={entry}
                   onEdit={(e) => { setShowForm(false); setEditingEntry(e); }}
                   onDelete={handleDelete}
+                  ctx={ctx}
+                  categoryIds={categoryIds}
                 />
               )
             )}

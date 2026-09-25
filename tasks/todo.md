@@ -29,7 +29,7 @@ Decisions taken (2026-09-25):
        card, the record's `duplicateCheck` (column made nullable, no longer
        written), the dead `duplicateDetected` referral input.
 2. [x] Remove the Policy management page — route, nav, links, tests, docs.
-3. [ ] Knowledge base linked to configuration — `{{policy:key}}` and
+3. [x] Knowledge base linked to configuration — `{{policy:key}}` and
        `{{approval-chains}}` tokens rendered with live values (browser and
        server); entries rewritten to match the platform; linked / text-only
        marked on Admin → Knowledge base; backfill into the live table.

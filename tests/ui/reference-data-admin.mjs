@@ -41,6 +41,13 @@ try {
       catalogue_id: 'it-equipment', catalogue_name: 'IT Equipment', supplier_name: 'Lenovo', supplier_id: 'SUP-CAT-001',
       lead_time: '5-7 days', available: true,
     }],
+    // One entry linked to a governed figure, one policy text only, one with a
+    // reference that names nothing.
+    knowledge_base: [
+      { id: 'KB-013', title: 'Catalogue Purchasing', body: 'Orders up to {{policy:catalogueAutoApprovalThreshold}} are approved automatically.', source: 'Decisioning thresholds', tags: ['catalogue'] },
+      { id: 'KB-028', title: 'Insurance Requirements', body: 'Public liability: €5M per incident.', source: 'KOP-RISK-003', tags: ['insurance'] },
+      { id: 'KB-900', title: 'Broken Reference', body: 'Limit {{policy:noSuchThreshold}}.', source: '', tags: [] },
+    ],
   });
   // The policy singleton has its own endpoint, not /api/db. Served from the
   // shipped defaults; a save is captured so its payload can be checked.
@@ -247,6 +254,21 @@ try {
   await page.getByText('ThinkPad T14 Gen 5').first().waitFor({ timeout: 15000 }).catch(() => {});
   check('the Catalogue Items tab lists the stored items',
     (await page.getByText('ThinkPad T14 Gen 5').count()) > 0);
+
+  console.log('\nThe knowledge base is linked to configuration');
+  await page.goto(`${BASE}/admin/kb`, { waitUntil: 'networkidle' });
+  await page.getByText('Catalogue Purchasing').waitFor({ timeout: 15000 });
+  check('a linked entry says it is linked to configuration', (await page.getByText(/Linked to configuration · 1/).count()) === 1);
+  check('a text-only entry says so', (await page.getByText('Policy text only').count()) >= 1);
+  check('a reference that names nothing is flagged', (await page.getByText(/\{\{policy:noSuchThreshold\}\} names nothing/).count()) > 0);
+  await page.getByText('Catalogue Purchasing').locator('xpath=ancestor::div[contains(@class,"flex items-start")]').getByRole('button').first().click();
+  check('the entry reads with the live figure, not the reference',
+    (await page.getByText('Orders up to €1,000 are approved automatically.').count()) > 0);
+  await page.getByRole('button', { name: /Add entry/ }).click();
+  await page.getByLabel('Insert a figure from configuration').selectOption('{{policy:competitiveSourcingThreshold}}');
+  check('an admin inserts a governed figure instead of typing it',
+    (await page.locator('#kb-body').inputValue()).includes('{{policy:competitiveSourcingThreshold}}'));
+  check('the editor previews it as the requester reads it', (await page.getByText('€25,000').count()) > 0);
 
   check('no page errors while maintaining reference data', errors.length === 0, errors.join(' | '));
 } catch (error) {

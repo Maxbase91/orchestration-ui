@@ -48,7 +48,7 @@ FR10-22 · Each agent card shows **"Affects:"** badges indicating which product 
 
 ### Knowledge & Assistant
 
-FR10-30 · **KB Management** (`/admin/kb`): add/edit/delete `knowledge_base` entries. Tags, source, body. The AI assistant `search_knowledge` tool queries this table.
+FR10-30 · **KB Management** (`/admin/kb`): add/edit/delete `knowledge_base` entries. Tags, source, body. The AI assistant `search_knowledge` tool and the Home box answer policy questions from this table. A governed figure is **referenced, not restated** — `{{policy:<key>}}` (a Decisioning threshold), `{{approval-chains}}`, `{{preferred-suppliers:<category>}}` — and rendered from the live configuration when answered (`lib/procurement/knowledge-links.ts`, one renderer for browser and server). Each entry is marked *Linked to configuration* or *Policy text only*; a reference that names nothing is flagged and cannot be saved. The editor inserts references from a list and previews the entry as a requester reads it.
 
 FR10-31 · **AI Analytics** (`/admin/ai-analytics`): accuracy trends, tool usage, latency per agent.
 

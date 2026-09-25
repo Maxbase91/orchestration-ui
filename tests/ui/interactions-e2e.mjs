@@ -230,8 +230,9 @@ try {
     } catch { /* hang */ }
     check('assistant returns a response (no hang)', responded);
 
-    // AST-P: the policy answer is grounded in the knowledge base, not generic.
-    const grounded = await page.getByText(/delegated authority|€10,000/i).count().catch(() => 0);
+    // AST-P: the policy answer is grounded in the knowledge base, with the bands
+    // rendered from the live approval chains rather than restated in the entry.
+    const grounded = await page.getByText(/Below €10,000|€10,000 – €100,000/i).count().catch(() => 0);
     check('policy answer is grounded in the knowledge base (AST-P)', grounded > 0, `matches=${grounded}`);
 
     // AST-Q: the assistant reads the same governed source as the front door —
