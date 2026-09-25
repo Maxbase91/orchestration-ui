@@ -13,7 +13,8 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { sourcingInvitees } from '../../src/lib/procurement/sourcing-invitees.ts';
-import { isPreferredSupplier, competitiveSourcingCheck } from '../../src/lib/procurement/supplier-preference.ts';
+import { isPreferredSupplier, competitiveSourcingCheck, isPreferredSupplierOverride, preferredSupplierCheck } from '../../src/lib/procurement/supplier-preference.ts';
+import { withSupplierOverrideStep } from '../../src/lib/procurement/approval-derivation.ts';
 import { DEFAULT_POLICY_CONFIG } from '../../src/lib/procurement/policy-config.ts';
 
 const ROOT = new URL('../../', import.meta.url);
@@ -88,6 +89,43 @@ check('the shipped default keeps the old behaviour', () =>
   assert.deepEqual(DEFAULT_POLICY_CONFIG.competitiveSourcingExemptCategories, ['contingent-labour']));
 check('the determination passes its own policy, not the module singleton', () =>
   assert.ok(/competitiveSourcingCheck\(\{ value, category, isPreferred \}, config\)/.test(read('src/lib/procurement/intake-determination.ts'))));
+
+// ── Choosing outside the list ────────────────────────────────────────────────
+// Allowed, but it owes a reason, and (when Decisioning thresholds say so) the
+// category manager's approval. It was a soft check reading "allowed, but flag
+// for review" that nothing acted on.
+check('an override is a chosen supplier outside a non-empty list', () => {
+  assert.equal(isPreferredSupplierOverride('S1', ['S3']), true);
+  assert.equal(isPreferredSupplierOverride('S3', ['S3']), false);
+  assert.equal(isPreferredSupplierOverride('S1', []), false, 'with no list there is nothing to override');
+  assert.equal(isPreferredSupplierOverride('', ['S3']), false, '"none in mind" goes to market, not around the list');
+});
+check('an override adds the category manager to the approvals', () => {
+  const chain = [{ id: 'a', role: 'Budget Owner' }, { id: 'b', role: 'Finance' }];
+  assert.deepEqual(withSupplierOverrideStep(chain, true).map((s) => s.role), ['Category Manager', 'Budget Owner', 'Finance']);
+  assert.deepEqual(withSupplierOverrideStep(chain, false), chain);
+  const alreadyAsks = [{ id: 'a', role: 'Category Manager' }];
+  assert.deepEqual(withSupplierOverrideStep(alreadyAsks, true), alreadyAsks, 'one approval from them covers both');
+});
+check('the policy check says what an override costs', () => {
+  const detail = preferredSupplierCheck({ supplier: { name: 'Lenovo' }, isPreferred: false, hasPreferredList: true, overrideNeedsApproval: true }).detail;
+  assert.match(detail, /needs a reason and a category manager/);
+});
+check('the approval is a Decisioning switch, on by default', () =>
+  assert.equal(DEFAULT_POLICY_CONFIG.preferredSupplierOverrideNeedsApproval, true));
+check('submit recomputes the override from the store and keeps the reason only then', () => {
+  const submit = read('api/_domains/intake-submit.ts');
+  assert.match(submit, /FROM category_preferred_suppliers WHERE category_id = \$1/);
+  assert.match(submit, /supplier_override_reason: supplierOverride \? overrideReason : null/);
+  assert.match(submit, /supplierOverride: supplierOverride && policy\.preferredSupplierOverrideNeedsApproval/);
+});
+check('every approval path applies the step — submit, the engine and the Review preview', () => {
+  assert.match(read('src/lib/db/approvals-core.ts'), /withSupplierOverrideStep\(withContractOwnerStep/);
+  assert.match(read('src/lib/workflow/engine.ts'), /supplierOverride: Boolean\(row\?\.supplier_override_reason\)/);
+  assert.match(read('src/features/requests/new-request/step-routing-preview.tsx'), /supplierOverride: supplierOverride && preferredSupplierOverrideNeedsApproval/);
+});
+check('the reason is shown beside the supplier on the request', () =>
+  assert.match(read('src/features/requests/request-detail/tab-overview.tsx'), /overrideReason=\{request\.supplierOverrideReason\}/));
 
 console.log('');
 if (failures) { console.error(`FAILED: ${failures} check(s)`); process.exit(1); }

@@ -89,8 +89,12 @@ export function competitiveSourcingCheck(params: {
 export function preferredSupplierCheck(params: {
   supplier: Supplier | undefined;
   isPreferred: boolean;
+  /** The category has a preferred list — only then is a choice outside it an override. */
+  hasPreferredList?: boolean;
+  /** Decisioning thresholds: an override needs the category manager's approval. */
+  overrideNeedsApproval?: boolean;
 }): PolicyCheck {
-  const { supplier, isPreferred } = params;
+  const { supplier, isPreferred, hasPreferredList = false, overrideNeedsApproval = false } = params;
   return {
     label: 'Preferred-supplier routing',
     // Soft preference: passes unless a supplier is selected that is not preferred.
@@ -99,6 +103,22 @@ export function preferredSupplierCheck(params: {
       ? 'No supplier selected yet'
       : isPreferred
         ? `${supplier.name} is a preferred supplier`
-        : `${supplier.name} is not on the preferred list — allowed, but flag for review`,
+        : hasPreferredList
+          ? `${supplier.name} is not on the preferred list — needs a reason${overrideNeedsApproval ? ' and a category manager\u2019s approval' : ''}`
+          : `${supplier.name} is not on the preferred list — allowed, but flag for review`,
   };
+}
+
+/**
+ * Is this supplier a choice outside the category's preferred list?
+ *
+ * Only when there IS a list: with none, nothing has been preferred and there is
+ * nothing to override. And only for a supplier actually chosen — "none in mind"
+ * goes to market, which is not an override of anything.
+ */
+export function isPreferredSupplierOverride(
+  supplierId: string | null | undefined,
+  preferredIds: readonly string[],
+): boolean {
+  return Boolean(supplierId) && preferredIds.length > 0 && !preferredIds.includes(supplierId as string);
 }

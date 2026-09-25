@@ -63,6 +63,15 @@ check('…with an unparseable date it still does not', gate({ ...formPath, costC
 check('…with a date the parser reads and a cost centre, it does', gate({ ...formPath, costCentre: 'CC-1', deliveryDate: '31.12.2026' }) === true);
 check('the footer and the gate read the same list',
   fields(detailsSubmissionGaps({ ...formPath, costCentre: 'CC-1' })) === 'deliveryDate');
+{
+  const ready = { ...formPath, costCentre: 'CC-1', deliveryDate: '2027-01-15', supplierId: 'SUP-X' };
+  const withList = (data) => stepById('details').canProceed({
+    data, isChatIntakePath: false, conversationCtx: {}, conversationSlots: [], hasDetermination: false, preferredSupplierIds: ['SUP-P'],
+  });
+  check('…held without a reason', withList(ready) === false);
+  check('…open with one', withList({ ...ready, supplierOverrideReason: 'Only certified supplier' }) === true);
+  check('…and a preferred supplier owes nothing', withList({ ...ready, supplierId: 'SUP-P' }) === true);
+}
 check('catalogue and call-off keep their own gates',
   gate({ ...INITIAL_INTAKE_DATA, preCheckOutcome: 'contract', contractId: 'CON-1' }) === true);
 
@@ -73,7 +82,7 @@ const chat = read('src/features/requests/new-request/step-chat-intake.tsx');
 check('the conversation no longer promises to leave the date open', !/leave the need-by date open/.test(chat));
 check('a skipped need-by date can be entered in Key facts', /id="key-facts-need-by"/.test(chat) && /type="date"/.test(chat));
 const page = read('src/features/requests/new-request/new-request-page.tsx');
-check('the Details footer names what submit will need', /detailsSubmissionGaps\(formData\)/.test(page) && /under \$\{whereEntered\(gap\.field\)\}/.test(page));
+check('the Details footer names what submit will need', /detailsSubmissionGaps\(formData, preferredSupplierIds\)/.test(page) && /under \$\{whereEntered\(gap\.field\)\}/.test(page));
 
 console.log('\nAvatar initials');
 for (const [name, want] of [

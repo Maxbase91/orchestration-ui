@@ -229,6 +229,26 @@ if (!/CREATE\\s\+POLICY/.test(applier) && !/ENABLE\\s\+ROW/.test(applier)) {
   console.error('  \x1b[31m✗\x1b[0m apply-neon-schema.mjs still skips RLS statements silently');
 }
 
+// A view over `x.*` fixes its column list when created. The views sit mid-file,
+// so each apply rebuilt them before the ADD COLUMNs below them ran, and a new
+// column reached the view only on the next apply — never on a fresh database.
+// requests_with_derived is what the app reads requests through, so a column
+// missing from it reads as empty everywhere while the table holds the value.
+console.log('\nEvery table column reaches its *_with_derived view');
+{
+  const missing = await sql.query(`
+    SELECT v.table_name AS view, c.column_name AS col
+      FROM information_schema.views v
+      JOIN information_schema.columns c
+        ON c.table_schema = 'public' AND c.table_name = regexp_replace(v.table_name, '_with_derived$', '')
+     WHERE v.table_schema = 'public' AND v.table_name LIKE '%\\_with\\_derived'
+       AND NOT EXISTS (SELECT 1 FROM information_schema.columns vc
+                        WHERE vc.table_schema = 'public' AND vc.table_name = v.table_name AND vc.column_name = c.column_name)`);
+  report('no column is missing from its derived view', missing.map((r) => `${r.view} lacks ${r.col}`));
+}
+report('the applier rebuilds views after every column exists',
+  /Rebuild every view once more/.test(readFileSync(new URL('../../db/migrations/apply-neon-schema.mjs', import.meta.url), 'utf8')) ? [] : ['apply-neon-schema.mjs builds views only in file order']);
+
 if (failures > 0) {
   console.error(`\nschema-drift: ${failures} check(s) failed.`);
   process.exit(1);

@@ -70,6 +70,11 @@ date the conversation skipped after two unreadable answers is editable in Key
 facts; it used to be read-only there, so such a request could never be
 submitted (`test:submission-requirements`).
 
+A supplier outside the category's preferred list owes a reason, asked beside the
+supplier on this step and on the same list: the server recomputes the override
+and refuses without it, and — when Decisioning thresholds say so — the category
+manager is added to the approvals.
+
 ## One UI, progressive disclosure
 
 There is **one** page and one view of it. A `density` prop (`'simple' | 'expert'`)

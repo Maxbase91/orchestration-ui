@@ -32,6 +32,12 @@ const FIELDS: { key: NumericPolicyKey; label: string; help: string; unit: string
 
 const RISK_TIERS: RiskTier[] = ['low', 'medium', 'high', 'critical'];
 
+// Every on/off key, from the defaults by type — saving named pCardEnabled by
+// hand, and a second switch would have been the one it forgot.
+const BOOLEAN_KEYS = (Object.keys(DEFAULT_POLICY_CONFIG) as (keyof PolicyConfig)[])
+  .filter((key): key is { [K in keyof PolicyConfig]: PolicyConfig[K] extends boolean ? K : never }[keyof PolicyConfig] =>
+    typeof DEFAULT_POLICY_CONFIG[key] === 'boolean');
+
 const sameList = (a: string[], b: string[]) => JSON.stringify([...a].sort()) === JSON.stringify([...b].sort());
 
 /**
@@ -90,7 +96,7 @@ export function PolicyConfigPage() {
   const dirty = useMemo(() => {
     const saved = resolvePolicyConfig(overrides);
     return FIELDS.some((f) => draft[f.key] !== saved[f.key])
-      || draft.pCardEnabled !== saved.pCardEnabled
+      || BOOLEAN_KEYS.some((key) => draft[key] !== saved[key])
       || CATEGORY_LIST_POLICY_KEYS.some((key) => !sameList(draft[key], saved[key]));
   }, [draft, overrides]);
   const changedFromDefault = (key: NumericPolicyKey) => draft[key] !== DEFAULT_POLICY_CONFIG[key];
@@ -100,7 +106,9 @@ export function PolicyConfigPage() {
     for (const f of FIELDS) {
       if (draft[f.key] !== DEFAULT_POLICY_CONFIG[f.key]) next[f.key] = draft[f.key];
     }
-    if (draft.pCardEnabled !== DEFAULT_POLICY_CONFIG.pCardEnabled) next.pCardEnabled = draft.pCardEnabled;
+    for (const key of BOOLEAN_KEYS) {
+      if (draft[key] !== DEFAULT_POLICY_CONFIG[key]) next[key] = draft[key];
+    }
     // Derived from the key metadata, like FIELDS: a list key named here by
     // hand would be the next one saving forgot.
     for (const key of CATEGORY_LIST_POLICY_KEYS) {
@@ -190,13 +198,30 @@ export function PolicyConfigPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm">Competitive sourcing</CardTitle>
+              <CardTitle className="text-sm">Supplier choice</CardTitle>
               <p className="text-xs text-ink-3">
                 Above the competitive-sourcing threshold a demand needs competitive quotes, unless it goes
-                to a preferred supplier or its category is exempt.
+                to a preferred supplier or its category is exempt. A supplier outside the category&apos;s
+                preferred list always needs a reason from the requester.
               </p>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-5">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <Label htmlFor="cfg-preferredSupplierOverrideNeedsApproval" className="text-sm text-ink">
+                    Category manager approves a non-preferred supplier
+                  </Label>
+                  <p className="text-xs text-ink-3">
+                    Adds the category manager to the approvals when the chosen supplier is outside the
+                    category&apos;s preferred list, unless the chain already asks them.
+                  </p>
+                </div>
+                <Switch
+                  id="cfg-preferredSupplierOverrideNeedsApproval"
+                  checked={draft.preferredSupplierOverrideNeedsApproval}
+                  onCheckedChange={(value) => setDraft((d) => ({ ...d, preferredSupplierOverrideNeedsApproval: value }))}
+                />
+              </div>
               <CategoryChecklist
                 policyKey="competitiveSourcingExemptCategories"
                 value={draft.competitiveSourcingExemptCategories}

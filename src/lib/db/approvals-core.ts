@@ -11,6 +11,7 @@ import { loadPolicyConfigWith } from './policy-core.js';
 import {
   deriveApprovals,
   withContractOwnerStep,
+  withSupplierOverrideStep,
   type ApprovalSources,
   type ChainStep,
   type DerivedApproval,
@@ -26,6 +27,12 @@ export interface ApprovalRequestContext {
   /** Set for a call-off, so the contract's owner can be asked. */
   contractId?: string | null;
   costCentre?: string | null;
+  /**
+   * The supplier is outside the category's preferred list and Decisioning
+   * thresholds require the category manager to agree — adds their step when
+   * the chain lacks one (withSupplierOverrideStep).
+   */
+  supplierOverride?: boolean | null;
 }
 
 /** Read everything derivation needs for one request. */
@@ -128,7 +135,7 @@ export async function deriveApprovalsFor(
   context: ApprovalRequestContext,
   chainId: string | null | undefined,
 ): Promise<DerivedApproval[]> {
-  const steps = withContractOwnerStep(await loadChainSteps(client, chainId), context.route);
+  const steps = withSupplierOverrideStep(withContractOwnerStep(await loadChainSteps(client, chainId), context.route), context.supplierOverride);
   if (steps.length === 0) return [];
   return deriveApprovals(steps, await loadApprovalSources(client, context));
 }
@@ -148,7 +155,7 @@ export async function createApprovalsFor(
   const existing = await client.from('approval_entries').select('id').eq('request_id', context.requestId);
   if (((existing.data ?? []) as DbRow[]).length > 0) return [];
 
-  const steps = withContractOwnerStep(await loadChainSteps(client, chainId), context.route);
+  const steps = withSupplierOverrideStep(withContractOwnerStep(await loadChainSteps(client, chainId), context.route), context.supplierOverride);
   if (steps.length === 0) return [];
 
   const sources = await loadApprovalSources(client, context);

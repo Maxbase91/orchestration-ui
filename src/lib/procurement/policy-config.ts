@@ -34,6 +34,12 @@ export interface PolicyConfig {
    * supplier-preference.ts, so it could not be changed without a code change.
    */
   competitiveSourcingExemptCategories: string[];
+  /**
+   * Whether choosing a supplier outside the category's preferred list adds a
+   * category-manager approval. A reason is asked for either way; this decides
+   * whether someone responsible for the category must also agree.
+   */
+  preferredSupplierOverrideNeedsApproval: boolean;
   /** Minimum performance score for a supplier to qualify as preferred. */
   preferredMinPerformance: number;
   /** Second contract check: utilisation headroom % (below → transactable). */
@@ -103,6 +109,8 @@ export const DEFAULT_POLICY_CONFIG: PolicyConfig = {
   minCompetitiveQuotes: 3,
   // The literal supplier-preference.ts defaulted to. Same list, so no change.
   competitiveSourcingExemptCategories: ['contingent-labour'],
+  // As the front-door design specifies: reason plus category-manager approval.
+  preferredSupplierOverrideNeedsApproval: true,
   preferredMinPerformance: 75,
   contractUtilisationHeadroom: 95,
   // The figure the front-door design was reviewed against.

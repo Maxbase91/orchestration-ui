@@ -29,6 +29,7 @@ import { descriptionComplete } from './details-sections.js';
 import type { IntakeFormData } from './intake-form-data.js';
 import { submissionGaps, type SubmissionGap } from '../../../lib/procurement/submission-requirements.js';
 import { parseDeliveryDate } from '../../../lib/parse-delivery-date.js';
+import { isPreferredSupplierOverride } from '../../../lib/procurement/supplier-preference.js';
 
 /** Which fulfilment path the demand is on. Decides which steps apply. */
 export type IntakeStepRoute = 'full-request' | 'catalogue' | 'contract';
@@ -68,6 +69,8 @@ export interface IntakeGateState {
   conversationSlots: DemandSlot[];
   /** Null while the determination is still resolving. */
   hasDetermination: boolean;
+  /** The category's preferred-supplier list, which decides whether a reason is owed. */
+  preferredSupplierIds?: readonly string[];
 }
 
 /**
@@ -76,11 +79,16 @@ export interface IntakeGateState {
  * the submit refusing it. The need-by date is checked as the server will see
  * it: parsed, because "end of next month" is only a date once it parses.
  */
-export function detailsSubmissionGaps(data: IntakeFormData): SubmissionGap[] {
+export function detailsSubmissionGaps(
+  data: IntakeFormData,
+  preferredSupplierIds: readonly string[] = [],
+): SubmissionGap[] {
   return submissionGaps({
     title: data.title,
     costCentre: data.costCentre,
     deliveryDate: parseDeliveryDate(data.deliveryDate),
+    supplierOverride: isPreferredSupplierOverride(data.supplierId, preferredSupplierIds),
+    supplierOverrideReason: data.supplierOverrideReason,
   });
 }
 
@@ -170,7 +178,7 @@ export const INTAKE_STEPS: readonly IntakeStepDefinition[] = [
         next: 'The call-off is validated against the contract before the internal record is created.',
       },
     },
-    canProceed: ({ data, isChatIntakePath, conversationCtx, conversationSlots }) => {
+    canProceed: ({ data, isChatIntakePath, conversationCtx, conversationSlots, preferredSupplierIds }) => {
       // The route alone. `|| data.category === 'catalogue'` held a full request
       // to the catalogue's rule — items in the basket — so after switching
       // route the step could never be completed.
@@ -192,7 +200,7 @@ export const INTAKE_STEPS: readonly IntakeStepDefinition[] = [
       const described = isChatIntakePath
         ? descriptionComplete({ isChatIntakePath, conversationCtx, conversationSlots })
         : !!data.title && data.estimatedValue > 0;
-      return described && detailsSubmissionGaps(data).length === 0;
+      return described && detailsSubmissionGaps(data, preferredSupplierIds).length === 0;
     },
   },
   {

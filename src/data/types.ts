@@ -65,6 +65,12 @@ export interface ProcurementRequest {
   requestorId: string;
   ownerId: string;
   supplierId?: string;
+  /**
+   * Why the requester chose a supplier outside the category's preferred list.
+   * Set by the server only when it found such an override, so its presence is
+   * the record that one was made (and asked a category manager to agree).
+   */
+  supplierOverrideReason?: string;
   contractId?: string;
   poId?: string;
   /** Durable requisition created from the request before a PO is released. */

@@ -487,6 +487,7 @@ const REQUEST_FIELD_MAP: Record<string, string> = {
   ownerId: 'owner_id',
   supplierId: 'supplier_id',
   supplierName: 'supplier_name',
+  supplierOverrideReason: 'supplier_override_reason',
   approvalChain: 'approval_chain',
   inherentRiskTier: 'inherent_risk_tier',
   materialityTier: 'materiality_tier',

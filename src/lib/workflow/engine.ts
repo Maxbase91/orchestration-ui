@@ -140,7 +140,7 @@ async function generateApprovalEntries(
 ): Promise<void> {
   const { data: request } = await db
     .from('requests')
-    .select('category, contract_id, cost_centre, buying_channel')
+    .select('category, contract_id, cost_centre, buying_channel, supplier_override_reason')
     .eq('id', requestId)
     .maybeSingle();
 
@@ -151,6 +151,10 @@ async function generateApprovalEntries(
     contractId: (row?.contract_id as string) ?? null,
     costCentre: (row?.cost_centre as string) ?? null,
     route: (row?.buying_channel as string) === 'framework-call-off' ? 'contract-call-off' : null,
+    // Submit stores a reason only when it found an override, so the reason is
+    // the durable record that one was made.
+    supplierOverride: Boolean(row?.supplier_override_reason)
+      && getActivePolicyConfig().preferredSupplierOverrideNeedsApproval,
   }, approvalChainName);
 
   // No chain resolved to any step. Somebody still has to decide, so the request

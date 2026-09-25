@@ -136,6 +136,7 @@ export function TabOverview({ request }: TabOverviewProps) {
               <SupplierFacts
                 supplierId={request.supplierId}
                 category={request.category}
+                overrideReason={request.supplierOverrideReason}
                 sourcing={stageMapLoading ? 'unknown'
                   : getStagesForChannel(stageMap, request.buyingChannel).includes('sourcing') ? 'will-source' : 'no-sourcing'}
               />

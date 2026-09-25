@@ -8,7 +8,9 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/lib/format';
 import { SupplierAutocomplete } from './supplier-autocomplete';
-import { isPreferredSupplier } from '@/lib/procurement/supplier-preference';
+import { isPreferredSupplier, isPreferredSupplierOverride } from '@/lib/procurement/supplier-preference';
+import { usePolicyConfig } from '@/lib/procurement/use-policy-config';
+import { Textarea } from '@/components/ui/textarea';
 import { isProspective } from '@/lib/workflow/onboarding-stage';
 import { useProcurementCategories } from '@/lib/db/hooks/use-procurement-categories';
 import { usePreferredSupplierIds } from '@/lib/db/hooks/use-category-preferred-suppliers';
@@ -41,6 +43,9 @@ interface Props {
   /** Whether the requester has said they have no supplier in mind. */
   intent?: 'named' | 'to-be-sourced';
   onIntentChange?: (intent: 'named' | 'to-be-sourced') => void;
+  /** Why this supplier rather than a preferred one — asked only on an override. */
+  overrideReason?: string;
+  onOverrideReasonChange?: (reason: string) => void;
 }
 
 const EMPTY_CANDIDATES: readonly string[] = [];
@@ -73,7 +78,9 @@ export function SupplierRecommenderCard({
   category, estimatedValue, selectedSupplierId, selectedSupplierName,
   supplierProvenance, onSelect,
   candidateIds = EMPTY_CANDIDATES, onToggleCandidate, intent = 'named', onIntentChange,
+  overrideReason = '', onOverrideReasonChange,
 }: Props) {
+  const { preferredSupplierOverrideNeedsApproval } = usePolicyConfig();
   const { data: agent } = useAiAgent('AI-005');
   const createProspective = useCreateProspectiveSupplier();
   const { data: suppliers = [] } = useSuppliers();
@@ -199,6 +206,30 @@ export function SupplierRecommenderCard({
               <p className="text-[11px] text-ink-3">
                 Taken from your request — confirm or change it here.
               </p>
+            )}
+            {/* A supplier outside the category's preferred list is allowed, but
+                it has to be explained — and, when Decisioning thresholds say so,
+                agreed by a category manager. Asked here, where the choice is
+                made; the server recomputes the override and refuses without it. */}
+            {isPreferredSupplierOverride(selectedSupplierId, preferredIds) && onOverrideReasonChange && (
+              <div className="space-y-1.5 rounded-md border border-warn-line bg-warn-soft px-2.5 py-2">
+                <label htmlFor="supplier-override-reason" className="block text-[11px] font-medium text-warn">
+                  Not on the preferred list for this category — why this supplier?
+                </label>
+                <Textarea
+                  id="supplier-override-reason"
+                  rows={2}
+                  className="bg-card text-sm"
+                  value={overrideReason}
+                  onChange={(e) => onOverrideReasonChange(e.target.value)}
+                  placeholder="e.g. the only supplier with the certification this work needs"
+                />
+                <p className="text-[11px] text-ink-3">
+                  {preferredSupplierOverrideNeedsApproval
+                    ? 'A category manager approves this choice before the request moves on.'
+                    : 'Recorded on the request beside the supplier.'}
+                </p>
+              </div>
             )}
             {!selectedSupplierId && intent === 'named' && (
               <p className="text-[11px] text-ink-3">

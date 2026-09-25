@@ -17,9 +17,14 @@ interface SupplierFactsProps {
   category: string | undefined;
   /** Where this request stands with sourcing: shapes the line under the list. */
   sourcing?: 'will-source' | 'no-sourcing' | 'unknown';
+  /**
+   * Why the requester chose a supplier outside the preferred list. Shown under
+   * the supplier, where the category manager asked to agree reads it.
+   */
+  overrideReason?: string | null;
 }
 
-export function SupplierFacts({ supplierId, supplierName, category, sourcing = 'unknown' }: SupplierFactsProps) {
+export function SupplierFacts({ supplierId, supplierName, category, sourcing = 'unknown', overrideReason }: SupplierFactsProps) {
   useSuppliers();
   const lookup = useSupplierLookup();
   const preferredIds = usePreferredSupplierIds(category);
@@ -35,6 +40,12 @@ export function SupplierFacts({ supplierId, supplierName, category, sourcing = '
           ? <span className="text-body font-medium text-ink">{name}</span>
           : <span className="text-body italic text-ink-3">Currently unknown</span>}
       </div>
+      {overrideReason && (
+        <div className="grid grid-cols-[88px_minmax(0,1fr)] items-baseline gap-2">
+          <span className="text-caption text-warn">Not preferred</span>
+          <span className="text-body text-ink-2">{overrideReason}</span>
+        </div>
+      )}
       <div className="rounded-md border border-line bg-card-2 px-2.5 py-2">
         <p className="flex items-center gap-1.5 text-caption text-ink-3">
           <Building2 className="size-3.5" aria-hidden="true" />

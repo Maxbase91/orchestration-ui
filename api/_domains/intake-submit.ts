@@ -12,6 +12,8 @@ import {
 import { nodeIdForStatus } from '../../src/lib/workflow/node-config.js';
 import { slaDeadlineFor } from '../../src/lib/workflow/business-days.js';
 import { submissionGaps, describeGaps } from '../../src/lib/procurement/submission-requirements.js';
+import { isPreferredSupplierOverride } from '../../src/lib/procurement/supplier-preference.js';
+import { loadPolicyConfigWith } from '../_policy.js';
 
 type JsonRecord = Record<string, unknown>;
 type IntakePayload = {
@@ -116,6 +118,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     const now = new Date().toISOString();
     const sql = getNeonClient();
 
+    // A supplier outside the category's preferred list, recomputed from the
+    // store — the browser's view of the list is advisory. The requester has to
+    // say why; the reason is stored only when there was an override, so its
+    // presence is the record that one was made.
+    const supplierId = typeof request.supplierId === 'string' ? request.supplierId : null;
+    const pslRows = await queryRows(sql, 'SELECT supplier_id FROM category_preferred_suppliers WHERE category_id = $1', [category]);
+    const supplierOverride = isPreferredSupplierOverride(supplierId, pslRows.map((row) => String(row.supplier_id)));
+    const overrideReason = typeof request.supplierOverrideReason === 'string' ? request.supplierOverrideReason.trim() : '';
+    const overrideGaps = submissionGaps({ title, costCentre, deliveryDate, supplierOverride, supplierOverrideReason: overrideReason });
+    if (overrideGaps.length > 0) {
+      throw new IntakeError('missing_required_field', 422, `Before submitting, add ${describeGaps(overrideGaps)}.`,
+        Object.fromEntries(overrideGaps.map((gap) => [gap.field, `Add ${gap.label}`])));
+    }
+    const policy = await loadPolicyConfigWith(sql);
+
     // The stage's SLA, from the template node the request is about to enter.
     //
     // `sla_deadline` was set only by transitionStage(), so a request got one on
@@ -207,6 +224,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       id, title, description: request.description ?? sow?.narrative ?? title, category, status: stage.status,
       priority: request.priority ?? 'medium', value, currency: request.currency ?? 'EUR', requestor_id: requestorId,
       owner_id: request.ownerId ?? requestorId, supplier_id: request.supplierId ?? null, supplier_name: request.supplierName ?? null,
+      supplier_override_reason: supplierOverride ? overrideReason : null,
       contract_id: request.contractId ?? null, buying_channel: buyingChannel,
       sourcing_type: request.sourcingType ?? null, sourcing_type_reason: request.sourcingTypeReason ?? null,
       approval_chain: request.approvalChain ?? null, inherent_risk_tier: request.inherentRiskTier ?? null,
@@ -252,7 +270,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     // the person named is one the directory actually holds responsible.
     const approvals = await deriveApprovalsFor(
       getDbAdmin(),
-      { requestId: id, category, costCentre, contractId: (request.contractId as string) ?? null },
+      {
+        requestId: id, category, costCentre, contractId: (request.contractId as string) ?? null,
+        supplierOverride: supplierOverride && policy.preferredSupplierOverrideNeedsApproval,
+      },
       await resolveChainId(getDbAdmin(), (request.approvalChain as string) ?? null, value),
     );
     for (const row of approvalRows(id, approvals, now)) {

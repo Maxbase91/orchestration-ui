@@ -121,6 +121,19 @@ try {
       throw new Error(`Schema statement failed: ${message}\n${stripComments(statement).slice(0, 300)}`);
     }
   }
+  // Rebuild every view once more, now that every column exists. A view over
+  // `r.*` fixes its column list when it is created, and the views sit mid-file:
+  // each apply rebuilt them BEFORE the ADD COLUMNs further down ran, so a new
+  // column reached the view only on the next apply — and never on a fresh
+  // database. requests_with_derived is what the app reads requests through.
+  // In file order, so a view built on another comes after it.
+  for (const original of statements) {
+    if (shouldSkip(original)) continue;
+    const name = viewName(original);
+    if (!name) continue;
+    await client.query(`DROP VIEW IF EXISTS "${name}" CASCADE`);
+    await client.query(makeIdempotent(original));
+  }
 } finally {
   await client.end();
 }

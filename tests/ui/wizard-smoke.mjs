@@ -329,6 +329,23 @@ try {
     preferCount === inviteCount, `prefer=${preferCount} invite=${inviteCount}`);
   check('having no supplier in mind is an explicit choice',
     (await page.getByRole('button', { name: /I have none in mind/ }).count()) > 0);
+  // A supplier outside the category's preferred list (consulting lists only
+  // Advisory Partner A) is allowed, but owes a reason — asked here, where the
+  // choice is made, and named in the footer until it is given.
+  await page.getByRole('combobox').filter({ hasText: /Search supplier directory/ }).click();
+  await page.getByPlaceholder('Type supplier name...').fill('Lenovo');
+  await page.getByRole('option', { name: /Lenovo/ }).click();
+  await page.locator('#supplier-override-reason').waitFor({ timeout: 5000 }).catch(() => {});
+  check('a non-preferred supplier asks why',
+    (await page.getByText('Not on the preferred list for this category — why this supplier?').count()) > 0);
+  check('…says a category manager will approve it',
+    (await page.getByText(/A category manager approves this choice/).count()) > 0);
+  check('…and the footer names the reason as still needed',
+    (await page.getByText(/Add why this supplier rather than a preferred one under Supplier/).count()) > 0);
+  await page.locator('#supplier-override-reason').fill('Only supplier with the certification this work needs');
+  await page.waitForTimeout(300);
+  check('giving the reason clears it from the footer',
+    (await page.getByText(/why this supplier rather than a preferred one/).count()) === 0);
   await page.getByRole('button', { name: /I have none in mind/ }).click();
   await page.waitForTimeout(600);
   check('choosing it says so, and is reversible',

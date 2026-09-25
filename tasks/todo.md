@@ -48,7 +48,7 @@ call-offs and trusted the browser's channel; 13 live requests re-pointed.
       code default in supplier-preference.ts); category lists as checklists.
 - [x] Decisioning thresholds: direct call-off limit (wired into the call-off
       checks, not just stored).
-- [ ] Decisioning thresholds: preferred-supplier override needs a reason +
+- [x] Decisioning thresholds: preferred-supplier override needs a reason +
       category-manager approval.
 - [ ] Database: catalogue items (save/delete hooks exist, nothing uses them).
 

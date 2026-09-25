@@ -9,7 +9,7 @@
 //
 // Pure and dependency-free, so `api/_domains/intake-submit.ts` imports it too.
 
-export type SubmissionField = 'title' | 'costCentre' | 'deliveryDate';
+export type SubmissionField = 'title' | 'costCentre' | 'deliveryDate' | 'supplierOverrideReason';
 
 export interface SubmissionGap {
   field: SubmissionField;
@@ -22,6 +22,9 @@ export interface SubmissionInput {
   costCentre?: string | null;
   /** The need-by date, already parsed to YYYY-MM-DD — `null` when it could not be. */
   deliveryDate?: string | null;
+  /** The chosen supplier is outside the category's preferred list (isPreferredSupplierOverride). */
+  supplierOverride?: boolean;
+  supplierOverrideReason?: string | null;
 }
 
 /** A real calendar date in YYYY-MM-DD form. */
@@ -43,6 +46,9 @@ export function submissionGaps(input: SubmissionInput): SubmissionGap[] {
   if (blank(input.title)) gaps.push({ field: 'title', label: 'a title' });
   if (!isIsoCalendarDate(input.deliveryDate)) gaps.push({ field: 'deliveryDate', label: 'a need-by date' });
   if (blank(input.costCentre)) gaps.push({ field: 'costCentre', label: 'a cost centre' });
+  if (input.supplierOverride && blank(input.supplierOverrideReason)) {
+    gaps.push({ field: 'supplierOverrideReason', label: 'why this supplier rather than a preferred one' });
+  }
   return gaps;
 }
 

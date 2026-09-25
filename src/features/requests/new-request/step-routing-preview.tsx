@@ -25,6 +25,8 @@ interface StepRoutingPreviewProps {
   /** Determination signals that overlay conditional lifecycle steps. */
   riskAssessmentRequired: boolean;
   supplierOnboardingRequired: boolean;
+  /** The chosen supplier is outside the category's preferred list. */
+  supplierOverride?: boolean;
   additionalReviewers: string[];
   notes: string;
   onUpdate: (data: { additionalReviewers: string[]; notes: string }) => void;
@@ -44,10 +46,12 @@ export function StepRoutingPreview({
   workflowTemplateId,
   riskAssessmentRequired,
   supplierOnboardingRequired,
+  supplierOverride = false,
   additionalReviewers,
   notes,
   onUpdate,
 }: StepRoutingPreviewProps) {
+  const { preferredSupplierOverrideNeedsApproval } = usePolicyConfig();
   const { data: detailTemplate } = useWorkflowTemplate(workflowTemplateId || undefined);
   const { data: allTemplates = [] } = useWorkflowTemplates();
   const { data: chains = [] } = useApprovalChains();
@@ -84,7 +88,8 @@ export function StepRoutingPreview({
   // procurement-manager collapsed to a single name — a promise the request did
   // not keep, and the reason the screen could name someone nobody could act as.
   const { data: derived = [] } = useDerivedApprovers(
-    { requestId: 'preview', category },
+    // The same derivation submit runs, override step included, so the preview is the promise.
+    { requestId: 'preview', category, supplierOverride: supplierOverride && preferredSupplierOverrideNeedsApproval },
     approvalChain?.id,
   );
   const approvers = useMemo(

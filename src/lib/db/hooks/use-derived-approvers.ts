@@ -16,7 +16,7 @@ export function useDerivedApprovers(
   chainId: string | undefined,
 ) {
   return useQuery<DerivedApproval[]>({
-    queryKey: ['derived-approvers', chainId, context?.category, context?.contractId, context?.costCentre],
+    queryKey: ['derived-approvers', chainId, context?.category, context?.contractId, context?.costCentre, context?.supplierOverride],
     queryFn: () => deriveApprovalsFor(db, context as ApprovalRequestContext, chainId),
     enabled: Boolean(context && chainId),
     // Nobody has been asked yet, so there is nothing to keep fresh; this only

@@ -56,6 +56,8 @@ interface StepComplianceProps {
   supplierProvenance?: 'named' | 'chosen';
   /** Choosing a supplier. This step is the only place it happens. */
   onSelectSupplier?: (supplier: Supplier) => void;
+  supplierOverrideReason?: string;
+  onSupplierOverrideReasonChange?: (reason: string) => void;
   supplierCandidateIds?: readonly string[];
   onToggleSupplierCandidate?: (supplier: Supplier) => void;
   supplierIntent?: 'named' | 'to-be-sourced';
@@ -127,6 +129,8 @@ export function StepCompliance({
   qualityScore,
   supplierProvenance,
   onSelectSupplier,
+  supplierOverrideReason,
+  onSupplierOverrideReasonChange,
   supplierCandidateIds,
   onToggleSupplierCandidate,
   supplierIntent,
@@ -737,6 +741,8 @@ export function StepCompliance({
         onToggleCandidate={onToggleSupplierCandidate}
         intent={supplierIntent}
         onIntentChange={onSupplierIntentChange}
+        overrideReason={supplierOverrideReason}
+        onOverrideReasonChange={onSupplierOverrideReasonChange}
       /></>}
 
       {/* The workflow is PRE-DEFINED from the input (derived by category in the

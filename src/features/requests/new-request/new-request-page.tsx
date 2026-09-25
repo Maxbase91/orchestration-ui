@@ -59,6 +59,8 @@ import { getProcurementProfile } from '@/lib/db/procurement-profiles';
 import { evaluateGovernedCheckout, resolveCheckoutRiskAssessment, resolveCheckoutContract } from '@/lib/procurement/governed-checkout';
 import { submitGovernedCheckout } from '@/lib/procurement/submit-governed-checkout';
 import { submitIntake } from '@/lib/procurement/submit-intake';
+import { usePreferredSupplierIds } from '@/lib/db/hooks/use-category-preferred-suppliers';
+import { isPreferredSupplierOverride } from '@/lib/procurement/supplier-preference';
 import { CatalogueOrderCheckout, type CatalogueOrderDraft } from '@/features/catalogue/catalogue-order-checkout';
 import { ContractCallOffCheckout, type ContractCallOffDraft } from './contract-call-off-checkout';
 
@@ -291,8 +293,10 @@ export function NewRequestPage() {
   // Named, not counted: a requester staring at a disabled button needs to know
   // which. The submission gaps are the server's own list; a slot the assistant
   // is still going to ask about is left to the assistant rather than named twice.
+  // Decides whether the chosen supplier is an override that owes a reason.
+  const preferredSupplierIds = usePreferredSupplierIds(formData.category);
   const outstandingFields = new Set<string>(outstanding.map((slot) => slot.target.field));
-  const gapsToName = detailsSubmissionGaps(formData).filter((gap) => !outstandingFields.has(gap.field));
+  const gapsToName = detailsSubmissionGaps(formData, preferredSupplierIds).filter((gap) => !outstandingFields.has(gap.field));
   // Where each is entered depends on the path: the form path asks for the title
   // and date in the form itself; the conversation path has them in Key facts.
   // The cost centre is under Charged to on both.
@@ -301,7 +305,9 @@ export function NewRequestPage() {
     ...gapsToName.filter((gap) => formFields.has(gap.field)).map((gap) => gap.label),
     !(formData.estimatedValue > 0) ? 'an estimated value' : null,
   ].filter((field): field is string => Boolean(field));
-  const whereEntered = (field: string) => (field === 'costCentre' ? 'Charged to' : 'Key facts');
+  const whereEntered = (field: string) => (
+    field === 'costCentre' ? 'Charged to' : field === 'supplierOverrideReason' ? 'Supplier' : 'Key facts'
+  );
   const gapsOutsideForm = gapsToName.filter((gap) => !formFields.has(gap.field));
 
   const wizardSteps = progressStepsForRoute(route);
@@ -317,6 +323,7 @@ export function NewRequestPage() {
       conversationCtx,
       conversationSlots: [...conversationSlots, ...riskSlots],
       hasDetermination: determination !== null,
+      preferredSupplierIds,
     });
 
   // Catalogue orders use the same governed endpoint as Simple mode. The
@@ -483,6 +490,8 @@ export function NewRequestPage() {
             category: formData.category as RequestCategory, status: 'intake',
             priority: formData.isUrgent ? 'urgent' : 'medium', value: formData.estimatedValue,
             currency: formData.currency, supplierId: formData.supplierId, contractId: formData.contractId || undefined,
+            // Advisory: the server recomputes the override and keeps the reason only if there was one.
+            supplierOverrideReason: formData.supplierOverrideReason.trim() || undefined,
             workflowTemplateId: formData.workflowTemplateId || undefined,
             buyingChannel: (determination?.buyingChannelSlug ?? 'procurement-led') as BuyingChannel,
             approvalChain: determination?.approvalChain, sourcingType: determination?.sourcingType.type,
@@ -920,6 +929,8 @@ export function NewRequestPage() {
               })
             }
             supplierCandidateIds={formData.supplierCandidateIds}
+            supplierOverrideReason={formData.supplierOverrideReason}
+            onSupplierOverrideReasonChange={(reason) => updateFormData({ supplierOverrideReason: reason })}
             onToggleSupplierCandidate={(sup) =>
               updateFormData({
                 supplierIntent: 'named',
@@ -954,6 +965,7 @@ export function NewRequestPage() {
             workflowTemplateId={formData.workflowTemplateId}
             riskAssessmentRequired={determination?.riskAssessmentRequired ?? false}
             supplierOnboardingRequired={determination?.supplierOnboardingRequired ?? false}
+            supplierOverride={isPreferredSupplierOverride(formData.supplierId, preferredSupplierIds)}
             additionalReviewers={formData.additionalReviewers}
             notes={formData.notes}
             onUpdate={(d) => updateFormData(d)}

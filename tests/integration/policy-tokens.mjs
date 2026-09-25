@@ -74,6 +74,11 @@ if (!/NUMERIC_POLICY_KEYS\.map/.test(page)) {
   bad('FIELDS is derived from NUMERIC_POLICY_KEYS',
     'a hand-maintained array is how delegatedAuthorityThreshold became uneditable');
 } else ok('FIELDS is a view over the shared key metadata');
+const booleanKeys = Object.entries(DEFAULT_POLICY_CONFIG).filter(([, v]) => typeof v === 'boolean').map(([k]) => k);
+const noSwitch = booleanKeys.filter((k) => !page.includes(`id="cfg-${k}"`));
+if (noSwitch.length) bad('every on/off key is a switch on the page', `${noSwitch.join(', ')} has no editor`);
+else if (!/for \(const key of BOOLEAN_KEYS\)/.test(page)) bad('saving covers every on/off key', 'a switch named by hand is the next one saving forgets');
+else ok(`${booleanKeys.length} on/off keys, each a switch, and saving covers them all`);
 const unrendered = CATEGORY_LIST_POLICY_KEYS.filter((k) => !page.includes(`policyKey="${k}"`));
 if (unrendered.length) bad('every category-list key renders as a checklist', `${unrendered.join(', ')} has no editor`);
 else if (!/for \(const key of CATEGORY_LIST_POLICY_KEYS\)/.test(page)) bad('saving covers every category-list key', 'a list named by hand is the next one saving forgets');

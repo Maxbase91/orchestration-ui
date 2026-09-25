@@ -211,7 +211,9 @@ try {
   // and the competitive-sourcing exemptions were a literal in code.
   console.log('\nCategory-list thresholds are checklists of the configured categories');
   await page.goto(`${BASE}/admin/thresholds`, { waitUntil: 'networkidle' });
-  await page.getByText('Competitive sourcing', { exact: true }).waitFor({ timeout: 20000 });
+  await page.getByText('Supplier choice', { exact: true }).waitFor({ timeout: 20000 });
+  check('the override approval is a switch on the page, on by default',
+    await page.locator('#cfg-preferredSupplierOverrideNeedsApproval').getAttribute('data-state') === 'checked');
   check('the exempt categories are a checklist of configured categories',
     (await page.getByLabel('Exempt from competitive quotes: Consulting', { exact: true }).count()) === 1);
   // The shipped default names contingent-labour, which this store has no row

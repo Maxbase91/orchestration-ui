@@ -1319,6 +1319,12 @@ ALTER TABLE requests ADD COLUMN IF NOT EXISTS risk_assessment_required BOOLEAN N
 ALTER TABLE requests ADD COLUMN IF NOT EXISTS screening_outcome TEXT;
 ALTER TABLE requests ADD COLUMN IF NOT EXISTS referral_disposition TEXT;
 
+-- Why the requester chose a supplier outside the category's preferred list.
+-- Written by intake-submit only when it found such an override (it recomputes
+-- the override from category_preferred_suppliers), so a value here is the
+-- record that one was made. Null for every request that stayed on the list.
+ALTER TABLE requests ADD COLUMN IF NOT EXISTS supplier_override_reason TEXT;
+
 CREATE INDEX IF NOT EXISTS requests_risk_idx
   ON requests(risk_assessment_required, inherent_risk_tier);
 

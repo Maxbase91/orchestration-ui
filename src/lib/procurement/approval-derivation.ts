@@ -125,6 +125,21 @@ export function withContractOwnerStep(steps: ChainStep[], route: string | null |
 }
 
 /**
+ * A supplier chosen outside the category's preferred list is the category
+ * manager's to agree to (when Decisioning thresholds say so).
+ *
+ * Added the way the contract owner is: the value-banded chains know nothing of
+ * the supplier choice. A chain that already asks the category manager is left
+ * alone — one approval from them covers both questions, and the reason is on
+ * the request beside the supplier for them to read.
+ */
+export function withSupplierOverrideStep(steps: ChainStep[], supplierOverride: boolean | null | undefined): ChainStep[] {
+  if (!supplierOverride) return steps;
+  if (steps.some((step) => step.role === 'Category Manager')) return steps;
+  return [{ id: 'supplier-override', role: 'Category Manager' }, ...steps];
+}
+
+/**
  * Turn a chain's steps into the approval entries a request needs.
  *
  * A step resolves to a person when the records name one — an admin-configured

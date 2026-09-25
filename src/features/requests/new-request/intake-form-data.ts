@@ -112,6 +112,12 @@ export interface IntakeFormData {
    */
   supplierCandidateIds: string[];
   /**
+   * Why this supplier rather than one on the category's preferred list. Asked
+   * only when the chosen supplier is outside a non-empty list; the server
+   * recomputes that and refuses a submit without it.
+   */
+  supplierOverrideReason: string;
+  /**
    * Whether a supplier is named at all.
    *
    * `to-be-sourced` is an explicit choice, not an empty field. Leaving the
@@ -211,6 +217,7 @@ export const INITIAL_INTAKE_DATA: IntakeFormData = {
   supplier: '',
   supplierId: '',
   supplierCandidateIds: [],
+  supplierOverrideReason: '',
   supplierIntent: 'named',
   estimatedValue: 0,
   currency: 'EUR',
