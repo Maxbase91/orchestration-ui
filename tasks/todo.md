@@ -41,9 +41,10 @@ call-offs and trusted the browser's channel; 13 live requests re-pointed.
 - [x] Categories: preferred suppliers per category; supplier tags per category
       (replaces the recommender's hard-coded keyword map).
 - [x] Categories: commodity codes per category (replaces category-code.ts tables).
+- [x] Service description: per-category writing guidance (was CATEGORY_GUIDANCE
+      in generate-sow, invisible to the admin).
 - [ ] Service description: front-door prompt, examples and door copy; the
-      "one detail decides it" question; residual risk question wording;
-      per-category writing guidance (replaces CATEGORY_GUIDANCE in generate-sow).
+      "one detail decides it" question; residual risk question wording.
 - [x] Decisioning thresholds: competitive-sourcing exempt categories (was a
       code default in supplier-preference.ts); category lists as checklists.
 - [x] Decisioning thresholds: direct call-off limit (wired into the call-off

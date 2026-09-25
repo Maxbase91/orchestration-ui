@@ -35,7 +35,7 @@ import type {
 } from '@/lib/procurement/service-description-config';
 import { diagnoseSlotConditions } from '@/lib/procurement/service-description-config';
 import { usePolicyConfig } from '@/lib/procurement/use-policy-config';
-import { DEFAULT_TEMPLATE, renderSystemPrompt } from '@/lib/procurement/service-description-defaults';
+import { DEFAULT_TEMPLATE, renderSystemPrompt, builtInGuidanceFor } from '@/lib/procurement/service-description-defaults';
 
 /** A new row starts from the built-in so an admin edits rather than authors. */
 function blankTemplate(category: string, label: string): ServiceDescriptionTemplate {
@@ -191,17 +191,31 @@ export function ServiceDescriptionPage() {
         <CardHeader><CardTitle className="text-base">Generation prompt</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-1.5">
-            <Label className="text-xs">Category guidance</Label>
+            <div className="flex items-center justify-between gap-2">
+              <Label htmlFor="sd-category-guidance" className="text-xs">Category guidance</Label>
+              {/* The built-in text was in the generation route, invisible here
+                  while the help said "leave empty to use the built-in". It is
+                  shown in the empty field, and can be taken as a starting point. */}
+              {!current.categoryGuidance.trim() && (
+                <Button type="button" variant="ghost" size="sm" className="h-6 text-xs"
+                  onClick={() => patch({ categoryGuidance: builtInGuidanceFor(current.category).trim() })}>
+                  Edit the built-in text
+                </Button>
+              )}
+            </div>
             <Textarea
+              id="sd-category-guidance"
               rows={8}
               className="font-mono text-xs"
               value={current.categoryGuidance}
               onChange={(e) => patch({ categoryGuidance: e.target.value })}
-              placeholder="Per-section drafting guidance for this category…"
+              placeholder={builtInGuidanceFor(current.category).trim()}
             />
             <p className="text-xs text-muted-foreground">
-              Interpolated into the system prompt at <code>{'{{guidance}}'}</code>. Leave empty to use
-              the built-in guidance for this category.
+              Interpolated into the system prompt at <code>{'{{guidance}}'}</code>.
+              {current.categoryGuidance.trim()
+                ? ' This category uses the text above.'
+                : ' Empty, so the built-in guidance shown in the field is used.'}
             </p>
           </div>
           <div className="space-y-1.5">

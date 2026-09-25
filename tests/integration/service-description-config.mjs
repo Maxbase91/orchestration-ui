@@ -29,7 +29,7 @@ import {
 } from '../../src/lib/procurement/service-description-config.ts';
 import {
   DEFAULT_TEMPLATE, DEFAULT_SECTIONS, DEFAULT_SLOTS, DEFAULT_NARRATIVE_SECTIONS,
-  DEFAULT_SOURCING_CRITERIA, buildOutputFormat,
+  DEFAULT_SOURCING_CRITERIA, buildOutputFormat, renderSystemPrompt, builtInGuidanceFor, BUILT_IN_CATEGORY_GUIDANCE,
 } from '../../src/lib/procurement/service-description-defaults.ts';
 import { seedRequirementsFromDescription } from '../../src/lib/procurement/service-description-seed.ts';
 import {
@@ -282,6 +282,24 @@ check('the seeded criteria total 100',
     !/'risk'/.test(configSource.slice(start, start + 600)));
   const defaults = readFileSync(new URL('../../src/lib/procurement/service-description-defaults.ts', import.meta.url), 'utf8');
   check('no default slot is a risk question', !/privileged-access|critical-service/.test(defaults));
+}
+
+// ── The built-in drafting guidance is visible, not hidden in the route ─────
+// It lived in api/generate-sow.ts, where the admin tab could not show it while
+// its help said "leave empty to use the built-in guidance".
+console.log('\nBuilt-in category guidance');
+{
+  const route = readFileSync(new URL('../../api/generate-sow.ts', import.meta.url), 'utf8');
+  check('the generation route keeps no guidance of its own', !/CATEGORY_GUIDANCE\s*[:=]/.test(route) && /builtInGuidanceFor\(category\)/.test(route));
+  check('a category with its own entry gets it', builtInGuidanceFor('consulting') === BUILT_IN_CATEGORY_GUIDANCE.consulting);
+  check('a category with none (incl. one added in Admin) gets the general text', builtInGuidanceFor('research-services') === BUILT_IN_CATEGORY_GUIDANCE.default);
+  const rendered = renderSystemPrompt({ ...DEFAULT_TEMPLATE, category: 'consulting', categoryGuidance: '', systemPrompt: 'X {{guidance}} Y' });
+  check('an empty field renders the built-in text, as the server sends it', rendered.includes(BUILT_IN_CATEGORY_GUIDANCE.consulting.trim().slice(0, 40)));
+  const own = renderSystemPrompt({ ...DEFAULT_TEMPLATE, category: 'consulting', categoryGuidance: 'OWN TEXT', systemPrompt: 'X {{guidance}} Y' });
+  check('an admin\u2019s own guidance replaces it', own === 'X OWN TEXT Y');
+  const page = readFileSync(new URL('../../src/features/admin/service-description-page.tsx', import.meta.url), 'utf8');
+  check('the tab shows the built-in text and offers it to edit',
+    /placeholder=\{builtInGuidanceFor\(current\.category\)\.trim\(\)\}/.test(page) && /Edit the built-in text/.test(page));
 }
 
 console.log(failures === 0 ? '\n\x1b[32mAll checks passed\x1b[0m' : `\n\x1b[31m${failures} check(s) failed\x1b[0m`);

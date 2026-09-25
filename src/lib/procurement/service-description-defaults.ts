@@ -230,13 +230,78 @@ export function buildOutputFormat(sections: ConfiguredSection[]): string {
   return `{\n  "sections": {\n${lines}\n  },\n  "narrative": "<3–4 paragraph executive summary synthesising the full SOW>"\n}`;
 }
 
+// ── Built-in drafting guidance, per category ────────────────────────────────
+//
+// What the model is told about writing each section when the category's row in
+// /admin/service-description leaves its guidance empty. It lived in
+// api/generate-sow.ts, where no admin could see it — the tab said "leave empty
+// to use the built-in guidance" and showed nothing. The tab now shows this
+// text for any category whose own guidance is empty.
+export const BUILT_IN_CATEGORY_GUIDANCE: Record<string, string> = {
+  consulting: `
+- Objective: frame the business problem, strategic context, and success criteria (2–3 sentences).
+- Scope: define engagement boundaries, included/excluded work streams, and geography.
+- Deliverables: numbered list of tangible outputs (reports, designs, prototypes, workshops, roadmaps).
+- Timeline: phased schedule — Discovery / Analysis / Design / Implementation / Handover — with durations.
+- Resources: supplier team composition (Partner, Director, Senior Consultant, Analyst) + client-side RACI.
+- Acceptance Criteria: measurable KPIs (e.g., "Target Operating Model approved by ExCo", "ROI modelled ≥3x", "Roadmap validated by 3 business units").
+- Pricing Model: T&M-with-cap or fixed-fee-per-phase; specify rate card bands if T&M.
+- Dependencies: client data access, sponsor commitment, steering committee cadence.`,
+
+  services: `
+- Objective: operational need and service outcome (e.g., "maintain site cleanliness to ISO 9001 standard").
+- Scope: locations, frequency, coverage hours, exclusions.
+- Deliverables: regular service output — e.g., "Daily clean Mon–Fri", "Monthly compliance report".
+- Timeline: contract start/end, mobilisation period, review milestones.
+- Resources: FTE/headcount, supervisor, client contact.
+- Acceptance Criteria: measurable SLAs (response times, KPIs, audit scores, customer satisfaction).
+- Pricing Model: monthly fixed fee, rate card, or activity-based; include CPI uplift clause.
+- Dependencies: site access, client onboarding checklist, incumbent transition.`,
+
+  software: `
+- Objective: business capability being unlocked (e.g., "replace legacy ERP with cloud-native platform").
+- Scope: modules/features in scope, user count, integrations, data migration.
+- Deliverables: licences/subscriptions, implementation, training, documentation, SLAs.
+- Timeline: procurement → contract → onboarding → go-live → hypercare.
+- Resources: vendor CSM, implementation partner, client IT owner.
+- Acceptance Criteria: UAT sign-off, security review passed, uptime SLA (e.g., 99.9%), data protection addendum signed.
+- Pricing Model: per-seat SaaS, enterprise licence, or consumption-based; renewal terms.
+- Dependencies: IT architecture approval, DPA, infosec review, SSO integration.`,
+
+  goods: `
+- Objective: physical need and business justification.
+- Scope: item specification, quantity, quality standards (ISO, CE, etc.).
+- Deliverables: numbered list of SKUs with specifications and quantities.
+- Timeline: order → lead time → delivery → inspection → acceptance.
+- Resources: procurement contact, receiving warehouse, QA inspector.
+- Acceptance Criteria: items match spec, pass incoming inspection, delivered to location by date.
+- Pricing Model: unit price, volume discount thresholds, Incoterms (DDP/DAP).
+- Dependencies: warehouse availability, import/customs requirements.`,
+
+  default: `
+- Write each section as a professional, specific, multi-sentence paragraph.
+- Deliverables must be a numbered list.
+- Acceptance Criteria must include at least 2 measurable KPIs or pass/fail tests.
+- Timeline must reference phases or milestones, not just a single date.
+- Pricing Model must state the commercial structure (fixed, T&M, subscription, etc.).`,
+};
+
+/**
+ * The built-in guidance for a category, else the general one. A category added
+ * in Admin → Categories has no entry and gets `default` — which the tab shows,
+ * rather than the model quietly receiving text nobody chose.
+ */
+export function builtInGuidanceFor(category: string | undefined): string {
+  return (category && BUILT_IN_CATEGORY_GUIDANCE[category]) || BUILT_IN_CATEGORY_GUIDANCE.default!;
+}
+
 /** Interpolate the guidance and output format into a template's system prompt. */
 export function renderSystemPrompt(
   template: ServiceDescriptionTemplate,
   signalsBlock = '',
 ): string {
   return template.systemPrompt
-    .replace('{{guidance}}', template.categoryGuidance || '(no category-specific guidance configured)')
+    .replace('{{guidance}}', template.categoryGuidance || builtInGuidanceFor(template.category))
     // Empty when the caller has no signals — an admin template that omits the
     // placeholder still renders, and a template that includes it never shows a
     // raw `{{signals}}` to the model.

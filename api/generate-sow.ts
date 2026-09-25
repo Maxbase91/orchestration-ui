@@ -6,60 +6,10 @@ import {
   requiredSectionsFor,
 } from '../src/lib/procurement/service-description-config.js';
 import { loadPolicyConfig } from './_policy.js';
-import { renderSystemPrompt } from '../src/lib/procurement/service-description-defaults.js';
+import { renderSystemPrompt, builtInGuidanceFor } from '../src/lib/procurement/service-description-defaults.js';
 
 export const config = { maxDuration: 60 };
 
-// ── Category-specific guidance ────────────────────────────────────────────────
-
-const CATEGORY_GUIDANCE: Record<string, string> = {
-  consulting: `
-- Objective: frame the business problem, strategic context, and success criteria (2–3 sentences).
-- Scope: define engagement boundaries, included/excluded work streams, and geography.
-- Deliverables: numbered list of tangible outputs (reports, designs, prototypes, workshops, roadmaps).
-- Timeline: phased schedule — Discovery / Analysis / Design / Implementation / Handover — with durations.
-- Resources: supplier team composition (Partner, Director, Senior Consultant, Analyst) + client-side RACI.
-- Acceptance Criteria: measurable KPIs (e.g., "Target Operating Model approved by ExCo", "ROI modelled ≥3x", "Roadmap validated by 3 business units").
-- Pricing Model: T&M-with-cap or fixed-fee-per-phase; specify rate card bands if T&M.
-- Dependencies: client data access, sponsor commitment, steering committee cadence.`,
-
-  services: `
-- Objective: operational need and service outcome (e.g., "maintain site cleanliness to ISO 9001 standard").
-- Scope: locations, frequency, coverage hours, exclusions.
-- Deliverables: regular service output — e.g., "Daily clean Mon–Fri", "Monthly compliance report".
-- Timeline: contract start/end, mobilisation period, review milestones.
-- Resources: FTE/headcount, supervisor, client contact.
-- Acceptance Criteria: measurable SLAs (response times, KPIs, audit scores, customer satisfaction).
-- Pricing Model: monthly fixed fee, rate card, or activity-based; include CPI uplift clause.
-- Dependencies: site access, client onboarding checklist, incumbent transition.`,
-
-  software: `
-- Objective: business capability being unlocked (e.g., "replace legacy ERP with cloud-native platform").
-- Scope: modules/features in scope, user count, integrations, data migration.
-- Deliverables: licences/subscriptions, implementation, training, documentation, SLAs.
-- Timeline: procurement → contract → onboarding → go-live → hypercare.
-- Resources: vendor CSM, implementation partner, client IT owner.
-- Acceptance Criteria: UAT sign-off, security review passed, uptime SLA (e.g., 99.9%), data protection addendum signed.
-- Pricing Model: per-seat SaaS, enterprise licence, or consumption-based; renewal terms.
-- Dependencies: IT architecture approval, DPA, infosec review, SSO integration.`,
-
-  goods: `
-- Objective: physical need and business justification.
-- Scope: item specification, quantity, quality standards (ISO, CE, etc.).
-- Deliverables: numbered list of SKUs with specifications and quantities.
-- Timeline: order → lead time → delivery → inspection → acceptance.
-- Resources: procurement contact, receiving warehouse, QA inspector.
-- Acceptance Criteria: items match spec, pass incoming inspection, delivered to location by date.
-- Pricing Model: unit price, volume discount thresholds, Incoterms (DDP/DAP).
-- Dependencies: warehouse availability, import/customs requirements.`,
-
-  default: `
-- Write each section as a professional, specific, multi-sentence paragraph.
-- Deliverables must be a numbered list.
-- Acceptance Criteria must include at least 2 measurable KPIs or pass/fail tests.
-- Timeline must reference phases or milestones, not just a single date.
-- Pricing Model must state the commercial structure (fixed, T&M, subscription, etc.).`,
-};
 
 // ── Quality checks ────────────────────────────────────────────────────────────
 
@@ -181,12 +131,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     mock = false,
   } = req.body ?? {};
 
-  // The admin-configured template wins; CATEGORY_GUIDANCE below is the built-in
-  // fallback, still used when no row has been configured for this category.
-  // Note `contingent-labour` is a live category with no CATEGORY_GUIDANCE entry,
-  // so it has always silently fallen through to `default` — a row fixes that.
+  // The admin-configured guidance wins; the built-in text is the fallback, and
+  // the Service description tab shows it, so what the model is told is never
+  // text an admin cannot see. Resolved by the REQUESTED category: with no row
+  // the template is the built-in `default`, which would pick the wrong text.
   const template = await getServiceDescriptionTemplate(category);
-  const guidance = template.categoryGuidance || CATEGORY_GUIDANCE[category] || CATEGORY_GUIDANCE.default!;
+  const guidance = template.categoryGuidance || builtInGuidanceFor(category);
   const resolved = { ...template, categoryGuidance: guidance };
 
   // Which sections this demand's governance read makes mandatory. Config, not a

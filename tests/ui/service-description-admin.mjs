@@ -117,6 +117,15 @@ try {
     previewText.length > 100 && !previewText.includes('{{guidance}}'),
     previewText.slice(0, 80));
 
+  // The built-in guidance was invisible here while the help said empty "uses the
+  // built-in"; it is shown in the empty field and can be taken to edit.
+  const guidance = page.locator('#sd-category-guidance');
+  check('an empty guidance field shows the built-in text',
+    ((await guidance.getAttribute('placeholder')) ?? '').includes('Deliverables'));
+  await page.getByRole('button', { name: 'Edit the built-in text' }).click();
+  check('…and "Edit the built-in text" puts it in the field',
+    (await guidance.inputValue()).includes('Deliverables'));
+
   // Weights that do not total 100 block publishing in the sourcing wizard, so
   // the total is shown here where it is edited rather than discovered later.
   check('criteria weights show a running total',
