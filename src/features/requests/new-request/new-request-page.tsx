@@ -203,17 +203,13 @@ export function NewRequestPage() {
     }
   }, [users, currentUser.id, formData.requesterCountry]);
 
-  // Deep links — the home box, the command bar's legacy `step=2` link, and the
-  // return trip from a catalogue item's detail page. Parsing is pure and lives
-  // in `intake-deep-link.ts`; this only applies the result once its data has
+  // Deep links — the words from the Home box or the assistant, and the return
+  // trip from a catalogue item's detail page. Parsing is pure and lives in
+  // `intake-deep-link.ts`; this only applies the result once its data has
   // loaded and clears the params so a refresh does not replay it.
   const { prefill: categoryPrefill } = useIntakeDeepLink({
     suppliers,
     catalogueItems,
-    onDemand: (link) => {
-      setFormData((prev) => ({ ...prev, ...link.patch }));
-      setStepId(link.step);
-    },
     onCatalogueOrder: (link) => {
       setFormData((prev) => ({ ...prev, ...link.patch }));
       setCatalogueOrder(link.order);

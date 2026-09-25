@@ -178,6 +178,35 @@ try {
   await homeAnswer.getByText(/Nothing is waiting on you|Approvals waiting on you/).waitFor({ timeout: 15000 });
   check('the example questions answer too', (await homeAnswer.getByText('A status question').count()) === 1);
 
+  // The assistant takes the same route (lib/assistant/question-route.ts). It
+  // had a router of its own, so the same question got a card on Home and the
+  // model's paraphrase — or a guess — in the chat.
+  console.log('\nThe assistant answers the way the Home box does');
+  await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
+  await page.getByRole('button', { name: 'Open AI assistant' }).click();
+  const chatBox = page.getByRole('textbox', { name: 'Message the assistant' });
+  await chatBox.waitFor({ timeout: 15000 });
+  await chatBox.fill('where is REQ-2026-00077?');
+  await chatBox.press('Enter');
+  const chatStatus = page.getByTestId('chat-status-answer');
+  await chatStatus.waitFor({ timeout: 15000 });
+  check('a status question in the chat gets the status card',
+    (await chatStatus.getByText('REQ-2026-00077 · Team offsite venue').count()) === 1, await chatStatus.innerText());
+  // Every thread read "New conversation": the title was set only when the
+  // conversation existed before the first message, which is what creates it.
+  check('the conversation is named by the question that started it',
+    (await page.getByRole('button', { name: 'where is REQ-2026-00077?' }).count()) === 1);
+  await chatBox.fill('do I need three quotes for a €40,000 order?');
+  await chatBox.press('Enter');
+  const chatPolicy = page.getByTestId('chat-policy-answer');
+  await chatPolicy.waitFor({ timeout: 15000 });
+  check('a policy question gets the answer computed from the thresholds',
+    (await chatPolicy.getByText(/^Yes\. At €40,000 you need at least 3 competitive quotes/).count()) === 1, await chatPolicy.innerText());
+  await chatBox.fill('I want to buy 50 monitors for the trading floor');
+  await chatBox.press('Enter');
+  await page.getByRole('button', { name: /Start the request/ }).waitFor({ timeout: 15000 });
+  check('a demand is offered as New Request with its words', (await page.getByText('I want to buy 50 monitors for the trading floor').count()) >= 2);
+
   await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(500);
   // One home for every role. A requester's default widget layout is their own

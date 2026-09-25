@@ -155,7 +155,7 @@ was which.
 | 4.1.4 | As a **Requester**, I want each step to say what it is for and what follows. | A header panel per step: purpose, what you provide, what happens next — held in the same config as the step's order and gate. | 🟢 |
 | 4.1.5 | As a **Buyer**, I want the catalogue fast track to skip governance it does not need. | The catalogue route has no Review step: pre-approved, pre-priced items reach no determination, and none is manufactured to make the step counts match. | 🟢 |
 | 4.1.6 | As a **Developer**, I want step order to live in one place. | `intake-steps.ts` owns order, per-route applicability, gates and guidance. Renumbering used to mean editing five hand-synced places. | 🟢 |
-| 4.1.7 | As a **Developer**, I want deep links parsed where they can be tested. | `intake-deep-link.ts` is pure: the `?q=`, `?step=2&category=…` and `?catalogueItem=…` links parse without React, and the page no longer reads `searchParams` at all. Pinned by `test:unified-intake` and `test:assistant-intents`. | 🟢 |
+| 4.1.7 | As a **Developer**, I want deep links parsed where they can be tested. | `intake-deep-link.ts` is pure: the `?q=` and `?catalogueItem=…` links parse without React (the `?step=2&category=…` link was retired on 2026-09-25 with its last producer), and the page no longer reads `searchParams` at all. Pinned by `test:unified-intake` and `test:assistant-intents`. | 🟢 |
 
 ### Feature 4.2 — Risk, asked as questions
 

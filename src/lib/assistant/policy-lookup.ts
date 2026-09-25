@@ -14,15 +14,6 @@ export interface PolicyAnswer {
   topics: string[];
 }
 
-const QUESTION_START = /^\s*(do|does|did|can|could|may|must|should|shall|is|are|am|how|what|when|which|who|why|where)\b/i;
-// "Can I buy a laptop?" is a demand phrased as a question, not a policy query.
-const DEMAND_QUESTION = /^\s*(can|could|may) (i|we) (please )?(buy|order|get|purchase|have|procure)\b/i;
-
-/** Question-shaped and not a demand in disguise — worth trying as policy. */
-export function looksLikePolicyQuestion(text: string): boolean {
-  return (QUESTION_START.test(text) || text.trim().endsWith('?')) && !DEMAND_QUESTION.test(text);
-}
-
 /** Null when neither the configuration nor the knowledge base has anything to say. */
 export async function answerPolicyQuestion(text: string): Promise<PolicyAnswer | null> {
   const [pool, ctx] = await Promise.all([knowledgePool(), loadKnowledgeContextWith(db)]);

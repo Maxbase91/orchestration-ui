@@ -10,6 +10,7 @@ import { renderKnowledgeBody, stripKnowledgeTokens } from '../src/lib/procuremen
 import { TOOL_OBJECT, loadStatusContext, statusLookup, statusProjectList, roleFrom } from './_domains/status-answers.js';
 import type { Role } from '../src/config/roles.js';
 import { actionSubjects, describeAction } from './_action-description.js';
+import { startDemand, DEMAND_OFFERED } from '../src/lib/assistant/capabilities/intake.js';
 
 const db = new Proxy({} as NeonCompatibleClient, {
   get(_target, property: string | symbol) {
@@ -91,22 +92,14 @@ const TOOLS: GroqTool[] = [
     type: 'function',
     function: {
       name: 'start_demand',
+      // No arguments. It took a category from a list written here, plus a
+      // value and a supplier, and put them on the link — where intake ignored
+      // them and classified the requester's words itself. The link carries the
+      // words; classification happens once, in intake.
       description:
-        'Detect buy/procure intent and OFFER a pre-filled link to the New Request wizard. '
+        'Detect buy/procure intent and OFFER a link to New Request, opened with the requester\'s words. '
         + 'This creates nothing and submits nothing — the requester still has to complete and submit the request themselves.',
-      parameters: {
-        type: 'object',
-        properties: {
-          category: {
-            type: 'string',
-            description: 'Procurement category',
-            enum: ['goods', 'services', 'software', 'consulting', 'contingent-labour', 'catalogue'],
-          },
-          estimated_value: { type: 'string', description: 'Estimated value in EUR (number as string, optional)' },
-          supplier: { type: 'string', description: 'Preferred supplier name if known, optional' },
-        },
-        required: ['category'],
-      },
+      parameters: { type: 'object', properties: {} },
     },
   },
   {
@@ -530,9 +523,9 @@ export function claimsWorkAlreadyDone(text: string): boolean {
   return FALSE_COMPLETION_CLAIM.test(text);
 }
 
-/** What is actually true after `start_demand`, in one sentence. */
-export function demandOfferedMessage(category: string): string {
-  return `I've prepared a pre-filled ${category} request for you — open it below, add anything missing, and submit it when you're ready. Nothing is created or sent until you do.`;
+/** What is actually true after `start_demand` — the browser assistant's words too. */
+export function demandOfferedMessage(): string {
+  return DEMAND_OFFERED;
 }
 
 function isToolCallLeak(content: string): boolean {
@@ -573,10 +566,10 @@ function parseTextToolCall(content: string): ParsedTextToolCall | null {
         if (name === 'search_knowledge') args.query = pos[1];
         else if (name === 'lookup_object') args.identifier = pos[1];
         else if (name === 'filter_objects') args.object_type = pos[1];
-        else if (name === 'start_demand') args.category = pos[1];
       }
     }
-    if (Object.keys(args).length > 0) return { id, name, args };
+    // start_demand takes no arguments, so a bare call is a whole call.
+    if (Object.keys(args).length > 0 || name === 'start_demand') return { id, name, args };
   }
 
   // 2. JSON shapes: {"tool":"NAME","query":"..."} or {"name":"NAME","arguments":{...}}
@@ -714,9 +707,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let lookupType: string | null = null;
   let lookupIdentifier: string | null = null;
   let ticketCreated: string | null = null;
-  let demandCategory: string | null = null;
-  let demandValue: string | null = null;
-  let demandSupplier: string | null = null;
+  let demandOffered = false;
   let hadToolCalls = false;
 
   const MAX_ITERATIONS = 5;
@@ -832,20 +823,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
       }
 
-      if (demandCategory) {
-        const params = new URLSearchParams({ category: demandCategory });
-        if (demandValue) params.set('value', demandValue);
-        if (demandSupplier) params.set('supplier', demandSupplier);
-        // Carry the original demand text so the wizard's "Describe what you
-        // need" is pre-populated instead of starting blank.
-        const demandText = [...rawMessages].reverse().find((m) => m.role === 'user')?.content?.trim();
-        if (demandText) params.set('q', demandText.slice(0, 300));
-        structuralTurns.push({
-          type: 'deep-link',
-          label: 'Start New Request',
-          description: `Open the ${demandCategory} request wizard`,
-          path: `/requests/new?${params.toString()}`,
-        });
+      if (demandOffered) {
+        // The same link the browser assistant and the Home box build: New
+        // Request with the requester's words, classified once, there.
+        const demandText = [...rawMessages].reverse().find((m) => m.role === 'user')?.content?.trim() ?? '';
+        structuralTurns.push(...startDemand(demandText).filter((t) => t.type === 'deep-link'));
       }
 
       // SSE path with tool calls: emit result.content directly (already produced by the
@@ -856,8 +838,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const rawAnswer = stripTechnicalSourceMarkers(result.content?.trim() ?? '');
         // On the demand path the assistant has created nothing; a sentence
         // saying otherwise is replaced rather than sent.
-        const answerText = demandCategory && claimsWorkAlreadyDone(rawAnswer)
-          ? demandOfferedMessage(demandCategory)
+        const answerText = demandOffered && claimsWorkAlreadyDone(rawAnswer)
+          ? demandOfferedMessage()
           : rawAnswer;
         if (answerText && !isToolCallLeak(answerText)) {
           res.write(`data: ${JSON.stringify({ t: 'tok', c: answerText })}\n\n`);
@@ -871,8 +853,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Guard: suppress raw tool-call text that parseTextToolCall couldn't parse
       // (e.g. model wrote tool_calls.NAME(...) but we couldn't extract valid args).
       const rawText = stripTechnicalSourceMarkers(result.content?.trim() ?? '');
-      const grounded = demandCategory && claimsWorkAlreadyDone(rawText)
-        ? demandOfferedMessage(demandCategory)
+      const grounded = demandOffered && claimsWorkAlreadyDone(rawText)
+        ? demandOfferedMessage()
         : rawText;
       const text = isToolCallLeak(grounded) ? '' : grounded;
       const allTurns: unknown[] = [];
@@ -967,9 +949,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ticketCreated = ticketId;
         toolResult = JSON.stringify({ ticketId, created: true });
       } else if (toolName === 'start_demand') {
-        demandCategory = (args.category as string) ?? 'services';
-        demandValue = (args.estimated_value as string) ?? null;
-        demandSupplier = (args.supplier as string) ?? null;
+        demandOffered = true;
         // The result states what HAPPENED, not just that a link exists.
         // `{ deepLinkReady: true }` gave the model nothing to ground a final
         // sentence on, and it filled the gap by inventing one: "Your request
@@ -982,9 +962,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           created: false,
           submitted: false,
           routed: false,
-          offered: 'a pre-filled New Request form',
-          category: demandCategory,
-          nextStep: 'The requester opens the form, completes it, and submits it themselves.',
+          offered: "New Request, opened with the requester's words",
+          nextStep: 'The requester opens it, completes it, and submits it themselves.',
         });
       } else if (toolName === 'filter_objects') {
         toolResult = await execFilterObjects(

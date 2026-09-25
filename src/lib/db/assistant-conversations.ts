@@ -9,6 +9,7 @@
 // update did not, and nothing made that difference deliberate.
 import { db } from '@/lib/db-client';
 import type { ChatMessageData } from '@/data/types';
+import { NEW_CONVERSATION_TITLE } from '../assistant/conversation-title.js';
 
 const TABLE = 'assistant_conversations';
 
@@ -46,7 +47,7 @@ export async function listConversations(userId: string): Promise<AssistantConver
 export async function createConversation(userId: string): Promise<{ id: string; createdAt: string; updatedAt: string }> {
   const { data, error } = await db
     .from(TABLE)
-    .insert({ user_id: userId, title: 'New conversation', messages: [] })
+    .insert({ user_id: userId, title: NEW_CONVERSATION_TITLE, messages: [] })
     .select('id, created_at, updated_at')
     .single();
   if (error) throw error;

@@ -43,7 +43,7 @@ Decisions taken (2026-09-25):
 6. [x] Delivery locations, SLA targets → ticket SLAs, thresholds "used by" (+ catalogue auto-approval boundary aligned)
 7. [x] Service description seeded; unused forms deleted (+ inheriting categories show the stored default)
 8. [x] Help knowledge base from the knowledge base table (+ breadcrumbs from the navigation)
-9. [ ] AI assistant on the Home route (+ conversation titles)
+9. [x] AI assistant on the Home route (+ conversation titles; Home box off /api/ai; legacy step=2 link retired)
 10. [ ] Docs: the Admin map (what each item is for, what reads it)
 11. [ ] Mockups implementation — plan, then build
 

@@ -33,7 +33,7 @@ const check = (label, ok, detail = '') => {
 console.log('\nA catalogue match goes to the governed checkout, not straight to an order');
 
 check('the command bar navigates to the item-detail screen',
-  SOURCE.includes('navigate(`/catalogue/items/${encodeURIComponent(primary.id)}`)'));
+  SOURCE.includes('go(`/catalogue/items/${encodeURIComponent(item.id)}`)'));
 
 // The regression this guards against is the old behaviour returning: writing a
 // request from the browser skips the server-side recompute, the policy gate and

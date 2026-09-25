@@ -7,6 +7,11 @@ import { TurnChatAnswer } from './turn-chat-answer';
 import { TurnDeepLink } from './turn-deep-link';
 import { TurnConfirm } from './turn-confirm';
 import { TurnSuggestionChips } from './turn-suggestion-chips';
+import { StatusAnswerView } from '@/components/shared/status-answer-view';
+import { PolicyAnswerView } from '@/components/shared/policy-answer-view';
+
+/** The surface a routed answer sits on — the same card a chat answer uses. */
+const ANSWER_CARD = 'rounded-[18px] rounded-tl-[4px] bg-card border border-line-2 shadow-sm px-4 py-3';
 
 interface MessagePaneProps {
   messages: ChatMessageData[];
@@ -16,6 +21,8 @@ interface MessagePaneProps {
   onLinkClick: (path: string) => void;
   onConfirmAction: (turn: ConfirmTurn) => void;
   onCancelConfirm: () => void;
+  /** A record opened from a status answer — the overlay closes itself. */
+  onRecordOpen?: () => void;
 }
 
 function renderTurns(
@@ -25,6 +32,7 @@ function renderTurns(
   onConfirmAction: (t: ConfirmTurn) => void,
   onCancelConfirm: () => void,
   isTyping: boolean,
+  onRecordOpen?: () => void,
 ) {
   if (!msg.turns || msg.turns.length === 0) {
     const text = msg.content || "I couldn't generate a response — please try again.";
@@ -66,6 +74,18 @@ function renderTurns(
             return (
               <div key={i} className="animate-msg-in" style={delay}>
                 <TurnSuggestionChips turn={turn} onChipClick={onSuggestionClick} />
+              </div>
+            );
+          case 'status-answer':
+            return (
+              <div key={i} className={`animate-msg-in ${ANSWER_CARD}`} style={delay} data-testid="chat-status-answer">
+                <StatusAnswerView answer={turn.answer} onNavigate={onRecordOpen} />
+              </div>
+            );
+          case 'policy-answer':
+            return (
+              <div key={i} className={`animate-msg-in ${ANSWER_CARD}`} style={delay} data-testid="chat-policy-answer">
+                <PolicyAnswerView answer={turn.answer} />
               </div>
             );
           default:
@@ -140,6 +160,7 @@ export function MessagePane({
   onLinkClick,
   onConfirmAction,
   onCancelConfirm,
+  onRecordOpen,
 }: MessagePaneProps) {
   const [hoveredMsgId, setHoveredMsgId] = useState<string | null>(null);
 
@@ -177,7 +198,7 @@ export function MessagePane({
                 </div>
               ) : (
                 <>
-                  {renderTurns(msg, onSuggestionClick, onLinkClick, onConfirmAction, onCancelConfirm, isTyping)}
+                  {renderTurns(msg, onSuggestionClick, onLinkClick, onConfirmAction, onCancelConfirm, isTyping, onRecordOpen)}
                   {hoveredMsgId === msg.id && msg.id !== 'welcome' && (
                     <FeedbackButtons messageId={msg.id} />
                   )}

@@ -311,3 +311,18 @@ export function deniedAnswer(object: StatusObject): StatusAnswer {
 export function notFoundAnswer(object: StatusObject, what: string): StatusAnswer {
   return { kind: 'not-found', object, message: `No ${STATUS_OBJECT_META[object].label.toLowerCase()} ${what} that you can see.` };
 }
+
+/**
+ * An answer as text, for the model's view of the conversation so far: a
+ * status card the assistant showed is context for the next question ("and
+ * who approves it?"), and the model reads text, not cards.
+ */
+export function statusAnswerText(answer: StatusAnswer): string {
+  const item = (i: StatusItem) => [i.title, ...i.facts.map((f) => `${f.label}: ${f.value}`)].join(' — ');
+  if (answer.kind === 'record') return item(answer.item);
+  if (answer.kind === 'list') {
+    if (answer.items.length === 0) return `${answer.heading}: none.`;
+    return [`${answer.heading}:`, ...answer.items.map(item), ...(answer.more > 0 ? [`and ${answer.more} more`] : [])].join('\n');
+  }
+  return answer.message;
+}

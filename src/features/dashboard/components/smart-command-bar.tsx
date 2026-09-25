@@ -1,47 +1,38 @@
-import { useState, useCallback, useMemo } from 'react';
+// The Home box: one field for anything a requester has in mind. What they
+// type takes the shared question route (lib/assistant/question-route.ts) — a
+// status or policy question is answered here, an item the catalogue serves is
+// offered for ordering, a demand goes to intake with their words, and the rest
+// goes to the assistant, which routes the same way.
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Sparkles,
-  ShoppingCart,
-  ArrowRight,
-  Plus,
-  Minus,
-  X,
-  Package,
-  Loader2,
-  Monitor,
-  Briefcase,
-  Armchair,
-  Shield,
-  Coffee,
-  Printer,
-} from 'lucide-react';
-import { toast } from 'sonner';
+import { Sparkles, ArrowRight, X, Loader2, Package } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import type { CatalogueItem } from '@/data/catalogue-items';
 import { useCatalogueItems } from '@/lib/db/hooks/use-catalogue-items';
-import { openAIChat, openAIChatWithPrompt } from '@/features/ai-assistant/ai-chat-controls';
+import { openAIChatWithPrompt } from '@/features/ai-assistant/ai-chat-controls';
 import { formatCurrency } from '@/lib/format';
-import { decideIntakeRoute } from '@/lib/procurement/intake-routing';
-import { classifyDemandCategory, matchesDemandCategory, type ClassifierCategory } from '@/lib/procurement/classify';
-import { useProcurementCategories } from '@/lib/db/hooks/use-procurement-categories';
-import { DEFAULT_CATEGORY_TAXONOMY } from '@/data/category-taxonomy';
-import { useAuthStore } from '@/stores/auth-store';
-import { parseStatusQuestion, type StatusAnswer } from '@/lib/assistant/status-answer';
-import { answerStatusQuestion } from '@/lib/assistant/status-lookup';
-import { answerPolicyQuestion, looksLikePolicyQuestion, type PolicyAnswer } from '@/lib/assistant/policy-lookup';
+import type { StatusAnswer } from '@/lib/assistant/status-answer';
+import type { PolicyAnswer } from '@/lib/assistant/policy-lookup';
+import { useQuestionRoute } from '@/lib/assistant/use-question-route';
 import { StatusAnswerView } from '@/components/shared/status-answer-view';
+import { PolicyAnswerView } from '@/components/shared/policy-answer-view';
 
 /**
- * What the intent step answered in place. A demand goes to intake and a
- * catalogue item to its checkout; a policy or status question is answered here,
- * with the follow-up handed to the assistant carrying the question.
+ * What the box answered in place. A demand goes to intake; a policy or status
+ * question is answered here, with the follow-up handed to the assistant
+ * carrying the question.
  */
 type InlineAnswer =
   | { kind: 'policy'; query: string; policy: PolicyAnswer }
   | { kind: 'status'; query: string; status: StatusAnswer };
+
+/** Catalogue items the route recognised, offered — never ordered — for the requester. */
+interface Identified {
+  items: CatalogueItem[];
+  /** The original wording, carried into intake when the match is not what they meant. */
+  query: string;
+}
 
 const EXAMPLES = [
   'consulting for a transformation programme',
@@ -50,475 +41,68 @@ const EXAMPLES = [
   'where are my requests?',
 ];
 
-// --- Types ---
-
-interface CartItem {
-  item: CatalogueItem;
-  quantity: number;
-}
-
-interface AILink {
-  label: string;
-  path: string;
-}
-
-interface ProposalState {
-  /**
-   * `identified` names a specific catalogue item and links straight to its
-   * governed checkout. It replaced dropping the requester into the full
-   * catalogue grid and leaving them to find again what the matcher had already
-   * found — while never navigating for them, so a wrong match costs a glance
-   * rather than a wrong order.
-   */
-  type: 'catalogue' | 'identified' | 'action' | 'options';
-  message: string;
-  catalogueItems: CatalogueItem[];
-  links: AILink[];
-  agent?: { id?: string; name?: string; status?: string };
-  /** The original wording, carried into intake when the match is rejected. */
-  query?: string;
-}
-
-// --- Catalogue categories ---
-
-const CATALOGUE_CATEGORIES = [
-  { id: 'it-equipment', name: 'IT Equipment', icon: Monitor },
-  { id: 'office-supplies', name: 'Office Supplies', icon: Briefcase },
-  { id: 'furniture', name: 'Furniture', icon: Armchair },
-  { id: 'safety-ppe', name: 'Safety & PPE', icon: Shield },
-  { id: 'catering-pantry', name: 'Catering & Pantry', icon: Coffee },
-  { id: 'print-stationery', name: 'Print & Stationery', icon: Printer },
-];
-
-// --- Groq API ---
-
-interface AIResult {
-  intent: string;
-  message: string;
-  catalogueItems?: { name: string; price: number; unit: string; id: string }[];
-  links?: AILink[];
-  category?: string;
-  extractedTitle?: string;
-  extractedSupplier?: string;
-  extractedValue?: number;
-  generatedDescription?: string;
-  _agent?: { id?: string; name?: string; status?: string };
-}
-
-async function queryGroq(input: string): Promise<AIResult | null> {
-  try {
-    const res = await fetch('/api/ai', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: input }),
-    });
-    if (!res.ok) throw new Error('API error');
-    return await res.json();
-  } catch {
-    return null;
-  }
-}
-
-// --- Deterministic fallback when LLM is unavailable ---
-
-const SUPPLIER_ROUTES: Record<string, string> = {
-  accenture: '/suppliers/SUP-001', sap: '/suppliers/SUP-002', deloitte: '/suppliers/SUP-003',
-  kpmg: '/suppliers/SUP-004', capgemini: '/suppliers/SUP-005', aws: '/suppliers/SUP-006',
-  microsoft: '/suppliers/SUP-007', siemens: '/suppliers/SUP-008', bosch: '/suppliers/SUP-009',
-};
-
-/**
- * Does the catalogue actually serve this demand?
- *
- * This used to be a private matcher in this file: strip stop words, score an
- * item on ANY word appearing anywhere in its name, description or catalogue
- * name, and return everything scoring above zero. It was checked FIRST, before
- * any intent or category reasoning, with no category gate — so
- * "I want to buy business consulting" matched **Business Cards 500** (and the
- * ThinkPad, on "business laptop" in its description) and the command bar opened
- * the catalogue. That is the reported defect, and it survived the fix to the
- * wizard's pre-check because this is a separate entry point that never called
- * the shared decision.
- *
- * It now calls `decideIntakeRoute` — the same category-gated, naming-word
- * decision the wizard's step 2 makes, benchmarked by the routing eval. One
- * decision, both doors.
- *
- * Contracts are deliberately not loaded here. The command bar decides one
- * thing: order inline from the catalogue, or hand the demand to intake. The
- * transactable-contract check belongs to the wizard's staged funnel, which has
- * the enrichment step that makes it worth running.
- */
-function catalogueRoute(
-  query: string,
-  items: CatalogueItem[],
-  eligibleCategories: string[],
-  categories: ClassifierCategory[],
-  llmIntent?: string,
-) {
-  return decideIntakeRoute(
-    {
-      text: query,
-      category: classifyDemandCategory(query, categories),
-      estimatedValue: 0,
-      supplierId: '',
-      llmIntent,
-    },
-    { catalogueItems: items, contracts: [], catalogueEligibleCategories: eligibleCategories },
-    undefined,
-    formatCurrency,
-  );
-}
-
-/**
- * Openers that make a phrase a lookup rather than a demand.
- *
- * Deliberately anchored: "find a supplier" is a lookup, "we need to find a
- * cleaning supplier" is a demand that happens to contain the word.
- */
-const LOOKUP_OPENERS = /^\s*(find|show|list|open|search|where|which|who|when|how many)\b/;
-
-/** Verbs that state an intent to acquire. Not the only signal — see below. */
-const DEMAND_VERBS = [
-  'buy', 'buying', 'purchase', 'purchasing', 'need', 'want', 'order', 'procure',
-  'hire', 'engage', 'require', 'looking for', 'source ', 'sourcing', 'contract for',
-];
-
-function localClassify(
-  query: string,
-  catalogueItems: CatalogueItem[],
-  eligibleCategories: string[],
-  categories: ClassifierCategory[],
-): AIResult {
-  const q = query.toLowerCase();
-
-  // The catalogue is offered only when the shared decision says the catalogue
-  // actually serves this demand — category-gated, and on a word that NAMES what
-  // is being bought rather than one that merely describes it.
-  const decision = catalogueRoute(query, catalogueItems, eligibleCategories, categories);
-  if (decision.route === 'catalogue') {
-    const n = decision.catalogueMatches.length;
-    return { intent: 'catalogue', message: `Found ${n} matching catalogue item${n === 1 ? '' : 's'}.`, links: [] };
-  }
-
-  // An explicit lookup is a lookup, whatever it mentions. Checked first so
-  // "find our cleaning services contract" does not become a demand for
-  // cleaning services just because it names one.
-  if (LOOKUP_OPENERS.test(q)) {
-    for (const [name, path] of Object.entries(SUPPLIER_ROUTES)) {
-      if (q.includes(name)) return { intent: 'navigation', message: `Opening ${name} profile.`, links: [{ label: `${name.charAt(0).toUpperCase() + name.slice(1)} Profile`, path }] };
-    }
-    if (/contract/.test(q)) return { intent: 'navigation', message: 'Opening contracts.', links: [{ label: 'Contracts', path: '/contracts' }] };
-    if (/request/.test(q)) return { intent: 'navigation', message: 'Opening requests.', links: [{ label: 'My Requests', path: '/requests/my' }] };
-    if (/supplier|vendor/.test(q)) return { intent: 'navigation', message: 'Opening supplier directory.', links: [{ label: 'Suppliers', path: '/suppliers' }] };
-    if (/invoice/.test(q)) return { intent: 'navigation', message: 'Opening invoices.', links: [{ label: 'Invoices', path: '/purchasing/invoices' }] };
-  }
-
-  // A demand is a demand whether or not it has a verb in front of it.
-  //
-  // This used to be a hardcoded buy-verb list, which meant the most natural
-  // ways of asking — "business consulting", "IT strategy consulting with
-  // a named firm for 6 months", "cleaning services for the Berlin office" — were
-  // not recognised and went to the chat assistant, which cannot route or
-  // submit anything. Naming something procurable counts, and the category
-  // rules already know what that looks like.
-  if (DEMAND_VERBS.some((w) => q.includes(w)) || matchesDemandCategory(query, categories)) {
-    // One classifier. This branch used to carry its own regex cascade — a
-    // fifth copy of the category decision, which could disagree with the
-    // wizard about the same sentence.
-    const category = classifyDemandCategory(query, categories);
-
-    // Keep broad classification internal. The requester confirms a specific
-    // commodity/service family inside the shared intake instead of choosing a
-    // Goods/Services route from this command bar.
-    return {
-      intent: 'new-request', message: 'I’ll help you describe and route this request.',
-      category, extractedTitle: query, links: [{ label: 'Start request', path: '/requests/new' }],
-    };
-  }
-
-  // Lookup — check for navigation keywords
-  for (const [name, path] of Object.entries(SUPPLIER_ROUTES)) {
-    if (q.includes(name)) return { intent: 'navigation', message: `Opening ${name} profile.`, links: [{ label: `${name.charAt(0).toUpperCase() + name.slice(1)} Profile`, path }] };
-  }
-  if (/approval/.test(q)) return { intent: 'navigation', message: 'Opening approvals.', links: [{ label: 'My Approvals', path: '/approvals' }] };
-  if (/request|track|order/.test(q)) return { intent: 'navigation', message: 'Opening requests.', links: [{ label: 'My Requests', path: '/requests/my' }] };
-  if (/contract/.test(q)) return { intent: 'navigation', message: 'Opening contracts.', links: [{ label: 'Contracts', path: '/contracts' }] };
-  if (/invoice/.test(q)) return { intent: 'navigation', message: 'Opening invoices.', links: [{ label: 'Invoices', path: '/purchasing/invoices' }] };
-  if (/spend|analytics|budget/.test(q)) return { intent: 'navigation', message: 'Opening spend dashboard.', links: [{ label: 'Spend Dashboard', path: '/analytics/spend' }] };
-  if (/supplier|vendor/.test(q)) return { intent: 'navigation', message: 'Opening supplier directory.', links: [{ label: 'Suppliers', path: '/suppliers' }] };
-  if (/workflow|pipeline/.test(q)) return { intent: 'navigation', message: 'Opening workflows.', links: [{ label: 'Active Workflows', path: '/workflows' }] };
-
-  // General fallback
-  return { intent: 'general', message: 'How can I help? Try describing what you need.', links: [{ label: 'Create New Request', path: '/requests/new' }, { label: 'Open AI Assistant', path: '__ai_chat__' }] };
-}
-
-// ============================================================
-// COMPONENT
-// ============================================================
-
 export function SmartCommandBar() {
   const navigate = useNavigate();
+  const route = useQuestionRoute();
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [proposal, setProposal] = useState<ProposalState | null>(null);
   const [answer, setAnswer] = useState<InlineAnswer | null>(null);
-  const currentUser = useAuthStore((s) => s.currentUser);
-  const currentRole = useAuthStore((s) => s.currentRole);
+  const [identified, setIdentified] = useState<Identified | null>(null);
 
   const { data: catalogueItems = [] } = useCatalogueItems();
-  const { data: dbCategories = [] } = useProcurementCategories();
 
-  // Which categories the catalogue can actually fulfil — admin config
-  // (`procurement_categories.catalogue_eligible`), falling back to the
-  // canonical taxonomy so an empty store behaves identically. Same source the
-  // wizard's pre-check reads, so both doors gate on the same setting.
-  // The configured categories (their keywords classify a demand), falling back
-  // to the seed when the store is empty.
-  const classifierCategories = useMemo(
-    () => (dbCategories.length > 0 ? dbCategories : DEFAULT_CATEGORY_TAXONOMY),
-    [dbCategories],
-  );
-  const eligibleCategories = useMemo(() => {
-    const src = classifierCategories;
-    return src.filter((c) => c.catalogueEligible).map((c) => c.id);
-  }, [classifierCategories]);
-
-  // Catalogue state
+  // Browsing the catalogue in place. The groups are the catalogues the items
+  // belong to — they were six names and icons typed here, which a catalogue
+  // added to the store would never have joined.
   const [showCatalogue, setShowCatalogue] = useState(false);
-  const [catalogueResults, setCatalogueResults] = useState<CatalogueItem[]>([]);
-  const [cart, setCart] = useState<CartItem[]>([]);
-  const [quantities, setQuantities] = useState<Record<string, number>>({});
-
-  // Declared before `handleSubmit`, which calls it — the reverse order relied
-  // on hoisting through a memoized callback, which the compiler cannot track.
-  // --- Process an AI result (from LLM or local fallback) ---
-  // Plain functions, not useCallback: both are handlers, neither is an effect
-  // dependency, and the manual memos could not be preserved — which made the
-  // compiler skip optimizing this component to keep memos buying nothing.
-  const processResult = (aiResult: AIResult, query: string) => {
-    let intent = aiResult.intent ?? 'general';
-    // Locals rather than mutating the argument: the catalogue branch below can
-    // overrule the model, and the new-request branch has to read what it landed on.
-    let message = aiResult.message;
-    let category = aiResult.category;
-
-    // Safety: buying words should never route to navigation
-    // Same rule as the local classifier: a model answering "navigation" for
-    // something that states an intent to acquire, or that simply names
-    // something procurable, is answering the wrong question.
-    if (intent === 'navigation'
-      && !LOOKUP_OPENERS.test(query.toLowerCase())
-      && (DEMAND_VERBS.some((w) => query.toLowerCase().includes(w)) || matchesDemandCategory(query, classifierCategories))) {
-      intent = 'new-request';
+  const [browsing, setBrowsing] = useState<string | null>(null);
+  const catalogues = useMemo(() => {
+    const byId = new Map<string, string>();
+    for (const item of catalogueItems) {
+      if (item.catalogueId && !byId.has(item.catalogueId)) byId.set(item.catalogueId, item.catalogueName || item.catalogueId);
     }
-
-    const agent = aiResult._agent;
-
-    // CATALOGUE — but only if the catalogue genuinely serves this demand.
-    //
-    // The LLM's intent is honoured except that a `catalogue` intent cannot open
-    // an empty or ineligible catalogue. `decideIntakeRoute` applies that guard
-    // itself, so a model that answers "catalogue" to "buy business consulting"
-    // is overruled here exactly as it is in the wizard, and the demand falls
-    // through to intake instead of being shown unrelated items.
-    if (intent === 'catalogue') {
-      const decision = catalogueRoute(query, catalogueItems, eligibleCategories, classifierCategories, 'catalogue');
-      if (decision.route === 'catalogue') {
-        const matched = decision.catalogueMatches.map((m) => m.item);
-        setProposal({
-          type: 'identified',
-          message: matched.length === 1
-            ? 'This looks like a catalogue item you can order today.'
-            : `This looks like ${matched.length} catalogue items you can order today.`,
-          catalogueItems: matched.slice(0, 3),
-          links: [],
-          agent,
-          query,
-        });
-        return;
-      }
-      // Overruled — treat it as the demand it is, and say why the catalogue was
-      // ruled out rather than silently showing a different screen.
-      intent = 'new-request';
-      category = category ?? classifyDemandCategory(query, classifierCategories);
-      if (decision.ruledOut.catalogue) {
-        message = `${decision.ruledOut.catalogue} Let's raise this as a request.`;
-      }
-    }
-
-    // NEW-REQUEST
-    if (intent === 'new-request') {
-      const params = new URLSearchParams();
-      params.set('step', '2');
-      const cat = category ?? 'goods';
-      params.set('category', cat);
-      if (aiResult.extractedTitle) params.set('title', aiResult.extractedTitle);
-      if (aiResult.extractedSupplier) params.set('supplier', aiResult.extractedSupplier);
-      if (aiResult.extractedValue) params.set('value', String(aiResult.extractedValue));
-      if (aiResult.generatedDescription) params.set('description', aiResult.generatedDescription);
-
-      setProposal({
-        type: 'action',
-        message: message || 'I’ll help you describe and route this request.',
-        catalogueItems: [],
-        links: [
-          { label: 'Start request', path: `/requests/new?${params.toString()}` },
-          { label: 'Browse Catalogue Instead', path: '__show_catalogue__' },
-        ],
-        agent,
-      });
-      return;
-    }
-
-    // NAVIGATION
-    if (intent === 'navigation' && aiResult.links?.length) {
-      setProposal({ type: 'options', message: message || 'Here is what I found:', catalogueItems: [], links: aiResult.links.slice(0, 4), agent });
-      return;
-    }
-
-    // GENERAL
-    setProposal({
-      type: 'options',
-      message: message || 'How can I help?',
-      catalogueItems: [],
-      links: [...(aiResult.links?.slice(0, 3) ?? []), { label: 'Create New Request', path: '/requests/new' }, { label: 'Open AI Assistant', path: '__ai_chat__' }],
-      agent,
-    });
-  };
-
-  // --- Submit ---
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    await ask(input.trim());
-  };
-
-  // The intent step. Order matters: a status question names a record or "my …"
-  // and is unambiguous, so it goes first; a catalogue hit next; then a
-  // question-shaped policy query — before the demand check, which would read
-  // "do I *need* three quotes?" as a demand for quotes; then demands; the rest
-  // to the assistant.
-  const ask = async (query: string) => {
-    if (!query) return;
-    setAnswer(null);
-    setProposal(null);
-
-    const statusQuestion = parseStatusQuestion(query);
-    if (statusQuestion) {
-      setLoading(true);
-      try {
-        const status = await answerStatusQuestion(query, { userId: currentUser.id, role: currentRole }, statusQuestion);
-        if (status) { setAnswer({ kind: 'status', query, status }); return; }
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    const localForCatalogue = localClassify(query, catalogueItems, eligibleCategories, classifierCategories);
-    if (localForCatalogue.intent !== 'catalogue' && looksLikePolicyQuestion(query)) {
-      setLoading(true);
-      try {
-        const policy = await answerPolicyQuestion(query);
-        if (policy) { setAnswer({ kind: 'policy', query, policy }); return; }
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    // A demand goes into intake. It used to go into the AI chat overlay, which
-    // meant "I want to buy X" — the single thing this box exists for — landed
-    // in a conversation with no route, no classification and no way to submit.
-    // Only lookups and open questions belong to the assistant.
-    const localResult = localForCatalogue;
-    if (localResult.intent === 'new-request') {
-      navigate(`/requests/new?q=${encodeURIComponent(query)}`);
-      setInput('');
-      return;
-    }
-    if (localResult.intent !== 'catalogue') {
-      openAIChatWithPrompt(query);
-      setInput('');
-      return;
-    }
-
-    // Catalogue query — show inline catalogue UI
-    setProposal(null);
-    setShowCatalogue(false);
-    setLoading(true);
-
-    try {
-      const aiResult = await queryGroq(query);
-      setLoading(false);
-      processResult(aiResult ?? localResult, query);
-    } catch {
-      setLoading(false);
-      processResult(localResult, query);
-    }
-  };
-
-  // --- Handle link click from proposal ---
-  const handleLinkClick = (path: string) => {
-    if (path === '__ai_chat__') {
-      openAIChat();
-      setProposal(null);
-      setInput('');
-    } else if (path === '__show_catalogue__') {
-      setProposal(null);
-      setCatalogueResults([]);
-      setShowCatalogue(true);
-    } else {
-      navigate(path);
-      setProposal(null);
-      setInput('');
-    }
-  };
-
-  // --- Cart logic ---
-  const getQty = useCallback((id: string) => quantities[id] ?? 1, [quantities]);
-  const setQty = (id: string, qty: number) => setQuantities((p) => ({ ...p, [id]: Math.max(1, qty) }));
-
-  const addToCart = (item: CatalogueItem) => {
-    const qty = getQty(item.id);
-    setCart((prev) => {
-      const existing = prev.find((c) => c.item.id === item.id);
-      if (existing) return prev.map((c) => c.item.id === item.id ? { ...c, quantity: c.quantity + qty } : c);
-      return [...prev, { item, quantity: qty }];
-    });
-    setQuantities((p) => ({ ...p, [item.id]: 1 }));
-  };
-
-  const removeFromCart = (id: string) => setCart((p) => p.filter((c) => c.item.id !== id));
-  const cartTotal = cart.reduce((s, c) => s + c.quantity * c.item.unitPrice, 0);
-
-  const handleOrderNow = () => {
-    if (cart.length === 0) return;
-    if (cart.length > 1) {
-      // The shared item-detail flow currently accepts one governed line. Do
-      // not silently discard the rest of a command-bar basket; ask the user to
-      // review items individually until the multi-line detail flow is wired.
-      toast.error('Review one catalogue item at a time from its item page.');
-      return;
-    }
-    const primary = cart[0].item;
-    // The detail page is the single governed checkout entry point. The old
-    // direct request write bypassed contract, risk, accounting and replay
-    // checks, so preserve the selected item context and collect fields there.
-    navigate(`/catalogue/items/${encodeURIComponent(primary.id)}`);
-    setProposal(null);
-    setShowCatalogue(false);
-  };
-
-  const handleBrowseCategory = (catId: string) => {
-    const items = catalogueItems.filter((i) => i.catalogueId === catId);
-    setCatalogueResults(items);
-  };
+    return [...byId].map(([id, name]) => ({ id, name }));
+  }, [catalogueItems]);
+  const browsed = browsing ? catalogueItems.filter((i) => i.catalogueId === browsing) : [];
 
   const handleClear = () => {
     setInput('');
     setAnswer(null);
-    setProposal(null);
+    setIdentified(null);
     setShowCatalogue(false);
-    setCatalogueResults([]);
+    setBrowsing(null);
+  };
+
+  const go = (path: string) => {
+    navigate(path);
+    handleClear();
+  };
+
+  const ask = async (query: string) => {
+    const text = query.trim();
+    if (!text) return;
+    setAnswer(null);
+    setIdentified(null);
+    setShowCatalogue(false);
+    setLoading(true);
+    let routed;
+    try {
+      routed = await route(text);
+    } finally {
+      setLoading(false);
+    }
+    switch (routed.kind) {
+      case 'status': setAnswer({ kind: 'status', query: text, status: routed.status }); return;
+      case 'policy': setAnswer({ kind: 'policy', query: text, policy: routed.policy }); return;
+      case 'catalogue': setIdentified({ items: routed.items.slice(0, 3), query: text }); return;
+      case 'demand': go(`/requests/new?q=${encodeURIComponent(text)}`); return;
+      case 'assistant': openAIChatWithPrompt(text); setInput(''); return;
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await ask(input);
   };
 
   // ============================================================
@@ -550,7 +134,7 @@ export function SmartCommandBar() {
               <Loader2 className="size-4 animate-spin text-accent" />
             </div>
           )}
-          {!loading && (input || proposal || answer || showCatalogue) && (
+          {!loading && (input || identified || answer || showCatalogue) && (
             <button type="button" aria-label="Clear" onClick={handleClear} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-3 hover:text-ink-2">
               <X className="size-4" />
             </button>
@@ -558,7 +142,7 @@ export function SmartCommandBar() {
         </form>
 
         {/* AI hint */}
-        {!proposal && !answer && !showCatalogue && !loading && (
+        {!identified && !answer && !showCatalogue && !loading && (
           <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-caption text-ink-3">
             <span>Describe what you need, or ask about a policy or a status. Try:</span>
             {EXAMPLES.map((example) => (
@@ -583,28 +167,9 @@ export function SmartCommandBar() {
             >
               {answer.kind === 'policy' ? 'A policy question' : 'A status question'}
             </span>
-            {answer.kind === 'status' ? (
-              <StatusAnswerView answer={answer.status} onNavigate={handleClear} />
-            ) : (
-              <div className="space-y-2">
-                {answer.policy.direct && (
-                  <p className="text-sm font-medium text-ink">{answer.policy.direct.answer}</p>
-                )}
-                {answer.policy.entry && (
-                  answer.policy.direct ? (
-                    <details className="text-sm text-ink-2">
-                      <summary className="cursor-pointer text-xs font-medium text-accent">The rule in full — {answer.policy.entry.title}</summary>
-                      <p className="mt-1.5 whitespace-pre-wrap leading-relaxed">{answer.policy.entry.text}</p>
-                    </details>
-                  ) : (
-                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink-2">{answer.policy.entry.text}</p>
-                  )
-                )}
-                <p className="text-[11px] text-ink-3">
-                  From: {[answer.policy.direct?.source, answer.policy.entry && `${answer.policy.entry.title}${answer.policy.entry.source ? ` (${answer.policy.entry.source})` : ''}`].filter(Boolean).join(' · ')}
-                </p>
-              </div>
-            )}
+            {answer.kind === 'status'
+              ? <StatusAnswerView answer={answer.status} onNavigate={handleClear} />
+              : <PolicyAnswerView answer={answer.policy} />}
             <div className="flex flex-wrap items-center gap-3 pt-1">
               <button
                 type="button"
@@ -617,7 +182,7 @@ export function SmartCommandBar() {
                 <button
                   type="button"
                   className="text-xs text-ink-3 hover:text-ink-2 hover:underline"
-                  onClick={() => handleLinkClick(`/requests/new?q=${encodeURIComponent(answer.query)}`)}
+                  onClick={() => go(`/requests/new?q=${encodeURIComponent(answer.query)}`)}
                 >
                   This is something I need to buy →
                 </button>
@@ -638,15 +203,19 @@ export function SmartCommandBar() {
             Say what was recognised, then hand over a link. Navigating for the
             requester would be faster and worse: a wrong match would land them
             in a checkout for the wrong thing. */}
-        {proposal?.type === 'identified' && !showCatalogue && !loading && (
+        {identified && !showCatalogue && !loading && (
           <div className="mt-3 space-y-3 rounded-md border border-line bg-card p-4">
             <div className="flex items-start gap-2">
               <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-accent-soft mt-0.5">
                 <Sparkles className="size-3 text-accent" />
               </div>
-              <p className="text-sm text-ink-2">{proposal.message}</p>
+              <p className="text-sm text-ink-2">
+                {identified.items.length === 1
+                  ? 'This looks like a catalogue item you can order today.'
+                  : `This looks like ${identified.items.length} catalogue items you can order today.`}
+              </p>
             </div>
-            {proposal.catalogueItems.map((item) => (
+            {identified.items.map((item) => (
               <div
                 key={item.id}
                 className="flex items-center justify-between gap-3 rounded-lg border border-line bg-card p-4"
@@ -657,7 +226,7 @@ export function SmartCommandBar() {
                     {formatCurrency(item.unitPrice)} / {item.unit} · {item.supplierName} · {item.leadTime}
                   </p>
                 </div>
-                <Button size="sm" onClick={() => handleLinkClick(`/catalogue/items/${encodeURIComponent(item.id)}`)}>
+                <Button size="sm" onClick={() => go(`/catalogue/items/${encodeURIComponent(item.id)}`)}>
                   Order this
                   <ArrowRight className="size-3.5" />
                 </Button>
@@ -669,14 +238,14 @@ export function SmartCommandBar() {
               <button
                 type="button"
                 className="text-xs font-medium text-accent-solid hover:underline"
-                onClick={() => handleLinkClick(`/requests/new?q=${encodeURIComponent(proposal.query ?? '')}`)}
+                onClick={() => go(`/requests/new?q=${encodeURIComponent(identified.query)}`)}
               >
                 Not what you need? Describe it in full →
               </button>
               <button
                 type="button"
                 className="text-xs text-ink-3 hover:text-ink-2 hover:underline"
-                onClick={() => { setProposal(null); setCatalogueResults([]); setShowCatalogue(true); }}
+                onClick={() => { setIdentified(null); setShowCatalogue(true); setBrowsing(catalogues[0]?.id ?? null); }}
               >
                 Browse the whole catalogue
               </button>
@@ -684,148 +253,54 @@ export function SmartCommandBar() {
           </div>
         )}
 
-        {/* ── PROPOSAL CARD (non-catalogue) ── */}
-        {proposal && proposal.type !== 'identified' && !showCatalogue && !loading && (
-          <div className="mt-3 rounded-md border border-line bg-card p-4">
-            <div className="rounded-lg border border-line bg-card-2 p-4 space-y-3">
-              <div className="flex items-start gap-2">
-                <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-accent-soft mt-0.5">
-                  <Sparkles className="size-3 text-accent" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm text-ink-2">{proposal.message}</p>
-                  {proposal.agent?.name && proposal.agent.status === 'active' && (
-                    <p className="mt-1 text-[11px] text-ink-3">
-                      via {proposal.agent.name} ({proposal.agent.id})
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {proposal.links.length > 0 && (
-                <div className="flex flex-wrap gap-2 pl-8">
-                  {proposal.links.map((link, i) => (
-                    <Button
-                      key={link.path + i}
-                      variant={i === 0 ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => handleLinkClick(link.path)}
-                    >
-                      <ArrowRight className="size-3.5" />
-                      {link.label}
-                    </Button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* ── CATALOGUE VIEW ── */}
+        {/* ── CATALOGUE VIEW ──
+            Every item orders through its own governed checkout, so there is no
+            basket here: the one it had could order a single line, and said so
+            only after the second was added. */}
         {showCatalogue && !loading && (
           <div className="mt-3 space-y-4 rounded-md border border-line bg-card p-4">
-            {/* Catalogue message */}
-            {proposal && (
-              <div className="flex items-start gap-2">
-                <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-accent-soft mt-0.5">
-                  <Sparkles className="size-3 text-accent" />
-                </div>
-                <p className="text-sm text-ink-2">{proposal.message}</p>
-              </div>
-            )}
-
-            {/* Category tiles */}
-            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-              {CATALOGUE_CATEGORIES.map((cat) => {
-                const Icon = cat.icon;
-                const isActive = catalogueResults.length > 0 && catalogueResults[0]?.catalogueId === cat.id;
-                return (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    onClick={() => handleBrowseCategory(cat.id)}
-                    className={`flex flex-col items-center gap-1.5 rounded-lg border p-3 text-center transition-colors ${isActive ? 'border-accent bg-accent-soft text-accent' : 'border-line hover:border-line hover:bg-card-2 text-ink-2'}`}
-                  >
-                    <Icon className="size-5" />
-                    <span className="text-[10px] font-medium leading-tight">{cat.name}</span>
-                  </button>
-                );
-              })}
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Catalogues">
+              {catalogues.map((cat) => (
+                <button
+                  key={cat.id}
+                  type="button"
+                  aria-pressed={browsing === cat.id}
+                  onClick={() => setBrowsing(cat.id)}
+                  className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${browsing === cat.id ? 'border-accent bg-accent-soft text-accent' : 'border-line text-ink-2 hover:bg-card-2'}`}
+                >
+                  <Package className="size-3.5" />
+                  {cat.name}
+                </button>
+              ))}
             </div>
+            {catalogues.length === 0 && <p className="text-sm text-ink-3">The catalogue has no items yet.</p>}
 
-            {/* Items */}
-            {catalogueResults.length > 0 && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {catalogueResults.slice(0, 9).map((item) => {
-                  const inCart = cart.find((c) => c.item.id === item.id);
-                  return (
-                    <div key={item.id} className="rounded-lg border border-line bg-card p-3 space-y-2">
-                      <div>
-                        <button
-                          type="button"
-                          className="text-left text-sm font-medium text-ink hover:text-accent hover:underline"
-                          onClick={() => { navigate(`/catalogue/items/${encodeURIComponent(item.id)}`); setProposal(null); setShowCatalogue(false); }}
-                        >
-                          {item.name}
-                          <span className="sr-only"> View item details</span>
-                        </button>
-                        <p className="text-xs text-ink-3 mt-0.5">{item.supplierName} &middot; {item.leadTime}</p>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm font-semibold text-ink">
-                          {formatCurrency(item.unitPrice)} <span className="text-xs font-normal text-ink-3">/ {item.unit}</span>
-                        </p>
-                        {inCart && <Badge variant="secondary" className="text-[10px]">In cart</Badge>}
-                      </div>
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-1">
-                          <button type="button" onClick={() => setQty(item.id, getQty(item.id) - 1)} className="flex size-7 items-center justify-center rounded border border-line hover:bg-card-2"><Minus className="size-3" /></button>
-                          <span className="w-7 text-center text-xs font-medium">{getQty(item.id)}</span>
-                          <button type="button" onClick={() => setQty(item.id, getQty(item.id) + 1)} className="flex size-7 items-center justify-center rounded border border-line hover:bg-card-2"><Plus className="size-3" /></button>
-                        </div>
-                        <Button size="sm" variant="outline" onClick={() => addToCart(item)}><Plus className="size-3 mr-1" />Add</Button>
-                      </div>
+            {browsed.length > 0 && (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {browsed.slice(0, 9).map((item) => (
+                  <div key={item.id} className="flex flex-col justify-between gap-2 rounded-lg border border-line bg-card p-3">
+                    <div>
+                      <p className="text-sm font-medium text-ink">{item.name}</p>
+                      <p className="mt-0.5 text-xs text-ink-3">{item.supplierName} · {item.leadTime}</p>
                     </div>
-                  );
-                })}
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-semibold text-ink tabular-nums">
+                        {formatCurrency(item.unitPrice)} <span className="text-xs font-normal text-ink-3">/ {item.unit}</span>
+                      </p>
+                      <Button size="sm" variant="outline" onClick={() => go(`/catalogue/items/${encodeURIComponent(item.id)}`)}>
+                        Order this
+                      </Button>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
+            {browsed.length > 9 && <p className="text-xs text-ink-3">Showing 9 of {browsed.length} — search for an item by name above.</p>}
 
-            {/* Cart */}
-            {cart.length > 0 && (
-              <div className="rounded-lg border border-ok-line bg-ok-soft p-4 space-y-3">
-                <div className="flex items-center gap-2">
-                  <ShoppingCart className="size-4 text-ok" />
-                  <h4 className="text-sm font-semibold text-ok">Your Order</h4>
-                  <Badge variant="secondary" className="text-[10px] bg-ok-soft text-ok">{cart.length} item{cart.length !== 1 ? 's' : ''}</Badge>
-                </div>
-                <div className="space-y-2">
-                  {cart.map((c) => (
-                    <div key={c.item.id} className="flex items-center justify-between rounded-md bg-card border border-ok-line p-2">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium text-ink truncate">{c.item.name}</p>
-                        <p className="text-[10px] text-ink-3">{c.quantity} x {formatCurrency(c.item.unitPrice)} = {formatCurrency(c.quantity * c.item.unitPrice)}</p>
-                      </div>
-                      <button type="button" onClick={() => removeFromCart(c.item.id)} className="ml-2 text-ink-3 hover:text-stop"><X className="size-3.5" /></button>
-                    </div>
-                  ))}
-                </div>
-                <div className="border-t border-ok-line pt-2 flex items-center justify-between">
-                  <span className="text-sm font-semibold text-ok">Total</span>
-                  <span className="text-sm font-bold text-ok">{formatCurrency(cartTotal)}</span>
-                </div>
-                <Button className="w-full bg-ok hover:bg-ok text-paper" onClick={handleOrderNow}>
-                  <Package className="size-4 mr-1.5" />Review order
-                </Button>
-                <p className="text-[11px] text-ok text-center">Pre-approved catalogue items. Estimated delivery: 2-3 business days.</p>
-              </div>
-            )}
-
-            {/* Footer */}
             <div className="flex items-center gap-3 pt-1">
-                <Button variant="link" size="sm" className="text-xs text-ink-3 px-0" onClick={() => { navigate('/requests/new'); handleClear(); }}>
-                  Not in the catalogue? Create a procurement request <ArrowRight className="size-3 ml-1" />
-                </Button>
+              <Button variant="link" size="sm" className="px-0 text-xs text-ink-3" onClick={() => go('/requests/new')}>
+                Not in the catalogue? Create a procurement request <ArrowRight className="ml-1 size-3" />
+              </Button>
             </div>
           </div>
         )}

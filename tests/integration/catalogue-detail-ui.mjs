@@ -26,13 +26,16 @@ check('checkout captures fulfilment context', /needBy/.test(checkout) && /delive
 check('governance details are progressive, not mode-gated',
   /aria-expanded/.test(checkout) && !/mode === 'expert'/.test(checkout));
 check('wizard catalogue items deep-link to item details', /navigate\(`\/catalogue\/items\//.test(wizard));
-check('home command-bar items deep-link to item details', /navigate\(`\/catalogue\/items\//.test(commandBar));
+check('home command-bar items deep-link to item details', /go\(`\/catalogue\/items\//.test(commandBar));
 check('the buy-route order CTA deep-links to item details', /onChooseCatalogue[\s\S]*?navigate\(`\/catalogue\/items\//.test(requestEntry));
 // One page now, so this is asserted once. It used to be checked separately per
 // mode because each mode had its own page that could answer differently.
 check('the buy-route order CTA deep-links to item details', /onChooseCatalogue[\s\S]*?navigate\(`\/catalogue\/items\//.test(requestEntry));
 check('checkout uses the atomic governed endpoint', /submitGovernedCheckout/.test(requestEntry) && !/legacy catalogue persistence/.test(requestEntry));
-check('command-bar catalogue cart does not bypass governed checkout', !/createRequest|createPurchaseOrder/.test(commandBar) && /Review order/.test(commandBar));
+// The basket is gone: it could order one line and said so only after a second
+// was added. Every item now goes to its own governed checkout.
+check('the command bar orders nothing itself — no basket, no direct write',
+  !/createRequest|createPurchaseOrder|addToCart|Review order/.test(commandBar));
 // Stale-contract filtering lives in the shared resolver, not in a page — which
 // is why this check could previously pass against a page that never mentioned
 // it. `resolveCheckoutContract` is the one place it happens, and

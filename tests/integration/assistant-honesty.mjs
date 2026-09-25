@@ -90,8 +90,11 @@ check('offering, explaining and describing policy all pass', () => {
 });
 
 check('the replacement says what is actually true, and what is not', () => {
-  const message = demandOfferedMessage('consulting');
-  assert.match(message, /pre-filled/i);
+  const message = demandOfferedMessage();
+  // Nothing was pre-filled: intake classifies the words itself. It claimed "a
+  // pre-filled consulting request" from a category intake never read.
+  assert.doesNotMatch(message, /pre-filled/i);
+  assert.match(message, /with your words/i);
   assert.match(message, /nothing is created or sent/i);
   // The replacement must not itself trip the guard.
   assert.equal(claimsWorkAlreadyDone(message), false);
@@ -123,7 +126,7 @@ check('the system prompt forbids claiming work was done', () => {
 check('the guard is applied on both emit paths, not just one', () => {
   assert.equal((CHAT_SRC.match(/claimsWorkAlreadyDone\(/g) ?? []).length >= 3, true);
   // Narrow by design: only where a demand deep link was offered.
-  assert.match(CHAT_SRC, /demandCategory && claimsWorkAlreadyDone/);
+  assert.match(CHAT_SRC, /demandOffered && claimsWorkAlreadyDone/);
 });
 
 // ── The offline path claims nothing either ─────────────────────────────────

@@ -412,6 +412,7 @@ export async function installDbStub(target, overrides = {}, options = {}) {
   for (const [name, rows] of Object.entries(overrides)) tables[name] = structuredClone(rows);
   const unsupported = [];
   const failing = new Set(options.fail ?? []);
+  let insertSequence = 0;
 
   await target.route('**/api/db', async (route) => {
     const payload = JSON.parse(route.request().postData() || '{}');
@@ -485,7 +486,14 @@ export async function installDbStub(target, overrides = {}, options = {}) {
         break;
       case 'insert':
       case 'upsert': {
-        const incoming = Array.isArray(payload.body) ? payload.body : [payload.body];
+        // Postgres assigns an id and timestamps to a row inserted without
+        // them — an assistant conversation, for one — and the app reads them
+        // back. A stub that did not would hand back a row with no id, and the
+        // caller would give up on it silently.
+        const incoming = (Array.isArray(payload.body) ? payload.body : [payload.body]).map((record) =>
+          payload.operation === 'insert' && record.id === undefined && (payload.conflict ?? 'id') === 'id'
+            ? { id: `${table}-${++insertSequence}`, created_at: new Date().toISOString(), updated_at: new Date().toISOString(), ...record }
+            : record);
         const keys = (payload.conflict ?? 'id').split(',').map((key) => key.trim());
         for (const record of incoming) {
           const existing = payload.operation === 'upsert'

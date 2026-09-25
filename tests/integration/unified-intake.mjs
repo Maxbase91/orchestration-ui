@@ -11,10 +11,7 @@ import {
   routeFromOutcome,
 } from '../../src/features/requests/new-request/intake-steps.ts';
 import {
-  LEGACY_STEP_PARAM,
-  matchSupplierByName,
   parseCatalogueDeepLink,
-  parseDemandDeepLink,
   renewalDemandHref,
 } from '../../src/features/requests/new-request/intake-deep-link.ts';
 
@@ -135,36 +132,14 @@ const directory = [
   { id: 'SUP-2', name: 'Sodexo', supplierName: 'Sodexo' },
 ];
 
-// A ROUTE is not a category. The command bar builds this link from the
-// deterministic classifier, which can answer `catalogue` for a paper-and-toner
-// demand — accepting it verbatim put the whole wizard on the fast track before
-// the funnel had run.
-const routeShaped = parseDemandDeepLink(
-  params({ step: '2', category: 'catalogue', title: 'a few reams of printer paper and toner' }),
-  directory,
-);
-check('a route-shaped category is re-derived from what is being bought',
-  routeShaped.patch.category !== 'catalogue' && routeShaped.patch.category.length > 0);
-check('a real category is taken as given',
-  parseDemandDeepLink(params({ step: '2', category: 'consulting', title: 'strategy work' }), directory)
-    .patch.category === 'consulting');
-// The label shown back to the requester is the configured one. It came from a
-// map in code, so a category added in Admin → Categories showed as its raw id.
-{
-  const labels = { consulting: 'Advisory & Consulting', 'research-services': 'Research Services' };
-  const labelFor = (id) => labels[id] ?? id;
-  check('a deep link shows the configured category label',
-    parseDemandDeepLink(params({ step: '2', category: 'research-services', title: 'market study' }), directory, labelFor)
-      .patch.categoryDescription === 'Research Services');
-  check('no category label map remains in the intake form data',
-    !/CATEGORY_LABELS/.test(readFileSync('src/features/requests/new-request/intake-form-data.ts', 'utf8')));
-}
-// Step numbers are gone; the link's intent is not.
-check('the legacy step number maps to the step that replaced it',
-  LEGACY_STEP_PARAM['2'] === 'buy-route'
-  && parseDemandDeepLink(params({ step: '2', category: 'goods', title: 'x' }), directory).step === 'buy-route');
-check('a link that is not a demand link parses to nothing',
-  parseDemandDeepLink(params({ q: 'buy laptops' }), directory) === null);
+// The `?step=2&category=…` link is gone: it carried a second classification
+// past the describe step (a ROUTE could arrive as a category), and its last
+// producer went when the Home box and the assistant took one question route.
+check('intake parses no demand link beyond the words',
+  !/parseDemandDeepLink|LEGACY_STEP_PARAM/.test(readFileSync('src/features/requests/new-request/intake-deep-link.ts', 'utf8')));
+// The label shown back to the requester is the configured one.
+check('no category label map remains in the intake form data',
+  !/CATEGORY_LABELS/.test(readFileSync('src/features/requests/new-request/intake-form-data.ts', 'utf8')));
 
 // A renewal comes in through Door 1 (2026-09-25). Both contract screens had a
 // renewal button that started nothing — a toast on one, no handler on the other.
@@ -179,16 +154,6 @@ check('a link that is not a demand link parses to nothing',
     /navigate\(renewalDemandHref\(/.test(renewals) && /navigate\(renewalDemandHref\(/.test(detail)
     && !/Renewal initiated for/.test(renewals.replace(/\/\/.*$/gm, '')));
 }
-
-// The link carries what the model extracted; the directory holds the legal
-// name. Matching resolves to the DIRECTORY record, so what is shown and what is
-// stored are the same supplier.
-check('a partial supplier name resolves to the directory record',
-  matchSupplierByName('Accenture', directory).supplierId === 'SUP-1'
-  && matchSupplierByName('Accenture', directory).supplier === 'Accenture plc');
-check('an unknown supplier is kept as typed, not silently dropped',
-  matchSupplierByName('Nobody Ltd', directory).supplierId === ''
-  && matchSupplierByName('Nobody Ltd', directory).supplier === 'Nobody Ltd');
 
 const catalogue = [
   { id: 'IT-001', name: 'ThinkPad T14', unitPrice: 1299, unit: 'each', supplierId: 'SUP-1', supplierName: 'Acme' },

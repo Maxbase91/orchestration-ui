@@ -1,3 +1,6 @@
+import type { StatusAnswer } from '../lib/assistant/status-answer.js';
+import type { PolicyAnswer } from '../lib/assistant/policy-lookup.js';
+
 // Status + Priority stay as union types (they drive the lifecycle state machine).
 export type RequestStatus = 'draft' | 'intake' | 'validation' | 'approval' | 'risk' | 'onboarding' | 'sourcing' | 'contracting' | 'po' | 'receipt' | 'invoice' | 'payment' | 'completed' | 'cancelled' | 'referred-back';
 export type Priority = 'low' | 'medium' | 'high' | 'urgent';
@@ -764,7 +767,23 @@ export interface SuggestionChipsTurn {
   chips: Array<{ label: string; prompt: string }>;
 }
 
-export type AssistantTurn = ChatAnswerTurn | DeepLinkTurn | ConfirmTurn | SuggestionChipsTurn;
+/**
+ * A status or policy question answered from the configuration — the same
+ * answer the Home box gives (lib/assistant/question-route.ts), not the model's
+ * paraphrase of it.
+ */
+export interface StatusAnswerTurn {
+  type: 'status-answer';
+  answer: StatusAnswer;
+}
+
+export interface PolicyAnswerTurn {
+  type: 'policy-answer';
+  answer: PolicyAnswer;
+}
+
+export type AssistantTurn =
+  | ChatAnswerTurn | DeepLinkTurn | ConfirmTurn | SuggestionChipsTurn | StatusAnswerTurn | PolicyAnswerTurn;
 
 export interface ChatMessageData {
   id: string;

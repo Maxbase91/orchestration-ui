@@ -22,6 +22,7 @@ import { useAssistant } from '@/lib/assistant/use-assistant';
 import type { ChatMessageData } from '@/data/types';
 import { MessagePane } from './components/message-pane';
 import { ChatInput } from './components/chat-input';
+import { NEW_CONVERSATION_TITLE } from '@/lib/assistant/conversation-title';
 
 const WELCOME_MESSAGE: ChatMessageData = {
   id: 'welcome',
@@ -143,7 +144,7 @@ export function AIChatOverlay() {
   }
 
   const activeConv = conversations.find((c) => c.id === activeConversationId);
-  const activeTitle = activeConv?.title ?? 'New conversation';
+  const activeTitle = activeConv?.title ?? NEW_CONVERSATION_TITLE;
 
   return (
     <>
@@ -210,6 +211,7 @@ export function AIChatOverlay() {
                 streamingContent={streamingContent}
                 onSuggestionClick={handleSend}
                 onLinkClick={(path) => { setOpen(false); navigate(path); }}
+                onRecordOpen={() => setOpen(false)}
                 onConfirmAction={handleConfirmAction}
                 onCancelConfirm={handleCancelConfirm}
               />

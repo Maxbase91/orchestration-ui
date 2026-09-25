@@ -11,6 +11,7 @@ import {
   saveConversationMessages,
 } from '@/lib/db/assistant-conversations';
 import type { ChatMessageData } from '@/data/types';
+import { NEW_CONVERSATION_TITLE } from '@/lib/assistant/conversation-title';
 
 export interface Conversation {
   id: string;
@@ -69,7 +70,7 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
     const newConv: Conversation = {
       id: created.id,
       userId,
-      title: 'New conversation',
+      title: NEW_CONVERSATION_TITLE,
       messages: [],
       createdAt: created.createdAt,
       updatedAt: created.updatedAt,

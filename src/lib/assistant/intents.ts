@@ -2,9 +2,13 @@ import type { Role } from '@/config/roles';
 
 export type IntentType = 'knowledge' | 'lookup' | 'action' | 'handover' | 'intake' | 'unknown';
 
-export function classifyIntent(input: string): IntentType {
+// How the offline (mock) assistant reads a message the shared question route
+// (question-route.ts) left to it. One set of rules: there were two copies, one
+// per function below, and both carried nine supplier names typed in to boost
+// a lookup — names no admin could see and a supplier added to the directory
+// never joined. A lookup is recognised by its record id or its phrasing.
+function scoreIntents(input: string): Record<IntentType, number> {
   const t = input.toLowerCase();
-
   const scores: Record<IntentType, number> = {
     knowledge: 0,
     lookup: 0,
@@ -25,7 +29,6 @@ export function classifyIntent(input: string): IntentType {
   if (/\b(req-|sup-|con-|po-|inv-|ra-|tkt-)\w+/.test(t)) scores.lookup += 3;
   if (/\b(risk rating|risk status|performance score|utilisation|match status|payment status|sra status)\b/.test(t)) scores.lookup += 1;
   if (/\b(show me|find|look up|search for|tell me about|what('s| is) (the )?(risk|score|rating)|details (of|for)|profile of)\b/.test(t)) scores.lookup += 1;
-  if (/\b(acme|accenture|sap|deloitte|infosys|capgemini|atos|randstad|hays)\b/.test(t) && !/\b(policy|panel|threshold)\b/.test(t)) scores.lookup += 1;
 
   // Action — imperative commands that change state
   // Strong explicit action verbs score +4 so they beat any ID-based lookup score (+3).
@@ -52,61 +55,32 @@ export function classifyIntent(input: string): IntentType {
   if (/\b(speak (to|with)|talk (to|with))\b/.test(t)) scores.handover += 3;
   if (/\b(contact|person|human|agent|someone|not working|issue|problem|complain|escalate to|can't find|don't understand)\b/.test(t)) scores.handover += 1;
 
+  return scores;
+}
+
+function ranked(scores: Record<IntentType, number>): [IntentType, IntentType] {
   const sorted = (Object.keys(scores) as IntentType[]).sort((a, b) => scores[b] - scores[a]);
-  const [first, second] = sorted;
+  return [sorted[0], sorted[1]];
+}
+
+export function classifyIntent(input: string): IntentType {
+  const scores = scoreIntents(input);
+  const [first, second] = ranked(scores);
   const topScore = scores[first];
-
   if (topScore === 0) return 'unknown';
-
   // Disambiguation check: if top score is 1 and a second intent is within 1 point,
   // it's ambiguous — fall through to 'unknown' so the provider can ask for clarification.
   if (topScore === 1 && scores[second] >= 1) return 'unknown';
-
   return first;
 }
 
 // Returns the winning intent plus whether classification is high-confidence.
 // Confident = top score ≥ 2 AND gap over second place ≥ 2.
 export function classifyIntentWithConfidence(input: string): { intent: IntentType; confident: boolean } {
-  const t = input.toLowerCase();
-  const scores: Record<IntentType, number> = {
-    knowledge: 0, lookup: 0, action: 0, handover: 0, intake: 0, unknown: 0,
-  };
-  if (/\b(policy|policies|threshold|limit|rules?|guideline|procedure|explain|allowed|permitted|require|mandatory|kop|faq|standard)\b/.test(t)) scores.knowledge += 2;
-  if (/\b(when (can|should|do i)|how (much|many|do i|does|should|to)|what (is|are) the (policy|rule|limit|threshold|process|procedure|requirement|guideline|standard|penalty|deadline|definition))\b/.test(t)) scores.knowledge += 2;
-  if (/\b(consulting|approval|payment terms|sra|esg|framework|catalogue|onboard|renew|delegate|ooo|out.of.office|ir35|dpa|gdpr|capex|opex|tprm)\b/.test(t) && /\b(what|how|when|why|explain|policy|rule|process)\b/.test(t)) scores.knowledge += 1;
-  if (/\bhow (to|do i|can i|should i)\b/.test(t)) scores.knowledge += 2;
-  if (/\b(req-|sup-|con-|po-|inv-|ra-|tkt-)\w+/.test(t)) scores.lookup += 3;
-  if (/\b(risk rating|risk status|performance score|utilisation|match status|payment status|sra status)\b/.test(t)) scores.lookup += 1;
-  if (/\b(show me|find|look up|search for|tell me about|what('s| is) (the )?(risk|score|rating)|details (of|for)|profile of)\b/.test(t)) scores.lookup += 1;
-  if (/\b(acme|accenture|sap|deloitte|infosys|capgemini|atos|randstad|hays)\b/.test(t) && !/\b(policy|panel|threshold)\b/.test(t)) scores.lookup += 1;
-  if (/\b(add (me|myself) (as )?(a )?watcher|set (my |the )?(approval )?delegate|set (me as |my )?ooo|request (a )?risk reassessment|request (contract )?renewal|request (a )?po change|raise (a )?payment.*(escalation|escalate)|reassign|approver substitut)\b/.test(t)) scores.action += 4;
-  if (/\b(set (my|a|the)|delegate (my |approvals? )?(to)?|out.of.office|escalat(e|ion)|substitut)\b/.test(t)) scores.action += 2;
-  if (/\b(approve on my behalf|cover for me|change (the )?(approver|owner)|update (the )?(po|contract)|raise (a |an )?(escalation|payment))\b/.test(t)) scores.action += 2;
-  if (/\b(i (want|need|would like) to (buy|purchase|procure|order|get)|buy|purchase|procure|raise a demand|new (request|demand)|want to (buy|order)|can you (buy|order|raise|get))\b/.test(t) && !/\b(speak|talk|contact|person|human|someone)\b/.test(t)) scores.intake += 2;
-  if (/\bi need (a|some) /.test(t) && !/\b(speak|talk|contact|person|human|someone)\b/.test(t)) scores.intake += 2;
-  // A need/hire/engage verb + a procurement noun is a demand — e.g. "I need
-  // consultants for a promptathon", "hire a contractor", "looking for an agency".
-  // Distinct from "I need to speak to someone" (handover) and "I need to know the
-  // policy" (knowledge), which the exclusion list filters out.
-  if (
-    /\b(need|want|require|hire|engage|procure|looking (for|to))\b/.test(t) &&
-    /\b(consultant|consultancy|contractor|developer|engineer|designer|staff|headcount|agency|supplier|vendor|resource|freelancer|specialist|advisor|laptop|hardware|software|licen[sc]e|service|equipment|subscription|hosting|tooling)s?\b/.test(t) &&
-    !/\b(speak|talk|contact|person|human|someone|policy|polic|rule|threshold|guideline|status|how (much|many|to|do))\b/.test(t)
-  ) scores.intake += 2;
-  if (/\b(create (a )?request|submit (a )?request|raise (a )?(pr|purchase request|procurement request))\b/.test(t)) scores.intake += 3;
-  if (/\b(purchase request|procurement request)\b/.test(t)) scores.intake += 2;
-  if (/\b(speak (to|with)|talk (to|with))\b/.test(t)) scores.handover += 3;
-  if (/\b(contact|person|human|agent|someone|not working|issue|problem|complain|escalate to|can't find|don't understand)\b/.test(t)) scores.handover += 1;
-
-  const sorted = (Object.keys(scores) as IntentType[]).sort((a, b) => scores[b] - scores[a]);
-  const [first, second] = sorted;
+  const scores = scoreIntents(input);
+  const [first, second] = ranked(scores);
   const topScore = scores[first];
-  const gap = topScore - scores[second];
-
-  const intent: IntentType = topScore > 0 ? first : 'unknown';
-  const confident = topScore >= 2 && gap >= 2;
-  return { intent, confident };
+  return { intent: topScore > 0 ? first : 'unknown', confident: topScore >= 2 && topScore - scores[second] >= 2 };
 }
 
 // Actions available per role. Used to filter suggestion chips.

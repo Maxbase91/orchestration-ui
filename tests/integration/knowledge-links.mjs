@@ -76,11 +76,13 @@ check('the buying channel follows the business-led ceiling',
   /business-led/.test(directPolicyAnswer('is €30,000 business-led?', ctx)?.answer ?? '') && /procurement-led/.test(directPolicyAnswer('is €80,000 business-led?', ctx)?.answer ?? ''));
 check('catalogue auto-approval follows its threshold', /^Yes\. A €800 catalogue order/.test(directPolicyAnswer('is a €800 catalogue order approved automatically?', ctx)?.answer ?? ''));
 check('a question the platform does not decide gets no computed answer', directPolicyAnswer('what insurance does a supplier need?', ctx) === null);
-const bar = read('src/features/dashboard/components/smart-command-bar.tsx');
-const at = (needle) => bar.indexOf(needle);
-check('Home asks in order: status, catalogue, policy, then demand',
-  at('parseStatusQuestion(query)') > 0 && at('parseStatusQuestion(query)') < at('looksLikePolicyQuestion(query)')
-  && at('looksLikePolicyQuestion(query)') < at("localResult.intent === 'new-request'"));
+// The order itself is exercised by test:question-route, calling the route.
+// This holds only that a policy question on Home or in the assistant reaches
+// these answers through it.
+check('Home and the assistant answer policy questions through the one route',
+  /policy: answerPolicyQuestion/.test(read('src/lib/assistant/use-question-route.ts'))
+  && /useQuestionRoute\(\)/.test(read('src/features/dashboard/components/smart-command-bar.tsx'))
+  && /useQuestionRoute\(\)/.test(read('src/lib/assistant/use-assistant.ts')));
 
 console.log('\nThe built-in entries are linked, and say so where they are not');
 for (const entry of knowledgeBase) {

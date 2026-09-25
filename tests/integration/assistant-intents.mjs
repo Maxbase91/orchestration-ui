@@ -3,55 +3,18 @@
 // intake flow — not a support ticket. Regression for "I need consultants for a
 // promptathon" landing on a TKT-#### handover.
 //
-// Self-contained — mirrors src/lib/assistant/intents.ts classifyIntent (and the
-// create_ticket / start_demand rules in api/chat.ts). Keep in sync.
-// Run: node tests/integration/assistant-intents.mjs
+// It tested a copy of classifyIntent written into this file ("keep in sync")
+// — a copy that could not notice the original's two copies of its own rules,
+// or the supplier names typed into both. It drives the real module now.
+// Run: npm run test:assistant-intents
 
 import { readFileSync } from 'node:fs';
+import { classifyIntent } from '../../src/lib/assistant/intents.ts';
 
 let failures = 0;
 function check(name, cond, detail = '') {
   if (cond) console.log(`  \x1b[32m✓\x1b[0m ${name}`);
   else { failures++; console.error(`  \x1b[31m✗\x1b[0m ${name}${detail ? ` — ${detail}` : ''}`); }
-}
-
-// ── Mirror of classifyIntent (keep in sync with src/lib/assistant/intents.ts) ──
-function classifyIntent(input) {
-  const t = input.toLowerCase();
-  const scores = { knowledge: 0, lookup: 0, action: 0, handover: 0, intake: 0, unknown: 0 };
-
-  if (/\b(policy|policies|threshold|limit|rules?|guideline|procedure|explain|allowed|permitted|require|mandatory|kop|faq|standard)\b/.test(t)) scores.knowledge += 2;
-  if (/\b(when (can|should|do i)|how (much|many|do i|does|should|to)|what (is|are) the (policy|rule|limit|threshold|process|procedure|requirement|guideline|standard|penalty|deadline|definition))\b/.test(t)) scores.knowledge += 2;
-  if (/\b(consulting|approval|payment terms|sra|esg|framework|catalogue|onboard|renew|delegate|ooo|out.of.office|ir35|dpa|gdpr|capex|opex|tprm)\b/.test(t) && /\b(what|how|when|why|explain|policy|rule|process)\b/.test(t)) scores.knowledge += 1;
-  if (/\bhow (to|do i|can i|should i)\b/.test(t)) scores.knowledge += 2;
-
-  if (/\b(req-|sup-|con-|po-|inv-|ra-|tkt-)\w+/.test(t)) scores.lookup += 3;
-  if (/\b(risk rating|risk status|performance score|utilisation|match status|payment status|sra status)\b/.test(t)) scores.lookup += 1;
-  if (/\b(show me|find|look up|search for|tell me about|what('s| is) (the )?(risk|score|rating)|details (of|for)|profile of)\b/.test(t)) scores.lookup += 1;
-  if (/\b(acme|accenture|sap|deloitte|infosys|capgemini|atos|randstad|hays)\b/.test(t) && !/\b(policy|panel|threshold)\b/.test(t)) scores.lookup += 1;
-
-  if (/\b(add (me|myself) (as )?(a )?watcher|set (my |the )?(approval )?delegate|set (me as |my )?ooo|request (a )?risk reassessment|request (contract )?renewal|request (a )?po change|raise (a )?payment.*(escalation|escalate)|reassign|approver substitut)\b/.test(t)) scores.action += 4;
-  if (/\b(set (my|a|the)|delegate (my |approvals? )?(to)?|out.of.office|escalat(e|ion)|substitut)\b/.test(t)) scores.action += 2;
-  if (/\b(approve on my behalf|cover for me|change (the )?(approver|owner)|update (the )?(po|contract)|raise (a |an )?(escalation|payment))\b/.test(t)) scores.action += 2;
-
-  if (/\b(i (want|need|would like) to (buy|purchase|procure|order|get)|buy|purchase|procure|raise a demand|new (request|demand)|want to (buy|order)|can you (buy|order|raise|get))\b/.test(t) && !/\b(speak|talk|contact|person|human|someone)\b/.test(t)) scores.intake += 2;
-  if (/\bi need (a|some) /.test(t) && !/\b(speak|talk|contact|person|human|someone)\b/.test(t)) scores.intake += 2;
-  if (
-    /\b(need|want|require|hire|engage|procure|looking (for|to))\b/.test(t) &&
-    /\b(consultant|consultancy|contractor|developer|engineer|designer|staff|headcount|agency|supplier|vendor|resource|freelancer|specialist|advisor|laptop|hardware|software|licen[sc]e|service|equipment|subscription|hosting|tooling)s?\b/.test(t) &&
-    !/\b(speak|talk|contact|person|human|someone|policy|polic|rule|threshold|guideline|status|how (much|many|to|do))\b/.test(t)
-  ) scores.intake += 2;
-  if (/\b(create (a )?request|submit (a )?request|raise (a )?(pr|purchase request|procurement request))\b/.test(t)) scores.intake += 3;
-  if (/\b(purchase request|procurement request)\b/.test(t)) scores.intake += 2;
-
-  if (/\b(speak (to|with)|talk (to|with))\b/.test(t)) scores.handover += 3;
-  if (/\b(contact|person|human|agent|someone|not working|issue|problem|complain|escalate to|can't find|don't understand)\b/.test(t)) scores.handover += 1;
-
-  const sorted = Object.keys(scores).sort((a, b) => scores[b] - scores[a]);
-  const [first, second] = sorted;
-  if (scores[first] === 0) return 'unknown';
-  if (scores[first] === 1 && scores[second] >= 1) return 'unknown';
-  return first;
 }
 
 console.log('Procurement demands route to intake (NOT a support ticket)');
@@ -67,6 +30,11 @@ check('"I need to speak to someone" → handover', classifyIntent('I need to spe
 check('"put me through to a person" → handover', classifyIntent('put me through to a person') === 'handover');
 
 console.log('Other intents unaffected');
+// A supplier is recognised by its id or by how the question is put, not by a
+// list of names in code a new supplier would never join.
+check('no supplier names in the classifier',
+  !/accenture|deloitte|capgemini/i.test(readFileSync(new URL('../../src/lib/assistant/intents.ts', import.meta.url), 'utf8')));
+check('"tell me about SUP-013" → lookup', classifyIntent('tell me about SUP-013') === 'lookup');
 check('"What is the consulting threshold?" → knowledge', classifyIntent('What is the consulting threshold?') === 'knowledge');
 check('"I need to know the policy" → not intake', classifyIntent('I need to know the policy') !== 'intake');
 check('"Set my delegate to Jane Smith" → action', classifyIntent('Set my delegate to Jane Smith') === 'action');
@@ -139,22 +107,28 @@ const BAR_SRC = readFileSync(
   new URL('../../src/features/dashboard/components/smart-command-bar.tsx', import.meta.url),
   'utf8',
 );
+const { catalogueItemsFor, isDemand, routeQuestion } = await import('../../src/lib/assistant/question-route.ts');
+// Two items the reported defect turned on: "business" in the name of one and
+// the description of the other.
+const CATALOGUE = [
+  { id: 'OS-010', name: 'Business Cards 500', description: 'Printed business cards', unitPrice: 45, unit: 'box', catalogueId: 'print-stationery', catalogueName: 'Print & Stationery', supplierName: 'PrintCo', supplierId: 'SUP-P', leadTime: '3 days', available: true, category: 'goods' },
+  { id: 'OS-001', name: 'A4 Printer Paper (5 reams)', description: 'Copier paper 80gsm', unitPrice: 24, unit: 'box', catalogueId: 'office-supplies', catalogueName: 'Office Supplies', supplierName: 'OfficeCo', supplierId: 'SUP-O', leadTime: '2 days', available: true, category: 'goods' },
+];
+const ROUTE_DATA = { catalogueItems: CATALOGUE, catalogueEligibleCategories: ['goods', 'catalogue'], categories: DEFAULT_CATEGORY_TAXONOMY };
 
-console.log('\nThe command bar routes through the shared decision');
-check('it calls decideIntakeRoute', /decideIntakeRoute\(/.test(BAR_SRC));
-check('it gates on the admin catalogue-eligibility config',
-  /catalogueEligibleCategories/.test(BAR_SRC) && /catalogueEligible/.test(BAR_SRC));
-// The private matcher and its stop-word list must be gone, not merely unused.
-check('the private catalogue matcher is gone',
-  !/function searchCatalogueItems/.test(BAR_SRC));
-check('its stop-word list is gone', !/CATALOGUE_STOP_WORDS/.test(BAR_SRC));
-check('the catalogue branch cannot be entered without a catalogue route',
-  /route === 'catalogue'/.test(BAR_SRC));
-// The fifth copy of the category decision: a regex cascade in localClassify
-// that could disagree with the wizard about the same sentence.
-check('it uses the one classifier', /classifyDemandCategory\(/.test(BAR_SRC));
-check('and no longer carries its own category regex cascade',
-  !/consult\|advisory\|strategy\|audit\|transformation/.test(BAR_SRC));
+console.log('\nThe Home box routes through the one question route');
+// It carried its own route — and the assistant another. Both call
+// question-route.ts now, which calls the shared intake decision, so the
+// behaviour is asserted by CALLING it rather than by reading the box's source.
+check('the Home box asks the shared route', /useQuestionRoute\(\)/.test(BAR_SRC) && !/decideIntakeRoute|localClassify/.test(BAR_SRC));
+check('"buy business consulting" is not a catalogue order',
+  catalogueItemsFor('I want to buy business consulting', ROUTE_DATA).length === 0);
+check('printer paper is', catalogueItemsFor('printer paper', ROUTE_DATA).some((i) => i.id === 'OS-001'));
+check('an ineligible category keeps the catalogue closed',
+  catalogueItemsFor('printer paper', { ...ROUTE_DATA, catalogueEligibleCategories: [] }).length === 0);
+check('the private catalogue matcher is gone', !/function searchCatalogueItems|CATALOGUE_STOP_WORDS/.test(BAR_SRC));
+check('no supplier table or category cascade in the box',
+  !/SUPPLIER_ROUTES|consult\|advisory\|strategy/.test(BAR_SRC));
 
 // ── The third door: classification choosing the route ───────────────────────
 //
@@ -197,8 +171,12 @@ check('a route-shaped answer is kept as an intent', /intent = 'catalogue'/.test(
 // `category=catalogue` link and checks the category is re-derived. This keeps
 // the structural half: the page must not parse links itself and reintroduce a
 // second, unguarded reading.
-check('the ?category= link is guarded where it is parsed',
-  /ROUTE_LIKE_CATEGORY/.test(DEEP_LINK_SRC) && /classifyCommodityCategory\(/.test(DEEP_LINK_SRC));
+// The `?step=2&category=…` link carried a second classification past the
+// describe step. It has no producer since the one question route, and no
+// parser either — a demand arrives as its words.
+check('intake reads no category from a link', !/get\('category'\)|get\('step'\)/.test(DEEP_LINK_SRC));
+check('nothing builds a step=2 link',
+  !/set\('step'/.test(BAR_SRC) && !/params\.set\('category'|new URLSearchParams\(\{ category/.test(readFileSync(new URL('../../api/chat.ts', import.meta.url), 'utf8')));
 check('the page does not parse deep links itself',
   !/searchParams\.get\(/.test(WIZARD_SRC));
 
@@ -207,13 +185,13 @@ console.log('\nA demand goes into intake, not into a chat overlay');
 // overlay — so "I want to buy X", the single thing the box on the home screen
 // exists for, landed in a conversation with no classification, no route and no
 // way to submit. Only lookups and open questions belong to the assistant.
-check('a buy intent navigates into intake',
-  /localResult\.intent === 'new-request'/.test(BAR_SRC)
-  && /navigate\(`\/requests\/new\?q=\$\{encodeURIComponent\(query\)\}`\)/.test(BAR_SRC));
-check('the original wording is carried, so nothing is retyped',
-  /encodeURIComponent\(query\)/.test(BAR_SRC));
-check('only non-demand intents still reach the assistant',
-  /if \(localResult\.intent !== 'catalogue'\) \{\n\s*openAIChatWithPrompt/.test(BAR_SRC));
+const noAnswer = { status: async () => null, policy: async () => null };
+check('a buy intent goes into intake with its words',
+  (await routeQuestion('I want to buy 50 monitors for the trading floor', ROUTE_DATA, noAnswer)).kind === 'demand'
+  && /case 'demand': go\(`\/requests\/new\?q=\$\{encodeURIComponent\(text\)\}`\)/.test(BAR_SRC));
+check('only what is not a demand reaches the assistant',
+  (await routeQuestion('tell me a joke', ROUTE_DATA, noAnswer)).kind === 'assistant'
+  && /case 'assistant': openAIChatWithPrompt\(text\)/.test(BAR_SRC));
 
 console.log('\nNaming something procurable is a demand, verb or no verb');
 // It keyed "is this a demand" on a hardcoded buy-verb list, so the most natural
@@ -221,9 +199,9 @@ console.log('\nNaming something procurable is a demand, verb or no verb');
 // Accenture for 6 months", "cleaning services for the Berlin office" — were not
 // demands and went to the chat assistant, which cannot route or submit.
 check('a demand is recognised by what it names, not only by its verb',
-  /matchesDemandCategory\(/.test(BAR_SRC) && /DEMAND_VERBS/.test(BAR_SRC));
+  isDemand('cleaning services for the Berlin office', DEFAULT_CATEGORY_TAXONOMY));
 check('an explicit lookup is still a lookup',
-  /LOOKUP_OPENERS/.test(BAR_SRC) && /\^\\s\*\(find\|show\|list/.test(BAR_SRC));
+  !isDemand('find our cleaning services contract', DEFAULT_CATEGORY_TAXONOMY));
 check('the classifier can report that no rule matched',
   /export function matchesDemandCategory/.test(
     readFileSync(new URL('../../src/lib/procurement/classify.ts', import.meta.url), 'utf8')));
@@ -231,12 +209,12 @@ check('the classifier can report that no rule matched',
 console.log('\nA catalogue hit is named, and never navigated to');
 // Naming the match and handing over a link is the whole correction budget: a
 // wrong match costs a glance rather than a checkout for the wrong thing.
-check('the identified item links to its governed checkout',
-  /type: 'identified'/.test(BAR_SRC) && /\/catalogue\/items\/\$\{encodeURIComponent\(item\.id\)\}/.test(BAR_SRC));
+check('the identified item links to its governed checkout, never navigated to',
+  /case 'catalogue': setIdentified\(/.test(BAR_SRC) && /\/catalogue\/items\/\$\{encodeURIComponent\(item\.id\)\}/.test(BAR_SRC));
 check('the correction is always offered alongside the match',
   /Not what you need\? Describe it in full/.test(BAR_SRC));
 check('rejecting the match carries the original wording into intake',
-  /\/requests\/new\?q=\$\{encodeURIComponent\(proposal\.query \?\? ''\)\}/.test(BAR_SRC));
+  /\/requests\/new\?q=\$\{encodeURIComponent\(identified\.query\)\}/.test(BAR_SRC));
 
 console.log('\nThe naive matcher is gone for good');
 check('no search helper is left in the catalogue data file',

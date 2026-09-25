@@ -103,13 +103,18 @@ second page to drift.
 
 ## Deep links
 
-Three URLs open the intake with context attached, and each has cost a defect:
+Two URLs open the intake with context attached, and each has cost a defect:
 
 | Link | From | Trap |
 |---|---|---|
-| `?q=<text>` | the home box | Must seed the describe step and never ask for the text again |
-| `?step=2&category=…` | the command bar (legacy) | `category` can be `catalogue`, which is a **route, not a category** — accepting it verbatim puts the whole wizard on the fast track before the funnel runs |
+| `?q=<text>` | the Home box, the assistant (both providers), Start renewal | Must seed the describe step and never ask for the text again |
 | `?catalogueItem=…` | the item detail page | The confirmed fulfilment context must survive; `deliveryLocation` must **not** be defaulted, because it becomes `shipToLocationId` and the governed checkout rejects a value the profile does not approve |
+
+A third, `?step=2&category=…`, carried a second classification of the demand
+past the describe step — and `category` could be `catalogue`, a route, not a
+category. Its last producer went when the Home box and the assistant took one
+question route (2026-09-25), and it is no longer parsed: a demand arrives as its
+words and is classified once, here.
 
 Parsing is pure and lives in `new-request/intake-deep-link.ts`, so those rules
 are asserted by calling them. `use-intake-deep-link.ts` is only the seam: when

@@ -1,7 +1,16 @@
+// The assistant's send loop, shared by the chat overlay and Help → AI Assistant.
+// A message takes the same route as the Home box first (question-route.ts): a
+// status or policy question is answered from the configuration, a catalogue
+// item or a demand gets the Home box's next step, and only the rest reaches
+// the model.
 import { useState, useMemo } from 'react';
 import { useAuthStore } from '@/stores/auth-store';
 import { useConversationStore } from '@/stores/conversation-store';
 import { provider } from './index';
+import { useQuestionRoute } from './use-question-route';
+import { routeTurns, policyAnswerText } from './route-turns';
+import { statusAnswerText } from './status-answer';
+import { conversationTitle, NEW_CONVERSATION_TITLE } from './conversation-title';
 import type { ConfirmTurn, ChatMessageData, ChatAnswerTurn, AssistantTurn } from '@/data/types';
 
 const FALLBACK_TURN: ChatAnswerTurn = {
@@ -12,8 +21,15 @@ const FALLBACK_TURN: ChatAnswerTurn = {
 function turnsToText(turns: ChatMessageData['turns']): string {
   if (!turns) return '';
   return turns
-    .filter((t): t is ChatAnswerTurn => t.type === 'chat-answer')
-    .map((t) => t.content)
+    .map((t) => {
+      if (t.type === 'chat-answer') return t.content;
+      // Answers the route gave without the model are still the conversation:
+      // "and who approves it?" needs the record the card showed.
+      if (t.type === 'status-answer') return statusAnswerText(t.answer);
+      if (t.type === 'policy-answer') return policyAnswerText(t.answer);
+      return '';
+    })
+    .filter(Boolean)
     .join('\n');
 }
 
@@ -122,6 +138,7 @@ async function fetchSSE(
 export function useAssistant(conversationId: string | null) {
   const { currentRole, currentUser } = useAuthStore();
   const { conversations, addMessage, setTitle, createConversation } = useConversationStore();
+  const route = useQuestionRoute();
   const [isTyping, setIsTyping] = useState(false);
   const [streamingContent, setStreamingContent] = useState('');
 
@@ -155,14 +172,30 @@ export function useAssistant(conversationId: string | null) {
 
     await addMessage(activeId, userMessage, currentUser.id);
 
-    if (conversation && conversation.title === 'New conversation' && messages.length === 0) {
-      await setTitle(activeId, trimmed.slice(0, 50));
+    // Named by the question that started it. This required the conversation to
+    // exist before the first message — and the first message is what creates
+    // it — so every thread in the history read "New conversation".
+    const firstMessage = messages.length === 0;
+    if (firstMessage && (!conversation || conversation.title === NEW_CONVERSATION_TITLE)) {
+      await setTitle(activeId, conversationTitle(trimmed));
     }
 
     setIsTyping(true);
     setStreamingContent('');
 
     try {
+      const routed = await route(trimmed, { followUp: !firstMessage });
+      if (routed.kind !== 'assistant') {
+        await addMessage(activeId, {
+          id: `msg-${Date.now()}-ai`,
+          role: 'assistant',
+          content: '',
+          timestamp: new Date().toISOString(),
+          turns: routeTurns(routed, trimmed),
+        }, currentUser.id);
+        return;
+      }
+
       const history = [...messages, userMessage].map((m) => ({
         role: m.role,
         content: m.role === 'assistant' && m.turns ? turnsToText(m.turns) : m.content,

@@ -17,9 +17,17 @@ The AI assistant is a conversational procurement concierge — it answers policy
 | FR11-01 | any internal | I can ask "what is the approval threshold for consulting?" and get a grounded, cited answer | Must |
 | FR11-02 | any internal | I can ask "show me all overdue requests" and get a filtered list | Must |
 | FR11-03 | any internal | I can say "set my delegate to James Chen until Friday" and the system proposes + confirms the action | Must |
-| FR11-04 | any internal | I can say "I need to buy laptops" and the system opens the New Request wizard pre-filled | Should |
+| FR11-04 | any internal | I can say "I need to buy laptops" and the system offers New Request with my words | Should |
 
 ---
+
+## One route, before the model
+
+FR11-05 · Every message takes the **same route as the Home box** first (`src/lib/assistant/question-route.ts`, bound to the browser by `use-question-route.ts`): a **status question** is answered by the Status Answers agent as a status card; an item the **catalogue** serves is offered with a link to its governed checkout and a "describe it in full" link; a question-shaped **policy query** gets the answer computed from Decisioning thresholds and the knowledge-base entry, as a policy card; a **demand** is offered as New Request with the requester's words. Only the rest reaches the model. The assistant had a router of its own — a regex scorer with nine supplier names typed into it — so the same question could get a card on Home and the model's paraphrase in the chat.
+
+FR11-06 · In a conversation, a follow-up is a demand only when it states an intent to acquire ("I also need two laptops"): naming a category is not enough ("and for consulting?" is a question). Status and policy cards are given to the model as text for later turns.
+
+FR11-07 · A conversation is **named by the question that started it** (`conversationTitle`, first line, ≤60 characters). Every stored thread read "New conversation": the title was set only when the conversation existed before its first message, and the first message is what creates it. `backfill:conversation-titles` named the 78 stored threads.
 
 ## Tool Call Loop
 
@@ -57,7 +65,7 @@ FR11-12 · Synthetic tool_call_id format: `call_txt_{timestamp}` (Groq-compatibl
 | `filter_objects` | "Show me all X" | Filter application-owned data with conditions |
 | `propose_action` | State-change intent | Return `ConfirmTurn` to user; wait for confirmation. The card's text is **derived server-side** from the action — see Confirm before act |
 | `create_ticket` | Human help needed | Insert `tickets` row |
-| `start_demand` | Buy/procure intent | Return deep-link to `/requests/new?category=...` |
+| `start_demand` | Buy/procure intent | Return deep-link to `/requests/new?q=<the requester's words>` — no arguments; intake classifies the words (it took a category from a list written into the tool, which intake ignored) |
 | `remember_preference` | User tells delegate/cost-centre | Upsert `user_preferences.prefs`, four allowlisted keys only — see Confirm before act |
 | `filter_objects` | List queries | Query application-owned data with field filters |
 

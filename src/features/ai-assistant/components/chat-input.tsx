@@ -30,6 +30,7 @@ export function ChatInput({ onSend, disabled, placeholder = 'Ask anything…' }:
     <div className="flex items-center gap-2">
       <input
         type="text"
+        aria-label="Message the assistant"
         className="flex-1 rounded-full border border-line bg-card-2 px-4 py-2.5 text-sm placeholder:text-ink-3 focus:bg-card focus:border-accent focus:ring-2 focus:ring-accent/10 focus:outline-none transition-colors"
         placeholder={placeholder}
         value={value}
