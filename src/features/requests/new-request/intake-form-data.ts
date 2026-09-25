@@ -163,7 +163,6 @@ export interface IntakeFormData {
   preCheckOutcome: IntakeRouteOutcome;
   contractId: string;
   contractTitle: string;
-  workflowTemplateId: string;
 
   // ── Risk inputs (asked on Details) ──────────────────────────────────────
   miniIrq: MiniIrqAnswers;
@@ -238,7 +237,6 @@ export const INITIAL_INTAKE_DATA: IntakeFormData = {
   preCheckOutcome: '',
   contractId: '',
   contractTitle: '',
-  workflowTemplateId: '',
   buyingChannelResult: '',
   // Unanswered, not "no". The questions are asked in the conversation.
   miniIrq: {},

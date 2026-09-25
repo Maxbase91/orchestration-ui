@@ -12,17 +12,15 @@ import { useSourceData } from '@/lib/integrations';
 import { useMatchingRiskAssessments } from '@/lib/db/hooks/use-risk-assessments';
 import { useRoutingRules } from '@/lib/db/hooks/use-routing-rules';
 import { useAiAgent } from '@/lib/db/hooks/use-ai-agents';
-import { useWorkflowTemplates } from '@/lib/db/hooks/use-workflow-templates';
 import { useApprovalChains } from '@/lib/db/hooks/use-approval-chains';
 import { usePreferredSupplierIds } from '@/lib/db/hooks/use-category-preferred-suppliers';
 import { useServiceDescriptionTemplate } from '@/lib/db/hooks/use-service-description-templates';
-import { selectWorkflowTemplateForCategory } from '@/lib/workflow/workflow-steps';
 import {
   evaluateIntakeDetermination,
   type DeterminationServiceDescription,
   type IntakeDetermination,
 } from '@/lib/procurement/intake-determination';
-import type { Supplier, Contract, RoutingRule, RiskAssessment, WorkflowTemplate } from '@/data/types';
+import type { Supplier, Contract, RoutingRule, RiskAssessment } from '@/data/types';
 import type { ApprovalChain } from '@/lib/db/approval-chains';
 
 // Stable empty fallbacks defined at module level. Inline `= []` creates a new
@@ -32,7 +30,6 @@ const EMPTY_SUPPLIERS: Supplier[] = [];
 const EMPTY_CONTRACTS: Contract[] = [];
 const EMPTY_MATCHES: RiskAssessment[] = [];
 const EMPTY_RULES: RoutingRule[] = [];
-const EMPTY_TEMPLATES: WorkflowTemplate[] = [];
 const EMPTY_APPROVAL_CHAINS: ApprovalChain[] = [];
 const EMPTY_WORDING: Readonly<Record<string, string>> = {};
 
@@ -52,8 +49,6 @@ export interface UseIntakeDeterminationResult {
   determination: IntakeDetermination | null;
   /** True while the supplier's reusable-assessment lookup is still in flight. */
   loading: boolean;
-  /** The template the category implies, when the requester has not picked one. */
-  derivedWorkflowTemplateId?: string;
 }
 
 export function useIntakeDetermination(
@@ -65,7 +60,6 @@ export function useIntakeDetermination(
     useMatchingRiskAssessments({ supplierId: input.supplierId });
   const { data: routingRules = EMPTY_RULES } = useRoutingRules();
   const { data: validatorAgent } = useAiAgent('AI-002');
-  const { data: workflowTemplates = EMPTY_TEMPLATES } = useWorkflowTemplates();
   const { data: approvalChains = EMPTY_APPROVAL_CHAINS } = useApprovalChains();
   const preferredSupplierIds = usePreferredSupplierIds(input.category);
   // How this category puts the risk questions (Admin → Service description).
@@ -112,10 +106,6 @@ export function useIntakeDetermination(
     riskQuestionWording,
   ]);
 
-  const derivedWorkflowTemplateId = useMemo(
-    () => selectWorkflowTemplateForCategory(workflowTemplates, category)?.id,
-    [workflowTemplates, category],
-  );
 
-  return { determination, loading, derivedWorkflowTemplateId };
+  return { determination, loading };
 }

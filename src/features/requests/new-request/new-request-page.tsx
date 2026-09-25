@@ -17,7 +17,8 @@ import { riskSlotsFor } from '@/lib/procurement/residual-question-slots';
 import { descriptionComplete } from './details-sections';
 import { useCostCentres } from '@/lib/db/hooks/use-cost-centres';
 import { useDeliveryLocations } from '@/lib/db/hooks/use-delivery-locations';
-import { initWorkflow } from '@/lib/workflow/engine';
+import { useWorkflowTemplates } from '@/lib/db/hooks/use-workflow-templates';
+import { templateForChannel } from '@/lib/workflow/channel-stages';
 import { queryClient } from '@/lib/query-client';
 import type { RequestCategory, BuyingChannel } from '@/data/types';
 import {
@@ -150,7 +151,7 @@ export function NewRequestPage() {
   // screen and the record it wrote were then two copies of one answer, free to
   // fall out of step. The steps that show conclusions and the submit that
   // records them now read the same object.
-  const { determination, derivedWorkflowTemplateId } = useIntakeDetermination({
+  const { determination } = useIntakeDetermination({
     category: formData.category,
     estimatedValue: formData.estimatedValue,
     supplierId: formData.supplierId,
@@ -162,12 +163,11 @@ export function NewRequestPage() {
     contractId: formData.contractId || undefined,
   });
 
-  // The template the category implies, until the requester picks one. This used
-  // to be an effect inside the compliance step writing back through `onUpdate`.
-  useEffect(() => {
-    if (formData.workflowTemplateId || !derivedWorkflowTemplateId) return;
-    setFormData((prev) => ({ ...prev, workflowTemplateId: derivedWorkflowTemplateId }));
-  }, [formData.workflowTemplateId, derivedWorkflowTemplateId]);
+  // The lifecycle shown at Review is the template that claims the channel the
+  // determination chose — the same rule submit applies. It was derived from the
+  // category, which gave the standard procurement template to nearly everything.
+  const { data: workflowTemplates = [] } = useWorkflowTemplates();
+  const channelTemplateId = templateForChannel(workflowTemplates, determination?.buyingChannelSlug) ?? '';
 
   // Accounting defaults from the requester's stored profile, so a call-off does
   // not ask for a cost centre they have used every time. Never overwrites a
@@ -457,7 +457,8 @@ export function NewRequestPage() {
       const lines = [{ id: `LINE-${id}-1`, requestId: id, description: draft.title, quantity: 1, unit: 'service', unitPrice: draft.value,
         supplierId: supplier.id, contractId: contract.id, riskAssessmentId: riskAssessment?.id, commodityCode: line.commodityCode, deliveryDate: draft.needBy }];
       await submitGovernedCheckout({ requestId: id, requisitionId: `PR-${id}`, decision, checkout, request, lines });
-      if (decision.status !== 'approved') await initWorkflow(id, formData.workflowTemplateId, 'framework-call-off');
+      // The checkout creates the workflow instance on the call-off template.
+      // This used to add a second one here, on the category's template.
       queryClient.invalidateQueries({ queryKey: ['requests'] });
       toast.success('Contract call-off submitted');
       attemptIdRef.current = null; setRequestId(id); setStepId('confirmation');
@@ -492,7 +493,6 @@ export function NewRequestPage() {
             currency: formData.currency, supplierId: formData.supplierId, contractId: formData.contractId || undefined,
             // Advisory: the server recomputes the override and keeps the reason only if there was one.
             supplierOverrideReason: formData.supplierOverrideReason.trim() || undefined,
-            workflowTemplateId: formData.workflowTemplateId || undefined,
             buyingChannel: (determination?.buyingChannelSlug ?? 'procurement-led') as BuyingChannel,
             approvalChain: determination?.approvalChain, sourcingType: determination?.sourcingType.type,
             sourcingTypeReason: determination?.sourcingType.reason, inherentRiskTier: determination?.inherentRisk.tier,
@@ -522,7 +522,6 @@ export function NewRequestPage() {
           // this screen displays — the SRA outcome used to be read out of a
           // rendered label, so a never-assessed supplier recorded a pass.
           compliance: buildIntakeComplianceRecord(determination, { determinedAt: new Date().toISOString() }),
-          workflowTemplateId: formData.workflowTemplateId,
           buyingChannel: determination.buyingChannelSlug,
           idempotencyKey: `intake-${id}`,
         });
@@ -599,7 +598,7 @@ export function NewRequestPage() {
         ownerId: currentUser.id,
         supplierId: formData.supplierId,
         contractId: formData.contractId || undefined,
-        workflowTemplateId: formData.workflowTemplateId || undefined,
+        workflowTemplateId: channelTemplateId || undefined,
         // The slug, not the label. `buyingChannelResult` is the display form
         // ("Procurement-Led Sourcing") and every consumer of this column keys
         // on the slug, so a draft saved here routed as an unknown channel.
@@ -962,7 +961,7 @@ export function NewRequestPage() {
           <StepRoutingPreview
             category={formData.category}
             estimatedValue={formData.estimatedValue}
-            workflowTemplateId={formData.workflowTemplateId}
+            workflowTemplateId={channelTemplateId}
             riskAssessmentRequired={determination?.riskAssessmentRequired ?? false}
             supplierOnboardingRequired={determination?.supplierOnboardingRequired ?? false}
             supplierOverride={isPreferredSupplierOverride(formData.supplierId, preferredSupplierIds)}

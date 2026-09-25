@@ -49,12 +49,6 @@ function composeWorkflowSteps(nodes, signals) {
   return [...steps.slice(0, idx), ...inserts, ...steps.slice(idx)];
 }
 
-function selectWorkflowTemplateForCategory(templates, category) {
-  if (templates.length === 0) return undefined;
-  const byType = templates.find((t) => t.type === category);
-  const standard = templates.find((t) => t.name?.toLowerCase().includes('standard'));
-  return byType ?? standard ?? templates[0];
-}
 
 // ── Fixtures — the real seed templates (WF-001 standard, WF-003 onboarding) ──
 const labels = (steps) => steps.map((s) => s.label);
@@ -149,22 +143,23 @@ check('boundary €10k lands in the higher band (Standard)', bandFor(10_000) ===
 check('a chain with no band is skipped, not treated as [0, ∞)',
   selectChainForValue([{ id: 'x', name: 'Unbanded' }, ...CHAINS], 150_000, DEFAULT_POLICY_CONFIG)?.name === 'VP-Level');
 
-console.log('\nWorkflow-template selection by category');
-const TEMPLATES = [
-  { id: 'WF-001', name: 'Standard Procurement', type: 'procurement' },
-  { id: 'WF-002', name: 'Catalogue Purchase', type: 'catalogue' },
-  { id: 'WF-003', name: 'Supplier Onboarding', type: 'onboarding' },
-  { id: 'WF-004', name: 'Contract Renewal', type: 'renewal' },
-];
-check('exact type match wins (catalogue → WF-002)',
-  selectWorkflowTemplateForCategory(TEMPLATES, 'catalogue')?.id === 'WF-002');
-check('no type match → the "Standard" template (consulting → WF-001)',
-  selectWorkflowTemplateForCategory(TEMPLATES, 'consulting')?.id === 'WF-001');
-check('no type and no "standard" → the first template',
-  selectWorkflowTemplateForCategory(
-    [{ id: 'X', name: 'Alpha', type: 'a' }, { id: 'Y', name: 'Beta', type: 'b' }], 'consulting')?.id === 'X');
-check('empty list → undefined (Routing then shows only the conditional steps)',
-  selectWorkflowTemplateForCategory([], 'consulting') === undefined);
+// The template is no longer chosen by category. That rule gave the standard
+// procurement template to nearly every category, and submit preferred it over
+// the channel's template, so a business-led request would have run the
+// procurement-led lifecycle. The channel decides it (intake-submit.ts).
+console.log('\nThe template follows the channel, not the category');
+{
+  const { readFileSync } = await import('node:fs');
+  const read = (rel) => readFileSync(new URL(`../../${rel}`, import.meta.url), 'utf8');
+  check('no category-based template selection remains',
+    !/selectWorkflowTemplateForCategory/.test(read('src/lib/workflow/workflow-steps.ts') + read('src/features/requests/new-request/use-intake-determination.ts')));
+  const submit = read('api/_domains/intake-submit.ts');
+  check('submit takes the template that claims the channel, never the browser\u2019s',
+    /const templateId = templateForChannel\(templates, buyingChannel\) \|\| null;/.test(submit) && !/payload\.workflowTemplateId/.test(submit));
+  const page = read('src/features/requests/new-request/new-request-page.tsx');
+  check('the call-off does not start a second workflow instance in the browser', !/initWorkflow\(/.test(page));
+  check('Review previews the channel\u2019s template', /templateForChannel\(workflowTemplates, determination\?\.buyingChannelSlug\)/.test(page));
+}
 
 console.log('');
 if (failures) { console.error(`FAILED: ${failures} check(s)`); process.exit(1); }

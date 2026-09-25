@@ -20,7 +20,6 @@ type IntakePayload = {
   request?: JsonRecord;
   serviceDescription?: JsonRecord;
   compliance?: JsonRecord;
-  workflowTemplateId?: string;
   buyingChannel?: string;
   idempotencyKey?: string;
 };
@@ -148,17 +147,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     );
     const templates = templateRows as unknown as Parameters<typeof channelStageMapFromTemplates>[0];
     const channelStages = channelStageMapFromTemplates(templates);
-    // The template this request runs on: what the client chose, else the one
-    // that claims its channel. The fallback was the literal `'WF-001'`, so a
-    // catalogue or p-card submission that arrived without an explicit template
-    // was recorded as running the procurement-led workflow — the wrong stage
-    // SLAs, the wrong owner roles, and a lifecycle it does not traverse. Null
-    // only when no template claims the channel, which `unclaimedChannels`
-    // already reports; the column is nullable and a wrong id is worse than none.
-    const templateId = payload.workflowTemplateId
-      || String(request.workflowTemplateId || '')
-      || templateForChannel(templates, buyingChannel)
-      || null;
+    // The template that claims the request's channel — never the browser's.
+    // The browser sent a template derived from the CATEGORY, which is the
+    // standard procurement template for nearly every category, and it won: a
+    // business-led request would have run the procurement-led lifecycle,
+    // sourcing and all. Server-authoritative, like the channel itself. Null only
+    // when no template claims the channel, which `unclaimedChannels` reports;
+    // the column is nullable and a wrong id is worse than none.
+    const templateId = templateForChannel(templates, buyingChannel) || null;
     const templateNodes = Array.isArray(templateRows.find((r) => r.id === templateId)?.nodes)
       ? (templateRows.find((r) => r.id === templateId)!.nodes) as Array<{ id: string; type?: string; label?: string; slaDays?: number }>
       : [];

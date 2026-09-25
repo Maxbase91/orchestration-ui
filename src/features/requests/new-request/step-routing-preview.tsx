@@ -4,7 +4,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { WorkflowPreview } from './components/workflow-preview';
-import { useWorkflowTemplate, useWorkflowTemplates } from '@/lib/db/hooks/use-workflow-templates';
+import { useWorkflowTemplate } from '@/lib/db/hooks/use-workflow-templates';
 import { useApprovalChains } from '@/lib/db/hooks/use-approval-chains';
 import { useProcurementCategories } from '@/lib/db/hooks/use-procurement-categories';
 import { useUsers } from '@/lib/db/hooks/use-users';
@@ -12,7 +12,6 @@ import { useDerivedApprovers } from '@/lib/db/hooks/use-derived-approvers';
 import {
   composeWorkflowSteps,
   selectApprovalChainForValue,
-  selectWorkflowTemplateForCategory,
 } from '@/lib/workflow/workflow-steps';
 import { usePolicyConfig } from '@/lib/procurement/use-policy-config';
 import { initialsOf } from '@/lib/format';
@@ -53,21 +52,15 @@ export function StepRoutingPreview({
 }: StepRoutingPreviewProps) {
   const { preferredSupplierOverrideNeedsApproval } = usePolicyConfig();
   const { data: detailTemplate } = useWorkflowTemplate(workflowTemplateId || undefined);
-  const { data: allTemplates = [] } = useWorkflowTemplates();
   const { data: chains = [] } = useApprovalChains();
   const policyConfig = usePolicyConfig();
   const { data: categories = [] } = useProcurementCategories();
   const { data: users = [] } = useUsers();
 
-  // The attached template, made robust: if the request never persisted a
-  // workflowTemplateId (the deriving effect lives on the risk/determination
-  // steps, which are unmounted here — and on a cold template-list cache it can
-  // miss), fall back to deriving the template from the category right here, with
-  // the same rule the effect uses. The Routing lifecycle then always renders.
-  const template = useMemo(
-    () => detailTemplate ?? selectWorkflowTemplateForCategory(allTemplates, category),
-    [detailTemplate, allTemplates, category],
-  );
+  // The template that claims the determined channel (the page resolves it with
+  // the rule submit uses). There is no category fallback: the category picked
+  // the standard procurement template for nearly everything.
+  const template = detailTemplate;
 
   // Lifecycle ← the attached template's stage nodes + conditional Risk / Onboarding.
   const workflowSteps = useMemo(

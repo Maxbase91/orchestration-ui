@@ -156,6 +156,11 @@ Each channel is claimed by exactly one template (`channels`), and every writer
 resolves the template by the channel — the intake writer, the governed checkout
 and the backfills. Never by a literal id: the checkout wrote `'WF-001'` for every
 contract call-off, so call-offs ran the procurement-led lifecycle.
+Nor by category, and never from the browser: intake derived a template from the
+category (the standard procurement template for nearly everything) and submit
+preferred it, so a business-led request would have run the procurement-led
+lifecycle. Submit takes `templateForChannel` only; the Review preview uses the same
+rule, and the call-off's instance is created by the checkout alone.
 
 | Channel | Template |
 |---|---|
