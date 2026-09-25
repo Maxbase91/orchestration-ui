@@ -73,7 +73,7 @@ export function rankKnowledge(query: string, entries: KnowledgeEntry[] = knowled
 export async function knowledgePool(): Promise<KnowledgeEntry[]> {
   try {
     const stored = await listKnowledgeBase();
-    if (stored.length > 0) return stored as unknown as KnowledgeEntry[];
+    if (stored.length > 0) return stored;
   } catch (e) {
     console.warn('[assistant] knowledge base unreadable; answering from the built-in set:', e);
   }

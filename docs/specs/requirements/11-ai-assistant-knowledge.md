@@ -116,9 +116,11 @@ FR11-31 · SYSTEM_PROMPT explicitly forbids LaTeX, chain-of-thought, and step-by
 
 ## Knowledge Base
 
-FR11-40 · `knowledge_base` table: id, title, body, source, tags[].
+FR11-40 · `knowledge_base` table: id, title, body, source, tags[], **topic** and **sort_order** (2026-09-25 — they place an entry on the Help page).
 FR11-41 · `execSearchKnowledge()`: queries the Neon-backed `knowledge_base` table first and falls back to the built-in knowledge base when the table is empty. The fallback is degraded data, not a permissions boundary.
-FR11-42 · KB Management admin page (`/admin/kb`) for adding/editing entries.
+FR11-42 · KB Management admin page (`/admin/kb`) for adding/editing entries, including each entry's topic (suggested from the topics in use) and order; a new entry takes the next free id rather than a random one that could overwrite an existing entry.
+
+FR11-43 · **Help → Knowledge Base** (`/help/kb`) reads the same pool the assistant answers from — the stored entries, else the built-in set — grouped by topic (a topic sits where its first entry does; untopiced entries last under "More"), with figures rendered from the live configuration and a search that matches every word over the text as read. It held twelve articles of its own until 2026-09-25; six duplicated existing entries and six were rewritten as KB-032…KB-037 (the four channels, the stages of a request, the Home page, decisioning thresholds, routing rules, workflows).
 
 ---
 

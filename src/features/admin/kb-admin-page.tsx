@@ -1,6 +1,7 @@
 // Admin — knowledge base management. CRUD over the `knowledge_base`
-// table; entries here replace the built-in KB and are what the assistant and
-// the Home box answer policy questions from.
+// table; entries here replace the built-in KB and are what the assistant, the
+// Home box and the Help pages answer from. The topic and order place an entry
+// on the Help page.
 //
 // An entry names a governed figure ({{policy:…}}, {{approval-chains}},
 // {{preferred-suppliers:…}}) instead of restating it, so it cannot drift from
@@ -54,8 +55,14 @@ function LinkBadges({ links }: { links: KnowledgeLink[] }) {
   );
 }
 
-function generateId(): string {
-  return `KB-${String(Math.floor(Math.random() * 9000) + 1000)}`;
+/**
+ * The next free id after the highest stored one. It was a random KB-1000…9999,
+ * which could land on an existing entry — and the save upserts on id, so it
+ * would have replaced that entry without a word.
+ */
+function nextId(existingIds: readonly string[]): string {
+  const highest = Math.max(0, ...existingIds.map((id) => Number(/^KB-(\d+)$/.exec(id)?.[1] ?? 0)));
+  return `KB-${String(highest + 1).padStart(3, '0')}`;
 }
 
 function EntryForm({
@@ -64,6 +71,8 @@ function EntryForm({
   onCancel,
   ctx,
   categoryIds,
+  existingIds,
+  topics,
 }: {
   initial: KBEntry | null;
   onSave: (entry: KBEntry) => void;
@@ -71,12 +80,17 @@ function EntryForm({
   ctx: KnowledgeContext | undefined;
   /** Undefined until the configuration loads — then nothing is flagged yet. */
   categoryIds: ReadonlySet<string> | undefined;
+  existingIds: readonly string[];
+  /** The topics in use, offered so an entry joins one rather than coining a near-duplicate. */
+  topics: readonly string[];
 }) {
-  const [id, setId] = useState(initial?.id ?? generateId());
+  const [id, setId] = useState(initial?.id ?? nextId(existingIds));
   const [title, setTitle] = useState(initial?.title ?? '');
   const [body, setBody] = useState(initial?.body ?? '');
   const [source, setSource] = useState(initial?.source ?? '');
   const [tags, setTags] = useState(initial?.tags.join(', ') ?? '');
+  const [topic, setTopic] = useState(initial?.topic ?? '');
+  const [sortOrder, setSortOrder] = useState(String(initial?.sortOrder ?? 0));
 
   const bodyRef = useRef<HTMLTextAreaElement>(null);
   const links = knowledgeLinks(body, categoryIds);
@@ -94,11 +108,13 @@ function EntryForm({
   function submit() {
     if (!valid) return;
     onSave({
-      id: id.trim() || generateId(),
+      id: id.trim() || nextId(existingIds),
       title: title.trim(),
       body: body.trim(),
       source: source.trim(),
       tags: tags.split(',').map((t) => t.trim()).filter(Boolean),
+      topic: topic.trim(),
+      sortOrder: Number(sortOrder) || 0,
     });
   }
 
@@ -123,6 +139,17 @@ function EntryForm({
       <div className="space-y-1">
         <label className="text-xs font-medium text-ink-3">Title *</label>
         <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Approval thresholds" className="h-8 text-sm" />
+      </div>
+      <div className="grid gap-3 sm:grid-cols-[1fr_8rem]">
+        <div className="space-y-1">
+          <label htmlFor="kb-topic" className="text-xs font-medium text-ink-3">Topic — groups it on the Help page</label>
+          <Input id="kb-topic" list="kb-topics" value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="e.g. Getting started" className="h-8 text-sm" />
+          <datalist id="kb-topics">{topics.map((t) => <option key={t} value={t} />)}</datalist>
+        </div>
+        <div className="space-y-1">
+          <label htmlFor="kb-order" className="text-xs font-medium text-ink-3">Order</label>
+          <Input id="kb-order" type="number" value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} className="h-8 text-sm tabular-nums" />
+        </div>
       </div>
       <div className="space-y-1">
         <div className="flex items-center justify-between gap-2">
@@ -198,6 +225,9 @@ function EntryRow({
           <div className="flex items-center gap-2">
             <span className="shrink-0 font-mono text-[11px] text-ink-3">{entry.id}</span>
             <span className="truncate text-sm font-medium text-ink">{entry.title}</span>
+            {entry.topic
+              ? <span className="shrink-0 text-[11px] text-ink-3">· {entry.topic}</span>
+              : <span className="shrink-0 text-[11px] text-warn">· no topic — listed under More on the Help page</span>}
           </div>
           <div className="mt-1"><LinkBadges links={knowledgeLinks(entry.body, categoryIds)} /></div>
           <div className="mt-0.5 flex flex-wrap gap-1">
@@ -268,8 +298,11 @@ export function KBAdminPage() {
     (e) =>
       !search ||
       e.title.toLowerCase().includes(search.toLowerCase()) ||
+      e.topic.toLowerCase().includes(search.toLowerCase()) ||
       e.tags.some((t) => t.toLowerCase().includes(search.toLowerCase()))
   );
+  const existingIds = entries.map((e) => e.id);
+  const topics = [...new Set(entries.map((e) => e.topic).filter(Boolean))];
 
   const formEntry = editingEntry;
 
@@ -277,7 +310,7 @@ export function KBAdminPage() {
     <div className="space-y-5">
       <PageHeader
         title="Knowledge Base Management"
-        subtitle="What the assistant and the Home box answer policy questions from. Link a governed figure instead of typing it, so the answer always matches what the platform does."
+        subtitle="What the assistant, the Home box and the Help pages answer from. Link a governed figure instead of typing it, so the answer always matches what the platform does."
       />
 
       {entries.length === 0 && !loading && (
@@ -290,7 +323,7 @@ export function KBAdminPage() {
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Filter by title or tag…"
+          placeholder="Filter by title, topic or tag…"
           className="h-9 max-w-xs"
         />
         <Button
@@ -310,6 +343,8 @@ export function KBAdminPage() {
           onCancel={() => setShowForm(false)}
           ctx={ctx}
           categoryIds={categoryIds}
+          existingIds={existingIds}
+          topics={topics}
         />
       )}
 
@@ -337,6 +372,8 @@ export function KBAdminPage() {
                     onCancel={() => setEditingEntry(null)}
                     ctx={ctx}
                     categoryIds={categoryIds}
+                    existingIds={existingIds}
+                    topics={topics}
                   />
                 </div>
               ) : (

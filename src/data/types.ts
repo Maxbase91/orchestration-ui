@@ -626,6 +626,10 @@ export interface KnowledgeEntry {
   body: string;
   source: string;
   tags: string[];
+  /** Groups the entry on the Help page. Empty lands under "More". */
+  topic: string;
+  /** Order on the Help page; a topic sits where its first entry does. */
+  sortOrder: number;
 }
 
 /**

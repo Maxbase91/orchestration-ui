@@ -1,4 +1,5 @@
-// Data access for the admin-managed knowledge base.
+// Data access for the admin-managed knowledge base — what the assistant, the
+// Home box and the Help pages answer from.
 //
 // Entries here REPLACE the built-in KB — not merge with it, so an entry an admin
 // deleted stops answering — and they are what the assistant's retrieval ranks
@@ -14,22 +15,32 @@
 // `lib/db/hooks/use-<entity>.ts`).
 
 import { db } from '../db-client.js';
+import type { KnowledgeEntry } from '../../data/types.js';
 
-export interface KBEntry {
-  id: string;
-  title: string;
-  body: string;
-  source: string;
-  tags: string[];
+/** One type for an entry, stored or built in — this was a second copy of it. */
+export type KBEntry = KnowledgeEntry;
+
+function mapRow(row: Record<string, unknown>): KBEntry {
+  return {
+    id: String(row.id),
+    title: String(row.title ?? ''),
+    body: String(row.body ?? ''),
+    source: String(row.source ?? ''),
+    tags: Array.isArray(row.tags) ? (row.tags as string[]) : [],
+    topic: String(row.topic ?? ''),
+    sortOrder: Number(row.sort_order ?? 0),
+  };
 }
 
+/** In reading order: the Help page groups by topic in this order. */
 export async function listKnowledgeBase(): Promise<KBEntry[]> {
   const { data, error } = await db
     .from('knowledge_base')
-    .select('id, title, body, source, tags')
+    .select('id, title, body, source, tags, topic, sort_order')
+    .order('sort_order', { ascending: true })
     .order('id', { ascending: true });
   if (error) throw error;
-  return (data ?? []) as unknown as KBEntry[];
+  return (data ?? []).map((r) => mapRow(r as Record<string, unknown>));
 }
 
 /**
@@ -37,9 +48,10 @@ export async function listKnowledgeBase(): Promise<KBEntry[]> {
  * rather than failing on the primary key.
  */
 export async function saveKnowledgeBaseEntry(entry: KBEntry): Promise<void> {
+  const { sortOrder, ...rest } = entry;
   const { error } = await db
     .from('knowledge_base')
-    .upsert({ ...entry, updated_at: new Date().toISOString() }, { onConflict: 'id' });
+    .upsert({ ...rest, sort_order: sortOrder, updated_at: new Date().toISOString() }, { onConflict: 'id' });
   if (error) throw error;
 }
 

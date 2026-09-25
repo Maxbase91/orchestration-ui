@@ -55,9 +55,9 @@ try {
       { stage: 'ticket', channel: 'default', hours: 12, days: 1 },
     ],
     knowledge_base: [
-      { id: 'KB-013', title: 'Catalogue Purchasing', body: 'Orders up to {{policy:catalogueAutoApprovalThreshold}} are approved automatically.', source: 'Decisioning thresholds', tags: ['catalogue'] },
-      { id: 'KB-028', title: 'Insurance Requirements', body: 'Public liability: €5M per incident.', source: 'KOP-RISK-003', tags: ['insurance'] },
-      { id: 'KB-900', title: 'Broken Reference', body: 'Limit {{policy:noSuchThreshold}}.', source: '', tags: [] },
+      { id: 'KB-013', title: 'Catalogue Purchasing', body: 'Orders up to {{policy:catalogueAutoApprovalThreshold}} are approved automatically.', source: 'Decisioning thresholds', tags: ['catalogue'], topic: 'Buying policy', sort_order: 30 },
+      { id: 'KB-028', title: 'Insurance Requirements', body: 'Public liability: €5M per incident.', source: 'KOP-RISK-003', tags: ['insurance'], topic: 'Suppliers & risk', sort_order: 54 },
+      { id: 'KB-900', title: 'Broken Reference', body: 'Limit {{policy:noSuchThreshold}}.', source: '', tags: [], topic: '', sort_order: 0 },
     ],
   });
   // The policy singleton has its own endpoint, not /api/db. Served from the
@@ -334,6 +334,25 @@ try {
   check('an admin inserts a governed figure instead of typing it',
     (await page.locator('#kb-body').inputValue()).includes('{{policy:competitiveSourcingThreshold}}'));
   check('the editor previews it as the requester reads it', (await page.getByText('€25,000').count()) > 0);
+
+  // Help → Knowledge base reads the same entries, grouped by topic. It held
+  // twelve articles of its own and feedback buttons that recorded nothing.
+  console.log('\nThe Help page reads the knowledge base');
+  await page.goto(`${BASE}/help/kb`, { waitUntil: 'networkidle' });
+  await page.getByRole('heading', { name: 'Buying policy' }).waitFor({ timeout: 20000 });
+  const headings = await page.locator('main h2').allInnerTexts();
+  check('entries are grouped by topic, in order, the untopiced last',
+    headings.map((h) => h.toLowerCase()).join(' | ') === 'buying policy | suppliers & risk | more', headings.join(' | '));
+  await page.getByRole('button', { name: 'Catalogue Purchasing' }).click();
+  const article = await page.locator('#kb-KB-013').innerText();
+  check('an article reads with the live figure', /€1,000/.test(article) && !/\{\{policy/.test(article), article);
+  check('no feedback buttons that record nothing', (await page.getByText(/Was this helpful/).count()) === 0);
+  // The trail takes its labels from the navigation; it said "Kb".
+  check('the breadcrumb names the page as the menu does',
+    /Knowledge Base/.test(await page.locator('header').first().innerText()), await page.locator('header').first().innerText());
+  await page.getByLabel('Search the knowledge base').fill('insurance');
+  check('search narrows to what matches', (await page.getByRole('button', { name: 'Insurance Requirements' }).count()) === 1
+    && (await page.getByRole('button', { name: 'Catalogue Purchasing' }).count()) === 0);
 
   console.log('\nThe Status Answers agent says what its configuration allows');
   await page.goto(`${BASE}/admin/agents`, { waitUntil: 'networkidle' });

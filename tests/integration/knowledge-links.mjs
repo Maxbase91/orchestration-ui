@@ -20,6 +20,7 @@ import {
   knowledgeLinks, renderKnowledgeBody, stripKnowledgeTokens, availableKnowledgeTokens,
 } from '../../src/lib/procurement/knowledge-links.ts';
 import { directPolicyAnswer, parseAmount } from '../../src/lib/procurement/policy-answers.ts';
+import { helpTopics, matchesHelpSearch, UNFILED_TOPIC } from '../../src/features/help/knowledge-topics.ts';
 
 let failures = 0;
 function check(name, cond, detail = '') {
@@ -123,6 +124,31 @@ check('the admin page shows linked vs policy text only',
   /Linked to configuration/.test(read('src/features/admin/kb-admin-page.tsx')) && /Policy text only/.test(read('src/features/admin/kb-admin-page.tsx')));
 check('the Policy management page (a static third copy) is gone', !read('src/App.tsx').includes('PolicyManagementPage'));
 
+// ── The Help page reads the knowledge base ─────────────────────────────────
+// It held twelve articles of its own, several describing features the platform
+// does not have, with "Was this helpful?" buttons that recorded nothing.
+console.log('\nThe Help page reads the knowledge base');
+const helpPage = read('src/features/help/knowledge-base-page.tsx').replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '');
+check('the Help page holds no articles of its own', !/content:\s*['"`]|articles:\s*\[/.test(helpPage));
+check('no feedback buttons that record nothing', !/Was this helpful|ThumbsUp|ThumbsDown/.test(helpPage));
+check('it reads the stored entries and renders their figures',
+  /useKnowledgeBase\(\)/.test(helpPage) && /renderKnowledgeBody\(/.test(helpPage));
+check('every built-in entry has a topic', knowledgeBase.every((e) => e.topic.trim() !== ''),
+  knowledgeBase.filter((e) => !e.topic.trim()).map((e) => e.id).join(', '));
+check('no two built-in entries share an order', new Set(knowledgeBase.map((e) => e.sortOrder)).size === knowledgeBase.length);
+const topics = helpTopics(knowledgeBase);
+check('Getting started comes first', topics[0]?.name === 'Getting started', topics.map((t) => t.name).join(' · '));
+check('a topic keeps its entries in order', topics.every((t) => t.entries.every((e, i, a) => i === 0 || a[i - 1].sortOrder <= e.sortOrder)));
+const e = (id, topic, sortOrder, title = id) => ({ id, title, body: '', source: '', tags: [], topic, sortOrder });
+const grouped = helpTopics([e('a', 'Later', 1), e('b', '', 0), e('c', 'later', 2), e('d', 'First', 0)]);
+check('topics differing only in case are one topic, named as first met',
+  grouped.map((t) => `${t.name}:${t.entries.length}`).join(',') === `First:1,Later:2,${UNFILED_TOPIC}:1`,
+  grouped.map((t) => `${t.name}:${t.entries.length}`).join(','));
+const consulting = knowledgeBase.find((x) => x.id === 'KB-002');
+const consultingText = renderKnowledgeBody(consulting.body, ctx).text;
+check('search runs over the text as read, figures included', matchesHelpSearch(consulting, consultingText, '€25,000 quotes'));
+check('every searched word must appear', !matchesHelpSearch(consulting, consultingText, 'quotes catering'));
+
 const env = loadEnv();
 const connection = env.NEON_DATABASE_URL || env.DATABASE_URL;
 if (!connection) {
@@ -135,6 +161,8 @@ if (!connection) {
   check('the live knowledge base holds the entries (not the code fallback)', rows.length >= knowledgeBase.length, `${rows.length} rows`);
   const broken = rows.filter((r) => knowledgeLinks(r.body, liveCategories).some((l) => !l.valid)).map((r) => r.id);
   check('every live reference names real configuration', broken.length === 0, broken.join(', '));
+  const [{ untopiced }] = await sql`SELECT count(*)::int AS untopiced FROM knowledge_base WHERE topic = ''`;
+  check('every live entry has a topic for the Help page', untopiced === 0, `${untopiced} without`);
 }
 
 console.log('');

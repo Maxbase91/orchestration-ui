@@ -170,7 +170,8 @@
     "backfill:routing-rules-real": "node --import tsx/esm db/backfills/2026-09-25-routing-rules-real.mjs",
     "backfill:functional-roles": "node --import tsx/esm db/backfills/2026-09-25-functional-roles.mjs",
     "backfill:category-classifier": "node --import tsx/esm db/backfills/2026-09-25-category-classifier.mjs",
-    "backfill:service-description-and-forms": "node --import tsx/esm db/backfills/2026-09-25-service-description-and-forms.mjs"
+    "backfill:service-description-and-forms": "node --import tsx/esm db/backfills/2026-09-25-service-description-and-forms.mjs",
+    "backfill:knowledge-base-topics": "node --import tsx/esm db/backfills/2026-09-25-knowledge-base-topics.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

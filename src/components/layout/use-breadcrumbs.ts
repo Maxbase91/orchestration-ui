@@ -1,65 +1,30 @@
-// Derives the breadcrumb trail from the current URL path. Segments map to
-// display labels via a lookup table, with a title-case fallback so unknown
-// segments (e.g. record ids or new routes) still render something sensible.
+// Derives the breadcrumb trail from the current URL path. A path the
+// navigation names takes its label from there — the sidebar and the trail say
+// the same thing; any other segment is title-cased, and a record id is shown
+// as stored.
+//
+// Labels were a second table here, kept by hand. It had drifted: `/help/kb`
+// read "Kb" beside a menu saying "Knowledge Base", `/admin/sla-targets` read
+// "Sla Targets" for "Support SLAs", and it still named Policy Management, a
+// page since removed.
 import { useLocation } from 'react-router-dom';
+import { navigation, type NavItem } from '@/config/navigation';
 
 export interface Breadcrumb {
   label: string;
   path: string;
 }
 
-const segmentLabels: Record<string, string> = {
-  requests: 'Requests',
-  my: 'My Requests',
-  new: 'New Request',
-  approvals: 'Approvals',
-  delegation: 'Delegation',
-  tasks: 'Tasks',
-  team: 'Team Tasks',
-  workflows: 'Workflows',
-  active: 'Active',
-  monitor: 'Workflow Monitor',
-  bottlenecks: 'Bottlenecks & Alerts',
-  pipeline: 'Pipeline',
-  demand: 'Demand Pipeline',
-  sourcing: 'Sourcing',
-  events: 'Events',
-  templates: 'Templates',
-  evaluation: 'Evaluation Centre',
-  suppliers: 'Suppliers',
-  onboarding: 'Onboarding Pipeline',
-  risk: 'Risk & Compliance',
-  'portal-admin': 'Supplier Portal Admin',
-  contracts: 'Contracts',
-  renewals: 'Renewals & Expiries',
-  purchasing: 'Purchasing',
-  orders: 'Open POs',
-  'goods-receipt': 'Goods Receipt',
-  invoices: 'Invoices',
-  'three-way-match': 'Three-Way Match',
-  payments: 'Payment Tracker',
-  analytics: 'Analytics',
-  spend: 'Spend Overview',
-  compliance: 'Compliance KPIs',
-  'supplier-performance': 'Supplier Performance',
-  reports: 'Reports',
-  builder: 'Report Builder',
-  scheduled: 'Scheduled Reports',
-  exports: 'Exports',
-  admin: 'Admin',
-  'routing-rules': 'Routing Rules',
-  'approval-chains': 'Approval Chains',
-  'workflow-designer': 'Workflow Designer',
-  'ai-agents': 'AI Agent Configuration',
-  policies: 'Policy Management',
-  users: 'User Management',
-  'system-health': 'System Health',
-  'audit-log': 'Audit Log',
-  help: 'Help',
-  'ai-assistant': 'AI Assistant',
-  'knowledge-base': 'Knowledge Base',
-  contact: 'Contact Support',
-};
+function collect(items: NavItem[], into: Map<string, string>): Map<string, string> {
+  for (const item of items) {
+    if (item.path && !into.has(item.path)) into.set(item.path, item.label);
+    if (item.children) collect(item.children, into);
+  }
+  return into;
+}
+
+/** Every path the navigation names, with its label. */
+const NAV_LABELS = collect(navigation.flatMap((group) => group.items), new Map());
 
 /**
  * A record id — REQ-2024-0001, PO-0042, SUP-013 — is shown exactly as stored.
@@ -70,9 +35,11 @@ const segmentLabels: Record<string, string> = {
  */
 const looksLikeId = (segment: string) => /\d/.test(segment);
 
-function humanize(segment: string): string {
-  if (!segmentLabels[segment] && looksLikeId(segment)) return decodeURIComponent(segment);
-  return segmentLabels[segment] ?? segment
+function humanize(segment: string, path: string): string {
+  const named = NAV_LABELS.get(path);
+  if (named) return named;
+  if (looksLikeId(segment)) return decodeURIComponent(segment);
+  return segment
     .split('-')
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
@@ -91,7 +58,7 @@ export function useBreadcrumbs(): Breadcrumb[] {
 
   segments.forEach((segment, index) => {
     const path = '/' + segments.slice(0, index + 1).join('/');
-    breadcrumbs.push({ label: humanize(segment), path });
+    breadcrumbs.push({ label: humanize(segment, path), path });
   });
 
   return breadcrumbs;

@@ -794,7 +794,7 @@ not in a component — because RLS is currently `USING (true)`.
 |---|---|---|
 | TC-PLT-01 | `/notifications` | 7 types; mark read; **preferences persist across reload** |
 | TC-PLT-02 | `/settings` | Currency/locale setting **applied app-wide** (amounts reformat) |
-| TC-PLT-03 | `/help/kb` Knowledge Base | Articles render/search |
+| TC-PLT-03 | `/help/kb` Knowledge Base | Reads the **same entries** the assistant and the Home box answer from (stored, else the built-in set), grouped by **topic** in the entries' order, untopiced last under "More"; figures render from the live configuration; search matches every word over the text as read; no feedback buttons; a failed load says so. The breadcrumb takes the menu's label (it read "Kb"). `test:knowledge-links` (no hardcoded articles, every entry topiced, grouping, search) and `test:reference-data-ui` |
 | TC-PLT-04 | `/help/support` Contact Support | Form submits |
 | TC-PLT-05 | Auth (production target) | Real login/SSO; logout |
 | TC-PLT-06 | Responsive/mobile | Approvals usable on narrow viewport |

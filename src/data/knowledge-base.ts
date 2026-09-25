@@ -8,6 +8,8 @@ export const knowledgeBase: KnowledgeEntry[] = [
     body: "Who approves a request is decided by its value, through the approval chains:\n{{approval-chains}}\n\nThe budget owner is the owner of the cost centre the request is charged to; the category manager is the manager set for the request's category. Choosing a supplier that is not preferred for the category needs a reason, and adds the category manager's approval when Decisioning thresholds require it. A routing rule can name a chain directly — for example the compliance escalation for a high-risk supplier — which then applies whatever the value.",
     source: "Approval chains · Decisioning thresholds",
     tags: ['threshold', 'approval', 'limit', 'authority', 'delegated', 'spend', 'sign-off'],
+    topic: 'Approvals',
+    sortOrder: 20,
   },
   {
     id: 'KB-002',
@@ -15,6 +17,8 @@ export const knowledgeBase: KnowledgeEntry[] = [
     body: "Consulting and advisory engagements:\n• Always procurement-led, whatever the value — procurement runs the sourcing.\n• From {{policy:competitiveSourcingThreshold}}: at least {{policy:minCompetitiveQuotes}} competitive quotes, unless the supplier is preferred for consulting or a single-source justification is approved.\n• Preferred suppliers for consulting: {{preferred-suppliers:consulting}}. All of them are invited when a consulting sourcing event starts.\n• Above €500,000: full tender with an independent evaluation panel (policy — not a platform check).\nApprovals follow the value bands in Approval thresholds.",
     source: "Routing rules · Decisioning thresholds · Categories (preferred suppliers)",
     tags: ['consulting', 'advisory', 'threshold', 'rfp', 'quote', 'tender', 'panel', 'channel'],
+    topic: 'By category',
+    sortOrder: 40,
   },
   {
     id: 'KB-003',
@@ -22,6 +26,8 @@ export const knowledgeBase: KnowledgeEntry[] = [
     body: "Software and SaaS purchases:\n• Up to {{policy:businessLedCeiling}} the business buys it itself; above that, procurement runs the sourcing, and above {{policy:budgetApprovalThreshold}} VP approval is needed.\n• If a contract already covers the software and it is within {{policy:directCallOffLimit}}, it is called off that contract — no new sourcing.\n• Preferred suppliers for software: {{preferred-suppliers:software}}.\n• New SaaS tools: security review before the PO; allow 10 business days (policy).\n• Open-source for commercial use: check the approved OSS register (policy).",
     source: "Routing rules · Decisioning thresholds · Categories (preferred suppliers)",
     tags: ['software', 'saas', 'it', 'licensing', 'cloud', 'aws', 'azure', 'security review', 'catalogue'],
+    topic: 'By category',
+    sortOrder: 41,
   },
   {
     id: 'KB-004',
@@ -29,6 +35,8 @@ export const knowledgeBase: KnowledgeEntry[] = [
     body: "When a supplier risk assessment is needed is decided at intake:\n• An in-date assessment of the supplier that covers the scope is reused — no new one.\n• Otherwise one is required for a new or unselected supplier, a supplier whose assessment is missing or expired, a supplier rated high or critical, or when the description indicates highly sensitive data.\n• A high or critical inherent risk also requires one. Value contributes to that tier from {{policy:riskMediumValue}} (medium) and {{policy:riskHighValue}} (high).\n• For {{policy:privilegedAccessCategories}}, intake asks whether the supplier will have privileged or system access; from {{policy:criticalServiceThreshold}} it asks whether the service is critical.\nReassessment cadence by tier (policy): Tier 1 annually, Tier 2 every two years or at renewal, Tier 3 on significant change.",
     source: "Risk triage · Decisioning thresholds",
     tags: ['sra', 'risk', 'assessment', 'supplier', 'tier', 'compliance', 'annual'],
+    topic: 'Suppliers & risk',
+    sortOrder: 52,
   },
   {
     id: 'KB-005',
@@ -36,6 +44,8 @@ export const knowledgeBase: KnowledgeEntry[] = [
     body: "Preferred suppliers are set per category under Admin → Categories:\n• Consulting: {{preferred-suppliers:consulting}}\n• Software: {{preferred-suppliers:software}}\n• Services: {{preferred-suppliers:services}}\n• Goods: {{preferred-suppliers:goods}}\n• Contingent labour: {{preferred-suppliers:contingent-labour}}\nA preferred supplier waives the competitive-quote requirement. Choosing another supplier needs a reason, and adds the category manager's approval when Decisioning thresholds require it. A supplier qualifies for the list with a performance score of at least {{policy:preferredMinPerformance}}.",
     source: "Categories (preferred suppliers) · Decisioning thresholds",
     tags: ['panel', 'preferred', 'supplier', 'it', 'consulting', 'accenture', 'deloitte', 'waiver'],
+    topic: 'Suppliers & risk',
+    sortOrder: 50,
   },
   {
     id: 'KB-006',
@@ -43,6 +53,8 @@ export const knowledgeBase: KnowledgeEntry[] = [
     body: "A contract renewal is a demand like any other:\n1. Contracts → Renewals & Expiries lists contracts ending within 90 days.\n2. Choose Start renewal on the contract (or its row in Renewals & Expiries). It opens New Request with the renewal written.\n3. The contract check recognises the covering contract as expiring when it ends within {{policy:contractExpiryBufferDays}}, and the determination sets the contract type to renew and the sourcing type to renewal.\n4. From there the request follows its buying channel like any other demand.\nIf you are not renewing, plan the hand-over at least 60 days before expiry (policy).",
     source: "Contract check · Decisioning thresholds",
     tags: ['contract', 'renewal', 'expiry', 'review', '90 days', 'notice', 'renegotiate'],
+    topic: 'Sourcing & contracts',
+    sortOrder: 62,
   },
   {
     id: 'KB-007',
@@ -50,6 +62,8 @@ export const knowledgeBase: KnowledgeEntry[] = [
     body: "Purchase orders:\n• From {{policy:contractRequiredThreshold}}, a PO needs an executed contract behind it — the platform checks this at intake.\n• A PO is required for all spend above €2,000, raised before goods or services are received (policy).\n• Three-way match for every PO: PO ↔ goods receipt ↔ invoice.\n• Value tolerance: ±5% or €500 (whichever is lower) before a change order is needed (policy).\n• Emergency POs: log within 24 hours with justification (policy).\n• Amendments above 20% of the original value need the original approval level to re-sign (policy).",
     source: "Decisioning thresholds · Purchase Order Policy v2.2",
     tags: ['po', 'purchase order', 'match', 'three-way', 'invoice', 'goods receipt', 'amendment'],
+    topic: 'Purchasing & payment',
+    sortOrder: 70,
   },
   {
     id: 'KB-008',
@@ -57,6 +71,8 @@ export const knowledgeBase: KnowledgeEntry[] = [
     body: "When you are out of office, approval authority can be delegated:\n• Set your delegate under Approvals → Delegation, or ask the assistant.\n• Delegates must have equal or higher role authority.\n• Delegation is time-bounded: set a start and end date.\n• Delegated approvals are logged against both the delegator and the delegate in the audit trail.",
     source: "Approval Governance Framework — Section 3.2",
     tags: ['delegation', 'delegate', 'ooo', 'out of office', 'approval', 'substitute', 'escalation'],
+    topic: 'Approvals',
+    sortOrder: 21,
   },
   {
     id: 'KB-009',
@@ -64,6 +80,8 @@ export const knowledgeBase: KnowledgeEntry[] = [
     body: 'Standard payment terms:\n• Default: Net 30 days from invoice receipt and 3-way match completion.\n• Strategic suppliers (Tier 1): Net 45 days as per contract terms.\n• Early payment discount: available for suppliers offering 2/10 Net 30 — flag on invoice.\n• Late payment: automatic escalation if not paid within 5 days of due date.\nIf a payment is stuck, check the invoice match status first. Unmatched invoices block payment. Raise a payment escalation via the assistant or via Purchasing → Invoices → Escalate.',
     source: 'Finance & Treasury Policy — Accounts Payable Section',
     tags: ['payment', 'terms', 'net 30', 'invoice', 'escalation', 'late', 'match', 'overdue'],
+    topic: 'Purchasing & payment',
+    sortOrder: 72,
   },
   {
     id: 'KB-010',
@@ -71,6 +89,8 @@ export const knowledgeBase: KnowledgeEntry[] = [
     body: "Contingent labour (contractors, interim, staff augmentation):\n• Always procurement-led, whatever the value. It becomes a call-off only when the contract check finds a framework that covers it.\n• {{policy:competitiveSourcingExemptCategories}} is exempt from the competitive-quote requirement.\n• Preferred suppliers for contingent labour: {{preferred-suppliers:contingent-labour}}.\n• IR35 determination for UK engagements above 6 weeks; maximum continuous engagement 24 months (policy).\n• Self-employed individuals are not engaged directly without Legal review (policy).",
     source: "Routing rules · Decisioning thresholds · Categories (preferred suppliers)",
     tags: ['contractor', 'contingent', 'staffing', 'interim', 'ir35', 'agency', 'hays', 'randstad', 'staff augmentation'],
+    topic: 'By category',
+    sortOrder: 42,
   },
   {
     id: 'KB-011',
@@ -78,6 +98,8 @@ export const knowledgeBase: KnowledgeEntry[] = [
     body: 'From 2025, all new supplier engagements above €250,000 must include an ESG assessment (policy — not a platform check):\n• Suppliers must complete the ESG Questionnaire (available on Supplier Portal).\n• Minimum score of 60/100 required to proceed.\n• Preferred suppliers must have a validated Science-Based Target (SBT) by 2026.\n• All contracts above €500K must include a sustainability clause and annual ESG reporting obligation.\nESG scores are visible on each supplier profile and factor into the preferred panel ranking.',
     source: 'ESG Procurement Charter 2025',
     tags: ['esg', 'sustainability', 'green', 'carbon', 'climate', 'scope', 'environmental', 'social'],
+    topic: 'Buying policy',
+    sortOrder: 36,
   },
   {
     id: 'KB-012',
@@ -85,6 +107,8 @@ export const knowledgeBase: KnowledgeEntry[] = [
     body: 'A formal Sourcing Event (RFP/RFQ) is managed through the Evaluation Centre:\n1. Create sourcing event: define scope, criteria, and invite list.\n2. Bid submission window: minimum 10 business days for RFQ, 20 for RFP.\n3. Evaluation: score bids against weighted criteria (price, quality, delivery, risk).\n4. Shortlist: top 2–3 bids presented to business stakeholder for final selection.\n5. Award: supplier notification and contract initiation.\nAll bid scores are logged and visible in the Evaluation Centre for audit purposes. Use "Compare bids" in the assistant to navigate directly there.',
     source: 'Sourcing Process Standard v1.4',
     tags: ['sourcing', 'rfp', 'rfq', 'bid', 'evaluation', 'tender', 'award', 'compare', 'score'],
+    topic: 'Sourcing & contracts',
+    sortOrder: 60,
   },
   {
     id: 'KB-013',
@@ -92,6 +116,8 @@ export const knowledgeBase: KnowledgeEntry[] = [
     body: "The catalogue holds pre-approved, pre-priced items:\n• A catalogue order up to {{policy:catalogueAutoApprovalThreshold}} is approved automatically and becomes a purchase order straight away — no request.\n• Above that, the order goes to your manager for approval.\n• Only categories marked catalogue-eligible can be served from the catalogue.\n• Something not in the catalogue: describe it in New Request instead.\nCatalogue items are maintained by procurement (Admin → Database → Catalogue items).",
     source: "Decisioning thresholds · Categories · Catalogue items",
     tags: ['catalogue', 'catalog', 'low value', 'office supplies', 'stationery', 'peripherals', 'auto-approved'],
+    topic: 'Buying policy',
+    sortOrder: 30,
   },
   {
     id: 'KB-014',
@@ -99,6 +125,8 @@ export const knowledgeBase: KnowledgeEntry[] = [
     body: "Buying from a single supplier without competition (single source) from {{policy:competitiveSourcingThreshold}} needs a single-source justification, unless the supplier is preferred for the category or the category is exempt ({{policy:competitiveSourcingExemptCategories}}):\n• Written justification: why competition is not possible, market analysis confirming uniqueness, value-for-money evidence.\n• Approved by the Procurement Director (policy).\n• Valid reasons: proprietary technology, incumbent advantage, emergency or continuity. Invalid: \"preferred by the business\", \"faster than a tender\".\nJustifications are reported quarterly to the Procurement Committee.",
     source: "Decisioning thresholds · KOP-GEN-005 — Single Source Policy",
     tags: ['single source', 'sole source', 'ssj', 'competition', 'justification', 'waiver', 'incumbent'],
+    topic: 'Buying policy',
+    sortOrder: 31,
   },
   {
     id: 'KB-015',
@@ -106,6 +134,8 @@ export const knowledgeBase: KnowledgeEntry[] = [
     body: 'Any supplier processing personal data on our behalf must sign a Data Processing Agreement (DPA) before engagement:\n• DPA is mandatory for all cloud/SaaS suppliers handling employee or customer data.\n• GDPR Article 28 compliance checks are part of the onboarding SRA.\n• Data transfers outside the EEA: SCCs (Standard Contractual Clauses) required.\n• Annual sub-processor review is the contract owner\'s responsibility.\nRaise a data privacy query or DPA request via the assistant → Ticket/Handover flow, or contact the DPO directly at dpo@company.com.',
     source: 'Data Privacy & Procurement Guidance Note',
     tags: ['gdpr', 'data', 'privacy', 'dpa', 'data processing', 'personal data', 'scc', 'dpo'],
+    topic: 'Buying policy',
+    sortOrder: 35,
   },
   {
     id: 'KB-016',
@@ -113,6 +143,8 @@ export const knowledgeBase: KnowledgeEntry[] = [
     body: "Marketing services (agencies, creative, media buying) are services demands:\n• Up to {{policy:businessLedCeiling}} the business buys them itself; above that, procurement runs the sourcing.\n• From {{policy:competitiveSourcingThreshold}}: at least {{policy:minCompetitiveQuotes}} competitive quotes, unless the supplier is preferred for services ({{preferred-suppliers:services}}).\n• Influencer or social spend above €10,000: Social Media Policy review (policy).\n• Every marketing contract includes a brand-guidelines clause and right-to-audit provisions (policy).",
     source: "Routing rules · Decisioning thresholds · Marketing Procurement Policy v1.2",
     tags: ['marketing', 'creative', 'agency', 'media', 'brand', 'events', 'wpp', 'ogilvy'],
+    topic: 'By category',
+    sortOrder: 43,
   },
   {
     id: 'KB-017',
@@ -120,6 +152,8 @@ export const knowledgeBase: KnowledgeEntry[] = [
     body: 'If an invoice is disputed:\n1. Log the dispute in the system (Purchasing → Invoices → Dispute).\n2. Dispute reason: price variance, quality issue, or delivery discrepancy.\n3. Supplier is notified automatically and has 5 business days to respond.\n4. If unresolved after 10 days, escalate to Procurement Operations Lead.\n5. Credit note or revised invoice required before payment can proceed.\nDo not block payment without formal dispute log — this creates regulatory risk. Partial payment is permitted if part of the invoice is undisputed.',
     source: 'Accounts Payable Procedure — Invoice Disputes',
     tags: ['dispute', 'invoice', 'discrepancy', 'variance', 'credit note', 'partial payment'],
+    topic: 'Purchasing & payment',
+    sortOrder: 73,
   },
   {
     id: 'KB-018',
@@ -127,6 +161,8 @@ export const knowledgeBase: KnowledgeEntry[] = [
     body: "You do not onboard a supplier separately — name it in your request, or leave the supplier open and sourcing finds one:\n1. If the supplier is not in the directory yet, the request passes through the Vendor Onboarding stage once a supplier is chosen.\n2. Vendor management collects bank details, tax registration and insurance certificates, and screens the supplier.\n3. A risk assessment is added when intake requires one (see Supplier Risk Assessment).\n4. No purchase order is raised to the supplier until onboarding completes.\nSuppliers → Onboarding shows where each supplier is. Typical duration: 5–10 business days (policy).",
     source: "Workflow templates (Vendor Onboarding stage)",
     tags: ['onboarding', 'new supplier', 'register', 'vendor', 'portal', 'bank details', 'validation'],
+    topic: 'Suppliers & risk',
+    sortOrder: 51,
   },
   {
     id: 'KB-019',
@@ -134,6 +170,8 @@ export const knowledgeBase: KnowledgeEntry[] = [
     body: "A framework agreement is a contract that can be called off without a new tender:\n• When the contract check finds a transactable contract covering the demand, and the value is within the direct call-off limit of {{policy:directCallOffLimit}}, the request is a call-off: no sourcing, no new supplier onboarding.\n• Above {{policy:directCallOffLimit}} a mini-competition is needed, so the demand goes in as a new request.\n• A contract is transactable while its utilisation is below {{policy:contractUtilisationHeadroom}} and it is not expiring within {{policy:contractExpiryBufferDays}}.\nThe Contract Register lists the frameworks in force.",
     source: "Contract check · Decisioning thresholds",
     tags: ['framework', 'call-off', 'agreement', 'mini-competition', 'aws', 'azure', 'hays', 'randstad'],
+    topic: 'Sourcing & contracts',
+    sortOrder: 61,
   },
   {
     id: 'KB-020',
@@ -141,6 +179,8 @@ export const knowledgeBase: KnowledgeEntry[] = [
     body: "Emergency procurement (no time for the normal process) is permitted when business continuity is at risk (system outage, safety issue) and advance notice was not possible.\n• Mark the request urgent: urgent requests are procurement-led on the fast-track route.\n• A verbal commitment can be made immediately; log the emergency PO within 24 hours (policy).\n• The Procurement Director's verbal authorisation is confirmed in writing within 48 hours; full justification within 5 business days (policy).\nAbusing the emergency process is a policy breach and is flagged in the compliance report.",
     source: "Routing rules · KOP-GEN-008 — Emergency Procurement",
     tags: ['emergency', 'urgent', 'retroactive', 'retrospective', 'continuity', 'fast-track'],
+    topic: 'Buying policy',
+    sortOrder: 32,
   },
 
   // ── Process guides ───────────────────────────────────────────────────────────
@@ -150,6 +190,8 @@ export const knowledgeBase: KnowledgeEntry[] = [
     body: "Raising a purchase request:\n1. Describe what you need in your own words — on Home or under Requests → New Request. There is no category to pick; it is worked out from your description.\n2. The platform checks the catalogue and existing contracts first. A catalogue item is ordered directly; a demand a contract covers is called off it.\n3. Otherwise the assistant asks only what is still needed and writes the service description with you.\n4. The buying channel follows from what you buy and its value: consulting and contingent labour are always procurement-led; any other demand up to {{policy:businessLedCeiling}} is business-led — your team buys it and agrees the contract with Legal — and above that procurement-led. Urgent requests are procurement-led.\n5. Review and submit. Approvals follow the value bands:\n{{approval-chains}}\n\nTrack it under My Requests, or ask \"where is REQ-…\" on Home.",
     source: "Intake · Routing rules · Approval chains",
     tags: ['pr', 'purchase request', 'new request', 'raise', 'submit', 'create', 'how to', 'wizard', 'demand'],
+    topic: 'Getting started',
+    sortOrder: 11,
   },
 
   // ── Extended policies (KB-021 – KB-030) ─────────────────────────────────────
@@ -159,6 +201,8 @@ export const knowledgeBase: KnowledgeEntry[] = [
     body: 'Business travel must be booked through the approved Corporate Travel Portal (CTP).\n\nThresholds & approval:\n• Domestic travel (flights + hotel): up to €1,000 — manager approval only (policy — travel is booked outside the platform).\n• International travel: up to €3,000 — Head of Department sign-off; above €3,000 — VP approval.\n• Rail preferred over air for journeys under 4 hours.\n\nHotel booking: always use preferred hotel chains (Marriott, Hilton, IHG) at negotiated rates. Booking outside the CTP requires a Business Justification Form.\n\nExpense claims must be submitted within 10 business days of the trip with original receipts. Per-diem rates: €60/day Europe, €80/day Americas/APAC.\n\nEntertainment (client dinners, events): single event up to €150 per person — manager approval; above €150 — requires Director sign-off and a business purpose statement.',
     source: 'KOP-GEN-009 — Travel & Expenses Policy',
     tags: ['travel', 'hotel', 'flights', 'expense', 'per-diem', 'entertainment', 'ctp'],
+    topic: 'Buying policy',
+    sortOrder: 34,
   },
   {
     id: 'KB-022',
@@ -166,6 +210,8 @@ export const knowledgeBase: KnowledgeEntry[] = [
     body: 'External legal services must be procured through the approved Legal Panel.\n\nPanel firms (Tier 1 — complex/global work): Freshfields, Linklaters, Clifford Chance.\nPanel firms (Tier 2 — regional/specialist): DLA Piper, Ashurst, Baker McKenzie.\n\nOff-panel engagement requires General Counsel approval and a Panel Waiver Form.\n\nThresholds:\n• Routine matters (NDA, standard contracts): in-house legal first; external only if >€10K value at risk.\n• Litigation/dispute resolution: >€50K requires Legal Committee approval.\n• M&A/regulatory: always requires General Counsel and CEO sign-off.\n\nAll legal engagements must have an Engagement Letter. Hourly rate caps are negotiated per matter type. Do not share unpublished financial data with external counsel without a signed confidentiality agreement.',
     source: 'KOP-LEG-001 — Legal Services Procurement',
     tags: ['legal', 'law firm', 'counsel', 'nda', 'litigation', 'panel', 'engagement letter'],
+    topic: 'By category',
+    sortOrder: 45,
   },
   {
     id: 'KB-023',
@@ -173,6 +219,8 @@ export const knowledgeBase: KnowledgeEntry[] = [
     body: 'Suppliers may be terminated or de-listed under the following conditions:\n• Material breach of contract (non-performance, fraud, data breach).\n• Failed SRA with no remediation plan within 90 days.\n• ESG score below 40/100 for two consecutive assessments.\n• Insolvency, regulatory sanction, or sanctions-list inclusion.\n\nTermination process:\n1. Procurement Manager raises a Supplier Exit Request.\n2. Legal reviews contractual obligations and notice periods (typically 30–90 days).\n3. Category Manager identifies alternative suppliers; transition plan documented.\n4. Finance verifies outstanding POs, invoices, and retentions are resolved.\n5. De-listing logged in Supplier Directory with reason code; audit trail maintained.\n\nEarly termination costs may apply if the contract includes penalty clauses. Do not de-list without General Counsel clearance if active litigation is involved.',
     source: 'KOP-SUP-005 — Supplier Termination & Exit',
     tags: ['termination', 'exit', 'de-list', 'transition', 'offboarding', 'breach', 'insolvency'],
+    topic: 'Suppliers & risk',
+    sortOrder: 55,
   },
   {
     id: 'KB-024',
@@ -180,6 +228,8 @@ export const knowledgeBase: KnowledgeEntry[] = [
     body: 'Correct capital vs operating expenditure classification is required before any purchase order is raised.\n\nCapEx (Capital Expenditure):\n• Physical assets with useful life >1 year (servers, machinery, fit-out).\n• Software licences with perpetual/multi-year term >€10K.\n• Leasehold improvements.\n• Threshold: items >€5,000 per unit.\n\nOpEx (Operating Expenditure):\n• Recurring SaaS subscriptions (regardless of value).\n• Maintenance and support contracts.\n• Professional services billed as time-and-materials.\n• Assets below the €5,000 capitalisation threshold.\n\nClassification process:\n1. Requestor selects CapEx or OpEx in the request form.\n2. Finance Controller validates before PO creation for amounts >€25K.\n3. CapEx purchases require budget code from the Finance approved CapEx budget.\n\nMisclassification is a finance control breach. If in doubt, contact Finance before ordering.',
     source: 'KOP-FIN-003 — CapEx vs OpEx Policy',
     tags: ['capex', 'opex', 'capital', 'asset', 'finance', 'accounting', 'depreciation', 'saas'],
+    topic: 'Buying policy',
+    sortOrder: 33,
   },
   {
     id: 'KB-025',
@@ -187,6 +237,8 @@ export const knowledgeBase: KnowledgeEntry[] = [
     body: "Changes to an existing contract or PO must be documented.\n\nPO changes (policy):\n• ±5% or ±€500 (whichever is lower): approved automatically.\n• 5–20% variance: Procurement Manager approval.\n• Above 20%, or a change of scope or deliverables: a new approval; an uplift of {{policy:competitiveSourcingThreshold}} or more may need re-sourcing.\n\nContract amendments:\n• When a call-off extends the contract's scope or its capacity, the call-off's Contracting stage amends the contract first.\n• Material amendments (scope, value above 10%, IP rights, liability caps): Legal review, same approval authority as the original contract (policy).\n• Extension beyond the original term is a renewal (see Contract Renewal).",
     source: "Decisioning thresholds · Workflow templates · KOP-CON-004",
     tags: ['change order', 'amendment', 'variation', 'scope', 'po change', 'contract change'],
+    topic: 'Sourcing & contracts',
+    sortOrder: 63,
   },
   {
     id: 'KB-026',
@@ -194,6 +246,8 @@ export const knowledgeBase: KnowledgeEntry[] = [
     body: 'All third-party relationships must be assessed for risk beyond the standard SRA.\n\nTPRM scope:\n• Sub-contractors holding or accessing our data.\n• Fourth-party suppliers (critical sub-suppliers of Tier 1 vendors).\n• Offshore/nearshore delivery centres.\n\nAssessment levels:\n• Standard (sub-€50K, non-critical): self-certification questionnaire only.\n• Enhanced (€50K–€500K or critical data access): full TPRM assessment (financial, cyber, operational, ESG) — 10-15 business day cycle.\n• Deep (>€500K or critical infrastructure): independent audit every 2 years + quarterly monitoring.\n\nOngoing monitoring:\n• Continuous screening via compliance database (sanctions, adverse news, ownership changes).\n• Material changes (ownership, regulatory action, breach) trigger immediate re-assessment.\n• Results reported quarterly to Risk Committee.\n\nSuppliers must notify us within 48 hours of any material change (e.g., change of control, data breach involving our data).',
     source: 'KOP-RISK-002 — Third-Party Risk Management',
     tags: ['tprm', 'third party', 'subcontractor', 'supply chain', 'cyber', 'fourth party', 'monitoring'],
+    topic: 'Suppliers & risk',
+    sortOrder: 53,
   },
   {
     id: 'KB-027',
@@ -201,6 +255,8 @@ export const knowledgeBase: KnowledgeEntry[] = [
     body: "Facilities services (cleaning, security, catering, maintenance) are services demands:\n• Up to {{policy:businessLedCeiling}} the business buys them itself; above that, procurement runs the sourcing.\n• From {{policy:competitiveSourcingThreshold}}: at least {{policy:minCompetitiveQuotes}} competitive quotes, unless the supplier is preferred for services ({{preferred-suppliers:services}}).\n\nNew office leases (policy): CFO and Board approval regardless of value; at least 3 alternative locations evaluated; real-estate legal and an external surveyor.\n\nFit-out and refurbishment (policy): classify as CapEx above the capitalisation threshold (see CapEx vs OpEx); BREEAM or equivalent preferred for fit-outs above €500,000.",
     source: "Routing rules · Decisioning thresholds · KOP-FAC-001",
     tags: ['facilities', 'real estate', 'lease', 'office', 'fit-out', 'maintenance', 'workplace'],
+    topic: 'By category',
+    sortOrder: 44,
   },
   {
     id: 'KB-028',
@@ -208,6 +264,8 @@ export const knowledgeBase: KnowledgeEntry[] = [
     body: 'All suppliers must maintain adequate insurance coverage before commencing work.\n\nMinimum required coverage:\n• Public Liability: €5M per incident (all suppliers).\n• Employers Liability: €10M (suppliers with on-site staff).\n• Professional Indemnity (PI): €2M per claim for consulting/IT/legal services; €5M for >€500K contracts.\n• Cyber / E&O Insurance: required for all suppliers handling our personal data or critical systems.\n• Product Liability: €5M for goods suppliers.\n\nEvidence:\n• Certificates of Insurance must be provided before contract execution and renewed annually.\n• Procurement to confirm insurance validity before PO creation for Tier 1 suppliers.\n\nIndemnity clauses:\n• Standard contract includes mutual indemnity for gross negligence and wilful misconduct.\n• Data breach indemnity: supplier fully indemnifies us for breaches caused by their systems.\n• IP infringement indemnity: supplier indemnifies us for third-party IP claims on their deliverables.',
     source: 'KOP-RISK-003 — Insurance & Indemnity Requirements',
     tags: ['insurance', 'indemnity', 'liability', 'pi', 'professional indemnity', 'cyber', 'certificate'],
+    topic: 'Suppliers & risk',
+    sortOrder: 54,
   },
   {
     id: 'KB-029',
@@ -215,6 +273,8 @@ export const knowledgeBase: KnowledgeEntry[] = [
     body: 'Ownership and licensing of intellectual property (IP) must be explicitly addressed in every contract.\n\nDefault IP position:\n• Work product created specifically for us under a services contract: we own the IP ("works for hire").\n• Pre-existing IP brought in by the supplier: supplier retains ownership; we receive a licence.\n• Open-source components: supplier must disclose all OSS used; licences must be compatible with our intended use.\n\nKey IP clauses to include:\n• Assignment of bespoke deliverables to us upon payment.\n• Broad licence to pre-existing supplier IP needed to use/maintain the deliverable.\n• Non-assertion: supplier may not assert IP rights to block our use of the deliverable.\n• Source code escrow for business-critical software (triggered on supplier insolvency).\n\nSoftware procurement specifically:\n• Perpetual licences preferred for mission-critical systems.\n• SaaS/subscription: confirm data portability and export rights at contract end.\n• Never accept "shrink-wrap" terms for enterprise software — negotiate a bespoke agreement.\n\nAll IP clauses must be reviewed by Legal before contract signature.',
     source: 'KOP-LEG-002 — Intellectual Property in Contracts',
     tags: ['ip', 'intellectual property', 'ownership', 'license', 'copyright', 'source code', 'open source'],
+    topic: 'Sourcing & contracts',
+    sortOrder: 64,
   },
   {
     id: 'KB-030',
@@ -222,5 +282,64 @@ export const knowledgeBase: KnowledgeEntry[] = [
     body: 'Receipt of goods must be formally recorded to trigger the 3-way matching process and authorise payment.\n\nReceipt process:\n• All goods deliveries must be logged in the system within 1 business day of physical receipt.\n• Designated receiver confirms: correct item, correct quantity, undamaged condition.\n• Partial deliveries: log the received quantity; system tracks the outstanding balance.\n\nInspection & acceptance:\n• Inspection window: 5 business days from delivery for standard goods; 10 days for technical equipment.\n• Defects or shortfalls must be formally logged as a Goods Receipt Exception within the inspection window.\n• Silent acceptance: if no exception is raised within the inspection window, delivery is deemed accepted.\n\nReturns & replacements:\n• Supplier has 10 business days to collect and replace defective goods at no cost.\n• If replacement not provided within SLA, a credit note must be issued and payment withheld.\n\nServices acceptance:\n• For services, a Completion Certificate or signed Delivery Note is required to confirm milestones.\n• Procurement can withhold up to 10% retention until final acceptance is confirmed.',
     source: 'KOP-PUR-003 — Goods Receipt & Acceptance',
     tags: ['goods receipt', 'grn', 'delivery', 'acceptance', 'defect', 'inspection', 'returns', 'three-way match'],
+    topic: 'Purchasing & payment',
+    sortOrder: 71,
+  },
+  // ── Help: how the platform works (the Help page's own articles, corrected,
+  //    2026-09-25 — they were hardcoded in the page and described a retired
+  //    channel, the old wizard, and features the platform does not have) ───
+  {
+    id: 'KB-032',
+    title: "How Something Gets Bought — the Four Channels",
+    body: "You describe what you need; the platform works out how it is bought. There are four ways:\n• Catalogue — a pre-approved item from an agreed supplier. You order it directly, and an order up to {{policy:catalogueAutoApprovalThreshold}} is approved automatically.\n• Contract call-off — an existing contract already covers the demand, so it is called off that contract: no new sourcing, and the supplier is already set up. Above {{policy:directCallOffLimit}} a call-off needs a mini-competition, so the demand goes in as a new request instead.\n• Business-led — up to {{policy:businessLedCeiling}} your team buys it itself, with the risk, onboarding and contract steps its workflow requires.\n• Procurement-led — procurement runs the sourcing and negotiates for you. Always for consulting and contingent labour, for urgent requests and for a supplier rated high risk or above, and for anything above {{policy:businessLedCeiling}}.",
+    source: "Routing rules · Decisioning thresholds · Contract check",
+    tags: ['buying channel', 'channel', 'catalogue', 'call-off', 'business-led', 'procurement-led', 'how to buy', 'route'],
+    topic: 'Getting started',
+    sortOrder: 10,
+  },
+  {
+    id: 'KB-033',
+    title: "After You Submit — the Stages of a Request",
+    body: "What happens after you submit depends on how it is bought: each buying channel has its own workflow, and your request's Workflow tab shows its exact stages, who owns each one and its deadline.\n• Every request starts at Intake and ends with the purchase order, receipt, invoice and payment.\n• In between, the stages depend on the channel and on what intake found — for example a risk assessment when one is needed, vendor onboarding for a supplier not yet in the directory, and validation, sourcing and contracting when procurement runs the buy.\n• Approvals follow the value bands (see Approval Thresholds); a catalogue order up to {{policy:catalogueAutoApprovalThreshold}} needs none.\n• A stage's deadline is counted in working days from the moment the request enters it.\nProcurement can refer a request back to you with a note. It then waits on you, and Home shows it under what needs you.",
+    source: "Workflow templates · Approval chains · Decisioning thresholds",
+    tags: ['stage', 'stages', 'status', 'lifecycle', 'workflow', 'after submit', 'referred back', 'deadline', 'sla'],
+    topic: 'Getting started',
+    sortOrder: 12,
+  },
+  {
+    id: 'KB-034',
+    title: "Your Home Page",
+    body: "The box at the top of Home takes anything in your own words:\n• Describe what you need — \"laptops for two new starters\" — and it starts a request with your words, checking the catalogue and existing contracts first.\n• Ask a policy question — \"do I need three quotes for €40,000?\" — and it answers from the live configuration, saying where the answer comes from.\n• Ask for a status — \"where is REQ-…\", \"what's waiting for me\", a purchase order, invoice, contract or supplier — and it answers with what your role may see.\nBelow the box, a band shows only what is waiting on you — overdue work, requests referred back to you, approvals for you to decide — and is absent when there is nothing. Then your quick actions and your widgets; Customise lets you add, remove and arrange them.",
+    source: "Home",
+    tags: ['home', 'dashboard', 'command bar', 'search', 'widgets', 'customise', 'status', 'quick actions'],
+    topic: 'Getting started',
+    sortOrder: 13,
+  },
+  {
+    id: 'KB-035',
+    title: "Decisioning Thresholds and Where They Are Used",
+    body: "Admin → Decisioning Thresholds holds every number a decision compares against: approval, materiality, risk, sourcing, contract and catalogue figures. Each is changed there, once.\nThresholds are the numbers; the rules decide what happens. A routing rule, an approval-chain band, a workflow branch or a form names a threshold instead of restating it — for example the catch-all rule for demand above {{policy:budgetApprovalThreshold}} — so changing the number moves every decision that uses it.\nUnder each threshold the page shows where the platform's code uses it and which rules, chains, branches, forms and knowledge-base articles name it; a threshold nothing reads is flagged. A simulation previews a sample demand under the edited figures before you save.",
+    source: "Decisioning thresholds · Routing rules · Approval chains",
+    tags: ['threshold', 'thresholds', 'decisioning', 'admin', 'configuration', 'routing rules', 'policy'],
+    topic: 'Admin & configuration',
+    sortOrder: 80,
+  },
+  {
+    id: 'KB-036',
+    title: "Routing Rules",
+    body: "Admin → Routing Rules decides which buying channel a demand takes, and can force an approval chain.\n• A rule has conditions and an action. All of its conditions must hold for it to match.\n• Conditions can use the category, value, supplier, commodity code, urgency, risk rating, supplier risk rating, materiality and contract. A value condition names a threshold from Decisioning Thresholds rather than a number.\n• Rules are checked in order of priority, then id, and the first active rule that matches decides. The catch-all rules at the end cover everything else; if even those are switched off, the demand goes procurement-led.\n• The test panel runs the production evaluator on a sample demand, and a rule that can never fire is flagged at the top of the page.",
+    source: "Routing rules",
+    tags: ['routing', 'rules', 'channel', 'conditions', 'priority', 'admin', 'configuration'],
+    topic: 'Admin & configuration',
+    sortOrder: 81,
+  },
+  {
+    id: 'KB-037',
+    title: "Workflows and Stage Deadlines",
+    body: "Admin → Workflow Designer holds one workflow per buying channel — procurement-led, catalogue, business-led and contract call-off. It is the only definition of a request's lifecycle.\n• Each stage has an owner role, a deadline in working days and a gate: a person completes it, or it completes automatically.\n• A branch can carry a condition that names a threshold — the catalogue workflow sends an order above {{policy:catalogueAutoApprovalThreshold}} to manager approval.\n• A request's deadline is set when it enters a stage, from that stage's days.\nWho acts as each role — Finance, Legal, Vendor management — is set under Approval Chains → Roles. Support-ticket response times are separate, under Support SLAs.",
+    source: "Workflow templates · Approval chains (roles) · Support SLAs",
+    tags: ['workflow', 'designer', 'stage', 'sla', 'deadline', 'owner', 'gate', 'admin', 'configuration'],
+    topic: 'Admin & configuration',
+    sortOrder: 82,
   },
 ];

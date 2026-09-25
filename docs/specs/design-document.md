@@ -233,6 +233,12 @@ should be placed per this table, not wherever seems locally convenient.
 
 The single front door for all procurement needs. A 5-step wizard that adapts based on what the user needs.
 
+> **Out of date (2026-09-25).** Intake is now one four-step engine — Describe → How you'll buy →
+> Details → Review & submit — with no category to pick, no renewal or onboarding tiles (both are
+> ordinary demands now), no duplicate check and no inline forms. The README's *New Request Wizard*
+> row and `src/features/requests/README.md` describe what runs. This section is
+> rewritten with the intake mockups, which change these screens again.
+
 **Step 1 — What do you need?**
 - Free-text input: user describes their need naturally
 - AI analyses text and suggests: category, buying channel, commodity code, estimated timeline
@@ -247,9 +253,8 @@ The single front door for all procurement needs. A 5-step wizard that adapts bas
 - *Catalogue purchases:* Browse 6 sub-catalogues (IT Equipment, Office Supplies, Furniture, Safety, Catering, Print) with product grid, search, quantity selectors, and cart sidebar
 
 **Step 3 — Compliance & Risk Check**
-- Auto-runs: buying channel classification, SRA status, 4 policy checks, duplicate check
-- Risk Assessment Triage form (inline): determines if full SRA is needed
-- IT Security Assessment form (for software category)
+- Auto-runs: buying channel classification, SRA status, policy checks
+- Risk triage (derived from the description and the supplier record, not a form): whether a supplier risk assessment is needed
 - Results with green/amber indicators
 
 **Step 4 — Routing Preview**
@@ -330,13 +335,12 @@ Separate layout for supplier self-service:
 - Natural language category detection from free text
 - Buying channel and commodity code auto-suggestion
 - AI Service Description Generator (guided Q&A → professional scope)
-- Duplicate request detection
 - Supplier context enrichment (show existing contracts, risk rating, spend)
 
 **Compliance Automation:**
-- PR Compliance Review: 6-8 checks per request across Budget, Contract, Supplier Compliance, Policy, Risk, Value
-- Risk Assessment Triage: determines if full SRA is needed
-- Policy check automation with pass/fail/warning
+- Policy checks on the Review step (the Request Validator, AI-002 — rules on Decisioning thresholds) with pass/fail/warning
+- Risk triage: whether a supplier risk assessment is needed, derived at intake
+- (The PR Compliance Reviewer, AI-006, was removed on 2026-09-25 with its 14 stored reports: its sanctions, contract-coverage, SRA and benchmark checks were recorded as passes without running.)
 
 **Operational Intelligence:**
 - Bottleneck analysis: identifies which stage, who, and why
@@ -405,23 +409,20 @@ Forms are a first-class concept — admin-configurable, pre-populated from conte
 
 ### 9.1 Form Templates
 
-8 pre-built templates across 4 categories:
+5 templates across 3 categories, each attached to the workflow stage whose evidence it collects:
 
-**Risk:**
-- Risk Assessment Triage (9 fields) — quick triage to determine SRA need
-- Full Risk Questionnaire (12 fields) — comprehensive supplier risk assessment
-- IT Security Assessment (10 fields) — data classification, hosting, encryption, access controls
+**Risk** (risk stage):
+- Full Risk Questionnaire (13 fields) — comprehensive supplier risk assessment
+- IT Security Assessment (10 fields, software only) — data classification, hosting, encryption, access controls
 
 **Procurement:**
-- Vendor Onboarding Form (10 fields) — company details, tax, banking, contacts
-- Contract Intake Form (10 fields) — contract type, terms, obligations, SLAs
-- Change Request Form (6 fields) — scope/price/timeline changes with impact assessment
+- Vendor Onboarding Form (10 fields, onboarding stage) — company details, tax, banking, contacts
+- Contract Intake Form (10 fields, contracting stage) — contract type, terms, obligations, SLAs
 
 **Compliance:**
-- Budget Approval Form (7 fields) — budget code, GL account, cost allocation, manager sign-off
+- Budget Approval Form (7 fields, approval stage) — budget code, GL account, cost allocation, manager sign-off
 
-**Operations:**
-- Goods Receipt Confirmation (6 fields) — items received, condition, quality rating
+Risk Assessment Triage, Goods Receipt Confirmation and Change Request were removed on 2026-09-25 with their seeded submissions: none ever rendered (the intake triage and the goods receipt do their jobs; Change Request was a draft on seven stages).
 
 ### 9.2 Field Types
 
@@ -440,7 +441,6 @@ Three-panel editor:
 
 ### 9.5 Integration Points
 
-- **During intake (Step 3):** Risk Assessment Triage and IT Security Assessment render inline
 - **During workflow steps:** Completed forms shown in step detail cards. Active steps show "Fill Out Form" button with inline DynamicForm
 - **Workflow step details:** Forms completed, fields filled, timestamps recorded
 

@@ -858,6 +858,12 @@ CREATE TABLE IF NOT EXISTS knowledge_base (
   created_at  timestamptz NOT NULL DEFAULT now(),
   updated_at  timestamptz NOT NULL DEFAULT now()
 );
+-- The Help pages read this table too (2026-09-25): `topic` groups entries
+-- there, and `sort_order` orders them — a topic sits where its first entry
+-- does. They were twelve articles in the page's code, several describing
+-- features the platform does not have.
+ALTER TABLE knowledge_base ADD COLUMN IF NOT EXISTS topic text NOT NULL DEFAULT '';
+ALTER TABLE knowledge_base ADD COLUMN IF NOT EXISTS sort_order int NOT NULL DEFAULT 0;
 
 
 -- ── User preferences (session memory) ────────────────────────────────────────

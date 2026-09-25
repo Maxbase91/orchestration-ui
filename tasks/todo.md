@@ -42,7 +42,7 @@ Decisions taken (2026-09-25):
 5. [x] Categories: icon/timeline out, stage-target durations, classifier from configuration
 6. [x] Delivery locations, SLA targets → ticket SLAs, thresholds "used by" (+ catalogue auto-approval boundary aligned)
 7. [x] Service description seeded; unused forms deleted (+ inheriting categories show the stored default)
-8. [ ] Help knowledge base from the knowledge base table
+8. [x] Help knowledge base from the knowledge base table (+ breadcrumbs from the navigation)
 9. [ ] AI assistant on the Home route (+ conversation titles)
 10. [ ] Docs: the Admin map (what each item is for, what reads it)
 11. [ ] Mockups implementation — plan, then build

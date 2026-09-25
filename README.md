@@ -78,7 +78,7 @@ R1 is an internally operated system of record backed by private Neon. It owns re
 | AI Agent Configuration | The switches on what the platform automates, each described as it really works: AI-001 category classifier (language model, configured keywords as fallback), AI-002 request validator (the Review step's policy checks — rules), AI-004 spend anomaly checks (rules on Decisioning thresholds), AI-005 supplier recommender, AI-007 **Status Answers** — which configures what status questions may be answered: per object, every attribute of the data (label, in the answer / when asked / off, who may see it; new attributes appear switched off) and a role × object matrix (None / Own / All), with a test panel that asks as any role against live data. No invented accuracy, decision counts or performance charts (removed 2026-09-25) |
 | Categories | The demand taxonomy — **what kind of thing is being bought**, which decides routing (consulting and contingent labour are procurement-led), approvals (category managers) and whether the catalogue can serve it. Per category: label and description (what the AI classifier reads), **classifier keywords** (the offline classifier, matched at the start of a word) and an **order** that is the classifier's precedence, catalogue eligibility, managers, preferred suppliers, supplier tags, and the **commodity codes** beneath it (UNSPSC codes with the words that point at each, plus a default code). No icon or timeline: the icon was never shown and the timeline disagreed with the workflow's stage targets, which are the one "how long" |
 | Approval Chains | Value-banded approval chains (bands follow Decisioning thresholds), steps picked from the **Roles** list — which system role acts as Finance, Legal, CFO, Vendor management… (configuration, not code). Record-backed roles resolve to the cost-centre owner, category managers or contract owner first; an ownerless Budget Owner step goes to procurement managers; nobody approves their own request. The rules that name a chain are read from the rules |
-| Knowledge Base | The policy text the assistant and the Home box answer from. Governed figures are **references**, not restated numbers (`{{policy:…}}`, `{{approval-chains}}`, `{{preferred-suppliers:…}}`), rendered from the live configuration when answered; each entry is marked *Linked to configuration* or *Policy text only*, and a reference that names nothing is flagged |
+| Knowledge Base | One knowledge base for the assistant, the Home box and **Help → Knowledge Base**, which shows it grouped by **topic** (each entry's topic and order are set here) with a search over the text as read. Governed figures are **references**, not restated numbers (`{{policy:…}}`, `{{approval-chains}}`, `{{preferred-suppliers:…}}`), rendered from the live configuration when answered or read; each entry is marked *Linked to configuration* or *Policy text only*, and a reference that names nothing is flagged. The Help page's own twelve hardcoded articles (a retired channel, the old wizard, features the platform does not have) and its unrecorded feedback buttons are gone |
 
 ### Analytics & Platform
 | Screen | Description |
@@ -168,7 +168,8 @@ npm run test:risk-reuse           # structured risk-register reuse model (suppli
 npm run test:handoff              # downstream handoff / next-steps model (systems, status, deep-links)
 npm run test:determination        # contract-type + sourcing-type determination
 npm run test:status-agent         # Status Answers agent — every attribute listed, access matrix, one composer for Home, browser and server lookups
-npm run test:knowledge-links      # knowledge base linked to configuration — references resolve, no governed amount restated, one renderer both sides
+npm run test:knowledge-links      # knowledge base linked to configuration — references resolve, no governed amount restated, one renderer both sides;
+                                  # the Help page holds no articles, every entry has a topic, grouping and search
 npm run test:determination-export # exportable determination (structured Markdown)
 npm run test:second-contract      # second contract check (frameworks/MSAs vs transactable)
 npm run test:sourcing             # sourcing: weights, ranking, award write-back, stage gate, entitlement
@@ -342,6 +343,8 @@ npm run backfill:c10-debris       # removes configuration nothing reads: the nin
                                    # `workflow_template_id` — each assigned the template that claims
                                    # its channel, then re-dated from that template's node.
                                    # Idempotent; add --dry-run to report only.
+npm run backfill:knowledge-base-topics # gives every knowledge-base entry a topic and order (fill-only)
+                                   # and adds the Help page's six rewritten articles (KB-032…037).
 npm run backfill:service-description-and-forms # stores the built-in service description as the
                                    # `default` row (fill-only), and deletes the three forms that
                                    # never rendered (FORM-001/007/008) with their seeded submissions,
@@ -497,7 +500,7 @@ src/
     ├── analytics/   # Dashboards, report builder
     ├── notifications/
     ├── ai-assistant/
-    └── help/        # Knowledge base, support
+    └── help/        # Knowledge base (the knowledge_base table by topic), assistant, support
 ```
 
 ---

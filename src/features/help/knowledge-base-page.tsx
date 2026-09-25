@@ -1,240 +1,128 @@
-// Knowledge base page (help centre): self-service how-to articles about the
-// platform itself, grouped by topic with full-text search and an accordion
-// reader. Content is bundled in-file; the admin-managed KB is a separate page.
-import { useState } from 'react';
-import { Search, ThumbsUp, ThumbsDown, ChevronDown } from 'lucide-react';
-import { toast } from 'sonner';
+// Help → Knowledge base: the knowledge base as a reader sees it — the same
+// entries the assistant and the Home box answer from, grouped by topic, with
+// every governed figure rendered from the live configuration.
+//
+// It was twelve articles written into this file. Several described what the
+// platform does not do (a Direct PO channel, a supplier-onboarding request,
+// email escalation after three days, round-robin assignment), and its "Was this
+// helpful?" buttons recorded nothing. The articles are knowledge-base entries
+// now, corrected, and edited under Admin → KB Management like the rest.
+import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Search, ChevronDown, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { PageHeader } from '@/components/shared/page-header';
-
-interface Article {
-  id: string;
-  title: string;
-  content: string;
-}
-
-interface KBCategory {
-  name: string;
-  articles: Article[];
-}
-
-const categories: KBCategory[] = [
-  {
-    name: 'Getting Started',
-    articles: [
-      {
-        id: 'gs-1',
-        title: 'How to submit a procurement request',
-        content:
-          'To submit a new procurement request, navigate to Requests in the sidebar and click "New Request". The request form has four steps: Basic Information (title, description, category, priority), Requirements (specifications, delivery date, budget), Supplier Preferences (preferred suppliers, buying channel), and Review & Submit.\n\nEach request is automatically assigned a unique ID (e.g. REQ-2024-0001) and routed to the appropriate procurement team based on category and value. You can track your request at any time from the "My Requests" page.\n\nTip: The AI assistant can help you fill in commodity codes and suggest the correct buying channel based on your description. Just start typing and watch for the suggestions.',
-      },
-      {
-        id: 'gs-2',
-        title: 'Understanding buying channels',
-        content:
-          'The platform has four buying channels. You describe what you need; it decides which applies:\n\n1. Catalogue: pre-approved items from agreed suppliers. You order directly — orders under the catalogue auto-approval threshold go straight to the supplier.\n\n2. Contract call-off: an existing contract already covers what you need, so it is called off that contract. No new sourcing, and the contract supplier is already set up.\n\n3. Business-led: your team runs the buy, under the business-led ceiling. Procurement assures risk, onboarding and the contract.\n\n4. Procurement-led: Procurement runs the sourcing and negotiates for you. Always used for consulting and contingent labour, and above the business-led ceiling.',
-      },
-      {
-        id: 'gs-3',
-        title: 'Your dashboard explained',
-        content:
-          'The dashboard provides a real-time overview of your procurement activities. Key sections include:\n\nKPI Cards: Show your open requests, pending approvals, overdue items, and active contracts at a glance. Click any card to drill down into the details.\n\nRequest Pipeline: Visual representation of requests across workflow stages. Hover over any stage to see the count and average time spent. Red indicators highlight bottlenecks.\n\nRecent Activity: A timeline of the latest actions across your requests, including status changes, approvals, and comments. This helps you stay informed without checking each request individually.\n\nSpend Overview: Monthly spend trends with breakdown by category. Useful for tracking budget consumption and identifying areas where framework agreements could reduce costs.',
-      },
-    ],
-  },
-  {
-    name: 'Requests & Approvals',
-    articles: [
-      {
-        id: 'ra-1',
-        title: 'Request lifecycle stages',
-        content:
-          'Every procurement request moves through up to 10 stages:\n\n1. Draft: Initial creation, not yet submitted. You can save and return to complete later.\n2. Intake: Submitted and being reviewed by the procurement team for completeness and classification.\n3. Validation: Business justification and budget verification. May involve clarification questions.\n4. Approval: Sent to the approval chain based on value and category. Multiple approvers may be required.\n5. Sourcing: Procurement team runs the sourcing process (quotes, RFx, negotiations).\n6. Contracting: Legal review and contract execution with the selected supplier.\n7. PO: Purchase order creation and submission to the supplier.\n8. Receipt: Goods or services delivered and confirmed by the requestor.\n9. Invoice: Supplier invoice received and matched against PO.\n10. Payment: Invoice approved and payment processed.\n\nNot all requests go through every stage. Direct PO and catalogue orders skip the sourcing and contracting stages.',
-      },
-      {
-        id: 'ra-2',
-        title: 'How approvals work',
-        content:
-          'Approvals are routed automatically based on the request value and category. The system uses pre-configured approval chains:\n\nFast-Track (under EUR 10k): Category Manager only.\nStandard (EUR 10k-100k): Budget Owner, then Category Manager, then Finance.\nVP-Level (EUR 100k-500k): Adds VP Procurement to the standard chain.\nBoard-Level (over EUR 500k): Adds CFO and Board approval.\n\nEach approver receives an email notification and can approve directly from the notification or from the Approvals page. SLA timers start when the approval request is sent. If an approver does not respond within 3 business days, an escalation is triggered.\n\nApprovers can also refer a request back for additional information. This resets the request to the validation stage with a note explaining what is needed.',
-      },
-      {
-        id: 'ra-3',
-        title: 'Delegating approvals when on leave',
-        content:
-          'If you will be out of office, you should set up approval delegation to ensure requests are not blocked during your absence.\n\nTo set up delegation: Go to Approvals > Delegation in the sidebar. Select your delegate from the list of eligible users (must have the same or higher authority level). Set the start and end dates for the delegation period. Optionally, limit delegation to specific categories or value ranges.\n\nDelegated approvals are clearly marked in the audit trail with both the original approver and the delegate recorded. The delegate receives all approval notifications during the delegation period.\n\nImportant: Delegation does not transfer permanently. When the delegation period ends, approvals automatically route back to the original approver. You can end a delegation early from the same settings page.',
-      },
-    ],
-  },
-  {
-    name: 'Suppliers',
-    articles: [
-      {
-        id: 'sup-1',
-        title: 'Finding and onboarding suppliers',
-        content:
-          'The Supplier Directory contains all registered suppliers with their profile information, risk ratings, certifications, and performance scores. Use the search and filter options to find suppliers by category, country, or risk level.\n\nTo onboard a new supplier, submit a supplier onboarding request. The onboarding process includes: company registration and documentation, sanctions and compliance screening, financial stability assessment, Supplier Risk Assessment (SRA), and contract setup.\n\nAverage onboarding time is 3-4 weeks. The supplier receives portal access during onboarding to upload documents and complete their profile. You can track onboarding progress from the Onboarding Pipeline page.\n\nTip: Before requesting a new supplier, check if an existing approved supplier can meet your needs. Using approved suppliers with existing agreements is faster and often provides better pricing.',
-      },
-      {
-        id: 'sup-2',
-        title: 'Supplier risk assessments (SRA)',
-        content:
-          'Supplier Risk Assessments (SRA) are mandatory for all active suppliers. The assessment covers financial health, regulatory compliance, data protection, ESG performance, and business continuity capabilities.\n\nSRA validity: Assessments are valid for 24 months. The system automatically flags suppliers with assessments expiring within 90 days. No new purchase orders can be issued against suppliers with expired SRAs.\n\nRisk ratings: Low (green) indicates minimal risk. Medium (amber) requires monitoring and periodic review. High (red) requires enhanced due diligence and senior management approval. Critical (dark red) may require immediate action or relationship termination.\n\nYou can view SRA status for any supplier on their profile page under the Risk & Compliance tab. The Supplier Risk Dashboard provides an overview of all suppliers by risk rating.',
-      },
-    ],
-  },
-  {
-    name: 'Contracts & Purchasing',
-    articles: [
-      {
-        id: 'cp-1',
-        title: 'Contract types and templates',
-        content:
-          'The platform supports several contract types, each with its own template:\n\nMaster Service Agreement (MSA): For ongoing service relationships. Includes general terms, SLAs, and pricing schedules. Individual work orders are raised against the MSA.\n\nFramework Agreement: Pre-negotiated terms with one or more suppliers for a category. Call-offs are made as needed without renegotiation.\n\nPurchase Agreement: For one-time goods purchases above EUR 25,000. Includes delivery terms, warranty, and acceptance criteria.\n\nStatement of Work (SOW): Defines specific deliverables, timelines, and acceptance criteria for project-based work under an existing MSA.\n\nNon-Disclosure Agreement (NDA): Required before sharing confidential information with potential suppliers during sourcing.\n\nAll templates are available from the Contracts > Templates page. Legal review is required for any modifications to standard templates.',
-      },
-      {
-        id: 'cp-2',
-        title: 'Purchase orders and invoice matching',
-        content:
-          'Purchase orders (POs) are created after contract execution or for direct purchases from approved suppliers. Each PO includes line items with quantities, unit prices, and delivery dates.\n\nThree-way matching: The system performs automated matching between the PO, goods receipt, and supplier invoice. Matches within a 5% tolerance are auto-approved. Variances above 5% are flagged for manual review.\n\nMatch statuses: Matched (all three documents agree), Partial Match (some line items match), Unmatched (no matching PO or receipt found), Variance (amounts differ beyond tolerance).\n\nTo resolve a match variance: Review the PO, receipt, and invoice side by side on the Three-Way Match page. You can approve the variance with justification, create a credit note request, or dispute the invoice back to the supplier.\n\nPayment terms are typically 30 days from invoice date. Early payment discounts are tracked and reported in the analytics dashboard.',
-      },
-    ],
-  },
-  {
-    name: 'Admin & Configuration',
-    articles: [
-      {
-        id: 'ac-1',
-        title: 'Setting up routing rules',
-        content:
-          'Routing rules determine how procurement requests are classified and routed to the appropriate buying channel and approval chain. Each rule consists of conditions and actions.\n\nConditions: Define when the rule applies based on request properties such as category, value range, department, commodity code, or priority. Multiple conditions can be combined with AND/OR logic.\n\nActions: Specify the buying channel assignment and approval chain. For example, a rule might route all IT consulting requests above EUR 100,000 to the Procurement-led channel with VP-level approval.\n\nRules are evaluated in priority order. The first matching rule is applied. If no rule matches, the request uses the default routing (Procurement-led with standard approval).\n\nTo create or modify rules, go to Admin > Routing Rules. Test your rules using the simulation feature before activating them.',
-      },
-      {
-        id: 'ac-2',
-        title: 'Configuring workflow automations',
-        content:
-          'Workflow automations allow you to set up automatic actions triggered by events in the procurement process. Common automations include:\n\nSLA Monitoring: Automatically escalate requests that exceed stage time limits. Configure warning thresholds and escalation recipients per stage.\n\nNotifications: Send email and in-app notifications for status changes, approaching deadlines, and required actions. Customise notification templates and recipient lists.\n\nAuto-Assignment: Automatically assign requests to procurement leads based on category, value, or workload balancing. Supports round-robin and expertise-based assignment.\n\nApproval Reminders: Send reminder notifications to approvers after configurable intervals. Escalate to the next level after a set number of reminders.\n\nTo configure automations, go to Admin > Workflow Designer. The visual designer allows you to create workflow chains by connecting trigger events to actions using a drag-and-drop interface.',
-      },
-    ],
-  },
-];
+import { useKnowledgeBase, useKnowledgeContext } from '@/lib/db/hooks/use-knowledge-base';
+import { renderKnowledgeBody, stripKnowledgeTokens } from '@/lib/procurement/knowledge-links';
+import { knowledgeBase as builtInKnowledge } from '@/data/knowledge-base';
+import { helpTopics, matchesHelpSearch } from './knowledge-topics';
 
 export function KnowledgeBasePage() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [expandedArticle, setExpandedArticle] = useState<string | null>(null);
+  const { data: stored, isLoading, isError } = useKnowledgeBase();
+  const { data: ctx, isError: figuresFailed } = useKnowledgeContext();
+  const [search, setSearch] = useState('');
+  const [open, setOpen] = useState<string | null>(null);
 
-  // Search matches title or body; categories with no surviving articles are
-  // dropped entirely so empty headings never render.
-  const filteredCategories = categories
-    .map((cat) => ({
-      ...cat,
-      articles: cat.articles.filter(
-        (a) =>
-          !searchQuery ||
-          a.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          a.content.toLowerCase().includes(searchQuery.toLowerCase())
-      ),
-    }))
-    .filter((cat) => cat.articles.length > 0);
+  // The pool the assistant answers from (capabilities/knowledge.ts
+  // `knowledgePool`): the stored entries, else the built-in set — replaced, not
+  // merged, so an entry an admin deleted is gone here too.
+  const entries = useMemo(() => (stored && stored.length > 0 ? stored : builtInKnowledge), [stored]);
 
-  function toggleArticle(id: string) {
-    setExpandedArticle((prev) => (prev === id ? null : id));
+  // What the reader sees, and what search runs over. Without the configuration
+  // the references are left out of the text rather than shown raw.
+  const text = useMemo(
+    () => new Map(entries.map((e) => [e.id, ctx ? renderKnowledgeBody(e.body, ctx).text : stripKnowledgeTokens(e.body)])),
+    [entries, ctx],
+  );
+
+  const topics = useMemo(
+    () => helpTopics(entries.filter((e) => matchesHelpSearch(e, text.get(e.id) ?? '', search))),
+    [entries, text, search],
+  );
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center gap-2 py-16 text-muted-foreground">
+        <Loader2 className="size-5 animate-spin" /> <span className="text-sm">Loading the knowledge base…</span>
+      </div>
+    );
   }
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Knowledge Base"
-        subtitle="Find answers to common procurement questions"
+        subtitle="How buying works here, and the policies behind it — the same answers the assistant gives, with figures from the live configuration."
       />
 
-      <div className="relative max-w-lg">
-        <Search className="absolute left-3 top-3 size-4 text-muted-foreground" />
-        <Input
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search articles..."
-          className="pl-10"
-        />
+      <div className="space-y-2">
+        <div className="relative max-w-lg">
+          <Search className="absolute left-3 top-3 size-4 text-muted-foreground" />
+          <Input
+            aria-label="Search the knowledge base"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search — e.g. quotes, catalogue, delegation"
+            className="pl-10"
+          />
+        </div>
+        <p className="text-xs text-ink-3">
+          Can&apos;t find it? <Link to="/help/assistant" className="text-accent hover:underline">Ask the assistant</Link>
+          {' '}or <Link to="/help/support" className="text-accent hover:underline">contact support</Link>.
+        </p>
       </div>
 
+      {/* Both are said, not hidden: an answer from the built-in set, or with its
+          figures missing, is still an answer — but the reader should know. */}
+      {isError && (
+        <p className="rounded-md border border-warn-line bg-warn-soft px-3 py-2 text-xs text-warn">
+          The knowledge base could not be loaded, so these are the built-in articles.
+        </p>
+      )}
+      {figuresFailed && (
+        <p className="rounded-md border border-warn-line bg-warn-soft px-3 py-2 text-xs text-warn">
+          The current figures could not be loaded, so they are left out of the articles.
+        </p>
+      )}
+
       <div className="space-y-6">
-        {filteredCategories.map((cat) => (
-          <div key={cat.name}>
-            <h2 className="mb-3 text-sm font-semibold text-ink uppercase tracking-wide">
-              {cat.name}
+        {topics.map((topic) => (
+          <section key={topic.name} aria-labelledby={`topic-${topic.name}`}>
+            <h2 id={`topic-${topic.name}`} className="mb-3 text-sm font-semibold uppercase tracking-wide text-ink">
+              {topic.name}
             </h2>
-            <div className="space-y-2">
-              {cat.articles.map((article) => {
-                const isExpanded = expandedArticle === article.id;
+            {/* One list per topic: a card per entry spent ~100px on a single
+                line of title, so thirty-odd entries were several screens. */}
+            <Card className="gap-0 divide-y divide-line-2 overflow-hidden py-0">
+              {topic.entries.map((entry) => {
+                const expanded = open === entry.id || (search.trim() !== '' && topics.length === 1 && topic.entries.length === 1);
                 return (
-                  <Card key={article.id} className="overflow-hidden">
+                  <div key={entry.id}>
                     <button
-                      className="flex w-full items-center justify-between px-5 py-3.5 text-left hover:bg-card-2"
-                      onClick={() => toggleArticle(article.id)}
+                      className="flex w-full items-center justify-between gap-4 px-5 py-3 text-left hover:bg-card-2"
+                      aria-expanded={expanded}
+                      aria-controls={`kb-${entry.id}`}
+                      onClick={() => setOpen((prev) => (prev === entry.id ? null : entry.id))}
                     >
-                      <span className="text-sm font-medium">
-                        {article.title}
-                      </span>
-                      <ChevronDown
-                        className={`size-4 text-muted-foreground transition-transform ${
-                          isExpanded ? 'rotate-180' : ''
-                        }`}
-                      />
+                      <span className="text-sm font-medium text-ink">{entry.title}</span>
+                      <ChevronDown className={`size-4 shrink-0 text-muted-foreground transition-transform ${expanded ? 'rotate-180' : ''}`} />
                     </button>
-                    {isExpanded && (
-                      <div className="border-t px-5 py-4 space-y-4">
-                        {article.content
-                          .split('\n\n')
-                          .map((paragraph, idx) => (
-                            <p
-                              key={idx}
-                              className="text-sm text-ink-2 leading-relaxed"
-                            >
-                              {paragraph}
-                            </p>
-                          ))}
-                        <div className="flex items-center gap-3 border-t pt-3">
-                          <span className="text-xs text-muted-foreground">
-                            Was this helpful?
-                          </span>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-7"
-                            onClick={() =>
-                              toast.success('Thanks for your feedback!')
-                            }
-                          >
-                            <ThumbsUp className="mr-1 size-3" />
-                            Yes
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-7"
-                            onClick={() =>
-                              toast.info(
-                                'Thanks. We will improve this article.'
-                              )
-                            }
-                          >
-                            <ThumbsDown className="mr-1 size-3" />
-                            No
-                          </Button>
-                        </div>
+                    {expanded && (
+                      <div id={`kb-${entry.id}`} className="space-y-3 bg-card-2/40 px-5 pb-4 pt-1">
+                        <p className="max-w-3xl whitespace-pre-line text-sm leading-relaxed text-ink-2">{text.get(entry.id)}</p>
+                        {entry.source && <p className="text-xs text-ink-3">Source: {entry.source}</p>}
                       </div>
                     )}
-                  </Card>
+                  </div>
                 );
               })}
-            </div>
-          </div>
+            </Card>
+          </section>
         ))}
-        {filteredCategories.length === 0 && (
+        {topics.length === 0 && (
           <div className="py-12 text-center text-sm text-muted-foreground">
-            No articles found matching your search.
+            No articles match “{search.trim()}”.
           </div>
         )}
       </div>
