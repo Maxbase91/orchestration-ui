@@ -20,6 +20,7 @@ import { neon } from '@neondatabase/serverless';
 import { loadEnv } from '../lib/live.mjs';
 import { channelStageMapFromTemplates, lifecycleStagesFrom } from '../../src/lib/workflow/channel-stages.ts';
 import { workflowTemplates } from '../../src/data/workflows.ts';
+import { formTemplates } from '../../src/data/form-templates.ts';
 
 const ROOT = new URL('../../', import.meta.url);
 let failures = 0;
@@ -43,16 +44,13 @@ const NO_FORM_STAGES = {
 };
 
 console.log('\nSeed templates (src/data/form-templates.ts)');
-const source = readFileSync(new URL('src/data/form-templates.ts', ROOT), 'utf8');
-// One record per `id: 'FORM-xxx'`, up to the next one.
-const blocks = [...source.matchAll(/id: '(FORM-\d+)'[\s\S]*?(?=id: 'FORM-\d+'|\n\];)/g)];
-if (blocks.length < 8) bad('all templates parsed', `found ${blocks.length}, expected at least 8`);
-else ok(`parsed ${blocks.length} templates`);
+// The seed array itself, not a regex over its source: the scrape needed a
+// floor ("at least 8") to notice it had stopped parsing, and that floor broke
+// the day three unused forms were deleted.
+if (formTemplates.length === 0) bad('the seed has form templates', 'none');
+else ok(`${formTemplates.length} seeded templates`);
 
-for (const [block, id] of blocks) {
-  const status = /status: '(\w+)'/.exec(block)?.[1];
-  const stages = [...(/triggerStages: \[([^\]]*)\]/.exec(block)?.[1] ?? '')
-    .matchAll(/'([^']+)'/g)].map((m) => m[1]);
+for (const { id, status, triggerStages: stages } of formTemplates) {
   for (const stage of stages) {
     if (!STATUSES.has(stage)) {
       bad(`${id} triggers on a real stage`, `"${stage}" is not a RequestStatus — the form can never fire`);
@@ -71,10 +69,8 @@ if (failures === 0) ok('every trigger stage is a RequestStatus, and none is a no
 // file this used to grep — buying-channel-stages.ts — is deleted, and grepping
 // quoted strings out of it was always a proxy for the real question.
 const reachable = new Set(lifecycleStagesFrom(channelStageMapFromTemplates(workflowTemplates)));
-for (const [block, id] of blocks) {
-  if (!/status: 'active'/.test(block)) continue;
-  const stages = [...(/triggerStages: \[([^\]]*)\]/.exec(block)?.[1] ?? '')
-    .matchAll(/'([^']+)'/g)].map((m) => m[1]);
+for (const { id, status, triggerStages: stages } of formTemplates) {
+  if (status !== 'active') continue;
   if (stages.length > 0 && !stages.some((s) => reachable.has(s))) {
     bad(`${id} sits on a stage some channel traverses`, `${JSON.stringify(stages)} is on no channel's path`);
   }

@@ -38,6 +38,12 @@ Never null: generation, seeding and the intake conversation must always have som
 missing table, a malformed row and an unreachable database all yield the built-in — an admin mistake
 cannot take intake down, and the fallback is logged rather than silent.
 
+The built-in is **stored** as the `default` row (`db/backfills/2026-09-25-service-description-and-forms.mjs`,
+fill-only). The table was empty until then, so every category ran on the code while the admin page
+looked configured. From here the stored row is what runs: a later change to `DEFAULT_TEMPLATE` reaches
+a deployment through an admin edit or a backfill, not by being in the code, and the code copy is only
+the fail-open floor. `test:config-consumption` fails if no default row is stored.
+
 **Absent is "not configured"; `[]` is "configured to nothing".** Every list treated empty as absent
 and fell back, so an admin clearing `narrativeSections` saved, was told it saved, and got the
 built-in list back on the next read. The two exceptions are `slots` and `sections`, where empty is

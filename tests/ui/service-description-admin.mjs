@@ -180,6 +180,25 @@ try {
   check('the banner names the operator rather than saying "invalid"',
     /greater_than/.test(await page.locator('body').innerText()));
 
+  // A category with no row of its own runs the STORED default, so that is what
+  // its editor must show. It showed the built-in from code — which stopped
+  // being what ran once the default row was stored (2026-09-25) and edited.
+  await page.route('**/api/db', async (route) => {
+    const body = JSON.parse(route.request().postData() ?? '{}');
+    if (body.table !== 'procurement_categories' || body.operation !== 'select') return route.fallback();
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: [
+      { id: 'consulting', label: 'Consulting', description: '', active: true, sort_order: 1, catalogue_eligible: false },
+    ], error: null }) });
+  });
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.getByText('Service Description', { exact: true }).first().waitFor({ timeout: 20000 });
+  await page.getByRole('combobox').first().click();
+  await page.getByRole('option', { name: /Consulting — inherits default/ }).click();
+  await page.getByText(/Consulting has no configuration of its own/).waitFor({ timeout: 10000 });
+  const values = await page.locator('input, textarea').evaluateAll((els) => els.map((el) => el.value));
+  check('a category without a row shows the stored default it inherits',
+    values.includes('When?'), values.filter(Boolean).slice(0, 5).join(' | '));
+
   check('no non-network render errors', pageErrors.length === 0, pageErrors.slice(0, 3).join(' | '));
 
   console.log('');

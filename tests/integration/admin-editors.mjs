@@ -100,9 +100,8 @@ const SURFACES = [
     label: 'knowledge base', table: 'knowledge_base', key: 'id', field: 'title',
     page: 'src/features/admin/kb-admin-page.tsx',
     hook: 'useSaveKnowledgeBaseEntry', mutate: 'saveEntry.mutateAsync',
-    // Empty live, so the assistant answers from the built-in set. That is the
-    // documented fallback, not a fault — but the editor still has to work, and
-    // an empty table is exactly where a broken one hides.
+    // The sample is used only if the table is ever empty again — an empty
+    // table is exactly where a broken editor hides, so it is still proved.
     sample: {
       id: 'KB-E2E-CHECK', title: 'Round-trip check', body: 'Inserted and removed by test:admin-editors.',
       source: 'test', tags: ['test'],
@@ -113,7 +112,7 @@ const SURFACES = [
     page: 'src/features/admin/service-description-page.tsx',
     hook: 'useSaveServiceDescriptionTemplate', mutate: 'save.mutateAsync',
     jsonb: ['slots', 'sections'],
-    // Also empty live: every category resolves to DEFAULT_TEMPLATE.
+    // Holds the stored default since 2026-09-25; the sample covers an empty table.
     sample: {
       category: 'e2e-check', label: 'Round-trip check', active: false,
       system_prompt: '', category_guidance: '', temperature: 0.5, max_tokens: 3000,
@@ -129,10 +128,10 @@ async function roundTrip(surface) {
   if (readErr) { fail(`${label}: table is readable`, readErr.message); return; }
 
   // An empty table must still be provable. `knowledge_base` and
-  // `service_description_templates` are both empty live — everything falls back
-  // to the built-in set, which is the documented behaviour — and a suite that
-  // skipped them would report "no rows" forever while the editor rotted. So a
-  // row is inserted, round-tripped and removed.
+  // `service_description_templates` both ran empty for months on built-in sets,
+  // and a suite that skipped them would have reported "no rows" forever while
+  // the editor rotted. So on an empty table a row is inserted, round-tripped
+  // and removed.
   let before = rows?.[0];
   let seeded = false;
   if (!before) {

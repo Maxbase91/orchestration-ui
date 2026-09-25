@@ -18,25 +18,6 @@ export interface FormSubmission {
 export const formSubmissions: FormSubmission[] = [
   // ── REQ-2024-0001 (Cloud hosting migration - AWS, completed, software) ──
   {
-    id: 'FSUB-001',
-    formTemplateId: 'FORM-001',
-    formName: 'Risk Assessment Triage',
-    requestId: 'REQ-2024-0001',
-    stage: 'validation',
-    submittedBy: 'u1',
-    submittedAt: '2024-03-18T10:30:00Z',
-    status: 'completed',
-    values: {
-      'f001-registered': 'yes',
-      'f001-sra-status': 'yes-valid',
-      'f001-annual-spend': '480000',
-      'f001-data-sensitivity': 'high',
-      'f001-premises': 'no',
-      'f001-high-risk-jurisdiction': false,
-      'f001-notes': 'AWS is an established cloud provider with SOC 2 and ISO 27001. Data will reside in EU-West (Frankfurt) region per company policy.',
-    },
-  },
-  {
     id: 'FSUB-002',
     formTemplateId: 'FORM-006',
     formName: 'IT Security Assessment',
@@ -101,25 +82,6 @@ export const formSubmissions: FormSubmission[] = [
 
   // ── REQ-2024-0002 (SAP S/4HANA license renewal, completed) ──
   {
-    id: 'FSUB-005',
-    formTemplateId: 'FORM-001',
-    formName: 'Risk Assessment Triage',
-    requestId: 'REQ-2024-0002',
-    stage: 'validation',
-    submittedBy: 'u1',
-    submittedAt: '2024-06-05T08:45:00Z',
-    status: 'completed',
-    values: {
-      'f001-registered': 'yes',
-      'f001-sra-status': 'yes-valid',
-      'f001-annual-spend': '1200000',
-      'f001-data-sensitivity': 'critical',
-      'f001-premises': 'no',
-      'f001-high-risk-jurisdiction': false,
-      'f001-notes': 'Existing tier-1 supplier with valid SRA. Renewal of existing contract - no change in scope.',
-    },
-  },
-  {
     id: 'FSUB-006',
     formTemplateId: 'FORM-005',
     formName: 'Budget Approval Form',
@@ -135,26 +97,6 @@ export const formSubmissions: FormSubmission[] = [
       'f005-fiscal-year': '2024',
       'f005-manager-name': 'Sarah Chen',
       'f005-manager-confirmation': true,
-    },
-  },
-
-  // ── REQ-2024-0003 (Office furniture - Berlin HQ, payment stage) ──
-  {
-    id: 'FSUB-007',
-    formTemplateId: 'FORM-007',
-    formName: 'Goods Receipt Confirmation',
-    requestId: 'REQ-2024-0003',
-    stage: 'receipt',
-    submittedBy: 'u6',
-    submittedAt: '2024-11-18T09:00:00Z',
-    status: 'completed',
-    values: {
-      'f007-po-ref': 'PO-003',
-      'f007-items-description': '120 ergonomic standing desks (Steelcase Ology), 120 task chairs (Herman Miller Aeron), 15 meeting room tables, 30 meeting room chairs, cable management kits.',
-      'f007-quantity': '285',
-      'f007-condition': 'good',
-      'f007-quality-rating': '4',
-      'f007-notes': 'All items delivered in two batches. Minor packaging damage on 3 chairs - no functional impact. Assembly completed by supplier team on-site.',
     },
   },
 
@@ -230,25 +172,6 @@ export const formSubmissions: FormSubmission[] = [
       'f006-security-contact': 'security@middleware-vendor.com',
     },
   },
-  {
-    id: 'FSUB-011',
-    formTemplateId: 'FORM-001',
-    formName: 'Risk Assessment Triage',
-    requestId: 'REQ-2024-0006',
-    stage: 'validation',
-    submittedBy: 'u1',
-    submittedAt: '2024-09-15T09:30:00Z',
-    status: 'completed',
-    values: {
-      'f001-registered': 'no',
-      'f001-sra-status': 'no',
-      'f001-annual-spend': '290000',
-      'f001-data-sensitivity': 'high',
-      'f001-premises': 'no',
-      'f001-high-risk-jurisdiction': false,
-      'f001-notes': 'New supplier, not yet registered. Full SRA required due to data sensitivity and spend level. Middleware will integrate SAP with Salesforce and handle customer/financial data.',
-    },
-  },
 
   // ── REQ-2024-0007 (Contingent workforce - Java devs, approval, overdue) ──
   {
@@ -267,27 +190,6 @@ export const formSubmissions: FormSubmission[] = [
       'f005-fiscal-year': '2025',
       'f005-manager-name': 'Elena Petrova',
       'f005-manager-confirmation': false,
-    },
-  },
-
-  // ── REQ-2024-0008 (Managed print services, validation, overdue) ──
-  {
-    id: 'FSUB-013',
-    formTemplateId: 'FORM-001',
-    formName: 'Risk Assessment Triage',
-    requestId: 'REQ-2024-0008',
-    stage: 'validation',
-    submittedBy: 'u1',
-    submittedAt: '2025-01-06T08:00:00Z',
-    status: 'in-progress',
-    values: {
-      'f001-registered': 'yes',
-      'f001-sra-status': 'yes-expiring',
-      'f001-annual-spend': '45000',
-      'f001-data-sensitivity': 'low',
-      'f001-premises': 'yes',
-      'f001-high-risk-jurisdiction': false,
-      'f001-notes': '',
     },
   },
 
@@ -312,26 +214,6 @@ export const formSubmissions: FormSubmission[] = [
       'f006-pen-test': 'yes',
       'f006-last-audit': '2024-08-20',
       'f006-security-contact': 'security@databricks.com',
-    },
-  },
-
-  // ── REQ-2024-0010 (Corporate travel management, referred-back) ──
-  {
-    id: 'FSUB-015',
-    formTemplateId: 'FORM-008',
-    formName: 'Change Request Form',
-    requestId: 'REQ-2024-0010',
-    stage: 'sourcing',
-    submittedBy: 'u4',
-    submittedAt: '2025-01-02T11:00:00Z',
-    status: 'completed',
-    values: {
-      'f008-description': 'Expanding RFP scope to include expense management integration with SAP Concur. Original scope only covered booking and policy enforcement. Business stakeholders identified the need for a unified platform during requirements gathering.',
-      'f008-reason': 'scope-change',
-      'f008-impact': 'Timeline extended by 4 weeks to allow vendors to respond to updated requirements. Budget may increase by 15-20% due to additional integration work. Two additional vendors added to long-list who specialise in integrated travel + expense solutions.',
-      'f008-additional-cost': '35000',
-      'f008-approval-required': true,
-      'f008-documents': '',
     },
   },
 ];

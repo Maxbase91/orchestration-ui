@@ -596,25 +596,24 @@ The PR Compliance Reviewer is an AI agent (96.1% accuracy, 534 decisions made) t
 
 ### 6.4 Configurable Forms
 
-The platform includes 8 form templates across 4 categories, containing 72 fields total and supporting 11 field types:
+The platform includes 5 form templates across 3 categories, containing 50 fields total and supporting 11 field types. Each is attached to the workflow stage whose evidence it collects:
 
 **Form Templates:**
 
 | Form | Category | Trigger Stage | Fields | Purpose |
 |---|---|---|---|---|
-| Risk Assessment Triage | Risk | Validation | 9 fields | Quick triage to determine if a full SRA is needed |
-| Full Risk Questionnaire | Risk | Validation | 13 fields | Comprehensive supplier risk assessment |
-| Vendor Onboarding Form | Procurement | Supplier Onboarding | 10 fields | Captures vendor master data for ERP registration |
+| Full Risk Questionnaire | Risk | Risk | 13 fields | Comprehensive supplier risk assessment |
+| IT Security Assessment | Risk | Risk (Software only) | 10 fields | Security review for SaaS and cloud procurement |
+| Vendor Onboarding Form | Procurement | Onboarding | 10 fields | Captures vendor master data for ERP registration |
 | Contract Intake Form | Procurement | Contracting | 10 fields | Collects commercial and legal parameters for contract drafting |
 | Budget Approval Form | Compliance | Approval | 7 fields | Budget validation and manager sign-off |
-| IT Security Assessment | Risk | Validation (Software only) | 10 fields | Security review for SaaS and cloud procurement |
-| Goods Receipt Confirmation | Operations | Receipt | 6 fields | Confirms receipt and inspection against PO |
-| Change Request Form | Procurement | Multiple stages | 6 fields | Documents changes to scope, timeline, or cost |
+
+Three earlier forms were removed on 2026-09-25 with their seeded submissions, because none of them ever rendered: Risk Assessment Triage (the intake triage and the supplier record answer it), Goods Receipt Confirmation (the goods receipt itself advances the request) and Change Request (a draft on seven stages).
 
 **11 Field Types Supported:**
 Text, Textarea, Number, Select (dropdown), Multi-Select, Radio buttons, Checkbox, Date picker, File Upload, Separator (visual divider), Info Text (read-only information display)
 
-**Pre-Population:** Forms can be configured to pre-populate fields from request context. For example, the Risk Assessment Triage form auto-fills the SRA status from the supplier record and the estimated annual spend from the request value.
+**Pre-Population:** Forms can be configured to pre-populate fields from request context. For example, the Budget Approval Form fills the cost centre and the budget owner from the request, and the Vendor Onboarding Form the supplier's name.
 
 **Conditional Display:** Forms can be configured to appear only when specific conditions are met. For example, the IT Security Assessment form only appears when the request category is "Software".
 
@@ -867,8 +866,8 @@ Each purchase order shows:
 - Line items table: description, quantity ordered, unit price, quantity received, line total
 - Delivery status indicator per line item
 
-**Goods Receipt Confirmation:**
-When goods or services are received, the requestor or operations team completes the Goods Receipt Confirmation form. This captures: PO reference, items received description, quantity, condition on arrival (Good, Minor Damage, Major Damage, Rejected), quality rating (1-5), and notes. This data feeds into the three-way match process.
+**Goods receipt:**
+When goods or services are received, the requestor or operations team records the goods receipt against the PO lines. The receipt feeds the three-way match and advances the request. (A separate Goods Receipt Confirmation form duplicated this and was removed on 2026-09-25.)
 
 ### 10.2 Invoice Management
 
@@ -1142,7 +1141,7 @@ A simulation area where administrators can input test request data and see which
 The Form Builder allows administrators to create and modify form templates using a 3-panel editor:
 
 **Panel 1: Form List**
-A table of all 8 form templates with: name, category, status (Active/Draft/Disabled), trigger stages, field count, version number, and last modified date.
+A table of the form templates (5 today) with: name, category, status (Active/Draft/Disabled), trigger stages, field count, version number, and last modified date.
 
 **Panel 2: Field Editor**
 A drag-and-drop interface for adding and configuring form fields:

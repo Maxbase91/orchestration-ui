@@ -7,8 +7,8 @@
 // reason to capture the description carefully in the first place.
 //
 // A table rather than a settings store, because api/generate-sow and
-// api/chat-intake read this server-side and cannot see localStorage — the same
-// gap that stops /admin/thresholds reaching the intake conversation today.
+// api/chat-intake read it server-side. The built-in template is stored as the
+// `default` row (2026-09-25); a category with no row inherits it.
 
 import { useMemo, useState } from 'react';
 import { AlertTriangle, Loader2, Plus, Save, Trash2, Wand2 } from 'lucide-react';
@@ -38,9 +38,18 @@ import { usePolicyConfig } from '@/lib/procurement/use-policy-config';
 import { DEFAULT_TEMPLATE, renderSystemPrompt, builtInGuidanceFor } from '@/lib/procurement/service-description-defaults';
 import { RESIDUAL_QUESTION_TEXT } from '@/lib/procurement/residual-questions';
 
-/** A new row starts from the built-in so an admin edits rather than authors. */
-function blankTemplate(category: string, label: string): ServiceDescriptionTemplate {
-  return { ...DEFAULT_TEMPLATE, category, label, categoryGuidance: '' };
+/**
+ * What a category with no row of its own runs: the stored `default` row, else
+ * the built-in — so the editor shows that, and saving it gives the category its
+ * own row starting from there. It started from the built-in in code, which
+ * stopped being what ran the moment the default row was stored and edited.
+ */
+function inheritedTemplate(
+  category: string,
+  label: string,
+  storedDefault: ServiceDescriptionTemplate | undefined,
+): ServiceDescriptionTemplate {
+  return { ...(storedDefault ?? DEFAULT_TEMPLATE), category, label };
 }
 
 export function ServiceDescriptionPage() {
@@ -58,9 +67,11 @@ export function ServiceDescriptionPage() {
     () => templates.find((t) => t.category === selectedCategory),
     [templates, selectedCategory],
   );
-  // The draft falls back to the stored row, then to the built-in, so the editor
-  // always shows what would actually run rather than an empty form.
-  const current = draft ?? stored ?? blankTemplate(selectedCategory, selectedCategory);
+  const storedDefault = templates.find((t) => t.category === 'default');
+  const categoryLabel = categories.find((c) => c.id === selectedCategory)?.label ?? selectedCategory;
+  // The draft falls back to the stored row, then to what the category
+  // inherits, so the editor always shows what would actually run.
+  const current = draft ?? stored ?? inheritedTemplate(selectedCategory, selectedCategory === 'default' ? 'Default' : categoryLabel, storedDefault);
   const isDirty = draft !== null;
 
   // Categories that have no row of their own fall through to `default`; showing
@@ -183,6 +194,11 @@ export function ServiceDescriptionPage() {
               <Trash2 className="size-3.5" />
               Revert to default
             </Button>
+          )}
+          {selectedCategory !== 'default' && !stored && !isLoading && (
+            <p className="basis-full text-xs text-ink-3">
+              {categoryLabel} has no configuration of its own: shown is the default it inherits. Saving gives it its own.
+            </p>
           )}
         </CardContent>
       </Card>

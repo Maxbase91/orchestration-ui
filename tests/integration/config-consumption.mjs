@@ -359,6 +359,15 @@ if (!connection) {
   }
   if (stale.length === 0) ok(`${dated.length} deadline(s) belong to the stage their request is in`);
   else bad(`${stale.length} deadline(s) belong to another stage`, stale.slice(0, 6).join(' | '));
+
+  // The service description runs on a stored row. The table was empty until
+  // 2026-09-25, so intake questions, generation and the sourcing seeds all ran
+  // on the built-in in code while the admin page looked configured.
+  const [sd] = await sql`SELECT slots, sections FROM service_description_templates WHERE category = 'default' AND active`;
+  if (!sd) bad('a default service description is stored', 'none — every category runs on the built-in in code');
+  else if (!(Array.isArray(sd.slots) && sd.slots.length && Array.isArray(sd.sections) && sd.sections.length)) {
+    bad('the stored default asks and generates something', 'its slots or sections are empty');
+  } else ok('the service description runs on a stored default');
 }
 
 console.log('\nAdmin shows what happened, not examples of it');
