@@ -19,6 +19,7 @@ import { CURRENCY_POLICY_KEYS } from '../../src/lib/procurement/policy-tokens.ts
 import {
   knowledgeLinks, renderKnowledgeBody, stripKnowledgeTokens, availableKnowledgeTokens,
 } from '../../src/lib/procurement/knowledge-links.ts';
+import { directPolicyAnswer, parseAmount } from '../../src/lib/procurement/policy-answers.ts';
 
 let failures = 0;
 function check(name, cond, detail = '') {
@@ -60,6 +61,25 @@ check('a reference that names nothing is reported, not silently dropped', bad.un
 check('an unknown category is flagged when the categories are known', knowledgeLinks('{{preferred-suppliers:nope}}', categoryIds)[0].valid === false);
 check('references are not scored as words', !/policy/.test(stripKnowledgeTokens('{{policy:competitiveSourcingThreshold}}')));
 check('every offered reference renders', availableKnowledgeTokens([...categoryIds]).every((t) => renderKnowledgeBody(t.token, ctx).unresolved.length === 0));
+
+console.log('\nPolicy questions the platform decides are answered from its configuration');
+check('amounts are read in the ways people write them',
+  parseAmount('€40,000') === 40000 && parseAmount('40k') === 40000 && parseAmount('EUR 1.2m') === 1200000 && parseAmount('40,000 euros') === 40000 && parseAmount('no amount') === null);
+const quotes = directPolicyAnswer('do I need three quotes for a €40,000 order?', ctx);
+check('above the threshold: yes, with the minimum and the exceptions', /^Yes\. At €40,000 you need at least 3 competitive quotes/.test(quotes?.answer ?? '') && /Contingent/i.test(quotes.answer), quotes?.answer);
+check('below it: no', /^No\. €10,000 is below the €25,000/.test(directPolicyAnswer('do I need quotes for €10,000?', ctx)?.answer ?? ''));
+check('the answer follows the threshold', /€60,000/.test(directPolicyAnswer('do I need quotes for €40,000?', { ...ctx, policy: { ...ctx.policy, competitiveSourcingThreshold: 60000 } })?.answer ?? ''));
+check('who approves names the chain whose band holds the value',
+  directPolicyAnswer('who approves €40,000?', ctx)?.answer === '€40,000 is approved through the Standard chain: Budget Owner → Finance.');
+check('the buying channel follows the business-led ceiling',
+  /business-led/.test(directPolicyAnswer('is €30,000 business-led?', ctx)?.answer ?? '') && /procurement-led/.test(directPolicyAnswer('is €80,000 business-led?', ctx)?.answer ?? ''));
+check('catalogue auto-approval follows its threshold', /^Yes\. A €800 catalogue order/.test(directPolicyAnswer('is a €800 catalogue order approved automatically?', ctx)?.answer ?? ''));
+check('a question the platform does not decide gets no computed answer', directPolicyAnswer('what insurance does a supplier need?', ctx) === null);
+const bar = read('src/features/dashboard/components/smart-command-bar.tsx');
+const at = (needle) => bar.indexOf(needle);
+check('Home asks in order: status, catalogue, policy, then demand',
+  at('parseStatusQuestion(query)') > 0 && at('parseStatusQuestion(query)') < at('looksLikePolicyQuestion(query)')
+  && at('looksLikePolicyQuestion(query)') < at("localResult.intent === 'new-request'"));
 
 console.log('\nThe built-in entries are linked, and say so where they are not');
 for (const entry of knowledgeBase) {

@@ -28,6 +28,27 @@ import { decideIntakeRoute } from '@/lib/procurement/intake-routing';
 import { classifyDemandCategory, matchesDemandCategory } from '@/lib/procurement/classify';
 import { useProcurementCategories } from '@/lib/db/hooks/use-procurement-categories';
 import { DEFAULT_CATEGORY_TAXONOMY } from '@/data/category-taxonomy';
+import { useAuthStore } from '@/stores/auth-store';
+import { parseStatusQuestion, type StatusAnswer } from '@/lib/assistant/status-answer';
+import { answerStatusQuestion } from '@/lib/assistant/status-lookup';
+import { answerPolicyQuestion, looksLikePolicyQuestion, type PolicyAnswer } from '@/lib/assistant/policy-lookup';
+import { StatusAnswerView } from '@/components/shared/status-answer-view';
+
+/**
+ * What the intent step answered in place. A demand goes to intake and a
+ * catalogue item to its checkout; a policy or status question is answered here,
+ * with the follow-up handed to the assistant carrying the question.
+ */
+type InlineAnswer =
+  | { kind: 'policy'; query: string; policy: PolicyAnswer }
+  | { kind: 'status'; query: string; status: StatusAnswer };
+
+const EXAMPLES = [
+  'consulting for a transformation programme',
+  'do I need three quotes for a €40,000 order?',
+  "what's waiting for me?",
+  'where are my requests?',
+];
 
 // --- Types ---
 
@@ -239,6 +260,9 @@ export function SmartCommandBar() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [proposal, setProposal] = useState<ProposalState | null>(null);
+  const [answer, setAnswer] = useState<InlineAnswer | null>(null);
+  const currentUser = useAuthStore((s) => s.currentUser);
+  const currentRole = useAuthStore((s) => s.currentRole);
 
   const { data: catalogueItems = [] } = useCatalogueItems();
   const { data: dbCategories = [] } = useProcurementCategories();
@@ -358,14 +382,46 @@ export function SmartCommandBar() {
   // --- Submit ---
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const query = input.trim();
+    await ask(input.trim());
+  };
+
+  // The intent step. Order matters: a status question names a record or "my …"
+  // and is unambiguous, so it goes first; a catalogue hit next; then a
+  // question-shaped policy query — before the demand check, which would read
+  // "do I *need* three quotes?" as a demand for quotes; then demands; the rest
+  // to the assistant.
+  const ask = async (query: string) => {
     if (!query) return;
+    setAnswer(null);
+    setProposal(null);
+
+    const statusQuestion = parseStatusQuestion(query);
+    if (statusQuestion) {
+      setLoading(true);
+      try {
+        const status = await answerStatusQuestion(query, { userId: currentUser.id, role: currentRole }, statusQuestion);
+        if (status) { setAnswer({ kind: 'status', query, status }); return; }
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    const localForCatalogue = localClassify(query, catalogueItems, eligibleCategories);
+    if (localForCatalogue.intent !== 'catalogue' && looksLikePolicyQuestion(query)) {
+      setLoading(true);
+      try {
+        const policy = await answerPolicyQuestion(query);
+        if (policy) { setAnswer({ kind: 'policy', query, policy }); return; }
+      } finally {
+        setLoading(false);
+      }
+    }
 
     // A demand goes into intake. It used to go into the AI chat overlay, which
     // meant "I want to buy X" — the single thing this box exists for — landed
     // in a conversation with no route, no classification and no way to submit.
     // Only lookups and open questions belong to the assistant.
-    const localResult = localClassify(query, catalogueItems, eligibleCategories);
+    const localResult = localForCatalogue;
     if (localResult.intent === 'new-request') {
       navigate(`/requests/new?q=${encodeURIComponent(query)}`);
       setInput('');
@@ -451,6 +507,7 @@ export function SmartCommandBar() {
 
   const handleClear = () => {
     setInput('');
+    setAnswer(null);
     setProposal(null);
     setShowCatalogue(false);
     setCatalogueResults([]);
@@ -477,7 +534,7 @@ export function SmartCommandBar() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             aria-label="What do you need?"
-            placeholder="What do you need? e.g. 'buy paper', 'consulting services', 'find a supplier' — press Enter"
+            placeholder="What do you need? Describe it, or ask about a policy or a status — press Enter"
             className="h-12 rounded-lg border-accent-line bg-card pl-11 pr-10 text-prose shadow-[var(--shadow)] focus-visible:border-accent focus-visible:ring-accent/15"
           />
           {loading && (
@@ -485,19 +542,80 @@ export function SmartCommandBar() {
               <Loader2 className="size-4 animate-spin text-accent" />
             </div>
           )}
-          {!loading && (input || proposal || showCatalogue) && (
-            <button type="button" onClick={handleClear} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-3 hover:text-ink-2">
+          {!loading && (input || proposal || answer || showCatalogue) && (
+            <button type="button" aria-label="Clear" onClick={handleClear} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-3 hover:text-ink-2">
               <X className="size-4" />
             </button>
           )}
         </form>
 
         {/* AI hint */}
-        {!proposal && !showCatalogue && !loading && (
-          <p className="mt-1.5 text-caption text-ink-3">
-            Describe what you need and we&apos;ll route it — or ask a question and the{' '}
-            <span className="font-medium text-accent">AI assistant</span> takes it.
-          </p>
+        {!proposal && !answer && !showCatalogue && !loading && (
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-caption text-ink-3">
+            <span>Describe what you need, or ask about a policy or a status. Try:</span>
+            {EXAMPLES.map((example) => (
+              <button
+                key={example}
+                type="button"
+                className="rounded-full border border-line bg-card px-2 py-0.5 text-ink-2 hover:border-accent-line hover:text-accent"
+                onClick={() => { setInput(example); void ask(example); }}
+              >
+                {example}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* ── INLINE ANSWER — a policy or status question, answered here ── */}
+        {answer && !loading && (
+          <div className="mt-3 space-y-3 rounded-md border border-line bg-card p-4" data-testid="home-answer">
+            <span className={answer.kind === 'policy'
+              ? 'inline-block rounded-full bg-warn-soft px-2 py-0.5 text-[11px] font-medium text-warn'
+              : 'inline-block rounded-full bg-idle-soft px-2 py-0.5 text-[11px] font-medium text-ink-2'}
+            >
+              {answer.kind === 'policy' ? 'A policy question' : 'A status question'}
+            </span>
+            {answer.kind === 'status' ? (
+              <StatusAnswerView answer={answer.status} onNavigate={handleClear} />
+            ) : (
+              <div className="space-y-2">
+                {answer.policy.direct && (
+                  <p className="text-sm font-medium text-ink">{answer.policy.direct.answer}</p>
+                )}
+                {answer.policy.entry && (
+                  answer.policy.direct ? (
+                    <details className="text-sm text-ink-2">
+                      <summary className="cursor-pointer text-xs font-medium text-accent">The rule in full — {answer.policy.entry.title}</summary>
+                      <p className="mt-1.5 whitespace-pre-wrap leading-relaxed">{answer.policy.entry.text}</p>
+                    </details>
+                  ) : (
+                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink-2">{answer.policy.entry.text}</p>
+                  )
+                )}
+                <p className="text-[11px] text-ink-3">
+                  From: {[answer.policy.direct?.source, answer.policy.entry && `${answer.policy.entry.title}${answer.policy.entry.source ? ` (${answer.policy.entry.source})` : ''}`].filter(Boolean).join(' · ')}
+                </p>
+              </div>
+            )}
+            <div className="flex flex-wrap items-center gap-3 pt-1">
+              <button
+                type="button"
+                className="text-xs font-medium text-accent-solid hover:underline"
+                onClick={() => { openAIChatWithPrompt(answer.query); handleClear(); }}
+              >
+                Ask a follow-up →
+              </button>
+              {answer.kind === 'policy' && (
+                <button
+                  type="button"
+                  className="text-xs text-ink-3 hover:text-ink-2 hover:underline"
+                  onClick={() => handleLinkClick(`/requests/new?q=${encodeURIComponent(answer.query)}`)}
+                >
+                  This is something I need to buy →
+                </button>
+              )}
+            </div>
+          </div>
         )}
 
         {/* Loading */}

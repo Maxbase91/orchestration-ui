@@ -44,6 +44,15 @@ try {
       ...FIXTURES.workflow_templates,
       channelTemplate('WF-002', 'catalogue', 'Configured catalogue headline', 'Configured catalogue description.'),
     ],
+    // The Home intent step: the status agent at its defaults, one request of
+    // this requester's and one of someone else's, and a linked policy entry.
+    ai_agents: [{ id: 'AI-007', name: 'Status Answers', type: 'status', status: 'active', accuracy: 0, decisions_made: 0, last_updated: '2026-09-25', description: '', config: null }],
+    requests: [
+      ...FIXTURES.requests,
+      { ...FIXTURES.requests[0], id: 'REQ-2026-00077', title: 'Team offsite venue', status: 'approval', requestor_id: 'u6', owner_id: 'u11' },
+      { ...FIXTURES.requests[0], id: 'REQ-2026-00078', title: 'Someone else’s demand', status: 'validation', requestor_id: 'u02', owner_id: 'u11' },
+    ],
+    knowledge_base: [{ id: 'KB-014', title: 'Single Source Justification', body: 'Buying without competition from {{policy:competitiveSourcingThreshold}} needs a single-source justification.', source: 'Decisioning thresholds', tags: ['quotes', 'competitive', 'single source'] }],
   });
   // The pre-check also calls the server matcher directly. "No contract covers
   // this" is a legitimate answer and is what sends the screen to its contract
@@ -139,6 +148,35 @@ try {
   await page.getByRole('button', { name: /^Back$/ }).click();
   check('Back from an empty route returns to Describe',
     await page.getByText('Describe what you need', { exact: true }).isVisible({ timeout: 10000 }).catch(() => false));
+
+  console.log('\nHome answers policy and status questions in place');
+  const homeBox = page.getByRole('textbox', { name: 'What do you need?' });
+  const homeAnswer = page.getByTestId('home-answer');
+  await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
+  await homeBox.fill('do I need three quotes for a €40,000 order?');
+  await homeBox.press('Enter');
+  await homeAnswer.waitFor({ timeout: 15000 });
+  check('a policy question is answered on Home, not sent to intake',
+    page.url() === `${BASE}/` && (await homeAnswer.getByText('A policy question').count()) === 1);
+  check('the answer is computed from the thresholds',
+    (await homeAnswer.getByText(/^Yes\. At €40,000 you need at least 3 competitive quotes/).count()) === 1, await homeAnswer.innerText());
+  check('it names where the figures came from', (await homeAnswer.getByText(/From: Decisioning thresholds — competitive sourcing €25,000, 3 quotes/).count()) === 1);
+  await homeBox.fill('where is REQ-2026-00077?');
+  await homeBox.press('Enter');
+  await homeAnswer.getByText('A status question').waitFor({ timeout: 15000 });
+  check('a status question about your own request is answered',
+    (await homeAnswer.getByText('REQ-2026-00077 · Team offsite venue').count()) === 1 && (await homeAnswer.getByText('Stage', { exact: true }).count()) === 1,
+    await homeAnswer.innerText());
+  await homeBox.fill('where is REQ-2026-00078?');
+  await homeBox.press('Enter');
+  await homeAnswer.getByText(/that you can see/).waitFor({ timeout: 15000 });
+  check('someone else’s request is not confirmed to exist',
+    (await homeAnswer.getByText('No request REQ-2026-00078 that you can see.').count()) === 1);
+  await page.getByRole('button', { name: 'Clear' }).click();
+  check('clearing brings back the example questions', (await page.getByRole('button', { name: "what's waiting for me?" }).count()) === 1);
+  await page.getByRole('button', { name: "what's waiting for me?" }).click();
+  await homeAnswer.getByText(/Nothing is waiting on you|Approvals waiting on you/).waitFor({ timeout: 15000 });
+  check('the example questions answer too', (await homeAnswer.getByText('A status question').count()) === 1);
 
   await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(500);

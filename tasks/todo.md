@@ -37,7 +37,7 @@ Decisions taken (2026-09-25):
        config model (objects → attributes; role × object access); admin UI on
        the agent; shared answer module; the assistant's lookups (browser and
        `api/chat.ts`) honour it.
-5. [ ] Home intent step — policy and status answered inline on Home, with the
+5. [x] Home intent step — policy and status answered inline on Home, with the
        follow-up into the assistant; page names still navigate; demands and
        catalogue unchanged.
 6. [ ] Mock + docs.

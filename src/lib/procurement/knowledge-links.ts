@@ -93,6 +93,14 @@ function formatThreshold(key: NumericPolicyKey, value: number): string {
   return GROUPING.format(value);
 }
 
+/** The configured label, or the id in words — never a raw "contingent-labour". */
+export function categoryLabel(ctx: Pick<KnowledgeContext, 'categoryLabels'>, id: string): string {
+  const label = ctx.categoryLabels[id];
+  if (label) return label;
+  const words = id.replace(/-/g, ' ');
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
 function joinList(items: string[]): string {
   if (items.length <= 1) return items[0] ?? '';
   return `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
@@ -123,7 +131,7 @@ export function renderKnowledgeBody(body: string, ctx: KnowledgeContext): Render
   const text = body.replace(TOKEN, (token, kind: string, arg: string | undefined) => {
     if (kind === 'policy' && arg && isNumericKey(arg)) return formatThreshold(arg, ctx.policy[arg]);
     if (kind === 'policy' && arg && isListKey(arg)) {
-      const labels = ctx.policy[arg].map((id) => ctx.categoryLabels[id] ?? id);
+      const labels = ctx.policy[arg].map((id) => categoryLabel(ctx, id));
       return labels.length ? joinList(labels) : 'none';
     }
     if (kind === 'approval-chains' && !arg) return renderChains(ctx);
