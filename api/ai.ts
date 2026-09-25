@@ -92,7 +92,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       id: agent.id,
       name: agent.name,
       status: agent.status,
-      accuracy: agent.accuracy,
     };
     return res.status(200).json(parsed);
   } catch (error) {

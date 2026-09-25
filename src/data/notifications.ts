@@ -204,14 +204,6 @@ export const notifications: Notification[] = [
     relatedId: 'REQ-2024-0035',
   },
   {
-    id: 'NOT-021',
-    type: 'ai-insight',
-    title: 'AI: Category recommendation updated',
-    description: 'ML model retrained with Q4 data. Classification accuracy improved to 94.2%.',
-    timestamp: '2025-01-02T09:00:00Z',
-    isRead: true,
-  },
-  {
     id: 'NOT-022',
     type: 'sla-warning',
     title: 'SLA at risk: Facilities management',

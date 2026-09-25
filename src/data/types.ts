@@ -592,8 +592,6 @@ export interface AIAgent {
   name: string;
   type: 'classification' | 'validation' | 'extraction' | 'recommendation' | 'knowledge-base' | 'anomaly-detection' | 'status';
   status: 'active' | 'draft' | 'disabled';
-  accuracy: number;
-  decisionsMade: number;
   lastUpdated: string;
   description: string;
   /**

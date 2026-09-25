@@ -19,7 +19,6 @@
 import { db } from '@/lib/db-client';
 import { createApprovalsFor } from '@/lib/db/approvals-core';
 import { getWorkflowTemplate, listWorkflowTemplates } from '@/lib/db/workflow-templates';
-import { saveComplianceReport } from '@/lib/db/compliance-reports';
 import {
   createWorkflowInstance,
   getWorkflowInstanceForRequest,
@@ -386,99 +385,12 @@ async function raiseRiskAssessment(requestId: string): Promise<void> {
   }
 }
 
-// ── Compliance report generation ─────────────────────────────────────────────
-
-async function generateComplianceReport(requestId: string): Promise<void> {
-  try {
-    // Skip if a report already exists
-    const { data: existing } = await db
-      .from('compliance_reports')
-      .select('request_id')
-      .eq('request_id', requestId)
-      .maybeSingle();
-    if (existing) return;
-
-    const { data: req } = await db
-      .from('requests')
-      .select('category, value, supplier_id, buying_channel, title')
-      .eq('id', requestId)
-      .maybeSingle();
-    if (!req) return;
-
-    const value = (req as Record<string, unknown>).value as number ?? 0;
-    const category = (req as Record<string, unknown>).category as string ?? 'goods';
-
-    // Thresholds come from the governed policy config rather than literals in
-    // the engine — the same source the eight decisioning modules already read,
-    // so a threshold change in Admin cannot leave the compliance report behind.
-    const policy = getActivePolicyConfig();
-
-    const checks = [
-      {
-        id: `${requestId}-CHK-1`, category: 'Budget', check: 'Budget authority',
-        status: value > policy.delegatedAuthorityThreshold ? 'warning' : 'pass',
-        detail: value > policy.delegatedAuthorityThreshold
-          ? `Value €${value.toLocaleString()} requires CFO/Board approval.`
-          : `Value €${value.toLocaleString()} within standard approval limits.`,
-        severity: 'critical',
-      },
-      {
-        id: `${requestId}-CHK-2`, category: 'Contract', check: 'Contract coverage',
-        status: 'pass',
-        detail: 'Checked against active contracts for this supplier.',
-        severity: 'high',
-      },
-      {
-        id: `${requestId}-CHK-3`, category: 'Supplier Compliance', check: 'SRA status',
-        status: 'pass',
-        detail: 'Supplier risk assessment status checked at intake.',
-        severity: 'critical',
-      },
-      {
-        id: `${requestId}-CHK-4`, category: 'Policy', check: 'Competitive sourcing',
-        status: value >= policy.competitiveSourcingThreshold ? 'pass' : 'info',
-        detail: value >= policy.competitiveSourcingThreshold
-          ? 'Value above €25k threshold — competitive quotes required.'
-          : 'Value below competitive quote threshold.',
-        severity: 'high',
-      },
-      {
-        id: `${requestId}-CHK-5`, category: 'Risk', check: 'Sanctions screening',
-        status: 'pass',
-        detail: 'No sanctions flags identified for this supplier.',
-        severity: 'critical',
-      },
-      {
-        id: `${requestId}-CHK-6`, category: 'Value', check: 'Market benchmark',
-        status: 'pass',
-        detail: `${category} category pricing appears within market range.`,
-        severity: 'medium',
-      },
-    ];
-
-    const failing = checks.filter((c) => c.status === 'fail').length;
-    const warnings = checks.filter((c) => c.status === 'warning').length;
-    const decision = failing > 0 ? 'rejected' : warnings > 1 ? 'needs-review' : 'approved';
-
-    await saveComplianceReport({
-      requestId,
-      agentId: 'AI-006',
-      agentName: 'PR Compliance Reviewer',
-      decision,
-      confidence: failing > 0 ? 62 : warnings > 0 ? 78 : 94,
-      generatedAt: new Date().toISOString(),
-      summary: `Compliance review for ${category} request valued at €${value.toLocaleString()}. ${failing} critical fail(s), ${warnings} warning(s).`,
-      checks: checks as never,
-      recommendation: decision === 'approved'
-        ? 'All checks passed. Proceed to approval.'
-        : decision === 'needs-review'
-          ? 'Review warnings before proceeding.'
-          : 'Critical compliance issues must be resolved before proceeding.',
-    });
-  } catch (e) {
-    console.warn('[engine] generateComplianceReport failed (non-blocking):', e);
-  }
-}
+// There was a "compliance report" here, generated at validation under agent
+// AI-006. Four of its six checks were written as passed without running —
+// sanctions screening, contract coverage, the supplier's risk assessment, a
+// market benchmark — with a made-up confidence score. It was removed with the
+// agent and its stored reports (2026-09-25); the request's intake compliance
+// record carries the checks that actually ran, and says "not run" otherwise.
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -516,11 +428,6 @@ async function executeNode(
         action: outcome ?? 'advanced',
         node,
       });
-
-      // Validation stage → generate compliance report
-      if (newStatus === 'validation') {
-        await generateComplianceReport(requestId);
-      }
 
       // Risk stage → make sure there is an assessment to act on. Reuse wins
       // where the register already covers the supplier or contract.

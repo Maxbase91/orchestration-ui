@@ -74,7 +74,7 @@ interface ProposalState {
   message: string;
   catalogueItems: CatalogueItem[];
   links: AILink[];
-  agent?: { id?: string; name?: string; status?: string; accuracy?: number };
+  agent?: { id?: string; name?: string; status?: string };
   /** The original wording, carried into intake when the match is rejected. */
   query?: string;
 }
@@ -102,7 +102,7 @@ interface AIResult {
   extractedSupplier?: string;
   extractedValue?: number;
   generatedDescription?: string;
-  _agent?: { id?: string; name?: string; status?: string; accuracy?: number };
+  _agent?: { id?: string; name?: string; status?: string };
 }
 
 async function queryGroq(input: string): Promise<AIResult | null> {
@@ -688,7 +688,7 @@ export function SmartCommandBar() {
                   <p className="text-sm text-ink-2">{proposal.message}</p>
                   {proposal.agent?.name && proposal.agent.status === 'active' && (
                     <p className="mt-1 text-[11px] text-ink-3">
-                      via {proposal.agent.name} ({proposal.agent.id}) · accuracy {proposal.agent.accuracy ?? 0}%
+                      via {proposal.agent.name} ({proposal.agent.id})
                     </p>
                   )}
                 </div>

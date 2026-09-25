@@ -11,9 +11,7 @@ import {
   ArrowRight,
   ArrowDown,
   AlertTriangle,
-  Sparkles,
 } from 'lucide-react';
-import { useComplianceReport } from '@/lib/db/hooks/use-compliance-reports';
 import { useIntegrationsByRequest } from '@/lib/db/hooks/use-system-integrations';
 import { SystemIntegrationBadge } from '@/components/shared/system-integration-badge';
 
@@ -51,7 +49,6 @@ export function WorkflowCard({ request, onClick }: WorkflowCardProps) {
   const priority = priorityConfig[request.priority] ?? priorityConfig.medium;
   const PriorityIcon = priority.icon;
 
-  const { data: complianceReport } = useComplianceReport(request.id);
   const { data: integrations = [] } = useIntegrationsByRequest(request.id);
   const activeIntegration = integrations.find((i) => i.status !== 'completed');
 
@@ -112,17 +109,9 @@ export function WorkflowCard({ request, onClick }: WorkflowCardProps) {
         </span>
       </div>
 
-      {(complianceReport || activeIntegration) && (
+      {activeIntegration && (
         <div className="mt-2 flex items-center gap-2 flex-wrap">
-          {complianceReport && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-accent-soft border border-accent-line px-2 py-0.5 text-[10px] font-medium text-accent-solid">
-              <Sparkles className="size-2.5" />
-              AI Reviewed
-            </span>
-          )}
-          {activeIntegration && (
-            <SystemIntegrationBadge integration={activeIntegration} compact />
-          )}
+          <SystemIntegrationBadge integration={activeIntegration} compact />
         </div>
       )}
     </div>

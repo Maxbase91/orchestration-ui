@@ -363,6 +363,19 @@ if (!connection) {
 
 console.log('\nAdmin shows what happened, not examples of it');
 {
+  // Agent metrics were seeded numbers (94.2%, 1,247 decisions) and the
+  // performance charts were drawn with Math.random() around them.
+  const agentsDir = new URL('src/features/admin/ai-agents/', ROOT);
+  const agentSources = ['ai-agents-page.tsx', 'components/agent-library.tsx', 'components/agent-config-form.tsx']
+    .map((f) => readFileSync(new URL(f, agentsDir), 'utf8')).join('\n')
+    // Comments explain what was removed; only code counts.
+    .replace(/\{?\/\*[\s\S]*?\*\/\}?|\/\/.*$/gm, '');
+  if (/Math\.random|accuracy|decisionsMade/.test(agentSources)) bad('the AI agents page shows no invented metrics', 'accuracy, decision counts or random charts are back');
+  else ok('the AI agents page shows no invented metrics');
+  const types = readFileSync(new URL('src/data/types.ts', ROOT), 'utf8');
+  const agentType = /export interface AIAgent \{([\s\S]*?)\n\}/.exec(types)?.[1] ?? '';
+  if (/accuracy|decisionsMade/.test(agentType)) bad('an agent carries no unmeasured accuracy', 'AIAgent has accuracy/decisionsMade again');
+  else ok('an agent carries no unmeasured accuracy');
   const auditPage = readFileSync(new URL('src/features/settings/audit-log-page.tsx', ROOT), 'utf8');
   // 40 invented entries (logins from named offices, an AI "duplicate detected",
   // made-up IP addresses) sat beside the real audit rows.

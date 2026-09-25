@@ -137,10 +137,11 @@ async function main() {
   console.log(`Testing against ${API_BASE}`);
   await scenarioAi001Classifier();
   await scenarioAi002Validator();
-  await scenarioAiRowToggle('AI-003', 'ai-003 (Document Extractor)');
-  await scenarioAiRowToggle('AI-004', 'ai-004 (Spend Anomaly Detector)');
+  // AI-003 (relabelled a disabled button) and AI-006 (invented compliance
+  // checks) were removed on 2026-09-25.
+  await scenarioAiRowToggle('AI-004', 'ai-004 (Spend Anomaly Checks)');
   await scenarioAiRowToggle('AI-005', 'ai-005 (Supplier Recommender)');
-  await scenarioAiRowToggle('AI-006', 'ai-006 (PR Compliance Reviewer)');
+  await scenarioAiRowToggle('AI-007', 'ai-007 (Status Answers)');
 
   const failed = results.filter((r) => r.o === 'FAIL').length;
   for (const r of results) {

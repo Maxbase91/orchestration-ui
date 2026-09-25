@@ -52,7 +52,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       { approvalEntries },
       { riskAssessments },
       { notifications },
-      { complianceReports },
       { systemIntegrations },
       { formSubmissions },
       { formTemplates },
@@ -81,7 +80,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       import('../../src/data/approval-entries.js'),
       import('../../src/data/risk-assessments.js'),
       import('../../src/data/notifications.js'),
-      import('../../src/data/compliance-reports.js'),
       import('../../src/data/system-integrations.js'),
       import('../../src/data/form-submissions.js'),
       import('../../src/data/form-templates.js'),
@@ -127,7 +125,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       mapRiskAssessmentToDb,
       mapCommentToDb,
       mapNotificationToDb,
-      mapComplianceReportToDb,
       mapSystemIntegrationToDb,
       mapFormSubmissionToDb,
       mapFormTemplateToDb,
@@ -267,11 +264,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     );
 
     // 13. Compliance reports.
-    counts.compliance_reports = await upsert(
-      'compliance_reports',
-      complianceReports.map((r) => mapComplianceReportToDb(r)),
-      'request_id',
-    );
 
     // 14. System integrations.
     counts.system_integrations = await upsert(

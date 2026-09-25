@@ -165,7 +165,8 @@
     "backfill:retire-direct-po-pcard": "node --import tsx/esm db/backfills/2026-09-25-retire-direct-po-pcard.mjs",
     "backfill:retire-side-processes": "node --import tsx/esm db/backfills/2026-09-25-retire-side-processes.mjs",
     "backfill:knowledge-base-linked": "node --import tsx/esm db/backfills/2026-09-25-knowledge-base-linked.mjs",
-    "backfill:status-agent": "node --import tsx/esm db/backfills/2026-09-25-status-agent.mjs"
+    "backfill:status-agent": "node --import tsx/esm db/backfills/2026-09-25-status-agent.mjs",
+    "backfill:honest-agents": "node --import tsx/esm db/backfills/2026-09-25-honest-agents.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

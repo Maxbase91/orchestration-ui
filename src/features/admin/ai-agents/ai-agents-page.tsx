@@ -12,8 +12,6 @@ import { ConfirmDeleteDialog } from '@/components/shared/confirm-delete-dialog';
 import type { AIAgent } from '@/data/types';
 import { AgentLibrary } from './components/agent-library';
 import { AgentConfigForm } from './components/agent-config-form';
-import { AgentTestPanel } from './components/agent-test-panel';
-import { AgentPerformance } from './components/agent-performance';
 import { StatusAgentConfigPanel } from './components/status-agent-config';
 import { StatusAgentTestPanel } from './components/status-agent-test-panel';
 
@@ -63,8 +61,6 @@ export function AIAgentsPage() {
       name: 'New Agent',
       type: 'classification',
       status: 'draft',
-      accuracy: 0,
-      decisionsMade: 0,
       lastUpdated: new Date().toISOString(),
       description: 'Configure this new agent.',
     };
@@ -99,18 +95,17 @@ export function AIAgentsPage() {
           )}
         />
 
+        {/* No performance dashboard and no canned test here: the charts were
+            generated with Math.random() around a seeded accuracy figure, and the
+            test panel returned the same invented result for any input. Only the
+            status agent has a real test — it runs the real answer. */}
         <div className="grid gap-6 lg:grid-cols-2">
-          <div className="space-y-6">
-            <AgentConfigForm
-              agent={selectedAgent}
-              onClose={() => setSelectedAgent(null)}
-              onSaved={() => setEditedAgents(null)}
-            />
-            {selectedAgent.type === 'status'
-              ? <StatusAgentTestPanel />
-              : <AgentTestPanel agent={selectedAgent} />}
-          </div>
-          <AgentPerformance agent={selectedAgent} />
+          <AgentConfigForm
+            agent={selectedAgent}
+            onClose={() => setSelectedAgent(null)}
+            onSaved={() => setEditedAgents(null)}
+          />
+          {selectedAgent.type === 'status' && <StatusAgentTestPanel />}
         </div>
         {/* The one agent with a type-specific configuration: what it may say
             about each object, and to whom. */}

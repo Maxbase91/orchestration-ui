@@ -36,7 +36,6 @@ export const REQUEST_LIFECYCLE_KEYS = [
   'workflow-instances',
   'workflow-step-details',
   'audit-entries',
-  'compliance-reports',
   'purchase-orders',
   'notifications',
 ] as const;

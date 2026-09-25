@@ -10,6 +10,7 @@
 // Self-contained — mirrors src/lib/workflow/{node-config,transition}.ts and the
 // traversal in engine.ts. Keep in sync.
 // Run: node tests/integration/orchestration.mjs
+import { readFileSync } from 'node:fs';
 
 let failures = 0;
 function check(name, cond, detail = '') {
@@ -89,7 +90,6 @@ function advanceInstance(template, startNodeId, outcome, store, resuming = false
     if (node.type === 'stage') {
       const status = nodeToStatus(node.label);
       transitionStage(store, status, node);
-      if (status === 'validation') store.complianceReports++;
       if (status === 'approval') store.approvalChains.push(store.pendingChain);
       if (status === 'risk') store.riskAssessmentsRaised++;
       if (isGatedStage(node, status)) return { status: 'suspended', at: [nodeId] };
@@ -163,7 +163,6 @@ const newStore = () => ({
   now: '2026-08-27T09:00:00.000Z',
   request: { id: 'REQ-1', status: null, ownerId: 'u9', daysInStage: 0, slaDeadline: null },
   stageHistory: [],
-  complianceReports: 0,
   approvalChains: [],
   riskAssessmentsRaised: 0,
   pendingChain: 'chain-3',
@@ -207,7 +206,9 @@ check('a fresh submit reaches validation, not intake', s1.request.status === 'va
 check('the instance suspends rather than running on unexecuted', r1.status === 'suspended');
 check('it suspends ON the validation node', r1.at[0] === 'n3');
 check('intake was executed, not skipped', s1.stageHistory.some((h) => h.stage === 'intake'));
-check('the compliance report is generated at validation', s1.complianceReports === 1);
+// No compliance report is generated at validation any more: AI-006 wrote its
+// checks as passed without running them, and was removed (2026-09-25).
+check('the engine writes no compliance report', !/generateComplianceReport|saveComplianceReport/.test(readFileSync(new URL('../../src/lib/workflow/engine.ts', import.meta.url), 'utf8')));
 
 console.log('\nStage history is written by the engine');
 // Both steppers derive "complete" purely from stage_history.completed_at, so an

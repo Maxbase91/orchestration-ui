@@ -13,7 +13,6 @@ export interface AgentRecord {
   type: string;
   status: 'active' | 'draft' | 'disabled';
   description: string;
-  accuracy: number;
   lastUpdated: string | null;
 }
 
@@ -32,7 +31,7 @@ export async function getAgent(id: string): Promise<AgentRecord | null> {
 
   const { data, error } = await getDbAdmin()
     .from('ai_agents')
-    .select('id,name,type,status,description,accuracy,last_updated')
+    .select('id,name,type,status,description,last_updated')
     .eq('id', id)
     .maybeSingle();
 
@@ -55,7 +54,6 @@ export async function getAgent(id: string): Promise<AgentRecord | null> {
         type: String(data.type),
         status: status === 'active' || status === 'draft' ? status : 'disabled',
         description: data.description == null ? '' : String(data.description),
-        accuracy: Number(data.accuracy ?? 0),
         lastUpdated: data.last_updated == null ? null : String(data.last_updated),
       }
     : null;

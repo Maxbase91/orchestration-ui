@@ -22,7 +22,6 @@ import type {
   RequestLine,
   ProcurementProfile,
 } from '../../data/types.js';
-import type { ComplianceReport } from '../../data/compliance-reports.js';
 import type { SystemIntegration } from '../../data/system-integrations.js';
 import type { FormSubmission } from '../../data/form-submissions.js';
 import type { FormTemplate } from '../../data/form-templates.js';
@@ -32,36 +31,6 @@ import type { CatalogueItem } from '../../data/catalogue-items.js';
 import type { WorkflowStepDetail } from '../../data/workflow-step-details.js';
 
 type DbRecord = Record<string, unknown>;
-
-// ── Compliance Reports ──────────────────────────────────────────────
-
-export function mapDbToComplianceReport(row: DbRecord): ComplianceReport {
-  return {
-    requestId: (row.request_id ?? row.requestId ?? '') as string,
-    agentId: (row.agent_id ?? row.agentId ?? '') as string,
-    agentName: (row.agent_name ?? row.agentName ?? '') as string,
-    decision: (row.decision ?? 'needs-review') as ComplianceReport['decision'],
-    confidence: (row.confidence ?? 0) as number,
-    generatedAt: (row.generated_at ?? row.generatedAt ?? '') as string,
-    summary: (row.summary ?? '') as string,
-    checks: (row.checks ?? []) as ComplianceReport['checks'],
-    recommendation: (row.recommendation ?? '') as string,
-  };
-}
-
-export function mapComplianceReportToDb(r: Partial<ComplianceReport>): DbRecord {
-  const out: DbRecord = {};
-  if (r.requestId !== undefined) out.request_id = r.requestId;
-  if (r.agentId !== undefined) out.agent_id = r.agentId;
-  if (r.agentName !== undefined) out.agent_name = r.agentName;
-  if (r.decision !== undefined) out.decision = r.decision;
-  if (r.confidence !== undefined) out.confidence = r.confidence;
-  if (r.generatedAt !== undefined) out.generated_at = r.generatedAt;
-  if (r.summary !== undefined) out.summary = r.summary;
-  if (r.checks !== undefined) out.checks = r.checks;
-  if (r.recommendation !== undefined) out.recommendation = r.recommendation;
-  return out;
-}
 
 // ── System Integrations ─────────────────────────────────────────────
 
@@ -256,8 +225,6 @@ export function mapDbToAiAgent(row: DbRecord): AIAgent {
     name: row.name as string,
     type: (row.type ?? 'classification') as AIAgent['type'],
     status: (row.status ?? 'draft') as AIAgent['status'],
-    accuracy: (row.accuracy ?? 0) as number,
-    decisionsMade: (row.decisions_made ?? row.decisionsMade ?? 0) as number,
     lastUpdated: (row.last_updated ?? row.lastUpdated ?? '') as string,
     description: (row.description ?? '') as string,
     config: row.config ?? null,
@@ -270,8 +237,6 @@ export function mapAiAgentToDb(a: Partial<AIAgent>): DbRecord {
   if (a.name !== undefined) out.name = a.name;
   if (a.type !== undefined) out.type = a.type;
   if (a.status !== undefined) out.status = a.status;
-  if (a.accuracy !== undefined) out.accuracy = a.accuracy;
-  if (a.decisionsMade !== undefined) out.decisions_made = a.decisionsMade;
   if (a.lastUpdated !== undefined) out.last_updated = a.lastUpdated;
   if (a.description !== undefined) out.description = a.description;
   if (a.config !== undefined) out.config = a.config;

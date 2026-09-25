@@ -5,6 +5,7 @@ import { useAiAgent } from '@/lib/db/hooks/use-ai-agents';
 import { useRequests } from '@/lib/db/hooks/use-requests';
 import { useSuppliers } from '@/lib/db/hooks/use-suppliers';
 import { formatCurrency } from '@/lib/format';
+import { usePolicyConfig } from '@/lib/procurement/use-policy-config';
 
 interface Anomaly {
   id: string;
@@ -13,16 +14,16 @@ interface Anomaly {
   detail: string;
 }
 
-// A request is "off-contract" if contractId is missing AND the value is
-// above the catalogue threshold. Those are the ones procurement cares
-// about because they should have been routed through sourcing/contracting.
-const OFF_CONTRACT_THRESHOLD = 25000;
 
 export function SpendAnomaliesCard() {
   const { data: agent } = useAiAgent('AI-004');
   const { data: requests = [] } = useRequests();
   const { data: suppliers = [] } = useSuppliers();
   const active = agent?.status === 'active';
+  // Off-contract means at or above the value that needs an executed contract
+  // (Decisioning thresholds); "high" above the budget-approval threshold. Both
+  // were literals here — 25,000 and 100,000 — beside the governed figures.
+  const policy = usePolicyConfig();
 
   const anomalies = useMemo<Anomaly[]>(() => {
     if (!active) return [];
@@ -32,18 +33,18 @@ export function SpendAnomaliesCard() {
     // 1. Off-contract spend above threshold
     for (const r of requests) {
       if (r.contractId) continue;
-      if ((r.value ?? 0) < OFF_CONTRACT_THRESHOLD) continue;
+      if ((r.value ?? 0) < policy.contractRequiredThreshold) continue;
       if (r.status === 'cancelled' || r.status === 'draft') continue;
       out.push({
         id: `off-contract-${r.id}`,
-        severity: (r.value ?? 0) > 100_000 ? 'high' : 'medium',
+        severity: (r.value ?? 0) > policy.budgetApprovalThreshold ? 'high' : 'medium',
         title: `Off-contract spend: ${r.title}`,
         detail: `${r.id} · ${formatCurrency(r.value ?? 0)} · no linked contract. Consider sourcing via framework.`,
       });
     }
 
-    // 2. Supplier-concentration: any single supplier with >3 active
-    // high-value requests currently in flight
+    // 2. Supplier concentration: three or more requests in flight with one
+    // supplier whose combined value is above the budget-approval threshold.
     const perSupplier = new Map<string, { name: string; count: number; total: number }>();
     for (const r of requests) {
       if (!r.supplierId) continue;
@@ -55,7 +56,7 @@ export function SpendAnomaliesCard() {
       perSupplier.set(r.supplierId, b);
     }
     for (const [supplierId, { name, count, total }] of perSupplier) {
-      if (count >= 3 && total > 100_000) {
+      if (count >= 3 && total > policy.budgetApprovalThreshold) {
         out.push({
           id: `concentration-${supplierId}`,
           severity: 'medium',
@@ -65,20 +66,12 @@ export function SpendAnomaliesCard() {
       }
     }
 
-    // 3. Urgent requests without compliance check — they skip standard
-    // approvals per RR-010, so they deserve visibility
-    const urgent = requests.filter((r) => r.isUrgent && !['completed', 'cancelled'].includes(r.status));
-    if (urgent.length > 0) {
-      out.push({
-        id: 'urgent-inflight',
-        severity: 'low',
-        title: `${urgent.length} urgent request${urgent.length === 1 ? '' : 's'} in flight`,
-        detail: `Urgent-priority routing skips finance approval. Verify post-hoc.`,
-      });
-    }
+    // A third rule said urgent routing "skips finance approval" — it does not:
+    // RR-010 sends an urgent request procurement-led. Removed rather than kept
+    // as a warning about something that never happens.
 
     return out.slice(0, 10);
-  }, [active, requests, suppliers]);
+  }, [active, requests, suppliers, policy]);
 
   if (!agent) return null;
 
@@ -91,9 +84,7 @@ export function SpendAnomaliesCard() {
         </CardTitle>
         <span className="flex items-center gap-1 text-[11px] text-ink-3">
           <Sparkles className="size-3" />
-          {active
-            ? `${agent.name} (AI-004) · accuracy ${agent.accuracy}%`
-            : `${agent.name} is ${agent.status}`}
+          {active ? `${agent.name} (AI-004)` : `${agent.name} is ${agent.status}`}
         </span>
       </CardHeader>
       <CardContent>

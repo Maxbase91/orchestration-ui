@@ -9,13 +9,11 @@
 // so compliance content lives in exactly one place.
 import { Link } from 'react-router-dom';
 import type { ProcurementRequest } from '@/data/types';
-import { useComplianceReport } from '@/lib/db/hooks/use-compliance-reports';
 import { useIntakeCompliance } from '@/lib/db/hooks/use-intake-compliance';
 import { useRiskAssessmentLookup, useRiskAssessments } from '@/lib/db/hooks/use-risk-assessments';
 import { useSuppliers, useSupplierLookup } from '@/lib/db/hooks/use-suppliers';
 import { useContractLookup, useContracts } from '@/lib/db/hooks/use-contracts';
 import { useRequisitionForRequest } from '@/lib/db/hooks/use-purchase-requisitions';
-import { ComplianceReportCard } from '@/components/shared/compliance-report-card';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -60,7 +58,6 @@ function effectiveSraStatus(status: keyof typeof sraIcons, expiryDate?: string):
 }
 
 export function TabCompliance({ request }: TabComplianceProps) {
-  const { data: report } = useComplianceReport(request.id);
   const { data: intake } = useIntakeCompliance(request.id);
   useRiskAssessments();
   const lookupRiskAssessment = useRiskAssessmentLookup();
@@ -85,8 +82,8 @@ export function TabCompliance({ request }: TabComplianceProps) {
     },
   ].filter((d) => d.value);
 
-  // A catalogue order or call-off has a requisition and often no compliance
-  // report, so the contract position is content in its own right — without it
+  // A catalogue order or call-off has a requisition and often no intake
+  // determination, so the contract position is content in its own right — without it
   // those requests showed the empty state on the tab that is supposed to
   // justify their governance.
   const { data: requisition } = useRequisitionForRequest(request.id);
@@ -94,7 +91,7 @@ export function TabCompliance({ request }: TabComplianceProps) {
   const { byId: lookupContract } = useContractLookup();
   const contract = lookupContract(requisition?.contractId);
 
-  const hasContent = report || intake || determination.length > 0 || supplier || requisition;
+  const hasContent = intake || determination.length > 0 || supplier || requisition;
 
   if (!hasContent) {
     return (
@@ -350,7 +347,6 @@ export function TabCompliance({ request }: TabComplianceProps) {
         </Card>
       )}
 
-      {report && <ComplianceReportCard report={report} />}
     </div>
   );
 }

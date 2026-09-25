@@ -5,15 +5,16 @@ import { DataTable, type Column } from '@/components/shared/data-table';
 import { formatDate } from '@/lib/format';
 import type { AIAgent } from '@/data/types';
 
-// Static consumption map — where each agent actually affects the product UI.
-// Displayed as "Affects" badges so admins know what a status/config change will touch.
+// Where each agent's status changes what the product does — kept beside the
+// code that reads it (test:ai-agents flips each one and watches the effect).
+// There were "Accuracy" and "Decisions" columns here: seeded numbers (94.2%,
+// 1,247) that nothing measured or updated.
 const AGENT_AFFECTS: Record<string, string[]> = {
-  'AI-001': ['New Request Step 1'],
-  'AI-002': ['New Request Step 4'],
-  'AI-003': ['Supplier Portal: Documents'],
-  'AI-004': ['Analytics: Spend Overview'],
-  'AI-005': ['New Request Step 4'],
-  'AI-006': ['Request: Compliance Tab'],
+  'AI-001': ['Describe step: classification', 'Home box: catalogue check'],
+  'AI-002': ['Review step: policy checks'],
+  'AI-004': ['Analytics: spend anomalies'],
+  'AI-005': ['Details step: supplier recommendations'],
+  'AI-007': ['Home box and assistant: status answers'],
 };
 
 const TYPE_LABELS: Record<string, string> = {
@@ -69,22 +70,6 @@ export function AgentLibrary({ agents, onSelectAgent, onAddAgent, onDeleteAgent 
       label: 'Status',
       sortable: true,
       render: (agent) => <StatusBadge status={agent.status as string} size="sm" />,
-    },
-    {
-      key: 'accuracy',
-      label: 'Accuracy',
-      sortable: true,
-      render: (agent) => (
-        <span className="text-sm font-medium text-ink">{agent.accuracy as number}%</span>
-      ),
-    },
-    {
-      key: 'decisionsMade',
-      label: 'Decisions',
-      sortable: true,
-      render: (agent) => (
-        <span className="text-sm text-ink-2">{(agent.decisionsMade as number).toLocaleString()}</span>
-      ),
     },
     {
       key: 'lastUpdated',

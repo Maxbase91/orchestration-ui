@@ -36,7 +36,7 @@ Decisions taken (2026-09-25):
 
 ## Commits
 1. [x] Audit log and Database tab clean-up
-2. [ ] AI agents: remove AI-003/AI-006 (+ 14 reports), fake metrics and tests; honest descriptions; AI-004 thresholds from configuration
+2. [x] AI agents: remove AI-003/AI-006 (+ 14 reports), fake metrics and tests; honest descriptions; AI-004 thresholds from configuration
 3. [ ] Routing rules: redundant rules out, RR-012 on, vocabulary = what the runtime supplies, categories from configuration
 4. [ ] Approval: configurable roles, ownerless budget → procurement managers, no self-approval, chain page clean-up
 5. [ ] Categories: icon/timeline out, stage-target durations, classifier from configuration

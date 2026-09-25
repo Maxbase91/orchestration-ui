@@ -18,8 +18,6 @@ import { useUserLookup } from '@/lib/db/hooks/use-users';
 import { orderReadiness } from '@/lib/procurement/order-readiness';
 import { useAuthStore } from '@/stores/auth-store';
 import { toast } from 'sonner';
-import { useComplianceReport } from '@/lib/db/hooks/use-compliance-reports';
-import { ComplianceReportCard } from '@/components/shared/compliance-report-card';
 
 const poStages = ['draft', 'submitted', 'acknowledged', 'received', 'closed'] as const;
 
@@ -36,7 +34,6 @@ export function PODetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: po } = usePurchaseOrder(id);
-  const { data: complianceReport } = useComplianceReport(po?.requestId);
   const currentUser = useAuthStore((state) => state.currentUser);
   const createReceipt = useCreateGoodsReceipt();
   const { data: lines = [] } = useRequestLinesForRequest(po?.requestId);
@@ -138,11 +135,6 @@ export function PODetailPage() {
         </CardContent>
       </Card>
 
-      {complianceReport && (
-        <div className="bg-card rounded-md shadow-[0_1px_4px_rgba(0,0,0,0.08)] p-6">
-          <ComplianceReportCard report={complianceReport} defaultExpanded />
-        </div>
-      )}
 
       <Card>
         <CardHeader><CardTitle className="text-base">Line Items</CardTitle></CardHeader>
