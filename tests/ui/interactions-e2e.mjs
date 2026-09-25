@@ -232,7 +232,9 @@ try {
 
     // AST-P: the policy answer is grounded in the knowledge base, with the bands
     // rendered from the live approval chains rather than restated in the entry.
-    const grounded = await page.getByText(/Below €10,000|€10,000 – €100,000/i).count().catch(() => 0);
+    // The chain names exist only in the configuration (the old entry had none);
+    // the figures themselves the model may write as "€10 k".
+    const grounded = await page.getByText(/Fast.Track|Budget Owner → Category Manager/i).count().catch(() => 0);
     check('policy answer is grounded in the knowledge base (AST-P)', grounded > 0, `matches=${grounded}`);
 
     // AST-Q: the assistant reads the same governed source as the front door —

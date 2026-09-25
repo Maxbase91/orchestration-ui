@@ -57,4 +57,11 @@ if (existsSync(new URL('../../src/lib/llm.ts', import.meta.url))) {
   console.error('src/lib/llm.ts is back — there must be one LLM helper, in api/.');
   process.exit(1);
 }
-console.log('AI missing-configuration response is a controlled 503; one LLM helper, both Groq models pinned.');
+// The Gemini fallback dropped nothing: an assistant turn that carried only tool
+// calls reached Gemini as an empty part, which rejects the whole request — so
+// every Groq rate limit surfaced as "trouble connecting".
+if (!/m\.role !== 'system' && typeof m\.content === 'string' && m\.content\.trim\(\) !== ''/.test(llmSource)) {
+  console.error('The Gemini fallback must drop messages with no text.');
+  process.exit(1);
+}
+console.log('AI missing-configuration response is a controlled 503; one LLM helper, both Groq models pinned; the Gemini fallback drops empty messages.');

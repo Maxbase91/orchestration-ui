@@ -350,11 +350,17 @@ async function callGemini(
     .map((m) => m.content)
     .join('\n\n');
 
+  // A message with no text is dropped: Gemini rejects the whole request over
+  // one empty part ("required oneof field 'data'"), and the assistant message
+  // that carries only tool calls has none. That turned every Groq rate limit
+  // into "trouble connecting" — the fallback existed and could never succeed
+  // once a tool had been called. A tool result is passed as user text, since
+  // this call carries no tool declarations for Gemini to match it against.
   const contents = messages
-    .filter((m) => m.role !== 'system')
+    .filter((m) => m.role !== 'system' && typeof m.content === 'string' && m.content.trim() !== '')
     .map((m) => ({
       role: m.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: m.content }],
+      parts: [{ text: m.role === 'tool' ? `Tool result: ${m.content}` : m.content }],
     }));
 
   const body: Record<string, unknown> = {
