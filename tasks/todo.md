@@ -41,7 +41,7 @@ Decisions taken (2026-09-25):
        categories — WF-003/WF-004, side-process screen, classifier rules, form
        path; categories inactive live. Also: both contract screens'
        "Initiate Renewal" buttons started nothing — now Start renewal → Door 1.
-6. [ ] Mock: only the reachable channels; business-led Contracting no longer
+6. [x] Mock: only the reachable channels; business-led Contracting no longer
        "proposed"; notes.
 
 ## Verification
