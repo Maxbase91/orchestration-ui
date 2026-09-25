@@ -140,7 +140,6 @@ export function mapDbToIntakeCompliance(row: DbRecord): IntakeComplianceRecord {
     buyingChannel: (row.buying_channel ?? row.buyingChannel) as IntakeComplianceRecord['buyingChannel'],
     sraCheck: (row.sra_check ?? row.sraCheck) as IntakeComplianceRecord['sraCheck'],
     policyChecks: (row.policy_checks ?? row.policyChecks ?? []) as IntakeComplianceRecord['policyChecks'],
-    duplicateCheck: (row.duplicate_check ?? row.duplicateCheck) as IntakeComplianceRecord['duplicateCheck'],
     riskFlags: (row.risk_flags ?? row.riskFlags ?? []) as string[],
     matchingRiskAssessmentIds:
       (row.matching_risk_assessment_ids ?? row.matchingRiskAssessmentIds) as string[] | undefined,
@@ -154,7 +153,6 @@ export function mapIntakeComplianceToDb(r: IntakeComplianceRecord): DbRecord {
     buying_channel: r.buyingChannel,
     sra_check: r.sraCheck,
     policy_checks: r.policyChecks,
-    duplicate_check: r.duplicateCheck,
     risk_flags: r.riskFlags,
     matching_risk_assessment_ids: r.matchingRiskAssessmentIds ?? [],
   };

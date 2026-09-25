@@ -73,7 +73,7 @@
     "test:assistant-honesty": "node --import tsx/esm tests/integration/assistant-honesty.mjs",
     "test:operational-risk": "node tests/integration/operational-risk.mjs",
     "test:classification-eval": "node tests/integration/classification-eval.mjs",
-    "test:referral": "node tests/integration/referral.mjs",
+    "test:referral": "node --import tsx/esm tests/integration/referral.mjs",
     "test:reference-data-ui": "node --import tsx/esm tests/ui/reference-data-admin.mjs",
     "test:reference-data": "node --import tsx/esm tests/integration/reference-data.mjs",
     "test:screening": "node tests/integration/screening.mjs",

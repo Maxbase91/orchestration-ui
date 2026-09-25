@@ -12,7 +12,7 @@
 //   1. **Determinism.** `now` is an input. The same demand twice is the same
 //      answer, today and next March.
 //   2. **Honesty.** A check that did not run is never recorded as passed. The
-//      duplicate search does not exist, so `duplicateCheck` stays null; the
+//      duplicate search does not exist, so no duplicate check is claimed; the
 //      validator can be disabled, and then the policy checks say so rather
 //      than coming back empty (which reads as "all clear").
 //   3. **One derivation.** The channel on the determination is the channel
@@ -174,7 +174,7 @@ everyCase('the answer does not move with the calendar', (today, input) => {
 console.log('\nA check that did not run is never recorded as passed');
 
 everyCase('no duplicate search exists, so none is claimed', (result) => {
-  assert.equal(result.duplicateCheck, null);
+  assert.ok(!('duplicateCheck' in result));
 });
 
 everyCase('the SRA line reflects the supplier record, never a guess', (result, input) => {

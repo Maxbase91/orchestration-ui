@@ -5,10 +5,9 @@
 // they had not earned:
 //
 //  * Expert wrote `duplicateCheck: { found: false, detail: 'No duplicate demand
-//    detected at intake.' }`. **Nothing anywhere searches for duplicates.** The
-//    sentence describes a search that has never existed, and `found: false`
-//    without `performed` cannot distinguish "nothing matched" from "nobody
-//    looked" — which is the whole point of the flag.
+//    detected at intake.' }`. **Nothing anywhere searches for duplicates.** It
+//    became an honest "not checked", and was then retired (2026-09-25): a check
+//    that can only ever say it did not run is evidence of nothing.
 //  * Expert derived the SRA outcome by string-matching its own rendered label:
 //    `formData.sraStatus.includes('expired') ? 'warning' : 'pass'`. A supplier
 //    with `sraStatus: 'not-assessed'` contains neither word, so it recorded a
@@ -116,13 +115,6 @@ export function buildIntakeComplianceRecord(
     },
     sraCheck: sraCheckFrom(determination),
     policyChecks: determination.policyChecks,
-    // `performed: false` is the load-bearing field. Until something actually
-    // searches for duplicates, no record may imply that one came back clean.
-    duplicateCheck: {
-      found: false,
-      performed: false,
-      detail: 'No duplicate search runs at intake — the assigned owner checks for related demand.',
-    },
     riskFlags: riskFlagsFrom(determination),
     matchingRiskAssessmentIds: determination.matchingRiskAssessments.map((r) => r.id),
   };
@@ -147,7 +139,6 @@ export function buildUndeterminedComplianceRecord(
     },
     sraCheck: { status: 'not-run', detail: 'Not screened at intake — the assigned owner runs this check.' },
     policyChecks: [],
-    duplicateCheck: { found: false, performed: false, detail: 'No duplicate search was run at intake.' },
     riskFlags: [],
     matchingRiskAssessmentIds: [],
   };

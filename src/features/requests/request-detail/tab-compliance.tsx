@@ -1,6 +1,6 @@
 // Compliance tab on the request detail page — the single home for every
 // risk/compliance/policy signal about this request: the intake-time policy
-// checks (buying channel, SRA, duplicate check, reused risk assessments, risk
+// checks (buying channel, SRA, reused risk assessments, risk
 // flags), the fuller compliance report produced after Validation, the
 // front-door determination, and the linked supplier's own risk assessment.
 // Any of these blocks may be absent depending on how far the request has
@@ -24,10 +24,7 @@ import {
   ShieldX,
   ShieldQuestion,
   Info,
-  CheckCircle,
   AlertTriangle,
-  HelpCircle,
-  Search,
   Flag,
   Recycle,
   Building2,
@@ -234,46 +231,6 @@ export function TabCompliance({ request }: TabComplianceProps) {
                 </div>
               ))}
             </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {intake && (
-        <Card>
-          <CardHeader className="pb-2">
-            <div className="flex items-center gap-2">
-              <Search className="size-4 text-accent-solid" />
-              <CardTitle className="text-sm">Duplicate Check</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {/* Three states, not two: a search that ran and found nothing is a
-                green "No duplicates"; one that never ran must not borrow that
-                badge, because a reviewer treats it as a cleared check. */}
-            <div className="flex items-center gap-2">
-              {intake.duplicateCheck.performed === false ? (
-                <HelpCircle className="size-4 text-ink-3" />
-              ) : intake.duplicateCheck.found ? (
-                <AlertTriangle className="size-4 text-warn" />
-              ) : (
-                <CheckCircle className="size-4 text-ok" />
-              )}
-              <Badge
-                variant="outline"
-                className={
-                  intake.duplicateCheck.performed === false
-                    ? 'bg-idle-soft text-ink-2 border-line'
-                    : intake.duplicateCheck.found
-                      ? 'bg-warn-soft text-warn border-warn-line'
-                      : 'bg-ok-soft text-ok border-ok-line'
-                }
-              >
-                {intake.duplicateCheck.performed === false
-                  ? 'Not checked'
-                  : intake.duplicateCheck.found ? 'Potential overlap found' : 'No duplicates'}
-              </Badge>
-            </div>
-            <p className="text-xs text-ink-2">{intake.duplicateCheck.detail}</p>
           </CardContent>
         </Card>
       )}

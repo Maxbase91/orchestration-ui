@@ -6,8 +6,7 @@
 //
 // Reuses the SAME decisioning functions the live wizard runs, rather than
 // inventing separate logic. Signals a historical record never captured
-// (data sensitivity, privileged access, policy-check outcomes, duplicate
-// detection) default to their "nothing elevated / nothing wrong" value —
+// (data sensitivity, privileged access, policy-check outcomes) default to their "nothing elevated / nothing wrong" value —
 // the same posture the app takes anywhere else it doesn't know otherwise.
 //
 // Only fills fields the request does not already set — never overrides a
@@ -49,7 +48,6 @@ export function deriveComplianceBackfill(
     outOfScope: false,
     supplierBlocked: screening.blocking,
     failedPolicyChecks: 0,
-    duplicateDetected: false,
   });
   const sourcing = determineSourcingType({
     channel: request.buyingChannel,

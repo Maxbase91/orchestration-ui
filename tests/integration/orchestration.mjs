@@ -396,7 +396,6 @@ function buildIntakeRecord(form, id, now) {
     },
     sraCheck: { status: form.sraStatus?.includes('expired') ? 'warning' : 'pass', detail: form.sraStatus },
     policyChecks: form.policyChecks ?? [],
-    duplicateCheck: { found: false, detail: form.duplicateCheck ?? 'No duplicate demand detected at intake.' },
     riskFlags: [
       ...(form.materiality?.material ? ['material'] : []),
       ...(form.inherentRisk?.tier ? [`inherent-risk:${form.inherentRisk.tier}`] : []),
@@ -413,7 +412,6 @@ const FORM = {
   matchedRuleName: 'High-value consulting',
   sraStatus: 'Acme: expired (expires 2026-01-01)',
   policyChecks: [{ label: 'Competitive sourcing', passed: true, detail: '' }],
-  duplicateCheck: null,
   materiality: { material: true, criticality: 'important' },
   inherentRisk: { tier: 'high' },
   riskAssessmentRequired: true,

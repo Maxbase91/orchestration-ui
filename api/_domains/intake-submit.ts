@@ -257,7 +257,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       queries.push(sql.query(`INSERT INTO service_descriptions (${Object.keys(sowRow).join(', ')}) VALUES (${Object.keys(sowRow).map((_, i) => `$${i + 1}`).join(', ')})`, Object.values(sowRow)));
     }
     if (compliance) {
-      const complianceRow = cleanRow({ request_id: id, determined_at: compliance.determinedAt ?? now, buying_channel: json(compliance.buyingChannel ?? {}), sra_check: json(compliance.sraCheck ?? {}), policy_checks: json(compliance.policyChecks ?? []), duplicate_check: json(compliance.duplicateCheck ?? {}), risk_flags: Array.isArray(compliance.riskFlags) ? compliance.riskFlags : [], matching_risk_assessment_ids: Array.isArray(compliance.matchingRiskAssessmentIds) ? compliance.matchingRiskAssessmentIds : [] });
+      const complianceRow = cleanRow({ request_id: id, determined_at: compliance.determinedAt ?? now, buying_channel: json(compliance.buyingChannel ?? {}), sra_check: json(compliance.sraCheck ?? {}), policy_checks: json(compliance.policyChecks ?? []), risk_flags: Array.isArray(compliance.riskFlags) ? compliance.riskFlags : [], matching_risk_assessment_ids: Array.isArray(compliance.matchingRiskAssessmentIds) ? compliance.matchingRiskAssessmentIds : [] });
       queries.push(sql.query(`INSERT INTO intake_compliance_records (${Object.keys(complianceRow).join(', ')}) VALUES (${Object.keys(complianceRow).map((_, i) => `$${i + 1}`).join(', ')})`, Object.values(complianceRow)));
     }
     // Every intake enters validation, and validation is an approval gate: the

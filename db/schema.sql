@@ -638,10 +638,15 @@ CREATE TABLE IF NOT EXISTS intake_compliance_records (
   buying_channel JSONB NOT NULL,
   sra_check JSONB NOT NULL,
   policy_checks JSONB NOT NULL DEFAULT '[]',
-  duplicate_check JSONB NOT NULL,
+  -- Retired 2026-09-25: nothing ever searched for duplicates, so the only thing
+  -- this held was "not checked". No longer written; nullable first, dropped in
+  -- a later step (backward-compatible migrations).
+  duplicate_check JSONB,
   risk_flags TEXT[] DEFAULT '{}',
   matching_risk_assessment_ids TEXT[] DEFAULT '{}'
 );
+
+ALTER TABLE intake_compliance_records ALTER COLUMN duplicate_check DROP NOT NULL;
 
 -- Audit Entries (persisted audit log; replaces in-memory array in admin store)
 CREATE TABLE IF NOT EXISTS audit_entries (

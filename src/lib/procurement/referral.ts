@@ -17,8 +17,6 @@ export interface ReferralInput {
   supplierBlocked?: boolean;
   /** Count of hard policy-check failures (0 when none / validator inactive). */
   failedPolicyChecks: number;
-  /** A likely duplicate of an existing request was detected. */
-  duplicateDetected: boolean;
 }
 
 export interface ReferralResult {
@@ -29,8 +27,9 @@ export interface ReferralResult {
 /**
  * Decide the demand disposition. Most-blocking wins: an incomplete or
  * out-of-scope demand is referred back to the requester; an otherwise-valid
- * demand with a fixable policy issue or a suspected duplicate needs a change
- * before it proceeds; everything else proceeds.
+ * demand with a fixable policy issue needs a change before it proceeds;
+ * everything else proceeds. A suspected duplicate was an input too; nothing
+ * ever detected one, and it was retired on 2026-09-25.
  */
 export function determineReferral(input: ReferralInput): ReferralResult {
   if (input.missingMandatory) {
@@ -47,9 +46,6 @@ export function determineReferral(input: ReferralInput): ReferralResult {
       outcome: 'request-change',
       reason: `${input.failedPolicyChecks} policy check${input.failedPolicyChecks > 1 ? 's' : ''} failed — request a change before proceeding`,
     };
-  }
-  if (input.duplicateDetected) {
-    return { outcome: 'request-change', reason: 'A likely duplicate request exists — confirm or consolidate before proceeding' };
   }
   return { outcome: 'proceed', reason: 'No blocking issues — the demand can proceed to its next step' };
 }

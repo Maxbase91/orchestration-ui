@@ -176,7 +176,6 @@ export interface IntakeFormData {
   sourcingType?: { type: string; reason: string };
   sraStatus: string;
   policyChecks: { label: string; passed: boolean; detail: string }[];
-  duplicateCheck: string | null;
   /**
    * Determination output that is persisted rather than displayed and dropped.
    * The wizard lifts the whole result via onUpdate; these are the parts the
@@ -242,7 +241,6 @@ export const INITIAL_INTAKE_DATA: IntakeFormData = {
   miniIrq: {},
   sraStatus: '',
   policyChecks: [],
-  duplicateCheck: null,
   buyingChannelSlug: undefined,
   approvalChain: undefined,
   riskAssessmentRequired: false,

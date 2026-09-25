@@ -1,49 +1,48 @@
-# Buying channels: only what Door 1 can realistically reach
+# Home intent: policy and status answers, from configuration
 
-Asked by the product owner (2026-09-25): keep only buying channels the intake
-can actually reach; clean up Direct PO, P-card, and the side processes; Door 1
-decides business-led vs procurement-led by threshold and category; WF-006 must
-have Contracting.
+Asked by the product owner (2026-09-25): remove the duplicate-demand line; build
+the policy / status intent on Home. Policy answers come from the existing
+policy configuration; status answers are an AI agent whose configuration lists,
+per object, which attributes may be asked about.
 
 Decisions taken (2026-09-25):
-- Side processes WF-003 (supplier onboarding) and WF-004 (contract renewal)
-  are **removed**. Onboarding stays the "Vendor Onboarding" stage inside a
-  request when the supplier is new; a renewal comes in through Door 1 like any
-  demand. The "Contract renewal" and "Supplier onboarding" categories go too
-  (set inactive live — requests that carry them keep their history).
-- Always procurement-led, whatever the value: **consulting and contingent
-  labour** (plus the value rules: software over the budget-approval threshold,
-  anything over the materiality threshold). Contingent labour reaches a call-off
-  only when the contract check finds a framework.
-
-## What exists today (live, 2026-09-25)
-- Direct PO: one rule (RR-009), 3 live requests. P-card: thresholds only, no
-  rule reaches it, 0 requests. WF-003/WF-004: 0 instances ever.
-- Routing rules send Door 1 demands to channels that need a real match: RR-900
-  (< €25k → catalogue), RR-002/RR-007 (→ catalogue), RR-004/RR-903 (contingent
-  labour → call-off).
-- Defect: intake derives the template by CATEGORY (≈ always WF-001) and submit
-  prefers it over the channel's template.
+- Status topics: requests (incl. "my open requests"), my approvals, POs,
+  invoices, contracts, suppliers.
+- Status is an **AI agent** (Admin → AI agents), not a new admin section.
+- Attributes are **auto-listed** from the object's data model, **off** until an
+  admin enables them. A guard test fails when an attribute has no entry.
+- Per attribute: **label** the chatbot uses, **summary vs on-ask**, **who may
+  see it** (everyone who can see the record / procurement roles only).
+- Row access: a **role × object matrix**, cells None / Own / All. "Own" is
+  defined per object (raised / beneficiary / owner; linked PO, invoice,
+  contract, supplier). Approvals waiting on you are always own.
+- Policy: configuration and knowledge base **aligned**. Figures the platform
+  enforces come from configuration (linked into the entry); figures it does not
+  enforce stay KB text, marked "policy text only". Entries that describe the
+  platform wrongly are **rewritten**, and all entries move into the live
+  knowledge base.
+- Policy management page is removed (static third copy of the policy text,
+  used nowhere).
 
 ## Commits
-1. [x] fix: a request runs on the template that claims its channel — submit
-       ignores the browser's template; category derivation removed.
-2. [x] feat: WF-006 business-led gets Contracting (Legal, 10 days) — seed, live,
-       tests, docs.
-3. [x] refactor: routing decides only business-led vs procurement-led — drop
-       rules that route to catalogue / call-off / direct-po / renewal /
-       onboarding and the duplicate consulting catch-all; add contingent labour
-       → procurement-led. Catalogue and call-off come from real matches only.
-4. [x] refactor: remove Direct PO and P-card — channel list, WF-005/WF-007,
-       RR-009, P-card thresholds and eligibility, 3 live direct-po requests
-       moved to business-led.
-5. [x] refactor: remove the side processes and the renewal / onboarding
-       categories — WF-003/WF-004, side-process screen, classifier rules, form
-       path; categories inactive live. Also: both contract screens'
-       "Initiate Renewal" buttons started nothing — now Start renewal → Door 1.
-6. [x] Mock: only the reachable channels; business-led Contracting no longer
-       "proposed"; notes.
+1. [x] Remove the duplicate-demand check — Review loading text, request-detail
+       card, the record's `duplicateCheck` (column made nullable, no longer
+       written), the dead `duplicateDetected` referral input.
+2. [ ] Remove the Policy management page — route, nav, links, tests, docs.
+3. [ ] Knowledge base linked to configuration — `{{policy:key}}` and
+       `{{approval-chains}}` tokens rendered with live values (browser and
+       server); entries rewritten to match the platform; linked / text-only
+       marked on Admin → Knowledge base; backfill into the live table.
+4. [ ] Status agent — `ai_agents.config` (nullable JSONB); AI-007 seeded;
+       config model (objects → attributes; role × object access); admin UI on
+       the agent; shared answer module; the assistant's lookups (browser and
+       `api/chat.ts`) honour it.
+5. [ ] Home intent step — policy and status answered inline on Home, with the
+       follow-up into the assistant; page names still navigate; demands and
+       catalogue unchanged.
+6. [ ] Mock + docs.
 
 ## Verification
-tsc, lint, test:all, the offline browser suites, live backfills idempotent and
-read back; the production interaction suite after deploy.
+tsc, lint, test:all, the offline browser suites, a new browser check for the
+Home answers, live backfills idempotent and read back; the production
+interaction suite after deploy.

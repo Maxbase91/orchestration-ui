@@ -222,7 +222,7 @@ check('the compliance record is identical for the same demand', () => {
 check('neither density can record a check that did not run', () => {
   for (const [name, overrides] of Object.entries(DEMANDS)) {
     const record = buildIntakeComplianceRecord(determine(overrides), { determinedAt: '2026-09-01T00:00:00Z' });
-    assert.equal(record.duplicateCheck.performed, false, `${name}: duplicate search`);
+    assert.ok(!('duplicateCheck' in record), `${name}: duplicate search`);
     const supplierRec = DET_SUPPLIERS.find((s) => s.id === (overrides.supplierId ?? 'SUP-1'));
     if (supplierRec && supplierRec.sraStatus !== 'valid') {
       assert.notEqual(record.sraCheck.status, 'pass', `${name}: SRA`);

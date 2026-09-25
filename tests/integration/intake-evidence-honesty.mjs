@@ -49,8 +49,9 @@ const check = (label, ok, detail = '') => {
 console.log('\nThe record can express a check that did not run');
 check("sraCheck has a 'not-run' status distinct from 'not-applicable'",
   /'not-run'/.test(TYPES) && /'not-applicable'/.test(TYPES));
-check('duplicateCheck records whether a search was performed',
-  /performed\?: boolean/.test(TYPES));
+// The duplicate check could only ever say it had not run; it was retired
+// (2026-09-25) rather than kept as a permanent "not checked".
+check('the record no longer carries a duplicate check', !/duplicateCheck/.test(TYPES));
 
 // ── Fixtures ────────────────────────────────────────────────────────────────
 
@@ -91,10 +92,7 @@ for (const [name, overrides] of Object.entries({
   'a demand with no supplier': { supplierId: '' },
 })) {
   const record = recordFor(overrides);
-  check(`${name}: the duplicate search is recorded as not performed`,
-    record.duplicateCheck.performed === false, JSON.stringify(record.duplicateCheck));
-  check(`${name}: no record says a duplicate demand was not detected`,
-    !/No duplicate demand detected/.test(record.duplicateCheck.detail), record.duplicateCheck.detail);
+  check(`${name}: no duplicate search is claimed`, !('duplicateCheck' in record), JSON.stringify(record));
 }
 
 console.log('\nThe SRA outcome comes from the supplier record, not a rendered label');
@@ -126,15 +124,15 @@ const undetermined = buildUndeterminedComplianceRecord({
   determinedAt: '2026-09-01T00:00:00Z', channel: 'direct-po', label: 'Direct PO',
 });
 check('its SRA check is not-run', undetermined.sraCheck.status === 'not-run');
-check('its duplicate search is not performed', undetermined.duplicateCheck.performed === false);
+check('it claims no duplicate search', !('duplicateCheck' in undetermined));
 check('it claims no policy checks', undetermined.policyChecks.length === 0);
 check('it flags no risks it did not assess', undetermined.riskFlags.length === 0);
 
 console.log('\nThe reviewer can see the difference');
 check('a not-run SRA is not styled as a warning',
   /'not-run' \?/.test(TAB) || /status === 'not-run'/.test(TAB));
-check('an unperformed duplicate search does not render as "No duplicates"',
-  /performed === false/.test(TAB) && /Not checked/.test(TAB));
+check('the Compliance tab shows no duplicate check',
+  !/Duplicate Check|No duplicates/.test(TAB));
 
 console.log('\nA simulated action says so where the user can see it');
 // The disclaimer used to live only in a source header and a module README. The

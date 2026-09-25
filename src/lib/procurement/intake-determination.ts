@@ -150,11 +150,6 @@ export interface IntakeDetermination {
   supplierSraExpiryDate?: string;
   supplierName?: string;
   policyChecks: { label: string; passed: boolean; detail: string }[];
-  /**
-   * Null until something actually searches for duplicates. Nothing does, so
-   * nothing may record that a duplicate check passed.
-   */
-  duplicateCheck: string | null;
   matchingRiskAssessments: MatchingRiskAssessmentSummary[];
   validatorAgentStatus: 'active' | 'draft' | 'disabled' | 'missing';
   validatorAgentName?: string;
@@ -463,10 +458,6 @@ export function evaluateIntakeDetermination(input: IntakeDeterminationInput): In
     outOfScope: policyChecks.some((c) => !c.passed && /prohibit|permissib|out of scope|blocked/i.test(c.label)),
     supplierBlocked: screening.blocking,
     failedPolicyChecks: validatorActive ? policyChecks.filter((c) => !c.passed).length : 0,
-    // No duplicate search exists yet. Passing `false` here states "not found",
-    // which is only honest because `duplicateCheck` below stays null — nothing
-    // downstream may read this as evidence a search ran.
-    duplicateDetected: false,
   });
 
   return {
@@ -495,7 +486,6 @@ export function evaluateIntakeDetermination(input: IntakeDeterminationInput): In
     supplierSraExpiryDate: supplierRec?.sraExpiryDate,
     supplierName: supplierRec?.name,
     policyChecks,
-    duplicateCheck: null,
     matchingRiskAssessments,
     validatorAgentStatus: (validatorAgent?.status ?? 'missing') as IntakeDetermination['validatorAgentStatus'],
     validatorAgentName: validatorAgent?.name,

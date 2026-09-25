@@ -140,7 +140,7 @@ export function StepCompliance({
         <Loader2 className="size-8 animate-spin text-accent-solid" />
         <p className="mt-4 text-sm font-medium">Running compliance checks...</p>
         <p className="mt-1 text-xs text-ink-3">
-          Checking buying channel, SRA, policy rules, and duplicate requests
+          Checking buying channel, supplier risk and policy rules
         </p>
       </div>
     );
