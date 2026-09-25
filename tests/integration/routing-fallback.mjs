@@ -5,9 +5,11 @@
 // thresholds where no admin could see them — and it is why RR-001 sat dead for
 // months: the ladder happened to agree with it, so nothing looked wrong.
 //
-// RR-900…RR-905 replace it. This asserts they reproduce it exactly across the
-// value and category space, that the rule set still answers for every demand,
-// and that deactivating the catch-alls degrades visibly rather than silently.
+// RR-902…RR-905 and the category rules replaced it. Since 2026-09-25 they
+// implement the Door 1 policy — business-led or procurement-led, nothing else —
+// and this asserts that across the value and category space, that the rule set
+// still answers for every demand, and that removing the always-true catch-all
+// degrades visibly rather than silently.
 import { readFileSync } from 'node:fs';
 import {
   resolveRouting, evaluateRoutingRules, uncoveredDemand, CHANNEL_OF_LAST_RESORT,
@@ -22,61 +24,74 @@ const bad = (l, d) => { failures += 1; console.error(`  \x1b[31m✗\x1b[0m ${l}`
 
 const CONFIG = DEFAULT_POLICY_CONFIG;
 
-/** The deleted ladder, verbatim, as the oracle. */
-function deletedLadder(ctx) {
+/**
+ * The Door 1 policy, as the oracle (2026-09-25). A demand described in Door 1
+ * is business-led or procurement-led — nothing else: the catalogue and a
+ * call-off come from a real item or contract on How you'll buy, not from a
+ * rule. Consulting and contingent labour are always procurement-led; so is
+ * software above the budget-approval threshold and anything above the
+ * materiality threshold; otherwise the business-led ceiling decides.
+ */
+function door1(ctx, config = CONFIG) {
   const value = ctx.value ?? 0;
   const category = ctx.category ?? '';
-  if (value < 25000) return 'catalogue';
-  if (category === 'consulting' || value > 100000) return 'procurement-led';
-  if (category === 'contingent-labour') return 'framework-call-off';
-  if (value <= 50000) return 'business-led';
+  if (category === 'consulting' || category === 'contingent-labour') return 'procurement-led';
+  if (category === 'software' && value > config.budgetApprovalThreshold) return 'procurement-led';
+  if (value > config.materialityValueThreshold) return 'procurement-led';
+  if (value > config.budgetApprovalThreshold) return 'procurement-led';
+  if (value <= config.businessLedCeiling) return 'business-led';
   return 'procurement-led';
 }
+const ACTIVE = routingRules.filter((r) => r.status === 'active');
 
-// Only the catch-alls: the oracle is the *fallback*, so a specific rule
-// matching first would be comparing two different things.
-const CATCH_ALLS = routingRules.filter((r) => (r.priority ?? 100) >= 900);
-
-console.log('\nThe catch-all rules reproduce the deleted ladder');
-const CATEGORIES = ['goods', 'services', 'software', 'consulting', 'contingent-labour', 'contract-renewal', ''];
+console.log('\nThe shipped rules give every Door 1 demand the Door 1 answer');
+const CATEGORIES = ['goods', 'services', 'software', 'consulting', 'contingent-labour', ''];
 const VALUES = [0, 1, 999, 4999, 24999, 25000, 25001, 49999, 50000, 50001, 99999, 100000, 100001, 250000, 1000000, 5000000];
 let compared = 0, drift = 0;
+const seen = new Set();
 for (const category of CATEGORIES) {
   for (const value of VALUES) {
-    const expected = deletedLadder({ category, value });
-    const actual = resolveRouting(CATCH_ALLS, { category, value, pCardEligible: false }, CONFIG).channel;
+    const expected = door1({ category, value });
+    const actual = resolveRouting(ACTIVE, { category, value }, CONFIG).channel;
+    seen.add(actual);
     compared += 1;
     if (expected !== actual) {
       drift += 1;
-      if (drift <= 5) bad(`${category || '(none)'} €${value}`, `ladder → ${expected}; rules → ${actual}`);
+      if (drift <= 5) bad(`${category || '(none)'} €${value}`, `policy → ${expected}; rules → ${actual}`);
     }
   }
 }
-if (drift === 0) ok(`${compared} demands get the same channel the if-ladder gave`);
-else bad(`${drift} of ${compared} demands differ`, 'the catch-alls do not reproduce the ladder');
+if (drift === 0) ok(`${compared} demands get the Door 1 answer`);
+else bad(`${drift} of ${compared} demands differ`, 'the rules do not implement the Door 1 policy');
+// The defect this replaces: rules sent Door 1 demands to "catalogue" with no
+// item behind them, and contingent labour to "call-off" with no contract.
+const beyond = [...seen].filter((c) => c !== 'business-led' && c !== 'procurement-led');
+if (beyond.length) bad('Door 1 routing only ever answers business-led or procurement-led', beyond.join(', '));
+else ok('Door 1 routing only ever answers business-led or procurement-led');
+const toMatch = routingRules.filter((r) => ['catalogue', 'framework-call-off', 'direct-po', 'p-card'].includes(r.action.buyingChannel));
+if (toMatch.length) bad('no rule routes to a channel that needs a real item or contract', toMatch.map((r) => r.id).join(', '));
+else ok('no rule routes to the catalogue, a call-off, Direct PO or P-card');
 
 // The boundaries are where an off-by-one lives, so name them explicitly.
-console.log('\nThe governed boundaries land exactly where the ladder put them');
-const at = (category, value) => resolveRouting(CATCH_ALLS, { category, value, pCardEligible: false }, CONFIG).channel;
+console.log('\nThe governed boundaries land where the policy puts them');
+const at = (category, value) => resolveRouting(ACTIVE, { category, value }, CONFIG).channel;
 const boundaries = [
-  ['€24,999 goods is catalogue', at('goods', 24_999), 'catalogue'],
-  ['€25,000 goods is not catalogue', at('goods', 25_000) !== 'catalogue', true],
+  ['€1,000 goods is business-led (no rule invents a catalogue order)', at('goods', 1_000), 'business-led'],
   ['€50,000 goods is business-led (between is inclusive)', at('goods', 50_000), 'business-led'],
   ['€50,001 goods is procurement-led', at('goods', 50_001), 'procurement-led'],
-  ['€100,000 goods is procurement-led', at('goods', 100_000), 'procurement-led'],
-  ['€30,000 contingent labour is framework-call-off', at('contingent-labour', 30_000), 'framework-call-off'],
-  ['€1,000 consulting is catalogue (value is asked first)', at('consulting', 1_000), 'catalogue'],
-  ['€30,000 consulting is procurement-led', at('consulting', 30_000), 'procurement-led'],
+  ['€1,000 consulting is procurement-led', at('consulting', 1_000), 'procurement-led'],
+  ['€30,000 contingent labour is procurement-led (a call-off needs a contract)', at('contingent-labour', 30_000), 'procurement-led'],
 ];
 for (const [label, actual, expected] of boundaries) {
   if (actual === expected) ok(label); else bad(label, `got ${actual}`);
 }
+const CATCH_ALLS = routingRules.filter((r) => (r.priority ?? 100) >= 900);
 
 // ── The catch-alls follow the governed thresholds ──────────────────────────
 console.log('\nMoving a threshold moves the fallback');
 const raised = resolvePolicyConfig({ businessLedCeiling: 80_000 });
-const before = resolveRouting(CATCH_ALLS, { category: 'goods', value: 70_000, pCardEligible: false }, CONFIG).channel;
-const after = resolveRouting(CATCH_ALLS, { category: 'goods', value: 70_000, pCardEligible: false }, raised).channel;
+const before = resolveRouting(ACTIVE, { category: 'goods', value: 70_000 }, CONFIG).channel;
+const after = resolveRouting(ACTIVE, { category: 'goods', value: 70_000 }, raised).channel;
 if (before !== 'procurement-led' || after !== 'business-led') {
   bad('raising businessLedCeiling to €80k moves €70k goods to business-led', `${before} → ${after}`);
 } else ok('raising businessLedCeiling to €80k moves €70k goods from procurement-led to business-led');
@@ -106,7 +121,7 @@ if (uncoveredDemand(routingRules, CONFIG).length !== 0) {
 const warns = [];
 const realWarn = console.warn;
 console.warn = (...a) => warns.push(a.join(' '));
-const floored = resolveRouting([], { category: 'goods', value: 70_000, pCardEligible: false }, CONFIG);
+const floored = resolveRouting([], { category: 'goods', value: 70_000 }, CONFIG);
 console.warn = realWarn;
 if (floored.channel !== CHANNEL_OF_LAST_RESORT || floored.matchedRule !== null) {
   bad('an empty rule set still yields a channel', JSON.stringify(floored));

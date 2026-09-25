@@ -24,19 +24,6 @@ export const routingRules: RoutingRule[] = [
     category: 'Software',
   },
   {
-    id: 'RR-002',
-    name: 'Low-value catalogue purchases',
-    status: 'active',
-    conditions: [
-      { field: 'value', operator: 'less_than', value: '5000' },
-      { field: 'category', operator: 'equals', value: 'goods' },
-    ],
-    action: { buyingChannel: 'catalogue', approvalChain: '' },
-    description: 'Auto-routes goods under €5K to catalogue with single-level approval.',
-    lastModified: '2024-10-01T09:00:00Z',
-    category: 'Goods',
-  },
-  {
     id: 'RR-003',
     name: 'Consulting engagements',
     status: 'active',
@@ -49,32 +36,6 @@ export const routingRules: RoutingRule[] = [
     category: 'Consulting',
   },
   {
-    id: 'RR-004',
-    name: 'Contingent labour - framework',
-    status: 'active',
-    conditions: [
-      { field: 'category', operator: 'equals', value: 'contingent-labour' },
-      { field: 'supplierId', operator: 'in', value: 'SUP-013,SUP-014' },
-    ],
-    action: { buyingChannel: 'framework-call-off', approvalChain: '' },
-    description: 'Contingent labour from Randstad or Hays uses framework call-off with two-level approval.',
-    lastModified: '2024-08-15T11:00:00Z',
-    category: 'Contingent Labour',
-  },
-  {
-    id: 'RR-005',
-    name: 'Contract renewals under €50K',
-    status: 'active',
-    conditions: [
-      { field: 'category', operator: 'equals', value: 'contract-renewal' },
-      { field: 'value', operator: 'less_than', value: '50000' },
-    ],
-    action: { buyingChannel: 'business-led', approvalChain: '' },
-    description: 'Low-value contract renewals can be business-led with category manager oversight.',
-    lastModified: '2024-10-10T16:00:00Z',
-    category: 'Contract Renewal',
-  },
-  {
     id: 'RR-006',
     name: 'Mega-deal threshold (>€1M)',
     status: 'active',
@@ -85,46 +46,6 @@ export const routingRules: RoutingRule[] = [
     description: 'Any request exceeding €1M requires full approval chain including CPO sign-off.',
     lastModified: '2024-07-01T09:00:00Z',
     category: 'All',
-  },
-  {
-    id: 'RR-007',
-    name: 'IT hardware - catalogue eligible',
-    status: 'active',
-    conditions: [
-      { field: 'category', operator: 'equals', value: 'goods' },
-      { field: 'commodityCode', operator: 'starts_with', value: '432' },
-      { field: 'value', operator: 'less_than', value: 'policy:competitiveSourcingThreshold' },
-    ],
-    action: { buyingChannel: 'catalogue', approvalChain: '' },
-    description: 'IT hardware under €25K routes to catalogue if commodity code matches IT equipment.',
-    lastModified: '2024-11-01T10:00:00Z',
-    category: 'IT Hardware',
-  },
-  {
-    id: 'RR-008',
-    name: 'Supplier onboarding flow',
-    status: 'active',
-    conditions: [
-      { field: 'category', operator: 'equals', value: 'supplier-onboarding' },
-    ],
-    action: { buyingChannel: 'procurement-led', approvalChain: 'chain-compliance' },
-    description: 'Supplier onboarding requires compliance review before category manager approval.',
-    lastModified: '2024-09-05T09:00:00Z',
-    category: 'Supplier Onboarding',
-  },
-  {
-    id: 'RR-009',
-    name: 'Facilities services - direct PO',
-    status: 'active',
-    conditions: [
-      { field: 'category', operator: 'equals', value: 'services' },
-      { field: 'commodityCode', operator: 'starts_with', value: '761' },
-      { field: 'value', operator: 'less_than', value: '10000' },
-    ],
-    action: { buyingChannel: 'direct-po', approvalChain: '' },
-    description: 'Low-value facilities services can use direct PO with line manager approval.',
-    lastModified: '2024-10-20T14:00:00Z',
-    category: 'Facilities',
   },
   {
     id: 'RR-010',
@@ -165,45 +86,30 @@ export const routingRules: RoutingRule[] = [
     lastModified: '2024-12-01T09:00:00Z',
     category: 'Risk Management',
   },
-  // ── Catch-alls ─────────────────────────────────────────────────────────────
-  // These reproduce, exactly, the `fallbackBuyingChannel` if-ladder that used
-  // to live in evaluate-routing-rules.ts. It restated three governed numbers in
-  // code where no admin could see them, and it is the reason RR-001 sat dead
-  // for months: the ladder happened to agree with it, so nothing looked wrong.
-  //
-  // They run last (priority 900) and are ordered among themselves, because the
-  // ladder was ordered: a demand under the competitive-sourcing threshold is
-  // catalogue BEFORE anything else is asked about it.
-  //
-  // The ladder's `value <= 50000` step has no `less_than_or_equal` operator, so
-  // it is written as `between 0,ceiling` — `between` is inclusive at both ends,
-  // which is exactly the semantics needed.
+  // ── Door 1 decides one thing: business-led or procurement-led ────────────
+  // The catalogue and a contract call-off are not routing outcomes: they come
+  // from a real catalogue item or a transactable contract found on How you'll
+  // buy. Rules used to send a demand to them anyway — anything under €25,000
+  // to "catalogue" with no item behind it, contingent labour to "call-off" with
+  // no contract — and to Direct PO and P-card, which the intake cannot reach
+  // honestly. What is left: category rules that are always procurement-led
+  // (consulting, contingent labour), the value rules above, then the
+  // business-led ceiling, then procurement-led for everything else.
   {
-    id: 'RR-900',
-    name: 'Catch-all — below the sourcing threshold',
+    id: 'RR-013',
+    name: 'Contingent labour',
     status: 'active',
-    priority: 900,
     conditions: [
-      { field: 'value', operator: 'less_than', value: 'policy:competitiveSourcingThreshold' },
-    ],
-    action: { buyingChannel: 'catalogue', approvalChain: '' },
-    description: 'Unmatched demand below the competitive-sourcing threshold is a catalogue buy.',
-    lastModified: '2026-09-13T00:00:00Z',
-    category: 'All',
-  },
-  {
-    id: 'RR-901',
-    name: 'Catch-all — consulting',
-    status: 'active',
-    priority: 901,
-    conditions: [
-      { field: 'category', operator: 'equals', value: 'consulting' },
+      { field: 'category', operator: 'equals', value: 'contingent-labour' },
     ],
     action: { buyingChannel: 'procurement-led', approvalChain: '' },
-    description: 'Consulting is procurement-led at any value.',
-    lastModified: '2026-09-13T00:00:00Z',
-    category: 'All',
+    description: 'Contingent labour is always run by procurement. It becomes a call-off only when the contract check finds a framework that covers it.',
+    lastModified: '2026-09-25T00:00:00Z',
+    category: 'Contingent Labour',
   },
+  //
+  // The ceiling has no `less_than_or_equal` operator, so it is written as
+  // `between 0,ceiling` — inclusive at both ends, which is what is meant.
   {
     id: 'RR-902',
     name: 'Catch-all — above budget approval',
@@ -214,19 +120,6 @@ export const routingRules: RoutingRule[] = [
     ],
     action: { buyingChannel: 'procurement-led', approvalChain: '' },
     description: 'Unmatched demand above the budget approval threshold is procurement-led.',
-    lastModified: '2026-09-13T00:00:00Z',
-    category: 'All',
-  },
-  {
-    id: 'RR-903',
-    name: 'Catch-all — contingent labour',
-    status: 'active',
-    priority: 903,
-    conditions: [
-      { field: 'category', operator: 'equals', value: 'contingent-labour' },
-    ],
-    action: { buyingChannel: 'framework-call-off', approvalChain: '' },
-    description: 'Contingent labour goes through a framework. RR-004 handles the two suppliers with a standing agreement; this catches the rest.',
     lastModified: '2026-09-13T00:00:00Z',
     category: 'All',
   },

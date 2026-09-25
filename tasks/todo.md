@@ -30,7 +30,7 @@ Decisions taken (2026-09-25):
        ignores the browser's template; category derivation removed.
 2. [x] feat: WF-006 business-led gets Contracting (Legal, 10 days) — seed, live,
        tests, docs.
-3. [ ] refactor: routing decides only business-led vs procurement-led — drop
+3. [x] refactor: routing decides only business-led vs procurement-led — drop
        rules that route to catalogue / call-off / direct-po / renewal /
        onboarding and the duplicate consulting catch-all; add contingent labour
        → procurement-led. Catalogue and call-off come from real matches only.

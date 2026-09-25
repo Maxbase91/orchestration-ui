@@ -227,8 +227,10 @@ check('and only ever escalates to procurement-led',
 // on is one nobody reads.
 check('a demand already routed to procurement-led shows no urgency note',
   urgencyChanges({ category: 'consulting', value: 400_000 }) === null);
-check('a low-value catalogue demand is not silently escalated by the fallback',
-  resolveDemandChannel(RULES, { category: 'goods', value: 8_000 }).channel === 'catalogue');
+// A small demand described in Door 1 is the business's to buy — routing no
+// longer turns it into a catalogue order with no item behind it.
+check('a low-value Door 1 demand is business-led, not escalated',
+  resolveDemandChannel(RULES, { category: 'goods', value: 8_000 }).channel === 'business-led');
 
 console.log('');
 if (failures) { console.error(`FAILED: ${failures} check(s)`); }

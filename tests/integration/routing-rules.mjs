@@ -52,10 +52,18 @@ async function main() {
       expectedChannel: 'procurement-led',
     },
     {
-      label: 'Low-value goods (<€5k)',
+      // Door 1 does not invent a catalogue order: a small demand with no
+      // catalogue item behind it is the business's to buy (RR-002 is gone).
+      label: 'Low-value goods (<€5k) is business-led',
       ctx: { category: 'goods', value: 4000 },
-      expectedRuleId: 'RR-002',
-      expectedChannel: 'catalogue',
+      expectedRuleId: 'RR-904',
+      expectedChannel: 'business-led',
+    },
+    {
+      label: 'Contingent labour is procurement-led',
+      ctx: { category: 'contingent-labour', value: 20000 },
+      expectedRuleId: 'RR-013',
+      expectedChannel: 'procurement-led',
     },
     {
       label: 'Consulting engagement of any size',
@@ -96,8 +104,8 @@ async function main() {
     `got=${noMatch?.matchedRule?.id ?? 'null'}`);
   const fallback = resolveRouting(rules, { category: 'unknown-category', value: 42 }, DEFAULT_POLICY_CONFIG);
   assert(
-    fallback.matchedRule?.id === 'RR-900' && fallback.channel === 'catalogue',
-    'routing: a small unmatched request is caught by the catalogue catch-all',
+    fallback.matchedRule?.id === 'RR-904' && fallback.channel === 'business-led',
+    'routing: a small unmatched request is caught by the business-led ceiling',
     `channel=${fallback.channel} via ${fallback.matchedRule?.id ?? 'code floor'}`,
   );
 
