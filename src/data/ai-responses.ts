@@ -404,7 +404,7 @@ export const aiResponses: AIResponse[] = [
   {
     keywords: ['buying channel', 'route', 'channel', 'buying channel'],
     context: 'general',
-    response: 'Five buying channels are available: Procurement-led (full procurement support), Business-led (self-service with oversight), Direct PO (pre-approved suppliers), Framework Call-off (existing agreements), and Catalogue (standardised items). Channel is auto-assigned based on category and value.',
+    response: 'Four buying channels are available: Catalogue (pre-approved items, ordered directly), Contract call-off (an existing contract already covers it), Business-led (your team buys, under the business-led ceiling) and Procurement-led (Procurement runs the sourcing — consulting, contingent labour and higher values). Describe your need and the platform decides.',
     confidence: 0.92,
     suggestions: ['View channel decision tree', 'Check routing rules', 'Override channel assignment'],
   },

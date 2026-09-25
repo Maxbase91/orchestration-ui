@@ -240,7 +240,6 @@ check('the channel is resolved once — P-card eligibility on both paths or neit
       isUrgent: overrides.isUrgent ?? false,
       riskRating: result.inherentRisk.tier,
       material: result.materiality.material,
-      pCardEligible: result.pCardEligible,
     }, DEFAULT_POLICY_CONFIG);
     assert.equal(result.buyingChannelSlug, direct.channel, name);
   }

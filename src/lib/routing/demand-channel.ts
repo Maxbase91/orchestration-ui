@@ -23,9 +23,8 @@ import { resolveRouting, type RoutingMatch } from './evaluate-routing-rules';
  * They are required rather than optional on purpose. The header above says both
  * screens call this so they cannot drift — and they drifted anyway, because
  * optional fields let a caller omit one silently: the buy-route step left out
- * `isUrgent` and `pCardEligible`, so RR-010 "Urgent request fast-track" and
- * every p-card rule could fire on the determination and never on the screen
- * shown two steps earlier. Same demand, two answers, no error.
+ * `isUrgent`, so RR-010 "Urgent request fast-track" could fire on the
+ * determination and never on the screen shown two steps earlier. Same demand, two answers, no error.
  *
  * `undefined` is still a legitimate value for most of these — it means "not
  * known at this point in the wizard". Requiring the key just makes not knowing
@@ -51,8 +50,6 @@ export interface DemandChannelInput {
    * in the supported vocabulary.
    */
   commodityCode: string | undefined;
-  /** Eligibility must be proven by evaluatePCardEligibility before routing. */
-  pCardEligible: boolean | undefined;
 }
 
 /**
@@ -78,7 +75,6 @@ export function resolveDemandChannel(
     material: input.material,
     region: input.region,
     commodityCode: input.commodityCode,
-    pCardEligible: input.pCardEligible,
   }, config);
 }
 

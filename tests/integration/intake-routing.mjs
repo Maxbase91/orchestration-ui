@@ -185,7 +185,7 @@ import { routingRules as RULES } from '../../src/data/routing-rules.ts';
 
 const NO_SIGNALS = {
   supplierId: undefined, contractId: undefined, isUrgent: undefined, riskRating: undefined,
-  material: undefined, region: undefined, commodityCode: undefined, pCardEligible: undefined,
+  material: undefined, region: undefined, commodityCode: undefined,
 };
 const resolveDemandChannel = (rules, input) => resolveReal(rules, { ...NO_SIGNALS, ...input }, CONFIG);
 

@@ -41,7 +41,6 @@ import { assessOperationalRisk, type OperationalRiskResult } from './operational
 import { determineReferral, type ReferralResult } from './referral.js';
 import { evaluateScreening, type ScreeningResult } from './screening.js';
 import { isTriageRequired } from './risk-triage.js';
-import { evaluatePCardEligibility } from '../routing/p-card.js';
 import { buyingChannelLabel } from '../routing/evaluate-routing-rules.js';
 import { resolveDemandChannel } from '../routing/demand-channel.js';
 import { selectApprovalChainForValue } from '../workflow/workflow-steps.js';
@@ -145,9 +144,6 @@ export interface IntakeDetermination {
   handoffSteps: HandoffStep[];
   /** The data sensitivity inferred from the description, kept for the triage view. */
   dataSensitivity: ReturnType<typeof inferDataSensitivity>;
-  /** Whether the P-card route is open to this demand, and why not when it isn't. */
-  pCardEligible: boolean;
-  pCardIneligibleReasons: string[];
   sraStatus: string;
   /** The supplier's own SRA state, for a record that must not guess. */
   supplierSraStatus?: Supplier['sraStatus'];
@@ -347,17 +343,6 @@ export function evaluateIntakeDetermination(input: IntakeDeterminationInput): In
     matches,
   );
 
-  // P-card eligibility is a routing *input*, not a separate opinion. Simple
-  // intake supplied it and the determination did not, so the same demand could
-  // be offered a card route on one screen and a sourcing exercise on another.
-  const pCard = evaluatePCardEligibility({
-    category,
-    value: estimatedValue,
-    isUrgent,
-    material: materiality.material,
-    riskRating: inherentRisk.tier,
-  });
-
   // The same resolver the buy-route step calls, so the channel shown there and
   // the one determined here cannot drift apart.
   const routing = resolveDemandChannel(routingRules, {
@@ -368,7 +353,6 @@ export function evaluateIntakeDetermination(input: IntakeDeterminationInput): In
     isUrgent,
     riskRating: inherentRisk.tier,
     material: materiality.material,
-    pCardEligible: pCard.eligible,
     commodityCode: input.commodityCode,
     // No region on the demand model yet; named so the gap is visible rather
     // than an omission. A rule keyed on it is flagged by diagnoseRule.
@@ -502,8 +486,6 @@ export function evaluateIntakeDetermination(input: IntakeDeterminationInput): In
     screening,
     handoffSteps,
     dataSensitivity,
-    pCardEligible: pCard.eligible,
-    pCardIneligibleReasons: pCard.ineligibleReasons,
     sraStatus: supplierRec
       ? `${supplierRec.name}: ${supplierRec.sraStatus}${supplierRec.sraExpiryDate ? ` (expires ${supplierRec.sraExpiryDate})` : ''}`
       : 'Will be initiated upon submission',

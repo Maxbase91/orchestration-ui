@@ -35,7 +35,7 @@ const bad = (label, detail) => {
 // requests landed in a stage their own channel skips — the stepper drew them as
 // skipped while they sat in them.
 console.log('\nThe first actionable stage is one the channel traverses');
-const CHANNELS = ['catalogue', 'direct-po', 'business-led', 'framework-call-off', 'p-card', 'procurement-led'];
+const { BUYING_CHANNELS: CHANNELS } = await import('../../src/lib/workflow/channel-stages.ts');
 for (const channel of CHANNELS) {
   for (const risk of [false, true]) {
     const stage = firstActionableStage(CHANNEL_STAGES, channel, { riskAssessmentRequired: risk });

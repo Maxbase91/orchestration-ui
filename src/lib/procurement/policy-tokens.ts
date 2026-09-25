@@ -42,14 +42,6 @@ export const CATEGORY_LIST_POLICY_META: Record<CategoryListPolicyKey, { label: s
     label: 'Ask about privileged access',
     help: 'Intake asks whether the engagement grants privileged or system access for these categories, whatever the data sensitivity.',
   },
-  pCardEligibleCategories: {
-    label: 'P-card eligible categories',
-    help: 'Categories the P-card route may handle.',
-  },
-  pCardExcludedCategories: {
-    label: 'Never on a P-card',
-    help: 'Always blocked from the P-card route, even if listed as eligible.',
-  },
 };
 
 export const CATEGORY_LIST_POLICY_KEYS: readonly CategoryListPolicyKey[] =
@@ -81,7 +73,6 @@ export const POLICY_KEY_META: Record<NumericPolicyKey, { label: string; help: st
   contractExpiryBufferDays: { label: 'Contract expiry buffer', help: 'Days-to-expiry that flag a contract as expiring', unit: 'days' },
   catalogueMatchThreshold: { label: 'Catalogue match threshold', help: 'Minimum score for a catalogue item to be offered at intake', unit: '' },
   catalogueMinContentMatches: { label: 'Catalogue naming-word matches', help: 'Naming words (not adjectives) a catalogue match must hit', unit: '' },
-  pCardMaxValue: { label: 'P-card maximum value', help: 'Maximum demand value that may use the governed P-card route', unit: '€' },
 };
 
 export const NUMERIC_POLICY_KEYS: readonly NumericPolicyKey[] =

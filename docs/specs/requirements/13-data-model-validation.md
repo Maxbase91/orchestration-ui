@@ -87,7 +87,7 @@ reproduced and stale client selections can be rejected.
 `draft` | `intake` | `validation` | `approval` | `sourcing` | `contracting` | `po` | `receipt` | `invoice` | `payment` | `completed` | `cancelled` | `referred-back`
 
 ### BuyingChannel (extensible via admin)
-`procurement-led` | `business-led` | `direct-po` | `framework-call-off` | `catalogue`
+`procurement-led` | `business-led` | `framework-call-off` | `catalogue` (Direct PO and P-card retired 2026-09-25)
 **KNOWN_CHANNELS** const array for compile-time hints; type is `string` for admin extensibility.
 
 ### RequestCategory (extensible via admin)

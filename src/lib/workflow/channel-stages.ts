@@ -144,7 +144,7 @@ export function isSideProcess(template: { type?: string }): boolean {
  * two different templates.
  *
  * Returns null when nothing claims the channel. The intake writer defaulted to
- * the literal `'WF-001'`, so a catalogue, direct-po or p-card request that
+ * the literal `'WF-001'`, so a catalogue or business-led request that
  * reached it without an explicit template was recorded as running the
  * procurement-led workflow — a template whose stages it does not traverse. 114
  * of the 136 live requests carry no template id at all, which is the same gap
@@ -218,8 +218,12 @@ export function lifecycleStagesFrom(map: ChannelStageMap): RequestStatus[] {
  * channel whose template an admin deleted would become unsubmittable rather
  * than merely unconfigured. `unclaimedChannels` reports that instead.
  */
+// Only the channels a demand can actually reach (2026-09-25): Door 1 routes to
+// business-led or procurement-led, a real catalogue item makes a catalogue
+// order, a transactable contract a call-off. Direct PO and P-card were listed
+// here with templates and thresholds behind them, and no honest path to either.
 export const BUYING_CHANNELS: readonly BuyingChannel[] = [
-  'catalogue', 'direct-po', 'business-led', 'framework-call-off', 'p-card', 'procurement-led',
+  'catalogue', 'business-led', 'framework-call-off', 'procurement-led',
 ];
 
 /**
@@ -269,7 +273,7 @@ export function nextStageAfter(
  * The stage a request enters when intake completes.
  *
  * The server used to write a constant `validation` for every channel, so a
- * business-led or direct-po request landed in a stage its own channel skips —
+ * business-led request landed in a stage its own channel skips —
  * the stepper drew it as skipped while the request sat in it.
  *
  * `risk` and `onboarding` are conditional: they are in the lists so the stepper

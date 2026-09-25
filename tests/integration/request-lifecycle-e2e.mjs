@@ -171,8 +171,18 @@ try {
     }
   });
   check('and only where the channel has a stage after it', () => {
-    const result = stageAfterReceipt({ channelStages: CHANNEL_STAGES, receiptStatus: 'complete', requestStatus: 'po', buyingChannel: 'p-card' });
-    if (result.movedTo) throw new Error(`p-card has no receipt stage but moved to ${result.movedTo}`);
+    // A channel whose template ends at the PO (P-card was the shipped example;
+    // it is retired, so the template is built here).
+    const endsAtPo = channelStageMapFromTemplates([{
+      id: 'T', channels: ['business-led'],
+      nodes: [
+        { id: 's', type: 'start', label: 'Start' }, { id: 'a', type: 'stage', label: 'Intake' },
+        { id: 'b', type: 'stage', label: 'PO Creation' }, { id: 'e', type: 'end', label: 'End' },
+      ],
+      edges: [{ source: 's', target: 'a' }, { source: 'a', target: 'b' }, { source: 'b', target: 'e' }],
+    }]);
+    const result = stageAfterReceipt({ channelStages: endsAtPo, receiptStatus: 'complete', requestStatus: 'po', buyingChannel: 'business-led' });
+    if (result.movedTo) throw new Error(`a channel with no receipt stage moved to ${result.movedTo}`);
   });
 
   console.log('\n4. The order carries what a hand-off needs');

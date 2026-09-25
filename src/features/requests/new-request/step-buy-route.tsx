@@ -62,8 +62,8 @@ interface StepBuyRouteProps {
    * Urgency and classification reach the routing call here.
    *
    * They used to be absent, so this screen's channel and the determination's
-   * could disagree on the same demand: RR-010 (urgent fast-track) and every
-   * p-card rule fired on one and not the other.
+   * could disagree on the same demand: RR-010 (urgent fast-track) fired on one
+   * and not the other.
    */
   isUrgent?: boolean;
   commodityCode?: string;
@@ -286,9 +286,6 @@ export function StepBuyRoute({
       isUrgent,
       commodityCode,
       region: undefined,
-      // Not yet proven at this step — evaluatePCardEligibility runs with the
-      // determination. Named so the omission is deliberate, not forgotten.
-      pCardEligible: undefined,
     }, policyConfig),
     [routingRules, category, estimatedValue, supplierId, contractMatches, signals, isUrgent, commodityCode, policyConfig],
   );

@@ -47,7 +47,6 @@ export function UrgencyChannelNote({
     material: undefined,
     region: undefined,
     commodityCode: undefined,
-    pCardEligible: undefined,
   }, policyConfig);
 
   // Silent when urgency changes nothing — a warning that is always on is one

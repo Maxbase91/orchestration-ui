@@ -40,8 +40,6 @@ export interface RoutingContext {
   contractId?: string;
   /** Requester or delivery region, for geography-based routing. */
   region?: string;
-  /** Eligibility must be proven separately before a rule may select P-card. */
-  pCardEligible?: boolean;
 }
 
 /** Fields the evaluator can read. Kept in step with the admin editor's list. */
@@ -192,7 +190,7 @@ export function uncoveredDemand(
     { category: 'services', value: config.businessLedCeiling + 1 },
   ];
   return probes.filter((p) =>
-    evaluateRoutingRules(rules, { ...p, pCardEligible: false }, config) === null);
+    evaluateRoutingRules(rules, p, config) === null);
 }
 
 /** Risk tiers ordered low → critical, for threshold comparisons. */
@@ -210,12 +208,10 @@ export interface RoutingMatch {
 }
 
 const BUYING_CHANNEL_LABELS: Record<BuyingChannel, string> = {
-  catalogue: 'Catalogue / Direct PO',
-  'direct-po': 'Direct PO',
+  catalogue: 'Catalogue',
   'business-led': 'Business-Led',
   'procurement-led': 'Procurement-Led Sourcing',
   'framework-call-off': 'Framework Call-Off',
-  'p-card': 'P-card route',
 };
 
 export function buyingChannelLabel(channel: BuyingChannel): string {
@@ -357,11 +353,6 @@ export function evaluateRoutingRules(
 ): RoutingMatch | null {
   for (const rule of resolveRulesForEvaluation(rules, config)) {
     if (ruleMatches(rule, ctx)) {
-      // A configurable rule may nominate P-card, but the payment-adjacent
-      // route is only safe when the intake has separately proven eligibility.
-      // Skipping this match lets a later governed rule or the normal fallback
-      // decide rather than silently offering an unsafe route.
-      if (rule.action.buyingChannel === 'p-card' && ctx.pCardEligible !== true) continue;
       return { channel: rule.action.buyingChannel, approvalChain: rule.action.approvalChain, matchedRule: rule };
     }
   }

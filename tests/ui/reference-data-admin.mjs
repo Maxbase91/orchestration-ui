@@ -226,9 +226,11 @@ try {
   // for: it is shown and flagged rather than silently kept.
   check('a stored id that names no category is shown and flagged',
     (await page.getByText('contingent-labour').count()) > 0 && (await page.getByText('(no such category)').count()) > 0);
-  check('the P-card lists are checklists too',
-    (await page.getByLabel('P-card eligible categories: Goods', { exact: true }).isChecked())
-    && (await page.getByLabel('Never on a P-card: Consulting', { exact: true }).isChecked()));
+  // The P-card route is retired (no path to it from the intake), and so are
+  // its thresholds: a card-policy section here would configure nothing.
+  check('no P-card policy is offered', (await page.getByText(/P-card/).count()) === 0);
+  check('the privileged-access categories are a checklist too',
+    (await page.getByLabel('Ask about privileged access: Consulting', { exact: true }).count()) === 1);
   await page.getByLabel('Exempt from competitive quotes: Consulting', { exact: true }).click();
   await page.getByRole('button', { name: /^Save$/ }).click();
   await page.waitForTimeout(800);

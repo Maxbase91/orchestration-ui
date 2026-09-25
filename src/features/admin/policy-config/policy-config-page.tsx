@@ -32,8 +32,8 @@ const FIELDS: { key: NumericPolicyKey; label: string; help: string; unit: string
 
 const RISK_TIERS: RiskTier[] = ['low', 'medium', 'high', 'critical'];
 
-// Every on/off key, from the defaults by type — saving named pCardEnabled by
-// hand, and a second switch would have been the one it forgot.
+// Every on/off key, from the defaults by type — saving once named its one
+// switch by hand, and a second switch would have been the one it forgot.
 const BOOLEAN_KEYS = (Object.keys(DEFAULT_POLICY_CONFIG) as (keyof PolicyConfig)[])
   .filter((key): key is { [K in keyof PolicyConfig]: PolicyConfig[K] extends boolean ? K : never }[keyof PolicyConfig] =>
     typeof DEFAULT_POLICY_CONFIG[key] === 'boolean');
@@ -248,38 +248,6 @@ export function PolicyConfigPage() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">P-card route policy</CardTitle>
-              <p className="text-xs text-ink-3">
-                Controls whether eligible low-value demands may be routed to the approved P-card process.
-                This setting never charges a card or writes to an upstream system.
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label htmlFor="cfg-pCardEnabled" className="text-sm text-ink">Enable P-card route</Label>
-                  <p className="text-xs text-ink-3">When disabled, no routing rule can offer P-card.</p>
-                </div>
-                <Switch
-                  id="cfg-pCardEnabled"
-                  checked={draft.pCardEnabled}
-                  onCheckedChange={(value) => setDraft((d) => ({ ...d, pCardEnabled: value }))}
-                />
-              </div>
-              <CategoryChecklist
-                policyKey="pCardEligibleCategories"
-                value={draft.pCardEligibleCategories}
-                onChange={(next) => setDraft((d) => ({ ...d, pCardEligibleCategories: next }))}
-              />
-              <CategoryChecklist
-                policyKey="pCardExcludedCategories"
-                value={draft.pCardExcludedCategories}
-                onChange={(next) => setDraft((d) => ({ ...d, pCardExcludedCategories: next }))}
-              />
-            </CardContent>
-          </Card>
 
         </div>
 

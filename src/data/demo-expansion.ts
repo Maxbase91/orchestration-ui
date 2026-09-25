@@ -21,7 +21,6 @@ import type { ProcurementRequest, StageHistoryEntry, Invoice, Comment, ApprovalE
 
 const CHANNEL_STAGES: Record<string, string[]> = {
   catalogue:            ['draft', 'intake', 'po', 'receipt', 'invoice', 'payment'],
-  'direct-po':          ['draft', 'intake', 'validation', 'approval', 'po', 'receipt', 'invoice', 'payment'],
   'business-led':       ['draft', 'intake', 'validation', 'approval', 'po', 'receipt', 'invoice', 'payment'],
   'framework-call-off': ['draft', 'intake', 'validation', 'approval', 'po', 'receipt', 'invoice', 'payment'],
   'procurement-led':    ['draft', 'intake', 'validation', 'approval', 'sourcing', 'contracting', 'po', 'receipt', 'invoice', 'payment'],
@@ -235,7 +234,7 @@ const REQS_SPEC: Array<Partial<Pick<ProcurementRequest,
     description: 'Logitech RoomMate kits for 12 rooms.',
     category: 'goods', status: 'intake', priority: 'medium',
     value: 48000, currency: 'EUR', requestorId: 'u6', ownerId: 'u1',
-    supplierId: 'SUP-CAT-003', buyingChannel: 'direct-po',
+    supplierId: 'SUP-CAT-003', buyingChannel: 'business-led',
     commodityCode: '43212100', commodityCodeLabel: 'AV equipment',
     costCentre: 'CC-IT-007', budgetOwner: "James O'Brien",
     businessJustification: 'Hybrid-work infrastructure.', deliveryDate: '2026-06-15', isUrgent: false,

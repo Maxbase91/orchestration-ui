@@ -12,7 +12,7 @@ export const knowledgeBase: KnowledgeEntry[] = [
   {
     id: 'KB-002',
     title: 'Consulting Services Threshold',
-    body: 'Consulting and advisory engagements follow these channel rules:\n• Below €25,000: Direct PO permitted if supplier is on the approved panel.\n• €25,001–€100,000: Minimum 3 competitive quotes required.\n• €100,001–€500,000: Formal RFP/RFQ process with at least 5 panel respondents.\n• Above €500,000: Full tender process with independent evaluation panel.\nAll consulting suppliers must be on the Strategic Consulting Panel (Accenture, Deloitte, McKinsey, BCG, PwC). Single-source above €25K requires written business justification and Procurement Director approval.',
+    body: 'Consulting and advisory engagements follow these channel rules:\n• Always procurement-led, whatever the value.\n• €25,001–€100,000: Minimum 3 competitive quotes required.\n• €100,001–€500,000: Formal RFP/RFQ process with at least 5 panel respondents.\n• Above €500,000: Full tender process with independent evaluation panel.\nAll consulting suppliers must be on the Strategic Consulting Panel (Accenture, Deloitte, McKinsey, BCG, PwC). Single-source above €25K requires written business justification and Procurement Director approval.',
     source: 'KOP-CONS-001 — Consulting Procurement Standard',
     tags: ['consulting', 'advisory', 'threshold', 'rfp', 'quote', 'tender', 'panel', 'channel'],
   },

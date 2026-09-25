@@ -99,8 +99,8 @@ stated in procurement's vocabulary, four steps after it became knowable.
 
 **Rules**
 - **One derivation.** The channel comes from `resolveDemandChannel`; the buy-route screen and the Review step call the same function with the same inputs, so they cannot disagree.
-- Routing inputs are the **superset**: category, value, supplier, matched contract, urgency, inherent-risk tier, materiality **and** P-card eligibility. Supplying a subset on one path was how the two densities produced different channels for one demand.
-- **P-card eligibility** (`pCardEnabled`, max €5,000, categories `goods`/`services`, never `software`/`consulting`/`contingent-labour`/renewals/onboarding, never when urgent, material, or high/critical risk) is an *input to routing*, not a separate opinion.
+- Routing inputs are the **superset**: category, value, supplier, matched contract, urgency, inherent-risk tier and materiality. Supplying a subset on one path was how the two densities produced different channels for one demand.
+- Routing decides only **business-led vs procurement-led** (2026-09-25): consulting and contingent labour always procurement-led, then the value rules and the business-led ceiling. The catalogue and a call-off come from a real item or contract; Direct PO and P-card are retired.
 - Contract call-off needs a **primary signal** — supplier match, category match, or ≥2 keyword hits — plus remaining capacity ≥5%.
 
 **Technical** — `src/features/requests/new-request/step-buy-route.tsx` (presenter only), `src/lib/routing/demand-channel.ts`, `src/lib/routing/evaluate-routing-rules.ts`, `src/lib/routing/p-card.ts`, `api/_domains/contract-match.ts`, served at `/api/contract-match` by a `vercel.json` rewrite (ADR-0004).

@@ -33,7 +33,7 @@ Stages are defined by `RequestStatus` union type (canonical) + `STAGES_BY_CHANNE
 |-------|--------------------------|
 | `intake` | All |
 | `validation` | All except catalogue |
-| `approval` | All except catalogue (direct-po skips if value < threshold) |
+| `approval` | All except catalogue under its auto-approval threshold |
 | `sourcing` | `procurement-led` only |
 | `contracting` | `procurement-led` only |
 | `po` | All |

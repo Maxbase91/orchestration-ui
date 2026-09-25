@@ -146,7 +146,7 @@ formData { title, category, supplierId, deliveryDate (freetext), estimatedValue,
 
 1. Submit wizard with delivery phrase "end of Q3 2026" → request created, no 400, `delivery_date = 2026-09-30`.
 2. Select Consulting category → Step 5 shows "procurement-led" buying channel, "Standard Procurement" template.
-3. Add catalogue item → no compliance step shown, direct PO path offered.
+3. Add catalogue item → no compliance step shown; the governed catalogue checkout places the order.
 4. Confirmed request → appears in All Requests list immediately.
 
 ---

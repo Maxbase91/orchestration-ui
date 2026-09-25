@@ -59,7 +59,7 @@ for (const category of CATEGORIES) {
         const ctx = {
           category, value, commodityCode, isUrgent,
           priority: isUrgent ? 'urgent' : undefined,
-          supplierId: 'SUP-001', pCardEligible: false,
+          supplierId: 'SUP-001',
         };
         const before = resolveRouting(asLiterals, ctx, CONFIG);
         const after = resolveRouting(routingRules, ctx, CONFIG);
@@ -80,7 +80,7 @@ else bad(`${drift} of ${compared} demands changed channel`, 'the migration is no
 
 // ── A token moves when the threshold moves ─────────────────────────────────
 console.log('\nA governed threshold actually drives the rule');
-const softwareCtx = { category: 'software', value: 120_000, supplierId: 'SUP-001', pCardEligible: false };
+const softwareCtx = { category: 'software', value: 120_000, supplierId: 'SUP-001' };
 const atDefault = resolveRouting(routingRules, softwareCtx, CONFIG);
 const raised = resolveRouting(routingRules, softwareCtx, resolvePolicyConfig({ budgetApprovalThreshold: 200_000 }));
 if (atDefault.matchedRule?.id !== 'RR-001') {

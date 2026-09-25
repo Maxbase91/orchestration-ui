@@ -183,7 +183,7 @@ export const complianceReports: ComplianceReport[] = [
       { id: 'CHK-008-1', category: 'Budget', check: 'Budget availability', status: 'pass', detail: 'Budget availability confirmed — €35,000 within Legal operations budget.', severity: 'critical' },
       { id: 'CHK-008-2', category: 'Contract', check: 'Contract coverage', status: 'pass', detail: 'Active contract found (CON-012) — service level agreement in place.', severity: 'high' },
       { id: 'CHK-008-3', category: 'Supplier Compliance', check: 'SRA status', status: 'pass', detail: 'SRA valid until 2025-09-30. Supplier compliant.', severity: 'high' },
-      { id: 'CHK-008-4', category: 'Policy', check: 'Direct PO threshold', status: 'pass', detail: 'Value within direct PO threshold of €50,000. No competitive sourcing required.', severity: 'medium' },
+      { id: 'CHK-008-4', category: 'Policy', check: 'Direct call-off limit', status: 'pass', detail: 'Value within the direct call-off limit. No mini-competition required.', severity: 'medium' },
       { id: 'CHK-008-5', category: 'Risk', check: 'Supplier risk rating', status: 'pass', detail: 'Supplier risk rating: Low. Established records management provider.', severity: 'medium' },
       { id: 'CHK-008-6', category: 'Value', check: 'Market benchmark', status: 'pass', detail: 'Pricing within market benchmark ±10% for records management services.', severity: 'medium' },
     ],

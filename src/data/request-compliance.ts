@@ -479,9 +479,9 @@ export const intakeComplianceRecords: IntakeComplianceRecord[] = [
     requestId: 'REQ-2024-0018',
     determinedAt: '2024-10-10T07:20:00Z',
     buyingChannel: {
-      channel: 'direct-po',
-      label: 'Direct PO',
-      reasoning: 'Value (€35,000) is below €50K Direct PO threshold with existing contract in place.',
+      channel: 'framework-call-off',
+      label: 'Framework Call-Off',
+      reasoning: 'An active contract (CON-012) covers records management, so this is called off it.',
     },
     sraCheck: {
       status: 'pass',
@@ -489,7 +489,7 @@ export const intakeComplianceRecords: IntakeComplianceRecord[] = [
     },
     policyChecks: [
       { label: 'Budget pre-approval', passed: true, detail: 'Legal operations budget confirmed.' },
-      { label: 'Direct PO threshold', passed: true, detail: 'Value within €50K direct PO limit. No competitive sourcing required.' },
+      { label: 'Direct call-off limit', passed: true, detail: 'Value (€35,000) is under the direct call-off limit. No mini-competition required.' },
       { label: 'Contract coverage', passed: true, detail: 'Active SLA (CON-012) in place for records management.' },
       { label: 'Regulatory requirement', passed: true, detail: '7-year retention requirement documented.' },
       { label: 'Business justification', passed: true, detail: 'Regulatory compliance — physical records retention mandate.' },
@@ -655,9 +655,9 @@ export const intakeComplianceRecords: IntakeComplianceRecord[] = [
     requestId: 'REQ-2024-0025',
     determinedAt: '2024-12-15T10:20:00Z',
     buyingChannel: {
-      channel: 'direct-po',
-      label: 'Direct PO',
-      reasoning: 'Value (€28,000) is below €50K Direct PO threshold with existing supplier relationship.',
+      channel: 'business-led',
+      label: 'Business-Led',
+      reasoning: 'Value (€28,000) is under the business-led ceiling and no contract covers it.',
     },
     sraCheck: {
       status: 'pass',
@@ -665,7 +665,7 @@ export const intakeComplianceRecords: IntakeComplianceRecord[] = [
     },
     policyChecks: [
       { label: 'Budget pre-approval', passed: true, detail: 'R&D budget confirmed.' },
-      { label: 'Direct PO threshold', passed: true, detail: 'Value within €50K direct PO limit.' },
+      { label: 'Business-led ceiling', passed: true, detail: 'Value within the €50,000 business-led ceiling.' },
       { label: 'Sole source justification', passed: false, detail: 'Sole source justification under review — Bosch unique specifications to be validated.' },
       { label: 'Business justification', passed: true, detail: 'R&D prototyping — next-gen product development.' },
     ],

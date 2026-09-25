@@ -24,13 +24,13 @@ import { resolvePolicyValue, describePolicyValue } from '@/lib/procurement/polic
 // token in the form builder.
 const BAND_DECIDES = '__band__';
 
+// A rule decides one thing for a demand described in Door 1: business-led or
+// procurement-led. The catalogue and a call-off come from a real item or a
+// transactable contract, never from a rule — offering them here let a rule send
+// a demand to a catalogue order with no item behind it.
 const BUYING_CHANNEL_OPTIONS: { value: BuyingChannel; label: string }[] = [
   { value: 'procurement-led', label: 'Procurement-Led Sourcing' },
   { value: 'business-led', label: 'Business-Led' },
-  { value: 'direct-po', label: 'Direct PO' },
-  { value: 'framework-call-off', label: 'Framework Call-Off' },
-  { value: 'catalogue', label: 'Catalogue' },
-  { value: 'p-card', label: 'P-card route (eligible demands only)' },
 ];
 
 // The nine hard-coded role-path strings that used to live here
@@ -71,10 +71,8 @@ const FIELD_LABELS: Record<string, string> = {
 const CHANNEL_LABELS: Record<string, string> = {
   'procurement-led': 'Procurement-Led Sourcing',
   'business-led': 'Business-Led',
-  'direct-po': 'Direct PO',
   'framework-call-off': 'Framework Call-Off',
   'catalogue': 'Catalogue',
-  'p-card': 'P-card route',
 };
 
 interface RuleEditorPanelProps {

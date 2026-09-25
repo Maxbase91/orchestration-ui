@@ -32,7 +32,7 @@ export const KNOWN_CATEGORIES = [
 ] as const;
 
 export const KNOWN_CHANNELS = [
-  'procurement-led', 'business-led', 'direct-po', 'framework-call-off', 'catalogue', 'p-card',
+  'procurement-led', 'business-led', 'framework-call-off', 'catalogue',
 ] as const;
 export type RiskRating = 'low' | 'medium' | 'high' | 'critical';
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'delegated' | 'info-requested';

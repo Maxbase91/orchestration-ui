@@ -16,7 +16,6 @@ type Row = ProcurementRequest & Record<string, unknown>;
 const BUYING_CHANNEL_LABELS: Record<string, string> = {
   'procurement-led': 'Procurement-Led',
   'business-led': 'Business-Led',
-  'direct-po': 'Direct PO',
   'framework-call-off': 'Framework',
   catalogue: 'Catalogue',
 };

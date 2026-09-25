@@ -22,7 +22,6 @@ import { usePolicyConfig } from '@/lib/procurement/use-policy-config';
 const CHANNEL_LABELS: Record<string, string> = {
   'procurement-led': 'Procurement-Led Sourcing',
   'business-led': 'Business-Led',
-  'direct-po': 'Direct PO',
   'framework-call-off': 'Framework Call-Off',
   'catalogue': 'Catalogue',
 };

@@ -223,7 +223,6 @@ everyCase('the determination channel equals resolveDemandChannel for the same in
     isUrgent: input.isUrgent,
     riskRating: result.inherentRisk.tier,
     material: result.materiality.material,
-    pCardEligible: result.pCardEligible,
   }, DEFAULT_POLICY_CONFIG);
   assert.equal(result.buyingChannelSlug, direct.channel);
 });

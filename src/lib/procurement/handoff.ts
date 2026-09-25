@@ -30,7 +30,7 @@ export interface HandoffInput {
   supplierDataIssue?: boolean;
 }
 
-const PO_CHANNELS: BuyingChannel[] = ['catalogue', 'direct-po', 'framework-call-off'];
+const PO_CHANNELS: BuyingChannel[] = ['catalogue', 'framework-call-off'];
 
 /** Build the ordered list of downstream handoff steps for a determination. */
 export function buildHandoffSteps(input: HandoffInput): HandoffStep[] {
@@ -101,21 +101,6 @@ export function buildHandoffSteps(input: HandoffInput): HandoffStep[] {
     steps.push({ key: 'contract', label: 'Contract call-off', system: 'Contract management', status: 'required', detail: 'Call off against the existing framework or contract.', deepLink: '/contracts' });
   } else if (input.channel === 'procurement-led') {
     steps.push({ key: 'contract', label: 'New contract', system: 'Contract management', status: 'required', detail: 'A new contract is authored from the sourcing outcome.', deepLink: '/contracts' });
-  }
-
-  // P-card is a route to an approved purchasing process, not a purchase
-  // operation. Keep it explicit so the determination cannot be mistaken for a
-  // card charge or an upstream write.
-  if (input.channel === 'p-card') {
-    steps.push({
-      key: 'p-card',
-      label: 'P-card process',
-      system: 'Purchasing',
-      status: 'required',
-      detail: 'Continue in the approved P-card process. This platform does not charge a card or create a payment.',
-      deepLink: '/purchasing/orders',
-    });
-    return steps;
   }
 
   // 5. Purchasing — raise the requisition.

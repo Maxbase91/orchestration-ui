@@ -160,7 +160,7 @@ export const stageHistory: StageHistoryEntry[] = [
   { requestId: 'REQ-2024-0018', stage: 'draft', enteredAt: '2024-10-10T07:00:00Z', completedAt: '2024-10-10T07:15:00Z', ownerId: 'u6', action: 'submitted' },
   { requestId: 'REQ-2024-0018', stage: 'intake', enteredAt: '2024-10-10T07:15:00Z', completedAt: '2024-10-12T10:00:00Z', ownerId: 'u1', action: 'accepted' },
   { requestId: 'REQ-2024-0018', stage: 'validation', enteredAt: '2024-10-12T10:00:00Z', completedAt: '2024-10-18T14:00:00Z', ownerId: 'u1', action: 'validated' },
-  { requestId: 'REQ-2024-0018', stage: 'po', enteredAt: '2024-10-18T14:00:00Z', completedAt: '2024-11-15T08:00:00Z', ownerId: 'u1', action: 'po-created', notes: 'Direct PO - existing contract' },
+  { requestId: 'REQ-2024-0018', stage: 'po', enteredAt: '2024-10-18T14:00:00Z', completedAt: '2024-11-15T08:00:00Z', ownerId: 'u1', action: 'po-created', notes: 'Called off the existing contract' },
   { requestId: 'REQ-2024-0018', stage: 'receipt', enteredAt: '2024-11-15T08:00:00Z', ownerId: 'u6', notes: 'Partial receipt - phase 1 scanning in progress' },
 
   // REQ-2024-0019 (TechBridge onboarding - validation)

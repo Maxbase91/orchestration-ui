@@ -58,7 +58,7 @@ function json(value: unknown): string { return JSON.stringify(value ?? null); }
  * fix — the version before it branched on value and threshold and left the
  * writes those branches implied unreachable, so a constant at least said
  * something true. It stopped being true when `validation` became
- * procurement-led-only: a business-led or direct-po request was written into a
+ * procurement-led-only: a business-led request was written into a
  * stage its own channel skips, and the stepper drew it as skipped while the
  * request sat there.
  *

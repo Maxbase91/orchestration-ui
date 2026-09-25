@@ -129,7 +129,6 @@ export const requestsConfig: EntityConfig<'request'> = {
       options: [
         { value: 'procurement-led', label: 'Procurement-led' },
         { value: 'business-led', label: 'Business-led' },
-        { value: 'direct-po', label: 'Direct PO' },
         { value: 'framework-call-off', label: 'Framework call-off' },
         { value: 'catalogue', label: 'Catalogue' },
       ],
@@ -172,7 +171,6 @@ export const requestsConfig: EntityConfig<'request'> = {
       options: [
         { value: 'procurement-led', label: 'Procurement-led' },
         { value: 'business-led', label: 'Business-led' },
-        { value: 'direct-po', label: 'Direct PO' },
         { value: 'framework-call-off', label: 'Framework call-off' },
         { value: 'catalogue', label: 'Catalogue' },
       ],
