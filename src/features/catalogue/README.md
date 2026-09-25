@@ -1,6 +1,6 @@
 # Catalogue — Door 2
 
-`/catalogue` is where catalogue items are ordered, without a request: the
+`/catalogue` is where catalogue items are ordered, with no request form: the
 second door of the Intake Prototype.
 
 - **The page** (`catalogue-page.tsx`): the catalogues are the ones the items

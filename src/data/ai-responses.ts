@@ -130,7 +130,7 @@ export const aiResponses: AIResponse[] = [
     suggestions: ['What categories are available?', 'How long does the process take?'],
     links: [
       { label: 'Create New Request', path: '/requests/new' },
-      { label: 'Browse Catalogue (for standard items)', path: '/requests/new' },
+      { label: 'Browse Catalogue (for standard items)', path: '/catalogue' },
       { label: 'View My Existing Requests', path: '/requests/my' },
     ],
   },

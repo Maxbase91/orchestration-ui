@@ -43,7 +43,7 @@ and none is manufactured. The wizard's own catalogue route was retired on
 2026-09-25.
 
 ### Step 1 — Describe: unified description and specific classification
-- FR01-11 · A demand typed on Home arrives as `?q=` and seeds this step; classification runs on it without a further keystroke, and the requester is never asked for the text a second time.
+- FR01-11 · A demand typed on Home is first shown as *Understood as — Something to buy* (Door 1's card, like every other outcome), and **Start the request** brings it here as `?q=`, seeding this step; classification runs on it without a further keystroke, and the requester is never asked for the text a second time.
 - FR01-12 · User types/pastes a description or uploads a PDF/DOCX. AI-001 extracts title, supplier hint and estimated value; the server returns specific commodity/service-family candidates.
 - FR01-13 · If AI-001 is disabled/draft, fallback to local keyword classification, and the screen says which produced the answer.
 - FR01-14 · Broad Goods/Services values remain internal routing metadata and are never shown as a requester choice.

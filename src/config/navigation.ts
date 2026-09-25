@@ -1,7 +1,7 @@
 // Single source of truth for the sidebar navigation tree. Every group/item
 // carries a `visibleTo` role list — the sidebar filters against the active
 // role, so role-based visibility lives here rather than in the components.
-import { ticketAgentRoles, type Role } from './roles';
+import { buyerRoles, ticketAgentRoles, type Role } from './roles';
 
 export interface NavItem {
   id: string;
@@ -39,10 +39,10 @@ export const navigation: NavGroup[] = [
   {
     id: 'buy',
     label: 'Buy something',
-    visibleTo: ['service-owner', 'procurement-manager'],
+    visibleTo: buyerRoles,
     items: [
-      { id: 'new-request', label: 'New Request', icon: 'FilePlus', path: '/requests/new', visibleTo: ['service-owner', 'procurement-manager'] },
-      { id: 'catalogue', label: 'Catalogue', icon: 'ShoppingCart', path: '/catalogue', visibleTo: ['service-owner', 'procurement-manager'] },
+      { id: 'new-request', label: 'New Request', icon: 'FilePlus', path: '/requests/new', visibleTo: buyerRoles },
+      { id: 'catalogue', label: 'Catalogue', icon: 'ShoppingCart', path: '/catalogue', visibleTo: buyerRoles },
     ],
   },
   {

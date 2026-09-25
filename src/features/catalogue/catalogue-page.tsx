@@ -1,5 +1,5 @@
 // Door 2 — the catalogue: pre-approved items from agreed suppliers, added to a
-// basket and ordered without a request (the Intake Prototype's second door).
+// basket and ordered with no request form (the Intake Prototype's second door).
 //
 // Everything on the page is configuration or stored data: the catalogues are
 // the ones the items belong to, prices and lead times are the items', deliver
@@ -186,7 +186,7 @@ export function CataloguePage() {
       <div className="flex items-end justify-between gap-4">
         <div className="space-y-1">
           <h1 className="text-xl font-semibold text-ink">Catalogue</h1>
-          <p className="text-sm text-ink-2">Pre-approved items from agreed suppliers. Ordering here skips the request — it goes straight to an order.</p>
+          <p className="text-sm text-ink-2">Pre-approved items from agreed suppliers. No request form — pick what you need and place the order.</p>
         </div>
         <Link to="/requests/new" className="whitespace-nowrap text-sm font-medium text-accent hover:underline">
           Can&apos;t find it? Describe what you need →
@@ -346,10 +346,10 @@ export function CataloguePage() {
               {preview.length > 0 && (
                 <p className="text-xs leading-relaxed text-ink-3">
                   {needsApproval
-                    ? `Over ${formatCurrency(threshold)}, so your manager approves before the order is sent.`
+                    ? `Over ${formatCurrency(threshold)}, so it is approved before the purchase order is raised.`
                     : riskFirst.length > 0
                       ? `No approval needed, but a supplier risk review comes first for ${riskFirst.join(', ')}.`
-                      : `Up to ${formatCurrency(threshold)} goes straight to the supplier — no approval needed.`}
+                      : `Up to ${formatCurrency(threshold)} becomes a purchase order straight away — no approval needed.`}
                 </p>
               )}
               {[...plan.problems.map((problem) => `${problem.name}: ${problem.reason}`), ...problems].map((problem) => (

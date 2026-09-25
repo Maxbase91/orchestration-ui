@@ -138,6 +138,13 @@ try {
   // is the same one — the text becomes `?q=` on intake, already classified.
   await page.getByRole('textbox', { name: 'What do you need?' }).fill(homeDemand);
   await page.getByRole('textbox', { name: 'What do you need?' }).press('Enter');
+  // Every outcome is a card first — a demand too — so the requester sees how
+  // it was read before anything opens (Intake Prototype).
+  const understood = page.getByTestId('home-answer');
+  await understood.getByText('Something to buy').waitFor({ timeout: 15000 });
+  check('a demand is understood as something to buy, and nothing opens yet',
+    new URL(page.url()).pathname === '/' && (await understood.getByText(/checks? the catalogue and existing contracts first/).count()) === 1);
+  await understood.getByRole('button', { name: /Start the request/ }).click();
   await page.waitForURL(`${BASE}/requests/new?q=${encodeURIComponent(homeDemand)}`, { timeout: 10000 });
   await page.waitForLoadState('networkidle');
   const classified = await page.getByText(/suggested commodity or service family/i)
@@ -185,12 +192,12 @@ try {
   const order = page.locator('aside[aria-label="Your order"]');
   check('two suppliers are two orders, approved on the whole basket',
     (await order.getByText(/Placed as 2 orders — one per supplier/).count()) === 1, await order.innerText());
-  check('under the threshold it goes straight to the suppliers',
-    (await order.getByText(/goes straight to the supplier — no approval needed/).count()) === 1, await order.innerText());
+  check('under the threshold it becomes a purchase order straight away',
+    (await order.getByText(/becomes a purchase order straight away — no approval needed/).count()) === 1, await order.innerText());
   await order.getByRole('button', { name: 'One more Monitor 27-inch' }).click();
   await order.getByRole('button', { name: 'One more Monitor 27-inch' }).click();
-  check('over it, the manager approves — judged on the basket, €1,371',
-    (await order.getByText(/Over €1,000, so your manager approves/).count()) === 1 && (await order.innerText()).includes('€1,371'));
+  check('over it, it is approved first — judged on the basket, €1,371',
+    (await order.getByText(/Over €1,000, so it is approved before the purchase order is raised/).count()) === 1 && (await order.innerText()).includes('€1,371'));
   const place = order.getByRole('button', { name: 'Place order' });
   check('an order waits for its purpose', !(await place.isEnabled()));
   await order.getByLabel('Deliver to').selectOption('office');
@@ -272,6 +279,8 @@ try {
   check('home has a clear start-request entry point',
     await page.getByRole('textbox', { name: 'What do you need?' }).isVisible().catch(() => false)
       || await page.getByRole('button', { name: /New Request/i }).first().isVisible().catch(() => false));
+  check('Home offers the catalogue as the second door',
+    (await page.getByRole('region', { name: 'Catalogue' }).getByRole('link', { name: /Browse the catalogue/ }).count()) === 1);
   check('home shows the requester their own work',
     (await page.locator('main').innerText()).toLowerCase().includes('request'));
   await page.setViewportSize({ width: 320, height: 800 });

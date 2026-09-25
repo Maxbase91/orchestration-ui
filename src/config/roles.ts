@@ -27,6 +27,13 @@ export const internalRoles: Role[] = ['service-owner', 'procurement-manager', 'v
  */
 export const ticketAgentRoles: Role[] = ['admin', 'procurement-manager', 'operations-lead'];
 
+/**
+ * Roles that buy: raise a request (Door 1) or order from the catalogue (Door 2).
+ * One list, because the Buy something menu, the Home page's catalogue door and
+ * the Browse Catalogue quick action must offer the same people the same doors.
+ */
+export const buyerRoles: Role[] = ['service-owner', 'procurement-manager'];
+
 export function canWorkTickets(role: Role): boolean {
   return ticketAgentRoles.includes(role);
 }

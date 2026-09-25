@@ -186,9 +186,14 @@ console.log('\nA demand goes into intake, not into a chat overlay');
 // exists for, landed in a conversation with no classification, no route and no
 // way to submit. Only lookups and open questions belong to the assistant.
 const noAnswer = { status: async () => null, policy: async () => null };
-check('a buy intent goes into intake with its words',
+// Since the Intake Prototype a demand shows its "Understood as" card first, like
+// every other outcome, and "Start the request" carries the words into intake.
+const DESCRIBE_IN_FULL = /const describeInFull = \(query: string\) => `\/requests\/new\?q=\$\{encodeURIComponent\(query\)\}`/;
+check('a buy intent shows how it was read, then goes into intake with its words',
   (await routeQuestion('I want to buy 50 monitors for the trading floor', ROUTE_DATA, noAnswer)).kind === 'demand'
-  && /case 'demand': go\(`\/requests\/new\?q=\$\{encodeURIComponent\(text\)\}`\)/.test(BAR_SRC));
+  && /case 'demand': setUnderstood\(\{ kind: 'demand', query: text \}\)/.test(BAR_SRC)
+  && DESCRIBE_IN_FULL.test(BAR_SRC)
+  && /Start the request/.test(BAR_SRC));
 check('only what is not a demand reaches the assistant',
   (await routeQuestion('tell me a joke', ROUTE_DATA, noAnswer)).kind === 'assistant'
   && /case 'assistant': openAIChatWithPrompt\(text\)/.test(BAR_SRC));
@@ -210,11 +215,12 @@ console.log('\nA catalogue hit is named, and never navigated to');
 // Naming the match and handing over a link is the whole correction budget: a
 // wrong match costs a glance rather than a checkout for the wrong thing.
 check('the identified item is offered, never ordered for the requester — "Order this" adds it to the basket',
-  /case 'catalogue': setIdentified\(/.test(BAR_SRC) && /\/catalogue\?add=\$\{encodeURIComponent\(item\.id\)\}/.test(BAR_SRC));
+  /case 'catalogue': setUnderstood\(\{ kind: 'catalogue'/.test(BAR_SRC) && /\/catalogue\?add=\$\{encodeURIComponent\(item\.id\)\}/.test(BAR_SRC));
 check('the correction is always offered alongside the match',
   /Not what you need\? Describe it in full/.test(BAR_SRC));
 check('rejecting the match carries the original wording into intake',
-  /\/requests\/new\?q=\$\{encodeURIComponent\(identified\.query\)\}/.test(BAR_SRC));
+  DESCRIBE_IN_FULL.test(BAR_SRC)
+  && /onClick=\{\(\) => go\(describeInFull\(understood\.query\)\)\}>\s*Not what you need\?/.test(BAR_SRC));
 
 console.log('\nThe naive matcher is gone for good');
 check('no search helper is left in the catalogue data file',

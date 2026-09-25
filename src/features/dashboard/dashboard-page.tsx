@@ -40,6 +40,7 @@ import { AddWidgetDialog } from './components/add-widget-dialog';
 import { openAIChat } from '@/features/ai-assistant/ai-chat-controls';
 import { SmartCommandBar } from './components/smart-command-bar';
 import { AttentionBand } from './components/attention-band';
+import { buyerRoles } from '@/config/roles';
 
 const qaIconMap: Record<string, LucideIcon> = {
   Plus, Search, CheckCircle, Sparkles, FileText, AlertTriangle, Building2,
@@ -117,7 +118,29 @@ export function DashboardPage() {
           below it appears only once the queue has loaded and has something in
           it — placed above the command bar, its arrival pushed the field down
           under the reader's cursor. */}
-      <SmartCommandBar />
+      {/* The two doors: describe what you need, or — for those who buy — pick
+          it from the catalogue, which needs no request form. Each keeps its own
+          height: Door 1 grows with its answer, and stretching Door 2 to match
+          left a tall card of empty space beside it. */}
+      {buyerRoles.includes(currentRole) ? (
+        <div className="grid grid-cols-[minmax(0,1fr)_340px] items-start gap-4">
+          <SmartCommandBar />
+          <section aria-label="Catalogue" className="flex flex-col gap-2.5 rounded-xl border border-line bg-card p-5">
+            <div className="flex items-center gap-2">
+              <ShoppingBag className="size-4 text-ink-2" aria-hidden="true" />
+              <h2 className="text-sm font-semibold text-ink">Know exactly what you want?</h2>
+            </div>
+            <p className="text-sm leading-relaxed text-ink-2">
+              Pre-approved items from agreed suppliers. No request form — pick what you need and place the order.
+            </p>
+            <Button asChild variant="outline" size="sm" className="self-start">
+              <Link to="/catalogue">Browse the catalogue →</Link>
+            </Button>
+          </section>
+        </div>
+      ) : (
+        <SmartCommandBar />
+      )}
 
       <AttentionBand />
 

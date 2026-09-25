@@ -1,9 +1,15 @@
-// The Home box: one field for anything a requester has in mind. What they
-// type takes the shared question route (lib/assistant/question-route.ts) — a
-// status or policy question is answered here, an item the catalogue serves is
-// offered for ordering, a demand goes to intake with their words, and the rest
-// goes to the assistant, which routes the same way. Catalogue items are ordered
-// on the Catalogue page (Door 2), which this box links into.
+// Home, Door 1: one field for anything a requester has in mind. What they type
+// takes the shared question route (lib/assistant/question-route.ts), and every
+// outcome comes back the same way — an "Understood as" card saying what was
+// understood, the answer or what happens next, where it came from, and one
+// action: something to buy starts the request, a catalogue item goes into the
+// basket on the Catalogue page (Door 2), a policy or status question is
+// answered here. Only what none of those is goes to the assistant, which routes
+// the same way.
+//
+// A demand used to navigate straight into intake; it shows its card first, like
+// every other outcome, so the requester sees how it was read before anything
+// opens (Intake Prototype, 2026-09-25).
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sparkles, ArrowRight, X, Loader2 } from 'lucide-react';
@@ -15,24 +21,23 @@ import { formatCurrency } from '@/lib/format';
 import type { StatusAnswer } from '@/lib/assistant/status-answer';
 import type { PolicyAnswer } from '@/lib/assistant/policy-lookup';
 import { useQuestionRoute } from '@/lib/assistant/use-question-route';
+import { usePolicyConfig } from '@/lib/procurement/use-policy-config';
 import { StatusAnswerView } from '@/components/shared/status-answer-view';
 import { PolicyAnswerView } from '@/components/shared/policy-answer-view';
 
-/**
- * What the box answered in place. A demand goes to intake; a policy or status
- * question is answered here, with the follow-up handed to the assistant
- * carrying the question.
- */
-type InlineAnswer =
+/** What the box understood, with what it needs to show it. */
+type Understood =
+  | { kind: 'demand'; query: string }
+  | { kind: 'catalogue'; query: string; items: CatalogueItem[] }
   | { kind: 'policy'; query: string; policy: PolicyAnswer }
   | { kind: 'status'; query: string; status: StatusAnswer };
 
-/** Catalogue items the route recognised, offered — never ordered — for the requester. */
-interface Identified {
-  items: CatalogueItem[];
-  /** The original wording, carried into intake when the match is not what they meant. */
-  query: string;
-}
+const KIND: Record<Understood['kind'], { label: string; pill: string }> = {
+  demand: { label: 'Something to buy', pill: 'bg-accent-soft text-accent' },
+  catalogue: { label: 'A catalogue item', pill: 'bg-ok-soft text-ok' },
+  policy: { label: 'A policy question', pill: 'bg-warn-soft text-warn' },
+  status: { label: 'A status question', pill: 'bg-idle-soft text-ink-2' },
+};
 
 const EXAMPLES = [
   'consulting for a transformation programme',
@@ -41,18 +46,20 @@ const EXAMPLES = [
   'where are my requests?',
 ];
 
+const linkButton = 'text-xs font-medium text-accent-solid hover:underline';
+const quietButton = 'text-xs text-ink-3 hover:text-ink-2 hover:underline';
+
 export function SmartCommandBar() {
   const navigate = useNavigate();
   const route = useQuestionRoute();
+  const { catalogueAutoApprovalThreshold } = usePolicyConfig();
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [answer, setAnswer] = useState<InlineAnswer | null>(null);
-  const [identified, setIdentified] = useState<Identified | null>(null);
+  const [understood, setUnderstood] = useState<Understood | null>(null);
 
   const handleClear = () => {
     setInput('');
-    setAnswer(null);
-    setIdentified(null);
+    setUnderstood(null);
   };
 
   const go = (path: string) => {
@@ -60,11 +67,15 @@ export function SmartCommandBar() {
     handleClear();
   };
 
+  const followUp = (query: string) => {
+    openAIChatWithPrompt(query);
+    handleClear();
+  };
+
   const ask = async (query: string) => {
     const text = query.trim();
     if (!text) return;
-    setAnswer(null);
-    setIdentified(null);
+    setUnderstood(null);
     setLoading(true);
     let routed;
     try {
@@ -73,10 +84,10 @@ export function SmartCommandBar() {
       setLoading(false);
     }
     switch (routed.kind) {
-      case 'status': setAnswer({ kind: 'status', query: text, status: routed.status }); return;
-      case 'policy': setAnswer({ kind: 'policy', query: text, policy: routed.policy }); return;
-      case 'catalogue': setIdentified({ items: routed.items.slice(0, 3), query: text }); return;
-      case 'demand': go(`/requests/new?q=${encodeURIComponent(text)}`); return;
+      case 'status': setUnderstood({ kind: 'status', query: text, status: routed.status }); return;
+      case 'policy': setUnderstood({ kind: 'policy', query: text, policy: routed.policy }); return;
+      case 'catalogue': setUnderstood({ kind: 'catalogue', query: text, items: routed.items.slice(0, 3) }); return;
+      case 'demand': setUnderstood({ kind: 'demand', query: text }); return;
       case 'assistant': openAIChatWithPrompt(text); setInput(''); return;
     }
   };
@@ -86,157 +97,134 @@ export function SmartCommandBar() {
     await ask(input);
   };
 
-  // ============================================================
-  // RENDER
-  // ============================================================
+  const describeInFull = (query: string) => `/requests/new?q=${encodeURIComponent(query)}`;
 
   return (
-    // No card, no gradient strip and no centred heading: the input asks the
-    // question itself. The block used to take ~170px — a titled, bordered panel
-    // with the field floating in its middle — for one text box and a hint.
-    // Results still get a surface, because only they are a separate object.
-    <section aria-label="What do you need?">
-      <div>
-        {/* Flat, but not grey. Stripped of its card it read as one more search
-            box — the header already has one — and requesters stopped noticing
-            it was the way in. The accent edge and the sparkle say "this is the
-            assistant", without the 170px panel it used to be. */}
-        <form onSubmit={handleSubmit} className="relative">
-          <Sparkles className="absolute left-4 top-1/2 size-4 -translate-y-1/2 text-accent" aria-hidden="true" />
+    <section
+      aria-label="Describe what you need"
+      className="flex flex-col gap-3 rounded-xl border border-accent-line bg-card p-5 shadow-[var(--shadow)]"
+    >
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <Sparkles className="size-4 text-accent" aria-hidden="true" />
+        <h2 className="text-sm font-semibold text-ink">What do you need?</h2>
+        <span className="text-xs text-ink-3">Something to buy, a policy question, or where a request is — ask it in your own words.</span>
+      </div>
+
+      <form onSubmit={handleSubmit} className="flex gap-2">
+        <div className="relative flex-1">
           <Input
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={(e) => { setInput(e.target.value); setUnderstood(null); }}
             aria-label="What do you need?"
-            placeholder="What do you need? Describe it, or ask about a policy or a status — press Enter"
-            className="h-12 rounded-lg border-accent-line bg-card pl-11 pr-10 text-prose shadow-[var(--shadow)] focus-visible:border-accent focus-visible:ring-accent/15"
+            placeholder="e.g. consulting support for a finance transformation programme"
+            className="h-11 bg-card-2 pr-10 text-prose"
           />
-          {loading && (
-            <div className="absolute right-3 top-1/2 -translate-y-1/2">
-              <Loader2 className="size-4 animate-spin text-accent" />
-            </div>
-          )}
-          {!loading && (input || identified || answer) && (
+          {!loading && (input || understood) && (
             <button type="button" aria-label="Clear" onClick={handleClear} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-3 hover:text-ink-2">
               <X className="size-4" />
             </button>
           )}
-        </form>
+        </div>
+        <Button type="submit" className="h-11 px-5" disabled={loading || !input.trim()}>
+          {loading ? <Loader2 className="size-4 animate-spin" /> : 'Continue'}
+        </Button>
+      </form>
 
-        {/* AI hint */}
-        {!identified && !answer && !loading && (
-          <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-caption text-ink-3">
-            <span>Describe what you need, or ask about a policy or a status. Try:</span>
-            {EXAMPLES.map((example) => (
-              <button
-                key={example}
-                type="button"
-                className="rounded-full border border-line bg-card px-2 py-0.5 text-ink-2 hover:border-accent-line hover:text-accent"
-                onClick={() => { setInput(example); void ask(example); }}
-              >
-                {example}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* ── INLINE ANSWER — a policy or status question, answered here ── */}
-        {answer && !loading && (
-          <div className="mt-3 space-y-3 rounded-md border border-line bg-card p-4" data-testid="home-answer">
-            <span className={answer.kind === 'policy'
-              ? 'inline-block rounded-full bg-warn-soft px-2 py-0.5 text-[11px] font-medium text-warn'
-              : 'inline-block rounded-full bg-idle-soft px-2 py-0.5 text-[11px] font-medium text-ink-2'}
+      {!understood && !loading && (
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-3">
+          <span>Try:</span>
+          {EXAMPLES.map((example) => (
+            <button
+              key={example}
+              type="button"
+              className="rounded-full border border-line bg-card-2 px-2.5 py-0.5 text-ink-2 hover:border-accent-line hover:text-accent"
+              onClick={() => { setInput(example); void ask(example); }}
             >
-              {answer.kind === 'policy' ? 'A policy question' : 'A status question'}
-            </span>
-            {answer.kind === 'status'
-              ? <StatusAnswerView answer={answer.status} onNavigate={handleClear} />
-              : <PolicyAnswerView answer={answer.policy} />}
-            <div className="flex flex-wrap items-center gap-3 pt-1">
-              <button
-                type="button"
-                className="text-xs font-medium text-accent-solid hover:underline"
-                onClick={() => { openAIChatWithPrompt(answer.query); handleClear(); }}
-              >
+              {example}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {loading && (
+        <p className="flex items-center gap-2 text-xs text-ink-3" role="status">
+          <Loader2 className="size-3.5 animate-spin" /> Reading it…
+        </p>
+      )}
+
+      {understood && !loading && (
+        <div className="space-y-2.5 rounded-lg border border-line bg-card-2 px-4 py-3" data-testid="home-answer">
+          <div className="flex items-center gap-2">
+            <span className="text-[10.5px] font-semibold uppercase tracking-wider text-ink-3">Understood as</span>
+            <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${KIND[understood.kind].pill}`}>{KIND[understood.kind].label}</span>
+          </div>
+
+          {understood.kind === 'demand' && (
+            <>
+              <p className="text-sm leading-relaxed text-ink">
+                I&apos;ll check the catalogue and existing contracts first, then ask only what is still needed.
+              </p>
+              <div className="flex flex-wrap items-center gap-3">
+                <Button size="sm" onClick={() => go(describeInFull(understood.query))}>
+                  Start the request <ArrowRight className="size-3.5" />
+                </Button>
+                <span className="text-xs text-ink-3">Nothing is created until you submit it.</span>
+              </div>
+            </>
+          )}
+
+          {understood.kind === 'catalogue' && (
+            <>
+              <p className="text-sm leading-relaxed text-ink">
+                {understood.items.length === 1 ? 'This is in the catalogue' : `These ${understood.items.length} are in the catalogue`} — no request form, and an order up to {formatCurrency(catalogueAutoApprovalThreshold)} becomes a purchase order straight away.
+              </p>
+              <div className="space-y-2">
+                {understood.items.map((item) => (
+                  <div key={item.id} className="flex items-center justify-between gap-3 rounded-md border border-line bg-card px-3 py-2.5">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-ink">{item.name}</p>
+                      <p className="mt-0.5 truncate text-xs text-ink-3">
+                        {formatCurrency(item.unitPrice)} / {item.unit} · {item.supplierName} · {item.leadTime}
+                      </p>
+                    </div>
+                    {/* Into the basket on the Catalogue page — Door 2, where every
+                        catalogue order is placed — never an order on its own. */}
+                    <Button size="sm" onClick={() => go(`/catalogue?add=${encodeURIComponent(item.id)}`)}>
+                      Order this <ArrowRight className="size-3.5" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+              {/* The correction, always available and never hidden behind the
+                  match: the original wording goes with it, so nothing is retyped. */}
+              <div className="flex flex-wrap items-center gap-3">
+                <button type="button" className={linkButton} onClick={() => go(describeInFull(understood.query))}>
+                  Not what you need? Describe it in full →
+                </button>
+                <button type="button" className={quietButton} onClick={() => go('/catalogue')}>
+                  Browse the whole catalogue
+                </button>
+              </div>
+            </>
+          )}
+
+          {understood.kind === 'status' && <StatusAnswerView answer={understood.status} onNavigate={handleClear} />}
+          {understood.kind === 'policy' && <PolicyAnswerView answer={understood.policy} />}
+
+          {(understood.kind === 'status' || understood.kind === 'policy') && (
+            <div className="flex flex-wrap items-center gap-3 pt-0.5">
+              <button type="button" className={linkButton} onClick={() => followUp(understood.query)}>
                 Ask a follow-up →
               </button>
-              {answer.kind === 'policy' && (
-                <button
-                  type="button"
-                  className="text-xs text-ink-3 hover:text-ink-2 hover:underline"
-                  onClick={() => go(`/requests/new?q=${encodeURIComponent(answer.query)}`)}
-                >
+              {understood.kind === 'policy' && (
+                <button type="button" className={quietButton} onClick={() => go(describeInFull(understood.query))}>
                   This is something I need to buy →
                 </button>
               )}
             </div>
-          </div>
-        )}
-
-        {/* Loading */}
-        {loading && (
-          <div className="mt-3 flex items-center gap-2 text-body text-ink-3">
-            <Loader2 className="size-4 animate-spin" />
-            Analysing...
-          </div>
-        )}
-
-        {/* ── IDENTIFIED CATALOGUE ITEM ──
-            Say what was recognised, then hand over a link. Navigating for the
-            requester would be faster and worse: a wrong match would land them
-            in a checkout for the wrong thing. */}
-        {identified && !loading && (
-          <div className="mt-3 space-y-3 rounded-md border border-line bg-card p-4">
-            <div className="flex items-start gap-2">
-              <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-accent-soft mt-0.5">
-                <Sparkles className="size-3 text-accent" />
-              </div>
-              <p className="text-sm text-ink-2">
-                {identified.items.length === 1
-                  ? 'This looks like a catalogue item you can order today.'
-                  : `This looks like ${identified.items.length} catalogue items you can order today.`}
-              </p>
-            </div>
-            {identified.items.map((item) => (
-              <div
-                key={item.id}
-                className="flex items-center justify-between gap-3 rounded-lg border border-line bg-card p-4"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-ink">{item.name}</p>
-                  <p className="mt-0.5 truncate text-xs text-ink-3">
-                    {formatCurrency(item.unitPrice)} / {item.unit} · {item.supplierName} · {item.leadTime}
-                  </p>
-                </div>
-                {/* Into the basket on the Catalogue page — Door 2, where every
-                    catalogue order is placed — never an order on its own. */}
-                <Button size="sm" onClick={() => go(`/catalogue?add=${encodeURIComponent(item.id)}`)}>
-                  Order this
-                  <ArrowRight className="size-3.5" />
-                </Button>
-              </div>
-            ))}
-            {/* The correction, always available and never hidden behind the
-                match: the original wording goes with it, so nothing is retyped. */}
-            <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-              <button
-                type="button"
-                className="text-xs font-medium text-accent-solid hover:underline"
-                onClick={() => go(`/requests/new?q=${encodeURIComponent(identified.query)}`)}
-              >
-                Not what you need? Describe it in full →
-              </button>
-              <button
-                type="button"
-                className="text-xs text-ink-3 hover:text-ink-2 hover:underline"
-                onClick={() => go('/catalogue')}
-              >
-                Browse the whole catalogue
-              </button>
-            </div>
-          </div>
-        )}
-
-      </div>
+          )}
+        </div>
+      )}
     </section>
   );
 }

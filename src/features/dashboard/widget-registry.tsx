@@ -1,4 +1,6 @@
-import type { Role } from '@/config/roles';
+// A relative path, not @/: test:dashboard-widgets imports this file under plain
+// node, where the alias does not resolve.
+import { buyerRoles, type Role } from '../../config/roles.js';
 
 const allRoles: Role[] = ['service-owner', 'procurement-manager', 'vendor-manager', 'operations-lead', 'supplier', 'admin'];
 const allInternal: Role[] = ['service-owner', 'procurement-manager', 'vendor-manager', 'operations-lead', 'admin'];
@@ -63,7 +65,8 @@ export const allQuickActions: QuickActionConfig[] = [
   { id: 'bottlenecks', label: 'Bottlenecks', icon: 'AlertTriangle', to: '/workflows/bottlenecks', availableTo: coreInternal },
   { id: 'risk-compliance', label: 'Risk & Compliance', icon: 'Shield', to: '/suppliers/risk', availableTo: ['procurement-manager', 'vendor-manager', 'operations-lead', 'admin'] },
   { id: 'messages', label: 'Messages', icon: 'MessageSquare', to: '/suppliers/messages', availableTo: ['procurement-manager', 'vendor-manager', 'operations-lead', 'admin'] },
-  { id: 'catalogue', label: 'Browse Catalogue', icon: 'ShoppingBag', to: '/requests/new', availableTo: allInternal },
+  // Door 2, for those who buy — it opened New Request when the catalogue lived inside it.
+  { id: 'catalogue', label: 'Browse Catalogue', icon: 'ShoppingBag', to: '/catalogue', availableTo: buyerRoles },
   { id: 'my-tasks', label: 'My Tasks', icon: 'ListTodo', to: '/tasks', availableTo: allInternal },
   { id: 'contracts', label: 'Contracts', icon: 'FileSignature', to: '/contracts', availableTo: coreInternal },
   { id: 'invoices', label: 'Invoices', icon: 'Receipt', to: '/purchasing/invoices', availableTo: coreInternal },

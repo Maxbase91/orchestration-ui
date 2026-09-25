@@ -11,7 +11,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { widgetRegistry, allQuickActions, getDefaultLayout } from '../../src/features/dashboard/widget-registry.tsx';
 
-// The registry is importable (its only import is a type). The barrel is not —
+// The registry is importable (its one runtime import, the role groups, is by
+// relative path). The barrel is not —
 // it pulls in every widget component, and those are React. So the renderer's
 // ids are read out of its source instead of by importing it.
 const barrel = readFileSync(
