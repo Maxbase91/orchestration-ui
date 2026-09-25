@@ -436,34 +436,11 @@ check('no rule matched says so rather than naming one',
   buildIntakeRecord({ ...FORM, matchedRuleName: undefined }, 'R', 'n')
     .buyingChannel.reasoning.includes('value-band fallback'));
 
-console.log('\nThe channel is stored as a slug');
-// requests.buying_channel was written as the display label, so
-// getStagesForChannel — which keys on slugs — always missed and returned the
-// full lifecycle, meaning no stage was ever marked skipped for the channel.
-const STAGES_BY_CHANNEL = {
-  catalogue: ['intake', 'approval', 'po', 'receipt', 'invoice', 'payment'],
-  'procurement-led': ['intake','validation','approval','sourcing','contracting','po','receipt','invoice','payment'],
-};
-const FULL = STAGES_BY_CHANNEL['procurement-led'];
-const getStagesForChannel = (c) => STAGES_BY_CHANNEL[c] ?? FULL;
-check('the slug resolves the channel\'s real stage list',
-  getStagesForChannel('catalogue').length === 6);
-check('the display label does not resolve — the old bug',
-  getStagesForChannel('Procurement-Led Sourcing') === FULL);
-check('catalogue correctly skips validation',
-  !getStagesForChannel('catalogue').includes('validation'));
-
-console.log('\nCompliance thresholds come from the policy config');
-const policy = { delegatedAuthorityThreshold: 500000, competitiveSourcingThreshold: 25000 };
-const budgetCheck = (v, p) => (v > p.delegatedAuthorityThreshold ? 'warning' : 'pass');
-const sourcingCheck = (v, p) => (v >= p.competitiveSourcingThreshold ? 'pass' : 'info');
-check('above delegated authority warns', budgetCheck(600000, policy) === 'warning');
-check('at the threshold does not warn', budgetCheck(500000, policy) === 'pass');
-check('competitive sourcing applies at the threshold', sourcingCheck(25000, policy) === 'pass');
-// The point of moving these off literals: an admin lowering the threshold must
-// change the report too, or Admin and the report disagree about the same rule.
-check('lowering the configured threshold changes the verdict',
-  budgetCheck(300000, { ...policy, delegatedAuthorityThreshold: 250000 }) === 'warning');
+// Two blocks stood here that tested lambdas defined in this file: a copy of the
+// channel stage map, and a copy of a compliance-report budget check. The first
+// is covered for real by test:channel-stages and the slug assertions above; the
+// report the second mirrored was removed (594855f), and the threshold it read
+// is now named by the approval-chain bands, which test:approval-bands covers.
 
 console.log('\nRisk is a conditional stage');
 // The intake wizard computed riskAssessmentRequired, showed an amber banner
@@ -513,14 +490,15 @@ check('"Risk Assessment" normalises to the risk status', nodeToStatus('Risk Asse
 // did nothing, and reported success. No instance is strictly better than one
 // that can never move.
 console.log('\nNo-template fallback');
-function initFallbackWorkflow(store, channel) {
-  const stages = getStagesForChannel(channel);
-  transitionStage(store, stages[0] ?? 'intake', undefined);
+// The channel's first stage is passed in: which stage that is belongs to
+// test:channel-stages, and what is checked here is only what the fallback writes.
+function initFallbackWorkflow(store, firstStage) {
+  transitionStage(store, firstStage, undefined);
   return { instanceCreated: false };
 }
 const s6 = newStore();
 s6.request = { ...s6.request, status: 'intake' };
-const fb = initFallbackWorkflow(s6, 'catalogue');
+const fb = initFallbackWorkflow(s6, 'intake');
 check('the fallback creates no workflow instance', fb.instanceCreated === false);
 check('the fallback still records the stage (history, not a bare status write)',
   s6.stageHistory.length === 1 && s6.stageHistory[0].stage === 'intake');

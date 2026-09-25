@@ -17,11 +17,11 @@
 import type { DeliveryLocation } from '../lib/db/delivery-locations.js';
 
 export const DEFAULT_DELIVERY_LOCATIONS: DeliveryLocation[] = [
-  { id: 'office', label: 'Head office', address: '', countryCode: '', active: true, sortOrder: 1 },
-  { id: 'office-secondary', label: 'Secondary office', address: '', countryCode: '', active: true, sortOrder: 2 },
-  { id: 'warehouse', label: 'Central warehouse', address: '', countryCode: '', active: true, sortOrder: 3 },
-  { id: 'distribution-centre', label: 'Distribution centre', address: '', countryCode: '', active: true, sortOrder: 4 },
-  { id: 'project-site', label: 'Project site', address: '', countryCode: '', active: true, sortOrder: 5 },
+  { id: 'office', label: 'Head office', active: true, sortOrder: 1 },
+  { id: 'office-secondary', label: 'Secondary office', active: true, sortOrder: 2 },
+  { id: 'warehouse', label: 'Central warehouse', active: true, sortOrder: 3 },
+  { id: 'distribution-centre', label: 'Distribution centre', active: true, sortOrder: 4 },
+  { id: 'project-site', label: 'Project site', active: true, sortOrder: 5 },
   // Kept as an id because in-flight drafts and deep links may already carry it.
-  { id: 'home', label: 'Home address on file', address: '', countryCode: '', active: true, sortOrder: 6 },
+  { id: 'home', label: 'Home address on file', active: true, sortOrder: 6 },
 ];

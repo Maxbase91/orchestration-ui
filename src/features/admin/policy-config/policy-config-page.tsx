@@ -1,4 +1,9 @@
+// Admin → Decisioning Thresholds: every number a decision compares against,
+// with what reads it. The numbers live here; routing rules, approval chains,
+// workflow branches and forms decide what happens and name these numbers as
+// `policy:<key>` rather than restating them (ADR-0009).
 import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,14 +26,87 @@ import {
 } from '@/lib/procurement/policy-tokens';
 import { useProcurementCategories } from '@/lib/db/hooks/use-procurement-categories';
 import { Checkbox } from '@/components/ui/checkbox';
+import { policyReferences, type PolicyReference, type PolicyReferenceSources } from '@/lib/procurement/policy-references';
+import { useRoutingRules } from '@/lib/db/hooks/use-routing-rules';
+import { useApprovalChains } from '@/lib/db/hooks/use-approval-chains';
+import { useWorkflowTemplates } from '@/lib/db/hooks/use-workflow-templates';
+import { useFormTemplates } from '@/lib/db/hooks/use-form-templates';
+import { useServiceDescriptionTemplates } from '@/lib/db/hooks/use-service-description-templates';
+import { useKnowledgeBase } from '@/lib/db/hooks/use-knowledge-base';
 
 // Every numeric threshold, derived from the shared key metadata rather than
 // listed here. The hand-maintained copy omitted `delegatedAuthorityThreshold`,
 // which was live in the compliance report and server-validated — so it could
 // never be edited, and because handleSave rebuilds the override set from this
 // list, saving any other field ERASED it. A derived list cannot drift.
-const FIELDS: { key: NumericPolicyKey; label: string; help: string; unit: string }[] =
+const FIELDS: { key: NumericPolicyKey; label: string; help: string; unit: string; usedIn: string }[] =
   NUMERIC_POLICY_KEYS.map((key) => ({ key, ...POLICY_KEY_META[key] }));
+
+/** The configuration that can name a threshold, read live. */
+function usePolicyReferenceSources(): { sources: PolicyReferenceSources; loading: boolean; failed: boolean } {
+  const rules = useRoutingRules();
+  const chains = useApprovalChains();
+  const templates = useWorkflowTemplates();
+  const forms = useFormTemplates();
+  const serviceDescriptions = useServiceDescriptionTemplates();
+  const knowledge = useKnowledgeBase();
+  const all = [rules, chains, templates, forms, serviceDescriptions, knowledge];
+  return {
+    loading: all.some((q) => q.isLoading),
+    // A source that failed to load is not a source with no references: with
+    // the chains unread, delegatedAuthorityThreshold would be reported as
+    // driving nothing when it bounds two of them.
+    failed: all.some((q) => q.isError),
+    sources: {
+      rules: rules.data, chains: chains.data, templates: templates.data,
+      forms: forms.data, serviceDescriptions: serviceDescriptions.data, knowledge: knowledge.data,
+    },
+  };
+}
+
+const KIND_LABEL: Record<PolicyReference['kind'], string> = {
+  'routing-rule': 'Routing rules',
+  'approval-chain': 'Approval chains',
+  workflow: 'Workflows',
+  form: 'Forms',
+  'service-description': 'Service description',
+  knowledge: 'Knowledge base',
+};
+
+/**
+ * What reads one threshold: where the code uses it (fixed) and the
+ * configuration that names it (live). Knowledge-base articles are counted rather than listed — a figure
+ * quoted in five articles would otherwise push the next threshold off screen.
+ */
+function UsedBy({ usedIn, references, settled }: { usedIn: string; references: PolicyReference[]; settled: boolean }) {
+  const groups = new Map<PolicyReference['kind'], PolicyReference[]>();
+  for (const r of references) groups.set(r.kind, [...(groups.get(r.kind) ?? []), r]);
+  const unused = !usedIn && references.length === 0 && settled;
+  return (
+    <div className="mt-1 space-y-0.5 text-xs">
+      {usedIn && <p className="text-ink-2"><span className="text-ink-3">Used in:</span> {usedIn}</p>}
+      {[...groups].map(([kind, refs]) => (
+        <p key={kind} className="text-ink-2">
+          <span className="text-ink-3">{KIND_LABEL[kind]}:</span>{' '}
+          {kind === 'knowledge' ? (
+            <Link to={refs[0].href} className="underline-offset-2 hover:underline" title={refs.map((r) => r.label).join('\n')}>
+              {refs.length === 1 ? '1 article quotes it' : `${refs.length} articles quote it`}
+            </Link>
+          ) : refs.map((r, i) => (
+            <span key={r.id}>
+              {i > 0 && ' · '}
+              <Link to={r.href} className="underline-offset-2 hover:underline">{r.label}</Link>
+              {!r.active && <span className="text-ink-3"> (off)</span>}
+            </span>
+          ))}
+        </p>
+      ))}
+      {unused && (
+        <p className="text-warn">Nothing reads this value: no code uses it and no rule, chain, branch or form names it.</p>
+      )}
+    </div>
+  );
+}
 
 const RISK_TIERS: RiskTier[] = ['low', 'medium', 'high', 'critical'];
 
@@ -92,6 +170,7 @@ export function PolicyConfigPage() {
   const { currentUser } = useAuthStore();
   const [draft, setDraft] = useState<PolicyConfig>(() => resolvePolicyConfig(overrides));
   const [sim, setSim] = useState({ value: 300_000, riskRating: 'medium' as RiskTier, criticalService: false });
+  const { sources, loading: referencesLoading, failed: referencesFailed } = usePolicyReferenceSources();
 
   const dirty = useMemo(() => {
     const saved = resolvePolicyConfig(overrides);
@@ -153,9 +232,11 @@ export function PolicyConfigPage() {
     <div className="mx-auto max-w-5xl space-y-6">
       <div>
         <h1 className="text-xl font-semibold text-ink">Decisioning Thresholds</h1>
-        <p className="mt-0.5 text-sm text-ink-3">
-          The governed thresholds the front-door determination runs against. Saving applies them to the
-          live front door; the simulation below previews the effect on a sample demand before you save.
+        <p className="mt-0.5 max-w-3xl text-sm text-ink-3">
+          The numbers every decision compares against. Routing rules, approval chains, workflow branches and
+          forms decide <em>what happens</em>, and name these numbers instead of restating them — so each one is
+          changed here, once. Under each threshold: where it is used, and the configuration that names it.
+          Saving applies them to the live front door; the simulation previews the effect before you save.
         </p>
       </div>
 
@@ -168,10 +249,15 @@ export function PolicyConfigPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-sm">Thresholds</CardTitle>
+              {referencesFailed && (
+                <p className="text-xs text-warn">
+                  The rules, chains, workflows, forms and articles that name these could not be loaded, so they are not listed.
+                </p>
+              )}
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="divide-y divide-line-2">
               {FIELDS.map((f) => (
-                <div key={f.key} className="flex items-start justify-between gap-4">
+                <div key={f.key} className="flex items-start justify-between gap-4 py-3 first:pt-0 last:pb-0">
                   <div className="min-w-0">
                     <Label htmlFor={`cfg-${f.key}`} className="text-sm text-ink">
                       {f.label}
@@ -180,16 +266,18 @@ export function PolicyConfigPage() {
                       )}
                     </Label>
                     <p className="text-xs text-ink-3">{f.help} · default {DEFAULT_POLICY_CONFIG[f.key].toLocaleString()}</p>
+                    <UsedBy usedIn={f.usedIn} references={policyReferences(f.key, sources)} settled={!referencesLoading && !referencesFailed} />
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
                     <Input
                       id={`cfg-${f.key}`}
                       type="number"
-                      className="h-8 w-32 text-right"
+                      className="h-8 w-32 text-right tabular-nums"
                       value={draft[f.key]}
                       onChange={(e) => setDraft((d) => ({ ...d, [f.key]: Number(e.target.value) }))}
                     />
-                    {f.unit && <span className="w-8 text-xs text-ink-3">{f.unit}</span>}
+                    {/* Always rendered, so a unitless input lines up with the rest. */}
+                    <span className="w-8 text-xs text-ink-3">{f.unit}</span>
                   </div>
                 </div>
               ))}

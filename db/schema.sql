@@ -1071,6 +1071,10 @@ CREATE TABLE IF NOT EXISTS cost_centres (
 CREATE TABLE IF NOT EXISTS delivery_locations (
   id           text PRIMARY KEY,
   label        text NOT NULL,
+  -- address and country_code are read by nothing: checkout validates the id
+  -- against this table and shows the label. Removed from the app and the admin
+  -- page on 2026-09-25; the columns stay, defaulted, until a separate drop, so
+  -- a deployed older build that still sends them keeps working.
   address      text NOT NULL DEFAULT '',
   country_code text NOT NULL DEFAULT '',
   active       boolean NOT NULL DEFAULT true,

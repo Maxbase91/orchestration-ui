@@ -47,6 +47,13 @@ try {
     // real-format id for the test panel to ask about.
     ai_agents: [{ id: 'AI-007', name: 'Status Answers', type: 'status', status: 'active', accuracy: 0, decisions_made: 0, last_updated: '2026-09-25', description: 'Answers status questions.', config: null }],
     requests: [...FIXTURES.requests, { ...FIXTURES.requests[0], id: 'REQ-2026-00042', title: 'Office move coordination', status: 'validation', requestor_id: 'u02', owner_id: 'u11' }],
+    // Three priorities set, `low` not: the page must say what a low ticket
+    // gets anyway rather than show an empty box that reads as "no SLA".
+    sla_targets: [
+      { stage: 'ticket', channel: 'high', hours: 4, days: 1 },
+      { stage: 'ticket', channel: 'medium', hours: 8, days: 1 },
+      { stage: 'ticket', channel: 'default', hours: 12, days: 1 },
+    ],
     knowledge_base: [
       { id: 'KB-013', title: 'Catalogue Purchasing', body: 'Orders up to {{policy:catalogueAutoApprovalThreshold}} are approved automatically.', source: 'Decisioning thresholds', tags: ['catalogue'] },
       { id: 'KB-028', title: 'Insurance Requirements', body: 'Public liability: €5M per incident.', source: 'KOP-RISK-003', tags: ['insurance'] },
@@ -105,6 +112,26 @@ try {
   check('the delivery-location table lists the stored rows', locationsText.includes('Head office'));
   check('a closed location is shown as closed, not hidden',
     locationsText.includes('Closed site') && locationsText.includes('Closed'));
+  // Checkout validates the id and shows the label; nothing read the address
+  // or the country, so neither is asked for.
+  check('no address or country column', !/Address|Country/.test(locationsText), locationsText.slice(0, 200));
+
+  console.log('\nSupport SLAs are the ticket response targets');
+  await page.goto(`${BASE}/admin/sla-targets`, { waitUntil: 'networkidle' });
+  await page.locator('#sla-high').waitFor({ timeout: 20000 });
+  check('each priority shows its stored hours', await page.locator('#sla-high').inputValue() === '4');
+  check('an unset priority says what it gets instead',
+    (await page.getByText('Not set — tickets get 12 hours').count()) === 1);
+  check('no stage SLAs are restated here', !/Sourcing|Contracting/.test(await page.locator('main').innerText()));
+  check('stage SLAs are pointed to the Workflow Designer',
+    (await page.getByRole('link', { name: /Workflow Designer/ }).count()) === 1);
+  await page.locator('#sla-high').fill('2');
+  await page.locator('#sla-high').locator('xpath=..').getByRole('button', { name: /Save/ }).click();
+  await page.waitForTimeout(800);
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.locator('#sla-high').waitFor({ timeout: 20000 });
+  check('a saved figure persists', await page.locator('#sla-high').inputValue() === '2',
+    await page.locator('#sla-high').inputValue());
 
   console.log('\nThe requester is offered exactly the active rows');
 
@@ -246,6 +273,34 @@ try {
   // The P-card route is retired (no path to it from the intake), and so are
   // its thresholds: a card-policy section here would configure nothing.
   check('no P-card policy is offered', (await page.getByText(/P-card/).count()) === 0);
+  // Each threshold says what reads it: the code (fixed) and the configuration
+  // that names it (live, from the stubbed rules, chains and articles).
+  const thresholdsText = await page.locator('main').innerText();
+  check('each threshold says where it is used',
+    /Used in: Review & submit — the competitive-sourcing check · Home answers/.test(thresholdsText));
+  check('a rule naming a threshold is listed under it',
+    (await page.getByRole('link', { name: 'RR-T1 High-value software' }).count()) === 1);
+  check('an article quoting a threshold is counted', (await page.getByText('1 article quotes it').count()) === 1);
+  // No stubbed chain names the delegated-authority threshold and no code reads
+  // it, so it drives nothing here — and the page has to say so.
+  check('a threshold nothing reads is flagged',
+    (await page.getByText(/Nothing reads this value/).count()) === 1);
+  // A source that fails to load is not a source with no references. With the
+  // chains unread, the page must say it could not check — not that the
+  // threshold drives nothing.
+  const failChains = async (route) => {
+    const body = JSON.parse(route.request().postData() ?? '{}');
+    if (body.table !== 'approval_chains') return route.fallback();
+    return route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: 'down', code: 'db_error' }) });
+  };
+  await page.route('**/api/db', failChains);
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.getByText(/could not be loaded, so they are not listed/).waitFor({ timeout: 20000 });
+  check('a failed load is said, not read as "nothing uses it"',
+    (await page.getByText(/Nothing reads this value/).count()) === 0);
+  await page.unroute('**/api/db', failChains);
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.getByText('Supplier choice', { exact: true }).waitFor({ timeout: 20000 });
   check('the privileged-access categories are a checklist too',
     (await page.getByLabel('Ask about privileged access: Consulting', { exact: true }).count()) === 1);
   await page.getByLabel('Exempt from competitive quotes: Consulting', { exact: true }).click();

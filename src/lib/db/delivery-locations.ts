@@ -5,9 +5,9 @@ import { db } from '@/lib/db-client';
 export interface DeliveryLocation {
   id: string;
   label: string;
-  address: string;
-  /** ISO-3166 alpha-2, when the location drives a country-specific workflow. */
-  countryCode: string;
+  // `address` and `country_code` went on 2026-09-25: empty on every row and
+  // read by nothing — no PO or screen printed them. The label is what a
+  // requester picks and what the order records.
   /**
    * Inactive locations stay in the table so historic orders still resolve their
    * id to a label, but cannot be chosen for a new one. This is the value
@@ -24,8 +24,6 @@ function mapRow(row: Record<string, unknown>): DeliveryLocation {
   return {
     id: row.id as string,
     label: row.label as string,
-    address: (row.address as string) ?? '',
-    countryCode: (row.country_code as string) ?? '',
     active: (row.active as boolean) ?? true,
     sortOrder: (row.sort_order as number) ?? 0,
   };
@@ -43,8 +41,6 @@ export async function upsertDeliveryLocation(location: DeliveryLocation): Promis
     .upsert({
       id: location.id,
       label: location.label,
-      address: location.address,
-      country_code: location.countryCode,
       active: location.active,
       sort_order: location.sortOrder,
     }, { onConflict: 'id' })

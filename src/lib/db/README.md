@@ -48,7 +48,8 @@ sequence transactionally. Recorded as a gap rather than argued away.
 
 ## A module with no importers is not free
 
-`src/lib/db/sla-targets.ts` and `hooks/use-sla-targets.ts` were deleted in C10.
+`src/lib/db/sla-targets.ts` and `hooks/use-sla-targets.ts` were deleted in C10. (`ticket-slas.ts` is
+the Support SLAs page's module for the table's remaining `stage='ticket'` rows.)
 Nothing had imported either for months — every countdown reads
 `requests.sla_deadline`, computed from the workflow template node's `slaDays` —
 but they were not merely inert. `resolveSla` ended in `?? 5`, so any future

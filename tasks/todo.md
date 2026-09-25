@@ -40,7 +40,7 @@ Decisions taken (2026-09-25):
 3. [x] Routing rules: redundant rules out, RR-012 on, vocabulary = what the runtime supplies, categories from configuration
 4. [x] Approval: configurable roles, ownerless budget → procurement managers, no self-approval, chain page clean-up
 5. [x] Categories: icon/timeline out, stage-target durations, classifier from configuration
-6. [ ] Delivery locations, SLA targets → ticket SLAs, thresholds "used by"
+6. [x] Delivery locations, SLA targets → ticket SLAs, thresholds "used by" (+ catalogue auto-approval boundary aligned)
 7. [ ] Service description seeded; unused forms deleted
 8. [ ] Help knowledge base from the knowledge base table
 9. [ ] AI assistant on the Home route (+ conversation titles)

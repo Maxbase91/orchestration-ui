@@ -52,27 +52,34 @@ export const CATEGORY_LIST_POLICY_KEYS: readonly CategoryListPolicyKey[] =
  *  editors offer it. A key added to PolicyConfig without an entry here fails
  *  test:policy-tokens rather than silently becoming uneditable — which is how
  *  delegatedAuthorityThreshold came to be live, server-validated and impossible
- *  to change for as long as it existed. */
-export const POLICY_KEY_META: Record<NumericPolicyKey, { label: string; help: string; unit: '€' | '%' | '/100' | 'days' | '' }> = {
-  catalogueAutoApprovalThreshold: { label: 'Catalogue auto-approval threshold', help: 'Below this whole-request value, valid catalogue orders are auto-approved', unit: '€' },
-  approvalFullThreshold: { label: 'Full approval-to-source threshold', help: 'At/above this value the full approval gate applies', unit: '€' },
-  materialityValueThreshold: { label: 'Materiality value threshold', help: 'At/above this value a demand is material on size alone', unit: '€' },
-  criticalServiceThreshold: { label: 'Critical-service question threshold', help: 'At/above this value the critical-service question is asked', unit: '€' },
-  continuityThreshold: { label: 'Business-continuity threshold', help: 'At/above this value continuity dependence is non-trivial', unit: '€' },
-  riskHighValue: { label: 'Inherent-risk band — high', help: 'Value contributing to a high inherent tier', unit: '€' },
-  riskMediumValue: { label: 'Inherent-risk band — medium', help: 'Value contributing to a medium inherent tier', unit: '€' },
-  competitiveSourcingThreshold: { label: 'Competitive-sourcing threshold', help: 'At/above this value competitive sourcing applies', unit: '€' },
-  contractRequiredThreshold: { label: 'Contract-required threshold', help: 'At/above this value a PO needs an executed contract behind it', unit: '€' },
-  budgetApprovalThreshold: { label: 'Budget approval threshold', help: 'Above this value the demand exceeds standard budget approval and needs VP sign-off', unit: '€' },
-  businessLedCeiling: { label: 'Business-led ceiling', help: 'At/below this value an unmatched demand is bought by the business rather than run by procurement', unit: '€' },
-  delegatedAuthorityThreshold: { label: 'Delegated authority threshold', help: 'Above this value the demand exceeds normal delegated budget authority', unit: '€' },
-  minCompetitiveQuotes: { label: 'Minimum competitive quotes', help: 'Quotes required above the competitive-sourcing threshold', unit: '' },
-  preferredMinPerformance: { label: 'Preferred-supplier performance bar', help: 'Minimum performance score to qualify as preferred', unit: '/100' },
-  contractUtilisationHeadroom: { label: 'Contract utilisation headroom', help: 'Below this %, an active contract is transactable', unit: '%' },
-  directCallOffLimit: { label: 'Direct call-off limit', help: 'Above this value a contract call-off needs a mini-competition, so it goes in as a new request', unit: '€' },
-  contractExpiryBufferDays: { label: 'Contract expiry buffer', help: 'Days-to-expiry that flag a contract as expiring', unit: 'days' },
-  catalogueMatchThreshold: { label: 'Catalogue match threshold', help: 'Minimum score for a catalogue item to be offered at intake', unit: '' },
-  catalogueMinContentMatches: { label: 'Catalogue naming-word matches', help: 'Naming words (not adjectives) a catalogue match must hit', unit: '' },
+ *  to change for as long as it existed.
+ *
+ *  `usedIn` names where the platform's own code uses the number, in the words
+ *  of the screens it shows up on (`help` already says what it does). The
+ *  configuration that names a key — a routing rule, an approval-chain band, a
+ *  workflow branch — is not listed here: the page reads it live, because an
+ *  admin can add or remove it. Empty means no code reads the key; only
+ *  configuration can make it matter. test:policy-tokens holds both ways. */
+export const POLICY_KEY_META: Record<NumericPolicyKey, { label: string; help: string; unit: '€' | '%' | '/100' | 'days' | ''; usedIn: string }> = {
+  catalogueAutoApprovalThreshold: { label: 'Catalogue auto-approval threshold', help: 'Up to this whole-request value, valid catalogue orders are auto-approved', unit: '€', usedIn: 'Catalogue checkout · Home answers' },
+  approvalFullThreshold: { label: 'Full approval-to-source threshold', help: 'At/above this value the full approval gate applies', unit: '€', usedIn: 'Review & submit — the approval-to-source gate' },
+  materialityValueThreshold: { label: 'Materiality value threshold', help: 'At/above this value a demand is material on size alone', unit: '€', usedIn: 'Review & submit — materiality' },
+  criticalServiceThreshold: { label: 'Critical-service question threshold', help: 'At/above this value the critical-service question is asked', unit: '€', usedIn: 'Describe — the critical-service and commercial-model questions' },
+  continuityThreshold: { label: 'Business-continuity threshold', help: 'At/above this value continuity dependence is non-trivial', unit: '€', usedIn: 'Describe — the dependencies question · Review & submit — continuity risk' },
+  riskHighValue: { label: 'Inherent-risk band — high', help: 'Value contributing to a high inherent tier', unit: '€', usedIn: 'Review & submit — inherent risk' },
+  riskMediumValue: { label: 'Inherent-risk band — medium', help: 'Value contributing to a medium inherent tier', unit: '€', usedIn: 'Review & submit — inherent risk' },
+  competitiveSourcingThreshold: { label: 'Competitive-sourcing threshold', help: 'At/above this value competitive sourcing applies', unit: '€', usedIn: 'Review & submit — the competitive-sourcing check · Home answers' },
+  contractRequiredThreshold: { label: 'Contract-required threshold', help: 'At/above this value a PO needs an executed contract behind it', unit: '€', usedIn: 'Review & submit — the contract-before-PO check · Analytics — spend anomalies' },
+  budgetApprovalThreshold: { label: 'Budget approval threshold', help: 'Above this value the demand exceeds standard budget approval and needs VP sign-off', unit: '€', usedIn: 'Review & submit — the budget approval check · Analytics — spend anomalies' },
+  businessLedCeiling: { label: 'Business-led ceiling', help: 'At/below this value an unmatched demand is bought by the business rather than run by procurement', unit: '€', usedIn: 'Home answers' },
+  delegatedAuthorityThreshold: { label: 'Delegated authority threshold', help: 'Above this value the demand exceeds normal delegated budget authority', unit: '€', usedIn: '' },
+  minCompetitiveQuotes: { label: 'Minimum competitive quotes', help: 'Quotes required above the competitive-sourcing threshold', unit: '', usedIn: 'Review & submit — the competitive-sourcing check · Home answers' },
+  preferredMinPerformance: { label: 'Preferred-supplier performance bar', help: 'Minimum performance score to qualify as preferred', unit: '/100', usedIn: 'Supplier recommendations · Review & submit — the preferred-supplier check' },
+  contractUtilisationHeadroom: { label: 'Contract utilisation headroom', help: 'Below this %, an active contract is transactable', unit: '%', usedIn: 'Review & submit — the contract check' },
+  directCallOffLimit: { label: 'Direct call-off limit', help: 'Above this value a contract call-off needs a mini-competition, so it goes in as a new request', unit: '€', usedIn: 'How you’ll buy — contract call-offs · call-off checkout' },
+  contractExpiryBufferDays: { label: 'Contract expiry buffer', help: 'Days-to-expiry that flag a contract as expiring', unit: 'days', usedIn: 'Review & submit — the contract check' },
+  catalogueMatchThreshold: { label: 'Catalogue match threshold', help: 'Minimum score for a catalogue item to be offered at intake', unit: '', usedIn: 'How you’ll buy and Home — catalogue matching' },
+  catalogueMinContentMatches: { label: 'Catalogue naming-word matches', help: 'Naming words (not adjectives) a catalogue match must hit', unit: '', usedIn: 'How you’ll buy and Home — catalogue matching' },
 };
 
 export const NUMERIC_POLICY_KEYS: readonly NumericPolicyKey[] =

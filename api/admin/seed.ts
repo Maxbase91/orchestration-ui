@@ -387,8 +387,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       DEFAULT_DELIVERY_LOCATIONS.map((location) => ({
         id: location.id,
         label: location.label,
-        address: location.address,
-        country_code: location.countryCode,
         active: location.active,
         sort_order: location.sortOrder,
       })),

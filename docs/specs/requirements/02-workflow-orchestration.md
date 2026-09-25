@@ -99,9 +99,11 @@ than inventing one. `sla_targets` held nine stage rows that disagreed with the t
 six of nine stages and that nothing read; they were deleted in
 `db/backfills/2026-09-17-c10-debris.mjs`, and the table now holds only its `stage='ticket'`
 rows.
-FR02-21 · `/admin/sla-targets` is a **read-only** view of the template-derived figures,
-linking to the designer. It used to write `sla_targets` and claim the values drove the
-countdowns; they did not.
+FR02-21 · Stage SLAs are edited only on the stage, in the Workflow Designer.
+`/admin/sla-targets` is now **Support SLAs** — the ticket first-response hours, the rows
+`sla_targets` still owns — and links to the designer for stages. It first wrote stage rows
+that drove nothing, then showed the template figures read-only while the ticket rows had no
+editor (2026-09-25).
 FR02-22 · `useStageSlas()` / `stageSlasFromTemplates()` supply the bottleneck chart,
 stuck-requests table, timeline view and active-workflows page.
 FR02-23 · `requests.sla_deadline` is computed from the stage node's `slaDays` in **working

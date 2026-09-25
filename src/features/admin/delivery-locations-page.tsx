@@ -30,7 +30,7 @@ import type { DeliveryLocation } from '@/lib/db/delivery-locations';
 
 type EditForm = Omit<DeliveryLocation, 'sortOrder'>;
 
-const EMPTY_FORM: EditForm = { id: '', label: '', address: '', countryCode: '', active: true };
+const EMPTY_FORM: EditForm = { id: '', label: '', active: true };
 
 export function DeliveryLocationsPage() {
   const { data: locations = [], isLoading } = useDeliveryLocations();
@@ -47,7 +47,7 @@ export function DeliveryLocationsPage() {
   }
 
   function openEdit(location: DeliveryLocation) {
-    setForm({ id: location.id, label: location.label, address: location.address, countryCode: location.countryCode, active: location.active });
+    setForm({ id: location.id, label: location.label, active: location.active });
     setIsNew(false);
     setDialogOpen(true);
   }
@@ -74,8 +74,6 @@ export function DeliveryLocationsPage() {
   const columns: Column<Row>[] = [
     { key: 'id', label: 'ID', render: (r) => <span className="font-mono text-xs text-muted-foreground">{r.id as string}</span> },
     { key: 'label', label: 'Label', render: (r) => <span className="font-medium">{r.label as string}</span> },
-    { key: 'address', label: 'Address', render: (r) => <span className="max-w-xs truncate text-sm text-muted-foreground">{(r.address as string) || '—'}</span> },
-    { key: 'countryCode', label: 'Country', render: (r) => <span className="text-sm">{(r.countryCode as string) || '—'}</span> },
     {
       key: 'active', label: 'Status',
       render: (r) => (
@@ -131,20 +129,6 @@ export function DeliveryLocationsPage() {
             <div className="space-y-1.5">
               <Label htmlFor="loc-label">Label *</Label>
               <Input id="loc-label" value={form.label} onChange={(e) => setForm((p) => ({ ...p, label: e.target.value }))} placeholder="e.g. Northern depot" />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="loc-address">Address</Label>
-              <Input id="loc-address" value={form.address} onChange={(e) => setForm((p) => ({ ...p, address: e.target.value }))} placeholder="Where deliveries go" />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="loc-country">Country code</Label>
-              <Input
-                id="loc-country"
-                value={form.countryCode}
-                maxLength={2}
-                onChange={(e) => setForm((p) => ({ ...p, countryCode: e.target.value.toUpperCase().slice(0, 2) }))}
-                placeholder="Two letters, e.g. IE"
-              />
             </div>
             <div className="flex items-start justify-between gap-4">
               <div>

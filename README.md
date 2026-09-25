@@ -71,7 +71,8 @@ R1 is an internally operated system of record backed by private Neon. It owns re
 |--------|-------------|
 | Smart Command Bar | Free-text entry on the home page, with an **intent step**: a **status question** ("where is REQ-…", "what's waiting for me", a PO, invoice, contract or supplier) is answered in place by the Status Answers agent — only what its configuration lets this role see; a **policy question** is answered in place — a direct answer computed from Decisioning thresholds and approval chains (quotes, approvers, buying channel, catalogue auto-approval) plus the knowledge-base rule with live figures; each offers a follow-up in the assistant. A **demand goes straight into intake**, carrying its wording, so classification starts immediately; anything else reaches the assistant. A demand the **catalogue genuinely serves** is **named** — the matched item, its price and lead time — with a link to its governed checkout and an always-visible "not what you need?" route into full intake; it never navigates on the requester's behalf. The catalogue decision is `lib/procurement/intake-routing.ts` — the same category-gated, naming-word decision the wizard's pre-check makes, so both entry points agree |
 | Routing Rules Engine | 3-panel layout: rule tree, visual IF/THEN editor, test panel. The **editor, the test panel and the runtime share one vocabulary** — every field and operator the editor offers is evaluated in production, and the test panel calls the production evaluator rather than reimplementing it. An **active rule that cannot fire is diagnosed** at the top of the page (unknown field, unsupported operator, malformed `between`, no conditions) instead of silently never matching |
-| Decisioning Thresholds | Edit the governed decisioning thresholds (approval/materiality/risk/sourcing/contract); Save applies them to the live front door; live simulation previews a sample demand's outcome |
+| Decisioning Thresholds | The numbers every decision compares against (approval, materiality, risk, sourcing, contract, catalogue matching). Routing rules, approval chains, workflow branches and forms decide what happens and **name** these numbers (`policy:<key>`) rather than restating them. Under each threshold: **where the code uses it** and the **configuration that names it**, read live — the rules, chain bands, workflow branches, forms, service-description conditions and knowledge-base articles — with a warning when nothing reads it. Save applies them to the live front door; a simulation previews a sample demand |
+| Support SLAs | How soon a support ticket needs a first response, in hours per priority (`sla_targets`, stage `ticket`); a priority with no row says what it gets instead. Stage SLAs are set on the stage in the Workflow Designer |
 | Service Description | Configure the service description end to end: the **generation prompt** (guidance, system prompt, temperature, token budget, with a preview of the assembled prompt), the **components asked** at intake (question, example, required, and the condition that shows it), **what is generated** (the detailed sections, which are asked vs inferred, and which compose the compact narrative), and **reuse in later steps** (which sections seed a sourcing event's requirements, plus the default evaluation criteria). Per-category with a `default` fallback; stored in Postgres so the serverless generation and intake routes read the same config Generation is **signal-aware**: the capture-time materiality, inherent risk, data sensitivity and sourcing read (`demand-signals.ts`) is passed to the model, and the template's `requiredWhen` conditions say which sections that read makes mandatory — so a material, competitively-sourced engagement is required to cover scope, deliverables and measurable acceptance criteria while a small order is not. The determination reports any required section still missing rather than regenerating the document behind the requester. |
 | Workflow Designer | React Flow canvas with 10 custom node types, drag-from-palette, node configuration, simulation |
 | AI Agent Configuration | The switches on what the platform automates, each described as it really works: AI-001 category classifier (language model, configured keywords as fallback), AI-002 request validator (the Review step's policy checks — rules), AI-004 spend anomaly checks (rules on Decisioning thresholds), AI-005 supplier recommender, AI-007 **Status Answers** — which configures what status questions may be answered: per object, every attribute of the data (label, in the answer / when asked / off, who may see it; new attributes appear switched off) and a role × object matrix (None / Own / All), with a test panel that asks as any role against live data. No invented accuracy, decision counts or performance charts (removed 2026-09-25) |
@@ -242,7 +243,7 @@ npm run test:ai-api-config        # API regression — missing active database/A
 npm run test:api-imports          # every api/*.ts function's import graph has explicit file extensions (tsc/vercel dev don't enforce this; Vercel's real build does)
 npm run test:vercel-functions     # keeps the explicit API surface within the Vercel Hobby 12-function budget
 npm run test:workflow-scripts     # every `npm run` call in .github/workflows still names a script that exists in package.json
-npm run test:admin-editors        # every admin editor that claims to save, saves — a live round trip per table
+npm run test:admin-editors        # every admin editor that claims to save, saves — a live round trip per table, Support SLAs included
                                   #   (JSONB columns still arrays afterwards) plus a static check that the Save
                                   #   handler calls the mutation; 10 surfaces, and the read-only ones stay read-only
 npm run test:orchestration        # end-to-end orchestration rules across intake, routing and workflow
@@ -263,7 +264,8 @@ npm run test:schema-drift         # db/schema.sql matches the live database's in
 npm run test:forms                # every form triggers on a real stage, and none on validation
 npm run test:config-consumption   # admin configuration reaches what it configures — channel stages, template node ids, live lifecycle coherence, and no config nothing reads (sla_targets stage rows, match_count, templateless requests)
 npm run test:seed-parity          # the checked-in workflow seed matches live, so re-seeding cannot destroy a Designer edit
-npm run test:policy-tokens        # every governed threshold is nameable, editable and validated; no decisioning literal shadows one
+npm run test:policy-tokens        # every governed threshold is nameable, editable and validated; no decisioning literal shadows one;
+                                  # each says where code uses it (true both ways), and the used-by list finds every `policy:` reference
 npm run test:policy-token-routing # routing rules reference governed thresholds; tokenising changed no channel, and no token reaches the evaluator
 npm run test:routing-fallback     # the catch-all rules reproduce the deleted if-ladder exactly, and a hole in the rule set is visible
 npm run test:approval-bands       # a chain with no value band never shadows one that has it; gaps and overlaps are reported
@@ -290,8 +292,9 @@ npm run test:approvals-ui         # the approvals queue — nothing claims to be
 npm run test:form-builder-ui      # browser smoke — /admin/forms offers every stage, sets blocking, and reports a form that cannot fire
 npm run test:intake-guidance-ui   # browser smoke — step-1 single classification block, per-step header panels, the step gate
 npm run test:reference-data-ui    # browser smoke — admin maintains cost centres and delivery locations (a retired
-                                  # row disappears from every picker), category managers, commodity codes, and
-                                  # the category-list thresholds as checklists
+                                  # row disappears from every picker), category managers, commodity codes, the
+                                  # category-list thresholds as checklists, where each threshold is used (and
+                                  # a failed load is not read as "unused"), and the Support SLAs
 npm run test:dashboard-ui         # browser smoke — the role's default dashboard covers its work, customising is a
                                   # mode whose controls exist only inside it, and adding or removing a widget
                                   # survives a reload
@@ -462,6 +465,7 @@ src/
 │   │                #   personal-queue.ts is the one definition of what is on a person's plate
 │   │                #   (approvals assigned or delegated to them, referred back, overdue)
 │   │                #   request-list-filters.ts is the /requests URL contract every link builds with
+│   │                #   policy-tokens.ts names every threshold; policy-references.ts finds what configuration names one
 │   ├── routing/     # Routing-rule evaluator + diagnostics, and the one buying-channel resolver both the
 │   │                #   buy-route screen and the determination call (plus its plain-English requester copy)
 │   ├── assistant/   # Assistant providers, intents and capability handlers

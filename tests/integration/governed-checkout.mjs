@@ -25,8 +25,13 @@ check('valid low-value order is accepted', valid.ok);
 check('below threshold is auto-approved', valid.status === 'approved' && !valid.approvalRequired);
 check('commodity code is resolved', valid.resolved.commodityCodes.includes('43211500'));
 
+// Up to the threshold is automatic — the catalogue workflow's branch, the Home
+// answer and the knowledge base all say so, and the checkout used to hold an
+// order of exactly the threshold for approval that the workflow then waved on.
 const threshold = evaluateGovernedCheckout({ route: 'catalogue', lines: [{ ...line, unitPrice: 1000 }], supplier, contract, riskAssessment: risk, profile, ...reference, purpose: 'Threshold test', now: new Date('2026-08-29') });
-check('threshold value requires approval', threshold.approvalRequired && threshold.status === 'pending-approval');
+check('threshold value is auto-approved', !threshold.approvalRequired && threshold.status === 'approved');
+const above = evaluateGovernedCheckout({ route: 'catalogue', lines: [{ ...line, unitPrice: 1000.01 }], supplier, contract, riskAssessment: risk, profile, ...reference, purpose: 'Threshold test', now: new Date('2026-08-29') });
+check('above the threshold requires approval', above.approvalRequired && above.status === 'pending-approval');
 
 const expiredRisk = evaluateGovernedCheckout({ route: 'catalogue', lines: [line], supplier, contract, riskAssessment: { ...risk, validUntil: '2026-01-01' }, profile, ...reference, purpose: 'Renew risk', now: new Date('2026-08-29') });
 check('expired risk enables risk review', expiredRisk.ok && expiredRisk.riskReviewRequired && expiredRisk.status === 'risk-review');

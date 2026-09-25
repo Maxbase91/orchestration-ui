@@ -18,6 +18,8 @@ import {
   resolvePolicyValue, resolvePolicyList, describePolicyValue, policyToken, policyKeyHolding,
 } from '../../src/lib/procurement/policy-tokens.ts';
 import { DEFAULT_POLICY_CONFIG } from '../../src/lib/procurement/policy-config.ts';
+import { policyReferences } from '../../src/lib/procurement/policy-references.ts';
+import { readdirSync, statSync } from 'node:fs';
 
 const ROOT = new URL('../../', import.meta.url);
 const read = (rel) => readFileSync(new URL(rel, ROOT), 'utf8');
@@ -134,6 +136,81 @@ for (const [label, literal] of [['Contract required before PO', '25000'], ['Budg
       `still compares against the literal ${literal}; /admin/thresholds would not move it`);
   } else ok(`"${label}" reads the config`);
 }
+
+// ── Every threshold says what reads it ──────────────────────────────────────
+// The thresholds page shows `usedIn` under each number, so it has to be true
+// both ways: a key with a `usedIn` line is read by code, and a key without one
+// is read by none — it matters only through configuration that names it (the
+// approval-chain bands, for delegatedAuthorityThreshold), and the page warns
+// when nothing does. Comments are stripped first: a comment naming a key is
+// not a reader, and approval-bands.ts has exactly such a comment.
+console.log('\nEvery threshold says what reads it');
+const NOT_READERS = [
+  'src/lib/procurement/policy-tokens.ts', 'src/lib/procurement/policy-config.ts',
+  'src/lib/procurement/policy-references.ts', 'src/features/admin/policy-config/policy-config-page.tsx',
+  'api/_domains/policy-config.ts',
+  // Seeded configuration and knowledge-base text name keys as tokens; they are
+  // references the page lists live, not code that reads the number.
+  'src/data/knowledge-base.ts', 'src/data/workflows.ts', 'src/data/routing-rules.ts',
+  'src/lib/procurement/service-description-defaults.ts',
+];
+const stripComments = (src) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"`])\/\/.*$/gm, '$1');
+function sourceFiles(dir) {
+  const out = [];
+  for (const name of readdirSync(new URL(dir, ROOT))) {
+    const rel = `${dir}/${name}`;
+    if (statSync(new URL(rel, ROOT)).isDirectory()) out.push(...sourceFiles(rel));
+    else if (/\.(ts|tsx)$/.test(name) && !NOT_READERS.includes(rel)) out.push(rel);
+  }
+  return out;
+}
+const code = [...sourceFiles('src'), ...sourceFiles('api')].map((rel) => [rel, stripComments(read(rel))]);
+for (const key of NUMERIC_POLICY_KEYS) {
+  const readers = code.filter(([, src]) => new RegExp(`\\b${key}\\b`).test(src)).map(([rel]) => rel);
+  const usedIn = POLICY_KEY_META[key].usedIn;
+  if (usedIn && readers.length === 0) bad(`${key} says where it is used`, `"${usedIn}" — but no code reads it`);
+  else if (!usedIn && readers.length > 0) bad(`${key} has no used-in line`, `read by ${readers.join(', ')}`);
+  else ok(`${key}: ${usedIn ? `read by ${readers.length} file(s)` : 'read by configuration only'}`);
+}
+
+console.log('\nThe used-by list finds configuration that names a key');
+const sources = {
+  rules: [
+    { id: 'RR-904', name: 'Under the ceiling', status: 'active', conditions: [{ value: '0,policy:businessLedCeiling' }] },
+    { id: 'RR-777', name: 'Switched off', status: 'disabled', conditions: [{ value: 'policy:businessLedCeiling' }] },
+    { id: 'RR-778', name: 'Longer name', status: 'active', conditions: [{ value: 'policy:businessLedCeilingX' }] },
+  ],
+  chains: [
+    { id: 'chain-3', name: 'VP-Level', minValue: 'policy:budgetApprovalThreshold', maxValue: 'policy:delegatedAuthorityThreshold' },
+    { id: 'chain-4', name: 'Board-Level', minValue: 'policy:delegatedAuthorityThreshold', maxValue: null },
+  ],
+  templates: [{ id: 'WF-002', name: 'Catalogue', edges: [{ condition: { value: 'policy:catalogueAutoApprovalThreshold' } }, { condition: null }] }],
+  forms: [{ id: 'FORM-9', name: 'Security review', status: 'active', triggerConditions: [{ value: 'policy:riskHighValue' }] }],
+  serviceDescriptions: [{
+    category: 'default', label: 'Default', active: true,
+    slots: [{ conditions: [{ value: 'policy:criticalServiceThreshold' }] }],
+    sections: [{ requiredWhen: [{ value: 'policy:continuityThreshold' }] }],
+  }],
+  knowledge: [{ id: 'KB-1', title: 'Who buys what', body: 'Up to {{policy:businessLedCeiling}} the business buys it.' }],
+};
+const ceiling = policyReferences('businessLedCeiling', sources);
+const ids = ceiling.map((r) => r.id).join(',');
+if (ids !== 'RR-904,RR-777,KB-1') bad('businessLedCeiling: the between rule, the disabled rule and the article', ids);
+else ok('a `between` value and a knowledge-base token are both found');
+if (ceiling.find((r) => r.id === 'RR-777')?.active !== false) bad('a disabled rule is marked off');
+else ok('a disabled rule is listed, marked off');
+if (ceiling.some((r) => r.id === 'RR-778')) bad('a longer key is not a reference to its prefix', 'policy:businessLedCeilingX matched');
+else ok('a key does not match a longer key it prefixes');
+const authority = policyReferences('delegatedAuthorityThreshold', sources).map((r) => r.label).join(' | ');
+if (authority !== 'VP-Level chain, upper end of its band | Board-Level chain, lower end of its band') bad('chain ends are named', authority);
+else ok('approval chains say which end of the band the key sets');
+for (const [key, kind] of [['catalogueAutoApprovalThreshold', 'workflow'], ['riskHighValue', 'form'], ['criticalServiceThreshold', 'service-description'], ['continuityThreshold', 'service-description']]) {
+  const found = policyReferences(key, sources);
+  if (found.length !== 1 || found[0].kind !== kind) bad(`${key} is found in the ${kind}`, JSON.stringify(found));
+  else ok(`${key} is found in the ${kind}`);
+}
+if (policyReferences('minCompetitiveQuotes', sources).length !== 0) bad('a key nothing names has no references');
+else ok('a key nothing names has no references');
 
 console.log(failures === 0 ? '\n\x1b[32mpolicy-tokens passed\x1b[0m' : `\n\x1b[31m${failures} failed\x1b[0m`);
 process.exit(failures === 0 ? 0 : 1);

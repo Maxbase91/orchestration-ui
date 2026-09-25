@@ -183,7 +183,11 @@ export function evaluateGovernedCheckout(
   }
   if (!resolvedBudgetOwner) errors.push('A budget owner is required.');
   if (!resolvedAccountType) errors.push('An account type is required.');
-  const approvalRequired = totalValue >= config.catalogueAutoApprovalThreshold;
+  // Up to the threshold is automatic, as the catalogue workflow's branch, the
+  // Home answer and the knowledge base all say. This was `>=`, so an order of
+  // exactly the threshold was held for approval here and auto-approved by the
+  // workflow the same record then ran through.
+  const approvalRequired = totalValue > config.catalogueAutoApprovalThreshold;
   const contractAmendmentRequired = capacityExceeded || (input.contract.status !== 'active' && input.contract.status !== 'expiring');
   const status = contractAmendmentRequired
     ? 'contract-amendment-required'

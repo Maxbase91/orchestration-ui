@@ -262,13 +262,33 @@ async function functionalRolesRoundTrip() {
 }
 
 /**
+ * Support SLAs: the hours a ticket of each priority has for a first response,
+ * `sla_targets` rows with stage 'ticket'. The page was a read-only copy of the
+ * workflow's stage SLAs while these rows — the ones tickets actually read —
+ * had no editor at all. Keyed (stage, channel), so it gets its own check.
+ */
+async function ticketSlaRoundTrip() {
+  const page = readFileSync(new URL('../../src/features/admin/sla-targets-page.tsx', import.meta.url), 'utf8');
+  assert(page.includes('useSaveTicketSla') && page.includes('save.mutateAsync'), 'support SLAs: the page saves the hours');
+  const { data: before, error } = await sb.from('sla_targets').select('channel, hours, days').eq('stage', 'ticket').eq('channel', 'low').maybeSingle();
+  if (error || !before) { fail('support SLAs: the low-priority row exists', error?.message ?? 'missing'); return; }
+  const probe = (before.hours ?? 24) + 1;
+  await sb.from('sla_targets').update({ hours: probe }).eq('stage', 'ticket').eq('channel', 'low');
+  const { data: after } = await sb.from('sla_targets').select('hours').eq('stage', 'ticket').eq('channel', 'low').maybeSingle();
+  assert(after?.hours === probe, 'support SLAs: a change persists', JSON.stringify(after));
+  await sb.from('sla_targets').update({ hours: before.hours, days: before.days }).eq('stage', 'ticket').eq('channel', 'low');
+  // Stage SLAs belong to the workflow templates; a stage row here would be a
+  // second answer to "how long does this stage have" that nothing reads.
+  const { data: stageRows } = await sb.from('sla_targets').select('stage').neq('stage', 'ticket');
+  assert((stageRows ?? []).length === 0, 'support SLAs: the table holds ticket rows only', `${stageRows?.length} other rows`);
+}
+
+/**
  * Surfaces with no persistence, on purpose. Listed so that "not covered" is a
  * decision someone made rather than something nobody noticed.
  */
 function deliberatelyReadOnly() {
   const cases = [
-    // The workflow template owns stage SLAs; this page shows what they are.
-    ['sla targets', 'src/features/admin/sla-targets-page.tsx', 'useUpsertSlaTarget'],
     // Derived from system_integrations — there is nothing here to save.
     ['system health', 'src/features/admin/system-health-page.tsx', 'mutateAsync'],
   ];
@@ -288,6 +308,7 @@ async function main() {
   await categoryManagersRoundTrip();
   await categoryPreferredSuppliersRoundTrip();
   await functionalRolesRoundTrip();
+  await ticketSlaRoundTrip();
   deliberatelyReadOnly();
 
   const failed = results.filter((r) => r.o === 'FAIL').length;
