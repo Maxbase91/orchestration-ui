@@ -279,6 +279,7 @@ npm run test:form-gates           # the blocking form gate is a subset of what r
 npm run test:form-builder         # the builder offers every stage a form uses, the shared condition editor, and reports a form that cannot fire
 npm run test:channel-stages      # the workflow templates are the only definition of a channel lifecycle — and of the requester's wording for it; no code restates either
 npm run test:edge-conditions     # a decision node actually decides, every palette type round-trips, every workflow signal evaluates
+npm run test:channel-plan        # the Channel page's stage plan agrees with the server's landing and the engine's walk, for every template and signal
                                   #   both ways, a rejected approval goes back to the requester in every template, and no shipped or
                                   #   live template has a node the engine cannot branch from unambiguously
 npm run test:models               # each pinned Groq/Gemini model is still served by its provider (calls the providers, so it is outside the default gate — run it on demand or via `test:all -- --external`)

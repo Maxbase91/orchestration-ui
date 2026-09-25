@@ -79,3 +79,31 @@ Per phase: tsc, lint, test:all, the browser suites (rewritten where they walk th
 - Q2 Home: **a demand shows the Understood-as card first**, like every other outcome.
 - Q3 **"What you do at this stage" is a new field on each workflow stage**, edited in the Workflow Designer, shown on the channel page and the request's Workflow tab.
 - Q4 **Replace phase by phase** — each phase retires the wizard steps it replaces; one intake flow at any time.
+
+## Phase 3 — the Channel page (plan, 2026-09-26)
+Replaces **Review & submit** for every Door 1 channel — procurement-led,
+business-led **and the contract call-off**, whose submit moves off its Details
+form (that form's button already said "Review request" and submitted instead).
+
+**What the page shows, and where each value comes from**
+| On the page | Source |
+|---|---|
+| Headline + sentence | the channel template's requester wording (Workflow Designer) |
+| Value · Stages that apply · Stage targets | the request; the plan below; the template's `slaDays` |
+| Step by step | every stage node of the channel's template, in graph order |
+| Applies / If … / Skipped · reason / You are here | **the engine's own branch function** (`getNextNodeIds`) walked from the stage the **server** will land the request on (`firstActionableStage` for intake, the checkout's entry rule for a call-off); a signal not yet known (no supplier chosen → onboarding) is walked both ways, so "If the supplier is new" comes from the graph, not from copy |
+| "You: …" | new stage field `requesterAction` (Workflow Designer), seeded only where the requester really acts (Intake; business-led Contracting). Not Receipt: goods receipts are recorded by procurement/operations roles only — flagged, not changed |
+| Submit note | the entry stage and its owner role |
+| What you are submitting | the request; the executive summary (Read all sections); who/where; supplier; **who sourcing will invite** — `sourcingInvitees()`, the function the sourcing event uses (named + shortlist + every preferred supplier) |
+| Checks | the determination (full request) or the governed decision (call-off): why this channel (the matched routing rule's own description), disposition, contract coverage, risk, approvers (the **same derivation submit writes** — chain by value, cost centre, override step), failed policy checks, missing SD sections |
+| The workings (collapsed) + Export | materiality, inherent/operational risk, approval to source, contract & sourcing type, every policy check, next steps — DET-04/05/08, RSK-02, RTE-06 stay surfaced |
+
+**Removed:** Routing preview's "Add reviewers / watchers" and "Notes for approvers"
+(collected, never saved); the Review conclusions stack; the preview's own chain
+pick (it ignored the cost centre and the determination's chain, so it could name
+people submit would not).
+
+**Commits**
+1. [x] `channel-plan.ts` (pure) + `test:channel-plan` — every template × signal combination agrees with the server's landing rule and the engine's walk
+2. [ ] `requesterAction` stage field: types, designer, seed + live backfill, Workflow tab column, seed parity
+3. [ ] The Channel page (full request + call-off), wizard wiring, retired Review pieces, browser suites, docs

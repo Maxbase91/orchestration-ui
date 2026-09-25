@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getNeonClient, isMissingRelation, queryRows, type DbRow } from './_neon.js';
 import {
+  checkoutEntryStage,
   evaluateGovernedCheckout,
   type GovernedCheckoutInput,
   type GovernedCheckoutLine,
@@ -133,30 +134,6 @@ function assertString(value: unknown, name: string): string {
 /** The buying channel a governed checkout route runs as. */
 function channelForRoute(route: string): 'catalogue' | 'framework-call-off' {
   return route === 'catalogue' ? 'catalogue' : 'framework-call-off';
-}
-
-/**
- * Where the new request enters its lifecycle: the stage from the decision, the
- * template from the channel.
- *
- * The template used to be a literal — 'WF-002' for catalogue and 'WF-001' for
- * EVERY contract call-off — so a call-off ran on the procurement-led lifecycle.
- * Once that lifecycle was corrected to go Approval → Sourcing, an approved
- * call-off would have been sent to market. It is resolved from the stored
- * templates by the channel each one claims, like the intake writer does.
- */
-function lifecycleStage(route: string, status: GovernedCheckoutDecision['status']): ProcurementRequest['status'] {
-  if (route === 'catalogue') {
-    // A catalogue order has no sourcing, contracting or risk stage to enter;
-    // anything that is not auto-approved waits at manager approval.
-    return status === 'approved' ? 'po' : 'approval';
-  }
-  switch (status) {
-    case 'approved': return 'po';
-    case 'risk-review': return 'risk';
-    case 'contract-amendment-required': return 'contracting';
-    default: return 'approval';
-  }
 }
 
 function requestDb(request: Partial<ProcurementRequest>, fields: { id: string; requisitionId: string; decision: GovernedCheckoutDecision; now: string; templateId: string; stage: ProcurementRequest['status']; slaDeadline: string | null; channel: string }): { columns: string[]; values: unknown[] } {
@@ -411,7 +388,13 @@ async function prepareOrder(
   if (!templateId) {
     throw new CheckoutError('No workflow is configured for this kind of order. Ask an administrator to assign one in the Workflow Designer.', 'no_workflow', 422);
   }
-  const entry = { templateId, stage: lifecycleStage(checkout.route, decision.status) };
+  // Where the request enters its lifecycle: the stage from the decision
+  // (checkoutEntryStage — the rule the Channel page shows beforehand), the
+  // template from the channel. The template used to be a literal — 'WF-002' for
+  // catalogue and 'WF-001' for EVERY contract call-off — so a call-off ran on
+  // the procurement-led lifecycle, and once that went Approval → Sourcing an
+  // approved call-off would have been sent to market.
+  const entry = { templateId, stage: checkoutEntryStage(checkout.route, decision.status) };
 
   // The node and its SLA come from the stored template, not from literals.
   // A template with no node for this stage still gets a request and a stage

@@ -4,6 +4,7 @@
 import type { CatalogueItem } from '../../data/catalogue-items.js';
 import type { Contract, ProcurementProfile, PurchaseRequisitionRoute, RiskAssessment, Supplier } from '../../data/types.js';
 import { getActivePolicyConfig, type PolicyConfig } from './policy-config.js';
+import type { EdgeCondition } from '../workflow/edge-conditions.js';
 
 export interface GovernedCheckoutLine {
   item?: CatalogueItem;
@@ -106,6 +107,45 @@ export interface GovernedCheckoutDecision {
     contractMatchAlgorithmVersion?: string;
   };
 }
+
+/**
+ * Where a governed checkout's request enters its lifecycle, from the decision.
+ *
+ * The stage, not the node: the node is resolved from the stored template by
+ * stage (nodeIdForStatus), so reshaping a template in the Workflow Designer
+ * cannot leave this naming a node that no longer means what it did. Shared by
+ * the checkout endpoint that writes the request and the Channel page that says
+ * beforehand where it will go, so the two cannot disagree.
+ */
+export function checkoutEntryStage(
+  route: string,
+  status: GovernedCheckoutDecision['status'],
+): 'po' | 'approval' | 'risk' | 'contracting' {
+  if (route === 'catalogue') {
+    // A catalogue order has no sourcing, contracting or risk stage to enter;
+    // anything that is not auto-approved waits at manager approval.
+    return status === 'approved' ? 'po' : 'approval';
+  }
+  switch (status) {
+    case 'approved': return 'po';
+    case 'risk-review': return 'risk';
+    case 'contract-amendment-required': return 'contracting';
+    default: return 'approval';
+  }
+}
+
+/**
+ * What `checkoutEntryStage` lands a call-off past, in the branch vocabulary —
+ * the decision's own tests, in the order its status weighs them: the contract
+ * is amended only if it must be, the risk review runs only if the linked
+ * assessment is not valid, and approval is asked only above the auto-approval
+ * threshold (evaluateGovernedCheckout).
+ */
+export const CHECKOUT_ENTRY_CONDITIONS: Partial<Record<'contracting' | 'risk' | 'approval', EdgeCondition>> = {
+  contracting: { field: 'contractAmendmentRequired', operator: 'equals', value: 'true' },
+  risk: { field: 'riskRequired', operator: 'equals', value: 'true' },
+  approval: { field: 'value', operator: 'greater_than', value: 'policy:catalogueAutoApprovalThreshold' },
+};
 
 /** Resolve the single transactable contract behind a catalogue or call-off line. */
 export function resolveCheckoutContract(

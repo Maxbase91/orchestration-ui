@@ -14,6 +14,7 @@
 // `workflow_templates`, and the '@/'-aliased imports Vercel cannot resolve at
 // runtime are exactly why the file it replaces carried the same constraint.
 import type { BuyingChannel, RequestStatus } from '../../data/types.js';
+import type { EdgeCondition } from './edge-conditions.js';
 import { nodeToStatus } from './node-config.js';
 import { stageSlasFromTemplates, stageSlaDays } from './stage-sla.js';
 
@@ -275,6 +276,19 @@ export function firstActionableStage(
   // channel rather than an expected path.
   return stage ?? 'approval';
 }
+
+/**
+ * What `firstActionableStage` lands a request past, in the branch vocabulary.
+ *
+ * Risk is jumped unless intake found an assessment is needed. Onboarding has no
+ * entry here because it is never an entry — the graph reaches it after risk, or
+ * not at all. Declared beside the rule so the Channel page explains a jumped
+ * stage in the same words as one a branch skips (lib/workflow/channel-plan.ts),
+ * and `test:channel-plan` holds the two to each other.
+ */
+export const INTAKE_ENTRY_CONDITIONS: Partial<Record<RequestStatus, EdgeCondition>> = {
+  risk: { field: 'riskRequired', operator: 'equals', value: 'true' },
+};
 
 /**
  * How many working days a channel's stages target, from its template.
