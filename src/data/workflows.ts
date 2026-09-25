@@ -1,7 +1,12 @@
 // Seed data only — not read by the runtime app; the engine loads templates from
-// the workflow_templates table. Kept in sync with the live WF-001 node config
-// (role / slaDays / gate / purpose) so a fresh seed reproduces the same
-// governance rather than nodes with no owner.
+// the workflow_templates table. Kept in sync with the live node config
+// (role / slaDays / gate / purpose / requesterAction) so a fresh seed
+// reproduces the same governance rather than nodes with no owner.
+//
+// `requesterAction` is set only where the requester really acts: submitting at
+// Intake, and agreeing terms on a business-led buy. Not at Receipt, although
+// its role reads "Business Requestor" — goods receipts are recorded by
+// procurement and operations roles, so "confirm delivery" would be untrue.
 //
 // Workflow templates moved to the database in Wave 3
 // (UI uses `@/lib/db/hooks/use-workflow-templates`).
@@ -19,7 +24,7 @@ export const workflowTemplates: WorkflowTemplate[] = [
     requesterDescription: 'A buyer takes this on, approaches the market and negotiates on your behalf.',
     nodes: [
       { id: 'n1', type: 'start', label: 'Request Submitted', x: 50, y: 200 },
-      { id: 'n2', type: 'stage', label: 'Intake', x: 200, y: 200, role: 'Business Requestor', slaDays: 1, gate: 'auto' as const, purpose: 'Demand captured and classified. Completed by submission.' },
+      { id: 'n2', type: 'stage', label: 'Intake', x: 200, y: 200, role: 'Business Requestor', slaDays: 1, gate: 'auto' as const, purpose: 'Demand captured and classified. Completed by submission.', requesterAction: 'Describe what you need and submit it.' },
       { id: 'n3', type: 'stage', label: 'Validation', x: 350, y: 200, role: 'Category Manager', slaDays: 3, gate: 'manual' as const, purpose: 'Demand is complete, correctly categorised and routed to the right channel.' },
       { id: 'n14', type: 'stage', label: 'Risk Assessment', x: 350, y: 330, role: 'Third-party risk', slaDays: 7, gate: 'manual' as const, purpose: 'Third-party risk assessed and a decision recorded, or an existing assessment reused.' },
       { id: 'n5', type: 'stage', label: 'Approval', x: 650, y: 100, role: 'Approver', slaDays: 5, gate: 'manual' as const, purpose: 'All approvers in the value-banded chain have responded.' },
@@ -81,7 +86,7 @@ export const workflowTemplates: WorkflowTemplate[] = [
       // phantom stage while lacking the intake it actually has. It IS the
       // automated intake check; one rename removes the phantom and supplies
       // the missing stage.
-      { id: 'n2', type: 'stage', label: 'Intake', x: 200, y: 150, role: 'Business Requestor', slaDays: 1, gate: 'auto' as const, purpose: 'Catalogue order captured and checked against the item.' },
+      { id: 'n2', type: 'stage', label: 'Intake', x: 200, y: 150, role: 'Business Requestor', slaDays: 1, gate: 'auto' as const, purpose: 'Catalogue order captured and checked against the item.', requesterAction: 'Choose the items and place the order.' },
       { id: 'n3', type: 'decision', label: 'Value Check', x: 350, y: 150 },
       { id: 'n4', type: 'stage', label: 'Manager Approval', x: 500, y: 50, slaDays: 3 },
       { id: 'n5', type: 'stage', label: 'Auto-PO', x: 500, y: 250, slaDays: 1 },
@@ -148,7 +153,7 @@ export const workflowTemplates: WorkflowTemplate[] = [
     requesterDescription: 'You lead the buying decision; Procurement is available if you want help.',
     nodes: [
       { id: 'n1', type: 'start', label: 'Request Submitted', x: 50, y: 200 },
-      { id: 'n2', type: 'stage', label: 'Intake', x: 200, y: 200, role: 'Business Requestor', slaDays: 1, gate: 'auto' as const, purpose: 'Demand captured and classified. Completed by submission.' },
+      { id: 'n2', type: 'stage', label: 'Intake', x: 200, y: 200, role: 'Business Requestor', slaDays: 1, gate: 'auto' as const, purpose: 'Demand captured and classified. Completed by submission.', requesterAction: 'Describe what you need and submit it.' },
       { id: 'n3', type: 'stage', label: 'Risk Assessment', x: 350, y: 200, role: 'Third-party risk', slaDays: 7, gate: 'manual' as const, purpose: 'Third-party risk assessed and a decision recorded, or an existing assessment reused.' },
       { id: 'n4', type: 'stage', label: 'Vendor Onboarding', x: 500, y: 200, role: 'Vendor management', slaDays: 5, gate: 'manual' as const, purpose: 'Create and screen the supplier so they can be transacted with.' },
       { id: 'n5', type: 'stage', label: 'Approval', x: 650, y: 200, role: 'Approver', slaDays: 5, gate: 'manual' as const, purpose: 'All approvers in the value-banded chain have responded.' },
@@ -161,7 +166,7 @@ export const workflowTemplates: WorkflowTemplate[] = [
       // The business chooses the supplier, but the terms are still agreed and
       // signed before a PO: without this stage a business-led services buy
       // reached a purchase order with no contract behind it.
-      { id: 'n12', type: 'stage', label: 'Contracting', x: 725, y: 80, role: 'Legal', slaDays: 10, gate: 'manual' as const, purpose: 'Supplier terms agreed and signed before the PO.' },
+      { id: 'n12', type: 'stage', label: 'Contracting', x: 725, y: 80, role: 'Legal', slaDays: 10, gate: 'manual' as const, purpose: 'Supplier terms agreed and signed before the PO.', requesterAction: 'Agree the terms with the supplier; Legal reviews them before the purchase order.' },
     ],
     edges: [
       { source: 'n1', target: 'n2' },
@@ -191,7 +196,7 @@ export const workflowTemplates: WorkflowTemplate[] = [
     requesterDescription: 'The agreement is already negotiated, so there is no new sourcing exercise.',
     nodes: [
       { id: 'n1', type: 'start', label: 'Call-off Submitted', x: 50, y: 200 },
-      { id: 'n2', type: 'stage', label: 'Intake', x: 200, y: 200, role: 'Business Requestor', slaDays: 1, gate: 'auto' as const, purpose: 'Call-off captured against the contract. Completed by submission.' },
+      { id: 'n2', type: 'stage', label: 'Intake', x: 200, y: 200, role: 'Business Requestor', slaDays: 1, gate: 'auto' as const, purpose: 'Call-off captured against the contract. Completed by submission.', requesterAction: 'Give the details of this call-off and submit it.' },
       { id: 'n3', type: 'stage', label: 'Contracting', x: 350, y: 80, role: 'Legal', slaDays: 10, gate: 'manual' as const, purpose: 'The contract is amended so this call-off falls within it.' },
       { id: 'n4', type: 'stage', label: 'Risk Assessment', x: 350, y: 320, role: 'Third-party risk', slaDays: 7, gate: 'manual' as const, purpose: 'The contract supplier\'s assessment is extended to this scope.' },
       { id: 'n5', type: 'stage', label: 'Approval', x: 500, y: 200, role: 'Approver', slaDays: 5, gate: 'manual' as const, purpose: 'All approvers in the value-banded chain have responded.' },

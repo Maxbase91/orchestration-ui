@@ -87,6 +87,18 @@ export function NodeConfigPanel({
                 placeholder="What has to be true before this stage can be completed?"
               />
             </Field>
+            {/* Shown to the requester on the Channel page before they submit,
+                and on the request's Workflow tab — "You: …". Leave it empty
+                where the requester does nothing: the page then says nothing. */}
+            <Field label="What the requester does here">
+              <Textarea
+                aria-label="What the requester does here"
+                value={(formData.requesterAction as string) ?? ''}
+                onChange={(e) => set('requesterAction', e.target.value)}
+                rows={2}
+                placeholder="e.g. Describe what you need and submit it. Leave empty if they do nothing here."
+              />
+            </Field>
             <Field label="SLA (working days)">
               <Input
                 type="number"

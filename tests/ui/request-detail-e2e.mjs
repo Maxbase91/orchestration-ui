@@ -91,6 +91,13 @@ try {
   check('the workflow tab renders step cards', stepCount > 0, `found ${stepCount}`);
   check('the current stage opens with the description summary',
     await column.getByText('An advisory engagement').first().isVisible().catch(() => false));
+  // The attached template says what the requester does at each stage — the
+  // same field the Channel page showed before they submitted.
+  const attached = page.locator('table').filter({ hasText: 'What the requester does' });
+  check('the attached template says what the requester does at a stage',
+    (await attached.locator('tr', { hasText: 'Intake' }).getByText('Describe what you need and submit it.').count()) === 1);
+  check('and says nothing where they do nothing',
+    (await attached.locator('tr', { hasText: 'Validation' }).getByText('—').count()) === 1);
 
   console.log('\nThe risk form pre-populates from the description');
   const fillOutButtons = column.getByRole('button', { name: 'Fill Out Form' });

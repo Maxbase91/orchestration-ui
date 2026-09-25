@@ -43,6 +43,9 @@ export const FIXTURES = {
       // Procurement-led is the longest stage list, so the workflow tab renders
       // the most step cards — the surface that crashed.
       buying_channel: 'procurement-led',
+      // The template its channel runs on, so the Workflow tab draws the
+      // attached template's table — owner, SLA and what the requester does.
+      workflow_template_id: 'WF-001',
       commodity_code: 'CON-ADV',
       commodity_code_label: 'Advisory services',
       business_justification: 'Consolidating suppliers is expected to reduce tail spend.',
@@ -284,7 +287,7 @@ export const FIXTURES = {
     requester_description: 'A buyer takes this on, approaches the market and negotiates on your behalf.',
     nodes: [
       { id: 'n1', type: 'start', label: 'Request Submitted' },
-      { id: 'n2', type: 'stage', label: 'Intake', role: 'Business Requestor', slaDays: 1, gate: 'auto' },
+      { id: 'n2', type: 'stage', label: 'Intake', role: 'Business Requestor', slaDays: 1, gate: 'auto', requesterAction: 'Describe what you need and submit it.' },
       { id: 'n3', type: 'stage', label: 'Validation', role: 'Category Manager', slaDays: 3, gate: 'manual' },
       { id: 'n3-risk', type: 'stage', label: 'Risk Assessment', role: 'Third-party risk', slaDays: 7, gate: 'manual' },
       { id: 'n3-vendor', type: 'stage', label: 'Vendor Onboarding', role: 'Supplier Manager', slaDays: 7, gate: 'manual' },

@@ -281,7 +281,10 @@ export function TabWorkflow({ request, focusStageId }: TabWorkflowProps) {
                     <th className="py-1.5 pr-3 font-medium">Stage</th>
                     <th className="py-1.5 pr-3 font-medium">Owner role</th>
                     <th className="py-1.5 pr-3 font-medium">SLA</th>
-                    <th className="py-1.5 font-medium">Leaving the stage</th>
+                    <th className="py-1.5 pr-3 font-medium">Leaving the stage</th>
+                    {/* The requester's part, as the Channel page promised it
+                        before they submitted (Workflow Designer). */}
+                    <th className="py-1.5 font-medium">What the requester does</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -303,10 +306,13 @@ export function TabWorkflow({ request, focusStageId }: TabWorkflowProps) {
                               ? `${n.slaDays}d`
                               : <span className="text-ink-3">—</span>}
                           </td>
-                          <td className="py-1.5 text-muted-foreground">
+                          <td className="py-1.5 pr-3 text-muted-foreground">
                             {isGatedStage(n, nodeToStatus(n.label))
                               ? (n.purpose ?? 'Needs the owner to complete it')
                               : 'Advances automatically'}
+                          </td>
+                          <td className="py-1.5 text-ink-2">
+                            {n.requesterAction ?? <span className="text-ink-3">—</span>}
                           </td>
                         </tr>
                       );

@@ -14,7 +14,8 @@ import type { Node, Edge } from '@xyflow/react';
 // collected — the owner role, the SLA, the instructions — was written to local
 // state and thrown away on save. An admin could set a stage owner and nothing
 // anywhere would read it. The engine now reads role, slaDays, purpose and gate,
-// so they have to survive the round trip.
+// and the Channel page reads requesterAction, so they have to survive the round
+// trip.
 function mapFlowToTemplateGraph(
   nodes: Node[],
   edges: Edge[],
@@ -51,6 +52,9 @@ function mapFlowToTemplateGraph(
         ...(data.role ? { role: data.role as string } : {}),
         ...(Number.isFinite(slaDays) && slaDays > 0 ? { slaDays } : {}),
         ...(data.purpose ? { purpose: data.purpose as string } : {}),
+        ...(typeof data.requesterAction === 'string' && data.requesterAction.trim()
+          ? { requesterAction: data.requesterAction.trim() }
+          : {}),
         ...(data.gate === 'auto' || data.gate === 'manual'
           ? { gate: data.gate as 'auto' | 'manual' }
           : {}),
@@ -111,6 +115,7 @@ function mapTemplateToFlow(template: WorkflowTemplate): { nodes: Node[]; edges: 
       ...(n.role ? { role: n.role } : {}),
       ...(n.slaDays != null ? { slaDays: n.slaDays } : {}),
       ...(n.purpose ? { purpose: n.purpose } : {}),
+      ...(n.requesterAction ? { requesterAction: n.requesterAction } : {}),
       ...(n.gate ? { gate: n.gate } : {}),
       ...(n.integrationKind ? { integrationKind: n.integrationKind } : {}),
     },

@@ -388,6 +388,11 @@ try {
     // template claims — it replaced a table in the routing code.
     const headline = await page.getByLabel('Requester headline').inputValue().catch(() => '');
     check('designer shows the channel headline the requester will read', headline.trim().length > 0, `headline=${JSON.stringify(headline)}`);
+    // A stage says what the requester does there — the line the Channel page
+    // shows before submit. Stored on the node and loaded back into the panel.
+    await page.locator('.react-flow__node', { hasText: /^Intake/ }).first().click();
+    const action = await page.getByLabel('What the requester does here').inputValue({ timeout: 5000 }).catch(() => '');
+    check('the Intake stage says what the requester does there', action === 'Describe what you need and submit it.', `action=${JSON.stringify(action)}`);
     check('no uncaught errors on the workflow designer', errors.length === 0, errors[0]);
     await ctx.close();
   }

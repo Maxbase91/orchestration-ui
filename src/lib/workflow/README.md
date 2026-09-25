@@ -6,7 +6,7 @@ config plane that is actually read at runtime.
 | File | What it is |
 |---|---|
 | `transition.ts` | **The single way a request changes stage.** Both callers use it |
-| `node-config.ts` | The gate model + `nodeToStatus` — shared by the engine and the UI so they cannot drift |
+| `node-config.ts` | The gate model + `nodeToStatus` — shared by the engine and the UI so they cannot drift. A stage node carries `role`, `slaDays`, `purpose`, `gate` and **`requesterAction`** — what the requester does there, shown on the Channel page before submit and on the Workflow tab; set only where they really act (Intake, business-led Contracting), never at Receipt, which only procurement and operations roles can record |
 | `engine.ts` | `initWorkflow` → `advanceInstance` → `executeNode`; edge conditions; compliance report |
 | `open-items.ts` | One rule for "who owns this and what is open", replacing four inline derivations |
 | `risk-stage.ts` | The conditional risk stage — reuse an existing assessment, else raise a draft |

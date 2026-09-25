@@ -105,5 +105,5 @@ people submit would not).
 
 **Commits**
 1. [x] `channel-plan.ts` (pure) + `test:channel-plan` — every template × signal combination agrees with the server's landing rule and the engine's walk
-2. [ ] `requesterAction` stage field: types, designer, seed + live backfill, Workflow tab column, seed parity
+2. [x] `requesterAction` stage field: types, designer, seed + live backfill, Workflow tab column, seed parity
 3. [ ] The Channel page (full request + call-off), wizard wiring, retired Review pieces, browser suites, docs

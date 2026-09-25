@@ -24,6 +24,13 @@ export interface TemplateNode {
   slaDays?: number;
   /** One line saying what this stage is for — shown as the stage's exit criteria. */
   purpose?: string;
+  /**
+   * What the requester does here, if anything — "Describe what you need and
+   * submit it". Set only where they really act: a line saying they confirm
+   * delivery at a stage only procurement can record would be a promise the
+   * platform does not keep.
+   */
+  requesterAction?: string;
   /** Whether leaving this stage needs a human action. */
   gate?: NodeGate;
   /** For an `integration` node: which kind the designer dropped. Without it

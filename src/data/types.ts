@@ -537,6 +537,8 @@ export interface WorkflowTemplate {
     role?: string;
     slaDays?: number;
     purpose?: string;
+    /** What the requester does at this stage, shown on the Channel page and the Workflow tab. */
+    requesterAction?: string;
     gate?: 'auto' | 'manual';
   /** For an `integration` node: which kind the designer dropped. Without it
    *  the three collapse into one on reload. */

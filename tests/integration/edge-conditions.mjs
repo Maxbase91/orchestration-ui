@@ -158,6 +158,22 @@ for (const gone of ['autoApproveConditions', 'allowDelegation', 'escalateOnTimeo
 }
 if (failures === 0) ok('no control collects a field the save path drops');
 
+// Every field the stage panel asks for is saved and loaded back. The panel used
+// to collect assignee, instructions and timeout, and the save path dropped all
+// three; requesterAction — what the Channel page tells the requester they do —
+// joins role, SLA, purpose and gate on the same terms.
+{
+  const panel = read('src/features/admin/workflow-designer/components/node-config-panel.tsx');
+  const save = /function mapFlowToTemplateGraph[\s\S]*?\n}\n/.exec(page)?.[0] ?? '';
+  const load = /function mapTemplateToFlow[\s\S]*?\n}\n/.exec(page)?.[0] ?? '';
+  const lost = ['role', 'slaDays', 'purpose', 'gate', 'requesterAction'].filter((field) =>
+    !new RegExp(`set\\('${field}'`).test(panel)
+    || !new RegExp(`data\\.${field}\\b`).test(save)
+    || !new RegExp(`n\\.${field}\\b`).test(load));
+  if (lost.length) bad('every stage field the panel asks for is saved and loaded back', lost.join(', '));
+  else ok('role, SLA, purpose, gate and what the requester does all round-trip');
+}
+
 // An edge condition must survive the round trip, or the designer is decorative.
 if (!/e\.data\?\.condition/.test(page)) bad('the save path persists an edge condition');
 if (!/e\.condition \? \{ data: \{ condition: e\.condition \} \}/.test(page)) {
