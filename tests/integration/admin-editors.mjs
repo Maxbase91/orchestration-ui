@@ -252,8 +252,6 @@ function deliberatelyReadOnly() {
     ['sla targets', 'src/features/admin/sla-targets-page.tsx', 'useUpsertSlaTarget'],
     // Derived from system_integrations — there is nothing here to save.
     ['system health', 'src/features/admin/system-health-page.tsx', 'mutateAsync'],
-    // Every control is disabled with a stated reason.
-    ['policy management', 'src/features/admin/policy-management-page.tsx', 'mutateAsync'],
   ];
   for (const [label, path, forbidden] of cases) {
     const src = readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');

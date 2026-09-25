@@ -39,7 +39,7 @@ const routes = {
   procurement: ['/requests', '/approvals', '/sourcing', '/contracts', '/purchasing/invoices', '/purchasing/payments'],
   vendor: ['/suppliers', '/suppliers/risk', '/suppliers/onboarding', '/contracts'],
   operations: ['/tasks', '/purchasing/receipt', '/purchasing/invoices', '/purchasing/match'],
-  admin: ['/admin/rules', '/admin/policies', '/admin/workflows', '/admin/database', '/admin/audit'],
+  admin: ['/admin/rules', '/admin/kb', '/admin/workflows', '/admin/database', '/admin/audit'],
   supplier: ['/portal', '/portal/sourcing', '/portal/invoices', '/portal/documents', '/portal/messages'],
 };
 

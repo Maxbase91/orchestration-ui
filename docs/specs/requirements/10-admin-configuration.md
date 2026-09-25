@@ -32,7 +32,7 @@ FR10-11 · **Approval Chains** (`/admin/approvals`): CRUD on the Neon-backed `ap
 
 FR10-12 · **Form Builder** (`/admin/forms`): create/edit form templates (8 built-in: risk triage, IT security, etc.). Form fields (11 types), conditional logic. Forms are triggered by workflow stage nodes.
 
-FR10-13 · **Policy Management** (`/admin/policies`): policy document viewer with structured threshold blocks (display-only; future: editable thresholds feeding routing engine).
+FR10-13 · ~~Policy Management~~ — removed 2026-09-25. It was a static, display-only third copy of the policy text (it still described a direct PO channel), used by nothing. Policy text lives in the **Knowledge base** (`/admin/kb`), with figures linked to **Decisioning thresholds**.
 
 ---
 

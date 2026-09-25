@@ -118,7 +118,6 @@ The system administrator who configures the platform. They manage routing rules,
 | Workflow Designer | No | No | No | No | No | Yes |
 | Approval Chains | No | No | No | No | No | Yes |
 | AI Agent Configuration | No | No | No | No | No | Yes |
-| Policy Management | No | No | No | No | No | Yes |
 | User Management | No | No | No | No | No | Yes |
 | System Health | No | No | No | No | No | Yes |
 | Audit Log | No | No | No | No | No | Yes |
@@ -201,7 +200,7 @@ The left sidebar organises the platform into the following groups, with items fi
 6. **Contracts** — Register (Active/Renewals & Expiries/Templates)
 7. **Purchasing** — Purchase Orders (Open POs/Goods Receipt), Invoices (Queue/Three-Way Match/Payment Tracker)
 8. **Analytics** — Dashboards (Spend/Compliance/Pipeline/Supplier Performance), Reports (Builder/Scheduled/Exports)
-9. **Admin** — Routing Rules, Form Builder, Approval Chains, Workflow Designer, AI Agent Configuration, Policy Management, User Management, System Health, Audit Log
+9. **Admin** — Routing Rules, Form Builder, Approval Chains, Workflow Designer, AI Agent Configuration, Knowledge Base, User Management, System Health, Audit Log
 10. **Help** — AI Assistant, Knowledge Base, Contact Support
 
 ### 3.5 AI Assistant
@@ -1037,7 +1036,7 @@ The conversational AI assistant covers queries across the following domains:
 - Sourcing events
 - Report navigation
 
-Each response includes actionable navigation links. For example, asking about supplier risk generates links to the Compliance KPI Dashboard, Supplier Risk & Compliance page, and Policy Management.
+Each response includes actionable navigation links. For example, asking about supplier risk generates links to the Compliance KPI Dashboard, Supplier Risk & Compliance page, and the Knowledge Base.
 
 **Smart Command Bar (Natural Language to Action):**
 As described in Section 4.1, the command bar translates natural language input into platform actions, including real-time catalogue search results.
@@ -1206,23 +1205,9 @@ Administrators can run a test request through a workflow design to verify that r
 
 Each chain is visually editable with a step editor showing: step number, approver role, escalation timeout, and delegation rules.
 
-### 14.5 Policy Management
+### 14.5 Policy Management (removed)
 
-8 policies managed with version control:
-
-Policies govern procurement behaviour across the organisation. Each policy record includes: title, version, status (Active/Draft/Archived), effective date, owner, category, and full-text content.
-
-Policies cover areas such as:
-- Delegated authority limits
-- Competitive sourcing requirements
-- Consulting engagement rules
-- Contingent labour policy
-- Data protection assessment requirements
-- Contract renewal procedures
-- Supplier risk management
-- Catalogue purchasing limits
-
-Administrators can view the full text of each policy, create new versions, and track version history.
+Removed on 2026-09-25: it was a static copy of the policy text that nothing used. Policy text is maintained in the Knowledge base, whose figures are linked to Decisioning thresholds and approval chains.
 
 ### 14.6 User Management
 

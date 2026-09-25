@@ -216,7 +216,7 @@ export const aiResponses: AIResponse[] = [
     links: [
       { label: 'Compliance KPI Dashboard', path: '/analytics/compliance' },
       { label: 'Supplier Risk & Compliance', path: '/suppliers/risk' },
-      { label: 'Policy Management', path: '/admin/policies' },
+      { label: 'Knowledge Base', path: '/help/kb' },
     ],
   },
   {

@@ -77,7 +77,6 @@ R1 is an internally operated system of record backed by private Neon. It owns re
 | AI Agent Configuration | Agent library, type-specific config forms, test panel, performance dashboard |
 | Categories | The demand taxonomy: label, description, icon, timeline, active — and **whether the category can be fulfilled from the catalogue**, which gates the buy-route screen's catalogue check |
 | Approval Chains | Visual approval chain editor with threshold configuration |
-| Policy Management | Procurement policy library with expandable full-text preview |
 
 ### Analytics & Platform
 | Screen | Description |

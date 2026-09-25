@@ -175,7 +175,7 @@ ANALYTICS
 
 ADMIN (admin only)
   Routing Rules, Form Builder, Approval Chains, Workflow Designer,
-  AI Agent Configuration, Policy Management, User Management,
+  AI Agent Configuration, Knowledge Base, User Management,
   System Health, Audit Log
 
 HELP
@@ -497,9 +497,9 @@ Full visual canvas powered by React Flow:
 
 4 pre-built chains (Standard, Fast-Track, VP-Level, Board-Level) with visual step display, inline editing, threshold configuration, and routing rule cross-references.
 
-### 11.5 Policy Management
+### 11.5 Policy Management (removed)
 
-8 procurement policies with active/draft status, version control, expandable full-text preview, edit/archive/download actions.
+Removed on 2026-09-25 — a static copy of the policy text. Policy text is maintained in the Knowledge base.
 
 ### 11.6 User Management
 

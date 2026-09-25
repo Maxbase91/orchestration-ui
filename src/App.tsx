@@ -56,7 +56,6 @@ import { DeliveryLocationsPage } from '@/features/admin/delivery-locations-page'
 import { CategoriesPage } from '@/features/admin/categories-page'
 import { ServiceDescriptionPage } from '@/features/admin/service-description-page'
 import { SlaTargetsPage } from '@/features/admin/sla-targets-page'
-import { PolicyManagementPage } from '@/features/admin/policy-management-page'
 import { UserManagementPage } from '@/features/admin/user-management-page'
 import { SystemHealthPage } from '@/features/admin/system-health-page'
 import { DatabaseAdminPage } from '@/features/admin/database/database-admin-page'
@@ -187,7 +186,6 @@ export function App() {
               <Route path="/admin/approvals" element={<ApprovalChainsPage />} />
               <Route path="/admin/workflows" element={<WorkflowDesignerPage />} />
               <Route path="/admin/agents" element={<AIAgentsPage />} />
-              <Route path="/admin/policies" element={<PolicyManagementPage />} />
               <Route path="/admin/users" element={<UserManagementPage />} />
               <Route path="/admin/health" element={<SystemHealthPage />} />
               <Route path="/admin/audit" element={<AuditLogPage />} />
