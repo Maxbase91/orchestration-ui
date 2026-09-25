@@ -146,6 +146,17 @@ check('a route-shaped category is re-derived from what is being bought',
 check('a real category is taken as given',
   parseDemandDeepLink(params({ step: '2', category: 'consulting', title: 'strategy work' }), directory)
     .patch.category === 'consulting');
+// The label shown back to the requester is the configured one. It came from a
+// map in code, so a category added in Admin → Categories showed as its raw id.
+{
+  const labels = { consulting: 'Advisory & Consulting', 'research-services': 'Research Services' };
+  const labelFor = (id) => labels[id] ?? id;
+  check('a deep link shows the configured category label',
+    parseDemandDeepLink(params({ step: '2', category: 'research-services', title: 'market study' }), directory, labelFor)
+      .patch.categoryDescription === 'Research Services');
+  check('no category label map remains in the intake form data',
+    !/CATEGORY_LABELS/.test(readFileSync('src/features/requests/new-request/intake-form-data.ts', 'utf8')));
+}
 // Step numbers are gone; the link's intent is not.
 check('the legacy step number maps to the step that replaced it',
   LEGACY_STEP_PARAM['2'] === 'buy-route'

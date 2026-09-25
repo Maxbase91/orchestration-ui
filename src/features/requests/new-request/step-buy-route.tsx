@@ -44,6 +44,7 @@ import { useChannelCopy } from '@/lib/db/hooks/use-channel-stage-map';
 import { resolveDemandChannel } from '@/lib/routing/demand-channel';
 import { usePolicyConfig } from '@/lib/procurement/use-policy-config';
 import { computeDemandSignals } from '@/lib/procurement/demand-signals';
+import { usePreferredSupplierIds } from '@/lib/db/hooks/use-category-preferred-suppliers';
 import { requestContractMatch } from '@/lib/procurement/contract-match-api';
 import type { CatalogueItem } from '@/data/catalogue-items';
 import type { Contract, ContractMatchResponse, Supplier } from '@/data/types';
@@ -259,14 +260,16 @@ export function StepBuyRoute({
   // description is generated against. Two of the ten live rules read those
   // fields, so omitting them would silently change the answer relative to the
   // determination.
+  const preferredSupplierIds = usePreferredSupplierIds(category);
   const signals = useMemo(
     () => computeDemandSignals({
       category,
       value: estimatedValue,
       sow: { objective: demandText },
       contractCovered: contractMatches.length > 0,
+      preferredSupplierIds,
     }),
-    [category, estimatedValue, demandText, contractMatches.length],
+    [category, estimatedValue, demandText, contractMatches.length, preferredSupplierIds],
   );
 
   const policyConfig = usePolicyConfig();

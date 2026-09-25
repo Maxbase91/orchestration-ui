@@ -259,20 +259,4 @@ export const INITIAL_INTAKE_DATA: IntakeFormData = {
   beneficiaryCountryCode: '',
 };
 
-/**
- * Display labels for the broad commodity category.
- *
- * The category is internal routing metadata the requester never picks (ADR-0005);
- * this map exists so a derived value can be shown back to them in words.
- */
-export const CATEGORY_LABELS: Record<string, string> = {
-  goods: 'Goods',
-  services: 'Services',
-  software: 'Software / IT',
-  consulting: 'Consulting',
-  'contingent-labour': 'Contingent Labour',
-  'contract-renewal': 'Contract Renewal',
-  'supplier-onboarding': 'Supplier Onboarding',
-  catalogue: 'Catalogue Purchase',
-};
 

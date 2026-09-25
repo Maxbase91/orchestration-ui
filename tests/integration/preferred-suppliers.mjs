@@ -127,6 +127,19 @@ check('every approval path applies the step — submit, the engine and the Revie
 check('the reason is shown beside the supplier on the request', () =>
   assert.match(read('src/features/requests/request-detail/tab-overview.tsx'), /overrideReason=\{request\.supplierOverrideReason\}/));
 
+// The early read on How you'll buy used the performance heuristic, so it could
+// call a supplier preferred that the category's list leaves out — and then
+// disagree with the determination at Review.
+{
+  const { computeDemandSignals } = await import('../../src/lib/procurement/demand-signals.ts');
+  const strong = { id: 'S9', name: 'Strong Performer', performanceScore: 95, riskRating: 'low', screeningStatus: 'cleared', categories: ['consulting'] };
+  const demand = { category: 'consulting', value: 100_000, supplier: strong };
+  check('a supplier off the list is not preferred, however it performs', () =>
+    assert.equal(computeDemandSignals({ ...demand, preferredSupplierIds: ['S3'] }).competitiveSourcingRequired, true));
+  check('a supplier on the list is', () =>
+    assert.equal(computeDemandSignals({ ...demand, preferredSupplierIds: ['S9'] }).competitiveSourcingRequired, false));
+}
+
 console.log('');
 if (failures) { console.error(`FAILED: ${failures} check(s)`); process.exit(1); }
 console.log('Preferred suppliers are a maintained list, and it is used.');

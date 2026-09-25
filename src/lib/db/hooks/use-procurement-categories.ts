@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { codeBookFromCategories, type CommodityCodeBook } from '@/lib/procurement/category-code';
 import type { ProcurementCategory } from '@/lib/db/procurement-categories';
@@ -23,8 +23,9 @@ export function useProcurementCategories() {
  * nobody has configured falls back to itself rather than to a blank.
  */
 export function useCategoryLabel(): (id: string) => string {
-  const { data = [] } = useProcurementCategories();
-  return (id: string) => data.find((c) => c.id === id)?.label ?? id;
+  const { data } = useProcurementCategories();
+  // Stable until the categories change, so it can sit in an effect's deps.
+  return useCallback((id: string) => data?.find((c) => c.id === id)?.label ?? id, [data]);
 }
 
 /**

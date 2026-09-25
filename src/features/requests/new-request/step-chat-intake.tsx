@@ -15,6 +15,7 @@ import { computeDemandSignals } from '@/lib/procurement/demand-signals';
 import type { DemandSlot } from '@/lib/procurement/demand-conversation';
 import { resolveCategoryCode } from '@/lib/procurement/category-code';
 import { useCommodityCodeBook } from '@/lib/db/hooks/use-procurement-categories';
+import { usePreferredSupplierIds } from '@/lib/db/hooks/use-category-preferred-suppliers';
 import { formatCurrency } from '@/lib/format';
 import { assessAnswer, type AnswerVerdict } from '@/lib/procurement/answer-quality';
 import { parseDeliveryDate } from '@/lib/parse-delivery-date';
@@ -405,6 +406,7 @@ function buildWelcomeMessage(
 export function StepChatIntake({ category, categoryDescription: _categoryDescription, data, onUpdate, riskQuestions = EMPTY_RISK_QUESTIONS, riskAnswers = EMPTY_RISK_ANSWERS }: StepChatIntakeProps) {
   const { data: suppliers = [] } = useSuppliers();
   const codeBook = useCommodityCodeBook();
+  const preferredSupplierIds = usePreferredSupplierIds(category);
   // Which questions get asked, and which sections compose the compact narrative,
   // are admin config (/admin/service-description). Resolution is category-first
   // with a `default` row and the built-in template beneath, so an empty table
@@ -955,6 +957,7 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
       // function" — the classification is about what was described, not about
       // how it came to be recorded.
       sow: sectionsOnly(svcDesc),
+      preferredSupplierIds,
     });
     try {
       const res = await fetch('/api/generate-sow', {
@@ -1014,7 +1017,7 @@ export function StepChatIntake({ category, categoryDescription: _categoryDescrip
     } finally {
       setGenerating(false);
     }
-  }, [category, data, svcDesc, onUpdate, suppliers]);
+  }, [category, data, svcDesc, onUpdate, suppliers, preferredSupplierIds]);
 
   // Auto-compose the service description the moment the conversation is complete
   // (all components captured). Runs once; no button required.

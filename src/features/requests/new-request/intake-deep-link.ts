@@ -21,7 +21,7 @@
 // calling them rather than by mounting a wizard and reading the screen.
 
 import { classifyCommodityCategory, ROUTE_LIKE_CATEGORY } from '../../../lib/procurement/classify.js';
-import { CATEGORY_LABELS, type IntakeFormData } from './intake-form-data.js';
+import type { IntakeFormData } from './intake-form-data.js';
 import type { IntakeStepId } from './intake-steps.js';
 import type { CatalogueItem } from '../../../data/catalogue-items.js';
 import type { Supplier } from '../../../data/types.js';
@@ -78,6 +78,8 @@ export function matchSupplierByName(
 export function parseDemandDeepLink(
   params: DeepLinkParams,
   suppliers: Supplier[],
+  /** The configured category's label (Admin → Categories); an unknown id shows as itself. */
+  labelFor: (categoryId: string) => string = (id) => id,
 ): DemandDeepLink | null {
   const step = params.get('step');
   const category = params.get('category');
@@ -94,7 +96,7 @@ export function parseDemandDeepLink(
     step: LEGACY_STEP_PARAM[step] ?? 'buy-route',
     patch: {
       category: commodityCategory,
-      categoryDescription: CATEGORY_LABELS[commodityCategory] ?? commodityCategory,
+      categoryDescription: labelFor(commodityCategory),
       title,
       supplier,
       supplierId,

@@ -82,6 +82,12 @@ export interface DemandSignalsInput {
   sow?: SensitivitySource | null;
   /** A transactable contract already covers this (from the intake pre-check). */
   contractCovered?: boolean;
+  /**
+   * The category's preferred-supplier list. It decides "preferred" when set, as
+   * it does in the determination — without it this early read used the
+   * performance heuristic and could disagree with the answer at Review.
+   */
+  preferredSupplierIds?: readonly string[];
 }
 
 export interface DemandSignals {
@@ -137,7 +143,9 @@ export function computeDemandSignals(
   );
   drivers.push(...risk.drivers);
 
-  const isPreferred = input.supplier ? isPreferredSupplier(input.supplier as Supplier) : false;
+  const isPreferred = input.supplier
+    ? isPreferredSupplier(input.supplier as Supplier, { preferredIds: input.preferredSupplierIds })
+    : false;
   const competitive = competitiveSourcingCheck(
     { value: input.value, category: input.category, isPreferred },
     config,
