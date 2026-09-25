@@ -23,6 +23,7 @@ const TYPE_LABELS: Record<string, string> = {
   recommendation: 'Recommendation',
   'knowledge-base': 'Knowledge Base',
   'anomaly-detection': 'Anomaly Detection',
+  status: 'Status Answers',
 };
 
 const TYPE_COLORS: Record<string, string> = {
@@ -32,6 +33,7 @@ const TYPE_COLORS: Record<string, string> = {
   recommendation: 'bg-warn-soft text-warn',
   'knowledge-base': 'bg-cyan-100 text-cyan-700',
   'anomaly-detection': 'bg-stop-soft text-stop',
+  status: 'bg-ok-soft text-ok',
 };
 
 interface AgentLibraryProps {

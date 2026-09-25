@@ -116,12 +116,13 @@ check('requests are scoped to the requester or owner',
 check('requestor_id is no longer a model-settable filter',
   !/if \(filters\.requestor_id\)/.test(chat));
 check('invoices are scoped through their purchase orders', /ownedPoIds\(userId\)/.test(chat));
-check('lookup_object receives the caller', /execLookupObject\(type, identifier, userId\)/.test(chat));
-// Suppliers and contracts are the shared registers; scoping them would
-// describe an entitlement that does not exist. Pinned so the omission stays a
-// decision rather than looking like the gap that was just closed.
-check('suppliers and contracts stay unscoped by design',
-  /deliberately NOT scoped/.test(chat));
+// Both call sites — the text-call path used to omit the caller entirely.
+check('lookup_object receives the caller and their role, on every path',
+  (chat.match(/execLookupObject\(type, identifier, userId, role\)/g) ?? []).length === 2);
+// Whose suppliers and contracts a role may ask about is the Status Answers
+// agent's access matrix now, not a fixed "unscoped" rule in this file.
+check('record lookups go through the status agent',
+  /statusLookup\(db, await loadStatusContext\(db, userId, role\)/.test(chat) && /statusProjectList/.test(readFileSync(new URL('api/_domains/status-answers.ts', ROOT), 'utf8')));
 
 console.log('\nStage transitions and audit attribution');
 const workflow = readFileSync(new URL('api/workflow-action.ts', ROOT), 'utf8');

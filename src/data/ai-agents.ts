@@ -2,6 +2,7 @@
 // AI agents moved to the database in Wave 3 (UI uses `@/lib/db/hooks/use-ai-agents`).
 
 import type { AIAgent } from './types.js';
+import { DEFAULT_STATUS_CONFIG } from '../lib/assistant/status-config.js';
 
 export const aiAgents: AIAgent[] = [
   {
@@ -63,5 +64,16 @@ export const aiAgents: AIAgent[] = [
     decisionsMade: 534,
     lastUpdated: '2025-01-08',
     description: 'Reviews purchase requisitions before PO creation. Validates budget availability, contract coverage, supplier compliance status, and policy adherence. Produces a compliance report with pass/fail decision and detailed findings.',
+  },
+  {
+    id: 'AI-007',
+    name: 'Status Answers',
+    type: 'status',
+    status: 'active',
+    accuracy: 0,
+    decisionsMade: 0,
+    lastUpdated: '2026-09-25',
+    description: 'Answers status questions on Home and in the assistant — where a request is, what is waiting on you, a PO, an invoice, a contract or a supplier. Which attributes it may state, and whose records each role may ask about, are configured below.',
+    config: DEFAULT_STATUS_CONFIG,
   },
 ];

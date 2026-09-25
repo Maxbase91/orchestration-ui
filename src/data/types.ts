@@ -590,12 +590,18 @@ export interface RiskAssessment {
 export interface AIAgent {
   id: string;
   name: string;
-  type: 'classification' | 'validation' | 'extraction' | 'recommendation' | 'knowledge-base' | 'anomaly-detection';
+  type: 'classification' | 'validation' | 'extraction' | 'recommendation' | 'knowledge-base' | 'anomaly-detection' | 'status';
   status: 'active' | 'draft' | 'disabled';
   accuracy: number;
   decisionsMade: number;
   lastUpdated: string;
   description: string;
+  /**
+   * Type-specific configuration. Only the status agent has one today
+   * (lib/assistant/status-config.ts); it is read through that module's
+   * defensive parser, never trusted as-is.
+   */
+  config?: unknown;
 }
 
 export interface AIResponseLink {

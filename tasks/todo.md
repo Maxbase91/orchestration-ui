@@ -33,7 +33,7 @@ Decisions taken (2026-09-25):
        `{{approval-chains}}` tokens rendered with live values (browser and
        server); entries rewritten to match the platform; linked / text-only
        marked on Admin → Knowledge base; backfill into the live table.
-4. [ ] Status agent — `ai_agents.config` (nullable JSONB); AI-007 seeded;
+4. [x] Status agent — `ai_agents.config` (nullable JSONB); AI-007 seeded;
        config model (objects → attributes; role × object access); admin UI on
        the agent; shared answer module; the assistant's lookups (browser and
        `api/chat.ts`) honour it.

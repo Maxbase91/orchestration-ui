@@ -90,7 +90,7 @@ check('most-recent PO lookup is scoped to the caller and date-ordered',
 check('the caller scope is requester or owner',
   chatSrc.includes('`requestor_id.eq.${userId},owner_id.eq.${userId}`'));
 check('most-recent PO answers bypass model list selection',
-  chatSrc.includes('latestPOQuestion') && chatSrc.includes("execFilterObjects('purchase_orders', undefined, 1, userId)"));
+  chatSrc.includes('latestPOQuestion') && chatSrc.includes("execFilterObjects('purchase_orders', undefined, 1, userId, role)"));
 
 console.log('One classifier, not two');
 // The assistant used to carry a private `guessCategory` keyword table whose

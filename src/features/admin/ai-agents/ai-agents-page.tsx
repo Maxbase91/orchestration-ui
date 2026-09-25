@@ -14,6 +14,8 @@ import { AgentLibrary } from './components/agent-library';
 import { AgentConfigForm } from './components/agent-config-form';
 import { AgentTestPanel } from './components/agent-test-panel';
 import { AgentPerformance } from './components/agent-performance';
+import { StatusAgentConfigPanel } from './components/status-agent-config';
+import { StatusAgentTestPanel } from './components/status-agent-test-panel';
 
 export function AIAgentsPage() {
   const { data: serverAgents = [] } = useAiAgents();
@@ -104,10 +106,17 @@ export function AIAgentsPage() {
               onClose={() => setSelectedAgent(null)}
               onSaved={() => setEditedAgents(null)}
             />
-            <AgentTestPanel agent={selectedAgent} />
+            {selectedAgent.type === 'status'
+              ? <StatusAgentTestPanel />
+              : <AgentTestPanel agent={selectedAgent} />}
           </div>
           <AgentPerformance agent={selectedAgent} />
         </div>
+        {/* The one agent with a type-specific configuration: what it may say
+            about each object, and to whom. */}
+        {selectedAgent.type === 'status' && (
+          <StatusAgentConfigPanel agent={serverAgents.find((a) => a.id === selectedAgent.id) ?? selectedAgent} />
+        )}
         {deleteDialog}
       </div>
     );

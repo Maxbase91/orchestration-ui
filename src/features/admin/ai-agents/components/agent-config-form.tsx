@@ -23,6 +23,7 @@ const AGENT_TYPES = [
   { value: 'recommendation', label: 'Recommendation' },
   { value: 'knowledge-base', label: 'Knowledge Base' },
   { value: 'anomaly-detection', label: 'Anomaly Detection' },
+  { value: 'status', label: 'Status Answers' },
 ];
 
 interface AgentConfigFormProps {

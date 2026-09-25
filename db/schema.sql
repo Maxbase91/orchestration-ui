@@ -597,6 +597,11 @@ CREATE TABLE IF NOT EXISTS ai_agents (
   created_at TIMESTAMP DEFAULT now()
 );
 
+-- Type-specific agent configuration. The status agent keeps its attribute lists
+-- and role × object access here (lib/assistant/status-config.ts). Nullable: the
+-- other agents have none.
+ALTER TABLE ai_agents ADD COLUMN IF NOT EXISTS config JSONB;
+
 -- KPI snapshots (one row per month)
 CREATE TABLE IF NOT EXISTS kpi_data (
   month TEXT PRIMARY KEY,

@@ -7,6 +7,8 @@ import { mergePreferences } from '../src/lib/db/user-preferences-core.js';
 import { knowledgeBase } from '../src/data/knowledge-base.js';
 import { loadKnowledgeContextWith } from '../src/lib/db/knowledge-core.js';
 import { renderKnowledgeBody, stripKnowledgeTokens } from '../src/lib/procurement/knowledge-links.js';
+import { TOOL_OBJECT, loadStatusContext, statusLookup, statusProjectList, roleFrom } from './_domains/status-answers.js';
+import type { Role } from '../src/config/roles.js';
 import { actionSubjects, describeAction } from './_action-description.js';
 
 const db = new Proxy({} as NeonCompatibleClient, {
@@ -253,76 +255,16 @@ async function ownedPoIds(userId: string): Promise<string[]> {
   return (data ?? []).map((item) => String((item as { id?: unknown }).id ?? '')).filter(Boolean);
 }
 
-async function execLookupObject(type: string, identifier: string, userId?: string): Promise<string> {
+/**
+ * lookup_object. Requests, POs, invoices, contracts and suppliers are answered
+ * through the Status Answers agent's configuration — which attributes, for
+ * whose records — so the model is never handed what the asker's role may not
+ * see. Risk assessments are not a status object and keep their own read.
+ */
+async function execLookupObject(type: string, identifier: string, userId: string, role: Role): Promise<string> {
   const id = identifier.toUpperCase();
-
-  if (type === 'supplier') {
-    const { data } = await db
-      .from('suppliers')
-      .select('id, name, tier, country, risk_rating, performance_score, total_spend_12m, active_contracts, sra_status, sra_expiry_date, screening_status')
-      .or(`id.eq.${id},name.ilike.%${identifier}%`)
-      .limit(1)
-      .maybeSingle();
-
-    if (!data) return JSON.stringify({ found: false, type: 'supplier', identifier });
-    return JSON.stringify({ found: true, type: 'supplier', data });
-  }
-
-  if (type === 'request') {
-    let q = db
-      .from('requests')
-      .select('id, title, status, priority, value, category, requestor_id, owner_id, delivery_date, days_in_stage, is_overdue, buying_channel')
-      .eq('id', id);
-    if (userId) q = q.or(`requestor_id.eq.${userId},owner_id.eq.${userId}`);
-    const { data } = await q.maybeSingle();
-
-    if (!data) return JSON.stringify({ found: false, type: 'request', identifier });
-    return JSON.stringify({ found: true, type: 'request', data });
-  }
-
-  if (type === 'contract') {
-    const { data } = await db
-      .from('contracts')
-      .select('id, title, supplier_name, value, status, start_date, end_date, utilisation_percentage, owner_name, department')
-      .or(`id.eq.${id},supplier_name.ilike.%${identifier}%`)
-      .limit(1)
-      .maybeSingle();
-
-    if (!data) return JSON.stringify({ found: false, type: 'contract', identifier });
-    return JSON.stringify({ found: true, type: 'contract', data });
-  }
-
-  if (type === 'po') {
-    let q = db
-      .from('purchase_orders')
-      .select('id, supplier_name, value, status, delivery_date')
-      .eq('id', id);
-    if (userId) {
-      const requestIds = await ownedRequestIds(userId);
-      if (requestIds.length === 0) return JSON.stringify({ found: false, type: 'po', identifier });
-      q = q.in('request_id', requestIds);
-    }
-    const { data } = await q.maybeSingle();
-
-    if (!data) return JSON.stringify({ found: false, type: 'po', identifier });
-    return JSON.stringify({ found: true, type: 'po', data });
-  }
-
-  if (type === 'invoice') {
-    let q = db
-      .from('invoices')
-      .select('id, supplier_name, amount, status, due_date, match_status, match_variance')
-      .eq('id', id);
-    if (userId) {
-      const poIds = await ownedPoIds(userId);
-      if (poIds.length === 0) return JSON.stringify({ found: false, type: 'invoice', identifier });
-      q = q.in('po_id', poIds);
-    }
-    const { data } = await q.maybeSingle();
-
-    if (!data) return JSON.stringify({ found: false, type: 'invoice', identifier });
-    return JSON.stringify({ found: true, type: 'invoice', data });
-  }
+  const object = TOOL_OBJECT[type];
+  if (object) return statusLookup(db, await loadStatusContext(db, userId, role), object, identifier);
 
   if (type === 'risk-assessment') {
     const { data } = await db
@@ -342,9 +284,14 @@ async function execFilterObjects(
   objectType: string,
   filtersRaw: string | undefined,
   limit: number,
-  userId?: string,
+  userId: string,
+  role: Role,
 ): Promise<string> {
   const cap = Math.min(Math.max(limit, 1), 10);
+  // Every list goes through the status agent's configuration before the model
+  // sees it: the rows are read whole and projected to what this role may see.
+  const status = await loadStatusContext(db, userId, role);
+  const project = async (table: string, rows: unknown[]) => statusProjectList(db, status, TOOL_OBJECT[table], rows as Record<string, unknown>[]);
   let filters: Record<string, unknown> = {};
   try {
     if (filtersRaw) filters = JSON.parse(filtersRaw) as Record<string, unknown>;
@@ -359,7 +306,7 @@ async function execFilterObjects(
     const nowIso = new Date().toISOString();
     let q = db
       .from('requests')
-      .select('id, title, status, priority, value, sla_deadline, days_in_stage, category')
+      .select('*')
       // Earliest deadline first, so the most overdue leads. Postgres sorts
       // NULLs last on ASC, which puts requests with no deadline at the end
       // rather than pretending they are the most urgent.
@@ -375,42 +322,42 @@ async function execFilterObjects(
     // model's to choose.
     if (userId) q = q.or(`requestor_id.eq.${userId},owner_id.eq.${userId}`);
     const { data } = await q;
-    // Hand the model a boolean rather than a date to reason about.
-    const items = (data ?? []).map((row) => {
-      const record = row as Record<string, unknown>;
-      const deadline = typeof record.sla_deadline === 'string' ? record.sla_deadline : null;
-      return { ...record, overdue: deadline !== null && deadline <= nowIso };
-    });
+    const items = await project('requests', data ?? []);
+    if (!items) return JSON.stringify({ found: false, reason: 'This role cannot ask about requests.' });
     return JSON.stringify({ found: items.length > 0, object_type: 'requests', count: items.length, items });
   }
 
   if (objectType === 'suppliers') {
     let q = db
       .from('suppliers')
-      .select('id, name, risk_rating, sra_status, country, tier, performance_score')
+      .select('*')
       .order('risk_rating', { ascending: false })
       .limit(cap);
     if (filters.risk_rating) q = q.eq('risk_rating', filters.risk_rating as string);
     if (filters.sra_status) q = q.eq('sra_status', filters.sra_status as string);
     const { data } = await q;
-    return JSON.stringify({ found: !!data?.length, object_type: 'suppliers', count: data?.length ?? 0, items: data ?? [] });
+    const items = await project('suppliers', data ?? []);
+    if (!items) return JSON.stringify({ found: false, reason: 'This role cannot ask about suppliers.' });
+    return JSON.stringify({ found: items.length > 0, object_type: 'suppliers', count: items.length, items });
   }
 
   if (objectType === 'contracts') {
     let q = db
       .from('contracts')
-      .select('id, title, supplier_name, status, end_date, value, utilisation_percentage')
+      .select('*')
       .order('end_date', { ascending: true })
       .limit(cap);
     if (filters.status) q = q.eq('status', filters.status as string);
     const { data } = await q;
-    return JSON.stringify({ found: !!data?.length, object_type: 'contracts', count: data?.length ?? 0, items: data ?? [] });
+    const items = await project('contracts', data ?? []);
+    if (!items) return JSON.stringify({ found: false, reason: 'This role cannot ask about contracts.' });
+    return JSON.stringify({ found: items.length > 0, object_type: 'contracts', count: items.length, items });
   }
 
   if (objectType === 'purchase_orders') {
     let q = db
       .from('purchase_orders')
-      .select('id, supplier_name, value, status, delivery_date, created_at, request_id')
+      .select('*')
       .order('created_at', { ascending: false })
       .limit(cap);
     // “My latest PO” is requester-scoped, not a global top-N query. The PO
@@ -422,13 +369,15 @@ async function execFilterObjects(
     }
     if (filters.status) q = q.eq('status', filters.status as string);
     const { data } = await q;
-    return JSON.stringify({ found: !!data?.length, object_type: 'purchase_orders', count: data?.length ?? 0, items: data ?? [], mostRecent: data?.[0] ?? null });
+    const items = await project('purchase_orders', data ?? []);
+    if (!items) return JSON.stringify({ found: false, reason: 'This role cannot ask about purchase orders.' });
+    return JSON.stringify({ found: items.length > 0, object_type: 'purchase_orders', count: items.length, items, mostRecent: items[0] ?? null });
   }
 
   if (objectType === 'invoices') {
     let q = db
       .from('invoices')
-      .select('id, supplier_name, amount, status, due_date, match_status, match_variance')
+      .select('*')
       .order('due_date', { ascending: true })
       .limit(cap);
     if (filters.status) q = q.eq('status', filters.status as string);
@@ -440,7 +389,9 @@ async function execFilterObjects(
       q = q.in('po_id', poIds);
     }
     const { data } = await q;
-    return JSON.stringify({ found: !!data?.length, object_type: 'invoices', count: data?.length ?? 0, items: data ?? [] });
+    const items = await project('invoices', data ?? []);
+    if (!items) return JSON.stringify({ found: false, reason: 'This role cannot ask about invoices.' });
+    return JSON.stringify({ found: items.length > 0, object_type: 'invoices', count: items.length, items });
   }
 
   return JSON.stringify({ found: false, error: `Unknown object_type: ${objectType}` });
@@ -691,18 +642,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   async function run() {
   // Load session memory and inject into system prompt
   const userId = ctx?.currentUser?.id ?? '';
+  const role = roleFrom(ctx?.role);
   const latestPOQuestion = [...rawMessages].reverse().find((message) => message.role === 'user')?.content ?? '';
   // “My latest PO” is a deterministic record lookup. Bypassing the LLM here
   // prevents it from selecting an arbitrary item from a correctly sorted list.
   if (/\b(?:most recent|latest|last)\b[\s\S]*\bpurchase order\b/i.test(latestPOQuestion)) {
-    const result = JSON.parse(await execFilterObjects('purchase_orders', undefined, 1, userId)) as { mostRecent?: Record<string, unknown> | null };
+    const result = JSON.parse(await execFilterObjects('purchase_orders', undefined, 1, userId, role)) as { mostRecent?: Record<string, unknown> | null };
     const po = result.mostRecent;
     if (po) {
-      const value = Number(po.value ?? 0);
-      const amount = Number.isFinite(value) ? new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(value) : 'the recorded value';
+      // Only what the status agent lets this role see — the projection's
+      // labelled facts, not the raw row.
+      const facts = Object.entries(po)
+        .filter(([key]) => !['id', 'title', 'link'].includes(key))
+        .map(([label, value]) => `${label}: ${String(value)}`)
+        .join(' · ');
       sendTurns([
-        { type: 'chat-answer', content: `Your most recent purchase order is ${String(po.id)} from ${String(po.supplier_name)}, valued at ${amount}, currently in “${String(po.status)}” status${po.delivery_date ? ` with a delivery date of ${String(po.delivery_date)}.` : '.'}` },
-        { type: 'deep-link', label: `Purchase Order — ${String(po.id)}`, description: 'PO lines, receipts, and invoice match status', path: `/purchasing/orders/${String(po.id)}` },
+        { type: 'chat-answer', content: `Your most recent purchase order is ${String(po.id)}${facts ? ` — ${facts}` : ''}.` },
+        { type: 'deep-link', label: `Purchase Order — ${String(po.id)}`, description: 'PO lines, receipts, and invoice match status', path: String(po.link ?? `/purchasing/orders/${String(po.id)}`) },
       ]);
       return;
     }
@@ -782,13 +738,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const identifier = (textCall.args.identifier as string) ?? '';
           lookupType = type;
           lookupIdentifier = identifier;
-          textToolResult = await execLookupObject(type, identifier);
+          // Scoped like the tool path; it used to omit the user entirely.
+          textToolResult = await execLookupObject(type, identifier, userId, role);
         } else if (textCall.name === 'filter_objects') {
           textToolResult = await execFilterObjects(
             (textCall.args.object_type as string) ?? '',
             textCall.args.filters as string | undefined,
             typeof textCall.args.limit === 'number' ? textCall.args.limit : 5,
             userId,
+            role,
           );
         }
         if (textToolResult) {
@@ -980,7 +938,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const identifier = (args.identifier as string) ?? '';
         lookupType = type;
         lookupIdentifier = identifier;
-        toolResult = await execLookupObject(type, identifier, userId);
+        toolResult = await execLookupObject(type, identifier, userId, role);
       } else if (toolName === 'create_ticket') {
         const { ticketId } = await execCreateTicket(
           (args.summary as string) ?? '',
@@ -1017,6 +975,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           args.filters as string | undefined,
           typeof args.limit === 'number' ? args.limit : 5,
           userId,
+          role,
         );
       } else if (toolName === 'remember_preference') {
         toolResult = await execRememberPreference(

@@ -260,6 +260,7 @@ export function mapDbToAiAgent(row: DbRecord): AIAgent {
     decisionsMade: (row.decisions_made ?? row.decisionsMade ?? 0) as number,
     lastUpdated: (row.last_updated ?? row.lastUpdated ?? '') as string,
     description: (row.description ?? '') as string,
+    config: row.config ?? null,
   };
 }
 
@@ -273,6 +274,7 @@ export function mapAiAgentToDb(a: Partial<AIAgent>): DbRecord {
   if (a.decisionsMade !== undefined) out.decisions_made = a.decisionsMade;
   if (a.lastUpdated !== undefined) out.last_updated = a.lastUpdated;
   if (a.description !== undefined) out.description = a.description;
+  if (a.config !== undefined) out.config = a.config;
   return out;
 }
 

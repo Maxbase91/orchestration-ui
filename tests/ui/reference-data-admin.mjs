@@ -9,7 +9,7 @@
 // The REST surface is stubbed, so this never touches real data.
 import { spawn } from 'node:child_process';
 import { chromium } from 'playwright';
-import { installDbStub } from './db-stub.mjs';
+import { installDbStub, FIXTURES } from './db-stub.mjs';
 
 const PORT = '5187';
 const BASE = `http://localhost:${PORT}`;
@@ -43,6 +43,10 @@ try {
     }],
     // One entry linked to a governed figure, one policy text only, one with a
     // reference that names nothing.
+    // The status agent, unconfigured (defaults apply), and a request with a
+    // real-format id for the test panel to ask about.
+    ai_agents: [{ id: 'AI-007', name: 'Status Answers', type: 'status', status: 'active', accuracy: 0, decisions_made: 0, last_updated: '2026-09-25', description: 'Answers status questions.', config: null }],
+    requests: [...FIXTURES.requests, { ...FIXTURES.requests[0], id: 'REQ-2026-00042', title: 'Office move coordination', status: 'validation', requestor_id: 'u02', owner_id: 'u11' }],
     knowledge_base: [
       { id: 'KB-013', title: 'Catalogue Purchasing', body: 'Orders up to {{policy:catalogueAutoApprovalThreshold}} are approved automatically.', source: 'Decisioning thresholds', tags: ['catalogue'] },
       { id: 'KB-028', title: 'Insurance Requirements', body: 'Public liability: €5M per incident.', source: 'KOP-RISK-003', tags: ['insurance'] },
@@ -269,6 +273,30 @@ try {
   check('an admin inserts a governed figure instead of typing it',
     (await page.locator('#kb-body').inputValue()).includes('{{policy:competitiveSourcingThreshold}}'));
   check('the editor previews it as the requester reads it', (await page.getByText('€25,000').count()) > 0);
+
+  console.log('\nThe Status Answers agent says what its configuration allows');
+  await page.goto(`${BASE}/admin/agents`, { waitUntil: 'networkidle' });
+  await page.getByText('Status Answers').first().click();
+  await page.getByRole('table', { name: 'Request attributes' }).waitFor({ timeout: 15000 });
+  check('every request attribute is listed, derived ones marked',
+    (await page.locator('[data-attribute^="request:"]').count()) > 40 && (await page.getByText('derived', { exact: true }).count()) > 0);
+  check('the role × object matrix is there', (await page.getByRole('table', { name: 'Access by role' }).count()) === 1);
+  await page.getByLabel('Label for status', { exact: true }).fill('Current step');
+  const statusPanel = page.getByRole('region', { name: 'Status answers configuration' });
+  await statusPanel.getByRole('button', { name: /^Save$/ }).click();
+  await statusPanel.getByRole('button', { name: /^Saved$/ }).waitFor({ timeout: 10000 });
+  check('saving a label persists it', (await page.getByLabel('Label for status', { exact: true }).inputValue()) === 'Current step');
+  await page.locator('#status-test-role').selectOption('admin');
+  await page.locator('#status-test-question').fill('where is REQ-2026-00042?');
+  await page.getByRole('button', { name: /^Ask$/ }).click();
+  const answer = page.getByTestId('status-test-answer');
+  await answer.getByText(/REQ-2026-00042/).waitFor({ timeout: 15000 });
+  check('an answer uses the admin’s label', (await answer.getByText('Current step').count()) === 1, await answer.innerText());
+  check('…and leaves out what is only answered when asked', (await answer.getByText('Value', { exact: true }).count()) === 0);
+  await page.locator('#status-test-role').selectOption('service-owner');
+  await page.getByRole('button', { name: /^Ask$/ }).click();
+  await answer.getByText(/that you can see/).waitFor({ timeout: 15000 });
+  check('a requester cannot see someone else’s request', (await answer.getByText(/No request REQ-2026-00042 that you can see/).count()) === 1);
 
   check('no page errors while maintaining reference data', errors.length === 0, errors.join(' | '));
 } catch (error) {

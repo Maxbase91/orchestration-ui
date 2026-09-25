@@ -30,6 +30,11 @@ const defaultUsers: Record<Role, User> = {
   'admin': { id: 'u11', name: 'Christine Dupont', email: 'christine.dupont@company.com', role: 'admin', department: 'Global Procurement', initials: 'CD' },
 };
 
+/** The persona a role switches to — for asking "as" a role (the status agent's test panel). */
+export function personaForRole(role: Role): User {
+  return defaultUsers[role];
+}
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({

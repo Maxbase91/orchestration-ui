@@ -42,6 +42,8 @@ FR10-20 · **Workflow Designer** (`/admin/workflows`): visual React Flow graph e
 
 FR10-21 · **AI Agent Configuration** (`/admin/agents`): 6 agents with status (active/draft/disabled), accuracy, decisions made, config params (weights, thresholds, input sources). Toggling status changes runtime behaviour: AI-001 gates LLM classification in Step 1; AI-005 gates supplier recommender card.
 
+FR10-21a · **Status Answers agent** (AI-007, type `status`): answers status questions on Home and in the assistant (browser lookups and `api/chat.ts` `lookup_object` / `filter_objects`). Its configuration (`ai_agents.config`, `lib/assistant/status-config.ts`) lists, per object — requests, approvals, purchase orders, invoices, contracts, suppliers — **every attribute of the data model**, each with the label the chatbot uses, whether it is part of the status answer or answered only when asked for, and who may see it (anyone who can see the record / procurement roles only). An attribute the data gains later appears as *New*, switched off. A **role × object matrix** (None / Own / All) says whose records each role may ask about; *Own* is defined per object (raised, buying for or owning a request; its POs, invoices, linked contracts and supplier; approvals waiting on you). A record the role may not see answers as not found. The test panel asks as any role against live data. Setting the agent to Draft or Disabled switches status answers off.
+
 FR10-22 · Each agent card shows **"Affects:"** badges indicating which product surfaces it powers (from `AGENT_AFFECTS` map in `agent-library.tsx`).
 
 ---
