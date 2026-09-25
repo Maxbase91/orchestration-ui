@@ -1,48 +1,52 @@
-# Home intent: policy and status answers, from configuration
+# Admin review: nothing hardcoded or unused, then the mockups
 
-Asked by the product owner (2026-09-25): remove the duplicate-demand line; build
-the policy / status intent on Home. Policy answers come from the existing
-policy configuration; status answers are an AI agent whose configuration lists,
-per object, which attributes may be asked about.
+Asked by the product owner (2026-09-25): go through every Admin item and keep
+nothing hardcoded or unused; update the Help knowledge base page; make the AI
+assistant use the same question routing as Home; then move to implementing the
+mockups. Noted for later: conversation titles all read "New conversation".
 
 Decisions taken (2026-09-25):
-- Status topics: requests (incl. "my open requests"), my approvals, POs,
-  invoices, contracts, suppliers.
-- Status is an **AI agent** (Admin → AI agents), not a new admin section.
-- Attributes are **auto-listed** from the object's data model, **off** until an
-  admin enables them. A guard test fails when an attribute has no entry.
-- Per attribute: **label** the chatbot uses, **summary vs on-ask**, **who may
-  see it** (everyone who can see the record / procurement roles only).
-- Row access: a **role × object matrix**, cells None / Own / All. "Own" is
-  defined per object (raised / beneficiary / owner; linked PO, invoice,
-  contract, supplier). Approvals waiting on you are always own.
-- Policy: configuration and knowledge base **aligned**. Figures the platform
-  enforces come from configuration (linked into the entry); figures it does not
-  enforce stay KB text, marked "policy text only". Entries that describe the
-  platform wrongly are **rewritten**, and all entries move into the live
-  knowledge base.
-- Policy management page is removed (static third copy of the policy text,
-  used nowhere).
+- AI-006 "PR Compliance Reviewer" is removed with its 14 stored reports — its
+  checks were invented passes (sanctions, contract coverage, SRA, benchmark).
+- A Budget Owner step whose cost centre has no owner goes to procurement
+  managers; nobody may approve a step on their own request.
+- Which system role acts as "Finance", "Legal", "CFO"… becomes configuration
+  (a Roles table on the Approval Chains page), not a table in code.
+- RR-012 (high/critical-risk supplier → compliance escalation) is switched on;
+  the three inactive forms are deleted with their seeded submissions.
+
+## Findings per Admin item (what reads it; what goes)
+| Item | Real consumer | Removed / changed |
+|---|---|---|
+| Database | 9 of 10 tabs persist | Workflows tab (read-only duplicate of the designer); "Reset session edits" (nothing left to reset) |
+| Categories | classification, catalogue eligibility, commodity codes, managers (approvals), preferred suppliers | icon (never shown); timeline days (a second, disagreeing "how long" — the workflow stage targets are the real one); description now feeds the AI classifier; the classifier's keyword fallback moves into category config |
+| Cost centres | charged-to, Budget Owner approver | owners empty on all 44 → flagged; ownerless → procurement managers |
+| Delivery locations | checkout deliver-to | address and country (empty everywhere, read by nothing) |
+| SLA targets | — (read-only copy of template SLAs) | becomes the editor for the only SLA data it owns: support-ticket response times |
+| Routing rules | buying channel | RR-001, RR-006, RR-011 (can never change an outcome); `region` and `priority` fields (never supplied / duplicate of urgent); categories from configuration; RR-012 on |
+| Decisioning thresholds | all 22 read by a live decision | page says what each one drives |
+| Service description | intake questions, generation, sourcing seeds | the live table was empty (everything ran on code defaults) → seeded, the page edits stored rows |
+| Form builder | 5 active stage forms, real submissions | 3 inactive forms deleted |
+| Approval chains | approvers by value band | invented "referenced by" lists; descriptions restating the band; role → system-role table moves to configuration |
+| Workflow designer | lifecycle, stages, SLAs, owners | (requester sentence retires with the mockups) |
+| AI agents | 001 classifier, 002 validator, 004 anomalies, 005 recommender, 007 status | 003 (only relabels a disabled button), 006 (invented checks); fake accuracy, decision counts, random performance charts, canned test results; invented descriptions rewritten; 004's thresholds from configuration |
+| KB management | assistant + Home answers | Help page content moves in (topics) |
+| AI analytics, System health, Users | real data | — |
+| Audit log | real audit rows | 34 invented entries; IP column (always "-") |
 
 ## Commits
-1. [x] Remove the duplicate-demand check — Review loading text, request-detail
-       card, the record's `duplicateCheck` (column made nullable, no longer
-       written), the dead `duplicateDetected` referral input.
-2. [x] Remove the Policy management page — route, nav, links, tests, docs.
-3. [x] Knowledge base linked to configuration — `{{policy:key}}` and
-       `{{approval-chains}}` tokens rendered with live values (browser and
-       server); entries rewritten to match the platform; linked / text-only
-       marked on Admin → Knowledge base; backfill into the live table.
-4. [x] Status agent — `ai_agents.config` (nullable JSONB); AI-007 seeded;
-       config model (objects → attributes; role × object access); admin UI on
-       the agent; shared answer module; the assistant's lookups (browser and
-       `api/chat.ts`) honour it.
-5. [x] Home intent step — policy and status answered inline on Home, with the
-       follow-up into the assistant; page names still navigate; demands and
-       catalogue unchanged.
-6. [x] Mock + docs.
+1. [x] Audit log and Database tab clean-up
+2. [ ] AI agents: remove AI-003/AI-006 (+ 14 reports), fake metrics and tests; honest descriptions; AI-004 thresholds from configuration
+3. [ ] Routing rules: redundant rules out, RR-012 on, vocabulary = what the runtime supplies, categories from configuration
+4. [ ] Approval: configurable roles, ownerless budget → procurement managers, no self-approval, chain page clean-up
+5. [ ] Categories: icon/timeline out, stage-target durations, classifier from configuration
+6. [ ] Delivery locations, SLA targets → ticket SLAs, thresholds "used by"
+7. [ ] Service description seeded; unused forms deleted
+8. [ ] Help knowledge base from the knowledge base table
+9. [ ] AI assistant on the Home route (+ conversation titles)
+10. [ ] Docs: the Admin map (what each item is for, what reads it)
+11. [ ] Mockups implementation — plan, then build
 
 ## Verification
-tsc, lint, test:all, the offline browser suites, a new browser check for the
-Home answers, live backfills idempotent and read back; the production
-interaction suite after deploy.
+tsc, lint, test:all, browser suites, live backfills idempotent and read back,
+production interaction suite after deploy.

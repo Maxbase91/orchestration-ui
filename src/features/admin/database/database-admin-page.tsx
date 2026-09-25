@@ -1,7 +1,6 @@
 import { useSearchParams } from 'react-router-dom';
-import { Database, RotateCcw } from 'lucide-react';
+import { Database } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/shared/page-header';
 import { useDatabaseAdminStore, isLiveEntity } from '@/stores/database-admin-store';
 import type { EntityKey } from '@/stores/database-admin-store';
@@ -17,7 +16,6 @@ const TAB_ORDER: { key: EntityKey; label: string }[] = [
   { key: 'invoice', label: 'Invoices' },
   { key: 'request', label: 'Requests' },
   { key: 'approval', label: 'Approvals' },
-  { key: 'workflow', label: 'Workflows' },
   { key: 'sourcingEvent', label: 'Sourcing Events' },
   { key: 'catalogueItem', label: 'Catalogue Items' },
 ];
@@ -27,7 +25,6 @@ const DEFAULT_TAB: EntityKey = 'supplier';
 export function DatabaseAdminPage() {
   useSyncAdminStore();
   const [params, setParams] = useSearchParams();
-  const reset = useDatabaseAdminStore((s) => s.reset);
 
   const urlTab = params.get('tab') as EntityKey | null;
   const urlEdit = params.get('edit');
@@ -56,23 +53,12 @@ export function DatabaseAdminPage() {
     setParams(next, { replace: true });
   }
 
-  function handleReset() {
-    if (!confirm('Reset all database tabs to seed data? This discards every session edit.')) return;
-    reset();
-    setParams({}, { replace: true });
-  }
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Database"
         subtitle="Browse and edit the underlying data model across every entity. Use this view to inspect how suppliers, contracts, POs, invoices, risk assessments, requests and approvals relate."
-        actions={
-          <Button variant="outline" size="sm" onClick={handleReset}>
-            <RotateCcw className="mr-1.5 size-4" />
-            Reset session edits
-          </Button>
-        }
       />
 
       <div className="flex items-start gap-2 rounded-md border border-ok-line bg-ok-soft p-3 text-sm text-ok">
@@ -81,7 +67,7 @@ export function DatabaseAdminPage() {
           <p className="font-medium">Tabs marked with a database icon are live</p>
           <p className="text-xs">
             Their edits persist and reflect on every feature page, and all changes are captured in
-            the Audit Log. Workflows is a read-only view here — edit templates in the Workflow Designer.
+            the Audit Log. Workflow templates are edited in the Workflow Designer.
           </p>
         </div>
       </div>

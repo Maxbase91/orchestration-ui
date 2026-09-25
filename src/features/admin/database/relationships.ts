@@ -80,10 +80,6 @@ export const relationships: Record<EntityKey, EntityRelationships> = {
     outgoing: [{ to: 'request', via: 'requestId', label: 'Request' }],
     incoming: [],
   },
-  workflow: {
-    outgoing: [],
-    incoming: [],
-  },
   sourcingEvent: {
     outgoing: [
       { to: 'request', via: 'requestId', label: 'Originating request' },

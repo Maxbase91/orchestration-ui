@@ -26,59 +26,14 @@ interface AuditRow {
   objectType: string;
   objectId: string;
   detail: string;
-  ipAddress: string;
   [key: string]: unknown;
 }
 
-// Static seed examples — shown alongside persisted rows for
-// entries that predate the audit_entries table. Drop once sufficient
-// history has accumulated in the database.
-const seedAuditEntries: AuditRow[] = [
-  { id: 'AUD-001', timestamp: '2025-01-08T09:15:00Z', user: 'Marcus Johnson', action: 'Submitted', objectType: 'Request', objectId: 'REQ-2024-0014', detail: 'Submitted new request: Org design transformation', ipAddress: '10.0.1.45' },
-  { id: 'AUD-002', timestamp: '2025-01-08T09:10:00Z', user: 'Anna Müller', action: 'Approved', objectType: 'Request', objectId: 'REQ-2024-0013', detail: 'Approved Microsoft 365 E5 upgrade', ipAddress: '10.0.1.22' },
-  { id: 'AUD-003', timestamp: '2025-01-08T08:45:00Z', user: 'System', action: 'SLA Breach', objectType: 'Request', objectId: 'REQ-2024-0006', detail: 'SLA breached: 42 days in sourcing stage', ipAddress: '-' },
-  { id: 'AUD-004', timestamp: '2025-01-08T08:30:00Z', user: 'Sarah Chen', action: 'Updated', objectType: 'Request', objectId: 'REQ-2024-0009', detail: 'Referred back to requestor for additional justification', ipAddress: '10.0.1.31' },
-  { id: 'AUD-005', timestamp: '2025-01-08T08:00:00Z', user: 'System', action: 'Escalated', objectType: 'Request', objectId: 'REQ-2024-0007', detail: 'Auto-escalated to VP Procurement due to SLA breach', ipAddress: '-' },
-  { id: 'AUD-006', timestamp: '2025-01-07T16:45:00Z', user: 'Anna Müller', action: 'Stage Change', objectType: 'Request', objectId: 'REQ-2024-0013', detail: 'Moved from approval to contracting', ipAddress: '10.0.1.22' },
-  { id: 'AUD-007', timestamp: '2025-01-07T15:30:00Z', user: 'AI Agent', action: 'Duplicate Detected', objectType: 'Request', objectId: 'REQ-2024-0022', detail: '78% similarity with archived request found', ipAddress: '-' },
-  { id: 'AUD-008', timestamp: '2025-01-07T14:20:00Z', user: 'Elena Petrova', action: 'Commented', objectType: 'Request', objectId: 'REQ-2024-0001', detail: 'Added comment with migration report attachment', ipAddress: '10.0.2.15' },
-  { id: 'AUD-009', timestamp: '2025-01-07T11:00:00Z', user: 'Marcus Johnson', action: 'Submitted', objectType: 'Request', objectId: 'REQ-2024-0031', detail: 'Submitted Salesforce expansion request', ipAddress: '10.0.1.45' },
-  { id: 'AUD-010', timestamp: '2025-01-07T10:00:00Z', user: 'Lisa Nakamura', action: 'Updated', objectType: 'Supplier', objectId: 'SUP-021', detail: 'Updated TechBridge screening status', ipAddress: '10.0.1.55' },
-  { id: 'AUD-011', timestamp: '2025-01-07T09:30:00Z', user: 'Dr. Katrin Bauer', action: 'Approved', objectType: 'Request', objectId: 'REQ-2024-0023', detail: 'Finance approval for IoT sensors procurement', ipAddress: '10.0.3.10' },
-  { id: 'AUD-012', timestamp: '2025-01-07T08:00:00Z', user: 'System', action: 'Alert', objectType: 'Contract', objectId: 'CON-008', detail: 'Contract expiry alert: Siemens IoT Platform (30 days)', ipAddress: '-' },
-  { id: 'AUD-013', timestamp: '2025-01-06T17:00:00Z', user: 'System', action: 'SLA Warning', objectType: 'Request', objectId: 'REQ-2024-0008', detail: 'Validation stage SLA exceeded (30 days)', ipAddress: '-' },
-  { id: 'AUD-014', timestamp: '2025-01-06T14:30:00Z', user: 'Sarah Chen', action: 'Referred Back', objectType: 'Request', objectId: 'REQ-2024-0009', detail: 'Referred back: additional business case needed', ipAddress: '10.0.1.31' },
-  { id: 'AUD-015', timestamp: '2025-01-06T13:00:00Z', user: 'System', action: 'Matched', objectType: 'Invoice', objectId: 'INV-010', detail: 'Invoice partially matched against PO-010', ipAddress: '-' },
-  { id: 'AUD-016', timestamp: '2025-01-06T10:00:00Z', user: 'AI Agent', action: 'Risk Alert', objectType: 'Supplier', objectId: 'SUP-005', detail: 'SRA expiry alert for Capgemini', ipAddress: '-' },
-  { id: 'AUD-017', timestamp: '2025-01-06T09:15:00Z', user: 'Marcus Johnson', action: 'Commented', objectType: 'Request', objectId: 'REQ-2024-0010', detail: 'Internal note: shortlisted 3 TMCs', ipAddress: '10.0.1.45' },
-  { id: 'AUD-018', timestamp: '2025-01-05T14:00:00Z', user: 'Christine Dupont', action: 'Rule Updated', objectType: 'Rule', objectId: 'RULE-003', detail: 'Updated consulting threshold from €100K to €75K', ipAddress: '10.0.1.10' },
-  { id: 'AUD-019', timestamp: '2025-01-05T11:30:00Z', user: 'Robert Fischer', action: 'Approved', objectType: 'Request', objectId: 'REQ-2024-0023', detail: 'Finance approval for IoT sensors', ipAddress: '10.0.3.12' },
-  { id: 'AUD-020', timestamp: '2025-01-05T10:00:00Z', user: 'System', action: 'PO Created', objectType: 'PO', objectId: 'PO-006', detail: 'PO submitted to Lenovo for 350 ThinkPad laptops', ipAddress: '-' },
-  { id: 'AUD-021', timestamp: '2025-01-04T16:00:00Z', user: 'AI Agent', action: 'Anomaly Detected', objectType: 'Analytics', objectId: 'ANL-Q4', detail: 'IT consulting spend 23% above forecast', ipAddress: '-' },
-  { id: 'AUD-022', timestamp: '2025-01-04T08:00:00Z', user: 'System', action: 'Delegation', objectType: 'User', objectId: 'u2', detail: 'Thomas Weber OOO: approvals delegated to Anna Müller', ipAddress: '-' },
-  { id: 'AUD-023', timestamp: '2025-01-04T07:45:00Z', user: 'System', action: 'Delegation', objectType: 'User', objectId: 'u8', detail: 'Robert Fischer OOO: delegated to Dr. Katrin Bauer', ipAddress: '-' },
-  { id: 'AUD-024', timestamp: '2025-01-03T14:00:00Z', user: 'System', action: 'Disputed', objectType: 'Invoice', objectId: 'INV-011', detail: 'Invoice flagged: no matching PO found', ipAddress: '-' },
-  { id: 'AUD-025', timestamp: '2025-01-03T11:00:00Z', user: 'Anna Müller', action: 'Commented', objectType: 'Request', objectId: 'REQ-2024-0011', detail: 'Comment on cyber insurance renewal quotes', ipAddress: '10.0.1.22' },
-  { id: 'AUD-026', timestamp: '2025-01-02T09:00:00Z', user: 'AI Agent', action: 'Model Retrained', objectType: 'AI Agent', objectId: 'AGT-001', detail: 'Classification model retrained, accuracy 94.2%', ipAddress: '-' },
-  { id: 'AUD-027', timestamp: '2024-12-28T10:00:00Z', user: 'Henrik Larsson', action: 'Rule Created', objectType: 'Rule', objectId: 'RULE-007', detail: 'Created new routing rule: Sustainability threshold', ipAddress: '10.0.1.11' },
-  { id: 'AUD-028', timestamp: '2024-12-27T14:00:00Z', user: 'David Kowalski', action: 'Updated', objectType: 'Supplier', objectId: 'SUP-012', detail: 'Updated Sodexo performance score to 74', ipAddress: '10.0.1.60' },
-  { id: 'AUD-029', timestamp: '2024-12-26T09:30:00Z', user: 'Anna Müller', action: 'Login', objectType: 'Auth', objectId: 'SESSION-4892', detail: 'User login from Frankfurt office', ipAddress: '10.0.1.45' },
-  { id: 'AUD-030', timestamp: '2024-12-25T16:00:00Z', user: 'System', action: 'Contract Updated', objectType: 'Contract', objectId: 'CON-011', detail: 'WPP Marketing contract status changed to expiring', ipAddress: '-' },
-  { id: 'AUD-031', timestamp: '2024-12-24T11:00:00Z', user: 'Sarah Chen', action: 'Rejected', objectType: 'Request', objectId: 'REQ-2024-0035', detail: 'Rejected Deloitte audit co-source: build internal instead', ipAddress: '10.0.1.31' },
-  { id: 'AUD-032', timestamp: '2024-12-23T15:00:00Z', user: 'Lisa Nakamura', action: 'Onboarding Started', objectType: 'Supplier', objectId: 'SUP-022', detail: 'Initiated onboarding for GreenEnergy GmbH', ipAddress: '10.0.1.55' },
-  { id: 'AUD-033', timestamp: '2024-12-22T10:00:00Z', user: 'Christine Dupont', action: 'Rule Disabled', objectType: 'Rule', objectId: 'RULE-005', detail: 'Disabled obsolete framework call-off rule', ipAddress: '10.0.1.10' },
-  { id: 'AUD-034', timestamp: '2024-12-21T09:00:00Z', user: 'Elena Petrova', action: 'Submitted', objectType: 'Request', objectId: 'REQ-2024-0028', detail: 'Submitted network switch refresh request', ipAddress: '10.0.2.15' },
-  { id: 'AUD-035', timestamp: '2024-12-20T14:00:00Z', user: 'Marcus Johnson', action: 'Updated', objectType: 'Contract', objectId: 'CON-015', detail: 'Updated furniture framework pricing schedule', ipAddress: '10.0.1.45' },
-  { id: 'AUD-036', timestamp: '2024-12-19T08:30:00Z', user: 'Anna Müller', action: 'Login', objectType: 'Auth', objectId: 'SESSION-4756', detail: 'User login from Amsterdam office', ipAddress: '10.0.2.22' },
-  { id: 'AUD-037', timestamp: '2024-12-18T16:00:00Z', user: 'Dr. Katrin Bauer', action: 'Approved', objectType: 'Request', objectId: 'REQ-2024-0016', detail: 'Finance approval for laptop refresh programme', ipAddress: '10.0.3.10' },
-  { id: 'AUD-038', timestamp: '2024-12-17T11:00:00Z', user: 'System', action: 'Reminder', objectType: 'Request', objectId: 'REQ-2024-0007', detail: 'Approval reminder sent for Java developers request', ipAddress: '-' },
-  { id: 'AUD-039', timestamp: '2024-12-16T09:00:00Z', user: 'Henrik Larsson', action: 'Policy Updated', objectType: 'Policy', objectId: 'POL-002', detail: 'Updated competitive tender threshold to €100K', ipAddress: '10.0.1.11' },
-  { id: 'AUD-040', timestamp: '2024-12-15T14:30:00Z', user: 'David Kowalski', action: 'SRA Initiated', objectType: 'Supplier', objectId: 'SUP-008', detail: 'Initiated SRA renewal for Siemens AG', ipAddress: '10.0.1.60' },
-];
-
-const baseUniqueUsers = [...new Set(seedAuditEntries.map((e) => e.user))].sort();
-const baseUniqueActions = [...new Set(seedAuditEntries.map((e) => e.action))].sort();
-const baseUniqueObjectTypes = [...new Set(seedAuditEntries.map((e) => e.objectType))].sort();
+// Only what happened. There were 40 hard-coded entries here, shown beside the
+// persisted rows "for history that predates the table" — invented logins from
+// named offices, an AI agent "detecting a duplicate" no search ever ran, a
+// "model retrained" nobody trained, each with a made-up IP address. On the one
+// screen whose job is evidence, invented rows are the worst kind of wrong.
 
 const PAGE_SIZE = 15;
 
@@ -124,7 +79,6 @@ const columns: Column<AuditRow>[] = [
   { key: 'objectType', label: 'Object Type', sortable: true, className: 'w-[100px]' },
   { key: 'objectId', label: 'Object ID', className: 'w-[120px] font-mono text-xs' },
   { key: 'detail', label: 'Detail', className: 'min-w-[200px]', render: (item) => <span className="text-xs">{item.detail}</span> },
-  { key: 'ipAddress', label: 'IP Address', className: 'w-[110px] font-mono text-xs' },
 ];
 
 export function AuditLogPage() {
@@ -151,7 +105,6 @@ export function AuditLogPage() {
         objectType: e.objectType,
         objectId: e.objectId,
         detail: e.detail,
-        ipAddress: '-',
       })),
     [persistedEntries],
   );
@@ -174,24 +127,23 @@ export function AuditLogPage() {
         objectType: e.objectType,
         objectId: e.objectId,
         detail: e.detail,
-        ipAddress: '-',
       }));
   }, [sessionAudit, persistedRows]);
 
   const allEntries = useMemo(
-    () => [...sessionRows, ...persistedRows, ...seedAuditEntries],
+    () => [...sessionRows, ...persistedRows],
     [sessionRows, persistedRows],
   );
   const uniqueUsers = useMemo(
-    () => [...new Set([...sessionRows.map((e) => e.user), ...persistedRows.map((e) => e.user), ...baseUniqueUsers])].sort(),
+    () => [...new Set([...sessionRows.map((e) => e.user), ...persistedRows.map((e) => e.user)])].sort(),
     [sessionRows, persistedRows],
   );
   const uniqueActions = useMemo(
-    () => [...new Set([...sessionRows.map((e) => e.action), ...persistedRows.map((e) => e.action), ...baseUniqueActions])].sort(),
+    () => [...new Set([...sessionRows.map((e) => e.action), ...persistedRows.map((e) => e.action)])].sort(),
     [sessionRows, persistedRows],
   );
   const uniqueObjectTypes = useMemo(
-    () => [...new Set([...sessionRows.map((e) => e.objectType), ...persistedRows.map((e) => e.objectType), ...baseUniqueObjectTypes])].sort(),
+    () => [...new Set([...sessionRows.map((e) => e.objectType), ...persistedRows.map((e) => e.objectType)])].sort(),
     [sessionRows, persistedRows],
   );
 
@@ -213,7 +165,7 @@ export function AuditLogPage() {
   // it did nothing, on the screen whose entire purpose is producing evidence.
   //
   // Columns are named explicitly rather than read off row zero, so a row that
-  // happens to lack `ipAddress` cannot silently drop the column for every row.
+  // happens to lack a field cannot silently drop the column for every row.
   const handleExport = () => {
     downloadCsv(
       datedFilename('audit-log'),
@@ -224,9 +176,8 @@ export function AuditLogPage() {
         object_type: row.objectType,
         object_id: row.objectId,
         detail: row.detail,
-        ip_address: row.ipAddress,
       })),
-      ['timestamp', 'user', 'action', 'object_type', 'object_id', 'detail', 'ip_address'],
+      ['timestamp', 'user', 'action', 'object_type', 'object_id', 'detail'],
     );
   };
 

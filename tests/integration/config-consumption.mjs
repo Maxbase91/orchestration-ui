@@ -361,6 +361,18 @@ if (!connection) {
   else bad(`${stale.length} deadline(s) belong to another stage`, stale.slice(0, 6).join(' | '));
 }
 
+console.log('\nAdmin shows what happened, not examples of it');
+{
+  const auditPage = readFileSync(new URL('src/features/settings/audit-log-page.tsx', ROOT), 'utf8');
+  // 40 invented entries (logins from named offices, an AI "duplicate detected",
+  // made-up IP addresses) sat beside the real audit rows.
+  if (/AUD-0\d\d|ipAddress/.test(auditPage)) bad('the audit log shows only recorded entries', 'hard-coded entries or an IP column are back');
+  else ok('the audit log shows only recorded entries');
+  const dbAdmin = readFileSync(new URL('src/features/admin/database/database-admin-page.tsx', ROOT), 'utf8');
+  if (/key: 'workflow'|handleReset/.test(dbAdmin)) bad('the Database page has no read-only duplicate tab and no reset', 'the Workflows tab or the reset action is back');
+  else ok('the Database page has no read-only duplicate tab and no reset');
+}
+
 console.log('');
 if (failures) { console.error(`FAILED: ${failures} check(s)`); process.exit(1); }
 console.log('Configuration reaches what it configures.');

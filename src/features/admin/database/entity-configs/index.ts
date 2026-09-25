@@ -7,7 +7,6 @@ import { purchaseOrdersConfig } from './purchase-orders.config';
 import { invoicesConfig } from './invoices.config';
 import { requestsConfig } from './requests.config';
 import { approvalsConfig } from './approvals.config';
-import { workflowsConfig } from './workflows.config';
 import { sourcingEventsConfig } from './sourcing-events.config';
 import { catalogueItemsConfig } from './catalogue-items.config';
 
@@ -19,7 +18,6 @@ export const entityConfigs = {
   invoice: invoicesConfig,
   request: requestsConfig,
   approval: approvalsConfig,
-  workflow: workflowsConfig,
   sourcingEvent: sourcingEventsConfig,
   catalogueItem: catalogueItemsConfig,
 } satisfies { [K in EntityKey]: EntityConfig<K> };

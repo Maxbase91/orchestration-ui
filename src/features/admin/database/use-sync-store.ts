@@ -6,7 +6,6 @@ import { usePurchaseOrders } from '@/lib/db/hooks/use-purchase-orders';
 import { useInvoices } from '@/lib/db/hooks/use-invoices';
 import { useApprovals } from '@/lib/db/hooks/use-approvals';
 import { useRequests } from '@/lib/db/hooks/use-requests';
-import { useWorkflowTemplates } from '@/lib/db/hooks/use-workflow-templates';
 import { useSourcingEvents } from '@/lib/db/hooks/use-sourcing-events';
 import { useCatalogueItems } from '@/lib/db/hooks/use-catalogue-items';
 import { useDatabaseAdminStore } from '@/stores/database-admin-store';
@@ -25,7 +24,6 @@ export function useSyncAdminStore() {
   const { data: invoices, isSuccess: invoicesLoaded } = useInvoices();
   const { data: approvals, isSuccess: approvalsLoaded } = useApprovals();
   const { data: requests, isSuccess: requestsLoaded } = useRequests();
-  const { data: workflowTemplates, isSuccess: workflowsLoaded } = useWorkflowTemplates();
   const { data: sourcingEvents, isSuccess: sourcingEventsLoaded } = useSourcingEvents();
   const { data: catalogueItems, isSuccess: catalogueItemsLoaded } = useCatalogueItems();
   const syncList = useDatabaseAdminStore((s) => s.syncList);
@@ -78,11 +76,6 @@ export function useSyncAdminStore() {
     }
   }, [requestsLoaded, requests, syncList]);
 
-  useEffect(() => {
-    if (workflowsLoaded && workflowTemplates) {
-      syncList('workflow', workflowTemplates);
-    }
-  }, [workflowsLoaded, workflowTemplates, syncList]);
 
   useEffect(() => {
     if (sourcingEventsLoaded && sourcingEvents) {

@@ -6,7 +6,6 @@ import type {
   Invoice,
   ProcurementRequest,
   ApprovalEntry,
-  WorkflowTemplate,
   AuditEntry,
   RiskAssessment,
 } from '@/data/types';
@@ -79,11 +78,9 @@ const LIVE_ENTITIES = new Set<string>([
 
 // `workflow` was in this set and had no persistence branch in update/create/
 // remove, so an edit fell through to the local-only tail — success toast, an
-// audit row claiming `record.update`, and nothing written. `reset()` below has
-// always cleared it alongside `audit` as a session-only entity, so this file
-// asserted both things at once. Workflow templates are edited at
-// /admin/workflows, which persists them properly through
-// src/lib/db/workflow-templates.ts; this tab is a read-only view of them.
+// audit row claiming `record.update`, and nothing written. It then survived as
+// a read-only tab duplicating the Workflow Designer, with a "reset session
+// edits" action that had nothing left to reset; both are gone (2026-09-25).
 //
 // The rule this encodes: an entity belongs in LIVE_ENTITIES only when update,
 // create and remove all have a branch for it. test:config-consumption checks
@@ -101,7 +98,6 @@ export type EntityKey =
   | 'invoice'
   | 'request'
   | 'approval'
-  | 'workflow'
   | 'sourcingEvent'
   | 'catalogueItem';
 
@@ -113,7 +109,6 @@ export interface EntityRecordMap {
   invoice: Invoice;
   request: ProcurementRequest;
   approval: ApprovalEntry;
-  workflow: WorkflowTemplate;
   sourcingEvent: SourcingEvent;
   catalogueItem: CatalogueItem;
 }
@@ -126,7 +121,6 @@ interface DatabaseAdminState {
   invoice: Invoice[];
   request: ProcurementRequest[];
   approval: ApprovalEntry[];
-  workflow: WorkflowTemplate[];
   sourcingEvent: SourcingEvent[];
   catalogueItem: CatalogueItem[];
   audit: AuditEntry[];
@@ -135,7 +129,6 @@ interface DatabaseAdminState {
   update: <K extends EntityKey>(key: K, id: string, patch: Partial<EntityRecordMap[K]>) => Promise<void>;
   create: <K extends EntityKey>(key: K, record: EntityRecordMap[K]) => Promise<void>;
   remove: <K extends EntityKey>(key: K, id: string) => Promise<void>;
-  reset: () => void;
 }
 
 function makeAuditEntry(
@@ -202,7 +195,6 @@ export const useDatabaseAdminStore = create<DatabaseAdminState>((set, get) => ({
   invoice: [],
   request: [],
   approval: [],
-  workflow: [],
   sourcingEvent: [],
   catalogueItem: [],
   audit: [],
@@ -508,24 +500,6 @@ export const useDatabaseAdminStore = create<DatabaseAdminState>((set, get) => ({
       return { ...state, [key]: next, audit: [audit, ...state.audit] } as DatabaseAdminState;
     });
   },
-  reset: () => {
-    // Only resets session-only entities; database-backed entities are
-    // re-synced by the sync hook on next fetch.
-    set({
-      ...get(),
-      workflow: [],
-      audit: [],
-    });
-    queryClient.invalidateQueries({ queryKey: ['suppliers'] });
-    queryClient.invalidateQueries({ queryKey: ['contracts'] });
-    queryClient.invalidateQueries({ queryKey: ['risk-assessments'] });
-    queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
-    queryClient.invalidateQueries({ queryKey: ['invoices'] });
-    queryClient.invalidateQueries({ queryKey: ['approvals'] });
-    queryClient.invalidateQueries({ queryKey: ['requests'] });
-    queryClient.invalidateQueries({ queryKey: ['sourcing-events'] });
-    queryClient.invalidateQueries({ queryKey: ['catalogue-items'] });
-  },
 }));
 
 export const entityLabels: Record<EntityKey, { singular: string; plural: string; route?: string }> = {
@@ -536,7 +510,6 @@ export const entityLabels: Record<EntityKey, { singular: string; plural: string;
   invoice: { singular: 'Invoice', plural: 'Invoices', route: '/purchasing/invoices' },
   request: { singular: 'Request', plural: 'Requests', route: '/requests' },
   approval: { singular: 'Approval', plural: 'Approvals', route: '/approvals' },
-  workflow: { singular: 'Workflow', plural: 'Workflows', route: '/admin/workflows' },
   sourcingEvent: { singular: 'Sourcing Event', plural: 'Sourcing Events', route: '/sourcing' },
   catalogueItem: { singular: 'Catalogue Item', plural: 'Catalogue Items', route: '/catalogue' },
 };
