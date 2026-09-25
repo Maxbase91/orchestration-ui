@@ -24,6 +24,9 @@ import {
 
 type RecordObject = Exclude<StatusObject, 'approval'>;
 
+/** Characters of one free-text attribute handed to the model. */
+const MODEL_TEXT_LIMIT = 160;
+
 const TABLE: Record<RecordObject, string> = {
   request: 'requests_with_derived',
   'purchase-order': 'purchase_orders',
@@ -114,7 +117,12 @@ async function lookupData(db: NeonCompatibleClient, object: RecordObject): Promi
 function projectFor(ctx: StatusContext, object: RecordObject, record: StatusRecord, data: StatusLookupData) {
   const asked = new Set(ctx.config.objects[object].map((a) => a.key));
   const item = composeItem(object, { ...record, ...deriveAttributes(object, record, data) }, ctx.config, ctx.role, asked);
-  return { id: record.id, title: item.title, link: item.link, ...Object.fromEntries(item.facts.map((f) => [f.label, f.value])) };
+  // Long free text (a description, a justification) is cut for the model: the
+  // whole record went out as one tool result per question, and on the free
+  // Groq tier the extra tokens were enough to hit the per-minute limit, which
+  // the requester sees as "trouble connecting". The link carries the rest.
+  const clip = (v: string) => (v.length > MODEL_TEXT_LIMIT ? `${v.slice(0, MODEL_TEXT_LIMIT)}…` : v);
+  return { id: record.id, title: item.title, link: item.link, ...Object.fromEntries(item.facts.map((f) => [f.label, clip(f.value)])) };
 }
 
 /** lookup_object for a governed object: one record, or found:false. */
