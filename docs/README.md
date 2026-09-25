@@ -24,6 +24,7 @@ frozen by a guard.
 | [personas.md](specs/personas.md) | The 6 personas — who each is, what they see/access/do, and complexity per persona, in R1 and end-state. Incl. the route-guard access matrix. |
 | [personas-business.md](specs/personas-business.md) | Plain-language, stakeholder-ready version of the personas — for sponsors, business, and change/training teams. |
 | [design-document.md](specs/design-document.md) | UX / design specification and screen designs. |
+| [admin-map.md](specs/admin-map.md) | Every Admin item — what it is for, where it is stored, what reads it, and what the 2026-09-25 review removed. |
 | [requirements/](specs/requirements/) | Detailed requirements by domain, numbered `00`–`14` (intake, workflow, approvals, suppliers, sourcing, contracts, P2P, analytics, admin, AI assistant, data model, APIs). |
 
 ## roadmap/ — what to build

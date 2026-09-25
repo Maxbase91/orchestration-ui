@@ -10,7 +10,9 @@ import type { AIAgent } from '@/data/types';
 // There were "Accuracy" and "Decisions" columns here: seeded numbers (94.2%,
 // 1,247) that nothing measured or updated.
 const AGENT_AFFECTS: Record<string, string[]> = {
-  'AI-001': ['Describe step: classification', 'Home box: catalogue check'],
+  // Describe step only: the Home box's catalogue check stopped asking the
+  // model (2026-09-25) — the deterministic intake decision decides it.
+  'AI-001': ['Describe step: classification'],
   'AI-002': ['Review step: policy checks'],
   'AI-004': ['Analytics: spend anomalies'],
   'AI-005': ['Details step: supplier recommendations'],

@@ -67,6 +67,8 @@ R1 is an internally operated system of record backed by private Neon. It owns re
 | Invoice Queue | Invoice management with AI data extraction, three-way match visualizer |
 
 ### Admin & Configuration
+What each Admin item is for, where it is stored and what reads it: [docs/specs/admin-map.md](docs/specs/admin-map.md).
+
 | Screen | Description |
 |--------|-------------|
 | Smart Command Bar | Free-text entry on the home page, with an **intent step**: a **status question** ("where is REQ-…", "what's waiting for me", a PO, invoice, contract or supplier) is answered in place by the Status Answers agent — only what its configuration lets this role see; a **policy question** is answered in place — a direct answer computed from Decisioning thresholds and approval chains (quotes, approvers, buying channel, catalogue auto-approval) plus the knowledge-base rule with live figures; each offers a follow-up in the assistant. A **demand goes straight into intake**, carrying its wording, so classification starts immediately; anything else reaches the assistant. A demand the **catalogue genuinely serves** is **named** — the matched item, its price and lead time — with a link to its governed checkout and an always-visible "not what you need?" route into full intake; it never navigates on the requester's behalf. The catalogue decision is `lib/procurement/intake-routing.ts` — the same category-gated, naming-word decision the wizard's pre-check makes, so both entry points agree. The order (status → catalogue → policy → demand → assistant) is **one route**, `lib/assistant/question-route.ts`, which **the assistant takes too**; the catalogue can be browsed in place by the catalogues its items belong to |

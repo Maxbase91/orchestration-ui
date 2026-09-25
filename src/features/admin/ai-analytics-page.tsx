@@ -1,3 +1,6 @@
+// Admin → AI Analytics: how the assistant is used — conversations and
+// questions per day, and the helpful / not-helpful votes on its answers — from
+// assistant_conversations and chat_feedback. A report; nothing here is set.
 import { useMemo } from 'react';
 import { AlertTriangle, MessageSquare, ThumbsUp, ThumbsDown, TrendingUp } from 'lucide-react';
 import { format, subDays, startOfDay, parseISO } from 'date-fns';
