@@ -102,8 +102,10 @@ function advanceInstance(template, startNodeId, outcome, store, resuming = false
   return { status: 'running', at: nodeId ? [nodeId] : [] };
 }
 
-// ── mirrors transition.ts ───────────────────────────────────────────────────
-const CHAIN_ROLE_TO_SYSTEM_ROLE = {
+// ── the stage owner, as transition.ts resolves it ──────────────────────────
+// The role map is configuration (functional_roles) since 2026-09-25; these are
+// fixture rows standing in for it, not a copy of a table in code.
+const ROLE_MAP = {
   'Category Manager': 'procurement-manager',
   'Third-party risk': 'vendor-manager',
   'Finance Approver': 'procurement-manager',
@@ -114,7 +116,7 @@ const PERSONA_BY_ROLE = {
 };
 function resolveStageOwnerRole(role) {
   if (!role) return null;
-  const sys = CHAIN_ROLE_TO_SYSTEM_ROLE[role];
+  const sys = ROLE_MAP[role];
   if (!sys) return null;
   return { id: PERSONA_BY_ROLE[sys].id, systemRole: sys };
 }

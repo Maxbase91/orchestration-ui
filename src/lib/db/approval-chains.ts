@@ -24,7 +24,6 @@ export interface ApprovalChain {
   /** Exclusive upper bound: a literal, a `policy:` token, or null for open. */
   maxValue?: string | null;
   steps: ApprovalChainStep[];
-  referencedBy: string[];
   createdAt?: string;
   updatedAt?: string;
 }
@@ -40,7 +39,6 @@ function mapDbToChain(row: Record<string, unknown>): ApprovalChain {
     minValue: (row.min_value as string | null) ?? null,
     maxValue: (row.max_value as string | null) ?? null,
     steps: (row.steps as ApprovalChainStep[]) ?? [],
-    referencedBy: (row.referenced_by as string[]) ?? [],
     createdAt: row.created_at as string | undefined,
     updatedAt: row.updated_at as string | undefined,
   };
@@ -55,7 +53,6 @@ function mapChainToDb(chain: ApprovalChain): Record<string, unknown> {
     min_value: chain.minValue ?? null,
     max_value: chain.maxValue ?? null,
     steps: chain.steps,
-    referenced_by: chain.referencedBy,
     // Stamped client-side — there is no DB trigger maintaining updated_at.
     updated_at: new Date().toISOString(),
   };

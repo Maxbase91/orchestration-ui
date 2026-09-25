@@ -82,7 +82,7 @@
     "test:supplier-candidates": "node --import tsx/esm tests/integration/supplier-candidates.mjs",
     "test:supplier-data": "node tests/integration/supplier-data.mjs",
     "test:approval-derivation": "node --import tsx/esm tests/integration/approval-derivation.mjs",
-    "test:approver-resolution": "node tests/integration/approver-resolution.mjs",
+    "test:approver-resolution": "node --import tsx/esm tests/integration/approver-resolution.mjs",
     "test:workflow-steps": "node --import tsx/esm tests/integration/workflow-steps.mjs",
     "test:policy-config": "node tests/integration/policy-config.mjs",
     "test:policy-config-server": "node --import tsx/esm tests/integration/policy-config-server.mjs",
@@ -120,7 +120,7 @@
     "test:ui-lifecycle": "node tests/integration/ui-lifecycle-hardening.mjs",
     "test:service-description-ui": "node tests/ui/service-description-admin.mjs",
     "test:routing-rules-ui": "node tests/ui/routing-rules-admin.mjs",
-    "test:approval-chains-ui": "node tests/ui/approval-chains-admin.mjs",
+    "test:approval-chains-ui": "node --import tsx/esm tests/ui/approval-chains-admin.mjs",
     "test:approvals-ui": "node tests/ui/approvals-queue.mjs",
     "test:form-builder-ui": "node tests/ui/form-builder-admin.mjs",
     "test:intake-guidance-ui": "node tests/ui/intake-guidance-ui.mjs",
@@ -167,7 +167,8 @@
     "backfill:knowledge-base-linked": "node --import tsx/esm db/backfills/2026-09-25-knowledge-base-linked.mjs",
     "backfill:status-agent": "node --import tsx/esm db/backfills/2026-09-25-status-agent.mjs",
     "backfill:honest-agents": "node --import tsx/esm db/backfills/2026-09-25-honest-agents.mjs",
-    "backfill:routing-rules-real": "node --import tsx/esm db/backfills/2026-09-25-routing-rules-real.mjs"
+    "backfill:routing-rules-real": "node --import tsx/esm db/backfills/2026-09-25-routing-rules-real.mjs",
+    "backfill:functional-roles": "node --import tsx/esm db/backfills/2026-09-25-functional-roles.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

@@ -28,7 +28,9 @@ FR10-04 · (Future) **Stage Sequences** (`/admin/stage-sequences`): per-channel 
 
 FR10-10 · **Routing Rules** (`/admin/rules`): condition/action pairs that map (category, value, urgency, supplier) → buying channel + approval chain. Wired to intake (wizard Step 5 preview + compliance step). Match count shown per rule.
 
-FR10-11 · **Approval Chains** (`/admin/approvals`): CRUD on the Neon-backed `approval_chains` table. Each chain has steps with role labels. `generateApprovalEntries` reads chains by id.
+FR10-11 · **Approval Chains** (`/admin/approvals`): CRUD on the Neon-backed `approval_chains` table. Each chain has a value band (literal or `policy:` bounds) and steps whose roles are picked from the **Roles** list on the same page. The rules that name a chain are read from the routing rules (a stored "referenced by" list of names no rule carried was removed, 2026-09-25).
+
+FR10-11a · **Roles** (Approval Chains page, `functional_roles`): which system role acts as each functional role a chain step or workflow stage names (Finance, Legal, VP Procurement, CFO, Board, Supplier Manager, Third-party risk, Vendor management…). It was a constant in code; "Vendor management" had no entry, so its stage had no owner. Budget Owner, Category Manager and Contract Owner resolve from the record first (cost-centre owner, category managers, contract owner); *acts as* decides when the record names nobody — an ownerless Budget Owner step goes to procurement managers. Nobody may approve any step of a request they raised. A role still named somewhere cannot be deleted; a named role nobody configured is flagged.
 
 FR10-12 · **Form Builder** (`/admin/forms`): create/edit form templates (8 built-in: risk triage, IT security, etc.). Form fields (11 types), conditional logic. Forms are triggered by workflow stage nodes.
 

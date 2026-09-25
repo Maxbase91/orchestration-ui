@@ -18,6 +18,8 @@ import { db } from '@/lib/db-client';
 import { updateRequest } from '@/lib/db/requests';
 import type { ProcurementRequest } from '@/data/types';
 import { resolveStageOwnerRole } from './approver-resolution';
+import { loadRoleMap } from '@/lib/db/functional-roles';
+import type { RoleMap } from '@/lib/procurement/approval-derivation';
 import type { TemplateNode } from './node-config';
 import { slaDeadlineFor } from './business-days';
 
@@ -48,11 +50,12 @@ export interface TransitionInput {
 function resolveStageOwner(
   node: TemplateNode | undefined,
   actor: { id: string; name: string } | undefined,
+  roles: RoleMap,
 ): string | null {
   if (node?.role) {
     // Null when the role is unmapped: an unassigned stage is visibly wrong,
     // whereas a silently defaulted owner is a lie. See resolveStageOwnerRole.
-    return resolveStageOwnerRole(node.role)?.id ?? null;
+    return resolveStageOwnerRole(node.role, roles)?.id ?? null;
   }
   return actor?.id ?? null;
 }
@@ -107,8 +110,12 @@ export async function transitionStage(input: TransitionInput): Promise<void> {
       .is('completed_at', null);
   }
 
+  // Read per transition: a role an admin just remapped applies to the next
+  // stage entered, with no cache to go stale. A failed read leaves the stage
+  // unassigned (empty map) rather than guessing an owner.
+  const roles = node?.role ? await loadRoleMap().catch(() => ({})) : {};
   const ownerId =
-    resolveStageOwner(node, actor) ??
+    resolveStageOwner(node, actor, roles) ??
     ((existing as Record<string, unknown> | null)?.owner_id as string | undefined) ??
     null;
 

@@ -146,6 +146,22 @@ export const FIXTURES = {
   // driven offline: one pending and actionable, one already approved. The
   // pending one is deliberately high-value — the amount is the fact that screen
   // exists to present, and it was not a field on the card until this phase.
+  // Who acts as each role (configuration since 2026-09-25). A fixture subset of
+  // src/data/functional-roles.ts — this file is plain JS for suites run with
+  // plain node, so it cannot import the seed.
+  functional_roles: [
+    { name: 'Budget Owner', acts_as: 'procurement-manager', description: '', sort_order: 1 },
+    { name: 'Category Manager', acts_as: 'procurement-manager', description: '', sort_order: 2 },
+    { name: 'Contract Owner', acts_as: 'procurement-manager', description: '', sort_order: 3 },
+    { name: 'Finance', acts_as: 'procurement-manager', description: '', sort_order: 10 },
+    { name: 'VP Procurement', acts_as: 'admin', description: '', sort_order: 11 },
+    { name: 'CFO', acts_as: 'admin', description: '', sort_order: 12 },
+    { name: 'Board', acts_as: 'admin', description: '', sort_order: 13 },
+    { name: 'Supplier Manager', acts_as: 'vendor-manager', description: '', sort_order: 14 },
+    { name: 'Legal', acts_as: 'procurement-manager', description: '', sort_order: 15 },
+    { name: 'Third-party risk', acts_as: 'vendor-manager', description: '', sort_order: 25 },
+    { name: 'Vendor management', acts_as: 'vendor-manager', description: '', sort_order: 26 },
+  ],
   approval_entries: [
     {
       id: 'APR-TEST-1', request_id: 'REQ-TEST-0001', approver_id: 'u11',

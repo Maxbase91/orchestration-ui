@@ -1,55 +1,62 @@
 #!/usr/bin/env node
-// Verifies approver resolution — approval step role → switchable persona.
+// Who acts as each functional role — configuration, and complete.
 //
-// Self-contained — mirrors src/lib/workflow/approver-resolution.ts. Keep in sync.
-// Run: node tests/integration/approver-resolution.mjs
+// This suite used to carry its own copy of CHAIN_ROLE_TO_SYSTEM_ROLE and of
+// resolveApprover, and passed against the copy. Both are gone from the code
+// (2026-09-25): the map is `functional_roles` (Approval Chains → Roles), and an
+// unknown role no longer defaults to the procurement manager. What matters now
+// is that every role a chain or a stage names is configured — "Vendor
+// management", a live stage owner, never was, so its stage had no owner.
+//
+// Run: npm run test:approver-resolution
+import { readFileSync } from 'node:fs';
+import { neon } from '@neondatabase/serverless';
+import { loadEnv } from '../lib/live.mjs';
+import { functionalRoles } from '../../src/data/functional-roles.ts';
+import { workflowTemplates } from '../../src/data/workflows.ts';
+import { roles as systemRoles } from '../../src/config/roles.ts';
 
 let failures = 0;
 function check(name, cond, detail = '') {
   if (cond) console.log(`  \x1b[32m✓\x1b[0m ${name}`);
   else { failures++; console.error(`  \x1b[31m✗\x1b[0m ${name}${detail ? ` — ${detail}` : ''}`); }
 }
+const read = (rel) => readFileSync(new URL(`../../${rel}`, import.meta.url), 'utf8');
 
-const CHAIN_ROLE_TO_SYSTEM_ROLE = {
-  'Budget Owner': 'service-owner', 'Business Requestor': 'service-owner',
-  'Category Manager': 'procurement-manager', 'Procurement Manager': 'procurement-manager',
-  'Procurement Lead': 'procurement-manager', Finance: 'procurement-manager',
-  'Finance Approver': 'procurement-manager', 'VP Procurement': 'admin', CFO: 'admin', Board: 'admin',
-  Approver: 'procurement-manager', 'New Approver': 'procurement-manager',
-  'Supplier Manager': 'vendor-manager', 'Operations Lead': 'operations-lead',
-};
-// One identity namespace: each role's rep is a real `users` directory row.
-const PERSONA_BY_ROLE = {
-  'service-owner': { id: 'u6', name: "James O'Brien" },
-  'procurement-manager': { id: 'u1', name: 'Anna Müller' },
-  'vendor-manager': { id: 'u3', name: 'Sarah Chen' },
-  'operations-lead': { id: 'u4', name: 'Marcus Johnson' },
-  supplier: { id: 'u13', name: 'David Schneider' },
-  admin: { id: 'u11', name: 'Christine Dupont' },
-};
-// The switchable role reps (must match src/stores/auth-store.ts defaultUsers).
-const SWITCHABLE = new Set(['u6', 'u1', 'u3', 'u4', 'u13', 'u11']);
-function resolveApprover(chainRole) {
-  const systemRole = (chainRole && CHAIN_ROLE_TO_SYSTEM_ROLE[chainRole]) || 'procurement-manager';
-  const p = PERSONA_BY_ROLE[systemRole];
-  return { systemRole, id: p.id, name: p.name };
+console.log('The seed configures every role the seeded stages name');
+const configured = new Set(functionalRoles.map((r) => r.name));
+const stageRoles = [...new Set(workflowTemplates.flatMap((t) => t.nodes.map((n) => n.role).filter(Boolean)))];
+const missing = stageRoles.filter((r) => !configured.has(r));
+check(`every stage owner role is configured (${stageRoles.length})`, missing.length === 0, missing.join(', '));
+check('each acts as a real system role', functionalRoles.every((r) => systemRoles.some((s) => s.id === r.actsAs)));
+check('the external supplier role acts as nothing', functionalRoles.every((r) => r.actsAs !== 'supplier'));
+check('an ownerless Budget Owner step goes to procurement managers', functionalRoles.find((r) => r.name === 'Budget Owner')?.actsAs === 'procurement-manager');
+check('the record-backed roles are all configured', ['Budget Owner', 'Category Manager', 'Contract Owner'].every((n) => configured.has(n)));
+
+console.log('\nNo copy of the table is left in code');
+check('approval-derivation has no role table', !/CHAIN_ROLE_TO_SYSTEM_ROLE/.test(read('src/lib/procurement/approval-derivation.ts')));
+const resolution = read('src/lib/workflow/approver-resolution.ts');
+check('stage owners resolve through the configured map', /resolveStageOwnerRole\(chainRole: string \| undefined, roles: RoleMap\)/.test(resolution));
+check('personas have one home (the auth store), not a copy here', !/PERSONA_BY_ROLE\s*[:=]/.test(resolution) && /personaForRole/.test(resolution));
+check('transitions read the configured map', /loadRoleMap\(\)/.test(read('src/lib/workflow/transition.ts')));
+
+const env = loadEnv();
+const connection = env.NEON_DATABASE_URL || env.DATABASE_URL;
+if (!connection) {
+  console.log('\n  (skipped live checks — no database connection)');
+} else {
+  console.log('\nLive');
+  const sql = neon(connection);
+  const liveRoles = new Set((await sql`SELECT name FROM functional_roles`).map((r) => r.name));
+  const named = [
+    ...(await sql`SELECT DISTINCT s->>'role' AS role FROM approval_chains, jsonb_array_elements(steps) s`).map((r) => r.role),
+    ...(await sql`SELECT DISTINCT n->>'role' AS role FROM workflow_templates, jsonb_array_elements(nodes) n WHERE n->>'role' IS NOT NULL`).map((r) => r.role),
+    ...(await sql`SELECT DISTINCT approver_role AS role FROM approval_entries WHERE status = 'pending'`).map((r) => r.role),
+  ].filter(Boolean);
+  const unconfigured = [...new Set(named)].filter((r) => !liveRoles.has(r));
+  check('every role a live chain, stage or pending approval names is configured', unconfigured.length === 0, unconfigured.join(', '));
 }
 
-console.log('Role → switchable directory rep');
-check('Finance Approver → procurement-manager rep (u1)', resolveApprover('Finance Approver').id === 'u1');
-check('VP Procurement → admin rep (u11)', resolveApprover('VP Procurement').id === 'u11');
-check('Budget Owner → service-owner rep (u6)', resolveApprover('Budget Owner').id === 'u6');
-check('Supplier Manager → vendor-manager rep (u3)', resolveApprover('Supplier Manager').id === 'u3');
-check('Operations Lead → operations-lead rep (u4)', resolveApprover('Operations Lead').id === 'u4');
-check('unknown role → procurement-manager fallback (u1)', resolveApprover('Mystery Role').id === 'u1');
-check('undefined role → fallback (u1)', resolveApprover(undefined).id === 'u1');
-
-console.log('Every approval resolves to a SWITCHABLE directory user (the bug fix)');
-const ALL_ROLES = [...Object.keys(CHAIN_ROLE_TO_SYSTEM_ROLE), 'Mystery Role', undefined];
-check('no role ever resolves to a non-switchable user', ALL_ROLES.every((r) => SWITCHABLE.has(resolveApprover(r).id)));
-check('resolved name matches the rep', resolveApprover('Finance Approver').name === 'Anna Müller');
-check('all 6 system roles have a distinct rep', new Set(Object.values(PERSONA_BY_ROLE).map((p) => p.id)).size === 6);
-
 console.log('');
-if (failures) { console.error(`FAILED: ${failures} check(s)`); process.exitCode = 1; }
-else console.log('All approver-resolution checks passed.');
+if (failures) { console.error(`FAILED: ${failures} check(s) failed`); process.exit(1); }
+console.log('All approver-resolution checks passed.');

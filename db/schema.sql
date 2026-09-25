@@ -1458,6 +1458,19 @@ $$ SELECT 'REQ-' || to_char(now(), 'YYYY') || '-' || lpad(nextval('request_numbe
 -- This replaces resolving every functional role to one of six switchable
 -- personas. That collapse is why the review screen could name a real person as
 -- the approver and then leave nobody able to act as them.
+-- Which system role acts as each functional role named on an approval-chain
+-- step or a workflow stage ("Finance", "Legal", "CFO", "Vendor management"…).
+-- This was a table in code (CHAIN_ROLE_TO_SYSTEM_ROLE) that nobody could
+-- change, and that left "Vendor management" — a live stage owner — unmapped.
+-- For the record-backed roles (Budget Owner, Category Manager, Contract Owner)
+-- `acts_as` is who decides when the record names nobody.
+CREATE TABLE IF NOT EXISTS functional_roles (
+  name        TEXT PRIMARY KEY,
+  acts_as     TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  sort_order  INT  NOT NULL DEFAULT 0
+);
+
 CREATE TABLE IF NOT EXISTS category_managers (
   category_id TEXT NOT NULL REFERENCES procurement_categories(id) ON DELETE CASCADE,
   user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

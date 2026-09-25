@@ -12,6 +12,7 @@ import { useAuthStore } from '@/stores/auth-store';
 import { useQueryClient } from '@tanstack/react-query';
 import { invalidateRequestViews } from '@/lib/query-client';
 import { canActOnApproval } from '@/lib/procurement/approval-derivation';
+import { useRoleMap } from '@/lib/db/hooks/use-functional-roles';
 import { recordApprovalDecision } from '@/lib/workflow/approval-decision';
 
 interface TabApprovalsProps {
@@ -24,6 +25,7 @@ export function TabApprovals({ request }: TabApprovalsProps) {
   const approvals = byRequest(request.id);
   const currentUser = useAuthStore((s) => s.currentUser);
   const currentRole = useAuthStore((s) => s.currentRole);
+  const roles = useRoleMap();
   // Steps run in order, so only the earliest outstanding one is live — showing
   // Approve on a later step would let it be decided out of sequence.
   const liveStepOrder = approvals
@@ -62,6 +64,7 @@ export function TabApprovals({ request }: TabApprovalsProps) {
                     { assignmentMode: approval.assignmentMode, approverId: approval.approverId,
                       delegatedTo: approval.delegatedTo, role: approval.approverRole, status: approval.status },
                     { id: currentUser.id, role: currentRole },
+                    { roles, requestorId: request.requestorId },
                   )
                 }
               />

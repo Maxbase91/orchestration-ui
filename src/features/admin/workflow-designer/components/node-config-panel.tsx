@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAiAgents } from '@/lib/db/hooks/use-ai-agents';
+import { useFunctionalRoles } from '@/lib/db/hooks/use-functional-roles';
 import type { Node, Edge } from '@xyflow/react';
 import { ConditionCard } from '@/features/admin/routing-rules/components/condition-card';
 import type { EdgeCondition } from '@/lib/workflow/edge-conditions';
@@ -30,6 +31,7 @@ export function NodeConfigPanel({
 }: NodeConfigPanelProps) {
   const nodeLabel = (id: string) => id;
   const { data: aiAgents = [] } = useAiAgents();
+  const { data: functionalRoles = [] } = useFunctionalRoles();
   // Staged edits, initialised from the node. The caller keys this panel on the
   // node id, so selecting a different node remounts it with fresh state — which
   // is what the effect that used to copy `node.data` into state was for.
@@ -58,14 +60,23 @@ export function NodeConfigPanel({
         return (
           <>
             <Field label="Owner role">
-              <Input
+              {/* Picked from the configured roles (Approval Chains → Roles): a
+                  typed name that matched nothing left the stage unassigned —
+                  which is what happened to "Vendor management". */}
+              <select
+                aria-label="Owner role"
+                className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
                 value={(formData.role as string) ?? ''}
                 onChange={(e) => set('role', e.target.value)}
-                placeholder="e.g. Category Manager"
-              />
+              >
+                <option value="">No owner</option>
+                {typeof formData.role === 'string' && formData.role !== '' && !functionalRoles.some((r) => r.name === formData.role) && (
+                  <option value={formData.role}>{formData.role} (not configured)</option>
+                )}
+                {functionalRoles.map((r) => <option key={r.name} value={r.name}>{r.name}</option>)}
+              </select>
               <p className="mt-1 text-xs text-muted-foreground">
-                Must match a role in the approval-chain vocabulary, or the stage is
-                left unassigned rather than given to the wrong person.
+                Who acts as each role is set under Approval Chains → Roles.
               </p>
             </Field>
             <Field label="Purpose / exit criteria">

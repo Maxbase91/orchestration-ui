@@ -13,6 +13,8 @@ import { useState } from 'react';
 import { AlertTriangle, Loader2, Pencil, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { useRoleMap } from '@/lib/db/hooks/use-functional-roles';
+import { roles } from '@/config/roles';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -83,6 +85,13 @@ export function CostCentresPage() {
     }
   }
 
+  // Who decides a Budget Owner step when the centre names nobody — the Roles
+  // configuration, not a fixed fallback.
+  const roleMap = useRoleMap();
+  const budgetFallbackLabel = roles.find((r) => r.id === roleMap['Budget Owner'])?.label.toLowerCase() ?? 'nobody (the role is not configured)';
+  const activeCount = costCentres.filter((c) => c.active).length;
+  const ownerless = costCentres.filter((c) => c.active && !c.owner?.trim()).length;
+
   type Row = CostCentre & Record<string, unknown>;
 
   const columns: Column<Row>[] = [
@@ -135,6 +144,16 @@ export function CostCentresPage() {
         subtitle="The accounts a request can be charged to. A retired centre stays readable on historic records but cannot be chosen."
         actions={<Button size="sm" onClick={openNew}><Plus className="mr-1.5 size-4" />Add cost centre</Button>}
       />
+
+      {ownerless > 0 && (
+        <div className="flex items-start gap-2 rounded-md border border-warn-line bg-warn-soft p-3 text-sm text-warn">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+          <p>
+            {ownerless} of {activeCount} active cost centres have no budget owner. Their Budget Owner approval goes to
+            any {budgetFallbackLabel} until an owner is set (Approval Chains → Roles). Nobody may approve their own request.
+          </p>
+        </div>
+      )}
 
       <DataTable columns={columns} data={costCentres as Row[]} searchable searchPlaceholder="Search cost centres…" />
 

@@ -11,6 +11,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { canActOnApproval } from '@/lib/procurement/approval-derivation';
+import { useRoleMap } from '@/lib/db/hooks/use-functional-roles';
 import { useIsCategoryManager } from '@/lib/db/hooks/use-category-managers';
 import { useFormTemplates } from '@/lib/db/hooks/use-form-templates';
 import { useFormSubmissions } from '@/lib/db/hooks/use-form-submissions';
@@ -81,6 +82,7 @@ export function ActionButtons({ request }: ActionButtonsProps) {
 
   const currentUser = useAuthStore((s) => s.currentUser);
   const currentRole = useAuthStore((s) => s.currentRole);
+  const roles = useRoleMap();
   useApprovals();
   const { byRequest } = useApprovalLookup();
   const updateApproval = useUpdateApproval();
@@ -207,6 +209,7 @@ export function ActionButtons({ request }: ActionButtonsProps) {
     .find((a) => canActOnApproval(
       { assignmentMode: a.assignmentMode, approverId: a.approverId, delegatedTo: a.delegatedTo, role: a.approverRole, status: a.status },
       { id: currentUser.id, role: currentRole },
+      { roles, requestorId: request.requestorId },
     ));
   const canApprove = Boolean(myPendingApproval);
   // Reassign and escalate: the routing roles. Written twice inline before.

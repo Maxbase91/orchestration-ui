@@ -36,7 +36,7 @@ const COHERENT = [
   chain('chain-1', 'Standard', '10000', 'policy:budgetApprovalThreshold', '€10,000 – €100,000'),
   chain('chain-3', 'VP-Level', 'policy:budgetApprovalThreshold', 'policy:delegatedAuthorityThreshold', '€100,000 – €500,000'),
   chain('chain-4', 'Board-Level', 'policy:delegatedAuthorityThreshold', null, 'Above €500,000'),
-  chain('chain-compliance', 'Compliance Escalation', null, null, 'By routing rule only'),
+  { ...chain('chain-compliance', 'Compliance Escalation', null, null, 'By routing rule only'), steps: [{ id: 'cs1', role: 'Supplier Manager' }, { id: 'cs2', role: 'Legal' }] },
 ];
 
 /** The same ladder with the middle removed, so €10k–€100k has no approver. */
@@ -62,7 +62,14 @@ async function openPage(browser, chains) {
   await context.addInitScript((u) => {
     localStorage.setItem('auth', JSON.stringify({ state: { currentRole: 'admin', currentUser: u }, version: 0 }));
   }, ADMIN);
-  await installDbStub(context, { approval_chains: chains });
+  // The roles the chains name, configured — minus 'Legal', so the page has an
+  // unconfigured role to flag. RR-T is the one rule that names a chain.
+  const { functionalRoles } = await import('../../src/data/functional-roles.ts');
+  await installDbStub(context, {
+    approval_chains: chains,
+    functional_roles: functionalRoles.filter((r) => r.name !== 'Legal').map((r) => ({ name: r.name, acts_as: r.actsAs, description: r.description, sort_order: r.sortOrder })),
+    routing_rules: [{ id: 'RR-T', name: 'High-risk supplier', status: 'active', priority: 100, category: 'Risk', conditions: [{ field: 'supplierRiskRating', operator: 'risk_rating', value: 'high' }], action: { buyingChannel: 'procurement-led', approvalChain: 'chain-compliance' }, description: '', last_modified: '2026-09-25' }],
+  });
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
@@ -106,6 +113,20 @@ try {
     /Follows .*budget approval threshold.* and .*delegated authority threshold/i.test(body),
     body.slice(body.indexOf('Value band'), body.indexOf('Value band') + 300));
   check('no raw policy token is shown to the admin', !/policy:budgetApprovalThreshold/.test(body));
+  check('a step role is picked from the configured roles, not typed',
+    (await page.getByLabel('Step 1 role').evaluate((el) => el.tagName)) === 'SELECT');
+
+  // ── Roles ────────────────────────────────────────────────────────────────
+  const rolesTable = page.getByRole('table', { name: 'Functional roles' });
+  await rolesTable.waitFor({ timeout: 10000 });
+  check('the Roles table lists what acts as each role',
+    (await page.getByLabel('Finance acts as').inputValue()) === 'procurement-manager'
+    && (await page.getByLabel('Budget Owner acts as').inputValue()) === 'procurement-manager');
+  check('a role a chain names but nobody configured is flagged', /Named but not configured[^.]*Legal/.test(await page.locator('body').innerText()));
+  check('a role in use cannot be deleted', await page.getByLabel('Delete Supplier Manager', { exact: true }).isDisabled());
+  check('an unused role can be', await page.getByLabel('Delete Finance Approver', { exact: true }).isEnabled());
+  check('the chain a rule names shows that rule, read from the rules',
+    await page.getByText('Compliance Escalation').first().click().then(async () => /RR-T High-risk supplier/.test(await page.locator('body').innerText())));
   check('no non-network render errors', errors.length === 0, errors.slice(0, 2).join(' | '));
 
   // ── A gap is reported ────────────────────────────────────────────────────

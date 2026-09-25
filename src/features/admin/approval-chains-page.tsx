@@ -18,6 +18,9 @@ import {
   useUpsertApprovalChain,
   useDeleteApprovalChain,
 } from '@/lib/db/hooks/use-approval-chains';
+import { useFunctionalRoles } from '@/lib/db/hooks/use-functional-roles';
+import { useRoutingRules } from '@/lib/db/hooks/use-routing-rules';
+import { ApprovalRolesPanel } from './approval-roles-panel';
 import { ConfirmDeleteDialog } from '@/components/shared/confirm-delete-dialog';
 import type { ApprovalChain } from '@/lib/db/approval-chains';
 import { bandLabel, governedBounds, diagnoseChains } from '@/lib/workflow/approval-bands';
@@ -39,6 +42,10 @@ export function ApprovalChainsPage() {
   const upsertChain = useUpsertApprovalChain();
   const removeChain = useDeleteApprovalChain();
   const policyConfig = usePolicyConfig();
+  // Step roles come from the Roles list below, so a typo cannot create a role
+  // nobody holds; "used by" comes from the rules that actually name a chain.
+  const { data: functionalRoles = [] } = useFunctionalRoles();
+  const { data: routingRules = [] } = useRoutingRules();
 
   // Diagnostics run over the EDITED view, not the server's, so a gap or an
   // overlap shows while the admin is making it rather than after they save.
@@ -98,7 +105,7 @@ export function ApprovalChainsPage() {
     // two steps added inside the same millisecond would have collided on it.
     const nextId = `s${Math.max(0, ...chain.steps.map((s) => Number(s.id.replace(/\D/g, '')) || 0)) + 1}`;
     patchEdit(chainId, {
-      steps: [...chain.steps, { id: nextId, role: 'New Approver' }],
+      steps: [...chain.steps, { id: nextId, role: functionalRoles[0]?.name ?? 'Category Manager' }],
     });
   }
 
@@ -119,15 +126,14 @@ export function ApprovalChainsPage() {
     const newChain: ApprovalChain = {
       id,
       name: 'New Chain',
-      description: 'Define the approval chain',
+      description: '',
       // No band, so it is not selectable by value until the admin sets one.
       // It used to default to 'TBD', which the regex parser read as [0, ∞) —
       // a brand-new chain silently captured every request in the platform.
       threshold: 'By routing rule only',
       minValue: null,
       maxValue: null,
-      steps: [{ id: `s${Date.now()}`, role: 'Approver' }],
-      referencedBy: [],
+      steps: [{ id: `s${Date.now()}`, role: functionalRoles[0]?.name ?? 'Category Manager' }],
     };
     setEditBuffer((prev) => ({ ...prev, [id]: newChain }));
     setLocalChainIds((prev) => new Set(prev).add(id));
@@ -256,11 +262,17 @@ export function ApprovalChainsPage() {
                         {isEditing ? (
                           <div className="flex items-center gap-1 rounded-lg border bg-card px-2 py-1.5">
                             <GripVertical className="size-3.5 text-muted-foreground" />
-                            <Input
+                            <select
+                              aria-label={`Step ${idx + 1} role`}
                               value={step.role}
                               onChange={(e) => updateStepRole(chain.id, step.id, e.target.value)}
-                              className="h-7 w-32 text-xs"
-                            />
+                              className="h-7 rounded-md border border-input bg-background px-1.5 text-xs"
+                            >
+                              {!functionalRoles.some((r) => r.name === step.role) && (
+                                <option value={step.role}>{step.role} (not configured)</option>
+                              )}
+                              {functionalRoles.map((r) => <option key={r.name} value={r.name}>{r.name}</option>)}
+                            </select>
                             <button
                               onClick={() => removeStep(chain.id, step.id)}
                               className="text-stop hover:text-stop"
@@ -324,21 +336,28 @@ export function ApprovalChainsPage() {
                     </div>
                   )}
 
-                  {/* Referenced routing rules */}
-                  {chain.referencedBy.length > 0 && (
-                    <div>
-                      <p className="text-xs font-medium text-muted-foreground mb-1.5">
-                        Referenced by routing rules:
-                      </p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {chain.referencedBy.map((rule) => (
-                          <span key={rule} className="rounded-full bg-idle-soft px-2.5 py-0.5 text-xs text-ink-2">
-                            {rule}
-                          </span>
-                        ))}
+                  {/* The rules that name this chain, read from the rules. It was a
+                      stored list of names typed once at seed time — "Standard
+                      Goods", "IT Infrastructure", a deleted RR-008 — that no
+                      rule ever carried. */}
+                  {(() => {
+                    const naming = routingRules.filter((r) => r.action.approvalChain === chain.id);
+                    if (naming.length === 0) return null;
+                    return (
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground mb-1.5">
+                          Named by routing rules — applies whatever the value:
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {naming.map((rule) => (
+                            <span key={rule.id} className="rounded-full bg-idle-soft px-2.5 py-0.5 text-xs text-ink-2">
+                              {rule.id} {rule.name}{rule.status !== 'active' ? ` (${rule.status})` : ''}
+                            </span>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
 
                   {/* Actions */}
                   <div className="flex gap-2 border-t pt-3">
@@ -375,6 +394,8 @@ export function ApprovalChainsPage() {
           );
         })}
       </div>
+
+      <ApprovalRolesPanel />
 
       {/* The one table here with a real foreign key: `requests.approval_chain`
           references it, so Postgres refuses to delete a chain a request still

@@ -243,6 +243,25 @@ async function categoryPreferredSuppliersRoundTrip() {
 }
 
 /**
+ * Functional roles (Approval Chains → Roles): which system role acts as each
+ * role a chain or a stage names. A code constant until 2026-09-25. One probe
+ * role is written, read back, remapped and removed.
+ */
+async function functionalRolesRoundTrip() {
+  const panel = readFileSync(new URL('../../src/features/admin/approval-roles-panel.tsx', import.meta.url), 'utf8');
+  assert(panel.includes('upsert.mutateAsync') && panel.includes('remove.mutateAsync'), 'roles: the panel saves and deletes');
+  const name = 'admin-editors-probe-role';
+  const { error: insErr } = await sb.from('functional_roles').insert({ name, acts_as: 'procurement-manager', description: '', sort_order: 99 });
+  assert(!insErr, 'roles: a role saves', insErr?.message);
+  await sb.from('functional_roles').update({ acts_as: 'admin' }).eq('name', name);
+  const { data: back } = await sb.from('functional_roles').select('acts_as').eq('name', name).maybeSingle();
+  assert(back?.acts_as === 'admin', 'roles: a remapping persists', JSON.stringify(back));
+  await sb.from('functional_roles').delete().eq('name', name);
+  const { data: gone } = await sb.from('functional_roles').select('name').eq('name', name).maybeSingle();
+  assert(!gone, 'roles: the probe is removed');
+}
+
+/**
  * Surfaces with no persistence, on purpose. Listed so that "not covered" is a
  * decision someone made rather than something nobody noticed.
  */
@@ -268,6 +287,7 @@ async function main() {
   await policyConfigRoundTrip();
   await categoryManagersRoundTrip();
   await categoryPreferredSuppliersRoundTrip();
+  await functionalRolesRoundTrip();
   deliberatelyReadOnly();
 
   const failed = results.filter((r) => r.o === 'FAIL').length;

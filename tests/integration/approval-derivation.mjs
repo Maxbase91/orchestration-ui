@@ -107,34 +107,55 @@ check('a chain that already asks the contract owner is not doubled', () => {
 });
 
 console.log('\nOnly the right person can act');
+const { readFileSync } = await import('node:fs');
 
 const anna = { id: 'u1', role: 'procurement-manager' };
 const james = { id: 'u6', role: 'service-owner' };
+// The role map is configuration (functional_roles) since 2026-09-25; these
+// are the seeded mappings the checks rely on.
+const { functionalRoles } = await import('../../src/data/functional-roles.ts');
+const { roleMapFrom } = await import('../../src/lib/procurement/approval-derivation.ts');
+const roles = roleMapFrom(functionalRoles);
+const ctx = (requestorId = 'u99') => ({ roles, requestorId });
 check('a person-assigned entry belongs to that person', () => {
   const entry = { assignmentMode: 'person', approverId: 'u7', status: 'pending', role: 'Category Manager' };
-  assert.equal(canActOnApproval(entry, anna), false, 'Anna is not Katrin');
+  assert.equal(canActOnApproval(entry, anna, ctx()), false, 'Anna is not Katrin');
 });
 check('their delegate can act for them', () => {
   const entry = { assignmentMode: 'person', approverId: 'u7', delegatedTo: 'u1', status: 'pending' };
-  assert.equal(canActOnApproval(entry, anna), true);
+  assert.equal(canActOnApproval(entry, anna, ctx()), true);
 });
 check('a role-assigned entry belongs to any holder of the role', () => {
   const entry = { assignmentMode: 'role', role: 'Category Manager', status: 'pending' };
-  assert.equal(canActOnApproval(entry, anna), true, 'Anna holds procurement-manager');
-  assert.equal(canActOnApproval(entry, james), false, 'James does not');
+  assert.equal(canActOnApproval(entry, anna, ctx()), true, 'Anna holds procurement-manager');
+  assert.equal(canActOnApproval(entry, james, ctx()), false, 'James does not');
 });
 check('an entry already decided cannot be acted on again', () => {
   const entry = { assignmentMode: 'role', role: 'Category Manager', status: 'approved' };
-  assert.equal(canActOnApproval(entry, anna), false);
+  assert.equal(canActOnApproval(entry, anna, ctx()), false);
 });
 check('a role nobody is mapped to is actionable by nobody', () => {
   const entry = { assignmentMode: 'role', role: 'Astronaut', status: 'pending' };
-  assert.equal(canActOnApproval(entry, anna), false);
+  assert.equal(canActOnApproval(entry, anna, ctx()), false);
+});
+check('an ownerless Budget Owner step goes to procurement managers, not requesters', () => {
+  const entry = { assignmentMode: 'role', role: 'Budget Owner', status: 'pending' };
+  assert.equal(canActOnApproval(entry, anna, ctx()), true, 'a procurement manager decides');
+  assert.equal(canActOnApproval(entry, james, ctx()), false, 'a requester no longer does');
+});
+check('nobody may approve their own request — role step, named step or delegate', () => {
+  assert.equal(canActOnApproval({ assignmentMode: 'role', role: 'Category Manager', status: 'pending' }, anna, ctx('u1')), false);
+  assert.equal(canActOnApproval({ assignmentMode: 'person', approverId: 'u1', status: 'pending' }, anna, ctx('u1')), false);
+  assert.equal(canActOnApproval({ assignmentMode: 'person', approverId: 'u7', delegatedTo: 'u1', status: 'pending' }, anna, ctx('u1')), false);
+});
+check('the role map is configuration, not a table in code', () => {
+  const src = readFileSync(new URL('../../src/lib/procurement/approval-derivation.ts', import.meta.url), 'utf8');
+  assert.doesNotMatch(src, /CHAIN_ROLE_TO_SYSTEM_ROLE/);
+  assert.ok(functionalRoles.some((r) => r.name === 'Vendor management'), 'the stage role code never mapped is configured');
 });
 
 console.log('\nEvery surface decides the same way');
 
-const { readFileSync } = await import('node:fs');
 const stripComments = (src) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^[ \t]*\/\/.*$/gm, '');
 const read = (path) => stripComments(readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8'));
 

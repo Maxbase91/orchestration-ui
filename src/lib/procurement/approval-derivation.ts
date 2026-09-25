@@ -12,28 +12,21 @@
 import type { Role } from '../../config/roles.js';
 import { isMyApproval } from './personal-queue.js';
 
-/** Chain/functional role → the system role whose holders may act. */
-export const CHAIN_ROLE_TO_SYSTEM_ROLE: Record<string, Role> = {
-  'Budget Owner': 'service-owner',
-  'Business Requestor': 'service-owner',
-  'Category Manager': 'procurement-manager',
-  'Procurement Manager': 'procurement-manager',
-  'Procurement Lead': 'procurement-manager',
-  Finance: 'procurement-manager',
-  'Finance Approver': 'procurement-manager',
-  'VP Procurement': 'admin',
-  CFO: 'admin',
-  Board: 'admin',
-  Approver: 'procurement-manager',
-  'New Approver': 'procurement-manager',
-  'Supplier Manager': 'vendor-manager',
-  'Operations Lead': 'operations-lead',
-  // Owns the risk stage. Third-party risk sits with vendor management here.
-  'Third-party risk': 'vendor-manager',
-  Legal: 'procurement-manager',
-  'Accounts Payable': 'operations-lead',
-  'Procurement Ops': 'operations-lead',
-};
+/**
+ * Functional role → the system role whose holders may act as it.
+ *
+ * Configuration (`functional_roles`, Approval Chains page), passed in by the
+ * caller. It was a constant here that no admin could change — which left
+ * "Vendor management", a live stage owner, unmapped, and made "Budget Owner"
+ * fall back to any requester, so a requester could approve the budget step of
+ * their own request.
+ */
+export type RoleMap = Readonly<Record<string, Role>>;
+
+/** The map from the stored rows. A role with no row maps to nobody. */
+export function roleMapFrom(roles: ReadonlyArray<{ name: string; actsAs: Role }>): RoleMap {
+  return Object.fromEntries(roles.map((r) => [r.name, r.actsAs]));
+}
 
 export interface DirectoryUser {
   id: string;
@@ -187,6 +180,9 @@ export function deriveApprovals(
       const owner = findByName(sources.usersById, sources.costCentreOwnerName);
       if (owner) return person(owner, step, order);
     }
+    if (step.role === 'Budget Owner') {
+      return byRole(step, order, 'Budget Owner — the cost centre has no owner set');
+    }
 
     return byRole(step, order);
   });
@@ -196,17 +192,20 @@ export function deriveApprovals(
  * May this user act on this entry?
  *
  * A person-assigned entry is theirs, or their delegate's. A role-assigned entry
- * belongs to whoever holds the role — first response decides. The header
- * Approve button used to ignore all of this and offer itself to any persona
- * whenever a request sat in the approval stage.
+ * belongs to whoever holds the system role the functional role maps to — first
+ * response decides. Nobody may act on a step of their own request, however the
+ * step is assigned (2026-09-25): the Budget Owner fallback used to be "any
+ * requester", which included the one who raised it.
  */
 export function canActOnApproval(
   entry: { assignmentMode?: string | null; approverId?: string | null; delegatedTo?: string | null; role?: string | null; status?: string | null },
   user: { id: string; role: Role },
+  context: { roles: RoleMap; requestorId?: string | null },
 ): boolean {
   if (entry.status && entry.status !== 'pending') return false;
+  if (context.requestorId && context.requestorId === user.id) return false;
   if (entry.assignmentMode === 'role') {
-    const required = entry.role ? CHAIN_ROLE_TO_SYSTEM_ROLE[entry.role] : undefined;
+    const required = entry.role ? context.roles[entry.role] : undefined;
     return required ? user.role === required : false;
   }
   return isMyApproval(entry, user.id);

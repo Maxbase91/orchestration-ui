@@ -33,6 +33,7 @@ import { useAuthStore } from '@/stores/auth-store';
 import { useQueryClient } from '@tanstack/react-query';
 import { invalidateRequestViews } from '@/lib/query-client';
 import { canActOnApproval } from '@/lib/procurement/approval-derivation';
+import { useRoleMap } from '@/lib/db/hooks/use-functional-roles';
 import { recordApprovalDecision } from '@/lib/workflow/approval-decision';
 import type { ProcurementRequest, ApprovalEntry } from '@/data/types';
 
@@ -77,12 +78,14 @@ export function ApprovalCard({
 
   const { data: users = [] } = useUsers();
   const { currentUser, currentRole } = useAuthStore();
+  const roles = useRoleMap();
   const queryClient = useQueryClient();
   // Only the assigned approver can act (matches the request-detail Approvals tab).
   const isCurrentUserApprover = canActOnApproval(
     { assignmentMode: approval.assignmentMode, approverId: approval.approverId,
       delegatedTo: approval.delegatedTo, role: approval.approverRole, status: approval.status },
     { id: currentUser.id, role: currentRole },
+    { roles, requestorId: request.requestorId },
   ) || approval.status !== 'pending';
   const lookupUser = useUserLookup();
   const requestor = lookupUser(request.requestorId);
