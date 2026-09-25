@@ -40,7 +40,7 @@ Decisions taken (2026-09-25):
 5. [x] Home intent step — policy and status answered inline on Home, with the
        follow-up into the assistant; page names still navigate; demands and
        catalogue unchanged.
-6. [ ] Mock + docs.
+6. [x] Mock + docs.
 
 ## Verification
 tsc, lint, test:all, the offline browser suites, a new browser check for the
