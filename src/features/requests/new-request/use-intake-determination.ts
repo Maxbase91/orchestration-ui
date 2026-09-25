@@ -15,6 +15,7 @@ import { useAiAgent } from '@/lib/db/hooks/use-ai-agents';
 import { useWorkflowTemplates } from '@/lib/db/hooks/use-workflow-templates';
 import { useApprovalChains } from '@/lib/db/hooks/use-approval-chains';
 import { usePreferredSupplierIds } from '@/lib/db/hooks/use-category-preferred-suppliers';
+import { useServiceDescriptionTemplate } from '@/lib/db/hooks/use-service-description-templates';
 import { selectWorkflowTemplateForCategory } from '@/lib/workflow/workflow-steps';
 import {
   evaluateIntakeDetermination,
@@ -33,6 +34,7 @@ const EMPTY_MATCHES: RiskAssessment[] = [];
 const EMPTY_RULES: RoutingRule[] = [];
 const EMPTY_TEMPLATES: WorkflowTemplate[] = [];
 const EMPTY_APPROVAL_CHAINS: ApprovalChain[] = [];
+const EMPTY_WORDING: Readonly<Record<string, string>> = {};
 
 export interface UseIntakeDeterminationInput {
   category: string;
@@ -66,6 +68,9 @@ export function useIntakeDetermination(
   const { data: workflowTemplates = EMPTY_TEMPLATES } = useWorkflowTemplates();
   const { data: approvalChains = EMPTY_APPROVAL_CHAINS } = useApprovalChains();
   const preferredSupplierIds = usePreferredSupplierIds(input.category);
+  // How this category puts the risk questions (Admin → Service description).
+  const { data: sdTemplate } = useServiceDescriptionTemplate(input.category);
+  const riskQuestionWording = sdTemplate?.riskQuestionWording ?? EMPTY_WORDING;
 
   // A fetch is pending if we have a supplierId and the matching-SRA lookup
   // hasn't resolved yet. Without a supplierId the query is disabled, so treat
@@ -99,10 +104,12 @@ export function useIntakeDetermination(
       routingRules,
       approvalChains,
       validatorAgent: validatorAgent ?? undefined,
+      riskQuestionWording,
     });
   }, [
     loading, category, estimatedValue, supplierId, isUrgent, requestTitle, serviceDescription, commodityCode,
     miniIrq, contractId, suppliers, preferredSupplierIds, contracts, matches, routingRules, approvalChains, validatorAgent,
+    riskQuestionWording,
   ]);
 
   const derivedWorkflowTemplateId = useMemo(

@@ -38,6 +38,10 @@ export const CATEGORY_LIST_POLICY_META: Record<CategoryListPolicyKey, { label: s
     label: 'Exempt from competitive quotes',
     help: 'Demand in these categories passes the competitive-sourcing check whatever its value.',
   },
+  privilegedAccessCategories: {
+    label: 'Ask about privileged access',
+    help: 'Intake asks whether the engagement grants privileged or system access for these categories, whatever the data sensitivity.',
+  },
   pCardEligibleCategories: {
     label: 'P-card eligible categories',
     help: 'Categories the P-card route may handle.',

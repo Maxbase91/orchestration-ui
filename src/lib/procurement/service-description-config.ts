@@ -110,6 +110,13 @@ export interface ServiceDescriptionTemplate {
   sourcingRequirementSections: string[];
   /** Starting evaluation criteria for a sourcing event raised from this demand. */
   defaultCriteria: { id: string; label: string; weight: number }[];
+  /**
+   * The category's own wording for the residual risk questions, by question id
+   * ('privileged-access', 'critical-service'). Missing or blank → the built-in
+   * text (RESIDUAL_QUESTION_TEXT). When each is asked stays a Decisioning
+   * threshold; this is only how it is put.
+   */
+  riskQuestionWording: Record<string, string>;
   updatedAt?: string;
   updatedBy?: string;
 }

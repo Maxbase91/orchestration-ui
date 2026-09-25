@@ -1325,6 +1325,11 @@ ALTER TABLE requests ADD COLUMN IF NOT EXISTS referral_disposition TEXT;
 -- record that one was made. Null for every request that stayed on the list.
 ALTER TABLE requests ADD COLUMN IF NOT EXISTS supplier_override_reason TEXT;
 
+-- The category's own wording for the residual risk questions, keyed by question
+-- id. Empty object = the built-in text. When a question is asked stays a
+-- Decisioning threshold; this is only how it is put.
+ALTER TABLE service_description_templates ADD COLUMN IF NOT EXISTS risk_question_wording JSONB NOT NULL DEFAULT '{}'::jsonb;
+
 CREATE INDEX IF NOT EXISTS requests_risk_idx
   ON requests(risk_assessment_required, inherent_risk_tier);
 

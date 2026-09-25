@@ -218,6 +218,7 @@ export const DEFAULT_TEMPLATE: ServiceDescriptionTemplate = {
   narrativeSections: DEFAULT_NARRATIVE_SECTIONS,
   sourcingRequirementSections: DEFAULT_SOURCING_REQUIREMENT_SECTIONS,
   defaultCriteria: DEFAULT_SOURCING_CRITERIA,
+  riskQuestionWording: {},
 };
 
 /**

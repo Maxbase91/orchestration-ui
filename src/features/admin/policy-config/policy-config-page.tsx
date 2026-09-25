@@ -232,6 +232,24 @@ export function PolicyConfigPage() {
 
           <Card>
             <CardHeader>
+              <CardTitle className="text-sm">Risk questions</CardTitle>
+              <p className="text-xs text-ink-3">
+                Intake asks only the risk questions a demand&apos;s description leaves open. These decide
+                when it asks about privileged access; the critical-service question follows the
+                critical-service threshold above.
+              </p>
+            </CardHeader>
+            <CardContent>
+              <CategoryChecklist
+                policyKey="privilegedAccessCategories"
+                value={draft.privilegedAccessCategories}
+                onChange={(next) => setDraft((d) => ({ ...d, privilegedAccessCategories: next }))}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
               <CardTitle className="text-sm">P-card route policy</CardTitle>
               <p className="text-xs text-ink-3">
                 Controls whether eligible low-value demands may be routed to the approved P-card process.

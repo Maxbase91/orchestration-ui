@@ -34,11 +34,22 @@ export interface ResidualQuestion {
   reason: string;
 }
 
+/**
+ * The built-in wording of each question. A category's service-description
+ * template can put it its own way (riskQuestionWording, edited in Admin →
+ * Service description); the answer still lands in the same mini-IRQ field.
+ */
+export const RESIDUAL_QUESTION_TEXT: Record<ResidualQuestionId, string> = {
+  'privileged-access': 'Does this engagement grant privileged or system access?',
+  'critical-service': 'Does it support a critical business service?',
+};
+
+const questionText = (id: ResidualQuestionId, wording?: Readonly<Record<string, string>>): string =>
+  wording?.[id]?.trim() || RESIDUAL_QUESTION_TEXT[id];
+
 /** Spend at or above which a critical-service dependency is worth confirming. */
 export const CRITICAL_SERVICE_VALUE_THRESHOLD = DEFAULT_POLICY_CONFIG.criticalServiceThreshold;
 
-// Categories where privileged or system access is plausible enough to confirm.
-const ACCESS_CATEGORIES = new Set(['software', 'services', 'consulting', 'contingent-labour']);
 
 const SENSITIVITY_RANK: Record<DataSensitivity, number> = {
   none: 0, low: 1, medium: 2, high: 3, critical: 4,
@@ -51,18 +62,23 @@ const SENSITIVITY_RANK: Record<DataSensitivity, number> = {
 export function determineResidualQuestions(
   ctx: ResidualQuestionContext,
   config: PolicyConfig = getActivePolicyConfig(),
+  /** The category's wording, from its service-description template. */
+  wording?: Readonly<Record<string, string>>,
 ): ResidualQuestion[] {
   const out: ResidualQuestion[] = [];
   const sensitivity = SENSITIVITY_RANK[ctx.dataSensitivity] ?? 0;
+  // Decisioning thresholds, not a set in this file: which categories plausibly
+  // touch systems is a judgement each deployment makes.
+  const accessCategory = config.privilegedAccessCategories.includes(ctx.category);
 
   // Privileged / system access — relevant when the engagement type plausibly
   // touches systems, or when it already handles medium+ sensitivity data.
-  if (ACCESS_CATEGORIES.has(ctx.category) || sensitivity >= SENSITIVITY_RANK.medium) {
+  if (accessCategory || sensitivity >= SENSITIVITY_RANK.medium) {
     out.push({
       id: 'privileged-access',
       field: 'privilegedAccess',
-      question: 'Does this engagement grant privileged or system access?',
-      reason: ACCESS_CATEGORIES.has(ctx.category)
+      question: questionText('privileged-access', wording),
+      reason: accessCategory
         ? `${ctx.category} engagements often involve system access`
         : `${ctx.dataSensitivity} data sensitivity`,
     });
@@ -84,7 +100,7 @@ export function determineResidualQuestions(
     out.push({
       id: 'critical-service',
       field: 'criticalService',
-      question: 'Does it support a critical business service?',
+      question: questionText('critical-service', wording),
       reason,
     });
   }

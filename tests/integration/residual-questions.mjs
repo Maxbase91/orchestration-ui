@@ -52,6 +52,22 @@ check('high-value sensitive software asks both', (() => { const r = ids({ catego
 check('access question maps to privilegedAccess field', determineResidualQuestions({ ...base, category: 'software' })[0].field === 'privilegedAccess');
 check('critical question maps to criticalService field', determineResidualQuestions({ ...base, estimatedValue: 200_000 }).find((q) => q.id === 'critical-service').field === 'criticalService');
 
+// ── The real module, reading Decisioning thresholds ──────────────────────────
+// The checks above run a copy of the module. These run the real one: which
+// categories trigger the privileged-access question was a set in the file and
+// is now a Decisioning threshold (privilegedAccessCategories).
+console.log('\nThe access question follows Decisioning thresholds');
+{
+  const real = await import('../../src/lib/procurement/residual-questions.ts');
+  const { DEFAULT_POLICY_CONFIG } = await import('../../src/lib/procurement/policy-config.ts');
+  const ctx = { category: 'goods', dataSensitivity: 'low', estimatedValue: 1000 };
+  const asks = (config) => real.determineResidualQuestions(ctx, config).some((q) => q.id === 'privileged-access');
+  check('goods is not asked by default', !asks(DEFAULT_POLICY_CONFIG));
+  check('listing goods makes it asked', asks({ ...DEFAULT_POLICY_CONFIG, privilegedAccessCategories: ['goods'] }));
+  check('the default keeps the four categories the set held',
+    JSON.stringify(DEFAULT_POLICY_CONFIG.privilegedAccessCategories) === JSON.stringify(['software', 'services', 'consulting', 'contingent-labour']));
+}
+
 console.log('');
 if (failures) { console.error(`FAILED: ${failures} check(s)`); process.exitCode = 1; }
 else console.log('All residual-questions checks passed.');

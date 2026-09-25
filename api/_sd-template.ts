@@ -18,6 +18,12 @@ import { DEFAULT_TEMPLATE } from '../src/lib/procurement/service-description-def
 const CACHE_TTL_MS = 60_000;
 const cache = new Map<string, { value: ServiceDescriptionTemplate; expiresAt: number }>();
 
+/** A stored wording map: strings only, so a hand-edited row cannot put anything else in a question. */
+const wordingMap = (v: unknown): Record<string, string> =>
+  v && typeof v === 'object' && !Array.isArray(v)
+    ? Object.fromEntries(Object.entries(v as Record<string, unknown>).filter(([, t]) => typeof t === 'string')) as Record<string, string>
+    : {};
+
 function coerce(row: Record<string, unknown>): ServiceDescriptionTemplate {
   /**
    * An array the admin stored, honouring EMPTY as a configuration.
@@ -57,6 +63,7 @@ function coerce(row: Record<string, unknown>): ServiceDescriptionTemplate {
       DEFAULT_TEMPLATE.sourcingRequirementSections,
     ),
     defaultCriteria: arr(row.default_criteria, DEFAULT_TEMPLATE.defaultCriteria),
+    riskQuestionWording: wordingMap(row.risk_question_wording),
   };
 }
 

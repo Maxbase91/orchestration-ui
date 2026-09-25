@@ -37,14 +37,17 @@ call-offs and trusted the browser's channel; 13 live requests re-pointed.
 ## Phase 3 — configurable in the EXISTING admin tabs
 - [x] Workflows: channel headline + description on the template (replaces the
       hard-coded BUYING_CHANNEL_PLAIN).
-- [ ] Workflows: "what the requester does" per stage.
 - [x] Categories: preferred suppliers per category; supplier tags per category
       (replaces the recommender's hard-coded keyword map).
 - [x] Categories: commodity codes per category (replaces category-code.ts tables).
 - [x] Service description: per-category writing guidance (was CATEGORY_GUIDANCE
       in generate-sow, invisible to the admin).
-- [ ] Service description: front-door prompt, examples and door copy; the
-      "one detail decides it" question; residual risk question wording.
+- [x] Residual risk questions: when (Decisioning thresholds, privileged-access
+      categories) and how they are worded (Service description tab).
+- [ ] Front-door prompt, examples, door copy and the "one detail decides it"
+      question — built with the two-door screens (they exist only in the mock).
+- [~] Workflows: "what the requester does" per stage — dropped: it fed the
+      step-by-step list the product owner asked to remove.
 - [x] Decisioning thresholds: competitive-sourcing exempt categories (was a
       code default in supplier-preference.ts); category lists as checklists.
 - [x] Decisioning thresholds: direct call-off limit (wired into the call-off

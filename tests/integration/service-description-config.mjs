@@ -302,5 +302,32 @@ console.log('\nBuilt-in category guidance');
     /placeholder=\{builtInGuidanceFor\(current\.category\)\.trim\(\)\}/.test(page) && /Edit the built-in text/.test(page));
 }
 
+// ── Risk question wording ────────────────────────────────────────────────────
+// The two residual questions were literals in residual-questions.ts. A
+// category's template can word them; blank falls back; WHEN they are asked is
+// still the Decisioning threshold, untouched by wording.
+console.log('\nRisk question wording');
+{
+  const { determineResidualQuestions, RESIDUAL_QUESTION_TEXT } = await import('../../src/lib/procurement/residual-questions.ts');
+  const { evaluateIntakeDetermination } = await import('../../src/lib/procurement/intake-determination.ts');
+  const ctx = { category: 'software', dataSensitivity: 'low', estimatedValue: 200_000 };
+  const plain = determineResidualQuestions(ctx, DEFAULT_POLICY_CONFIG);
+  check('with no wording, the built-in text is asked', plain[0]?.question === RESIDUAL_QUESTION_TEXT['privileged-access']);
+  const worded = determineResidualQuestions(ctx, DEFAULT_POLICY_CONFIG, { 'privileged-access': 'Will they get admin rights to our systems?', 'critical-service': '  ' });
+  check('a category\u2019s wording replaces it', worded[0]?.question === 'Will they get admin rights to our systems?');
+  check('blank wording falls back', worded.find((q) => q.id === 'critical-service')?.question === RESIDUAL_QUESTION_TEXT['critical-service']);
+  check('wording never changes which questions are asked', JSON.stringify(plain.map((q) => q.id)) === JSON.stringify(worded.map((q) => q.id)));
+  check('the default template carries no wording of its own', JSON.stringify(DEFAULT_TEMPLATE.riskQuestionWording) === '{}');
+  const determination = evaluateIntakeDetermination({
+    category: 'software', estimatedValue: 200_000, supplierId: '', isUrgent: false, miniIrq: {}, now: '2026-09-24',
+    suppliers: [], contracts: [], matchingRiskAssessments: [], routingRules: [], approvalChains: [],
+    policyConfig: DEFAULT_POLICY_CONFIG, riskQuestionWording: { 'privileged-access': 'Will they get admin rights to our systems?' },
+  });
+  check('the determination — which feeds the chat, the form and the record — carries the wording',
+    determination.residualQuestions.some((q) => q.question === 'Will they get admin rights to our systems?'));
+  const page = readFileSync(new URL('../../src/features/admin/service-description-page.tsx', import.meta.url), 'utf8');
+  check('the Service description tab edits it', /id=\{`sd-risk-\$\{id\}`\}/.test(page) && /placeholder=\{RESIDUAL_QUESTION_TEXT\[id\]\}/.test(page));
+}
+
 console.log(failures === 0 ? '\n\x1b[32mAll checks passed\x1b[0m' : `\n\x1b[31m${failures} check(s) failed\x1b[0m`);
 process.exit(failures === 0 ? 0 : 1);

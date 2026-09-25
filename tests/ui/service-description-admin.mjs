@@ -126,6 +126,10 @@ try {
   check('…and "Edit the built-in text" puts it in the field',
     (await guidance.inputValue()).includes('Deliverables'));
 
+  // The residual risk questions were literals in code; each category can word them.
+  check('the risk questions can be worded, with the standard text shown',
+    ((await page.locator('#sd-risk-privileged-access').getAttribute('placeholder')) ?? '').includes('privileged or system access'));
+
   // Weights that do not total 100 block publishing in the sourcing wizard, so
   // the total is shown here where it is edited rather than discovered later.
   check('criteria weights show a running total',

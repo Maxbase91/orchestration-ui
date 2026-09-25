@@ -12,7 +12,7 @@
 //     templates` row exists. A slot added to `ALL_SLOTS` but not to a stored
 //     template silently stops being asked — for exactly the categories most
 //     likely to have one.
-//  2. The criteria are OR-shaped (`ACCESS_CATEGORIES.has(category) ||
+//  2. The criteria are OR-shaped (`privilegedAccessCategories` includes the category ||
 //     sensitivity >= medium`) and one of them reads `supplierRiskRating`, which
 //     is not in the admin condition vocabulary at all.
 //  3. The admin slot editor gives every slot a `required` switch and an

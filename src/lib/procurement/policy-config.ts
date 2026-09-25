@@ -40,6 +40,12 @@ export interface PolicyConfig {
    * whether someone responsible for the category must also agree.
    */
   preferredSupplierOverrideNeedsApproval: boolean;
+  /**
+   * Categories where privileged or system access is plausible enough that
+   * intake asks about it whatever the data sensitivity. Was a set in
+   * residual-questions.ts.
+   */
+  privilegedAccessCategories: string[];
   /** Minimum performance score for a supplier to qualify as preferred. */
   preferredMinPerformance: number;
   /** Second contract check: utilisation headroom % (below → transactable). */
@@ -111,6 +117,8 @@ export const DEFAULT_POLICY_CONFIG: PolicyConfig = {
   competitiveSourcingExemptCategories: ['contingent-labour'],
   // As the front-door design specifies: reason plus category-manager approval.
   preferredSupplierOverrideNeedsApproval: true,
+  // The set residual-questions.ts held. Same list, so the same questions.
+  privilegedAccessCategories: ['software', 'services', 'consulting', 'contingent-labour'],
   preferredMinPerformance: 75,
   contractUtilisationHeadroom: 95,
   // The figure the front-door design was reviewed against.

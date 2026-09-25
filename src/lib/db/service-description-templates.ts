@@ -19,6 +19,12 @@ const asArray = <T,>(v: unknown, fallback: T[]): T[] => (Array.isArray(v) ? (v a
 const nonEmpty = <T,>(v: unknown, fallback: T[]): T[] =>
   (Array.isArray(v) && v.length > 0 ? (v as T[]) : fallback);
 
+/** A stored wording map: strings only, so a hand-edited row cannot put anything else in a question. */
+const wordingMap = (v: unknown): Record<string, string> =>
+  v && typeof v === 'object' && !Array.isArray(v)
+    ? Object.fromEntries(Object.entries(v as Record<string, unknown>).filter(([, t]) => typeof t === 'string')) as Record<string, string>
+    : {};
+
 function mapRow(row: Record<string, unknown>): ServiceDescriptionTemplate {
   return {
     category: row.category as string,
@@ -44,6 +50,7 @@ function mapRow(row: Record<string, unknown>): ServiceDescriptionTemplate {
       DEFAULT_TEMPLATE.sourcingRequirementSections,
     ),
     defaultCriteria: asArray(row.default_criteria, DEFAULT_TEMPLATE.defaultCriteria),
+    riskQuestionWording: wordingMap(row.risk_question_wording),
     ...(row.updated_at ? { updatedAt: row.updated_at as string } : {}),
     ...(row.updated_by ? { updatedBy: row.updated_by as string } : {}),
   };
@@ -63,6 +70,7 @@ function mapToDb(t: ServiceDescriptionTemplate): Record<string, unknown> {
     narrative_sections: t.narrativeSections,
     sourcing_requirement_sections: t.sourcingRequirementSections,
     default_criteria: t.defaultCriteria,
+    risk_question_wording: t.riskQuestionWording ?? {},
     updated_at: new Date().toISOString(),
     ...(t.updatedBy ? { updated_by: t.updatedBy } : {}),
   };

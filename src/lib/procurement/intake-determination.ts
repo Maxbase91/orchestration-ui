@@ -104,6 +104,8 @@ export interface IntakeDeterminationInput {
    * Injected explicitly by tests and the simulation panel.
    */
   policyConfig?: PolicyConfig;
+  /** The category's wording for the residual risk questions (service-description template). */
+  riskQuestionWording?: Readonly<Record<string, string>>;
 }
 
 export interface IntakeDetermination {
@@ -274,7 +276,7 @@ export function evaluateIntakeDetermination(input: IntakeDeterminationInput): In
     dataSensitivity,
     estimatedValue,
     supplierRiskRating: supplierRec?.riskRating,
-  });
+  }, policy, input.riskQuestionWording);
 
   /**
    * The answers that still apply.

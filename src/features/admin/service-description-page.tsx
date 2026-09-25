@@ -36,6 +36,7 @@ import type {
 import { diagnoseSlotConditions } from '@/lib/procurement/service-description-config';
 import { usePolicyConfig } from '@/lib/procurement/use-policy-config';
 import { DEFAULT_TEMPLATE, renderSystemPrompt, builtInGuidanceFor } from '@/lib/procurement/service-description-defaults';
+import { RESIDUAL_QUESTION_TEXT } from '@/lib/procurement/residual-questions';
 
 /** A new row starts from the built-in so an admin edits rather than authors. */
 function blankTemplate(category: string, label: string): ServiceDescriptionTemplate {
@@ -183,6 +184,32 @@ export function ServiceDescriptionPage() {
               Revert to default
             </Button>
           )}
+        </CardContent>
+      </Card>
+
+      {/* The residual risk questions, in this category's words. When each is
+          asked is governed (Decisioning thresholds); how it is put belongs with
+          the other questions intake asks. They were literals in code. */}
+      <Card>
+        <CardHeader><CardTitle className="text-base">Risk questions</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-xs text-muted-foreground">
+            Asked only when the description leaves them open — when is set in Decisioning thresholds.
+            The answer is always yes or no. Leave a field empty for the standard wording shown in it.
+          </p>
+          {(Object.keys(RESIDUAL_QUESTION_TEXT) as (keyof typeof RESIDUAL_QUESTION_TEXT)[]).map((id) => (
+            <div key={id} className="space-y-1.5">
+              <Label htmlFor={`sd-risk-${id}`} className="text-xs">
+                {id === 'privileged-access' ? 'Privileged or system access' : 'Critical business service'}
+              </Label>
+              <Input
+                id={`sd-risk-${id}`}
+                value={current.riskQuestionWording?.[id] ?? ''}
+                placeholder={RESIDUAL_QUESTION_TEXT[id]}
+                onChange={(e) => patch({ riskQuestionWording: { ...(current.riskQuestionWording ?? {}), [id]: e.target.value } })}
+              />
+            </div>
+          ))}
         </CardContent>
       </Card>
 
