@@ -68,8 +68,8 @@ Every Built row is expanded in the [implementation evidence index](R1_IMPLEMENTA
    Defects first — Cancel, the unrun screening recorded by risk Approve and the form id reuse are
    fixed (2026-09-26), and so are the board's stage move (view-only; the endpoint makes only
    refer-back, reassign and cancel) and submit's browser-computed determination (submit decides
-   again, ADR-0010); still open: the editable audit log, notifications with no recipient (list in
-   `tasks/todo.md`).
+   again, ADR-0010) and the editable audit log (append-only in the database too); still open:
+   notifications with no recipient (list in `tasks/todo.md`).
 
 ### R2 integrations and enterprise hardening
 

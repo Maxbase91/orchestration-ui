@@ -251,6 +251,12 @@ checks), AI-004 (spend anomaly rules), AI-005 (supplier suggestions) and AI-007
 - **The assistant confirms before it acts**, describes the write it has queued,
   and reads only the caller's records (`test:assistant-boundary`). It never
   writes upstream.
+- **The audit log is append-only.** `/api/db` refuses to update, upsert or
+  delete an `audit_entries` row (400 `append_only`), and a trigger refuses it on
+  every path, server code included; deleting a request only clears its entries'
+  link. `purge_audit_entries` — not on `/api/db`'s function allowlist — is how
+  a test suite or a data repair removes rows, with the database credential
+  (`test:audit-append-only`).
 
 ## 9. Testing
 
@@ -279,9 +285,6 @@ the defect it catches. The catalogue of suites, and what each covers, is the
   approval, an award — is still written from the browser by `transitionStage`
   over `/api/db`, so its gates, forms and approvals are checked in the page, not
   on the server.
-- **The audit log is not append-only.** `audit_entries` is reachable through
-  `/api/db`, where a row can be updated or deleted by id, and nothing in the
-  database refuses it.
 - **Notifications have no recipient.** The `notifications` table has no user
   column, so every person sees one shared feed and *Mark all read* marks it read
   for everyone.

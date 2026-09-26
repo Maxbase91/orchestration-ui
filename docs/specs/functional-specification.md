@@ -1280,9 +1280,9 @@ Nothing else does: submitting a request, a stage change (kept in the request's s
 leaves no entry. Whether an entry came from a person or the assistant is stored, but neither shown
 nor filtered.
 
-**Known defect:** the log is not protected — an entry can be changed or deleted by its id through
-the data boundary (`/api/db`), as any record on its allowlist can while there is no sign-in
-([ARCHITECTURE.md §8](../ARCHITECTURE.md#8-security-posture)).
+**An entry cannot be changed or removed.** The data boundary refuses it, and so does the database,
+whatever asks (fixed 2026-09-26: any entry could be edited or deleted by its id through `/api/db`).
+Deleting a request keeps its entries, unlinked from it.
 
 ### 14.9 Decisioning Thresholds
 

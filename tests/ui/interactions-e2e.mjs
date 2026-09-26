@@ -11,7 +11,7 @@
 import { spawn } from 'node:child_process';
 import { chromium } from 'playwright';
 import { neon } from '@neondatabase/serverless';
-import { neonClient, loadEnv } from '../lib/live.mjs';
+import { neonClient, loadEnv, purgeAuditEntries } from '../lib/live.mjs';
 
 // A deployed base exercises Vercel functions as well as the SPA. Without it,
 // this suite starts Vite for fast UI-only development feedback.
@@ -55,9 +55,11 @@ async function waitForServer(t = 40000) {
 }
 async function deleteRequest(reqId) {
   const childTables = ['stage_history', 'workflow_instances', 'workflow_step_details', 'approval_entries',
-    'comments', 'notifications', 'audit_entries', 'system_integrations', 'intake_compliance_records',
+    'comments', 'notifications', 'system_integrations', 'intake_compliance_records',
     'service_descriptions', 'compliance_reports', 'purchase_orders'];
   for (const t of childTables) { try { await sb.from(t).delete().eq('request_id', reqId); } catch { /* ignore */ } }
+  // The audit log is append-only; the purge is how a suite removes its own rows.
+  try { await purgeAuditEntries('request_id = $1', [reqId]); } catch { /* ignore */ }
   try { await sb.from('requests').delete().eq('id', reqId); } catch { /* ignore */ }
 }
 

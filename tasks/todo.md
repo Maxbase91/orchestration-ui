@@ -158,6 +158,36 @@ block, details-supplier, the call-off form), the stepper and the wizard footer.
 - **B. Required sections** — "Conversation asks what must be covered" (see below).
 - **C. Contract status** — "Derive status from the dates": the read view derives expired/expiring from the end date; the renewal window becomes a Decisioning threshold; every screen reads the derived status; stored rows untouched.
 
+## In progress — the four next items (2026-09-26, chosen in this order)
+Chosen: record integrity → act on the disposition → literals to governed
+thresholds → stage exits on the server.
+
+1. **Record integrity.**
+   a. *Append-only audit log* — **done** — decided: in the database too. `/api/db` refuses
+      update, upsert and delete on `audit_entries` (400 `append_only`); a
+      trigger refuses them on every path, allowing only the foreign key's
+      clearing of a deleted request's link; `purge_audit_entries(ids)` —
+      unreachable through `/api/db`'s allowlist — is how the three live suites
+      clean up their own rows. Guard `test:audit-append-only` (live).
+   b. *One way to reject* — decided: where the template's Rejected branch goes
+      (Referred Back in every shipped template). The header's Approve/Reject go
+      through `recordApprovalDecision` like the Approvals tab and My Approvals;
+      Reject asks for a reason. Found while reading: (i) submit writes the
+      workflow instance `running` on a gated start node, so the engine re-runs
+      the node on the first decision and suspends without taking its branch —
+      submit writes it `suspended`, and a backfill fixes the stored ones;
+      (ii) the last approval moved an instance-backed request twice (engine,
+      then the stage list) — the engine only when there is an instance;
+      (iii) with no instance, the Rejected branch is found by walking the
+      template (pure), and a template with no Rejected path refuses the
+      rejection before anything is written.
+2. **Act on the disposition** — design question first (refuse at submit, or
+   create in Referred Back), with the requester's Resubmit, which the templates
+   already model (the Referred Back node's *Resubmit* edge back to Intake).
+3. **Literals to governed thresholds** — High Value €500,000; at-risk windows
+   (3 days, 24 h, 4 days); the approval chains' lowest band.
+4. **Stage exits on the server** — the stage action, approvals and awards.
+
 ## Done — the server decides stage moves and submits (2026-09-26, "Continue")
 Decided: the Active Workflows board is **view-only**; submit **refuses** when the
 server's determination differs from what the requester reviewed.
@@ -235,7 +265,7 @@ what the code does; these are the things it now has to say that need a decision.
 2. ~~**Risk Approve / onboarding Complete record screening clear and an SRA valid without any screening.**~~ Fixed 2026-09-26: screening recorded with its reference; the SRA linked to a completed, in-date assessment; Complete needs a clear screening and keeps its note.
 3. ~~**A Kanban drag moves any request to any stage.**~~ Fixed 2026-09-26 (`cdf4bf7`): the board is view-only, and `api/workflow-action.ts` makes only refer-back, reassign and cancel. A stage's exit is still written from the browser (ARCHITECTURE §10).
 4. ~~**Intake submit stores the browser's channel and compliance record.**~~ Fixed 2026-09-26 (`9d41535`, ADR-0010): submit decides again from stored data through server-side ports and refuses a different answer.
-5. **The audit log is editable** through `/api/db` (update/delete by id).
+5. ~~**The audit log is editable** through `/api/db` (update/delete by id).~~ Fixed 2026-09-26: append-only at `/api/db` and in the database (a trigger; `purge_audit_entries` for fixtures).
 6. **Notifications have no recipient** — one shared feed; Mark all read marks it for everyone.
 7. **User Management's Remove is a hard delete**; the Delegation page keeps only local state.
 8. **An unlisted supplier named in New request is written to the directory at once**, as a prospective supplier, although the page says nothing is created until submit; an abandoned request leaves it behind.

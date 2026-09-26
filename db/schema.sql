@@ -1683,3 +1683,56 @@ ALTER TABLE workflow_templates ADD COLUMN IF NOT EXISTS requester_description TE
 -- every edit and so looked maintained. Threading a write through the evaluator
 -- to keep a vanity metric is the wrong trade; the column goes.
 ALTER TABLE routing_rules DROP COLUMN IF EXISTS match_count;
+
+-- ── The audit log is append-only (2026-09-26) ───────────────────────────────
+-- An audit row is the record of what was done, by whom and when, and a record
+-- anyone can rewrite is evidence of nothing. `/api/db` refuses to change or
+-- delete one (400 `append_only`); this trigger refuses it on every path, server
+-- code included. It allows one change: deleting a request clears `request_id`
+-- on its rows (the foreign key's ON DELETE SET NULL), with nothing else moving.
+--
+-- `purge_audit_entries` is the deliberate exception — test suites removing the
+-- rows their fixtures wrote, a data repair removing a row it must. It is not in
+-- /api/db's function allowlist, so only a holder of the database credential can
+-- call it, and they could drop this trigger anyway: the function makes the
+-- removal explicit rather than possible.
+CREATE OR REPLACE FUNCTION audit_entries_append_only() RETURNS trigger
+LANGUAGE plpgsql SET search_path = public AS $$
+BEGIN
+  IF current_setting('app.audit_purge', true) = 'on' THEN
+    RETURN COALESCE(NEW, OLD);
+  END IF;
+  -- Nested, so the statement-level TRUNCATE trigger never reads the row
+  -- variables. Compared as JSON without the link, so a column added later is
+  -- protected without editing a list here.
+  IF TG_OP = 'UPDATE' THEN
+    IF OLD.request_id IS NOT NULL AND NEW.request_id IS NULL
+       AND (to_jsonb(NEW) - 'request_id') = (to_jsonb(OLD) - 'request_id') THEN
+      RETURN NEW;
+    END IF;
+  END IF;
+  RAISE EXCEPTION 'The audit log is append-only: % of an entry is refused.', lower(TG_OP)
+    USING ERRCODE = 'restrict_violation';
+END $$;
+
+CREATE OR REPLACE TRIGGER audit_entries_append_only
+  BEFORE UPDATE OR DELETE ON audit_entries
+  FOR EACH ROW EXECUTE FUNCTION audit_entries_append_only();
+
+-- A TRUNCATE fires no row trigger, and would empty the log in one statement.
+CREATE OR REPLACE TRIGGER audit_entries_no_truncate
+  BEFORE TRUNCATE ON audit_entries
+  FOR EACH STATEMENT EXECUTE FUNCTION audit_entries_append_only();
+
+CREATE OR REPLACE FUNCTION purge_audit_entries(ids uuid[]) RETURNS integer
+LANGUAGE plpgsql SET search_path = public AS $$
+DECLARE removed integer;
+BEGIN
+  -- Transaction-local, and switched off again before returning, so nothing
+  -- else in the caller's transaction deletes under it.
+  PERFORM set_config('app.audit_purge', 'on', true);
+  DELETE FROM audit_entries WHERE id = ANY(ids);
+  GET DIAGNOSTICS removed = ROW_COUNT;
+  PERFORM set_config('app.audit_purge', 'off', true);
+  RETURN removed;
+END $$;

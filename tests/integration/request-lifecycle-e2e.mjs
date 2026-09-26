@@ -12,7 +12,7 @@
 // This walks the journey against live Neon through the real handlers and the
 // real data layer, and cleans up after itself.
 import { neon } from '@neondatabase/serverless';
-import { loadEnv, requireConnection, skipIfUnreachable, skipLive } from '../lib/live.mjs';
+import { loadEnv, purgeAuditEntries, requireConnection, skipIfUnreachable, skipLive } from '../lib/live.mjs';
 
 loadEnv();
 const connectionString = requireConnection('request-lifecycle-e2e');
@@ -66,7 +66,8 @@ async function cleanup() {
     await sql.query(`DELETE FROM ${table} WHERE request_id = $1`, [requestId]);
   }
   await sql.query('DELETE FROM workflow_instances WHERE request_id = $1', [requestId]);
-  await sql.query('DELETE FROM audit_entries WHERE request_id = $1', [requestId]);
+  // The audit log is append-only; the purge is how a suite removes its own rows.
+  await purgeAuditEntries('request_id = $1', [requestId]);
   await sql.query('DELETE FROM requests WHERE id = $1', [requestId]);
 }
 await cleanup();

@@ -5,7 +5,7 @@
 // Run: node tests/integration/audit-trail.mjs
 
 import { readFileSync } from 'node:fs';
-import { neonClient } from '../lib/live.mjs';
+import { neonClient, purgeAuditEntries } from '../lib/live.mjs';
 
 const sb = await neonClient('audit');
 
@@ -15,14 +15,8 @@ const fail = (n, d) => results.push({ n, o: 'FAIL', d });
 const assert = (cond, n, d) => (cond ? pass(n, d) : fail(n, d));
 
 async function cleanupTestAudits() {
-  const { data: rows } = await sb
-    .from('audit_entries')
-    .select('id')
-    .like('detail', 'E2E-AUD-%');
-  if (!rows?.length) return 0;
-  const ids = rows.map((r) => r.id);
-  await sb.from('audit_entries').delete().in('id', ids);
-  return ids.length;
+  // The log is append-only; a suite removes its own rows through the purge.
+  return purgeAuditEntries(`detail LIKE 'E2E-AUD-%'`);
 }
 
 async function scenarioInsertAndList() {

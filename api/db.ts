@@ -288,6 +288,27 @@ function narrowsToRows(filter: Filter): boolean {
   }
 }
 
+/**
+ * Relations whose rows are only ever added, and what to call them in a refusal.
+ * The audit log records what was done, by whom and when, and this endpoint
+ * could update or delete an entry by id — so anyone reaching it could rewrite
+ * the record (found 2026-09-26). A trigger refuses the same on every path
+ * (db/schema.sql); this refuses it here first, with a message instead of a
+ * database error. An upsert that ignores duplicates changes nothing that
+ * exists, so it stays an insert.
+ */
+const APPEND_ONLY = new Map([['audit_entries', 'The audit log']]);
+
+export function assertAppendOnly(request: Pick<DbRequest, 'operation' | 'table' | 'ignoreDuplicates'>): void {
+  const name = request.table ? APPEND_ONLY.get(request.table) : undefined;
+  if (!name) return;
+  const rewrites = request.operation === 'update' || request.operation === 'delete'
+    || (request.operation === 'upsert' && !request.ignoreDuplicates);
+  if (rewrites) {
+    throw new DbRequestError(`${name} is append-only: an entry cannot be changed or removed.`, 'append_only');
+  }
+}
+
 export function assertFilteredWrite(request: Pick<DbRequest, 'operation' | 'filters' | 'orFilters'>): void {
   if (request.operation !== 'delete' && request.operation !== 'update') return;
   const orGroup = request.orFilters ?? [];
@@ -303,6 +324,7 @@ export function assertFilteredWrite(request: Pick<DbRequest, 'operation' | 'filt
 }
 
 export async function executeNeonRequest(request: DbRequest): Promise<unknown> {
+  assertAppendOnly(request);
   assertFilteredWrite(request);
   const sql = getNeonClient();
   if (request.operation === 'rpc') {

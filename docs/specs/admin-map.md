@@ -27,7 +27,7 @@ branches, forms and articles *name* them (`policy:<key>`) rather than repeat the
 | **AI Analytics** | How the assistant is used: conversations and questions per day, helpful / not-helpful votes | `assistant_conversations`, `chat_feedback` (read only) | — (a report) | — |
 | **User Management** | Who uses the platform and in which system role | `users` | Approver resolution (who holds each system role), cost-centre owners and category managers (picked from it), request owners and assignees across the workflow screens | — |
 | **System Health** | What happened to the recorded handovers to upstream systems — completed, open, failed | `system_integrations` (read only) | — (a report) | Earlier: invented uptime, error rate, session counts and "Connected" cards |
-| **Audit Log** | What happened, and who did it — filter and export as CSV | `audit_entries` | — (a report) | 40 invented entries and an IP column that was always "-" |
+| **Audit Log** | What happened, and who did it — filter and export as CSV. Append-only: nothing can change or remove an entry | `audit_entries` | — (a report) | 40 invented entries and an IP column that was always "-" |
 
 ## The three questions this answers
 

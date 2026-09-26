@@ -12,7 +12,7 @@
 // MOCK path. This is the live path it missed, so the honesty check below reuses
 // that suite's own guard against every message this endpoint can produce.
 import { neon } from '@neondatabase/serverless';
-import { loadEnv, requireConnection, skipIfUnreachable, skipLive } from '../lib/live.mjs';
+import { loadEnv, purgeAuditEntries, requireConnection, skipIfUnreachable, skipLive } from '../lib/live.mjs';
 
 loadEnv();
 const connectionString = requireConnection('execute-action');
@@ -97,10 +97,11 @@ const [actor, delegate] = users;
 const created = { tickets: [], audits: [] };
 
 async function cleanup() {
-  await sql.query('DELETE FROM audit_entries WHERE user_id = $1', [actor.id + `-${suffix}`]);
+  // The audit log is append-only; the purge is how a suite removes its own rows.
+  await purgeAuditEntries('user_id = $1', [actor.id + `-${suffix}`]);
   await sql.query('DELETE FROM stage_history WHERE request_id = $1', [requestId]);
-  await sql.query('DELETE FROM audit_entries WHERE object_id = $1 OR request_id = $1', [requestId]);
-  for (const id of created.tickets) await sql.query('DELETE FROM audit_entries WHERE object_id = $1', [id]);
+  await purgeAuditEntries('object_id = $1 OR request_id = $1', [requestId]);
+  for (const id of created.tickets) await purgeAuditEntries('object_id = $1', [id]);
   for (const id of created.tickets) await sql.query('DELETE FROM tickets WHERE id = $1', [id]);
   await sql.query('DELETE FROM requests WHERE id = $1', [requestId]);
 }

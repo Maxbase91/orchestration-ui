@@ -115,6 +115,13 @@ reproduced and stale client selections can be rejected.
 
 requests, stage_history, comments, comment_reads, approval_entries, audit_entries, users, user_preferences, suppliers, contracts, contract_scope_versions, contract_scope_deliverables, contract_scope_exclusions, procurement_service_families, procurement_deliverable_terms, purchase_orders, purchase_requisitions, request_lines, invoices, notifications, routing_rules, workflow_templates, workflow_step_details, workflow_instances, risk_assessments, ai_agents, ai_conversations, knowledge_base, chat_feedback, form_templates, form_submissions, intake_compliance_records, compliance_reports, catalogue_items, service_descriptions, system_integrations, kpi_data, approval_chains, sla_targets, procurement_categories, goods_receipts, sourcing_events, sourcing_responses, tickets
 
+### audit_entries (append-only, 2026-09-26)
+Rows are only ever added. `/api/db` refuses an update, upsert or delete (400 `append_only`), and the
+`audit_entries_append_only` trigger refuses them — and a TRUNCATE — on every path. The one change it
+allows is the foreign key's: deleting a request sets `request_id` to NULL and changes nothing else.
+`purge_audit_entries(ids uuid[])` removes rows deliberately (test fixtures, data repairs); it is not on
+`/api/db`'s function allowlist.
+
 ### service_descriptions (updated August 2026)
 Structured fields include objective, Included scope, Exclusions, Deliverables, Acceptance Criteria,
 timeline, resources, pricing model, location, dependencies and narrative, plus provenance

@@ -134,3 +134,21 @@ export async function neonClient(suite) {
   const { NeonCompatibleClient } = await import('../../src/lib/neon-compatible-client.ts');
   return new NeonCompatibleClient(executeNeonRequest);
 }
+
+/**
+ * Remove the audit rows a suite's fixtures wrote, matched by a SQL condition
+ * the suite writes itself (never user input).
+ *
+ * The audit log is append-only (db/schema.sql): /api/db refuses a delete, and a
+ * trigger refuses one on every path. `purge_audit_entries` is the deliberate
+ * exception, callable only with the database credential — which a suite has
+ * and the browser never does.
+ */
+export async function purgeAuditEntries(condition, params = []) {
+  const { neon } = await import('@neondatabase/serverless');
+  const env = loadEnv();
+  const sql = neon(env.NEON_DATABASE_URL ?? env.DATABASE_URL);
+  const [row] = await sql.query(
+    `SELECT purge_audit_entries(ARRAY(SELECT id FROM audit_entries WHERE ${condition})) AS removed`, params);
+  return Number(row?.removed ?? 0);
+}

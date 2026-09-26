@@ -78,7 +78,7 @@ FR10-41 · Route guard: `/admin/*` requires `roles={['admin']}`. Direct URL acce
 
 FR10-50 · **System Health** (`/admin/health`): what happened to the recorded handovers to upstream systems (`system_integrations`) — per system, completed, open and failed, the last handover and the mean response time; a system with a failure reads failing, one with no handovers reads unused. No uptime, error rate or session count: there are no live connections to measure (TC-ADM-35).
 
-FR10-51 · **Audit Log** (`/admin/audit`): full `audit_entries` table — all human, system, AI, and warning events. Filterable by user, type, time.
+FR10-51 · **Audit Log** (`/admin/audit`): full `audit_entries` table — all human, system, AI, and warning events. **Append-only:** `/api/db` refuses to change or delete an entry (400 `append_only`) and a database trigger refuses it on every path; only `purge_audit_entries`, which `/api/db` cannot call, removes rows (`test:audit-append-only`). Filterable by user, type, time.
 
 FR10-52 · **Database Admin** (`/admin/database`): controlled CRUD on application-owned Neon tables via the private API boundary.
 

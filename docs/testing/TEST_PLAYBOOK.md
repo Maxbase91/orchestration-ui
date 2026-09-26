@@ -330,6 +330,8 @@ npm run test:request-tabs         # the request-detail tabs show the stages a re
 npm run test:refresh              # every lifecycle action invalidates every view it can affect
 npm run test:assistant-boundary   # the confirm card describes the queued write; the assistant reads only the caller's records
 npm run test:audit                # audit rows are written for the actions that claim them
+npm run test:audit-append-only    # the audit log is append-only: /api/db refuses update/upsert/delete (400 append_only), a trigger
+                                  #   refuses them in SQL, deleting a request only unlinks its entries, only the purge removes rows
 npm run test:derived              # database-derived columns track their inputs, and a contract's status_live matches contract-status.ts on eight fixtures (live; cleans up its fixtures)
 npm run test:kpis                 # dashboard KPI aggregates match the underlying rows
 npm run test:ai-agents            # agent registry shape and activation rules
@@ -997,7 +999,7 @@ not in a component — because RLS is currently `USING (true)`.
 | TC-ADM-13 | `/admin/policies` | **Removed** (2026-09-25) — a static copy of the policy text used by nothing; policy text is in the Knowledge base |
 | TC-ADM-14 | `/admin/users` (wired CRUD) | **Add User** (dialog) persists to the active Neon store and appears in the table; **Edit Role** updates the role; **Remove** deletes the record — all via the real mutation hooks (no more toast-only no-ops). Verified by `npm run test:interactions-ui` (create → persist → cleanup). |
 | TC-ADM-15 | `/admin/health` System Health | Integration status, uptime, error log |
-| TC-ADM-16 | `/admin/audit` Audit Log | 40+ entries; filters; **Export** |
+| TC-ADM-16 | `/admin/audit` Audit Log | 40+ entries; filters; **Export**. An entry cannot be changed or deleted — through `/api/db` (400 `append_only`) or in SQL (the trigger), and deleting a request keeps its entries unlinked (`npm run test:audit-append-only`, which also fails when the guard or the trigger is removed) |
 | TC-ADM-17 | `/admin/kb` KB Management | Add entry persists; assistant uses it |
 | TC-ADM-17a | Knowledge base linked to configuration (`npm run test:knowledge-links`, `npm run test:reference-data-ui`) | Every entry is marked **Linked to configuration** or **Policy text only**; expanding one shows it with live figures (change the catalogue auto-approval threshold → the catalogue entry's answer changes). *Insert a figure* adds a reference; a reference naming nothing is flagged and blocks Save. The guard fails if an entry restates a governed amount as a literal outside a line marked *(policy)*, if any reference names nothing, or if the live table is empty (the built-ins were moved in by `backfill:knowledge-base-linked`, fill-only). The rewrite corrected entries that described the platform wrongly: approval bands (now the chains), catalogue auto-approval (€500 → the governed figure), a direct-PO channel, category selection, a separate onboarding request |
 | TC-ADM-18 | `/admin/ai-analytics` | Conversation/answer-quality charts |
