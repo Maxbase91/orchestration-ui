@@ -282,7 +282,11 @@ export function IntakeConversation(props: IntakeConversationProps) {
         }
       : {
           kind: 'contract', contract: checks.contractMatches[0].contract,
-          alternates: checks.contractMatches.slice(1, 3).map((m) => m.contract), preliminary: checks.matchUnavailable,
+          // Only what the matcher itself is confident of: a weak candidate
+          // offered as "call off X instead" reads as a recommendation.
+          alternates: checks.contractMatches.slice(1, 3)
+            .filter((m) => 'confidence' in m && m.confidence !== 'low').map((m) => m.contract),
+          preliminary: checks.matchUnavailable,
         };
     setLog((prev) => [...prev, ...(prev.some((e) => e.kind === 'phase') ? [] : [{ kind: 'phase' as const, label: PHASE_TWO }]), offer]);
   }, [decided, checks.unavailable, catalogueOffer, contractOffer, checks.canCallOff, checks.decision.catalogueMatches, checks.contractMatches, checks.matchUnavailable, checkKey, updateFormData]);

@@ -22,7 +22,7 @@ import { usePreferredSupplierIds } from '@/lib/db/hooks/use-category-preferred-s
 import { requestContractMatch } from '@/lib/procurement/contract-match-api';
 import { formatCurrency } from '@/lib/format';
 import type { CatalogueItem } from '@/data/catalogue-items';
-import type { Contract, ContractMatchResponse, Supplier } from '@/data/types';
+import type { Contract, ContractMatchCandidate, ContractMatchResponse, Supplier } from '@/data/types';
 
 export interface RouteCheckInput {
   /** The demand's title (the words, after "Is that right?"). Empty: nothing is checked. */
@@ -117,9 +117,9 @@ export function useRouteChecks(input: RouteCheckInput | null) {
     return serverMatch.candidates
       .map((candidate) => {
         const contract = contracts.find((item) => item.id === candidate.contractId);
-        return contract ? { contract, score: candidate.score, reasons: candidate.reasons } : null;
+        return contract ? { contract, score: candidate.score, reasons: candidate.reasons, confidence: candidate.confidence } : null;
       })
-      .filter((match): match is { contract: Contract; score: number; reasons: string[] } => Boolean(match));
+      .filter((match): match is { contract: Contract; score: number; reasons: string[]; confidence: ContractMatchCandidate['confidence'] } => Boolean(match));
   }, [contracts, serverMatch, decision.contractMatches]);
 
   // The risk and materiality routing inputs come from the same capture-time

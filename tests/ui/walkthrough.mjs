@@ -102,6 +102,13 @@ async function fullScenario(page, { key, demand, answers, toggleCritical }) {
   log(`\n▶ Front door — ${key}`);
   try {
     const conversation = await describe(page, demand);
+    // A live contract may cover the demand; this scenario is a new request.
+    const raise = conversation.getByRole('button', { name: 'Not this — raise a new request' });
+    await Promise.race([
+      conversation.getByText('Then this is a new request.').waitFor({ timeout: 15000 }),
+      raise.waitFor({ timeout: 15000 }),
+    ]).catch(() => {});
+    if (await raise.count() && await raise.isEnabled()) await raise.click();
     await conversation.getByText('Then this is a new request.').waitFor({ timeout: 15000 });
     if (!(await toConfirmed(page, conversation, answers, { answerRiskYes: toggleCritical }))) throw new Error('the channel was never confirmed');
     await shot(page, `${key}-1-conversation`);

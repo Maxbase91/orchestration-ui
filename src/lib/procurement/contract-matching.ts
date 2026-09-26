@@ -17,6 +17,11 @@ export interface ContractMatchScope extends ContractScopeVersion {
   contractValue: number;
   utilisationPercentage: number;
   contractStatus: string;
+  /**
+   * The contract's own end date. Past it the contract cannot be called off —
+   * the governed checkout refuses it — whatever its status column still says.
+   */
+  contractEndDate?: string;
   deliverables: ContractScopeDeliverable[];
   exclusions: ContractScopeExclusion[];
 }
@@ -137,12 +142,18 @@ function scoreScope(scope: ContractMatchScope, input: ContractMatchInput, signal
   return { score: Math.min(1, serviceScore + deliverableScore + narrativeScore + contextScore + explicitScore + commercialScore), reasons };
 }
 
-export function matchContractScopes(input: ContractMatchInput, scopes: ContractMatchScope[]): ContractMatchResponse {
+export function matchContractScopes(
+  input: ContractMatchInput,
+  scopes: ContractMatchScope[],
+  /** YYYY-MM-DD. A contract is in force through its end date. */
+  today: string = new Date().toISOString().slice(0, 10),
+): ContractMatchResponse {
   const coverage = hasCoverageSignal(input);
   const candidates: ContractMatchCandidate[] = [];
   for (const scope of scopes) {
     if (scope.completeness !== 'complete' || scope.status !== 'active') continue;
     if (!['active', 'expiring'].includes(scope.contractStatus)) continue;
+    if (scope.contractEndDate && scope.contractEndDate.slice(0, 10) < today) continue;
     if (!dateInScope(scope, input)) continue;
     if (exclusionHit(scope, input)) continue;
     if (input.supplierId && input.supplierId !== scope.supplierId) continue;

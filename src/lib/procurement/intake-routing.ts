@@ -87,6 +87,8 @@ export interface RoutingData {
   contracts: Contract[];
   /** Category ids the catalogue can fulfil (procurement_categories.catalogue_eligible). */
   catalogueEligibleCategories: string[];
+  /** YYYY-MM-DD, for which contracts are still in force. Defaults to today. */
+  today?: string;
 }
 
 // ── Tokenising ──────────────────────────────────────────────────────────────
@@ -293,22 +295,37 @@ export function matchContracts(
   demand: Pick<IntakeDemand, 'text' | 'category' | 'estimatedValue' | 'supplierId'>,
   contracts: Contract[],
   formatValue: (n: number) => string,
+  /** YYYY-MM-DD. A contract is in force through its end date. */
+  today: string = new Date().toISOString().slice(0, 10),
 ): { matches: ScoredContract[]; ruledOut?: string } {
   if (!demand.text && !demand.supplierId) {
     return { matches: [], ruledOut: 'Nothing captured yet to match against.' };
   }
   const tokens = tokenize(demand.text);
   const out: ScoredContract[] = [];
+  const lapsed: Contract[] = [];
   for (const c of contracts) {
     const m = scoreContract(
       c,
       { tokens, category: demand.category, estimatedValue: demand.estimatedValue, supplierId: demand.supplierId },
       formatValue,
     );
-    if (m) out.push({ contract: c, ...m });
+    if (!m) continue;
+    // Past its end date a contract cannot be called off — the governed
+    // checkout refuses it — whatever its status column still says. Offering it
+    // led the requester through a call-off the Channel page then refused.
+    if (c.endDate && c.endDate.slice(0, 10) < today) { lapsed.push(c); continue; }
+    out.push({ contract: c, ...m });
   }
   if (out.length === 0) {
-    return { matches: [], ruledOut: 'No active contract appears to cover this.' };
+    // Named, as the determination names it: a requester who knows a contract
+    // exists would read "none covers this" as the check having missed it.
+    return {
+      matches: [],
+      ruledOut: lapsed.length > 0
+        ? `No contract in date — ${lapsed[0].title} ended ${lapsed[0].endDate.slice(0, 10)}.`
+        : 'No active contract appears to cover this.',
+    };
   }
   return { matches: out.sort((a, b) => b.score - a.score).slice(0, 4) };
 }
@@ -340,7 +357,7 @@ export function decideIntakeRoute(
   formatValue: (n: number) => string = (n) => String(Math.round(n)),
 ): RouteDecision {
   const cat = matchCatalogue(demand, data.catalogueItems, data.catalogueEligibleCategories, config);
-  let con = matchContracts(demand, data.contracts, formatValue);
+  let con = matchContracts(demand, data.contracts, formatValue, data.today);
   // A covering contract is not a direct call-off above the limit: the award
   // needs a mini-competition, which is a sourcing exercise. Ruled out in place
   // and naming the contract, rather than offered and refused at checkout.

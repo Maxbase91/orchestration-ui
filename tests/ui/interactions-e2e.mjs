@@ -77,9 +77,25 @@ async function reachNewRequest(page, demand) {
   await conversation.getByRole('button', { name: 'Yes', exact: true }).first().click();
   await conversation.getByText(/Checked the catalogue|could not reach the catalogue/).first().waitFor({ timeout: 20000 }).catch(() => {});
   if (!(await conversation.getByText(/Checked the catalogue/).count())) return false;
-  // Nothing in the catalogue or on contract for this demand, so the
+  // Live contracts change: when one is offered for this demand, decline it the
+  // way a requester would — this flow is about a new request. Otherwise the
   // conversation makes it a new request on its own.
-  return conversation.getByText('Then this is a new request.').waitFor({ timeout: 20000 }).then(() => true).catch(() => false);
+  const newRequest = conversation.getByText('Then this is a new request.');
+  const decline = conversation.getByRole('button', { name: /Not this — raise a new request|Keep describing/ });
+  await Promise.race([newRequest.waitFor({ timeout: 20000 }), decline.first().waitFor({ timeout: 20000 })]).catch(() => {});
+  if (!(await newRequest.count()) && await decline.count()) {
+    const raise = conversation.getByRole('button', { name: 'Not this — raise a new request' });
+    if (await raise.count()) await raise.click();
+    else {
+      await decline.first().click();
+      await page.locator('#intake-reply').fill('It is new demand, not the catalogue item.');
+      await page.locator('#intake-reply').press('Enter');
+      const raiseAfter = conversation.getByRole('button', { name: 'Not this — raise a new request' });
+      await Promise.race([newRequest.waitFor({ timeout: 20000 }), raiseAfter.waitFor({ timeout: 20000 })]).catch(() => {});
+      if (await raiseAfter.count() && !(await newRequest.count())) await raiseAfter.click();
+    }
+  }
+  return newRequest.waitFor({ timeout: 20000 }).then(() => true).catch(() => false);
 }
 
 /**

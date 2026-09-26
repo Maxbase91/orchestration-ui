@@ -151,3 +151,14 @@ block, details-supplier, the call-off form), the stepper and the wizard footer.
    - Removed as dead once the Details screen went: the hook's invitation opening and `api/chat-intake`'s opening-turn prompt (no client sends an empty conversation), `details-sections.ts` and `test:details-progression` (its checks moved to `test:intake-conversation`), the already-orphaned `compliance-check-result.tsx`
    - Fixed on the way: giving up on the last open question (a date that never parsed) asked for it again offline and said nothing on the model path — it now closes the description; the completion message is short and said once
 4. [ ] 4d — the production interaction suite and the walkthrough against the deployed app, screenshots against the artboard
+
+## Next — documentation boundaries (raised 2026-09-26)
+There is no PRD and no ARCHITECTURE.md; AGENTS.md points to CLAUDE.md. What a
+PRD and an architecture doc would hold is spread across the functional spec,
+requirements 00–14, PRODUCT_BACKLOG, the personas, CLAUDE.md, the README, the
+ADRs and the module READMEs — and one intake change had to be written into nine
+of them. Define one home per fact and make the rest link:
+- **PRD** — what and why: problem, personas, R1 scope in/out, principles, success measures; links to requirements/ for FR detail (the functional spec's role, which it no longer fills reliably)
+- **ARCHITECTURE.md** — how: system context (SPA → /api/db → Neon, the 12-function cap, the LLM helper), the module map, the connector seam, the decision engines, where configuration lives; links to the ADRs
+- **AGENTS.md / CLAUDE.md** — how to work here: ground rules, Definition of Done, conventions; links to the two above rather than restating them
+- **README** — getting started, commands, deployment, the doc map

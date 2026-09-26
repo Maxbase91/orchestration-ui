@@ -47,7 +47,7 @@ function validateInput(body: unknown): ContractMatchInput {
 export async function loadContractMatchScopes(sql: ReturnType<typeof getNeonClient>): Promise<ContractMatchScope[]> {
   const rows = await sql.query(`
     SELECT sv.*, c.title AS contract_title, c.supplier_id, c.supplier_name, c.value AS contract_value,
-           c.utilisation_percentage, c.status AS contract_status, sf.label AS service_family
+           c.utilisation_percentage, c.status AS contract_status, c.end_date AS contract_end_date, sf.label AS service_family
     FROM contract_scope_versions sv
     JOIN contracts c ON c.id = sv.contract_id
     LEFT JOIN procurement_service_families sf ON sf.id = sv.service_family_id
@@ -79,7 +79,8 @@ export async function loadContractMatchScopes(sql: ReturnType<typeof getNeonClie
     eligibleCategories: arrayValue(row.eligible_categories), geographies: arrayValue(row.geographies), businessUnits: arrayValue(row.business_units),
     callOffRequirements: arrayValue(row.call_off_requirements), completeness: row.completeness as ContractMatchScope['completeness'], provenance: row.provenance as ContractMatchScope['provenance'],
     contractTitle: text(row.contract_title), supplierId: text(row.supplier_id), supplierName: text(row.supplier_name), contractValue: Number(row.contract_value ?? 0),
-    utilisationPercentage: Number(row.utilisation_percentage ?? 0), contractStatus: text(row.contract_status), deliverables: deliverables.get(String(row.id)) ?? [], exclusions: exclusions.get(String(row.id)) ?? [],
+    utilisationPercentage: Number(row.utilisation_percentage ?? 0), contractStatus: text(row.contract_status),
+    contractEndDate: dateText(row.contract_end_date) || undefined, deliverables: deliverables.get(String(row.id)) ?? [], exclusions: exclusions.get(String(row.id)) ?? [],
   }));
 }
 

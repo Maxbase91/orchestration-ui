@@ -362,6 +362,7 @@ The pre-check makes one explainable decision. These are the cases that broke it.
 | TC-REQ-R11 | Command bar, genuine catalogue demands | "business cards for the sales team" → Business Cards 500; "office laptops for a new starter" → ThinkPad; "printer paper" → A4 Paper. Ruling out consulting must not rule out the catalogue's actual job |
 | TC-REQ-R12 | Command bar, LLM returns `intent: catalogue` for a consulting demand | Overruled — the demand goes to intake and the reason the catalogue was ruled out is shown, rather than a different screen appearing silently. Same guard the conversation applies (TC-REQ-R8) |
 | TC-REQ-R9 | AI-001 disabled / LLM unreachable | Identical routing to the rules-only path. The deterministic layer is the fallback and is gated by its own eval (TC-GOV-02) |
+| TC-REQ-R13 | A demand a contract covers, but the contract's end date has passed while its status still says active (`npm run test:intake-routing`, `npm run test:contract-matching`) | **Not offered** — neither by the server matcher nor by the local preview — and the check names it: "No contract in date — *title* ended *date*". The conversation offered one that ended in February 2025, leading the requester through a call-off the governed checkout then refused. A contract is in force through its end date; "call off X instead" is offered only for candidates the matcher is at least medium-confident of |
 
 ### The conversation explains itself, and finishes (`npm run test:intake-guidance`, `npm run test:intake-guidance-ui`)
 

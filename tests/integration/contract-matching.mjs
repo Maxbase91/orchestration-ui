@@ -34,4 +34,15 @@ assert.equal(expiredScope.route, 'full-request');
 const incomplete = matchContractScopes({ text: 'We need payroll implementation for the UK HR team', category: 'services' }, [scope({ completeness: 'incomplete' })]);
 assert.equal(incomplete.route, 'full-request');
 
+// A contract past its own end date cannot be called off — the governed checkout
+// refuses it — whatever its status column still says. The conversation offered
+// one (it ended in February 2025) as covering a 2026 demand.
+const lapsedContract = matchContractScopes({ text: 'We need payroll implementation support for the UK HR team', category: 'services' },
+  [scope({ contractEndDate: '2025-02-28' })], '2026-09-26');
+assert.equal(lapsedContract.route, 'full-request');
+assert.equal(lapsedContract.candidates.length, 0);
+const lastDay = matchContractScopes({ text: 'We need payroll implementation support for the UK HR team', category: 'services' },
+  [scope({ contractEndDate: '2026-09-26' })], '2026-09-26');
+assert.equal(lastDay.route, 'contract', 'a contract is in force through its end date');
+
 console.log('Contract matching checks passed.');

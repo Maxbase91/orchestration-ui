@@ -213,6 +213,22 @@ for (const demand of LABELLED) {
     `${atPreCheck.channel} vs ${atDetermination.channel}`);
 }
 
+console.log('\nA contract past its end date is not offered');
+// The governed checkout refuses a call-off against a contract whose end date
+// has passed, whatever its status column says — so the route check must not
+// offer one. The conversation did, for a contract that ended in February 2025.
+{
+  const lapsed = { ...CONTRACTS[0], endDate: '2025-02-28' };
+  const data = { catalogueItems: ITEMS, contracts: [lapsed], catalogueEligibleCategories: ELIGIBLE, today: '2026-09-26' };
+  const decision = decideIntakeRoute({ text: 'strategy consulting for the finance team', category: 'consulting', estimatedValue: 0, supplierId: '' }, data);
+  check('it is not a match', decision.contractMatches.length === 0 && decision.route !== 'contract', JSON.stringify(decision.contractMatches));
+  check('and the reason names it, rather than saying none covers this',
+    /No contract in date — Strategy consulting framework ended 2025-02-28/.test(decision.ruledOut.contract ?? ''), decision.ruledOut.contract);
+  const lastDay = decideIntakeRoute({ text: 'strategy consulting for the finance team', category: 'consulting', estimatedValue: 0, supplierId: '' },
+    { ...data, contracts: [{ ...lapsed, endDate: '2026-09-26' }] });
+  check('a contract is in force through its end date', lastDay.contractMatches.length === 1);
+}
+
 console.log('\nUrgency is the one input that still moves the answer');
 const urgencyChanges = (demand) => {
   const calm = resolveDemandChannel(RULES, { ...demand, isUrgent: false }).channel;
