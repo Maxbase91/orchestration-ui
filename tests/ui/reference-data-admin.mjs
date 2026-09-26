@@ -277,7 +277,7 @@ try {
   // that names it (live, from the stubbed rules, chains and articles).
   const thresholdsText = await page.locator('main').innerText();
   check('each threshold says where it is used',
-    /Used in: Review & submit — the competitive-sourcing check · Home answers/.test(thresholdsText));
+    /Used in: Your buying channel — the competitive-sourcing check · Home answers/.test(thresholdsText));
   check('a rule naming a threshold is listed under it',
     (await page.getByRole('link', { name: 'RR-T1 High-value software' }).count()) === 1);
   check('an article quoting a threshold is counted', (await page.getByText('1 article quotes it').count()) === 1);

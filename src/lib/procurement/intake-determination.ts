@@ -43,7 +43,7 @@ import { evaluateScreening, type ScreeningResult } from './screening.js';
 import { isTriageRequired } from './risk-triage.js';
 import { buyingChannelLabel } from '../routing/evaluate-routing-rules.js';
 import { resolveDemandChannel } from '../routing/demand-channel.js';
-import { selectApprovalChainForValue } from '../workflow/workflow-steps.js';
+import { selectChainForValue } from '../workflow/approval-bands.js';
 import type { ApprovalChain } from '../db/approval-chains.js';
 import type { Supplier, Contract, RoutingRule, RiskAssessment, BuyingChannel } from '../../data/types.js';
 
@@ -119,6 +119,8 @@ export interface IntakeDetermination {
   buyingChannelSlug: BuyingChannel;
   approvalChain?: string;
   matchedRuleName?: string;
+  /** The matched rule's own description — why this channel, in its author's words. */
+  matchedRuleDescription?: string;
   materiality: MaterialityResult;
   inherentRisk: InherentRiskResult;
   operationalRisk: OperationalRiskResult;
@@ -354,9 +356,9 @@ export function evaluateIntakeDetermination(input: IntakeDeterminationInput): In
 
   // `requests.approval_chain` is an FK to approval_chains.id. Routing rules
   // use human-readable role vocabularies, so persist the actual configured
-  // chain selected by the same value band shown in the routing preview.
+  // chain selected by the same value band the Channel page names approvers from.
   const configuredChain = approvalChains.find((chain) => chain.id === routing.approvalChain);
-  const valueBandedChain = selectApprovalChainForValue(approvalChains, estimatedValue, policy);
+  const valueBandedChain = selectChainForValue(approvalChains, estimatedValue, policy);
   const label = buyingChannelLabel(routing.channel);
   const supplierData = evaluateSupplierData(supplierRec);
 
@@ -463,6 +465,7 @@ export function evaluateIntakeDetermination(input: IntakeDeterminationInput): In
     buyingChannelSlug: routing.channel,
     approvalChain: configuredChain?.id ?? valueBandedChain?.id,
     matchedRuleName: routing.matchedRule?.name,
+    matchedRuleDescription: routing.matchedRule?.description || undefined,
     materiality,
     inherentRisk,
     operationalRisk,

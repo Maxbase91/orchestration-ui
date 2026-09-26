@@ -93,12 +93,15 @@ check('adding the detail the matcher asked for makes a contract selectable', () 
 
 console.log('\nAn expired contract is not an active one');
 
-const compliance = read('src/features/requests/new-request/step-compliance.tsx');
+// Both now live in the determination's contract check — the one the Channel
+// page and the export read. The intake screen's "smart assessment" that held
+// them re-derived coverage beside it and was retired with the Review step.
+const coverage = read('src/lib/procurement/second-contract-check.ts');
 check('coverage checks the end date, not only the status column', () => {
-  assert.match(compliance, /notYetExpired/, 'a contract past its end date still reads as active');
+  assert.match(coverage, /c\.endDate && c\.endDate < input\.now/, 'a contract past its end date still reads as active');
 });
 check('an expired contract is named rather than reported as none', () => {
-  assert.match(compliance, /No contract in date/,
+  assert.match(coverage, /No contract in date — \$\{lapsed\[0\]\.title\} ended/,
     'the requester knows a contract exists and would read "no contract" as a miss');
 });
 

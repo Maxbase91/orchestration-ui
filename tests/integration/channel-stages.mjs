@@ -234,11 +234,13 @@ console.log('\nThe requester’s wording for a channel comes from its template')
   if (/BUYING_CHANNEL_PLAIN\s*[:=]|export function buyingChannelPlain/.test(routing)) {
     bad('the hard-coded channel wording is gone', 'BUYING_CHANNEL_PLAIN is back in evaluate-routing-rules.ts');
   } else ok('no hard-coded channel wording remains');
-  for (const file of [
-    'src/features/requests/new-request/step-buy-route.tsx',
-    'src/features/requests/new-request/step-compliance.tsx',
-  ]) {
-    if (!/useChannelCopy\(\)/.test(read(file))) bad(`${file} reads the configured wording`);
+  if (!/useChannelCopy\(\)/.test(read('src/features/requests/new-request/step-buy-route.tsx'))) {
+    bad('the buy-route step reads the configured wording');
+  }
+  // The Channel page reads it through channelCopy — the same function, over the
+  // same templates (use-channel-plan.ts).
+  if (!/channelCopy\(templates, channel, buyingChannelLabel\(channel\)\)/.test(read('src/features/requests/new-request/channel/use-channel-plan.ts'))) {
+    bad('the Channel page reads the configured wording');
   }
   const designer = read('src/features/admin/workflow-designer/workflow-designer-page.tsx');
   if (!/requesterHeadline: editedWording\.headline/.test(designer)) bad('the designer saves the wording');
@@ -328,6 +330,29 @@ console.log('\nEvery template defines a buying channel\u2019s lifecycle');
   const designer = read('src/features/admin/workflow-designer/workflow-designer-page.tsx');
   if (/side-processes/.test(app) || /scope === 'side-process'/.test(designer)) bad('the side-process screen is gone');
   else ok('the side-process screen and route are gone');
+}
+
+// The template is never chosen by category. That rule gave the standard
+// procurement template to nearly every category, and submit preferred it over
+// the channel's template, so a business-led request would have run the
+// procurement-led lifecycle. The channel decides it — on submit and on the
+// Channel page. (Moved from test:workflow-steps, retired with the Review
+// step's preview on 2026-09-26.)
+console.log('\nThe template follows the channel, not the category');
+{
+  if (/selectWorkflowTemplateForCategory/.test(read('src/features/requests/new-request/use-intake-determination.ts'))) {
+    bad('no category-based template selection remains');
+  } else ok('no category-based template selection remains');
+  const submit = read('api/_domains/intake-submit.ts');
+  if (!/const templateId = templateForChannel\(templates, buyingChannel\) \|\| null;/.test(submit) || /payload\.workflowTemplateId/.test(submit)) {
+    bad('submit takes the template that claims the channel, never the browser\u2019s');
+  } else ok('submit takes the template that claims the channel, never the browser\u2019s');
+  const page = read('src/features/requests/new-request/new-request-page.tsx');
+  if (/initWorkflow\(/.test(page)) bad('the call-off does not start a second workflow instance in the browser');
+  else ok('the call-off does not start a second workflow instance in the browser');
+  if (!/templates\.find\(\(t\) => t\.id === templateForChannel\(templates, channel\)\)/.test(read('src/features/requests/new-request/channel/use-channel-plan.ts'))) {
+    bad('the Channel page draws the template that claims the channel');
+  } else ok('the Channel page draws the template that claims the channel');
 }
 
 console.log(failures === 0 ? '\n\x1b[32mchannel-stages passed\x1b[0m' : `\n\x1b[31m${failures} failed\x1b[0m`);

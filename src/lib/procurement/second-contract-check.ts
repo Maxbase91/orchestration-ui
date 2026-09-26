@@ -84,11 +84,17 @@ export function runSecondContractCheck(
     };
   }
 
+  // Contracts with this supplier that have run out — by status or by date,
+  // because a status is a label someone has to maintain and the end date is not.
+  const lapsed: Array<{ title: string; endDate: string }> = [];
   for (const c of input.contracts) {
     if (c.supplierId !== input.supplierId) continue;
     if (input.category && c.category && c.category !== input.category) continue;
-    if (c.status === 'expired' || c.status === 'terminated') continue;
-    if (c.endDate && c.endDate < input.now) continue;
+    if (c.status === 'terminated') continue;
+    if (c.status === 'expired' || (c.endDate && c.endDate < input.now)) {
+      lapsed.push({ title: c.title, endDate: c.endDate });
+      continue;
+    }
 
     const expiringSoon = c.status === 'expiring' || daysBetween(input.now, c.endDate) <= config.contractExpiryBufferDays;
 
@@ -119,6 +125,16 @@ export function runSecondContractCheck(
   }
   if (candidates.some((c) => c.kind === 'expiring')) {
     return { candidates, recommendation: 'renew', reason: 'The covering contract is expiring — renew or extend it.' };
+  }
+  // Naming the lapsed one matters: the requester knows a contract exists and
+  // would read "no contract" as the check having missed it. (This was the
+  // intake screen's "smart assessment", retired with the Review step.)
+  if (lapsed.length > 0) {
+    return {
+      candidates,
+      recommendation: 'new-contract',
+      reason: `No contract in date — ${lapsed[0].title} ended ${lapsed[0].endDate}, so a new contract is required.`,
+    };
   }
   return { candidates, recommendation: 'new-contract', reason: 'No contract covers this demand — a new contract is required.' };
 }

@@ -6,11 +6,13 @@
 // runtime/render failure that `tsc -b` and `npm run build` cannot catch.
 // Also fails on any uncaught page error or console error during the flow.
 //
-// Run: npm run test:ui   (requires .env.local with NEON_DATABASE_URL)
+// Run: npm run test:ui   (no credentials — the database is stubbed)
+//      UI_SHOT_DIR=<dir> npm run test:ui   also screenshots the Channel pages
 
 import { spawn } from 'node:child_process';
 import { chromium } from 'playwright';
-import { installDbStub, FIXTURES, channelTemplate } from './db-stub.mjs';
+import { installDbStub, templateRows } from './db-stub.mjs';
+import { workflowTemplates } from '../../src/data/workflows.ts';
 
 class LocalServerlessUnavailable extends Error {}
 
@@ -62,6 +64,18 @@ const server = spawn('npm', ['run', 'dev'], {
 });
 let browser;
 let page;
+const SHOT_DIR = process.env.UI_SHOT_DIR;
+async function shot(name) {
+  if (!SHOT_DIR) return;
+  // The app scrolls inside <main>, so a full-page capture is one viewport:
+  // make the viewport tall enough instead, from the top.
+  const size = page.viewportSize();
+  await page.setViewportSize({ width: 1440, height: 1700 });
+  await page.evaluate(() => document.querySelector('main')?.scrollTo(0, 0));
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${SHOT_DIR}/${name}.png` });
+  if (size) await page.setViewportSize(size);
+}
 try {
   await waitForServer();
   browser = await chromium.launch(LAUNCH_OPTS);
@@ -71,12 +85,10 @@ try {
   // catalogue row, without writing to a real database or pretending that a
   // local Vite process can exercise serverless routes.
   await installDbStub(context, {
-    // Each option's headline is the claiming template's requester wording.
-    workflow_templates: [
-      ...FIXTURES.workflow_templates,
-      channelTemplate('WF-002', 'catalogue', 'Order it from the catalogue', 'Pre-approved and pre-priced.'),
-      channelTemplate('WF-008', 'framework-call-off', 'Call it off an existing contract', 'Already negotiated.'),
-    ],
+    // The shipped templates, graphs and all: each option's headline is the
+    // claiming template's requester wording, and the Channel page walks the
+    // real branches.
+    workflow_templates: templateRows(workflowTemplates),
     catalogue_items: [{
       id: 'IT-001', name: 'ThinkPad T14 Gen 5', description: 'Lenovo business laptop, 14-inch, 16GB RAM',
       unit_price: 1299, unit: 'each', catalogue_id: 'it-equipment', catalogue_name: 'IT Equipment',
@@ -219,7 +231,7 @@ try {
 
   // 3a. THE DIRECT CALL-OFF LIMIT. Above it a call-off needs a mini-competition,
   //     and the checkout refuses it — so the form says so beside the value and
-  //     holds Review, rather than the refusal arriving after submit.
+  //     holds the way on, rather than the refusal arriving after submit.
   await page.goto(`${BASE}/requests/new`, { waitUntil: 'networkidle' });
   await page.locator('#need-input').fill('a few standard office laptops for a new starter');
   await page.locator('#need-input').press('Enter');
@@ -232,11 +244,53 @@ try {
   await page.locator('#calloff-value').fill('300000');
   check('a call-off above the limit is named as needing a mini-competition',
     (await page.getByRole('alert').filter({ hasText: /direct call-off limit/ }).count()) > 0);
-  check('…and Review is held',
-    !(await page.getByRole('button', { name: 'Review request' }).isEnabled()));
+  check('…and the way on is held',
+    !(await page.getByRole('button', { name: 'See how it will be bought' }).isEnabled()));
   await page.locator('#calloff-value').fill('20000');
   check('under the limit the warning goes',
     (await page.getByRole('alert').filter({ hasText: /direct call-off limit/ }).count()) === 0);
+  // The rest of the details, then on to the Channel page — the call-off no
+  // longer submits from this form.
+  await page.locator('#calloff-title').fill('Laptops for the new starter');
+  await page.locator('#calloff-recipient').fill('The new starter');
+  await page.locator('#calloff-purpose').fill('Equipment for the first week');
+  await page.locator('#calloff-need-by').fill('2026-12-01');
+  for (const id of ['#calloff-location', '#calloff-cost-centre']) {
+    const select = page.locator(id);
+    if (!(await select.inputValue())) await select.selectOption(await select.evaluate((el) => [...el.options].map((o) => o.value).find(Boolean) ?? ''));
+  }
+  const onward = page.getByRole('button', { name: 'See how it will be bought' });
+  check('with the details complete, the call-off can go on to its Channel page',
+    await onward.isEnabled(), await page.getByText(/^Still needed:/).innerText().catch(() => ''));
+  await onward.click();
+  const offPane = page.locator('section[aria-label="How it will be bought"]');
+  await offPane.getByRole('list', { name: 'Stages' }).waitFor({ timeout: 15000 }).catch(async (error) => {
+    console.error((await page.locator('main').innerText()).slice(0, 600));
+    console.error('CONSOLE:', consoleErrors.slice(-3).join('\n---\n').slice(0, 4000));
+    throw error;
+  });
+  await page.waitForTimeout(600);
+  await shot('channel-call-off');
+  check('a call-off gets a Channel page too, in its template\'s words',
+    (await offPane.getByRole('heading', { name: 'Call it off an existing contract' }).count()) === 1);
+  const offStages = await offPane.getByRole('list', { name: 'Stages' }).locator('li').evaluateAll((items) => items.map((li) => `${li.dataset.stage}:${li.dataset.applicability}`));
+  check('its stages come from the call-off template, landed by the checkout\'s rule',
+    offStages[0] === 'intake:here' && offStages.some((s) => s.startsWith('contracting:')) && !offStages.some((s) => s.startsWith('sourcing')),
+    offStages.join(' '));
+  const offChecks = await page.locator('aside[aria-label="What you are submitting"]').getByRole('list', { name: 'Checks' }).innerText();
+  check('the call-off\'s checks come from its governed decision',
+    /The contract can be called off/.test(offChecks) && /Within the direct call-off limit/.test(offChecks), offChecks);
+  const submitCallOff = page.getByRole('button', { name: /Submit the call-off/ });
+  if (await submitCallOff.isEnabled()) {
+    await submitCallOff.click();
+    await page.getByRole('heading', { name: 'Request submitted', exact: true }).waitFor({ timeout: 15000 });
+    check('the call-off submits from its Channel page', true);
+    check('the confirmation names the call-off as its channel',
+      /Framework Call-Off/.test(await page.locator('main').innerText()));
+  } else {
+    check('a call-off the decision refuses cannot be submitted, and the checks say why',
+      /cannot be placed as it stands/.test(offChecks), offChecks);
+  }
 
   // 3b. THE REPORTED DEFECT. "business consulting" used to match the catalogue
   //     item "Business Cards 500" — the word "business" hit the item name and
@@ -490,109 +544,82 @@ try {
   check('the conversation, a date and a cost centre open Next on the chat path',
     await page.getByRole('button', { name: /^Next$/ }).isEnabled().catch(() => false));
 
-  // 5. Review & submit — EVERY conclusion, and nothing to fill in: the buying
-  //    channel, the risk read, who approves it, and which checks ran. This was
-  //    three separate screens (Risk, Determination, Routing) that had to be
-  //    paged through one at a time.
-  await page.getByRole('button', { name: /Next/ }).click();              // → review
-  // The channel card leads in the requester's words — "Procurement runs a
-  // sourcing exercise", not "Buying Channel Classification: Procurement-Led
-  // Sourcing" with a rule id under it.
-  await page.getByText(/Procurement runs a sourcing exercise|Call it off an existing contract|Raise a purchase order directly|Your team runs this one|Order it from the catalogue|Pay by purchasing card/).first().waitFor({ timeout: 15000 });
-  check('the channel leads in plain language', true);
-  check('the full process is stated before the submit button',
-    (await page.getByText('What happens next:').count()) > 0);
-  check('every group says what it means, not just what it is',
-    (await page.getByText(/The route this request takes from here/).count()) > 0
-    && (await page.getByText(/What the risk read found/).count()) > 0
-    && (await page.getByText(/What was actually checked at intake/).count()) > 0);
-  check('the risk read is stated as a consequence, not a tier',
-    (await page.getByText(/risk assessment is required before this can proceed|No new risk assessment needed|No separate risk assessment is required/).count()) > 0);
-  // Expert still gets the workings, under the plain statement.
-  check('expert density keeps the classification detail',
-    (await page.getByText(/this is classified as:/).count()) > 0);
-  check('review screen renders the determination', true);
-  check('demand disposition surfaces (RTE-06: proceed/request-change/refer-back)',
-    (await page.getByText(/^(Proceed|Request change|Refer back)$/).count()) > 0);
-  check('materiality determination surfaces', (await page.getByText(/Materiality:/).count()) > 0);
-  check('supplier screening surfaces (SUP-03)', (await page.getByText(/Supplier screening:/).count()) > 0);
-  check('inherent risk segmentation surfaces, once, under Risk',
-    (await page.getByText('Inherent risk', { exact: true }).count()) === 1);
-  check('mini-IRQ toggle drove the cascade (critical-service driver appears)', (await page.getByText('Supports a critical service').count()) > 0);
-  check('contract-type & sourcing-type surface', (await page.getByText(/Contract type:/).count()) > 0);
-  check('next-steps handoff panel renders', (await page.getByText('Next steps', { exact: true }).count()) > 0);
-  check('handoff routes the detailed risk assessment', (await page.getByText('Third-party risk register').count()) > 0);
-  check('second contract check (Contract coverage) renders', (await page.getByText('Contract coverage', { exact: true }).count()) > 0);
-  check('approval-to-source gate renders', (await page.getByText('Approval to source', { exact: true }).count()) > 0);
-  check('approval-to-source shows a demand-validation gate', (await page.getByText('Demand validation', { exact: true }).count()) > 0);
+  // 5. The Channel page — how it will be bought, stage by stage, and what is
+  //    being submitted (Intake Prototype, 2026-09-26). It replaced Review &
+  //    submit, whose fifteen cards put the channel, three risk readings, two
+  //    approval panels and every policy result at one weight.
+  await page.getByRole('button', { name: /Next/ }).click();              // → your buying channel
+  const channelPane = page.locator('section[aria-label="How it will be bought"]');
+  const stageList = channelPane.getByRole('list', { name: 'Stages' });
+  await stageList.waitFor({ timeout: 15000 });
+  await page.waitForTimeout(600);
+  await shot('channel-request');
+  const stageRow = (stage) => stageList.locator(`li[data-stage="${stage}"]`);
+  check('the channel leads in the words its template sets',
+    (await channelPane.getByRole('heading', { name: 'Procurement runs a sourcing exercise' }).count()) === 1);
+  const stageOrder = await stageList.locator('li').evaluateAll((items) => items.map((li) => li.dataset.stage));
+  check('every stage of the channel\'s template is listed, in the order the graph reaches them',
+    stageOrder.join(',') === 'intake,validation,risk,onboarding,approval,sourcing,contracting,po,receipt,invoice,payment', stageOrder.join(','));
+  check('the requester is at intake, and the stage says what they do there',
+    /You are here/.test(await stageRow('intake').innerText())
+    && /You: Describe what you need and submit it\./.test(await stageRow('intake').innerText()));
+  check('the risk assessment the determination asked for applies, and says why',
+    (await stageRow('risk').getAttribute('data-applicability')) === 'applies'
+    && /Applies · risk assessment required/.test(await stageRow('risk').innerText()));
+  check('with no supplier chosen, onboarding depends on who is chosen — in the branch\'s own words',
+    (await stageRow('onboarding').getAttribute('data-applicability')) === 'conditional'
+    && /If the supplier is new/.test(await stageRow('onboarding').innerText()));
+  check('each stage shows its owner and target days from the template',
+    /Category Manager/.test(await stageRow('validation').innerText()) && /\b3d\b/.test(await stageRow('validation').innerText()));
+  check('the band counts the stages that apply, with + for the one that may',
+    /10\+ of 11/.test(await channelPane.innerText()));
+  check('submit says where the request goes first, and who owns that',
+    (await page.getByText('Submitting creates the request and sends it to Validation (Category Manager).').count()) === 1);
 
-  // Item 10 — the determination is grouped under scannable section headings
-  // (was a flat, unstructured stack of cards).
-  check('determination is grouped under section headings (item 10)',
-    (await page.getByText("How you'll buy", { exact: true }).count()) > 0 &&
-    (await page.getByText('Risk', { exact: true }).count()) > 0 &&
-    (await page.getByText('Routing & approvals', { exact: true }).count()) > 0 &&
-    (await page.getByText('Checks we ran', { exact: true }).count()) > 0);
-
-  // Item 8 — the workflow is predefined from the input; there is NO picker.
-  check('NO workflow-template picker on the determination (item 8)',
+  const submitting = page.locator('aside[aria-label="What you are submitting"]');
+  const checksList = submitting.getByRole('list', { name: 'Checks' });
+  await checksList.getByText(/approval/i).first().waitFor({ timeout: 15000 }).catch(() => {});
+  check('the request is summarised beside the stages',
+    /The request/.test(await submitting.innerText()) && /Charged to/.test(await submitting.innerText()));
+  check('the first check says why this channel',
+    /Procurement-Led Sourcing/.test(await checksList.locator('li').first().innerText()));
+  // The derivation submit writes, chain and all: the €150k band's VP step,
+  // which nobody holds in these fixtures, so any holder of the role may act.
+  // (The old screen's "Christine Dupont" matched its reviewer chips, not an
+  // approver.)
+  check('the approvers are the ones submit will ask (the same derivation)',
+    /One approval/.test(await checksList.innerText()) && /Any VP Procurement/.test(await checksList.innerText()), await checksList.innerText());
+  check('the risk read is a conclusion, not a tier',
+    /Risk assessment needed|Risk assessment reused|No risk assessment needed/.test(await checksList.innerText()));
+  check('Save as draft is still offered before submitting',
+    (await page.getByRole('button', { name: /Save as draft/ }).count()) > 0);
+  check('the controls that were collected and never saved are gone',
+    (await page.getByText('Add Reviewers / Watchers').count()) === 0
+    && (await page.getByText('Notes for Approvers').count()) === 0
+    && (await page.getByText('Workflow Preview').count()) === 0);
+  check('no workflow-template picker (item 8)',
     (await page.getByText('Which template should this request follow?').count()) === 0);
 
-  // Item 9 — Save as draft is available before submitting.
-  check('Save as Draft is available on the review step (item 9)',
-    (await page.getByRole('button', { name: /Save as Draft/ }).count()) > 0);
-
-  // The determination is exportable — clicking Export downloads a .md file.
-  check('determination Export button renders', (await page.getByRole('button', { name: /Export/ }).count()) > 0);
+  // The workings: one click down, and all still there (DET-04/05/08, RSK-02, RSK-06).
+  await submitting.getByText('How this was worked out').click();
+  const workings = submitting.locator('details');
+  // innerText is as rendered, and the row labels are set in capitals.
+  const workingsText = await workings.innerText();
+  const missingWorkings = ['Materiality', 'Inherent risk', 'Operational risk', 'Approval to source', 'Contract and sourcing', 'Policy checks', 'Next steps']
+    .filter((label) => !new RegExp(label, 'i').test(workingsText));
+  check('the workings are one click away: materiality, risk, approval to source, contract and sourcing, checks, next steps',
+    missingWorkings.length === 0, missingWorkings.join(', '));
+  check('the critical-service answer drove the cascade', /Supports a critical service/.test(workingsText));
+  check('approval to source names its demand-validation gate', /Demand validation/.test(workingsText));
+  check('the next steps route the detailed risk assessment', /Third-party risk register/.test(workingsText));
   const [download] = await Promise.all([
     page.waitForEvent('download', { timeout: 8000 }).catch(() => null),
-    page.getByRole('button', { name: /Export/ }).click(),
+    workings.getByRole('button', { name: /Export/ }).click(),
   ]);
-  check('Export downloads a determination markdown file',
+  check('Export downloads the determination as markdown',
     Boolean(download) && /determination-.*\.md/.test(download.suggestedFilename()),
     download ? download.suggestedFilename() : 'no download');
-
-  // Policy checks render only when the Request Validator agent (AI-002) is
-  // active (an admin toggle); otherwise the step shows the validator notice.
-  const dtps = await page.getByText('Competitive sourcing').count();
-  const validatorNotice = await page.getByText('Request Validator agent').count();
-  check('policy-check region renders (competitive sourcing checks when validator active, else notice)',
-    dtps > 0 || validatorNotice > 0, `dtps=${dtps} notice=${validatorNotice}`);
-  if (dtps > 0) {
-    check('preferred-supplier (PSL) check surfaces alongside competitive sourcing',
-      (await page.getByText('Preferred-supplier routing').count()) > 0);
-  }
-
-  // The routing preview sits on the SAME screen as the determination: the
-  // lifecycle, approvals, timeline and reviewers are all DERIVED from admin
-  // config (items 7+11), with no hardcoded literals. The €150k software
-  // demand (no supplier) drives both conditional steps.
-  await page.getByText('Workflow Preview', { exact: true }).waitFor({ timeout: 15000 });
-  // Wait for the config queries to resolve: a base lifecycle stage proves the
-  // template loaded; the chain caption proves the approval chains resolved.
-  await page.getByText('Validation', { exact: true }).first().waitFor({ timeout: 15000 });
-  await page.getByText(/VP-Level chain/).waitFor({ timeout: 15000 });
-  check('routing preview shares the review screen with the determination', true);
-  check('routing step renders the workflow preview', true);
-  check('lifecycle is template-derived — real stages, not the old "Intake Review by System"',
-    (await page.getByText('Intake Review', { exact: true }).count()) === 0
-    && (await page.getByText('Validation', { exact: true }).count()) > 0);
-  check('dynamic Risk assessment step overlaid on the lifecycle (item 11)',
-    (await page.getByText('Risk Assessment', { exact: true }).count()) > 0);
-  check('dynamic Vendor onboarding step overlaid on the lifecycle (item 11)',
-    (await page.getByText('Vendor Onboarding', { exact: true }).count()) > 0);
-  check('approvals derive from the value-banded chain (€150k → VP-Level)',
-    (await page.getByText(/VP-Level chain/).count()) > 0);
-  check('approver resolves to the actionable persona (config, not a hardcoded name)',
-    (await page.getByText('Christine Dupont').count()) > 0);
-  check('timeline derives from the category SLA config',
-    (await page.getByText(/business days/).count()) > 0);
-  // Sarah Chen is a real directory user (vendor-manager) and not a VP-Level
-  // approver, so her chip proves reviewers come from the directory; "Markus
-  // Braun" was a fabricated name in the old hardcoded list and must be gone.
-  check('reviewers come from the user directory (not the old hardcoded list)',
-    (await page.getByText('Sarah Chen').count()) > 0
-    && (await page.getByText('Markus Braun').count()) === 0);
+  await shot('channel-request-workings');
 
   // 5. Service-description capture (chat intake): the SOW and the service
   //    description are one document built automatically from the conversation —

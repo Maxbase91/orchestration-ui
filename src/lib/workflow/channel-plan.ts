@@ -418,6 +418,13 @@ export function applicabilityTag(
   }
 }
 
+/** What a submit will do next, from the stage the request enters and who owns it. */
+export function submitNoteFor(plan: ChannelPlan | null, noun: string): string {
+  const entry = plan?.entry?.node;
+  if (!entry) return `Submitting creates the ${noun}.`;
+  return `Submitting creates the ${noun} and sends it to ${entry.label}${entry.role ? ` (${entry.role})` : ''}.`;
+}
+
 /** "9 of 11", or "9+ of 11" when more may run once something is known. */
 export function applyCountLabel(plan: ChannelPlan): string {
   return `${plan.applying}${plan.conditional > 0 ? '+' : ''} of ${plan.stages.length}`;

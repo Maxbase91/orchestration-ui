@@ -25,7 +25,7 @@ export const aiAgents: AIAgent[] = [
     type: 'validation',
     status: 'active',
     lastUpdated: '2026-09-25',
-    description: 'Runs the policy checks on the Review step: contract required before a PO, budget approval, the supplier\'s risk assessment, competitive sourcing and the preferred-supplier rule — each against Decisioning thresholds and the category\'s preferred suppliers. These are rules, not a model. When it is not active, the checks are reported as not run rather than passed.',
+    description: 'Runs the policy checks shown on the Channel page before submit: contract required before a PO, budget approval, the supplier\'s risk assessment, competitive sourcing and the preferred-supplier rule — each against Decisioning thresholds and the category\'s preferred suppliers. These are rules, not a model. When it is not active, the checks are reported as not run rather than passed.',
   },
   {
     id: 'AI-004',

@@ -51,6 +51,18 @@ check('different category excluded', runSecondContractCheck({ ...ctx, contracts:
 check('expired excluded', runSecondContractCheck({ ...ctx, contracts: [{ ...base, status: 'expired' }] }).candidates.length === 0);
 check('past end date excluded', runSecondContractCheck({ ...ctx, contracts: [{ ...base, endDate: '2020-01-01' }] }).candidates.length === 0);
 check('no candidates → new-contract', runSecondContractCheck({ ...ctx, contracts: [] }).recommendation === 'new-contract');
+// A contract that has run out is named: the requester knows one exists and
+// would read "no contract covers this" as the check having missed it. By date
+// as well as by status — the status is a label someone has to maintain.
+{
+  const byDate = runSecondContractCheck({ ...ctx, contracts: [{ ...base, title: 'Cleaning services 2023', endDate: '2026-01-31' }] });
+  const byStatus = runSecondContractCheck({ ...ctx, contracts: [{ ...base, title: 'Cleaning services 2023', status: 'expired', endDate: '2026-01-31' }] });
+  check('a lapsed contract is named, with when it ended — by date or by status',
+    [byDate, byStatus].every((r) => r.recommendation === 'new-contract' && /No contract in date — Cleaning services 2023 ended 2026-01-31/.test(r.reason)),
+    byDate.reason);
+  check('a terminated one is not offered as the explanation',
+    !/No contract in date/.test(runSecondContractCheck({ ...ctx, contracts: [{ ...base, status: 'terminated', endDate: '2026-01-31' }] }).reason));
+}
 
 console.log('Strongest route wins');
 check('transactable beats framework', runSecondContractCheck({ ...ctx, contracts: [{ ...base, id: 'A', isFramework: true }, { ...base, id: 'B' }] }).recommendation === 'transact');

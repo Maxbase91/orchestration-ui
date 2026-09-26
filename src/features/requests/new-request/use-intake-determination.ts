@@ -2,7 +2,7 @@
 // `evaluateIntakeDetermination`.
 //
 // Mounted once per intake, in the page, so the Details step (which asks the
-// residual risk questions) and the Review step (which shows every conclusion)
+// residual risk questions) and the Channel page (which shows the conclusions)
 // read the *same* object rather than each computing its own. Two screens
 // deriving the same governance answer independently is the drift this codebase
 // has already paid for more than once.

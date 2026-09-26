@@ -7,7 +7,7 @@ catalogue and contract call-off checkouts.
 
 Four steps, one engine, two densities:
 
-    Describe → How you'll buy → Details → Review & submit  (→ confirmation)
+    Describe → How you'll buy → Details → Your buying channel  (→ confirmation)
 
 `new-request/intake-steps.ts` is the single source of truth for step order, which
 steps apply to which route, each step's gate and each step's guidance copy. It
@@ -17,11 +17,10 @@ guidance map keyed by step number.
 
 The organising rule is that **every question is asked before any conclusion is
 shown**. Details holds everything the requester supplies — the service
-description conversation, the residual risk questions, the IT security form, the
-supplier choice. Review holds everything the platform concluded — buying channel
-and timeline, the risk read, approvals and routing, and the checks that ran —
-and nothing to fill in. Anything that would change a conclusion belongs on
-Details.
+description conversation, the residual risk questions, the supplier choice (or,
+for a call-off, the call-off's details). The Channel page holds what the
+platform concluded, and nothing to fill in. Anything that would change a
+conclusion belongs on Details.
 
 `new-request/use-intake-determination.ts` mounts the determination **once**, in
 the page, so the step that asks the risk questions and the step that shows their
@@ -138,16 +137,30 @@ confirmed coverage, or the requester has supplied detail. Until then the option
 states that coverage may exist and asks the matcher's **own** clarifying
 question (ADR-0004).
 
-## Review: conclusions, in the requester's language
+## The Channel page: how it will be bought, then submit
 
-The Review step is grouped, and each group says what it *means*:
+`new-request/channel/` — the Intake Prototype's "channel, then submit" board,
+which replaced Review & submit on 2026-09-26 for **every** Door 1 route,
+including the contract call-off (whose Details form used to submit directly
+under a button that read "Review request").
 
-| Group | What it answers |
+| Part | Where it comes from |
 |---|---|
-| How you'll buy | The route, in outcome language, with its indicative timeline and the **whole downstream process** stated before the submit button |
-| Risk | Whether the risk read adds anything to this request — "a risk assessment is required", "an existing assessment covers it" — rather than a tier and its drivers |
-| Routing & approvals | Who must agree, and what happens once they do |
-| Checks we ran | What was actually checked. A check that did not run says so rather than showing as clear |
+| Headline and sentence | The channel template's requester wording (Workflow Designer) |
+| Value · Stages that apply · Stage targets | The request; the plan; the stages' `slaDays` |
+| Step by step | `lib/workflow/channel-plan.ts`: every stage of the template in graph order, each **You are here / Applies · why / If … / Skipped · why**, from the server's landing rule (`firstActionableStage`, or `checkoutEntryStage` for a call-off) and the engine's own branch function. "You: …" is the stage's `requesterAction` |
+| Submit note | The stage the request enters, and who owns it |
+| What you are submitting | The request, who and where, the supplier and who sourcing will invite (`sourcingInvites`, the event's own function) |
+| Checks | `lib/procurement/channel-checks.ts`, from the determination (or the call-off's governed decision): why this channel in the matched rule's own words, disposition, contract coverage, risk, the approvers submit writes (`useApproversOnSubmit`), failed policy checks, missing sections |
+| How this was worked out | The determination's workings, collapsed, and **Export** |
+
+A call-off's decision is built by `call-off.ts`, the same builder submit
+calls. Removed with Review: "Add reviewers / watchers" and "Notes for approvers"
+(collected and never saved), the preview's own approval-chain pick (it ignored
+the cost centre and the pinned chain), an intake copy of the IT Security
+Assessment that discarded its answers (it is filled at the risk stage it is
+configured for), and a "smart assessment" that re-derived contract coverage
+with its own €25,000 literal.
 
 The conversation step uses the product's `Card` primitives and the documented
 AI visual language (blue-tinted surface, left accent, sparkle, generated-by

@@ -82,7 +82,7 @@ Sources are listed in §7.
 | # | Requirement | App today | Cov. |
 |---|---|---|---|
 | C1 | Multi-step approval chains by value/category/risk | Approval-chain records generate approval entries and gate internal workflow | 🟡 (delegation, OOO and atomic completion remain) |
-| C2 | Parallel + sequential approvers, delegation, OOO | Shown in routing preview; OOO in user mgmt | 🟡 (delegation not auto-applied) |
+| C2 | Parallel + sequential approvers, delegation, OOO | Named in order on the Channel page before submit, from the derivation submit writes; OOO in user mgmt | 🟡 (delegation not auto-applied) |
 | C3 | One-click approve/reject/request-info from queue, email, mobile | In-app approve works (verified) | 🟡 (no email/mobile actions) |
 | C4 | AI approval recommendations / risk summaries | AI pre-validation cards | ✅ (UI) |
 | C5 | Approval audit trail | Audit log | ✅ |

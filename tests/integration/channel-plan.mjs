@@ -17,7 +17,7 @@
 import { workflowTemplates } from '../../src/data/workflows.ts';
 import { DEFAULT_POLICY_CONFIG } from '../../src/lib/procurement/policy-config.ts';
 import {
-  planChannel, applicabilityTag, applyCountLabel, stagesInGraphOrder,
+  planChannel, applicabilityTag, applyCountLabel, stagesInGraphOrder, submitNoteFor,
 } from '../../src/lib/workflow/channel-plan.ts';
 import {
   channelStageMapFromTemplates, firstActionableStage, templateForChannel, INTAKE_ENTRY_CONDITIONS,
@@ -80,6 +80,9 @@ console.log('\nProcurement-led, no risk assessment, supplier known and set up');
   check('the stages that simply run carry no tag', t.Validation === null && t.Sourcing === null && t.Payment === null);
   check('9 of 11 apply', applyCountLabel(plan) === '9 of 11', applyCountLabel(plan));
   check('the target is the sum of the running stages\' SLAs', plan.targetDays === 1 + 3 + 5 + 20 + 10 + 2 + 5 + 5 + 3, String(plan.targetDays));
+  check('submit says where it goes first, and who owns that',
+    submitNoteFor(plan, 'request') === 'Submitting creates the request and sends it to Validation (Category Manager).', submitNoteFor(plan, 'request'));
+  check('with no plan it says only what submitting does', submitNoteFor(null, 'request') === 'Submitting creates the request.');
 }
 
 console.log('\nProcurement-led, risk required, no supplier chosen yet');

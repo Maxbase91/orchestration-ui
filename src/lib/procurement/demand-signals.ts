@@ -85,7 +85,7 @@ export interface DemandSignalsInput {
   /**
    * The category's preferred-supplier list. It decides "preferred" when set, as
    * it does in the determination — without it this early read used the
-   * performance heuristic and could disagree with the answer at Review.
+   * performance heuristic and could disagree with the determination behind the Channel page.
    */
   preferredSupplierIds?: readonly string[];
 }

@@ -215,11 +215,17 @@ check('a chain that resolves to nothing still leaves someone able to act', () =>
   const engine = read('src/lib/workflow/engine.ts');
   assert.match(engine, /assignment_mode: 'role'/, 'the fallback entry names a persona nobody may hold');
 });
-check('the review preview promises what the write path delivers', () => {
-  const preview = read('src/features/requests/new-request/step-routing-preview.tsx');
-  assert.doesNotMatch(preview, /resolveApprover/,
-    'the preview resolves personas and dedupes them, so it under-reports the real chain');
-  assert.match(preview, /useDerivedApprovers/);
+check('the Channel page promises what the write path delivers', () => {
+  // The chain as the writers choose it (chainIdFor — the pinned chain, else the
+  // band), derived as they derive it, with the cost centre they pass. The
+  // Review preview chose from the band alone and left out the cost centre.
+  const hook = read('src/lib/db/hooks/use-derived-approvers.ts');
+  assert.match(hook, /chainIdFor\(explicitChain, chains, value, config\)/);
+  const page = read('src/features/requests/new-request/channel/step-channel-request.tsx');
+  assert.doesNotMatch(page, /resolveApprover/,
+    'resolving personas and deduping them under-reports the real chain');
+  assert.match(page, /useApproversOnSubmit\(\s*\{ requestId: 'preview', category: formData\.category, costCentre: formData\.costCentre/);
+  assert.match(page, /d\.approvalChain,/, 'the chain the determination pinned, as submit sends it');
 });
 
 console.log('\nAgainst the live directory');

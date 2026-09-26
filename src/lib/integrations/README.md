@@ -109,9 +109,10 @@ server-side factory that the handlers can call, not adding more direct reads.
 
 ## Consumers on the layer
 
-The front-door **catalogue and contract checks** (`step-buy-route.tsx`), the
-supplier/contract reads in `step-compliance.tsx`, and client-side assistant lookups
-read through `useSourceData`/`requireConnector`. Risk **reuse-matching**
+The front-door **catalogue and contract checks** (`step-buy-route.tsx`) and
+client-side assistant lookups read through `useSourceData`/`requireConnector`. (The
+supplier and contract reads in `step-compliance.tsx` went with that step on
+2026-09-26: the Channel page shows the determination, which already has them.) Risk **reuse-matching**
 (`findMatchingRiskAssessments`) and the server-side assistant action path still need
 connector-native implementations — see the layer's status in
 `docs/roadmap/R1_BACKLOG_FIT_GAP.md` (they need, respectively, validity-window query

@@ -162,9 +162,11 @@ try {
     // Submit requires a need-by date and a cost centre (submission-requirements.ts);
     // the conversation asks for the date and Details names the cost centre.
     await answerConversation(page, 60000);
-    await page.getByRole('button', { name: /Next/ }).click();          // → review & submit
-    await page.getByText('Approval to source', { exact: true }).waitFor({ timeout: 15000 });
-    await page.getByRole('button', { name: /Submit Request/ }).click();
+    await page.getByRole('button', { name: /Next/ }).click();          // → your buying channel
+    const stages = page.getByRole('list', { name: 'Stages' });
+    await stages.waitFor({ timeout: 15000 });
+    check('the Channel page lists the stages before submit', (await stages.locator('li').count()) > 3);
+    await page.getByRole('button', { name: /Submit the request/ }).click();
     await page.getByRole('heading', { name: 'Request Submitted Successfully' }).waitFor({ timeout: 20000 });
     const body = await page.locator('body').innerText();
     const m = body.match(/REQ-\d{4}-\d+/);
@@ -390,7 +392,8 @@ try {
     check('designer shows the channel headline the requester will read', headline.trim().length > 0, `headline=${JSON.stringify(headline)}`);
     // A stage says what the requester does there — the line the Channel page
     // shows before submit. Stored on the node and loaded back into the panel.
-    await page.locator('.react-flow__node', { hasText: /^Intake/ }).first().click();
+    // The node reads "User Task" before its label, so match the label anywhere in it.
+    await page.locator('.react-flow__node').filter({ hasText: 'Intake' }).first().click({ timeout: 10000 });
     const action = await page.getByLabel('What the requester does here').inputValue({ timeout: 5000 }).catch(() => '');
     check('the Intake stage says what the requester does there', action === 'Describe what you need and submit it.', `action=${JSON.stringify(action)}`);
     check('no uncaught errors on the workflow designer', errors.length === 0, errors[0]);

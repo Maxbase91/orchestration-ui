@@ -380,6 +380,22 @@ function compare(rowValue, op, raw) {
  * copy has to serve it. The wording is deliberately not the seed's: a check
  * that finds these strings proves the screen read the template, not a table.
  */
+/**
+ * Workflow templates as the table holds them, from the shipped seed
+ * (src/data/workflows.ts, kept equal to live by test:seed-parity). A suite that
+ * draws a channel's stages — the Channel page — needs the real graphs; the
+ * minimal WF-001 above has no edges, so every stage after the entry would
+ * correctly read as skipped. Takes the templates rather than importing them,
+ * so the suites that load this file under plain node still can.
+ */
+export function templateRows(templates) {
+  return templates.map((t) => ({
+    id: t.id, name: t.name, description: t.description, type: t.type, channels: t.channels ?? [],
+    requester_headline: t.requesterHeadline ?? null, requester_description: t.requesterDescription ?? null,
+    nodes: t.nodes, edges: t.edges,
+  }));
+}
+
 export function channelTemplate(id, channel, headline, description) {
   return {
     id, name: `${headline} (fixture)`, description: '', type: 'procurement',

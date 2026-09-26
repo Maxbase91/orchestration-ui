@@ -12,11 +12,6 @@ import type {
   CommodityClassificationCandidate,
   IntakeAttachment,
 } from '@/data/types';
-import type { MaterialityResult } from '@/lib/procurement/materiality';
-import type { InherentRiskResult } from '@/lib/procurement/risk-segmentation';
-import type { ScreeningResult } from '@/lib/procurement/screening';
-import type { ReferralResult } from '@/lib/procurement/referral';
-import type { MatchingRiskAssessmentSummary } from './step-compliance';
 
 /**
  * How a section came to be filled.
@@ -166,35 +161,11 @@ export interface IntakeFormData {
   // ── Risk inputs (asked on Details) ──────────────────────────────────────
   miniIrq: MiniIrqAnswers;
 
-  // ── Determination output (shown on Review) ──────────────────────────────
-  buyingChannelResult: string;
-  /**
-   * Determination output, lifted wholesale from the compliance step. Stored on
-   * the request as two flat columns — the wizard holds the nested shape.
-   */
-  sourcingType?: { type: string; reason: string };
-  sraStatus: string;
-  policyChecks: { label: string; passed: boolean; detail: string }[];
-  /**
-   * Determination output that is persisted rather than displayed and dropped.
-   * The wizard lifts the whole result via onUpdate; these are the parts the
-   * request and its compliance record keep.
-   */
-  buyingChannelSlug?: string;
-  approvalChain?: string;
-  matchedRuleName?: string;
-  materiality?: MaterialityResult;
-  inherentRisk?: InherentRiskResult;
-  screening?: ScreeningResult;
-  referral?: ReferralResult;
-  matchingRiskAssessments?: MatchingRiskAssessmentSummary[];
-  // Determination signals that overlay conditional lifecycle steps (item 7+11).
-  riskAssessmentRequired: boolean;
-  supplierOnboardingRequired: boolean;
-
-  // ── Routing ─────────────────────────────────────────────────────────────
-  additionalReviewers: string[];
-  notes: string;
+  // The determination is not held here. It was computed on the compliance step
+  // and mirrored into these fields; since it moved to the page
+  // (useIntakeDetermination) nothing read the copies, and "Add reviewers" and
+  // "Notes for approvers" were collected and never saved. All removed
+  // 2026-09-26 with the Review step.
 
   // Requester context (universal — applies to all paths). Country is derived
   // from the requestor's profile (read-only); beneficiary defaults to self.
@@ -234,17 +205,8 @@ export const INITIAL_INTAKE_DATA: IntakeFormData = {
   preCheckOutcome: '',
   contractId: '',
   contractTitle: '',
-  buyingChannelResult: '',
   // Unanswered, not "no". The questions are asked in the conversation.
   miniIrq: {},
-  sraStatus: '',
-  policyChecks: [],
-  buyingChannelSlug: undefined,
-  approvalChain: undefined,
-  riskAssessmentRequired: false,
-  supplierOnboardingRequired: false,
-  additionalReviewers: [],
-  notes: '',
   requesterCountry: '',
   requesterCountryCode: '',
   beneficiaryId: '',

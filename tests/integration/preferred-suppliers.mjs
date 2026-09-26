@@ -119,10 +119,11 @@ check('submit recomputes the override from the store and keeps the reason only t
   assert.match(submit, /supplier_override_reason: supplierOverride \? overrideReason : null/);
   assert.match(submit, /supplierOverride: supplierOverride && policy\.preferredSupplierOverrideNeedsApproval/);
 });
-check('every approval path applies the step — submit, the engine and the Review preview', () => {
+check('every approval path applies the step — submit, the engine and the Channel page', () => {
   assert.match(read('src/lib/db/approvals-core.ts'), /withSupplierOverrideStep\(withContractOwnerStep/);
   assert.match(read('src/lib/workflow/engine.ts'), /supplierOverride: Boolean\(row\?\.supplier_override_reason\)/);
-  assert.match(read('src/features/requests/new-request/step-routing-preview.tsx'), /supplierOverride: supplierOverride && preferredSupplierOverrideNeedsApproval/);
+  assert.match(read('src/features/requests/new-request/channel/step-channel-request.tsx'), /const overrideNeedsApproval = override && config\.preferredSupplierOverrideNeedsApproval;/);
+  assert.match(read('src/features/requests/new-request/channel/step-channel-request.tsx'), /supplierOverride: overrideNeedsApproval/);
 });
 check('the reason is shown beside the supplier on the request', () =>
   assert.match(read('src/features/requests/request-detail/tab-overview.tsx'), /overrideReason=\{request\.supplierOverrideReason\}/));

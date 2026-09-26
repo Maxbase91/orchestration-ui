@@ -16,8 +16,9 @@
 // were two screens of conclusions that had to be paged through separately. A
 // requester could not tell what they were being asked for and what they were
 // being told. So: Describe and Buy-route establish the demand, Details holds
-// EVERY input, Review holds EVERY conclusion, and confirmation is an outcome
-// screen rather than a numbered step nobody can navigate back to.
+// EVERY input, the Channel page holds the conclusions — how it will be bought,
+// stage by stage — and confirmation is an outcome screen rather than a
+// numbered step nobody can navigate back to.
 //
 // One config, one journey. It takes no view or density argument, and
 // `test:mode-equivalence` asserts that absence — the guard predates the removal
@@ -34,7 +35,7 @@ import { isPreferredSupplierOverride } from '../../../lib/procurement/supplier-p
 /** Which fulfilment path the demand is on. Decides which steps apply. */
 export type IntakeStepRoute = 'full-request' | 'contract';
 
-export type IntakeStepId = 'describe' | 'buy-route' | 'details' | 'review' | 'confirmation';
+export type IntakeStepId = 'describe' | 'buy-route' | 'details' | 'channel' | 'confirmation';
 
 export interface StepGuidance {
   /** One line: what this step is for, in the requester's terms. */
@@ -105,12 +106,10 @@ export interface IntakeStepDefinition {
   canProceed: (state: IntakeGateState) => boolean;
 }
 
-// Only the full-request route reaches a determination. A contract call-off
-// submits through the governed checkout on its Details step and goes straight
-// to confirmation, so a Review step there is a step the stepper advertises and
-// the requester can never reach. (Catalogue orders are placed on the Catalogue
-// page since 2026-09-25, not in this wizard.)
-const DETERMINED_ONLY = ['full-request'] as const;
+// Both routes end on the Channel page. A call-off used to submit from its
+// Details form and skip it — the one Door 1 route whose requester never saw
+// where it would go (2026-09-26). Catalogue orders are placed on the Catalogue
+// page since 2026-09-25, not in this wizard.
 const ALL_ROUTES = ['full-request', 'contract'] as const;
 
 export const INTAKE_STEPS: readonly IntakeStepDefinition[] = [
@@ -169,7 +168,7 @@ export const INTAKE_STEPS: readonly IntakeStepDefinition[] = [
       contract: {
         purpose: 'Confirm the value and timing of this call-off against the matched contract.',
         youProvide: ['The value and timing of this individual call-off', 'A delivery location and cost centre'],
-        next: 'The call-off is validated against the contract before the internal record is created.',
+        next: 'Next you see how the call-off will be bought, stage by stage, and submit it there.',
       },
     },
     canProceed: ({ data, isChatIntakePath, conversationCtx, conversationSlots, preferredSupplierIds }) => {
@@ -190,22 +189,17 @@ export const INTAKE_STEPS: readonly IntakeStepDefinition[] = [
     },
   },
   {
-    id: 'review',
-    label: 'Review & submit',
-    description: 'What we determined',
-    // A call-off ends at its own governed checkout and reaches no
-    // determination; manufacturing one so the step counts match would be
-    // inventing governance that did not happen.
-    routes: DETERMINED_ONLY,
-    guidance: {
-      purpose:
-        'What we concluded, before you submit: how this will be bought and how long that takes, what the risk read found, who approves it, and which checks ran.',
-      youProvide: ['Nothing to supply — read the determination and submit'],
-      next: 'Submitting creates the internal record and hands it to the approvers shown here.',
-    },
+    id: 'channel',
+    label: 'Your buying channel',
+    description: 'How it will be bought, then submit',
+    routes: ALL_ROUTES,
+    // No guidance panel: the page opens with what it is — how this will be
+    // bought — and its submit button says what happens next.
+    //
     // A governed record must never be written without a determination behind
-    // it; the submit button stays disabled until the checks have resolved.
-    canProceed: ({ hasDetermination }) => hasDetermination,
+    // it; a call-off carries its own decision, which the page checks before
+    // Submit is enabled.
+    canProceed: ({ data, hasDetermination }) => data.preCheckOutcome === 'contract' || hasDetermination,
   },
   {
     id: 'confirmation',

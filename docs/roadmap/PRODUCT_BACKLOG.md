@@ -98,7 +98,7 @@ stated in procurement's vocabulary, four steps after it became knowable.
 | 2.1.6 | As a **Requester**, when the catalogue and contract register cannot be reached, I want to be told nothing was checked. | The screen says neither was checked and nothing was ruled in or out, and offers the full-request route. Never a spinner, never "no match" for a check that never ran. | 🟢 |
 
 **Rules**
-- **One derivation.** The channel comes from `resolveDemandChannel`; the buy-route screen and the Review step call the same function with the same inputs, so they cannot disagree.
+- **One derivation.** The channel comes from `resolveDemandChannel`; the buy-route screen and the determination behind the Channel page call the same function with the same inputs, so they cannot disagree.
 - Routing inputs are the **superset**: category, value, supplier, matched contract, urgency, inherent-risk tier and materiality. Supplying a subset on one path was how the two densities produced different channels for one demand.
 - Routing decides only **business-led vs procurement-led** (2026-09-25): consulting and contingent labour always procurement-led, then the value rules and the business-led ceiling. The catalogue and a call-off come from a real item or contract; Direct PO and P-card are retired.
 - Contract call-off needs a **primary signal** — supplier match, category match, or ≥2 keyword hits — plus remaining capacity ≥5%.
@@ -149,8 +149,8 @@ was which.
 
 | # | Story | Acceptance criteria | Status |
 |---|---|---|---|
-| 4.1.1 | As a **Requester**, I want a short, legible path. | Four steps — Describe → How you'll buy → Details → Review & submit — plus a confirmation outcome. Pinned by `test:intake-guidance`. | 🟢 |
-| 4.1.2 | As a **Requester**, I want every question in one place. | Details holds the service description, the residual risk questions, the IT security form (software) and supplier selection. Nothing after it asks for anything. | 🟢 |
+| 4.1.1 | As a **Requester**, I want a short, legible path. | Four steps — Describe → How you'll buy → Details → Your buying channel — plus a confirmation outcome, for a full request and a call-off alike. Pinned by `test:intake-guidance`. | 🟢 |
+| 4.1.2 | As a **Requester**, I want every question in one place. | Details holds the service description, the residual risk questions and supplier selection (a call-off: its own details). Nothing after it asks for anything. The intake copy of the IT security form is gone (2026-09-26): it discarded its answers; the form is filled at the risk stage it is configured for. | 🟢 |
 | 4.1.3 | As a **Requester**, I want a disabled Next to tell me what is missing. | Chat path names the outstanding slots; form paths name the missing fields ("To review this request, add a title, an estimated value"). | 🟢 |
 | 4.1.4 | As a **Requester**, I want each step to say what it is for and what follows. | A header panel per step: purpose, what you provide, what happens next — held in the same config as the step's order and gate. | 🟢 |
 | 4.1.5 | As a **Buyer**, I want a catalogue order to skip governance it does not need. | A catalogue order is placed on the Catalogue page, not through the intake wizard: pre-approved, pre-priced items reach no determination, and none is manufactured (the wizard's catalogue route was retired on 2026-09-25). | 🟢 |
@@ -170,26 +170,27 @@ was which.
 - Inherent risk is a highest-attribute-wins cascade over data sensitivity, supplier risk rating, value (`riskMediumValue` €50,000, `riskHighValue` €250,000), privileged access and critical service.
 - Data sensitivity is inferred conservatively: an unknown sensitive term reads **high**, not low.
 
-**Technical** — `src/features/requests/new-request/intake-steps.ts`, `step-compliance.tsx` (`section: 'inputs' | 'conclusions'`), `src/lib/procurement/residual-questions.ts`, `risk-segmentation.ts`, `demand-signals.ts`.
+**Technical** — `src/features/requests/new-request/intake-steps.ts`, `details-supplier.tsx`, `src/lib/procurement/residual-questions.ts`, `risk-segmentation.ts`, `demand-signals.ts`.
 
 ---
 
 ## EPIC 5 — Show what was concluded, in language that means something
 
-### Feature 5.1 — The Review step
+### Feature 5.1 — The Channel page (replaced the Review step, 2026-09-26)
 
 | # | Story | Acceptance criteria | Status |
 |---|---|---|---|
-| 5.1.1 | As a **Requester**, I want to understand the full process before I submit. | The channel leads in outcome language with its timeline, and "What happens next:" names the whole downstream chain. Pinned by `test:ui`. | 🟢 |
-| 5.1.2 | As a **Requester**, I want each group to say what it means for me. | Four groups **in that order** — How you'll buy · Risk · Routing & approvals · Checks we ran — each with a one-line meaning. The channel leads, because it is what has to be understood before submitting. | 🟢 |
-| 5.1.9 | As a **Reviewer**, I want the screen not to contradict itself. | Contract coverage requires a **selected supplier**: without one the check matched any contract in the category, so one screen claimed coverage, denied it, and disabled the approval-to-source gate. The inherent-risk tier is stated once. | 🟢 |
-| 5.1.10 | As a **Requester**, I want the confirmation to tell me what actually happens. | It lists the determination's own handoff steps — no named reviewer, no fixed SLA, and no promise of email, because nothing sends email and no notification fires on a stage transition. | 🟢 |
-| 5.1.3 | As a **Requester**, I want the risk outcome as a consequence, not a tier. | "A risk assessment is required — nothing for you to do now" / "No new risk assessment needed — an existing assessment covers it", rather than "Inherent risk: medium · Internal data". | 🟢 |
-| 5.1.4 | As a **Requester**, I want to know who approves this and in what order. | The value-banded chain, by role, with the lifecycle the template implies and the conditional stages this demand triggers. | 🟢 |
-| 5.1.5 | As a **Buyer**, I want the workings without cluttering the requester's screen. | Expert density adds the routing rule id, inherent-risk drivers, per-dimension operational risk, the Smart Assessment projection and the Markdown export. | 🟢 |
-| 5.1.6 | As a **Requester**, I want to be told when something blocks my request, whichever view I am in. | A blocking screening result renders in both densities. Hiding a blocker is not a density decision. | 🟢 |
+| 5.1.1 | As a **Requester**, I want to understand the full process before I submit. | The channel leads in the words its template sets, then every stage of the template in graph order with *Applies · why* / *If …* / *Skipped · why*, owner and target days, from the server's landing rule and the engine's own branch walk. Pinned by `test:channel-plan` and `test:ui`. | 🟢 |
+| 5.1.2 | As a **Requester**, I want to know what I have to do. | A stage says what the requester does there ("You: …", the stage's `requesterAction`), set only where they really act; Submit says where the request goes first and who owns that. | 🟢 |
+| 5.1.3 | As a **Requester**, I want the risk outcome as a consequence, not a tier. | *Risk assessment needed* / *reused* / *not needed*, with its reason, as a check; the risk stage tagged accordingly. | 🟢 |
+| 5.1.4 | As a **Requester**, I want to know who approves this and in what order. | The approvers submit will write — the chain the determination pinned or the value band, with the cost centre, contract and override step — named in order. Pinned by `test:channel-checks`. | 🟢 |
+| 5.1.5 | As a **Buyer**, I want the workings without cluttering the requester's screen. | *How this was worked out*, collapsed: materiality, inherent and operational risk, approval to source, contract and sourcing type, every policy check, next steps — and the Markdown export. | 🟢 |
+| 5.1.6 | As a **Requester**, I want to be told when something blocks my request. | A refer-back, a blocking screening result or a refused call-off is a check in the first view, never behind the disclosure. | 🟢 |
 | 5.1.7 | As a **Buyer**, I want the determination exportable. | `Export` produces structured Markdown (`determination-export.ts`); pinned by `test:determination-export` and `test:ui`. | 🟢 |
 | 5.1.8 | As a **Reviewer**, I want to see which required description sections are still missing. | Gaps are reported against the same required-section list generation was given — never silently regenerated behind the requester. | 🟢 |
+| 5.1.9 | As a **Reviewer**, I want the screen not to contradict itself. | Contract coverage requires a **selected supplier**, and a lapsed contract is named rather than reported as none. | 🟢 |
+| 5.1.10 | As a **Requester**, I want the confirmation to tell me what actually happens. | It lists the determination's own handoff steps — no named reviewer, no fixed SLA, and no promise of email, because nothing sends email. | 🟢 |
+| 5.1.11 | As a **Requester**, I want a call-off to show me the same. | A call-off's Details form continues to its Channel page, built from the governed decision submit re-runs; Submit is held when the decision refuses it. | 🟢 |
 
 **Rules**
 - **Approval to source**: no gate when a transactable contract is an early exit; otherwise **light** (demand validation + cost centre) or **full** (+ intent-to-source + category approval) at/above `approvalFullThreshold` (€250,000), or when material, or high/critical inherent risk.

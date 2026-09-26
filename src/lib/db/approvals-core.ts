@@ -6,8 +6,9 @@
 // privileged in-process one, and src/lib/db/* imports the '@/'-aliased client
 // that Vercel cannot resolve at runtime. Relative '.js' specifiers only.
 import type { NeonCompatibleClient, DbRow } from '../neon-compatible-client.js';
-import { selectApprovalChainForValue } from '../workflow/workflow-steps.js';
+import { selectChainForValue } from '../workflow/approval-bands.js';
 import { loadPolicyConfigWith } from './policy-core.js';
+import type { PolicyConfig } from '../procurement/policy-config.js';
 import {
   deriveApprovals,
   withContractOwnerStep,
@@ -80,7 +81,23 @@ export async function loadApprovalSources(
  * The last fallback is deliberate. A request whose value matches no configured
  * band still has to be approved by somebody, and no entries at all is the
  * failure this whole change exists to remove.
+ *
+ * Pure, so the Channel page can name the approvers submit will write with the
+ * chains and governed config it already holds: in the browser, `resolveChainId`
+ * below cannot read the policy row (it is not behind /api/db) and would fall
+ * back to the shipped thresholds without a word.
  */
+export function chainIdFor(
+  explicitChain: string | null | undefined,
+  chains: Parameters<typeof selectChainForValue>[0],
+  value: number,
+  config: PolicyConfig,
+): string {
+  if (explicitChain) return explicitChain;
+  return selectChainForValue(chains, value, config)?.id ?? 'chain-1';
+}
+
+/** `chainIdFor`, reading the chains and the stored config itself — the writers' form. */
 export async function resolveChainId(
   client: NeonCompatibleClient,
   explicitChain: string | null | undefined,
@@ -99,7 +116,7 @@ export async function resolveChainId(
     minValue: (row.min_value as string | null) ?? null,
     maxValue: (row.max_value as string | null) ?? null,
   }));
-  return selectApprovalChainForValue(chains, value, config)?.id ?? 'chain-1';
+  return chainIdFor(null, chains, value, config);
 }
 
 /** The chain a request's value falls into, by stored threshold band. */

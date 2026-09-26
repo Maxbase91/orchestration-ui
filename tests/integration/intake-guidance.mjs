@@ -218,7 +218,10 @@ check('the gate is exactly "no outstanding required slots"',
   DEMANDS.every(([, ctx]) => requiredFilled(ctx) === (outstandingRequired(ctx).length === 0)));
 
 console.log('\nEvery step explains itself');
-for (const step of progressStepsForRoute('full-request')) {
+// Except the Channel page, which is its own explanation: it opens with how the
+// request will be bought and its submit button says what happens next, so a
+// panel above it would say the same thing twice.
+for (const step of progressStepsForRoute('full-request').filter((s) => s.id !== 'channel')) {
   const entry = stepGuidance(step.id, 'full-request');
   check(`${step.id} has guidance`, entry !== undefined);
   if (!entry) continue;
@@ -237,31 +240,31 @@ for (const step of progressStepsForRoute('full-request')) {
 // would be the duplication this guidance was introduced to remove.
 check('the confirmation step is deliberately without a panel',
   stepGuidance('confirmation', 'full-request') === undefined);
-for (const step of progressStepsForRoute('contract')) {
+for (const step of progressStepsForRoute('contract').filter((s) => s.id !== 'channel')) {
   check(`call-off ${step.id} has guidance`, stepGuidance(step.id, 'contract') !== undefined);
 }
+check('the Channel page carries no guidance panel', stepGuidance('channel', 'full-request') === undefined);
 
 console.log('\nThe step config is the only source of step order');
 // Four steps, not seven: every question is asked before any conclusion is
-// shown, so Details holds the inputs and Review holds the conclusions.
+// shown, so Details holds the inputs and the Channel page the conclusions.
 check('the full-request path is four steps',
-  progressStepsForRoute('full-request').map((s) => s.id).join(',') === 'describe,buy-route,details,review',
+  progressStepsForRoute('full-request').map((s) => s.id).join(',') === 'describe,buy-route,details,channel',
   progressStepsForRoute('full-request').map((s) => s.id).join(','));
 // There is no catalogue route: a catalogue order is placed on the Catalogue
-// page (ADR-0009), outside this wizard.
-// A call-off submits from its checkout too, so a Review step on that route is
-// one the stepper advertises and the requester can never reach.
-check('the contract call-off ends at its checkout',
-  progressStepsForRoute('contract').map((s) => s.id).join(',') === 'describe,buy-route,details');
-check('only the full-request route reaches a determination',
-  submitStepFor('contract') === 'details' && submitStepFor('full-request') === 'review');
+// page (ADR-0009), outside this wizard. A call-off ends on the Channel page
+// too — it used to submit from its Details form and skip it.
+check('the contract call-off ends on the Channel page as well',
+  progressStepsForRoute('contract').map((s) => s.id).join(',') === 'describe,buy-route,details,channel');
+check('both routes submit from the Channel page',
+  submitStepFor('contract') === 'channel' && submitStepFor('full-request') === 'channel');
 check('every route ends in confirmation',
   ['full-request', 'contract'].every(
     (route) => stepsForRoute(route).at(-1).id === 'confirmation'));
 // `handleNext` used to hardcode `currentStep === 6`; on a route that skipped
 // steps that could only ever be right by coincidence.
 check('the submit step is derived per route, not hardcoded',
-  submitStepFor('full-request') === 'review' && submitStepFor('contract') === 'details');
+  submitStepFor('full-request') === 'channel' && submitStepFor('contract') === 'channel');
 
 console.log('\nThe guidance is white-label and actually rendered');
 // Ground rule 1: no organisation or sector naming anywhere in requester copy.

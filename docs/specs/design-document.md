@@ -233,8 +233,8 @@ should be placed per this table, not wherever seems locally convenient.
 
 The single front door for all procurement needs. A 5-step wizard that adapts based on what the user needs.
 
-> **Out of date (2026-09-25).** Intake is now one four-step engine — Describe → How you'll buy →
-> Details → Review & submit — with no category to pick, no renewal or onboarding tiles (both are
+> **Out of date (2026-09-26).** Intake is now one four-step engine — Describe → How you'll buy →
+> Details → Your buying channel (the Channel page, which replaced Review & submit) — with no category to pick, no renewal or onboarding tiles (both are
 > ordinary demands now), no duplicate check and no inline forms. The README's *New Request Wizard*
 > row and `src/features/requests/README.md` describe what runs. This section is
 > rewritten with the intake mockups, which change these screens again.
@@ -338,8 +338,8 @@ Separate layout for supplier self-service:
 - Supplier context enrichment (show existing contracts, risk rating, spend)
 
 **Compliance Automation:**
-- Policy checks on the Review step (the Request Validator, AI-002 — rules on Decisioning thresholds) with pass/fail/warning
-- Risk triage: whether a supplier risk assessment is needed, derived at intake
+- Policy checks on the Channel page (the Request Validator, AI-002 — rules on Decisioning thresholds): a failed one is a check, every one is in the workings; with the validator off the page says they did not run
+- Risk triage: whether a supplier risk assessment is needed, derived at intake and stated on the Channel page as needed / reused / not needed
 - (The PR Compliance Reviewer, AI-006, was removed on 2026-09-25 with its 14 stored reports: its sanctions, contract-coverage, SRA and benchmark checks were recorded as passes without running.)
 
 **Operational Intelligence:**

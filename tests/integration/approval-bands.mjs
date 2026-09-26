@@ -19,6 +19,7 @@ import {
   resolveBand, bandLabel, selectChainForValue, diagnoseChains, governedBounds,
 } from '../../src/lib/workflow/approval-bands.ts';
 import { DEFAULT_POLICY_CONFIG, resolvePolicyConfig } from '../../src/lib/procurement/policy-config.ts';
+import { chainIdFor } from '../../src/lib/db/approvals-core.ts';
 
 const ROOT = new URL('../../', import.meta.url);
 const read = (rel) => readFileSync(new URL(rel, ROOT), 'utf8');
@@ -87,6 +88,19 @@ if (diagnoseChains(ladder, CONFIG).length !== 0) {
   bad('a coherent ladder reports no problems', JSON.stringify(diagnoseChains(ladder, CONFIG)));
 } else ok('a coherent ladder reports no problems');
 
+// The chain both writers use and the Channel page names approvers from: the one
+// the determination pinned, else the band, else the standard chain. Pure so the
+// page can run it on the chains and governed config it holds — and it once
+// called itself instead of the band selector, which only the page ever ran.
+console.log('\nThe chain submit asks, and the Channel page names');
+try {
+  const picks = [chainIdFor('chain-compliance', ladder, 250_000, CONFIG), chainIdFor(null, ladder, 250_000, CONFIG), chainIdFor(null, [], 250_000, CONFIG)];
+  if (picks.join(',') !== 'chain-compliance,c3,chain-1') bad('an explicit chain wins, else the band, else the standard chain', picks.join(','));
+  else ok('an explicit chain wins, else the band, else the standard chain');
+} catch (error) {
+  bad('chainIdFor returns rather than recursing', String(error));
+}
+
 // ── Gaps and overlaps are reported ─────────────────────────────────────────
 console.log('\nGaps and overlaps are visible to the admin');
 const gapped = [
@@ -112,10 +126,16 @@ if (diagnoseChains([...ladder, { id: 'x', name: 'Compliance', minValue: null, ma
 
 // ── The regex parser is gone, everywhere ───────────────────────────────────
 console.log('\nNothing parses the display label any more');
-const steps = read('src/lib/workflow/workflow-steps.ts');
-if (/export function parseThresholdBand/.test(steps)) bad('parseThresholdBand is deleted', 'still exported');
-else ok('parseThresholdBand is deleted');
-for (const f of ['tests/integration/workflow-steps.mjs', 'tests/integration/approval-chain-persistence.mjs']) {
+// Anywhere in the workflow library: workflow-steps.ts, where it lived, was
+// deleted with the Review step's preview (2026-09-26).
+{
+  const { readdirSync } = await import('node:fs');
+  const library = readdirSync(new URL('src/lib/workflow/', ROOT)).filter((f) => f.endsWith('.ts'))
+    .map((f) => read(`src/lib/workflow/${f}`)).join('\n');
+  if (/export function parseThresholdBand/.test(library)) bad('parseThresholdBand is deleted', 'still exported');
+  else ok('parseThresholdBand is deleted');
+}
+for (const f of ['tests/integration/approval-chain-persistence.mjs']) {
   if (/function parseThresholdBand/.test(read(f))) {
     bad(`${f} does not carry its own copy`, 'a mirror of a deleted parser passes against nothing');
   } else ok(`${f} does not mirror the parser`);

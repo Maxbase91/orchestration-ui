@@ -18,7 +18,6 @@ config plane that is actually read at runtime.
 | `business-days.ts` | `slaDeadlineFor` / `addBusinessDays` — the one place a deadline is computed, dependency-free so `api/` can use it |
 | `channel-plan.ts` | The stages a request will go through, worked out **before** it is submitted — the Channel page's Step by step. Runs the two rules that actually move a request: the server's landing (`firstActionableStage` for intake, `checkoutEntryStage` for a call-off, each with its declared `*_ENTRY_CONDITIONS`) and the engine's own `getNextNodeIds` from there. A signal not yet known (no supplier chosen → onboarding) is walked both ways, so a conditional stage carries the branch's own condition. Stages come in graph order, not authoring or breadth-first order; each is *here* / *applies* / *conditional* / *skipped* with the reason (a branch that did not hold, the entry rule's condition, or "only after" a skipped stage). `applicabilityTag` words it; value comparisons resolve through the governed thresholds |
 | `edge-conditions.ts` | What decides which way a node branches: a typed condition in the routing vocabulary, or a workflow signal (`outcome`, `riskRequired`, `onboardingRequired`, `contractAmendmentRequired`) evaluated here — the routing evaluator does not know the signals, and handing them to it made every one false, so a rejected approval took "Approved". Also `getNextNodeIds` and `diagnoseTemplate`, which flags any node the engine cannot branch from unambiguously: two unconditioned exits, a `parallel` split (the engine follows one branch), or an approval with no "Rejected" exit |
-| `workflow-steps.ts` | The template-derived lifecycle preview shown at intake |
 
 ## Why `transition.ts` exists
 
@@ -147,7 +146,7 @@ a stage that will not appear.
 
     npm run test:orchestration     # gates, transitions, resume semantics, owner/SLA, chain banding
     npm run test:onboarding-stage  # the two onboarding gates and the award routing
-    npm run test:workflow-steps  # the template-derived lifecycle preview
+    npm run test:channel-plan    # the Channel page's stage plan: the server's landing + the engine's walk
     npm run test:approval-chain-persistence # selected chain foreign-key persistence
     npm run test:e2e             # request → approval, end to end (needs NEON_DATABASE_URL)
 
@@ -160,7 +159,7 @@ contract call-off, so call-offs ran the procurement-led lifecycle.
 Nor by category, and never from the browser: intake derived a template from the
 category (the standard procurement template for nearly everything) and submit
 preferred it, so a business-led request would have run the procurement-led
-lifecycle. Submit takes `templateForChannel` only; the Review preview uses the same
+lifecycle. Submit takes `templateForChannel` only; the Channel page uses the same
 rule, and the call-off's instance is created by the checkout alone.
 
 | Channel | Template |

@@ -7,7 +7,7 @@ interface StepConfirmationProps {
   requestId: string;
   /**
    * The steps the determination actually produced, so this screen names the
-   * real path rather than a fixed sentence. Same source as the Review step.
+   * real path rather than a fixed sentence. Same source as the Channel page's workings.
    */
   nextSteps?: { label: string; system: string; status: string }[];
   data: {
@@ -85,7 +85,7 @@ export function StepConfirmation({ requestId, data, nextSteps = [], onReset }: S
               is created on a stage transition either. A requester who believes
               it stops checking.
           What replaces them is the determination's own handoff steps: the same
-          list the Review step showed, so the two screens cannot disagree. */}
+          list the Channel page's workings showed, so the two screens cannot disagree. */}
       <div className="rounded-lg border border-line bg-card-2 p-4">
         <h3 className="text-sm font-semibold text-ink">What happens next?</h3>
         {nextSteps.length > 0 ? (

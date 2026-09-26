@@ -29,12 +29,12 @@ The New Request wizard is the platform's primary front door — a single intelli
 > driven by one config (`src/features/requests/new-request/intake-steps.ts`)
 > that owns step order, per-route applicability, gates and guidance copy. The
 > organising rule is that **every question is asked before any conclusion is
-> shown**: Details holds every input, Review holds every conclusion. Simple and
+> shown**: Details holds every input, the Channel page every conclusion. Simple and
 > Expert are one page — `density` picks framing and how much evidence is shown,
 > never a step, a gate, a decision, or what is written. FR numbers are unchanged
 > so existing references still resolve; the step they sit under has moved.
 
-    Describe → How you'll buy → Details → Review & submit   (→ confirmation)
+    Describe → How you'll buy → Details → Your buying channel   (→ confirmation)
 
 A **catalogue order** is not placed in this wizard: a catalogue match (and
 "Browse the catalogue" on Describe) goes to the **Catalogue page** with the items
@@ -55,7 +55,7 @@ and none is manufactured. The wizard's own catalogue route was retired on
 - FR01-17 · Catalogue match: a catalogue-eligible category plus a naming-word match offers the item; ordering it adds it to the basket on the Catalogue page.
 - FR01-18 · Contract call-off: a matching framework contract offers the call-off path (skips sourcing/contracting stages).
 - FR01-55 · **All three routes render together**, recommendation first and badged, each in requester language — the headline and description on the workflow template that claims the channel, edited in Admin → Workflows (`channelCopy`) — with the category SLA as an indicative timeline. A ruled-out route states its reason **in place** and stays clickable — the previous sequential funnel could hide the correct path behind a wrong match.
-- FR01-56 · The buying channel is resolved here by `resolveDemandChannel`, the same function the Review step calls, so the two cannot disagree. The matched words, item scores, contract fit/utilisation and the routing rule id are evidence behind a **"Why this?"** disclosure, Expert density only.
+- FR01-56 · The buying channel is resolved here by `resolveDemandChannel`, the same function the determination behind the Channel page calls, so the two cannot disagree. The matched words, item scores, contract fit/utilisation and the routing rule id are evidence behind a **"Why this?"** disclosure, Expert density only.
 - FR01-57 · When the catalogue and contract sources are unreachable the screen states that neither was checked and nothing was ruled in or out, and offers the full-request route. Never a spinner; never "no match" for a check that never ran.
 
 ### Step 3 — Details: everything the requester supplies
@@ -64,23 +64,30 @@ and none is manufactured. The wizard's own catalogue route was retired on
 - FR01-21 · **Delivery date** extracted as free text → converted to YYYY-MM-DD by `parseDeliveryDate()` (`src/lib/parse-delivery-date.ts`) at submit time.
 - FR01-22 · Contextual guidance is optional, anonymised and explicitly applied; deterministic prompts remain available when AI is unavailable.
 - FR01-58 · The conversation **opens with an open invitation**, never the first agenda question; the first turn extracts as many slots as it can, and every subsequent question states why it is being asked and what the answer is used for.
-- FR01-25 · The risk triage form renders here when triage is required (new/unknown supplier, expired SRA, high data sensitivity).
+- FR01-25 · *(superseded 2026-09-26)* There is no risk triage form: the triage is derived, and it is stated as a check on the Channel page — *Risk assessment needed* / *reused* / *not needed*, with its reason. The intake copy of the IT Security Assessment (FORM-006) is gone too: it discarded its answers and said "submitted"; the form is filled at the risk stage it is configured for, where it is saved.
 - FR01-59 · The **mini-IRQ** (0–2 questions: privileged access, critical service) is asked **inside the conversation**, as its tail, once the description is captured — as Yes/No choices with the free-text box disabled, each carrying its "asked because" rationale. It is never extracted from prose: a governance answer recorded as evidence has to be given by the requester. On the form-based paths (contract renewal, supplier onboarding) there is no conversation, so it is still asked as a card of switches.
 - FR01-59a · An answer is **tri-state**. Absent means the question was never put, which is a different fact from "answered no"; the determination reports both in `riskQuestionnaire` and the compliance record carries `risk-question:<id>=yes|no|not-answered`. Both answers used to default to `false`, so a question nobody asked and one answered in the negative produced the same record.
 - FR01-59b · An answer to a question the demand **no longer triggers** is ignored. Answer yes to critical-service at a material value, then drop the value, and the question disappears while the answer used to go on forcing materiality to critical.
 - FR01-60 · Supplier selection happens here, not on the determination: it is an input that *feeds* the determination, so choosing it afterwards would move the conclusion under the reader.
 - FR01-61 · A disabled Next names what is outstanding — the missing conversation slots, and what submit will require (need-by date, cost centre, override reason).
 
-### Step 4 — Review & submit: everything the platform concluded
-- FR01-23 · The determination is computed **once per intake** by `useIntakeDetermination` over the pure `evaluateIntakeDetermination`, with stable module-level empty-array defaults; the previous arrangement recomputed it inside the step and mirrored it back into form state through `onUpdate` (the F14 infinite re-render).
-- FR01-24 · Policy checks: contract coverage, budget authority, SRA status, competitive quotes.
-- FR01-26 · AI-002 (Request Validator) gates the policy checks; when inactive, exactly one failed check names the agent — never an empty list, which reads as "all clear".
-- FR01-27 · Displays the matched rule name, buying channel label and approval chain steps (Expert density).
-- FR01-62 · The screen is grouped, and each group states what it **means**: How you'll buy · Risk · Routing & approvals · Checks we ran. The channel leads in outcome language and names the **whole downstream process** before the submit button.
-- FR01-63 · The risk read is stated as a consequence ("a risk assessment is required — nothing for you to do now"), not as a tier and its drivers. Tier, drivers, per-dimension operational risk and the Smart Assessment projection are Expert-density workings.
-- FR01-64 · Anything that **blocks** the request — a blocking screening result, a missing mandatory field — is shown in **both** densities.
-- FR01-28 · *(superseded)* There is **no workflow-template picker**. The template is derived from the category and attached silently.
-- FR01-65 · The determination is exportable to structured Markdown (Expert density).
+### Step 4 — Your buying channel: how it will be bought, then submit
+The Channel page (Intake Prototype, 2026-09-26) replaced Review & submit, for a full request **and a contract call-off**.
+- FR01-23 · The determination is computed **once per intake** by `useIntakeDetermination` over the pure `evaluateIntakeDetermination`, with stable module-level empty-array defaults; the previous arrangement recomputed it inside the step and mirrored it back into form state through `onUpdate` (the F14 infinite re-render). The mirrored form fields are deleted (2026-09-26).
+- FR01-67 · The page opens with how this will be bought — the channel template's requester headline and sentence — with the value, the **stages that apply** ("10+ of 11": the + when a stage depends on something not yet known) and the **stage targets** (working days of the stages sure to run).
+- FR01-68 · **Step by step** lists every stage of the channel's template in the order the graph reaches them, each with its purpose, owner role and target days. Each is tagged *You are here* (intake), *Applies · why* (when a branch or the entry rule put it there), *If …* (depends on a signal not yet known — "If the supplier is new" while no supplier is chosen) or *Skipped · why* (a branch that did not hold, the entry rule's condition, or "only after" a stage that is skipped). The plan runs the server's landing rule (`firstActionableStage`; `checkoutEntryStage` for a call-off, both with their declared entry conditions) and the engine's own `getNextNodeIds` (`lib/workflow/channel-plan.ts`, `test:channel-plan`).
+- FR01-69 · A stage says what the requester does there ("You: …") from its `requesterAction` (Workflow Designer). It is set only where the requester really acts; never on a stage this request skips.
+- FR01-70 · Submit says where the request goes first and who owns it ("sends it to Validation (Category Manager)"); an auto-approved call-off says its purchase order is raised straight away.
+- FR01-71 · **What you are submitting**: the executive summary with "N of M required sections" and every section on request; the request's facts; who and where; the supplier or who will choose one; and, when the channel sources, **who will be invited** — `sourcingInvites`, the function the sourcing event calls (named, shortlist, every preferred supplier). A call-off's supplier is the contract's, and nobody is invited.
+- FR01-24 · **Checks** (`lib/procurement/channel-checks.ts`, `test:channel-checks`), most consequential first: why this channel, in the matched routing rule's own description; a refer-back or change request; supplier screening; contract coverage (a lapsed contract is named); who sourcing invites, or a supplier outside the preferred list; risk; the approvers submit will write; every failed policy check; missing required sections.
+- FR01-26 · AI-002 (Request Validator) gates the policy checks. When inactive the determination records one failed check naming the agent — never an empty list — and the page says **policy checks did not run**, in the requester's terms, not the instruction to an administrator the record carries.
+- FR01-27 · The approvers are derived as submit derives them: the chain the determination pinned, else the value band, under the governed thresholds (`chainIdFor`), with the category, cost centre, contract and preferred-supplier override (`useApproversOnSubmit`). The Review preview chose its own chain and left out the cost centre, so it could name people submit would not ask. While they load there is no approvals line, never "No approval needed".
+- FR01-62 · A contract call-off reaches this page too. Its Details form continues here ("See how it will be bought") rather than submitting; the governed decision is built once by `call-off.ts` for the page and the submit, and Submit is held when the decision refuses the call-off, with the reason as a check.
+- FR01-63 · **How this was worked out** — collapsed: materiality, inherent and operational risk, approval to source and its gates, contract and sourcing type, every policy check with its result, supplier assessment and the next steps with their deep links. The conclusions are the checks; these are the reasons behind them.
+- FR01-64 · Anything that **blocks** the request — a refer-back, a blocking screening result, a call-off the decision refuses — is a check in the page's first view, not behind the disclosure.
+- FR01-28 · *(superseded)* There is **no workflow-template picker**. The template is the one that claims the channel, as on submit.
+- FR01-65 · The determination is exportable to structured Markdown from the workings.
+- FR01-72 · Removed with Review: "Add reviewers / watchers" and "Notes for approvers" (collected and never saved), the routing preview's synthetic risk and onboarding steps and regex-guessed owners, and a "smart assessment" that re-derived contract coverage with its own €25,000 literal.
 
 ### Confirmation and automatic stage transition
 - FR01-29 · The submit calls `/api/intake-submit`, which commits request, service description, intake compliance, stage history and workflow instance **atomically** with an idempotency key.

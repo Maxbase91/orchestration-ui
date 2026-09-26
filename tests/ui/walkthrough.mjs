@@ -111,22 +111,20 @@ async function fullScenario(page, { key, demand, enrichment, answers, toggleCrit
     await page.getByText('Service description', { exact: true }).waitFor({ timeout: 15000 }).catch(() => {});
     // The risk questions are answered inside the conversation now, so this is
     // one screen where it used to be three (Details → Risk → Determination →
-    // Routing became Details → Review & submit).
+    // Routing became Details → the Channel page).
     await answerChat(page, answers, { answerRiskYes: toggleCritical });
     await shot(page, `${key}-1-conversation`);
     const next = page.getByRole('button', { name: /^Next$/ });
-    await next.click();                                                      // → review & submit
-    await page.getByText('Approval to source', { exact: true }).waitFor({ timeout: 15000 });
-    // Let the config queries (template + approval chains) resolve before the shot:
-    // a base lifecycle stage proves the template loaded; a "Step N" badge proves
-    // the approval chain resolved.
-    await page.getByText('Validation', { exact: true }).waitFor({ timeout: 15000 })
-      .catch(() => log('  ⚠ base lifecycle stages did NOT load (workflow template empty?)'));
-    await page.getByText(/^Step 1$/).waitFor({ timeout: 10000 })
-      .catch(() => log('  ⚠ approval chain did NOT resolve (no approvers shown)'));
+    await next.click();                                                      // → your buying channel
+    // Let the config queries resolve before the shot: the stage list proves the
+    // template loaded; an approvals line in the checks proves the chain did.
+    await page.getByRole('list', { name: 'Stages' }).waitFor({ timeout: 15000 })
+      .catch(() => log('  ⚠ the stages did NOT load (no template claims the channel?)'));
+    await page.getByRole('list', { name: 'Checks' }).getByText(/approval/i).first().waitFor({ timeout: 10000 })
+      .catch(() => log('  ⚠ the approvers did NOT resolve'));
     await new Promise((r) => setTimeout(r, 400));
-    await shot(page, `${key}-4-routing`);
-    log(`  ✓ ${key} reached routing`);
+    await shot(page, `${key}-4-channel`);
+    log(`  ✓ ${key} reached the Channel page`);
   } catch (e) {
     failures++;
     log(`  ✗ ${key} failed: ${e.message}`);

@@ -90,12 +90,13 @@ check('the matcher\'s own question is what the detail box asks',
 // to implement it.
 check('expert full-request escape cannot be forced back into catalogue steps',
   routeFromOutcome('full-request') === 'full-request'
-  && progressStepsForRoute(routeFromOutcome('full-request')).some((step) => step.id === 'review'));
+  && progressStepsForRoute(routeFromOutcome('full-request')).some((step) => step.id === 'channel'));
 // The wizard has no catalogue route any more: a catalogue order is placed on
-// the Catalogue page (ADR-0009), so the only fast track left is a call-off.
-check('an unset outcome is a full request, and a call-off skips the determination',
+// the Catalogue page (ADR-0009). A call-off reaches the Channel page like a
+// full request, with its governed decision in place of a determination.
+check('an unset outcome is a full request, and a call-off also ends on the Channel page',
   routeFromOutcome('') === 'full-request'
-  && !progressStepsForRoute('contract').some((step) => step.id === 'review'));
+  && progressStepsForRoute('contract').some((step) => step.id === 'channel'));
 
 
 // ── Deep links carry context in; each one has cost a defect ─────────────────

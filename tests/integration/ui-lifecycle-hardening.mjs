@@ -4,6 +4,7 @@
 import { readFileSync } from 'node:fs';
 
 const newRequest = readFileSync('src/features/requests/new-request/new-request-page.tsx', 'utf8');
+const callOffBuilder = readFileSync('src/features/requests/new-request/call-off.ts', 'utf8');
 const contractCheckout = readFileSync('src/features/requests/new-request/contract-call-off-checkout.tsx', 'utf8');
 const actionButtons = readFileSync('src/features/requests/request-detail/components/action-buttons.tsx', 'utf8');
 const invoiceQueue = readFileSync('src/features/purchasing/invoice-queue-page.tsx', 'utf8');
@@ -13,11 +14,12 @@ const onboardingPipeline = readFileSync('src/features/suppliers/onboarding-pipel
 const lifecycleStepper = readFileSync('src/features/requests/request-detail/components/lifecycle-stepper.tsx', 'utf8');
 
 const checks = [
-  ['Expert call-offs use the governed submission seam', newRequest.includes('submitContractCallOff') && newRequest.includes('submitGovernedCheckout')],
+  ['Call-offs use the governed submission seam', newRequest.includes('submitCallOff') && newRequest.includes('submitGovernedCheckout')],
   // One intake page serves both densities, so a call-off is the same call-off
   // whichever view the requester is in — there is no longer a second page that
   // could route it differently.
-  ['Call-offs use the shared contract checkout', newRequest.includes('ContractCallOffCheckout') && newRequest.includes("route: 'contract-call-off' as const")],
+  // Built once (call-off.ts) for the Channel page and for submit.
+  ['Call-offs use the shared contract checkout', newRequest.includes('ContractCallOffCheckout') && newRequest.includes('buildCallOff(') && callOffBuilder.includes("route: 'contract-call-off'")],
   ['Contract checkout captures call-off timing and delivery', contractCheckout.includes('calloff-start') && contractCheckout.includes('calloff-location')],
   ['Workflow actions are role-gated', actionButtons.includes('roleCanAdvanceStage') && actionButtons.includes('canManageRequest')],
   ['Invoice queue exposes operational transitions', invoiceQueue.includes('useUpdateInvoice') && invoiceQueue.includes('Release payment') && invoiceQueue.includes('Variance')],

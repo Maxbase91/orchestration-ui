@@ -33,7 +33,7 @@ import { ensureRiskAssessment } from './risk-stage';
 import { getActivePolicyConfig } from '@/lib/procurement/policy-config';
 import { getNextNodeIds, type EdgeEvalContext } from './edge-conditions';
 import { listApprovalChains } from '@/lib/db/approval-chains';
-import { selectApprovalChainForValue } from './workflow-steps';
+import { selectChainForValue } from './approval-bands';
 import { isGatedStage, nodeToStatus, type TemplateNode } from './node-config';
 
 // Chain step role → system role + persona resolution lives in
@@ -89,7 +89,7 @@ async function needsOnboarding(supplierId: string | null | undefined): Promise<b
  * requester a value-banded chain that the engine then ignored.
  *
  * Order: an explicit chain persisted from the matched routing rule, otherwise
- * the value band — the same rule `selectApprovalChainForValue` applies in the
+ * the value band — the same rule `selectChainForValue` applies in the
  * intake preview, so what was promised is what is granted.
  */
 async function resolveChainForRequest(requestId: string): Promise<string> {
@@ -107,7 +107,7 @@ async function resolveChainForRequest(requestId: string): Promise<string> {
     const chains = await listApprovalChains();
     // Band bounds may name a governed threshold. Browser-side, so the active
     // config is the one main.tsx hydrated from the server on boot.
-    const banded = selectApprovalChainForValue(chains, value, getActivePolicyConfig());
+    const banded = selectChainForValue(chains, value, getActivePolicyConfig());
     if (banded) return banded.id;
   } catch (e) {
     console.warn('[engine] approval chain band lookup failed:', e);

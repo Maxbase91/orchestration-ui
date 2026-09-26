@@ -30,9 +30,11 @@ import { buildIntakeComplianceRecord } from '@/lib/procurement/intake-compliance
 import { StepCategory } from './step-category';
 import { StepChatIntake } from './step-chat-intake';
 import { StepBuyRoute } from './step-buy-route';
-import { StepCompliance } from './step-compliance';
-import { StepRoutingPreview } from './step-routing-preview';
+import { DetailsSupplier } from './details-supplier';
 import { StepConfirmation } from './step-confirmation';
+import { StepChannelRequest } from './channel/step-channel-request';
+import { StepChannelCallOff } from './channel/step-channel-call-off';
+import { buildCallOff } from './call-off';
 import { StepHeaderPanel } from './components/step-header-panel';
 import {
   nextStep,
@@ -54,11 +56,11 @@ import { RequesterContextBlock } from './components/requester-context-block';
 import type { Contract } from '@/data/types';
 import type { CatalogueItem } from '@/data/catalogue-items';
 import { getProcurementProfile } from '@/lib/db/procurement-profiles';
-import { evaluateGovernedCheckout, resolveCheckoutRiskAssessment } from '@/lib/procurement/governed-checkout';
+import { useProcurementProfile } from '@/lib/db/hooks/use-procurement-profile';
+import { buyingChannelLabel } from '@/lib/routing/evaluate-routing-rules';
 import { submitGovernedCheckout } from '@/lib/procurement/submit-governed-checkout';
 import { submitIntake } from '@/lib/procurement/submit-intake';
 import { usePreferredSupplierIds } from '@/lib/db/hooks/use-category-preferred-suppliers';
-import { isPreferredSupplierOverride } from '@/lib/procurement/supplier-preference';
 import { ContractCallOffCheckout, type ContractCallOffDraft } from './contract-call-off-checkout';
 
 class StepErrorBoundary extends Component<{ children: ReactNode; onReset: () => void }, { error: Error | null }> {
@@ -150,7 +152,7 @@ export function NewRequestPage() {
     contractId: formData.contractId || undefined,
   });
 
-  // The lifecycle shown at Review is the template that claims the channel the
+  // The template a draft records is the one that claims the channel the
   // determination chose — the same rule submit applies. It was derived from the
   // category, which gave the standard procurement template to nearly everything.
   const { data: workflowTemplates = [] } = useWorkflowTemplates();
@@ -290,48 +292,34 @@ export function NewRequestPage() {
       preferredSupplierIds,
     });
 
+  // A call-off's details, once the Details form has them. Held here rather
+  // than in the form so that going back from the Channel page shows the form
+  // as it was left.
+  const [callOffDraft, setCallOffDraft] = useState<ContractCallOffDraft | null>(null);
+  const { data: storedProfile = null } = useProcurementProfile(currentUser.id);
+  const callOffContract = contracts.find((candidate) => candidate.id === formData.contractId);
+  const callOffSupplier = callOffContract ? suppliers.find((candidate) => candidate.id === callOffContract.supplierId) : undefined;
+  const callOffInputs = useMemo(() => (callOffDraft && callOffContract && callOffSupplier ? {
+    draft: callOffDraft, contract: callOffContract, supplier: callOffSupplier, riskAssessments, storedProfile,
+    user: { id: currentUser.id, name: currentUser.name }, form: formData, activeCostCentreIds, activeDeliveryLocationIds,
+  } : null), [callOffDraft, callOffContract, callOffSupplier, riskAssessments, storedProfile, currentUser.id, currentUser.name, formData, activeCostCentreIds, activeDeliveryLocationIds]);
+  // The decision the Channel page shows — the same builder submit calls, so
+  // the page and the write cannot disagree. Only the id is a placeholder.
+  const callOffPreview = useMemo(
+    () => (callOffInputs ? buildCallOff({ ...callOffInputs, requestId: 'preview' }) : null),
+    [callOffInputs],
+  );
+
   // Contract call-offs go through the governed checkout, like catalogue
   // orders. Keeping this path here prevents it falling back to the generic
   // request writer and losing the PR/PO audit links.
-  const submitContractCallOff = async (draft: ContractCallOffDraft) => {
-    const contract = contracts.find((candidate) => candidate.id === formData.contractId);
-    if (!contract) { toast.error('The selected contract is no longer available.'); return; }
-    const supplier = suppliers.find((candidate) => candidate.id === contract.supplierId);
-    if (!supplier) { toast.error('The contract supplier could not be resolved.'); return; }
+  const submitCallOff = async () => {
+    if (!callOffInputs) { toast.error('The contract or its supplier is no longer available.'); return; }
     setIsSubmitting(true);
     const id = await claimRequestId();
     try {
-      const storedProfile = await getProcurementProfile(currentUser.id).catch(() => null);
-      const profile = storedProfile ?? {
-        userId: currentUser.id, defaultCurrency: formData.currency, costCentre: draft.costCentre,
-        budgetOwner: currentUser.name, accountType: 'expense', beneficiaryId: formData.beneficiaryId || currentUser.id,
-        // This was strictly worse: it approved whatever the requester had
-        // chosen, by building the approved list out of that same choice.
-        approvedShipToLocations: [],
-      };
-      const riskAssessment = resolveCheckoutRiskAssessment(riskAssessments, supplier.id, contract.id);
-      const line = { description: draft.title, quantity: 1, unit: 'service', unitPrice: draft.value, supplierId: supplier.id, contractId: contract.id, riskAssessmentId: riskAssessment?.id, commodityCode: formData.commodityCode || profile.defaultCommodityCode };
-      const checkout = {
-        route: 'contract-call-off' as const, lines: [line], supplier, contract, riskAssessment, profile,
-        currency: formData.currency, needByDate: draft.needBy, serviceStartDate: draft.serviceStartDate || undefined,
-        serviceEndDate: draft.serviceEndDate || undefined, purpose: draft.purpose, costCentre: draft.costCentre,
-        shipToLocationId: draft.deliveryLocation, beneficiaryId: formData.beneficiaryId || currentUser.id,
-        idempotencyKey: `checkout-${id}`,
-        activeCostCentreIds, activeDeliveryLocationIds,
-      };
-      const decision = evaluateGovernedCheckout(checkout);
+      const { checkout, decision, request, lines } = buildCallOff({ ...callOffInputs, requestId: id });
       if (!decision.ok) throw new Error(decision.errors.join(' '));
-      const request = {
-        id, title: draft.title, description: draft.purpose, category: (formData.category || contract.category || 'services') as RequestCategory,
-        status: 'intake' as const, priority: formData.isUrgent ? ('urgent' as const) : ('medium' as const), value: decision.totalValue,
-        currency: formData.currency, supplierId: supplier.id, contractId: contract.id, buyingChannel: 'framework-call-off' as BuyingChannel,
-        commodityCode: line.commodityCode, commodityCodeLabel: formData.commodityCodeLabel || line.commodityCode, costCentre: draft.costCentre,
-        budgetOwner: currentUser.name, businessJustification: '', deliveryDate: parseDeliveryDate(draft.needBy) ?? undefined,
-        requestorId: currentUser.id, ownerId: currentUser.id, daysInStage: 0, isOverdue: false, referBackCount: 0,
-        beneficiaryId: formData.beneficiaryId || undefined, beneficiaryName: formData.beneficiaryName || undefined,
-      };
-      const lines = [{ id: `LINE-${id}-1`, requestId: id, description: draft.title, quantity: 1, unit: 'service', unitPrice: draft.value,
-        supplierId: supplier.id, contractId: contract.id, riskAssessmentId: riskAssessment?.id, commodityCode: line.commodityCode, deliveryDate: draft.needBy }];
       await submitGovernedCheckout({ requestId: id, requisitionId: `PR-${id}`, decision, checkout, request, lines });
       // The checkout creates the workflow instance on the call-off template.
       // This used to add a second one here, on the category's template.
@@ -522,10 +510,9 @@ export function NewRequestPage() {
 
   return (
     <div
-      // The chat step is two panes, so it earns the width; every other step is a
-      // single column and reads better narrow. This condition used to re-inline
-      // the chat-path predicate a third time rather than reuse the memo.
-      className={cn('mx-auto space-y-6', stepId === 'details' && isChatIntakePath ? 'max-w-6xl' : 'max-w-3xl')}
+      // The chat step and the Channel page are two panes, so they earn the
+      // width; every other step is a single column and reads better narrow.
+      className={cn('mx-auto space-y-6', (stepId === 'details' && isChatIntakePath) || stepId === 'channel' ? 'max-w-6xl' : 'max-w-3xl')}
     >
       {/* One header. This used to say "Simple requester view" / "New Request" /
           "Create a new procurement request in N steps" depending on a mode the
@@ -611,7 +598,54 @@ export function NewRequestPage() {
           title and description, so an `h2` repeating "Describe: What do you
           need?" was the same words twice within one screen height. */}
 
+      {/* The Channel page: its own two-pane frame and its own action bar, so it
+          sits outside the step card and the wizard footer. */}
+      {stepId === 'channel' && (
+        <StepErrorBoundary onReset={handleReset}>
+          {route === 'contract' ? (
+            callOffPreview && callOffDraft && callOffContract && callOffSupplier ? (
+              <StepChannelCallOff
+                callOff={callOffPreview}
+                draft={callOffDraft}
+                contract={callOffContract}
+                supplier={callOffSupplier}
+                costCentres={allCostCentres}
+                deliveryLocations={allDeliveryLocations}
+                onBack={() => setStepId('details')}
+                onSubmit={() => void submitCallOff()}
+                submitting={isSubmitting}
+              />
+            ) : (
+              <p className="rounded-lg border border-warn-line bg-warn-soft px-4 py-3 text-sm text-warn">
+                The call-off details are not complete — go back and add them.
+              </p>
+            )
+          ) : determination ? (
+            <StepChannelRequest
+              formData={formData}
+              determination={determination}
+              suppliers={suppliers}
+              preferredSupplierIds={preferredSupplierIds}
+              sections={sdTemplate?.sections ?? []}
+              costCentres={allCostCentres}
+              requester={{ id: currentUser.id, name: currentUser.name }}
+              onBack={() => setStepId('details')}
+              onSubmit={() => void handleNext()}
+              onSaveDraft={() => void handleSaveDraft()}
+              submitting={isSubmitting}
+            />
+          ) : (
+            // A governed record is never written without a determination, so
+            // the page waits for it rather than drawing stages it cannot know.
+            <p className="flex items-center justify-center gap-2 py-16 text-sm text-ink-3" role="status">
+              <Loader2 className="size-4 animate-spin" /> Running the checks for your request…
+            </p>
+          )}
+        </StepErrorBoundary>
+      )}
+
       {/* Step Content */}
+      {stepId !== 'channel' && (
       <div className="rounded-lg border border-line bg-card p-6">
         {/* What this step is for, what it needs, and what follows from it. The
             confirmation step carries its own version of this and is excluded in
@@ -653,7 +687,6 @@ export function NewRequestPage() {
                 supplierId: contract.supplierId,
                 supplierProvenance: 'named',
                 category: formData.category || contract.category.toLowerCase(),
-                buyingChannelResult: 'framework-call-off',
               });
               setStepId('details');
             }}
@@ -696,9 +729,9 @@ export function NewRequestPage() {
         )}
         {stepId === 'details' && formData.preCheckOutcome === 'contract' && (
           <ContractCallOffCheckout
-            contract={contracts.find((candidate) => candidate.id === formData.contractId)}
-            initialValues={{ title: formData.title || formData.contractTitle, value: formData.estimatedValue, needBy: formData.deliveryDate, recipient: formData.beneficiaryName, purpose: formData.businessJustification, costCentre: formData.costCentre }}
-            onSubmit={(draft) => void submitContractCallOff(draft)}
+            contract={callOffContract}
+            initialValues={callOffDraft ?? { title: formData.title || formData.contractTitle, value: formData.estimatedValue, needBy: formData.deliveryDate, recipient: formData.beneficiaryName, purpose: formData.businessJustification, costCentre: formData.costCentre }}
+            onContinue={(draft) => { setCallOffDraft(draft); setStepId('channel'); }}
           />
         )}
         {stepId === 'details' && isChatIntakePath && (
@@ -730,12 +763,11 @@ export function NewRequestPage() {
             riskAnswers={formData.miniIrq}
           />
         )}
-        {(stepId === 'details' || stepId === 'review') && formData.preCheckOutcome === 'full-request' && (
-          <StepCompliance
-            section={stepId === 'details' ? 'inputs' : 'conclusions'}
-            revealSupplier={detailsDescriptionDone}
-            requiredSections={formData.sowRequiredSections}
-            qualityScore={formData.sowQualityScore}
+        {/* The supplier comes last, once the conversation is done: the Details
+            step used to put the chat, a card of risk switches and supplier
+            selection on screen at once, before anything had been answered. */}
+        {stepId === 'details' && formData.preCheckOutcome === 'full-request' && detailsDescriptionDone && (
+          <DetailsSupplier
             supplierProvenance={formData.supplierProvenance}
             onSelectSupplier={(sup) =>
               updateFormData({
@@ -771,29 +803,13 @@ export function NewRequestPage() {
             estimatedValue={formData.estimatedValue}
             supplierId={formData.supplierId}
             supplier={formData.supplier}
-            serviceDescription={formData.serviceDescription}
-            requestTitle={formData.title}
-            determination={determination}
-          />
-        )}
-        {stepId === 'review' && (
-          <StepRoutingPreview
-            category={formData.category}
-            estimatedValue={formData.estimatedValue}
-            workflowTemplateId={channelTemplateId}
-            riskAssessmentRequired={determination?.riskAssessmentRequired ?? false}
-            supplierOnboardingRequired={determination?.supplierOnboardingRequired ?? false}
-            supplierOverride={isPreferredSupplierOverride(formData.supplierId, preferredSupplierIds)}
-            additionalReviewers={formData.additionalReviewers}
-            notes={formData.notes}
-            onUpdate={(d) => updateFormData(d)}
           />
         )}
         {stepId === 'confirmation' && (
           <StepConfirmation
             requestId={requestId}
-            // The same handoff steps the Review step showed, so the two screens
-            // cannot disagree about what happens next.
+            // The same next steps the Channel page's workings listed, so the
+            // two screens cannot disagree about what happens next.
             nextSteps={determination?.handoffSteps ?? []}
             data={{
               title: formData.title,
@@ -804,7 +820,12 @@ export function NewRequestPage() {
               costCentre: formData.costCentre,
               deliveryDate: formData.deliveryDate,
               isUrgent: formData.isUrgent,
-              buyingChannelResult: determination?.buyingChannelResult ?? '',
+              // The channel the record carries: a call-off's is the one its
+              // checkout records, whatever the determination would route the
+              // same words to as a new demand.
+              buyingChannelResult: route === 'contract' && callOffPreview
+                ? buyingChannelLabel(callOffPreview.request.buyingChannel as BuyingChannel)
+                : determination?.buyingChannelResult ?? '',
               commodityCodeLabel: formData.commodityCodeLabel,
             }}
             onReset={handleReset}
@@ -812,9 +833,10 @@ export function NewRequestPage() {
         )}
         </StepErrorBoundary>
       </div>
+      )}
 
-      {/* Navigation */}
-      {stepId !== 'confirmation' && (
+      {/* Navigation — the Channel page carries its own. */}
+      {stepId !== 'confirmation' && stepId !== 'channel' && (
         <div className="flex items-center justify-between">
           <Button
             variant="ghost"
@@ -843,13 +865,13 @@ export function NewRequestPage() {
                 {gapsToName.map((gap) => `Add ${gap.label} under ${whereEntered(gap.field)}`).join('; ')}.
               </p>
             )}
-            {(stepId === 'details' || stepId === 'review') && (
+            {stepId === 'details' && (
               <Button variant="ghost" onClick={handleSaveDraft} disabled={isSubmitting}>
                 <Save className="size-4" />
                 Save as Draft
               </Button>
             )}
-            {/* A call-off is confirmed by its own checkout on the Details step,
+            {/* A call-off's Details form continues to the Channel page itself,
                 so the footer shows no primary action there. */}
             {!(stepId === 'details' && formData.preCheckOutcome === 'contract') && (
               <Button

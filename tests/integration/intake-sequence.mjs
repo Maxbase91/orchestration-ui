@@ -237,7 +237,7 @@ async function scenarioChatIntakePromptDynamic() {
   );
 }
 
-// Mirror of isTriageRequired in step-compliance.tsx. Keep in sync.
+// Mirror of isTriageRequired (lib/procurement/risk-triage.ts). Keep in sync.
 function isTriageRequired(p) {
   if (!p.supplierRegistered) return { required: true, reason: 'new or unselected supplier' };
   if (p.supplierSraStatus === 'not-assessed' || p.supplierSraStatus === 'expired' || !p.supplierSraStatus) {
@@ -297,7 +297,7 @@ async function scenarioRiskTriageGate() {
   }
 }
 
-// Mirror of inferDataSensitivity in step-compliance.tsx. Keep in sync.
+// Mirror of inferDataSensitivity (lib/procurement/demand-signals.ts). Keep in sync.
 function inferDataSensitivity(sow) {
   const blob = [sow?.objective, sow?.scope, sow?.deliverables, sow?.resources, sow?.narrative]
     .filter(Boolean).join(' ').toLowerCase();

@@ -170,8 +170,11 @@ for (const [name, overrides] of Object.entries({
 // to disagree cannot: the confirmation reads the same determination the record
 // was built from.
 const INTAKE = read('src/features/requests/new-request/new-request-page.tsx');
-check('the confirmation screen reads the determined channel, not a separate route state',
-  /buyingChannelResult: determination\?\.buyingChannelResult/.test(INTAKE));
+// A call-off records the channel its checkout writes (call-off.ts), and the
+// confirmation reads that — not the determination, which would route the same
+// words as a new demand.
+check('the confirmation screen reads the recorded channel, not a separate route state',
+  /buyingChannelLabel\(callOffPreview\.request\.buyingChannel as BuyingChannel\)\s*: determination\?\.buyingChannelResult/.test(INTAKE));
 
 // ── The risk questionnaire, in the record ──────────────────────────────────
 // Both answers used to default to `false`, so the record could not distinguish

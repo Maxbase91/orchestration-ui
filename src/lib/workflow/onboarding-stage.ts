@@ -1,7 +1,7 @@
 // Vendor onboarding as two gates, not one stage.
 //
 // Onboarding sat exactly where risk sat before R4: a synthetic `ONBOARDING_STEP`
-// spliced into the intake *preview* (`workflow-steps.ts:60`), with no
+// spliced into the intake *preview* (`workflow-steps.ts`, deleted 2026-09-26), with no
 // `'onboarding'` status, no stage in any channel, and no node in any template.
 // The preview promised a step that could never happen. Worse, its trigger was
 // `!supplierId || !supplierData.complete` — stale master data — which is not the

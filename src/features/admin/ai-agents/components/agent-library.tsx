@@ -13,7 +13,7 @@ const AGENT_AFFECTS: Record<string, string[]> = {
   // Describe step only: the Home box's catalogue check stopped asking the
   // model (2026-09-25) — the deterministic intake decision decides it.
   'AI-001': ['Describe step: classification'],
-  'AI-002': ['Review step: policy checks'],
+  'AI-002': ['Channel page: policy checks'],
   'AI-004': ['Analytics: spend anomalies'],
   'AI-005': ['Details step: supplier recommendations'],
   'AI-007': ['Home box and assistant: status answers'],
