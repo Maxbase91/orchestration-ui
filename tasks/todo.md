@@ -233,8 +233,8 @@ what the code does; these are the things it now has to say that need a decision.
 **Defects — behaviour that is wrong or records what did not happen**
 1. ~~**Cancel advances the request.**~~ Fixed 2026-09-26: server-owned, with a reason; approvals withdrawn; the workflow stopped; a closed request cannot be moved.
 2. ~~**Risk Approve / onboarding Complete record screening clear and an SRA valid without any screening.**~~ Fixed 2026-09-26: screening recorded with its reference; the SRA linked to a completed, in-date assessment; Complete needs a clear screening and keeps its note.
-3. **A Kanban drag moves any request to any stage** — `api/workflow-action.ts` checks the stage exists, not that the request may go there, so gates, forms and approvals are bypassed.
-4. **Intake submit stores the browser's channel and compliance record** without recomputing (rule 3; ARCHITECTURE §10).
+3. ~~**A Kanban drag moves any request to any stage.**~~ Fixed 2026-09-26 (`cdf4bf7`): the board is view-only, and `api/workflow-action.ts` makes only refer-back, reassign and cancel. A stage's exit is still written from the browser (ARCHITECTURE §10).
+4. ~~**Intake submit stores the browser's channel and compliance record.**~~ Fixed 2026-09-26 (`9d41535`, ADR-0010): submit decides again from stored data through server-side ports and refuses a different answer.
 5. **The audit log is editable** through `/api/db` (update/delete by id).
 6. **Notifications have no recipient** — one shared feed; Mark all read marks it for everyone.
 7. **User Management's Remove is a hard delete**; the Delegation page keeps only local state.
