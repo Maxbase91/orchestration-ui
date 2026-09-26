@@ -352,12 +352,14 @@ async function execFilterObjects(
   }
 
   if (objectType === 'contracts') {
+    // The view, so "which contracts are expiring" is answered from the end
+    // date, as the register answers it, not from the recorded status.
     let q = db
-      .from('contracts')
+      .from('contracts_with_derived')
       .select('*')
       .order('end_date', { ascending: true })
       .limit(cap);
-    if (filters.status) q = q.eq('status', filters.status as string);
+    if (filters.status) q = q.eq('status_live', filters.status as string);
     const { data } = await q;
     const items = await project('contracts', data ?? []);
     if (!items) return JSON.stringify({ found: false, reason: 'This role cannot ask about contracts.' });

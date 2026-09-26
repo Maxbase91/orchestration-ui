@@ -104,6 +104,9 @@ npm run backfill:service-description-and-forms # stores the built-in service des
                                    # `default` row (fill-only), and deletes the three forms that
                                    # never rendered (FORM-001/007/008) with their seeded submissions,
                                    # unless an admin has switched one on. Idempotent; --dry-run.
+npm run backfill:contract-renewal-window # rewrites the renewal article (KB-006) to name the renewal
+                                   # window instead of "90 days" — only while it is still the
+                                   # seeded text. Idempotent; --dry-run.
 ```
 
 The schema is `db/schema.sql`, applied to Neon by `db/migrations/apply-neon-schema.mjs` (see its

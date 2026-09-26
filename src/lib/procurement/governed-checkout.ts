@@ -5,6 +5,7 @@ import type { CatalogueItem } from '../../data/catalogue-items.js';
 import type { Contract, ProcurementProfile, PurchaseRequisitionRoute, RiskAssessment, Supplier } from '../../data/types.js';
 import { getActivePolicyConfig, type PolicyConfig } from './policy-config.js';
 import type { EdgeCondition } from '../workflow/edge-conditions.js';
+import { daysUntilEnd, isoToday } from './contract-status.js';
 
 export interface GovernedCheckoutLine {
   item?: CatalogueItem;
@@ -202,7 +203,10 @@ export function evaluateGovernedCheckout(
   if (lines.some((line) => !Number.isFinite(line.unitPrice) || line.unitPrice < 0)) errors.push('Every line must have a valid unit price.');
   if (allSupplierIds.size > 1 || (first && first.supplierId !== input.supplier.id)) errors.push('All lines must use the same supplier.');
   if (allContractIds.size > 1 || (first && (first.contractId ?? input.contract.id) !== input.contract.id)) errors.push('All lines must use the same active contract.');
-  const contractExpiredByDate = Boolean(input.contract.endDate && new Date(input.contract.endDate) < now);
+  // In force through its end date, as the contracts view reads it: compared as
+  // calendar dates. A timestamp compare made a contract expire at midnight UTC
+  // on its last day here while every screen still showed it in force.
+  const contractExpiredByDate = (daysUntilEnd(input.contract.endDate, isoToday(now)) ?? 0) < 0;
   if ((input.contract.status !== 'active' && input.contract.status !== 'expiring') || contractExpiredByDate) errors.push('The selected contract is expired or not active.');
   const remainingValue = Math.max(0, input.contract.value * (1 - input.contract.utilisationPercentage / 100));
   const capacityExceeded = totalValue > remainingValue;

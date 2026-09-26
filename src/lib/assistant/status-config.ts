@@ -187,6 +187,9 @@ const DEFAULTS: Record<StatusObject, Row[]> = {
     ['coverageStatus', 'Coverage', 'ask'],
     ['scopeNarrative', 'Scope', 'ask'],
     ['scopeServiceFamily', 'Service family', 'ask'],
+    // What the record says, beside the status read from the end date. Off: the
+    // live status is the answer; an administrator can switch this on.
+    ['recordedStatus', 'Recorded status', 'off'],
     ['id', 'Contract id', 'off'],
     ['supplierId', 'Supplier id', 'off'],
     ['ownerId', 'Owner id', 'off'],

@@ -180,7 +180,7 @@ order, removes them, and chooses their quick actions; the layout is kept per rol
 | Attention Required | Overdue and referred-back items | All internal roles |
 | Pipeline Insights | Counts derived from the live requests and suppliers — rules, not a model | All internal roles |
 | Recent Activity | The latest events | All internal roles |
-| Expiring Contracts | Contracts ending within 90 days | All internal roles |
+| Expiring Contracts | Contracts in their renewal window, soonest first | All internal roles |
 | Mentions | Comments where someone @-mentioned the person, unread first | All internal roles |
 | Monthly Summary | Requests submitted, approved and completed this month — *approved* and *completed* read from each request's current stage | All internal roles |
 | AI Assistant | Opens the assistant | All internal roles |
@@ -591,7 +591,7 @@ description; the record stores the rule's name. Direct PO and P-card were retire
 | Risk questions | Up to two, Yes/No: privileged access (categories set to *Ask about privileged access*, or data of medium sensitivity or more) and critical service (the critical-service question threshold, a high- or critical-risk supplier, or highly sensitive data). An unanswered one is recorded as *not answered*. |
 | Risk assessment | Required when no completed, in-date assessment of the chosen supplier can be reused — so always when no supplier is named. |
 | Vendor onboarding | Needed with no supplier, or one not fully onboarded or holding an expired certification. |
-| Contract check | Among the supplier's contracts: transact under one below the contract utilisation headroom, author a SOW under a framework, renew one within the contract expiry buffer, or a new contract. |
+| Contract check | Among the supplier's contracts: transact under one below the contract utilisation headroom, author a SOW under a framework, renew one in its renewal window (the contract renewal window, §14.9), or a new contract. |
 | Disposition | *Refer back* (mandatory detail missing, or a supplier flagged in screening), *request change* (a failed policy check), otherwise *proceed*. |
 
 The Channel page's workings also show an operational-risk view (continuity, data handling,
@@ -660,8 +660,7 @@ names one the directory lacks in New request (§4.2).
 
 ### 7.2 Supplier Profile
 
-Tabs for the overview, contracts (not linked; a banner for any ending within 90 days, fixed in
-code), risk and compliance (supplier risk assessment (SRA) and screening status, certifications),
+Tabs for the overview, contracts (not linked; a banner naming any in its renewal window), risk and compliance (supplier risk assessment (SRA) and screening status, certifications),
 spend by year, performance, documents and activity. A requester opens it read-only from their
 request. The Vendor Manager and Admin can **Approve risk** or **Refer back**, each with a
 rationale.
@@ -772,17 +771,24 @@ wizard; there is no auction or mini-competition.
 
 ## 9. Contract Management
 
-A contract's status — *Draft*, *Under review*, *Active*, *Expiring*, *Expired* or *Terminated* —
-dates, value and utilisation are stored on it, and only Admin → Database (§14.17) creates or
-changes a contract. A requester can open a contract read-only.
+A contract's dates, value and utilisation are stored on it, and only Admin → Database (§14.17)
+creates or changes a contract. A requester can open a contract read-only.
+
+**Its status is read from its dates.** A contract recorded as active is *Active* until its renewal
+window opens, *Expiring* while it ends within the window — the contract renewal window, a
+Decisioning threshold (§14.9) — and *Expired* from the day after its end date: in force through
+its last day. *Draft*, *Under review* and *Terminated* stay as recorded, as does an expiry recorded
+early. Every screen, the checkout, New request's contract check and the assistant read the status
+this way; the record keeps what was recorded, and Admin → Database shows both where they differ
+(decided 2026-09-26: 12 of 30 live contracts were past their end date while recorded active or
+expiring).
 
 ### 9.1 Contract Register
 
-Tabs **All**, **Active**, **Expiring** and **Expired** — each the stored status — with filters by
-status, supplier and category, and a countdown beside a live contract ending within 90 days (red
-within 30; both fixed in code). No notification is raised for an expiring contract (§15.1); the
-**Expiring Contracts** widget (§3.2) lists up to five ending within 90 days (fixed in code) or
-already ended.
+Tabs **All**, **Active**, **Expiring** and **Expired**, with filters by status, supplier and
+category, and the days left beside a contract in its renewal window. No notification is raised for
+an expiring contract (§15.1); the **Expiring Contracts** widget (§3.2) lists up to five in their
+renewal window, soonest first.
 
 ### 9.2 Contract Detail
 
@@ -792,8 +798,9 @@ already ended.
   never matched. **Preview match** tries example words.
 - **Financial** — *actual spend* is the value times the stored utilisation; *committed* is 85% of
   the value, fixed in code.
-- **Renewal** — fixed 90/60/30-day guidance and **Start renewal**, which opens New request with
-  "Renew *title* with *supplier*" as the conversation's first message (§4.1).
+- **Renewal** — where the contract stands against its renewal window (days until the window
+  opens, days left in it, or how long ago it ended), and **Start renewal**, which opens New
+  request with "Renew *title* with *supplier*" as the conversation's first message (§4.1).
 - **Related** — the purchase orders that name the contract, and their invoices.
 - **Obligations** and **Documents** — a demonstration: the same samples on every contract, and
   nothing done there is kept.
@@ -807,9 +814,9 @@ creates nothing.
 
 ### 9.4 Renewals & Expiries
 
-Every contract with the days to, or past, its end date; counts ending within 30 and 90 days and
-already ended, and the value ending within 90 days (windows fixed in code; trend arrows fixed
-text). Its tabs read the end date, not the stored status. Each row has **Start renewal**.
+Every contract with the days to, or past, its end date; how many are expiring (in their renewal
+window) and expired, and the value up for renewal. Its tabs — **All**, **Expiring (within N
+days)**, **Expired** — read the status (§9), and each row has **Start renewal**.
 
 ---
 
@@ -1395,7 +1402,7 @@ urgent. Categories are configured (§14.10).
 | **Supplier** | Name, country, address and DUNS number, risk rating (low, medium, high, critical), onboarding, screening and risk-assessment status with its expiry, the categories it serves, tier, primary contact, certifications, spend history and performance score; whether it is prospective, and the request that brought it in |
 | **Risk assessment** | About a supplier or a contract: category (security, financial, operational, data privacy, compliance, ESG), risk level and score, status, assessor, validity, summary, mitigations, the data class it covers, whether it can be reused, and the requests it serves |
 | **Sourcing event, response** | An event raised from a request — type, status, budget, dates, requirements and evaluation criteria, the awarded supplier — and each invited supplier's response: status, price, lead time, scores, whether shortlisted, whether awarded (one per event) |
-| **Contract** | Supplier, value, dates, status (draft, under review, active, expiring, expired, terminated), owner, department, category, renewal date, utilisation |
+| **Contract** | Supplier, value, dates, the recorded status (draft, under review, active, expiring, expired, terminated) — shown as read from the end date against the renewal window (§9) — owner, department, category, renewal date, utilisation |
 | **Contract scope** | What a contract covers, dated: narrative, service family, eligible categories, geographies, business units, call-off requirements, deliverables and exclusions — what the contract match (§4.2) reads |
 
 ### 16.4 Purchasing

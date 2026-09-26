@@ -1,8 +1,11 @@
 #!/usr/bin/env node
 // Verifies the Phase-3 database views project live-derived values:
-//   supplier.activeContracts  = count of active/expiring contracts
+//   supplier.activeContracts  = count of active/expiring contracts still in force
 //   supplier.totalSpend12m    = sum of invoices in last 365 days
 //   contract.linkedRequestIds = array of requests with contract_id = X
+//   contract.status           = read from the end date against the renewal
+//                               window (status_live, 2026-09-26) — the same
+//                               answer as lib/procurement/contract-status.ts
 //
 // Uses service-role key directly against the views so we can confirm
 // the view SQL is correct without round-tripping through the UI.
@@ -10,7 +13,9 @@
 // Run: node tests/integration/derived-fields.mjs
 
 import { readFileSync } from 'node:fs';
-import { neonClient } from '../lib/live.mjs';
+import { neon } from '@neondatabase/serverless';
+import { neonClient, requireConnection } from '../lib/live.mjs';
+import { contractStatusOn } from '../../src/lib/procurement/contract-status.ts';
 
 const sb = await neonClient('derived');
 
@@ -20,6 +25,15 @@ const fail = (n, d) => results.push({ n, o: 'FAIL', d });
 const assert = (cond, n, d) => (cond ? pass(n, d) : fail(n, d));
 
 const PREFIX = 'E2E-DRV-';
+
+// The database's own calendar and the governed window: what the view reads.
+// The policy row is not on /api/db's allowlist, so it is read directly.
+const sql = neon(requireConnection('derived'));
+const [{ today }] = await sql`SELECT to_char(current_date, 'YYYY-MM-DD') AS today`;
+const [policy] = await sql`SELECT config->>'contractExpiryBufferDays' AS days FROM procurement_policy_configs WHERE singleton_key = 'default'`;
+const windowDays = policy?.days != null ? Math.floor(Number(policy.days)) : null;
+/** An ISO date `offset` days from the database's today. */
+const dayFromToday = (offset) => new Date(Date.parse(`${today}T00:00:00Z`) + offset * 86_400_000).toISOString().slice(0, 10);
 
 /**
  * Remove this suite's fixtures.
@@ -68,7 +82,10 @@ async function scenarioActiveContractsLive() {
     supplier_name: supplier.name,
     value: 100000,
     start_date: '2025-01-01',
-    end_date: '2026-01-01',
+    // Relative to today: this was '2026-01-01', and once that date passed the
+    // contract was — correctly — no longer active, so the fixture broke the
+    // scenario rather than the view.
+    end_date: dayFromToday(400),
     status: 'active',
     owner_id: 'u1',
     owner_name: 'Test Owner',
@@ -155,9 +172,61 @@ async function scenarioLinkedRequestIdsLive() {
   assert(next.includes(rid), 'derived: linkedRequestIds includes new request', `baseline=${baseline.length} after=${next.length}`);
 }
 
+async function scenarioContractStatusLive() {
+  if (windowDays === null) { fail('derived: the renewal window is on the policy row', 'contractExpiryBufferDays missing'); return; }
+  const supplier = await pickTestSupplier();
+  const { data: before } = await sb
+    .from('suppliers_with_derived').select('active_contracts_live').eq('id', supplier.id).single();
+  const baseline = before?.active_contracts_live ?? 0;
+
+  // Recorded status, end date — each read back through the view.
+  const cases = [
+    ['active', dayFromToday(-1), 'ended yesterday'],
+    ['active', dayFromToday(0), 'ends today'],
+    ['active', dayFromToday(windowDays), 'ends on the last day of the window'],
+    ['active', dayFromToday(windowDays + 1), 'ends the day after the window'],
+    ['expiring', dayFromToday(windowDays + 30), 'recorded expiring, far from its end'],
+    ['terminated', dayFromToday(10), 'terminated early'],
+    ['draft', dayFromToday(-5), 'a draft past its date'],
+    ['active', 'not a date', 'no readable end date'],
+  ];
+  const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+  const ids = [];
+  for (const [i, [status, endDate]] of cases.entries()) {
+    const id = `${PREFIX}CON-ST-${i}-${stamp}`;
+    ids.push(id);
+    const { error } = await sb.from('contracts').insert({
+      id, title: 'E2E contract status', supplier_id: supplier.id, supplier_name: supplier.name,
+      value: 1000, start_date: '2025-01-01', end_date: endDate, status, owner_id: 'u1', owner_name: 'Test Owner',
+      department: 'Test', category: 'Test', utilisation_percentage: 0,
+    });
+    if (error) { fail('derived: insert status fixture', error.message); return; }
+  }
+  const { data: rows, error } = await sb.from('contracts_with_derived').select('id, status, status_live').in('id', ids);
+  if (error) { fail('derived: read status_live', error.message); return; }
+  const byId = new Map((rows ?? []).map((r) => [r.id, r]));
+  for (const [i, [status, endDate, label]] of cases.entries()) {
+    const got = byId.get(ids[i]);
+    const want = contractStatusOn(status, endDate, windowDays, today);
+    assert(got?.status_live === want && got?.status === status,
+      `derived: status from the end date — ${label}: ${want} (recorded ${status}, unchanged)`,
+      `view ${got?.status_live}, rule ${want}, stored ${got?.status}`);
+  }
+
+  // In force: ends today, the window's last day, after it, the recorded
+  // "expiring" far out, and the one with no readable date — five. Not the one
+  // that ended yesterday, the terminated one or the draft.
+  const { data: after } = await sb
+    .from('suppliers_with_derived').select('active_contracts_live').eq('id', supplier.id).single();
+  assert(after?.active_contracts_live === baseline + 5,
+    'derived: a supplier\'s active contracts leave out the one past its end date',
+    `before=${baseline} after=${after?.active_contracts_live}`);
+}
+
 async function main() {
   await cleanup();
   await scenarioActiveContractsLive();
+  await scenarioContractStatusLive();
   await scenarioTotalSpend12mLive();
   await scenarioLinkedRequestIdsLive();
   await cleanup();

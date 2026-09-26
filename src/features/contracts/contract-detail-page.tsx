@@ -20,6 +20,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { loadContractScope, saveContractScope } from '@/lib/procurement/contract-scope-api';
 import { requestContractMatch } from '@/lib/procurement/contract-match-api';
 import { useAuthStore } from '@/stores/auth-store';
+import { usePolicyConfig } from '@/lib/procurement/use-policy-config';
+import { daysUntilEnd } from '@/lib/procurement/contract-status';
 import type { ContractMatchResponse } from '@/data/types';
 import type { ContractScopeDeliverable, ContractScopeExclusion } from '@/data/types';
 
@@ -46,6 +48,18 @@ const mockDocuments = [
   { name: 'Amendment 1 - Rate Card Update.pdf', size: '280 KB', uploaded: '2024-09-01' },
 ];
 
+const dayCount = (n: number) => `${n} day${n === 1 ? '' : 's'}`;
+
+/** Where a contract stands against the renewal window, in a sentence. */
+function renewalStanding(endDate: string, status: string, windowDays: number): string {
+  const days = daysUntilEnd(endDate);
+  if (days === null) return 'No end date is recorded.';
+  if (status === 'expired') return days < 0 ? `Ended ${dayCount(Math.abs(days))} ago.` : 'Recorded as expired.';
+  if (status === 'expiring') return days === 0 ? 'Ends today — in its renewal window.' : `In its renewal window — ${dayCount(days)} left.`;
+  if (status === 'active') return `${dayCount(days - windowDays)} until its renewal window opens.`;
+  return `Not in force (${status}).`;
+}
+
 export function ContractDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -57,6 +71,7 @@ export function ContractDetailPage() {
   const { data: purchaseOrders = [] } = usePurchaseOrders();
   const { data: invoices = [] } = useInvoices();
   const [obligations, setObligations] = useState(mockObligations);
+  const { contractExpiryBufferDays: renewalWindowDays } = usePolicyConfig();
   const queryClient = useQueryClient();
   const scopeQuery = useQuery({ queryKey: ['contract-scope', id], queryFn: () => loadContractScope(id!), enabled: Boolean(id) });
   const scopeMutation = useMutation({
@@ -291,22 +306,15 @@ export function ContractDetailPage() {
                   <div className="flex justify-between"><span className="text-muted-foreground">Renewal Date</span><span className="font-medium">{contract.renewalDate ? formatDate(contract.renewalDate) : 'N/A'}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Current Status</span><span><StatusBadge status={contract.status} size="sm" /></span></div>
                 </div>
+                {/* Where the contract stands against the renewal window — the
+                    governed number that makes it show as expiring. This was a
+                    fixed 90/60/30-day timeline that no rule anywhere applied. */}
                 <div className="space-y-2 text-sm">
-                  <p className="text-muted-foreground">Renewal Timeline</p>
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <div className="size-2 rounded-full bg-ok" />
-                      <span>90 days before - Start renewal assessment</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="size-2 rounded-full bg-warn" />
-                      <span>60 days before - Negotiate terms</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="size-2 rounded-full bg-stop" />
-                      <span>30 days before - Final approval</span>
-                    </div>
-                  </div>
+                  <p className="text-muted-foreground">Renewal window</p>
+                  <p>{renewalStanding(contract.endDate, contract.status, renewalWindowDays)}</p>
+                  <p className="text-caption text-ink-3">
+                    A contract shows as expiring from {renewalWindowDays} days before its end date (Decisioning thresholds), and as expired from the day after it.
+                  </p>
                 </div>
               </div>
               {/* Opens Door 1 with the renewal written; it had no handler. */}

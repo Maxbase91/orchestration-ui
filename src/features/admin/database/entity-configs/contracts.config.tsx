@@ -1,6 +1,10 @@
 // Database admin config for contracts: table columns, edit form fields, and
 // status filter for the own-store contract records the front door reads
 // (contract path eligibility, renewals, utilisation).
+//
+// The status shown is the live one, read from the end date; the one edited is
+// the recorded one (`recordedStatus`), so saving a record never writes the
+// date's reading back into the stored row.
 
 import type { Column } from '@/components/shared/data-table';
 import type { Contract } from '@/data/types';
@@ -41,6 +45,15 @@ const columns: Column<ContractRow>[] = [
     ),
   },
   {
+    // Where the date has overtaken the record, both show — the difference is
+    // what an administrator may want to settle.
+    key: 'recordedStatus',
+    label: 'Recorded',
+    render: (c) => (c.recordedStatus && c.recordedStatus !== c.status
+      ? <span className="text-[11px] text-ink-3">{c.recordedStatus}</span>
+      : null),
+  },
+  {
     key: 'utilisationPercentage',
     label: 'Used',
     sortable: true,
@@ -62,6 +75,7 @@ export const contractsConfig: EntityConfig<'contract'> = {
     startDate: '',
     endDate: '',
     status: 'draft',
+    recordedStatus: 'draft',
     ownerId: '',
     ownerName: '',
     department: '',
@@ -78,10 +92,11 @@ export const contractsConfig: EntityConfig<'contract'> = {
     { key: 'startDate', label: 'Start Date', type: 'date', required: true },
     { key: 'endDate', label: 'End Date', type: 'date', required: true },
     {
-      key: 'status',
-      label: 'Status',
+      key: 'recordedStatus',
+      label: 'Recorded status',
       type: 'select',
       required: true,
+      helpText: 'While a contract is active its end date decides what it shows: expiring within the renewal window (Decisioning thresholds), expired from the day after it ends. Draft, under review and terminated stay as set.',
       options: [
         { value: 'draft', label: 'Draft' },
         { value: 'under-review', label: 'Under review' },

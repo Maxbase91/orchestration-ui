@@ -50,9 +50,9 @@ export const knowledgeBase: KnowledgeEntry[] = [
   {
     id: 'KB-006',
     title: 'Contract Renewal',
-    body: "A contract renewal is a demand like any other:\n1. Contracts → Renewals & Expiries lists contracts ending within 90 days.\n2. Choose Start renewal on the contract (or its row in Renewals & Expiries). It opens New Request with the renewal written.\n3. The contract check recognises the covering contract as expiring when it ends within {{policy:contractExpiryBufferDays}}, and the determination sets the contract type to renew and the sourcing type to renewal.\n4. From there the request follows its buying channel like any other demand.\nIf you are not renewing, plan the hand-over at least 60 days before expiry (policy).",
+    body: "A contract renewal is a demand like any other:\n1. Contracts → Renewals & Expiries lists the contracts in their renewal window — ending within {{policy:contractExpiryBufferDays}} — and those that have ended. Everywhere in the platform they show as Expiring and Expired, read from the end date.\n2. Choose Start renewal on the contract (or its row in Renewals & Expiries). It opens New Request with the renewal written.\n3. The contract check treats the covering contract as up for renewal while it is in that window, and the determination sets the contract type to renew and the sourcing type to renewal.\n4. From there the request follows its buying channel like any other demand.\nIf you are not renewing, plan the hand-over while the contract is in its renewal window.",
     source: "Contract check · Decisioning thresholds",
-    tags: ['contract', 'renewal', 'expiry', 'review', '90 days', 'notice', 'renegotiate'],
+    tags: ['contract', 'renewal', 'expiry', 'review', 'renewal window', 'notice', 'renegotiate'],
     topic: 'Sourcing & contracts',
     sortOrder: 62,
   },

@@ -244,7 +244,15 @@ export interface Contract {
   value: number;
   startDate: string;
   endDate: string;
+  /**
+   * What the contract is today. Read through `contracts_with_derived`, an
+   * active or expiring contract is read from its end date (expired from the
+   * day after it; expiring within the renewal window) — see
+   * lib/procurement/contract-status.ts.
+   */
   status: 'draft' | 'under-review' | 'active' | 'expiring' | 'expired' | 'terminated';
+  /** What the record says — the value an administrator sets. Absent on a record not read from the store. */
+  recordedStatus?: 'draft' | 'under-review' | 'active' | 'expiring' | 'expired' | 'terminated';
   ownerId: string;
   ownerName: string;
   department: string;

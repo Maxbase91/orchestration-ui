@@ -792,6 +792,13 @@ LEFT JOIN (
   SELECT supplier_id, COUNT(*)::int AS active_contracts
   FROM contracts
   WHERE status IN ('active', 'expiring') AND supplier_id IS NOT NULL
+    -- Past its end date a contract is not active, whatever it is recorded as —
+    -- the rule contracts_with_derived.status_live applies. ISO dates compare as
+    -- text, so there is no cast for a malformed one to break.
+    AND NOT COALESCE(
+      LEFT(end_date, 10) ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
+        AND LEFT(end_date, 10) < to_char(current_date, 'YYYY-MM-DD'),
+      false)
   GROUP BY supplier_id
 ) c ON c.supplier_id = s.id
 LEFT JOIN (
@@ -833,19 +840,8 @@ LEFT JOIN LATERAL (
   ORDER BY entered_at DESC LIMIT 1
 ) sh ON true;
 
-DROP VIEW IF EXISTS contracts_with_derived CASCADE;
-CREATE VIEW contracts_with_derived
-  WITH (security_invoker = true) AS
-SELECT
-  co.*,
-  COALESCE(r.ids, ARRAY[]::text[]) AS linked_request_ids_live
-FROM contracts co
-LEFT JOIN (
-  SELECT contract_id, array_agg(id ORDER BY created_at DESC) AS ids
-  FROM requests
-  WHERE contract_id IS NOT NULL
-  GROUP BY contract_id
-) r ON r.contract_id = co.id;
+-- contracts_with_derived is defined after procurement_policy_configs below:
+-- its status reads the renewal window from there.
 
 -- ── Dynamic knowledge base ───────────────────────────────────────────────────
 
@@ -945,6 +941,53 @@ CREATE TABLE IF NOT EXISTS procurement_policy_configs (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Contracts with what is live about them, recomputed on every read: the
+-- requests that name each one, and its status from its dates.
+--
+-- `status_live` (2026-09-26): the status column was written once and never
+-- moved, so 12 of 30 live contracts were past their end date while recorded
+-- active or expiring, and every screen that trusted it said so. A contract is
+-- in force through its end date — expired from the day after — and expiring
+-- while it ends within the renewal window, the Decisioning threshold
+-- `contractExpiryBufferDays` (read from the policy row, so moving it moves
+-- this). Only active and expiring are read from the date; draft, under review,
+-- terminated and an expiry recorded early stay as recorded. Stored rows are
+-- never rewritten. src/lib/procurement/contract-status.ts is the same rule in
+-- TypeScript, and test:contract-status holds the two to one answer.
+DROP VIEW IF EXISTS contracts_with_derived CASCADE;
+CREATE VIEW contracts_with_derived
+  WITH (security_invoker = true) AS
+SELECT
+  co.*,
+  COALESCE(r.ids, ARRAY[]::text[]) AS linked_request_ids_live,
+  CASE
+    WHEN co.status IN ('active', 'expiring')
+      AND LEFT(co.end_date, 10) ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN
+      CASE
+        WHEN LEFT(co.end_date, 10) < to_char(current_date, 'YYYY-MM-DD') THEN 'expired'
+        WHEN LEFT(co.end_date, 10) <= to_char(current_date + w.days, 'YYYY-MM-DD') THEN 'expiring'
+        ELSE 'active'
+      END
+    ELSE co.status
+  END AS status_live
+FROM contracts co
+LEFT JOIN (
+  SELECT contract_id, array_agg(id ORDER BY created_at DESC) AS ids
+  FROM requests
+  WHERE contract_id IS NOT NULL
+  GROUP BY contract_id
+) r ON r.contract_id = co.id
+CROSS JOIN (
+  -- The floor for an unreadable policy row is the shipped default,
+  -- DEFAULT_POLICY_CONFIG.contractExpiryBufferDays; test:contract-status fails
+  -- if the two ever differ.
+  SELECT COALESCE(
+    (SELECT floor((config->>'contractExpiryBufferDays')::numeric)::int
+       FROM procurement_policy_configs WHERE singleton_key = 'default'),
+    60
+  ) AS days
+) w;
 
 CREATE TABLE IF NOT EXISTS request_lines (
   id TEXT PRIMARY KEY,

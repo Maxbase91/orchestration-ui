@@ -244,6 +244,7 @@ npm run test:tickets              # support tickets — entitlement, internal no
 npm run test:ticket-sla           # ticket SLA — targets, due dates, breach/at-risk, waiting-on-user pause
 npm run test:approval-to-source   # approval-to-source gate (light vs full pre-sourcing approvals)
 npm run test:residual-questions   # criteria-triggered stage-5 residual questions (mini-IRQ deltas)
+npm run test:contract-status      # a contract's status from its dates: in force through the end date, expiring within the renewal window (Decisioning thresholds); the view's SQL and the TypeScript rule agree; every contract screen, the checkout, the contract match and the assistant read the live status
 npm run test:demand-conversation  # dynamic intake — answer-driven next question + carry-forward + branching + conditional rationale; a section the signals make mandatory is asked and required, one required-section set for every screen
 npm run test:intake-guidance      # progress reaches 100%, inferred sections are not outstanding, the conversation's mandatory floor,
                                   # the page names its phases and has no stepper, one way on to the Channel page, the opening invitation,
@@ -318,7 +319,7 @@ npm run test:request-tabs         # the request-detail tabs show the stages a re
 npm run test:refresh              # every lifecycle action invalidates every view it can affect
 npm run test:assistant-boundary   # the confirm card describes the queued write; the assistant reads only the caller's records
 npm run test:audit                # audit rows are written for the actions that claim them
-npm run test:derived              # database-derived columns track their inputs (live; cleans up its fixtures)
+npm run test:derived              # database-derived columns track their inputs, and a contract's status_live matches contract-status.ts on eight fixtures (live; cleans up its fixtures)
 npm run test:kpis                 # dashboard KPI aggregates match the underlying rows
 npm run test:ai-agents            # agent registry shape and activation rules
 npm run test:api-domain-routing   # every vercel.json rewrite reaches a real ?domain= handler
@@ -375,6 +376,7 @@ npm run test:dashboard-widget-states # browser smoke — with every table failin
                                   #   each name what they could not read; with the tables answering, no alert at all;
                                   #   the attention band counts delegated approvals, is absent when nothing waits,
                                   #   and reports an unreadable queue instead of going quiet
+                                  #   and the Expiring Contracts widget lists what the view reads as expiring, not what the record says
 npm run test:preferred-suppliers  # the category's preferred-supplier list decides "preferred", every preferred supplier is
                                   #   invited to sourcing, and the recommender reads the category's supplier tags
 npm run test:personal-queue       # static — one definition of "mine" (assigned or delegated), and no other
@@ -909,9 +911,10 @@ not in a component — because RLS is currently `USING (true)`.
 
 | ID | Steps | Expected |
 |---|---|---|
-| TC-CON-01 | `/contracts` register | 18 contracts, filters, utilisation |
-| TC-CON-02 | Open a contract | Summary/Financial/Obligations/Renewal/Documents/Related |
-| TC-CON-03 | `/contracts/renewals` | Expiring <30/<90d **non-empty where expected**; € currency (not £); Initiate Renewal works |
+| TC-CON-01 | `/contracts` register | Every contract, filters, utilisation. The tabs and the status are the **live** status — a contract recorded active whose end date has passed is under Expired — and the days left show beside one in its renewal window |
+| TC-CON-01b | A contract's status from its dates (`npm run test:contract-status`, `npm run test:derived`) | In force through its end date: *expiring* on its last day and within the renewal window (Decisioning thresholds → contract renewal window), *expired* from the day after, *active* before the window; draft, under review, terminated and a recorded expiry untouched. The view's SQL and `contract-status.ts` give the same answer for eight live fixtures; the SQL's floor equals the shipped default; the checkout accepts a contract late on its last day and refuses it the day after (it used to expire at midnight UTC); a supplier's active contracts leave out one past its end date; writing a contract back writes its **recorded** status, never the date's reading. Verified by restoring the timestamp compare, a floor of 90 and a widget's own 90 days — each fails |
+| TC-CON-02 | Open a contract | Summary/Financial/Obligations/Renewal/Documents/Related; the Renewal tab says where the contract stands against its renewal window (no fixed 90/60/30 timeline) |
+| TC-CON-03 | `/contracts/renewals` | Tabs All / Expiring (within N days — the governed window) / Expired, each the live status; KPIs expiring, expired and the value up for renewal in €, with no trend arrows; Start renewal opens New request with the renewal written |
 | TC-CON-04 | `/contracts/templates` | 6 templates; "Use Template" does something |
 
 ## Suite PUR — purchasing / P2P

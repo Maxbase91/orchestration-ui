@@ -151,7 +151,7 @@ block, details-supplier, the call-off form), the stepper and the wizard footer.
    - Removed as dead once the Details screen went: the hook's invitation opening and `api/chat-intake`'s opening-turn prompt (no client sends an empty conversation), `details-sections.ts` and `test:details-progression` (its checks moved to `test:intake-conversation`), the already-orphaned `compliance-check-result.tsx`
    - Fixed on the way: giving up on the last open question (a date that never parsed) asked for it again offline and said nothing on the model path — it now closes the description; the completion message is short and said once
 4. [x] 4d — the production interaction suite (8 flows, including a submit through the conversation) and the walkthrough's five front-door scenarios pass against the deployed app; screenshots checked against the artboard
-   - Found in production and fixed (`8aa16e2`): a contract past its end date was offered as coverage — both matchers trusted the status column, and 12 of the 30 live contracts are past their end date while still marked active or expiring (flagged: nothing recomputes the status)
+   - Found in production and fixed (`8aa16e2`): a contract past its end date was offered as coverage — both matchers trusted the status column, and 12 of the 30 live contracts are past their end date while still marked active or expiring (resolved 2026-09-26, workstream C: the status is read from the dates)
 
 ## Decided 2026-09-26 — three workstreams, in order
 - **A. Documentation boundaries** — "PRD + ARCHITECTURE, one home per fact" and "AGENTS.md, CLAUDE.md imports it". `docs/PRD.md` (why/what/scope), `docs/ARCHITECTURE.md` (how), `AGENTS.md` the one rulebook (CLAUDE.md imports it), the `test:*` catalogue moved to TEST_PLAYBOOK (guarded by `test:workflow-scripts`), the README slimmed to setup/commands/env/deploy, the functional spec audited section by section against the code and rewritten to what it does.
@@ -188,6 +188,15 @@ what the code does; these are the things it now has to say that need a decision.
 **Hardcoded where a governed value is expected** — High Value €500,000 (Active Workflows); at-risk windows of 3 days / 24 h / 4 days in three places; the approval chains' lowest band (€10,000 literal); the 90-day expiring window (workstream C).
 
 **White-label** — real company names in UI mock content (sourcing Q&A, portal identity and messages, three-way-match scenarios, bottlenecks feed), a real bank in the portal profile, real supplier names in `api/chat-intake.ts`'s prompt and an example in `api/chat.ts`'s tool description; the seed suppliers are real companies.
+
+## Done — a contract's status from its dates (2026-09-26, workstream C)
+The contracts view derives `status_live` from the end date against the renewal
+window (`contractExpiryBufferDays`, relabelled "Contract renewal window" — the one
+reading of "expiring"); every contract screen, the checkout (now in force through
+the last day), the contract match and the assistant read it; stored rows are
+untouched and the Database admin edits the recorded status. Four screens' own
+90 days, the 30/60 bands and the renewals page's fixed trend arrows are gone;
+KB-006 names the window.
 
 ## Done — "required sections" is one set (2026-09-26, workstream B)
 A section the template's rules make mandatory for a demand makes the question that

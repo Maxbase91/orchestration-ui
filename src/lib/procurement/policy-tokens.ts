@@ -64,8 +64,8 @@ export const POLICY_KEY_META: Record<NumericPolicyKey, { label: string; help: st
   catalogueAutoApprovalThreshold: { label: 'Catalogue auto-approval threshold', help: 'Up to this whole-request value, valid catalogue orders are auto-approved', unit: '€', usedIn: 'Catalogue checkout · Home answers' },
   approvalFullThreshold: { label: 'Full approval-to-source threshold', help: 'At/above this value the full approval gate applies', unit: '€', usedIn: 'Your buying channel — the approval-to-source gate' },
   materialityValueThreshold: { label: 'Materiality value threshold', help: 'At/above this value a demand is material on size alone', unit: '€', usedIn: 'Your buying channel — materiality' },
-  criticalServiceThreshold: { label: 'Critical-service question threshold', help: 'At/above this value the critical-service question is asked', unit: '€', usedIn: 'Describe — the critical-service and commercial-model questions' },
-  continuityThreshold: { label: 'Business-continuity threshold', help: 'At/above this value continuity dependence is non-trivial', unit: '€', usedIn: 'Describe — the dependencies question · Your buying channel — continuity risk' },
+  criticalServiceThreshold: { label: 'Critical-service question threshold', help: 'At/above this value the critical-service question is asked', unit: '€', usedIn: 'New request — the critical-service and commercial-model questions' },
+  continuityThreshold: { label: 'Business-continuity threshold', help: 'At/above this value continuity dependence is non-trivial', unit: '€', usedIn: 'New request — the dependencies question · Your buying channel — continuity risk' },
   riskHighValue: { label: 'Inherent-risk band — high', help: 'Value contributing to a high inherent tier', unit: '€', usedIn: 'Your buying channel — inherent risk' },
   riskMediumValue: { label: 'Inherent-risk band — medium', help: 'Value contributing to a medium inherent tier', unit: '€', usedIn: 'Your buying channel — inherent risk' },
   competitiveSourcingThreshold: { label: 'Competitive-sourcing threshold', help: 'At/above this value competitive sourcing applies', unit: '€', usedIn: 'Your buying channel — the competitive-sourcing check · Home answers' },
@@ -76,10 +76,10 @@ export const POLICY_KEY_META: Record<NumericPolicyKey, { label: string; help: st
   minCompetitiveQuotes: { label: 'Minimum competitive quotes', help: 'Quotes required above the competitive-sourcing threshold', unit: '', usedIn: 'Your buying channel — the competitive-sourcing check · Home answers' },
   preferredMinPerformance: { label: 'Preferred-supplier performance bar', help: 'Minimum performance score to qualify as preferred', unit: '/100', usedIn: 'Supplier recommendations · Your buying channel — the preferred-supplier check' },
   contractUtilisationHeadroom: { label: 'Contract utilisation headroom', help: 'Below this %, an active contract is transactable', unit: '%', usedIn: 'Your buying channel — the contract check' },
-  directCallOffLimit: { label: 'Direct call-off limit', help: 'Above this value a contract call-off needs a mini-competition, so it goes in as a new request', unit: '€', usedIn: 'How you’ll buy — contract call-offs · call-off checkout' },
-  contractExpiryBufferDays: { label: 'Contract expiry buffer', help: 'Days-to-expiry that flag a contract as expiring', unit: 'days', usedIn: 'Your buying channel — the contract check' },
-  catalogueMatchThreshold: { label: 'Catalogue match threshold', help: 'Minimum score for a catalogue item to be offered at intake', unit: '', usedIn: 'How you’ll buy and Home — catalogue matching' },
-  catalogueMinContentMatches: { label: 'Catalogue naming-word matches', help: 'Naming words (not adjectives) a catalogue match must hit', unit: '', usedIn: 'How you’ll buy and Home — catalogue matching' },
+  directCallOffLimit: { label: 'Direct call-off limit', help: 'Above this value a contract call-off needs a mini-competition, so it goes in as a new request', unit: '€', usedIn: 'New request — contract call-offs · call-off checkout' },
+  contractExpiryBufferDays: { label: 'Contract renewal window', help: 'A contract ending within this many days is expiring: it shows as Expiring, is listed for renewal, and a demand it covers is treated as its renewal', unit: 'days', usedIn: 'Contracts — the status every screen shows, Renewals & Expiries, the Expiring Contracts widget, supplier profiles · Your buying channel — the contract check' },
+  catalogueMatchThreshold: { label: 'Catalogue match threshold', help: 'Minimum score for a catalogue item to be offered at intake', unit: '', usedIn: 'New request and Home — catalogue matching' },
+  catalogueMinContentMatches: { label: 'Catalogue naming-word matches', help: 'Naming words (not adjectives) a catalogue match must hit', unit: '', usedIn: 'New request and Home — catalogue matching' },
 };
 
 export const NUMERIC_POLICY_KEYS: readonly NumericPolicyKey[] =

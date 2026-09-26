@@ -17,7 +17,7 @@ Contract management covers the register, lifecycle statuses, renewals, expiry al
 | ID | Role | Story | Priority |
 |----|------|-------|----------|
 | FR07-01 | proc-manager | I can see all active, expiring, and expired contracts in one register | Must |
-| FR07-02 | proc-manager | I receive alerts when contracts are expiring within 90 / 30 days | Must |
+| FR07-02 | proc-manager | I see which contracts are in their renewal window — the Expiring status, the register, Renewals & Expiries and the dashboard widget; no notification is sent yet | Must |
 | FR07-03 | proc-manager | I can see utilisation % against contract value for each contract | Should |
 | FR07-04 | ops-lead | I can initiate a contract renewal request from the renewal screen | Should |
 
@@ -27,8 +27,8 @@ Contract management covers the register, lifecycle statuses, renewals, expiry al
 
 `draft` → `active` → `expiring` → `expired` | `terminated` | `on-hold`
 
-FR07-10 · Status `expiring` is set when `endDate < today + 90 days` (system computes, not admin-set).
-FR07-11 · Renewals page uses `new Date()` as reference (not demo anchor) — updated in 0.3 fix.
+FR07-10 · **The status is read from the dates** (decided 2026-09-26). A contract recorded `active` (or `expiring`) is `active` until its renewal window opens, `expiring` while it ends within the window — the Decisioning threshold `contractExpiryBufferDays`, the same number the intake's contract check reads — and `expired` from the day after its end date, so it is in force through its last day. `draft`, `under-review`, `terminated` and an expiry recorded early stay as recorded. The contracts view computes it (`contracts_with_derived.status_live`), `lib/procurement/contract-status.ts` is the same rule in TypeScript, and stored rows are never rewritten; an administrator edits the recorded status and sees both where they differ.
+FR07-11 · Every reader takes the live status: the register, Renewals & Expiries, the Expiring Contracts widget, the supplier profile, the governed checkout, the intake's contract match and the assistant; a supplier's active-contract count leaves out a contract past its end date.
 
 ---
 
@@ -42,8 +42,8 @@ FR07-22 · Click → contract detail page with linked requests, POs, invoices.
 
 ## Renewals & Expiries
 
-FR07-30 · `/contracts/renewals` shows 3 tabs: All, Expiring (<90d), Expired.
-FR07-31 · KPI cards: Expiring <30d, Expiring <90d, Expired, Total Renewal Value (€).
+FR07-30 · `/contracts/renewals` shows 3 tabs: All, Expiring (within the renewal window), Expired — each the live status.
+FR07-31 · KPI cards: Expiring within the window, Expired, Value up for renewal (€). No trend arrows: the ones shown were fixed numbers.
 FR07-32 · "Start renewal" (Renewals & Expiries and contract detail) opens Door 1 with the renewal written as the demand (`renewalDemandHref`); the contract check recognises the expiring contract. There is no renewal category or side process (retired 2026-09-25).
 FR07-33 · Total Renewal Value uses EUR (not GBP — F19 fix applied).
 

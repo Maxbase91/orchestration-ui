@@ -1,6 +1,7 @@
 // Contract register page: the searchable list of all contracts in the own
 // store, with lifecycle tabs, faceted filters and expiry-countdown badges.
-// Rows deep-link into the contract detail page.
+// Rows deep-link into the contract detail page. Every status here is the live
+// one — an active contract read from its end date (lib/procurement/contract-status.ts).
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/shared/page-header';
@@ -10,6 +11,7 @@ import { FilterBar, type FilterConfig } from '@/components/shared/filter-bar';
 import { useContracts } from '@/lib/db/hooks/use-contracts';
 import { formatCurrency, formatDate } from '@/lib/format';
 import type { Contract } from '@/data/types';
+import { daysUntilEnd } from '@/lib/procurement/contract-status';
 
 type TabFilter = 'all' | 'active' | 'expiring' | 'expired';
 
@@ -54,23 +56,18 @@ function buildFilterConfigs(allContracts: Contract[]): FilterConfig[] {
   ];
 }
 
-function daysUntilExpiry(endDate: string): number {
-  const end = new Date(endDate);
-  const now = new Date();
-  return Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-}
-
-// Countdown badge only for live contracts approaching expiry. The 30/60/90-day
-// bands mirror the renewal timeline used on the contract detail page (red =
-// final approval window, amber = negotiate, yellow = start assessment).
+// A countdown beside a contract in its renewal window — the status already says
+// it is expiring, the badge says how soon. The window is the governed one; the
+// 30/60/90-day bands this used to draw were written here and nowhere else.
 function expiryBadge(endDate: string, status: string) {
-  if (status === 'expired' || status === 'terminated' || status === 'draft') return null;
-  const days = daysUntilExpiry(endDate);
-  if (days <= 0) return null;
-  if (days <= 30) return <span className="ml-1 rounded-full bg-stop-soft px-1.5 py-0.5 text-[10px] font-medium text-stop">{days}d</span>;
-  if (days <= 60) return <span className="ml-1 rounded-full bg-warn-soft px-1.5 py-0.5 text-[10px] font-medium text-warn">{days}d</span>;
-  if (days <= 90) return <span className="ml-1 rounded-full bg-warn-soft px-1.5 py-0.5 text-[10px] font-medium text-warn">{days}d</span>;
-  return null;
+  if (status !== 'expiring') return null;
+  const days = daysUntilEnd(endDate);
+  if (days === null) return null;
+  return (
+    <span className="ml-1 rounded-full bg-warn-soft px-1.5 py-0.5 text-[10px] font-medium text-warn">
+      {days === 0 ? 'ends today' : `${days}d`}
+    </span>
+  );
 }
 
 const columns: Column<Contract & Record<string, unknown>>[] = [

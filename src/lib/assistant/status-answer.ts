@@ -12,6 +12,7 @@ import {
 } from './status-config.js';
 import { stageSlasFromTemplates, stageSlaDays } from '../workflow/stage-sla.js';
 import { channelStageMapFromTemplates, nextStageAfter } from '../workflow/channel-stages.js';
+import { daysUntilEnd, isoToday } from '../procurement/contract-status.js';
 
 export type StatusRecord = Record<string, unknown>;
 
@@ -178,10 +179,12 @@ export function deriveAttributes(object: StatusObject, record: StatusRecord, dat
       };
     }
     case 'contract': {
-      const end = Date.parse(str(record.endDate));
-      if (!Number.isFinite(end)) return {};
-      const days = Math.ceil((end - now) / DAY_MS);
-      return { expiresIn: days < 0 ? `Ended ${-days} days ago` : days === 0 ? 'Today' : `${days} days` };
+      // Calendar days, as the contracts view and every contract screen count
+      // them (contract-status.ts): 0 on the last day, not a clock difference.
+      const days = daysUntilEnd(str(record.endDate), isoToday(new Date(now)));
+      if (days === null) return {};
+      const count = (n: number) => `${n} ${n === 1 ? 'day' : 'days'}`;
+      return { expiresIn: days < 0 ? `Ended ${count(-days)} ago` : days === 0 ? 'Today' : count(days) };
     }
     default:
       return {};

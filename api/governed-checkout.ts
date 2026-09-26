@@ -257,7 +257,8 @@ async function prepareOrder(
   const contractId = assertString(checkout.contract?.id, 'contractId');
   const [supplierRows, contractRows, profileRows, catalogueRows, riskRows, costCentreRows, locationRows, policy] = await Promise.all([
     queryRows(sql, 'SELECT * FROM suppliers WHERE id = $1', [supplierId]),
-    queryRows(sql, 'SELECT * FROM contracts WHERE id = $1', [contractId]),
+    // The live status (contracts_with_derived.status_live), as every screen shows it.
+    queryRows(sql, 'SELECT * FROM contracts_with_derived WHERE id = $1', [contractId]),
     queryRows(sql, 'SELECT * FROM procurement_profiles WHERE user_id = $1', [assertString(checkout.profile?.userId, 'profile.userId')]),
     queryRows(sql, 'SELECT * FROM catalogue_items WHERE id = ANY($1::text[])', [lines.map((line) => line.catalogueItemId).filter((id): id is string => typeof id === 'string')]),
     queryRows(sql, 'SELECT * FROM risk_assessments WHERE contract_id = $1 OR supplier_id = $2', [contractId, supplierId]),

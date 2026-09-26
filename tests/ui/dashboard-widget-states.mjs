@@ -38,7 +38,7 @@ const ADMIN = {
 };
 /** The five converted widgets, the relation each reads, and its error heading. */
 const WIDGETS = [
-  { id: 'expiring-contracts', table: 'contracts_with_derived', heading: 'Contract alerts could not be loaded', empty: 'No contracts expiring soon.' },
+  { id: 'expiring-contracts', table: 'contracts_with_derived', heading: 'Contract alerts could not be loaded', empty: 'No contracts in their renewal window.' },
   { id: 'invoice-exceptions', table: 'invoices', heading: 'Invoices could not be loaded', empty: 'No invoice exceptions' },
   { id: 'open-pos', table: 'purchase_orders', heading: 'Purchase orders could not be loaded', empty: 'No open purchase orders.' },
   { id: 'requests-by-stage', table: 'requests_with_derived', heading: 'Requests could not be loaded', empty: 'No requests are in an active stage.' },
@@ -161,6 +161,33 @@ try {
   check('an unreadable queue is reported, not passed over as empty',
     unreadable.text.includes('Your queue could not be read'),
     unreadable.text.slice(0, 200).replace(/\n/g, ' / '));
+
+  // The widget lists what the contracts view reads as expiring — the status
+  // from the end date against the renewal window (2026-09-26) — not what the
+  // record says, and not a 90 of its own.
+  console.log('\nThe Expiring Contracts widget reads the live status');
+  const iso = (offset) => new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
+  const contractRow = (id, title, status, statusLive, endDate) => ({
+    id, title, supplier_id: 'SUP-001', supplier_name: 'Example Supplier', value: 50000,
+    start_date: '2025-01-01', end_date: endDate, status, status_live: statusLive,
+    utilisation_percentage: 10, linked_request_ids_live: [],
+  });
+  const contracts = await dashboardText(browser, {
+    rows: {
+      contracts_with_derived: [
+        contractRow('CON-T1', 'Cleaning services agreement', 'active', 'expiring', iso(5)),
+        contractRow('CON-T2', 'Printer lease', 'active', 'expired', iso(-3)),
+        contractRow('CON-T3', 'Office furniture framework', 'expiring', 'active', iso(200)),
+      ],
+    },
+  });
+  check('a contract in its renewal window is listed, with its days left',
+    contracts.text.includes('Cleaning services agreement') && contracts.text.includes('5d left'),
+    contracts.text.slice(0, 240).replace(/\n/g, ' / '));
+  check('one past its end date is not, although it is recorded active',
+    !contracts.text.includes('Printer lease'));
+  check('one recorded expiring but far from its end is not either',
+    !contracts.text.includes('Office furniture framework'));
 
   ran = true;
 } catch (err) {

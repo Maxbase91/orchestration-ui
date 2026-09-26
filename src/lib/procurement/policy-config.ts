@@ -53,10 +53,16 @@ export interface PolicyConfig {
   /**
    * Above this value a call-off from a contract is not a direct award: it needs
    * a mini-competition among the contract's suppliers, so it goes in as a new
-   * request. Refused at checkout and ruled out at the buy-route step.
+   * request. Refused at checkout and ruled out by the intake's route decision.
    */
   directCallOffLimit: number;
-  /** Second contract check: days-to-expiry buffer that flags a contract expiring. */
+  /**
+   * The renewal window: a contract ending within this many days is expiring.
+   * One number for every reading of "expiring" — the status the contracts view
+   * derives (contracts_with_derived.status_live), the renewals list and widget,
+   * and the intake's contract check — where there used to be this and a 90
+   * written into four screens.
+   */
   contractExpiryBufferDays: number;
   /**
    * Value at/above which a PO needs an executed contract behind it.

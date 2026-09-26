@@ -829,7 +829,12 @@ export function mapDbToContract(row: DbRecord): Contract {
     value: Number(row.value ?? 0),
     startDate: (row.start_date ?? row.startDate ?? '') as string,
     endDate: (row.end_date ?? row.endDate ?? '') as string,
-    status: (row.status ?? 'draft') as Contract['status'],
+    // The live status from contracts_with_derived — read from the end date —
+    // and the recorded one beside it, which is what an edit writes back. A row
+    // from the base table (a write's echo) has no live status and shows as
+    // recorded.
+    status: (row.status_live ?? row.status ?? 'draft') as Contract['status'],
+    recordedStatus: (row.status ?? 'draft') as Contract['status'],
     ownerId: (row.owner_id ?? row.ownerId ?? '') as string,
     ownerName: (row.owner_name ?? row.ownerName ?? '') as string,
     department: (row.department ?? '') as string,
@@ -860,7 +865,11 @@ export function mapContractToDb(c: Partial<Contract>): DbRecord {
   if (c.value !== undefined) out.value = c.value;
   if (c.startDate !== undefined) out.start_date = c.startDate;
   if (c.endDate !== undefined) out.end_date = c.endDate;
-  if (c.status !== undefined) out.status = c.status;
+  // The recorded status wins over the live one: an edited record carries both,
+  // and writing back the date-derived status would rewrite the stored row the
+  // view exists to leave alone.
+  if (c.recordedStatus !== undefined) out.status = c.recordedStatus;
+  else if (c.status !== undefined) out.status = c.status;
   if (c.ownerId !== undefined) out.owner_id = c.ownerId;
   if (c.ownerName !== undefined) out.owner_name = c.ownerName;
   if (c.department !== undefined) out.department = c.department;

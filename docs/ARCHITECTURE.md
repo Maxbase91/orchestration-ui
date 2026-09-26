@@ -142,8 +142,10 @@ One module per relation (`src/lib/db/<entity>.ts`) with its TanStack Query hooks
 (`src/lib/db/hooks/use-<entity>.ts`); domain types in `src/data/types.ts`.
 Values the database can work out are **derived when read**, not stored and
 forgotten: views such as `suppliers_with_derived` and `contracts_with_derived`
-compute `*_live` columns, and the mappers prefer them. Logic the server needs as
-well lives in a `*-core.ts` module both sides import.
+compute `*_live` columns, and the mappers prefer them — a contract's
+`status_live`, read from its end date, among them; the recorded value is kept
+beside it for the editor, so an edit never writes the derived one back. Logic
+the server needs as well lives in a `*-core.ts` module both sides import.
 
 ### 4.4 The source-connector layer
 
@@ -169,6 +171,7 @@ a test can pin each one.
 | Whether the catalogue or a contract covers it | `procurement/intake-routing.ts` (`decideIntakeRoute`), `procurement/contract-matching.ts` served by `/api/contract-match` ([ADR-0004](adr/0004-contract-scope-matching.md)) | The conversation, the Home box |
 | The buying channel | `routing/evaluate-routing-rules.ts`, `routing/demand-channel.ts` (`resolveDemandChannel`) | The conversation, the determination, the submit gate — one evaluator |
 | The intake determination — materiality, risk, approval to source, contract and sourcing type, policy checks, the compliance record | `procurement/intake-determination.ts` (deterministic: `now` is an input), `intake-compliance-record.ts` | The Channel page, `/api/intake-submit` |
+| What a contract is today — active, expiring, expired — from its end date against the renewal window | `contracts_with_derived.status_live` (db/schema.sql); `procurement/contract-status.ts`, the same rule in TypeScript | Every contract screen, the governed checkout, the contract match, the assistant; a supplier's active-contract count |
 | What the conversation asks, and when it is through; the sections a demand must cover (`requiredSectionIds` — the template's section rules ride on the slots that fill them) | `procurement/demand-conversation.ts`; `conversation/conversation-rules.ts`, `request-rows.ts` | The conversation page, `api/chat-intake`, the Channel page's section check, the record submit writes |
 | Who approves | `procurement/approval-derivation.ts`, `lib/db/approvals-core.ts` | The Channel page, submit, the approval stage |
 | Whether a catalogue or call-off order may be placed | `procurement/governed-checkout.ts`, `catalogue-basket.ts` | The Catalogue page, the Channel page, `api/governed-checkout.ts` |

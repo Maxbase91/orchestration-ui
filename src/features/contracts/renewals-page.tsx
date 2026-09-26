@@ -1,6 +1,10 @@
 // Renewals & expiries page: contract end-date watchlist with expiry KPIs and
-// a start-renewal action per row that opens Door 1 with the demand written. Expiry maths is derived from end dates
-// at render time rather than stored, so it never goes stale.
+// a start-renewal action per row that opens Door 1 with the demand written.
+// Which contracts are expiring or expired is the live status — read from the
+// end date against the renewal window (Decisioning thresholds) — the same
+// reading as the register, the widget and the intake's contract check. This
+// page used to apply its own 90 and 30 days, with trend arrows that were
+// fixed numbers.
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/shared/page-header';
@@ -12,8 +16,9 @@ import { formatCurrency, formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
-import { differenceInDays, parseISO } from 'date-fns';
 import { renewalDemandHref } from '@/features/requests/new-request/intake-deep-link';
+import { usePolicyConfig } from '@/lib/procurement/use-policy-config';
+import { daysUntilEnd } from '@/lib/procurement/contract-status';
 
 type TabFilter = 'all' | 'expiring' | 'expired';
 
@@ -23,7 +28,8 @@ interface ContractRow extends Record<string, unknown> {
   supplierName: string;
   value: number;
   endDate: string;
-  daysUntilExpiry: number;
+  /** Null when the contract has no readable end date. */
+  daysUntilExpiry: number | null;
   status: string;
 }
 
@@ -31,47 +37,37 @@ export function RenewalsPage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabFilter>('all');
   const { data: contracts = [] } = useContracts();
+  const { contractExpiryBufferDays: renewalWindowDays } = usePolicyConfig();
 
-  const rows = useMemo<ContractRow[]>(() => {
-    const today = new Date();
-    return contracts.map((c) => {
-      const endDate = parseISO(c.endDate);
-      const daysUntilExpiry = differenceInDays(endDate, today);
-      return {
-        id: c.id,
-        title: c.title,
-        supplierName: c.supplierName,
-        value: c.value,
-        endDate: c.endDate,
-        daysUntilExpiry,
-        status: c.status,
-      };
-    });
-  }, [contracts]);
+  const rows = useMemo<ContractRow[]>(() => contracts.map((c) => ({
+    id: c.id,
+    title: c.title,
+    supplierName: c.supplierName,
+    value: c.value,
+    endDate: c.endDate,
+    daysUntilExpiry: daysUntilEnd(c.endDate),
+    status: c.status,
+  })), [contracts]);
 
-  // 90 days is the renewal-assessment window (matches the register's expiry
-  // badges); anything at or past its end date counts as expired.
   const filtered = useMemo(() => {
     switch (activeTab) {
       case 'expiring':
-        return rows.filter((r) => r.daysUntilExpiry > 0 && r.daysUntilExpiry <= 90);
+        return rows.filter((r) => r.status === 'expiring');
       case 'expired':
-        return rows.filter((r) => r.daysUntilExpiry <= 0);
+        return rows.filter((r) => r.status === 'expired');
       default:
         return rows;
     }
   }, [rows, activeTab]);
 
-  const expiring30 = rows.filter((r) => r.daysUntilExpiry > 0 && r.daysUntilExpiry <= 30).length;
-  const expiring90 = rows.filter((r) => r.daysUntilExpiry > 0 && r.daysUntilExpiry <= 90).length;
-  const expired = rows.filter((r) => r.daysUntilExpiry <= 0).length;
-  const renewalValue = rows
-    .filter((r) => r.daysUntilExpiry > 0 && r.daysUntilExpiry <= 90)
-    .reduce((sum, r) => sum + r.value, 0);
+  const expiring = rows.filter((r) => r.status === 'expiring');
+  const expired = rows.filter((r) => r.status === 'expired').length;
+  const renewalValue = expiring.reduce((sum, r) => sum + r.value, 0);
+  const windowLabel = `within ${renewalWindowDays} days`;
 
   const tabs: { key: TabFilter; label: string; count: number }[] = [
     { key: 'all', label: 'All', count: rows.length },
-    { key: 'expiring', label: 'Expiring (<90 days)', count: expiring90 },
+    { key: 'expiring', label: `Expiring (${windowLabel})`, count: expiring.length },
     { key: 'expired', label: 'Expired', count: expired },
   ];
 
@@ -104,13 +100,16 @@ export function RenewalsPage() {
       label: 'Days Until Expiry',
       sortable: true,
       render: (row) => {
-        const days = row.daysUntilExpiry as number;
+        const days = row.daysUntilExpiry as number | null;
+        if (days === null) return <span className="text-sm text-ink-3">No end date</span>;
+        // Coloured by the status, which applies the renewal window — not by
+        // day counts of its own.
         return (
           <span className={cn(
             'text-sm font-semibold',
-            days <= 0 ? 'text-stop' : days <= 30 ? 'text-stop' : days <= 90 ? 'text-warn' : 'text-ink-2',
+            row.status === 'expired' ? 'text-stop' : row.status === 'expiring' ? 'text-warn' : 'text-ink-2',
           )}>
-            {days <= 0 ? `${Math.abs(days)}d overdue` : `${days}d`}
+            {days < 0 ? `ended ${Math.abs(days)}d ago` : days === 0 ? 'ends today' : `${days}d`}
           </span>
         );
       },
@@ -148,11 +147,10 @@ export function RenewalsPage() {
     <div className="space-y-6">
       <PageHeader title="Renewals & Expiries" subtitle="Monitor contract end dates and initiate renewals" />
 
-      <div className="grid gap-4 sm:grid-cols-4">
-        <KPICard label="Expiring <30 days" value={expiring30} trend={{ direction: 'up', percentage: 15 }} />
-        <KPICard label="Expiring <90 days" value={expiring90} />
-        <KPICard label="Expired" value={expired} trend={{ direction: 'up', percentage: 5 }} />
-        <KPICard label="Total Renewal Value" value={renewalValue} format="currency" />
+      <div className="grid gap-4 sm:grid-cols-3">
+        <KPICard label={`Expiring ${windowLabel}`} value={expiring.length} />
+        <KPICard label="Expired" value={expired} />
+        <KPICard label="Value up for renewal" value={renewalValue} format="currency" />
       </div>
 
       <div className="flex gap-1 border-b">
