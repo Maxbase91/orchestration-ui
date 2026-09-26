@@ -158,20 +158,51 @@ block, details-supplier, the call-off form), the stepper and the wizard footer.
 - **B. Required sections** — "Conversation asks what must be covered" (see below).
 - **C. Contract status** — "Derive status from the dates": the read view derives expired/expiring from the end date; the renewal window becomes a Decisioning threshold; every screen reads the derived status; stored rows untouched.
 
+## Done — audit defects 1–3 (2026-09-26, "Start")
+Decided: the Risk tab **records the evidence** (a screening result with its
+reference and date; a completed, in-date risk assessment linked from the
+register), and onboarding's Complete **requires a clear screening** and saves
+its note.
+
+1. **Cancel** — server-owned, in one transaction (`api/workflow-action.ts`):
+   a required reason (stage history note); undecided approvals (pending, info
+   requested, delegated) become `withdrawn`; the workflow instance becomes
+   `cancelled` (the engine stops on it); no deadline. A closed request
+   (completed, cancelled) cannot be moved again (409). The dialog asks for the
+   reason; the header's Reject keeps its own path (separate defect).
+2. **Record ids** — one `nextSequentialId` (highest in use + 1) for forms,
+   agents, routing rules, knowledge-base entries and service-description
+   criteria; `length + 1` reused a deleted record's id and the upsert then
+   overwrote a live one (today FORM-006; the next Add Agent would have taken
+   AI-007, Status Answers).
+3. **Supplier evidence** — the Risk tab's Approve/Refer back become *Record
+   screening result* (Clear/Flagged, reference and date required; stored on
+   the supplier with who/when in the audit log) and *Link a risk assessment*
+   (a completed, in-date assessment of this supplier; SRA status, expiry and the
+   assessment id come from it). Neither touches onboarding. Onboarding's
+   Complete needs a clear screening and records its note; the portal's
+   onboarding form no longer resets a completed supplier. Pure planners in
+   `lib/procurement/supplier-evidence.ts`.
+
+Tests: `test:workflow-atomic` (cancel, live), `test:record-ids`,
+`test:supplier-evidence`, a stub-backed browser suite for the Risk tab and the
+pipeline, `test:ui`; each guard mutation-checked. Docs: spec §5.3, §7.2, §7.3,
+§7.6, §14.2; FR-02/FR-04; ARCHITECTURE gaps; roadmap; playbook.
+
 ## Open — found by the functional-spec audit (2026-09-26)
 Four read-only audits compared every spec section with the code. The spec now says
 what the code does; these are the things it now has to say that need a decision.
 
 **Defects — behaviour that is wrong or records what did not happen**
-1. **Cancel advances the request.** `advanceWorkflow(id, 'cancelled')`: with no workflow instance nothing happens and "Request cancelled" is still shown; with one, no edge carries `cancelled`, so the default edge moves the request to its next stage (`action-buttons.tsx:227-258`, `edge-conditions.ts:287-313`).
-2. **Risk Approve / onboarding Complete record screening clear and an SRA valid without any screening** (`profile-risk-tab.tsx:43-54`, `onboarding-pipeline-page.tsx:30-36`) — AGENTS.md rule 3. Their "rationale" is asked for and not saved.
+1. ~~**Cancel advances the request.**~~ Fixed 2026-09-26: server-owned, with a reason; approvals withdrawn; the workflow stopped; a closed request cannot be moved.
+2. ~~**Risk Approve / onboarding Complete record screening clear and an SRA valid without any screening.**~~ Fixed 2026-09-26: screening recorded with its reference; the SRA linked to a completed, in-date assessment; Complete needs a clear screening and keeps its note.
 3. **A Kanban drag moves any request to any stage** — `api/workflow-action.ts` checks the stage exists, not that the request may go there, so gates, forms and approvals are bypassed.
 4. **Intake submit stores the browser's channel and compliance record** without recomputing (rule 3; ARCHITECTURE §10).
 5. **The audit log is editable** through `/api/db` (update/delete by id).
 6. **Notifications have no recipient** — one shared feed; Mark all read marks it for everyone.
 7. **User Management's Remove is a hard delete**; the Delegation page keeps only local state.
 8. **An unlisted supplier named in New request is written to the directory at once**, as a prospective supplier, although the page says nothing is created until submit; an abandoned request leaves it behind.
-9. **Risk Approve / Refer back and the portal's onboarding form set a Completed supplier back to In progress**, which then blocks contracting; the light onboarding gate is checked only by the request page's stage action (not when approval moves a request into Sourcing), and the full gate is not checked again on leaving Vendor Onboarding.
+9. The onboarding reset is fixed (2026-09-26). Still open: the light onboarding gate is checked only by the request page's stage action (not when approval moves a request into Sourcing), and the full gate is not checked again on leaving Vendor Onboarding.
 10. **Saving contract coverage drops a service family** that matches none of the stored ones, and saves the rest without it.
 11. **The disposition is shown and not acted on** — the Channel page says a request "will be referred back" or "a change will be asked for", and the request enters its first stage as usual.
 12. **Deadlines after some moves** — on a request with no workflow instance, a stage entered by the stage action, an approval or an award gets no deadline and the actor becomes its owner; a full goods receipt moves a request on without resetting its deadline. The header's Reject asks for no reason. The Monitor's stuck table repeats days overdue as days in stage.
@@ -184,6 +215,8 @@ what the code does; these are the things it now has to say that need a decision.
 - Cards labelled "AI-generated" that hold template text (supplier summary, risk classification, spend insight, invoice matching, top bottleneck).
 - Contact Support's email, hours, response time and hotline (the response time contradicts the Support SLAs).
 - Dead code: `src/data/ai-responses.ts`, `getAIResponse`, `getAICategorySuggestions`.
+
+**Also fixed 2026-09-26:** Add Form reused a deleted form's id and overwrote a live one (and Add Agent, criteria) — one `nextSequentialId` now.
 
 **Hardcoded where a governed value is expected** — High Value €500,000 (Active Workflows); at-risk windows of 3 days / 24 h / 4 days in three places; the approval chains' lowest band (€10,000 literal); the 90-day expiring window (workstream C).
 

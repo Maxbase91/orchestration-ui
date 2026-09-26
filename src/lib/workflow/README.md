@@ -142,6 +142,19 @@ record. `ensureRiskAssessment` reuses via `findMatchingRiskAssessments` (adding 
 to assess. The lifecycle preview filters the risk step by the same signal, so it no longer promises
 a stage that will not appear.
 
+## Cancel is a server move, not an engine outcome
+
+Cancel used to call `advanceWorkflow(id, 'cancelled')`. No template has a
+*cancelled* branch, so with an instance the engine took the stage's default
+edge and moved the request **on**, and without one it did nothing — while the
+page said "Request cancelled" (found by the spec audit, 2026-09-26). Cancel now
+posts to `api/workflow-action.ts`, which in one transaction requires a reason,
+moves the request to `cancelled` with no deadline, withdraws its undecided
+approvals (`withdrawn` — nobody rejected them) and sets the workflow instance to
+`cancelled`, which `advanceWorkflow` treats as finished. The same endpoint
+refuses to move a completed or cancelled request anywhere (409
+`request_closed`).
+
 ## Tests
 
     npm run test:orchestration     # gates, transitions, resume semantics, owner/SLA, chain banding

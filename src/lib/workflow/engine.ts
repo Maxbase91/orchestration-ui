@@ -226,7 +226,9 @@ export async function advanceWorkflow(requestId: string, outcome?: string): Prom
       console.warn('[engine] no workflow instance for', requestId);
       return;
     }
-    if (instance.status === 'completed') return;
+    // Finished either way: a cancelled request's instance must never be moved
+    // on — advancing it is how Cancel used to move a request to its next stage.
+    if (instance.status === 'completed' || instance.status === 'cancelled') return;
 
     const template = await getWorkflowTemplate(instance.templateId);
     if (!template) return;

@@ -11,6 +11,7 @@
 // `default` row (2026-09-25); a category with no row inherits it.
 
 import { useMemo, useState } from 'react';
+import { nextSequentialId } from '@/lib/next-id';
 import { AlertTriangle, Loader2, Plus, Save, Trash2, Wand2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -444,7 +445,8 @@ export function ServiceDescriptionPage() {
                 <Button variant="outline" size="sm"
                   onClick={() => patch({
                     defaultCriteria: [...current.defaultCriteria, {
-                      id: `c${current.defaultCriteria.length + 1}`, label: '', weight: 0,
+                      // Not the count: after a removal it repeated an id the list keys on.
+                      id: nextSequentialId('c', current.defaultCriteria.map((c) => c.id), 0), label: '', weight: 0,
                     }],
                   })}>
                   <Plus className="size-3.5" />

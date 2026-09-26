@@ -8,7 +8,8 @@ export interface WorkflowInstance {
   requestId: string;
   templateId: string;
   currentNodeIds: string[];
-  status: 'running' | 'suspended' | 'completed' | 'error';
+  /** `cancelled`: the request was cancelled; the engine never advances it again. */
+  status: 'running' | 'suspended' | 'completed' | 'error' | 'cancelled';
   variables: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;

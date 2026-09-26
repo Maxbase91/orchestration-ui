@@ -41,7 +41,7 @@ Stages are defined by `RequestStatus` union type (canonical) + `STAGES_BY_CHANNE
 | `invoice` | All |
 | `payment` | All |
 | `completed` | Terminal |
-| `cancelled` / `referred-back` | Exception states |
+| `cancelled` / `referred-back` | Exception states. `cancelled` is reached only by **Cancel request**: on the server, in one transaction, with a required reason in the stage history; undecided approvals become `withdrawn`; the workflow instance becomes `cancelled` and the engine never advances it; the request has no deadline. A `completed` or `cancelled` request cannot be moved to another stage (409 `request_closed`) — `test:workflow-atomic`, `test:request-detail-ui` |
 
 ---
 

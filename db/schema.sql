@@ -346,6 +346,14 @@ CREATE TABLE IF NOT EXISTS suppliers (
 -- If an existing deployment pre-dates the JSONB columns, add them idempotently.
 ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS certifications JSONB DEFAULT '[]';
 ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS spend_history JSONB DEFAULT '[]';
+-- The evidence a supplier's screening and risk-assessment status stand on
+-- (2026-09-26): the screening's reference and the day it was performed, and the
+-- completed risk assessment behind the SRA. "Approve risk" used to write clear
+-- and valid with nothing behind either; lib/procurement/supplier-evidence.ts
+-- now refuses a write without them. Nullable: existing rows predate them.
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS screening_reference TEXT;
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS screening_date TEXT;
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS sra_assessment_id TEXT;
 
 -- Contracts
 CREATE TABLE IF NOT EXISTS contracts (

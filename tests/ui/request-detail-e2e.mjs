@@ -241,6 +241,29 @@ try {
   check('stage names are set in the type scale (≤ 13px), not inherited', stageSize <= 13, `${stageSize}px`);
   check('the current stage says so to a screen reader',
     (await view.getByRole('button', { name: /Risk Assessment: current stage/ }).count()) === 1);
+
+  // Cancel goes to the server, with the reason (2026-09-26). It used to hand
+  // 'cancelled' to the workflow engine, which moved the request on to its next
+  // stage — or did nothing — while the page said it was cancelled.
+  const posted = [];
+  await viewContext.route('**/api/workflow-action', async (route) => {
+    posted.push(JSON.parse(route.request().postData() || '{}'));
+    await route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
+  });
+  await view.getByRole('button', { name: 'More actions' }).click();
+  await view.getByRole('menuitem', { name: 'Cancel request' }).click();
+  const cancelDialog = view.getByRole('dialog');
+  const cancelButton = cancelDialog.getByRole('button', { name: 'Cancel request' });
+  check('Cancel waits for a reason', await cancelButton.isDisabled());
+  check('it says what cancelling does to the approvals waiting',
+    /approvals still waiting are withdrawn/.test(await cancelDialog.innerText()));
+  await cancelDialog.getByLabel('Why is it being cancelled?').fill('Covered by an existing contract');
+  await cancelButton.click();
+  await view.waitForTimeout(800);
+  check('Cancel asks the server to cancel, with the reason',
+    posted.length === 1 && posted[0].requestId === REQUEST_ID && posted[0].newStatus === 'cancelled'
+      && posted[0].action === 'cancelled' && posted[0].notes === 'Covered by an existing contract',
+    JSON.stringify(posted));
   await viewContext.close();
 
   // A failed read is not a missing request.

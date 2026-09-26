@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { useSupplier, useUpdateSupplier } from '@/lib/db/hooks/use-suppliers';
 import { PORTAL_SUPPLIER_ID } from './portal-identity';
 import { toast } from 'sonner';
+import { portalOnboardingStatus } from '@/lib/procurement/supplier-evidence';
 
 interface OnboardingStep {
   id: string;
@@ -106,7 +107,9 @@ export function PortalOnboarding() {
       return;
     }
     try {
-      await updateSupplier.mutateAsync({ id: PORTAL_SUPPLIER_ID, patch: { name: companyName.trim(), duns: duns.trim(), primaryContact: contact.trim(), primaryContactEmail: email.trim(), onboardingStatus: 'in-progress' } });
+      // Starts onboarding, and never takes back a completed one: this set "in
+      // progress" on every save, which then blocked contracting at award.
+      await updateSupplier.mutateAsync({ id: PORTAL_SUPPLIER_ID, patch: { name: companyName.trim(), duns: duns.trim(), primaryContact: contact.trim(), primaryContactEmail: email.trim(), onboardingStatus: portalOnboardingStatus(supplier?.onboardingStatus ?? 'not-started') } });
       toast.success('Onboarding information saved for review.');
     } catch {
       toast.error('Could not save onboarding information. Please try again.');

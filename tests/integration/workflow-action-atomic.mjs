@@ -58,9 +58,16 @@ const requestId = `TEST-WFA-${suffix}`;
 const STALE_DEADLINE = '2020-01-01T00:00:00.000Z';
 const [owner, delegate] = users;
 
+// A second request for Cancel, which closes it for good.
+const cancelId = `TEST-WFC-${suffix}`;
+
 async function cleanup() {
-  await sql.query('DELETE FROM stage_history WHERE request_id = $1', [requestId]);
-  await sql.query('DELETE FROM requests WHERE id = $1', [requestId]);
+  for (const id of [requestId, cancelId]) {
+    await sql.query('DELETE FROM approval_entries WHERE request_id = $1', [id]);
+    await sql.query('DELETE FROM workflow_instances WHERE request_id = $1', [id]);
+    await sql.query('DELETE FROM stage_history WHERE request_id = $1', [id]);
+    await sql.query('DELETE FROM requests WHERE id = $1', [id]);
+  }
 }
 
 await cleanup();
@@ -226,6 +233,83 @@ try {
   const unchanged = await sql.query('SELECT status FROM requests WHERE id = $1', [requestId]);
   check('none of the refusals moved the request', () => {
     if (unchanged[0]?.status !== before[0]?.status) throw new Error('status changed on a refused call');
+  });
+
+  console.log('\nCancel stops the request, and everything waiting on it');
+
+  // Cancel used to hand 'cancelled' to the workflow engine, which had no branch
+  // for it: with an instance the request moved ON to its next stage, without
+  // one nothing happened — and the page said "Request cancelled" either way.
+  await sql.query(
+    `INSERT INTO requests (id, title, description, category, status, priority, value, currency,
+       requestor_id, owner_id, buying_channel, cost_centre, refer_back_count, days_in_stage,
+       is_overdue, created_at, updated_at, workflow_template_id, sla_deadline)
+     VALUES ($1,$2,$3,'services','approval','medium',1000,'EUR',$4,$4,'procurement-led','CC-TEST',0,0,false,$5,$5,'WF-001',$6)`,
+    [cancelId, `Workflow cancel ${suffix}`, 'Automated cancel verification', owner.id, now, STALE_DEADLINE],
+  );
+  await sql.query(
+    'INSERT INTO stage_history (request_id, stage, entered_at, owner_id, action) VALUES ($1, $2, $3, $4, $5)',
+    [cancelId, 'approval', now, owner.id, 'advanced'],
+  );
+  await sql.query(
+    `INSERT INTO approval_entries (id, request_id, approver_id, approver_name, approver_role, status, requested_at)
+     VALUES ($1, $2, $3, $4, 'Approver', 'approved', $5), ($6, $2, $3, $4, 'Approver', 'pending', $5),
+            ($7, $2, $3, $4, 'Approver', 'info-requested', $5)`,
+    [`APR-${cancelId}-1`, cancelId, delegate.id, delegate.name, now, `APR-${cancelId}-2`, `APR-${cancelId}-3`],
+  );
+  await sql.query(
+    `INSERT INTO workflow_instances (request_id, template_id, current_node_ids, status)
+     VALUES ($1, 'WF-001', '["n5"]'::jsonb, 'suspended')`,
+    [cancelId],
+  );
+
+  const noReason = await invoke({ requestId: cancelId, action: 'cancelled', newStatus: 'cancelled' });
+  check('a cancellation without a reason is refused', () => {
+    if (noReason.statusCode !== 400) throw new Error(`status ${noReason.statusCode}`);
+    if (noReason.body?.code !== 'reason_required') throw new Error(`code ${noReason.body?.code}`);
+  });
+
+  const cancelled = await invoke({ requestId: cancelId, action: 'cancelled', newStatus: 'cancelled', notes: 'Covered by an existing contract' });
+  check('the cancellation succeeds', () => {
+    if (cancelled.statusCode !== 200) throw new Error(`status ${cancelled.statusCode}: ${JSON.stringify(cancelled.body)}`);
+  });
+  const [afterCancel] = await sql.query('SELECT status, sla_deadline FROM requests WHERE id = $1', [cancelId]);
+  check('the request is cancelled — not moved on to its next stage', () => {
+    if (afterCancel?.status !== 'cancelled') throw new Error(`status is ${afterCancel?.status}`);
+  });
+  check('a cancelled request has no deadline', () => {
+    if (afterCancel?.sla_deadline != null) throw new Error(`deadline is ${afterCancel.sla_deadline}`);
+  });
+  const cancelHistory = await sql.query(
+    "SELECT notes, completed_at FROM stage_history WHERE request_id = $1 AND stage = 'cancelled'", [cancelId]);
+  check('the reason is in the history, on the cancelled stage', () => {
+    if (cancelHistory[0]?.notes !== 'Covered by an existing contract') throw new Error(JSON.stringify(cancelHistory));
+  });
+  const approvalsAfter = await sql.query(
+    'SELECT id, status, responded_at FROM approval_entries WHERE request_id = $1 ORDER BY id', [cancelId]);
+  check('undecided approvals are withdrawn, and leave every queue', () => {
+    const byId = Object.fromEntries(approvalsAfter.map((a) => [a.id, a]));
+    if (byId[`APR-${cancelId}-2`]?.status !== 'withdrawn') throw new Error(`pending → ${byId[`APR-${cancelId}-2`]?.status}`);
+    if (byId[`APR-${cancelId}-3`]?.status !== 'withdrawn') throw new Error(`info-requested → ${byId[`APR-${cancelId}-3`]?.status}`);
+    if (!byId[`APR-${cancelId}-2`]?.responded_at) throw new Error('no time recorded');
+  });
+  check('a decided approval keeps its decision', () => {
+    if (approvalsAfter.find((a) => a.id === `APR-${cancelId}-1`)?.status !== 'approved') throw new Error('the approval was rewritten');
+  });
+  const [instance] = await sql.query('SELECT status, current_node_ids FROM workflow_instances WHERE request_id = $1', [cancelId]);
+  check('the workflow instance stops, so the engine never advances it', () => {
+    if (instance?.status !== 'cancelled') throw new Error(`instance is ${instance?.status}`);
+    if ((instance?.current_node_ids ?? []).length !== 0) throw new Error('still on a node');
+  });
+
+  const moved = await invoke({ requestId: cancelId, action: 'kanban-move', newStatus: 'sourcing' });
+  check('a cancelled request cannot be moved again', () => {
+    if (moved.statusCode !== 409) throw new Error(`status ${moved.statusCode}`);
+    if (moved.body?.code !== 'request_closed') throw new Error(`code ${moved.body?.code}`);
+  });
+  const [stillCancelled] = await sql.query('SELECT status FROM requests WHERE id = $1', [cancelId]);
+  check('…and is still cancelled', () => {
+    if (stillCancelled?.status !== 'cancelled') throw new Error(`status is ${stillCancelled?.status}`);
   });
 
   console.log('\nErrors do not leak the database');

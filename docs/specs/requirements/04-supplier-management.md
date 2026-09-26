@@ -44,9 +44,11 @@ FR04-11 · Confidence badges normalise 0–1 fractions → 0–100% via `normali
 ## Risk & Compliance
 
 FR04-20 · SRA status: `valid` | `expiring` | `expired` | `not-assessed`.
-FR04-21 · Screening status: `clear` | `flagged` | `pending` | `not-screened`.
+FR04-21 · Screening status: `clear` | `flagged` | `pending`.
 FR04-22 · Risk rating: `low` | `medium` | `high` | `critical` — drives approval chain selection and compliance checks.
 FR04-23 · The Risk & Compliance page (`/suppliers/risk`) aggregates all suppliers requiring attention.
+FR04-24 · **Screening is recorded, never decided** (2026-09-26). On the supplier's Risk & Compliance tab a vendor manager or administrator records a screening result — clear or flagged — with the **reference** of the screening that was performed and the day it was performed (not in the future); the platform runs no screening itself. The reference and date are stored on the supplier and shown beside the status, and the record is audited.
+FR04-25 · **The SRA stands on an assessment.** It is set by linking a completed, in-date risk assessment of this supplier from the register; the SRA takes the assessment's expiry and id, and the link is audited. Neither record touches onboarding. These replaced "Approve risk" and "Refer back", which wrote the SRA valid and screening clear or flagged with nothing behind them (`lib/procurement/supplier-evidence.ts`, `test:supplier-evidence`, `test:supplier-evidence-ui`).
 
 ---
 
@@ -54,7 +56,8 @@ FR04-23 · The Risk & Compliance page (`/suppliers/risk`) aggregates all supplie
 
 FR04-30 · `/suppliers/onboarding` shows a pipeline of suppliers in onboarding with milestone progress.
 FR04-31 · Milestones: Initial Review → Due Diligence → SRA Assessment → Approval → Active.
-FR04-32 · Supplier completes their side via the portal (`/portal/onboarding`).
+FR04-32 · Supplier completes their side via the portal (`/portal/onboarding`); saving starts onboarding and never takes back a completed one.
+FR04-33 · **Completing onboarding** (procurement manager, administrator) needs a clear screening on record, and the completion note — what was checked — is kept in the audit log.
 
 ---
 
@@ -64,7 +67,7 @@ FR04-32 · Supplier completes their side via the portal (`/portal/onboarding`).
 suppliers
   id, name, country, riskRating, tier, duns, address
   primaryContact { name, email, phone }
-  sraStatus, sraExpiryDate, screeningStatus
+  sraStatus, sraExpiryDate, sraAssessmentId, screeningStatus, screeningReference, screeningDate
   activeContracts, totalSpend12m
   performanceScore, onboardingStatus
   categories[], spendHistory[]

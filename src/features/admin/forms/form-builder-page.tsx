@@ -1,4 +1,9 @@
+// Admin → Form Builder: the evidence each workflow stage collects. A form is
+// placed on the stages it appears at, with conditions from the routing-rule
+// vocabulary and an optional Blocking switch the stage gate honours; the
+// diagnostics say when a form can never be asked for (admin-map.md).
 import { useState, useMemo } from 'react';
+import { nextSequentialId } from '@/lib/next-id';
 import {
   Plus,
   GripVertical,
@@ -258,7 +263,9 @@ export function FormBuilderPage() {
 
   const addNewForm = () => {
     const newForm: FormTemplate = {
-      id: `FORM-${String(forms.length + 1).padStart(3, '0')}`,
+      // One past the highest id in use: the count reused a deleted form's id
+      // and the upsert then saved over a live form.
+      id: nextSequentialId('FORM-', forms.map((f) => f.id)),
       name: 'New Form',
       description: '',
       status: 'draft',

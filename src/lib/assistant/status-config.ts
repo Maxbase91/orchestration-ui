@@ -205,6 +205,12 @@ const DEFAULTS: Record<StatusObject, Row[]> = {
     ['sraStatus', 'Risk assessment', 'summary'],
     ['screeningStatus', 'Screening', 'summary'],
     ['sraExpiryDate', 'Risk assessment valid until', 'ask'],
+    // The evidence behind the two statuses above (supplier-evidence.ts): when the
+    // screening was performed, the reference it was recorded against, and the
+    // assessment the SRA stands on. The reference is procurement-only.
+    ['screeningDate', 'Screened on', 'ask'],
+    ['screeningReference', 'Screening reference', 'ask', 'procurement'],
+    ['sraAssessmentId', 'Risk assessment record', 'ask', 'procurement'],
     ['riskRating', 'Risk rating', 'ask'],
     ['tier', 'Tier', 'ask'],
     ['country', 'Country', 'ask'],

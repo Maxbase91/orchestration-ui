@@ -17,6 +17,8 @@ import { useFormTemplates } from '@/lib/db/hooks/use-form-templates';
 import { useFormSubmissions } from '@/lib/db/hooks/use-form-submissions';
 import { useRequestSupplierCandidates } from '@/lib/db/hooks/use-request-supplier-candidates';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { apiWorkflowAction } from '@/lib/api';
 import { Label } from '@/components/ui/label';
 import type { ProcurementRequest } from '@/data/types';
 import { useCreatePurchaseOrder } from '@/lib/db/hooks/use-purchase-orders';
@@ -72,6 +74,8 @@ export function ActionButtons({ request }: ActionButtonsProps) {
   const [reassignOpen, setReassignOpen] = useState(false);
   const [escalateOpen, setEscalateOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<'approve' | 'reject' | 'cancel' | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelling, setCancelling] = useState(false);
   const [poDialogOpen, setPoDialogOpen] = useState(false);
   const [poDeliveryDate, setPoDeliveryDate] = useState('');
   const [eventDialogOpen, setEventDialogOpen] = useState(false);
@@ -219,13 +223,40 @@ export function ActionButtons({ request }: ActionButtonsProps) {
   /** A stage-specific action is on offer, so Approve is not this page's first step. */
   const hasStageAction = showGateAction || isSourcingStage || isPOStage;
 
+  /**
+   * Cancel the request — on the server, in one transaction: the request stops,
+   * its undecided approvals are withdrawn and its workflow instance ends
+   * (api/workflow-action.ts). It used to hand 'cancelled' to the workflow
+   * engine, which had no branch for it: the request moved on to its next stage,
+   * or nothing happened at all, and either way the page said it was cancelled.
+   */
+  async function handleCancel() {
+    const reason = cancelReason.trim();
+    if (!reason) return;
+    setCancelling(true);
+    try {
+      await apiWorkflowAction({ requestId: request.id, action: 'cancelled', newStatus: 'cancelled', notes: reason });
+      invalidateRequestViews(queryClient);
+      toast.success(`${request.id} is cancelled. Its open approvals were withdrawn.`);
+      setConfirmAction(null);
+      setCancelReason('');
+    } catch (err) {
+      toast.error(`Could not cancel the request: ${err instanceof Error ? err.message : 'please try again.'}`);
+    } finally {
+      setCancelling(false);
+    }
+  }
+
   async function handleConfirm() {
     if (!confirmAction) return;
+    if (confirmAction === 'cancel') {
+      await handleCancel();
+      return;
+    }
 
     const actionMap = {
       approve: { newStatus: 'sourcing', action: 'approved', successMsg: 'Request approved successfully' },
       reject: { newStatus: 'cancelled', action: 'rejected', successMsg: 'Request rejected' },
-      cancel: { newStatus: 'cancelled', action: 'cancelled', successMsg: 'Request cancelled' },
     } as const;
 
     const config = actionMap[confirmAction];
@@ -253,9 +284,9 @@ export function ActionButtons({ request }: ActionButtonsProps) {
         });
       }
 
-      // For rejections and cancellations always advance the engine immediately.
-      // For approvals: only advance when ALL parallel approval entries are done.
-      if (confirmAction === 'reject' || confirmAction === 'cancel') {
+      // A rejection advances the engine immediately (its template's Rejected
+      // branch). An approval advances only when ALL approval entries are done.
+      if (confirmAction === 'reject') {
         await advanceWorkflow(request.id, config.action);
       } else if (confirmAction === 'approve' && isApprovalStage) {
         const allDone = await areAllApprovalsComplete(request.id);
@@ -295,10 +326,8 @@ export function ActionButtons({ request }: ActionButtonsProps) {
             ? 'Your approval is recorded. One more approver to go.'
             : `Your approval is recorded. ${outstanding} approvers still to go.`);
         }
-      } else if (confirmAction === 'reject') {
-        toast.error(config.successMsg);
       } else {
-        toast.warning(config.successMsg);
+        toast.error(config.successMsg);
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Action failed';
@@ -614,7 +643,7 @@ export function ActionButtons({ request }: ActionButtonsProps) {
       <ReassignDialog open={reassignOpen} onOpenChange={setReassignOpen} request={request} />
       <EscalateDialog open={escalateOpen} onOpenChange={setEscalateOpen} request={request} />
 
-      <Dialog open={confirmAction !== null} onOpenChange={() => setConfirmAction(null)}>
+      <Dialog open={confirmAction !== null} onOpenChange={() => { setConfirmAction(null); setCancelReason(''); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
@@ -625,18 +654,32 @@ export function ActionButtons({ request }: ActionButtonsProps) {
             <DialogDescription>
               {confirmAction === 'approve' && `Are you sure you want to approve ${request.id}?`}
               {confirmAction === 'reject' && `Are you sure you want to reject ${request.id}? This action cannot be undone.`}
-              {confirmAction === 'cancel' && `Are you sure you want to cancel ${request.id}? This action cannot be undone.`}
+              {confirmAction === 'cancel' && `${request.id} stops here: approvals still waiting are withdrawn, and nothing moves it on. This cannot be undone.`}
             </DialogDescription>
           </DialogHeader>
+          {/* The reason is the record of the decision — it goes into the
+              request's history, where the requester and every approver read it. */}
+          {confirmAction === 'cancel' && (
+            <div className="space-y-1.5">
+              <Label htmlFor="cancel-reason">Why is it being cancelled?</Label>
+              <Textarea
+                id="cancel-reason"
+                value={cancelReason}
+                onChange={(event) => setCancelReason(event.target.value)}
+                placeholder="e.g. the need was met by an existing contract"
+              />
+            </div>
+          )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmAction(null)}>
+            <Button variant="outline" onClick={() => { setConfirmAction(null); setCancelReason(''); }}>
               Go Back
             </Button>
             <Button
               variant={confirmAction === 'approve' ? 'default' : 'destructive'}
               onClick={handleConfirm}
+              disabled={confirmAction === 'cancel' && (!cancelReason.trim() || cancelling)}
             >
-              Confirm
+              {confirmAction === 'cancel' ? (cancelling ? 'Cancelling…' : 'Cancel request') : 'Confirm'}
             </Button>
           </DialogFooter>
         </DialogContent>

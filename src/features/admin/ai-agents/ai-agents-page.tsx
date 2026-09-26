@@ -3,6 +3,7 @@
 // decisions made in the front door's intake and determination steps.
 
 import { useState, useCallback } from 'react';
+import { nextSequentialId } from '@/lib/next-id';
 import { ArrowLeft, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -57,7 +58,9 @@ export function AIAgentsPage() {
 
   const handleAddAgent = useCallback(() => {
     const newAgent: AIAgent = {
-      id: `AI-${String(agents.length + 1).padStart(3, '0')}`,
+      // One past the highest id in use, not the count: with AI-003 and AI-006
+      // gone, the count would hand out AI-007 — Status Answers — on the second Add.
+      id: nextSequentialId('AI-', agents.map((a) => a.id)),
       name: 'New Agent',
       type: 'classification',
       status: 'draft',
@@ -67,7 +70,7 @@ export function AIAgentsPage() {
     // `prev` is null until the first edit — fall back to what is on screen.
     setEditedAgents((prev) => [...(prev ?? serverAgents), newAgent]);
     setSelectedAgent(newAgent);
-  }, [agents.length, serverAgents]);
+  }, [agents, serverAgents]);
 
   if (selectedAgent) {
     return (

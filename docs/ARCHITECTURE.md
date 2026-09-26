@@ -264,8 +264,9 @@ the defect it catches. The catalogue of suites, and what each covers, is the
 - **Workflow transitions, the sourcing award write-back and approval
   completion** are not yet all transactional and server-owned (R1 hardening,
   [the roadmap](roadmap/R1_BACKLOG_FIT_GAP.md#r1-hardening)). `api/workflow-action.ts`
-  checks that the target stage exists, not that this request may go there, so
-  a Kanban drag can move a request past its gates, forms and approvals.
+  checks that the target stage exists and that the request is not closed, not
+  that this request may go there, so a Kanban drag can move a request past its
+  gates, forms and approvals. Cancel is the one move it owns end to end.
 - **Intake submit does not decide again.** `intake-submit` checks the buying
   channel against the channel vocabulary, recomputes the preferred-supplier
   override and the submission gaps, and derives the first stage from the stored

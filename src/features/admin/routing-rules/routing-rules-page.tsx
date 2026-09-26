@@ -1,3 +1,7 @@
+// Admin → Routing Rules: which buying channel a demand no catalogue item or
+// contract covers takes, and optionally the approval chain. The list, the
+// editor and a test panel that runs the production evaluator, with the rules
+// that can never fire and the demand no rule reaches flagged above them.
 import { useState } from 'react';
 import { PageHeader } from '@/components/shared/page-header';
 import { useRoutingRules, useDeleteRoutingRule } from '@/lib/db/hooks/use-routing-rules';
@@ -12,15 +16,9 @@ import { AlertTriangle, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ConfirmDeleteDialog } from '@/components/shared/confirm-delete-dialog';
 import { toast } from 'sonner';
+import { nextSequentialId } from '@/lib/next-id';
 
 /** The next free RR-nnn, so a deletion cannot make a new rule reuse an id. */
-function nextRuleId(existing: { id: string }[]): string {
-  const highest = existing.reduce((max, rule) => {
-    const n = Number(/^RR-(\d+)$/.exec(rule.id)?.[1] ?? 0);
-    return Number.isFinite(n) && n > max ? n : max;
-  }, 0);
-  return `RR-${String(highest + 1).padStart(3, '0')}`;
-}
 
 export function RoutingRulesPage() {
   const { data: serverRules = [] } = useRoutingRules();
@@ -76,7 +74,7 @@ export function RoutingRulesPage() {
       // Highest existing number + 1, not the count. `rules.length + 1` reused
       // an id after any deletion, and saveRoutingRule upserts on id — so a new
       // rule silently overwrote a live one.
-      id: nextRuleId(rules),
+      id: nextSequentialId('RR-', rules.map((r) => r.id)),
       name: 'New Rule',
       status: 'draft',
       conditions: [{ field: 'value', operator: 'greater_than', value: '' }],

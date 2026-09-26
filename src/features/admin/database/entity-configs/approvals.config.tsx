@@ -25,7 +25,9 @@ const columns: Column<ApprovalRow>[] = [
               ? 'bg-stop-soft text-stop'
               : a.status === 'delegated'
                 ? 'bg-accent-soft text-accent-solid'
-                : 'bg-warn-soft text-warn'
+                : a.status === 'withdrawn'
+                  ? 'bg-idle-soft text-ink-2'
+                  : 'bg-warn-soft text-warn'
         }`}
       >
         {a.status}
@@ -67,6 +69,8 @@ export const approvalsConfig: EntityConfig<'approval'> = {
         { value: 'rejected', label: 'Rejected' },
         { value: 'delegated', label: 'Delegated' },
         { value: 'info-requested', label: 'Info Requested' },
+        // Written when the request is cancelled before the step is decided.
+        { value: 'withdrawn', label: 'Withdrawn' },
       ],
     },
     { key: 'requestedAt', label: 'Requested At (ISO)', type: 'text' },
@@ -84,6 +88,8 @@ export const approvalsConfig: EntityConfig<'approval'> = {
         { value: 'rejected', label: 'Rejected' },
         { value: 'delegated', label: 'Delegated' },
         { value: 'info-requested', label: 'Info Requested' },
+        // Written when the request is cancelled before the step is decided.
+        { value: 'withdrawn', label: 'Withdrawn' },
       ],
       predicate: (a, v) => a.status === v,
     },

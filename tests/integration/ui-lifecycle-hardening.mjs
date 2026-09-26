@@ -27,8 +27,11 @@ const checks = [
   ['Workflow actions are role-gated', actionButtons.includes('roleCanAdvanceStage') && actionButtons.includes('canManageRequest')],
   ['Invoice queue exposes operational transitions', invoiceQueue.includes('useUpdateInvoice') && invoiceQueue.includes('Release payment') && invoiceQueue.includes('Variance')],
   ['Supplier onboarding exposes a persisted completion form', portalOnboarding.includes('useUpdateSupplier') && portalOnboarding.includes('onboarding-duns') && portalOnboarding.includes('Save for review')],
-  ['Vendor-manager risk action requires a rationale', profileRisk.includes('recordRiskDecision') && profileRisk.includes('Risk decision rationale')],
-  ['Procurement onboarding completion requires a note', onboardingPipeline.includes('Completion note') && onboardingPipeline.includes("onboardingStatus: 'completed'")],
+  // Evidence, not verdicts (2026-09-26): "Approve risk" wrote clear and valid
+  // on nothing; the tab now records a screening by its reference and links an
+  // assessment (supplier-evidence.ts, test:supplier-evidence).
+  ['Vendor-manager records screening and SRA evidence', profileRisk.includes('planScreeningRecord') && profileRisk.includes('planAssessmentLink') && profileRisk.includes('Record screening result')],
+  ['Procurement onboarding completion requires a clear screening and a note', onboardingPipeline.includes('Completion note') && onboardingPipeline.includes('planOnboardingCompletion')],
   ['Terminal status without history is shown as intake', lifecycleStepper.includes('inconsistentTerminalState') && lifecycleStepper.includes('shown as intake until the record is repaired')],
   // A PO names a supplier other systems act on. Create PO fell back to
   // SUP-001 — a real supplier nobody chose — with the id as its name, and to

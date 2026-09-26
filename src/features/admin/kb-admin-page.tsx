@@ -10,6 +10,7 @@
 // rather than shown to a requester as a raw token.
 
 import { useMemo, useRef, useState } from 'react';
+import { nextSequentialId } from '@/lib/next-id';
 import { Plus, Pencil, Trash2, X, Save, BookOpen, ChevronDown, ChevronUp, Link2, AlertTriangle } from 'lucide-react';
 import type { KBEntry } from '@/lib/db/knowledge-base';
 import {
@@ -61,8 +62,7 @@ function LinkBadges({ links }: { links: KnowledgeLink[] }) {
  * would have replaced that entry without a word.
  */
 function nextId(existingIds: readonly string[]): string {
-  const highest = Math.max(0, ...existingIds.map((id) => Number(/^KB-(\d+)$/.exec(id)?.[1] ?? 0)));
-  return `KB-${String(highest + 1).padStart(3, '0')}`;
+  return nextSequentialId('KB-', existingIds);
 }
 
 function EntryForm({

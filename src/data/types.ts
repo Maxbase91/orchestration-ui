@@ -37,7 +37,12 @@ export const KNOWN_CHANNELS = [
   'procurement-led', 'business-led', 'framework-call-off', 'catalogue',
 ] as const;
 export type RiskRating = 'low' | 'medium' | 'high' | 'critical';
-export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'delegated' | 'info-requested';
+/**
+ * `withdrawn`: the request was cancelled before this step was decided. Not
+ * `rejected` — nobody rejected it — and no longer pending, so it leaves every
+ * queue (api/workflow-action.ts writes it when a request is cancelled).
+ */
+export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'delegated' | 'info-requested' | 'withdrawn';
 
 export interface User {
   id: string;
@@ -212,7 +217,13 @@ export interface Supplier {
   onboardingStatus: 'completed' | 'in-progress' | 'not-started';
   sraStatus: 'valid' | 'expiring' | 'expired' | 'not-assessed';
   sraExpiryDate?: string;
+  /** The completed risk assessment the SRA status stands on (lib/procurement/supplier-evidence.ts). */
+  sraAssessmentId?: string;
   screeningStatus: 'clear' | 'flagged' | 'pending';
+  /** Where the recorded screening ran — the provider and its case or report number. */
+  screeningReference?: string;
+  /** The day that screening was performed (ISO date). */
+  screeningDate?: string;
   categories: string[];
   tier: 1 | 2 | 3;
   /** On the preferred-supplier list (PSL). Soft preference, not a hard gate. */

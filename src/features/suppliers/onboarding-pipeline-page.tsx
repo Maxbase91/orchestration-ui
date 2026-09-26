@@ -1,3 +1,6 @@
+// Suppliers by onboarding status — not started, in progress, completed — with
+// Complete for the roles that sign onboarding off, on a clear screening and a
+// note that is kept (lib/procurement/supplier-evidence.ts).
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/shared/page-header';
@@ -9,6 +12,8 @@ import { useAuthStore } from '@/stores/auth-store';
 import { useUpdateSupplier } from '@/lib/db/hooks/use-suppliers';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { useCreateAuditEntry } from '@/lib/db/hooks/use-audit-entries';
+import { onboardingCompletionBlock, planOnboardingCompletion } from '@/lib/procurement/supplier-evidence';
 
 const COLUMNS: { key: Supplier['onboardingStatus']; label: string; color: string }[] = [
   { key: 'not-started', label: 'Not Started', color: 'border-t-gray-400' },
@@ -26,11 +31,22 @@ const COLUMNS: { key: Supplier['onboardingStatus']; label: string; color: string
 // spot. It returns when the data does.
 function SupplierCard({ supplier, onClick, canComplete }: { supplier: Supplier; onClick: () => void; canComplete: boolean }) {
   const updateSupplier = useUpdateSupplier();
+  const createAudit = useCreateAuditEntry();
+  const currentUser = useAuthStore((state) => state.currentUser);
   const [reason, setReason] = useState('');
+  // Completing onboarding needs a clear screening on record, and its note is
+  // kept in the audit log with who and when — it asked for a note and threw it
+  // away, and completed suppliers nobody had screened (supplier-evidence.ts).
+  const blocked = onboardingCompletionBlock(supplier);
   const complete = async () => {
-    if (!reason.trim()) { toast.error('Add a completion note before advancing onboarding.'); return; }
+    const plan = planOnboardingCompletion(supplier, reason);
+    if (!plan.ok) { toast.error(plan.error); return; }
     try {
-      await updateSupplier.mutateAsync({ id: supplier.id, patch: { onboardingStatus: 'completed' } });
+      await updateSupplier.mutateAsync({ id: supplier.id, patch: plan.patch });
+      await createAudit.mutateAsync({
+        timestamp: new Date().toISOString(), userId: currentUser.id, userName: currentUser.name,
+        action: plan.audit.action, objectType: 'supplier', objectId: supplier.id, detail: plan.audit.detail, type: 'human',
+      });
       toast.success(`${supplier.name} marked ready for use.`);
       setReason('');
     } catch { toast.error('Could not update onboarding status.'); }
@@ -60,12 +76,14 @@ function SupplierCard({ supplier, onClick, canComplete }: { supplier: Supplier; 
           <span className="text-[10px] text-muted-foreground">+{supplier.categories.length - 2}</span>
         )}
       </div>
-      {canComplete && supplier.onboardingStatus === 'in-progress' && (
+      {canComplete && supplier.onboardingStatus === 'in-progress' && (blocked ? (
+        <p className="mt-3 text-xs text-muted-foreground">{blocked} — record it on the supplier&apos;s Risk tab.</p>
+      ) : (
         <div className="mt-3 flex items-center gap-2" onClick={(event) => event.stopPropagation()}>
-          <input aria-label={`Completion note for ${supplier.name}`} value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Completion note" className="min-w-0 flex-1 rounded border px-2 py-1 text-xs" />
-          <Button size="sm" onClick={() => void complete()} disabled={updateSupplier.isPending}>Complete</Button>
+          <input aria-label={`Completion note for ${supplier.name}`} value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Completion note — what was checked" className="min-w-0 flex-1 rounded border px-2 py-1 text-xs" />
+          <Button size="sm" onClick={() => void complete()} disabled={updateSupplier.isPending || !reason.trim()}>Complete</Button>
         </div>
-      )}
+      ))}
     </div>
   );
 }

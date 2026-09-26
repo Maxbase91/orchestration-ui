@@ -777,7 +777,10 @@ export function mapDbToSupplier(row: DbRecord): Supplier {
     ...(row.created_from_request_id ? { createdFromRequestId: row.created_from_request_id as string } : {}),
     sraStatus: (row.sra_status ?? row.sraStatus ?? 'not-assessed') as Supplier['sraStatus'],
     sraExpiryDate: (row.sra_expiry_date ?? row.sraExpiryDate) as string | undefined,
+    sraAssessmentId: (row.sra_assessment_id ?? row.sraAssessmentId ?? undefined) as string | undefined,
     screeningStatus: (row.screening_status ?? row.screeningStatus ?? 'pending') as Supplier['screeningStatus'],
+    screeningReference: (row.screening_reference ?? row.screeningReference ?? undefined) as string | undefined,
+    screeningDate: (row.screening_date ?? row.screeningDate ?? undefined) as string | undefined,
     categories: (row.categories ?? []) as string[],
     tier: (row.tier ?? 3) as Supplier['tier'],
     preferred: (row.preferred ?? row.is_preferred) as boolean | undefined,
@@ -806,6 +809,9 @@ export function mapSupplierToDb(s: Partial<Supplier>): DbRecord {
   if (s.sraStatus !== undefined) out.sra_status = s.sraStatus;
   if (s.sraExpiryDate !== undefined) out.sra_expiry_date = s.sraExpiryDate;
   if (s.screeningStatus !== undefined) out.screening_status = s.screeningStatus;
+  if (s.screeningReference !== undefined) out.screening_reference = s.screeningReference;
+  if (s.screeningDate !== undefined) out.screening_date = s.screeningDate;
+  if (s.sraAssessmentId !== undefined) out.sra_assessment_id = s.sraAssessmentId;
   if (s.categories !== undefined) out.categories = s.categories;
   if (s.tier !== undefined) out.tier = s.tier;
   if (s.duns !== undefined) out.duns = s.duns;

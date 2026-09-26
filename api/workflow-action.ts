@@ -6,6 +6,9 @@
 // never read, so a failure after the status update returned 200 with the
 // request sitting in a new stage and no record of how it got there — the audit
 // trail silently diverging from the lifecycle it is supposed to explain.
+//
+// Cancelling is one of these moves, and closes what waits on the request —
+// its undecided approvals and its workflow instance — in the same transaction.
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getNeonClient, queryRows } from './_neon.js';
 import { nodeIdForStatus } from '../src/lib/workflow/node-config.js';
@@ -34,6 +37,13 @@ const REQUEST_STATUSES = new Set([
   'referred-back',
 ]);
 
+/**
+ * Stages a request does not leave. A completed or cancelled request is closed:
+ * nothing here moves it on, whatever the caller asks — a drag on the board, a
+ * replayed call, a refer-back of a request that is over.
+ */
+const CLOSED_STATUSES = new Set(['completed', 'cancelled']);
+
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed', code: 'method_not_allowed' });
@@ -53,6 +63,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     res.status(400).json({ error: 'That is not a stage a request can be in.', code: 'unknown_stage' });
     return;
   }
+  // Cancelling ends the request for everyone waiting on it, so it says why.
+  // The reason is the stage history's note — the record of the decision.
+  const cancelling = newStatus.trim() === 'cancelled';
+  if (cancelling && (typeof notes !== 'string' || !notes.trim())) {
+    res.status(400).json({ error: 'Say why the request is being cancelled.', code: 'reason_required' });
+    return;
+  }
 
   try {
     const sql = getNeonClient();
@@ -70,6 +87,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     }
 
     const oldStatus = String(existing[0].status);
+    if (CLOSED_STATUSES.has(oldStatus) && oldStatus !== newStatus) {
+      res.status(409).json({ error: 'This request is closed, so it cannot move to another stage.', code: 'request_closed' });
+      return;
+    }
     const now = new Date().toISOString();
     const historyOwner = (typeof ownerId === 'string' && ownerId) || existing[0].owner_id || null;
     const noteText = typeof notes === 'string' ? notes : null;
@@ -136,6 +157,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       queries.push(sql.query(
         'INSERT INTO stage_history (request_id, stage, entered_at, owner_id, action, notes) VALUES ($1, $2, $3, $4, $5, $6)',
         [requestId, newStatus, now, historyOwner, action, noteText],
+      ));
+    }
+
+    // Cancelling, in the same transaction. Cancel used to hand the outcome to
+    // the workflow engine, which had no branch for it: with an instance it took
+    // the stage's default edge and moved the request ON, and without one it did
+    // nothing while the page said "Request cancelled". Now the request stops
+    // here, and so does everything waiting on it: undecided approvals are
+    // withdrawn — not rejected, which nobody did — so they leave every queue,
+    // and the workflow instance stops, so the engine never advances it again.
+    if (cancelling && oldStatus !== 'cancelled') {
+      queries.push(sql.query(
+        `UPDATE approval_entries SET status = 'withdrawn', responded_at = $1
+         WHERE request_id = $2 AND status IN ('pending', 'info-requested', 'delegated')`,
+        [now, requestId],
+      ));
+      queries.push(sql.query(
+        `UPDATE workflow_instances SET status = 'cancelled', current_node_ids = '[]'::jsonb, updated_at = $1
+         WHERE request_id = $2 AND status <> 'completed'`,
+        [now, requestId],
       ));
     }
 

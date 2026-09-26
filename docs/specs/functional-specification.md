@@ -503,7 +503,7 @@ can ask for more information instead; My Approvals also offers *Delegate*.
 
 **Known defect:** the header's *Reject* asks for no reason. It marks the approval rejected; with a
 workflow instance the template's *Rejected* branch sends the request to Referred Back, and without
-one the request does not move. Nothing sets a request to *Cancelled*.
+one the request does not move. Only *Cancel request* sets a request to *Cancelled*.
 
 **More:**
 
@@ -518,10 +518,12 @@ one the request does not move. Nothing sets a request to *Cancelled*.
   reason. It adds an *escalated* event to the stage and a notification to the shared feed (§15.1),
   so no one in particular is told; *Critical* also marks the request urgent. Same roles as
   Reassign.
-- **Cancel request** — a confirmation only; same roles as Refer back. **Known defect:** it does not
-  cancel. Without a workflow instance nothing changes, though the page says the request was
-  cancelled; with one, no branch handles a cancellation, so the engine follows the stage's
-  default branch and can move the request on to its next stage.
+- **Cancel request** — asks why, and the reason goes into the request's history; same roles as
+  Refer back. The request stops, on the server and in one step: the approvals still waiting are
+  **withdrawn** (not rejected — nobody rejected them — and gone from every queue), its workflow
+  ends so nothing moves it on, and it has no deadline. A cancelled or completed request cannot be
+  moved to another stage by anything — a drag on the board included (fixed 2026-09-26: Cancel
+  used to move the request on to its next stage, or do nothing, while saying it was cancelled).
 
 **What is recorded.** Stage changes, reassignments and escalations are written to the request's
 stage history — when, the stage, its owner, the action and any reason — and shown on the Activity
@@ -662,12 +664,23 @@ names one the directory lacks in New request (§4.2).
 
 Tabs for the overview, contracts (not linked; a banner naming any in its renewal window), risk and compliance (supplier risk assessment (SRA) and screening status, certifications),
 spend by year, performance, documents and activity. A requester opens it read-only from their
-request. The Vendor Manager and Admin can **Approve risk** or **Refer back**, each with a
-rationale.
+request.
 
-**Known defect:** *Approve risk* records the SRA as valid and screening as clear, and *Refer back*
-records screening as flagged, though nothing was assessed or screened; the rationale is not saved;
-and both set a *Completed* onboarding back to *In progress*, which blocks contracting (§7.7).
+On the Risk & Compliance tab the Vendor Manager and Admin record **evidence**, never a verdict on
+nothing (decided 2026-09-26):
+
+- **Record screening result** — *Clear* or *Flagged*, with the **reference** of the screening that
+  was performed (the provider and its case or report number) and the day it was performed, which
+  cannot be in the future. The platform does not screen suppliers itself, so a result is only
+  recorded against the screening it came from; the reference and date show beside the status.
+- **Link a risk assessment** — a *completed*, *in-date* risk assessment of this supplier from the
+  register; the SRA becomes valid until the assessment's own expiry, and names it. With none in
+  the register, the tab says where one is completed.
+
+Neither touches onboarding, and each is written to the audit log with who, when and on what
+(§14.8). They replaced *Approve risk* and *Refer back*, which wrote the SRA valid and screening
+clear or flagged with nothing assessed or screened, threw the rationale away, and set a completed
+supplier's onboarding back to in progress.
 
 **A demonstration:** the *AI Summary* (a sentence assembled from the record), spend by category
 (fixed shares), the performance sub-scores and trend (derived from one stored score), documents
@@ -676,9 +689,9 @@ and both set a *Completed* onboarding back to *In progress*, which blocks contra
 ### 7.3 Onboarding Pipeline
 
 Suppliers in three columns by onboarding status — Not Started, In Progress, Completed. The
-Procurement Manager and Admin can **Complete** an in-progress supplier.
-
-**Known defect:** the completion note it requires is not saved.
+Procurement Manager and Admin can **Complete** an in-progress supplier **with a clear screening on
+record** (§7.2) — otherwise the card says what it needs — and a completion note saying what was
+checked, which is kept in the audit log (§14.8).
 
 ### 7.4 Risk & Compliance
 
@@ -700,10 +713,9 @@ fixed supplier.
   submitted and changed until the deadline (§8.1).
 - **Invoices** — **Submit Invoice** records an invoice as *Submitted* and *Unmatched*, for the
   supplier of the purchase order it cites, if it cites one (§10.2).
-- **Onboarding** — the company details and contact, saved with onboarding set to *In progress*.
+- **Onboarding** — the company details and contact; saving starts onboarding (*In progress*) and
+  leaves a completed one completed.
 - **Profile** — the record's details, read-only.
-
-**Known defect:** saving the onboarding form sets a *Completed* supplier back to *In progress*.
 
 **A demonstration:** the dashboard (only its recent invoices are real), the profile's bank details,
 the six-step onboarding list, documents (upload and download disabled) and messages (Send does
@@ -1097,8 +1109,8 @@ is submitted (§4.6, §6.4).
 **The page** has three panels:
 
 - **Forms**, grouped by form category (Risk, Procurement, Compliance, Operations), each with its
-  name, status, the stages it appears on and its number of fields. *Add Form* starts a draft;
-  *Delete form* asks first.
+  name, status, the stages it appears on and its number of fields. *Add Form* starts a draft,
+  numbered one past the highest form id in use; *Delete form* asks first.
 - **The form**: name, description, status (active, draft or disabled), category, the stages it
   appears on (chosen from the stages the channels run), its conditions — the routing-rule
   vocabulary, which can name a Decisioning threshold, all of which must hold — and **Blocking**. A
@@ -1113,10 +1125,6 @@ is submitted (§4.6, §6.4).
   follows the edits.
 
 *Save Form* writes it. The version shown is a label that saving does not change.
-
-**Known defect:** *Add Form* numbers the new form from the count of forms, so after any deletion
-it reuses an existing form's id — today FORM-006 — and the edits and the save go to that existing
-form.
 
 ### 14.3 Workflow Designer
 
@@ -1251,7 +1259,9 @@ those, and it refreshes every 30 seconds.
 - work on a support ticket — assignment, status, a reply or an internal note, a link added or
   removed (§18.3);
 - a record created, edited or deleted in Admin → Database (§14.17);
-- an action confirmed in the assistant, marked as the assistant's (§3.5).
+- an action confirmed in the assistant, marked as the assistant's (§3.5);
+- a supplier's screening result recorded, a risk assessment linked as its SRA, and onboarding
+  completed — with the reference, the assessment or the completion note (§7.2, §7.3).
 
 Nothing else does: submitting a request, a stage change (kept in the request's stage history,
 §4.6), a comment, a notification, a classification or a change to any other Admin configuration
@@ -1391,7 +1401,7 @@ urgent. Categories are configured (§14.10).
 | **Workflow template** | A channel's lifecycle (§14.3): the channels it claims, its stages (owner role, deadline in working days, gate, purpose, what the requester does), the branches and their conditions, and the requester wording |
 | **Workflow instance, stage history, stage detail** | Where a request is in its template; each stage it entered and left, with owner, action and notes; and per stage the handler, decision, forms completed, documents added and deadline status |
 | **Approval chain, role** | A chain's steps and value band, and which system role acts as each role (§14.4) |
-| **Approval** | One step for one request: its order, role, the person asked or any holder of the role, status (pending, approved, rejected, delegated, information requested), dates, comments, the delegate, and who actually decided |
+| **Approval** | One step for one request: its order, role, the person asked or any holder of the role, status (pending, approved, rejected, delegated, information requested, or withdrawn when the request was cancelled first), dates, comments, the delegate, and who actually decided |
 | **Form template, form submission** | A stage's form (§14.2); the answers given to it for a request at a stage, and by whom |
 | **Comment** | On a request, optionally at a stage: internal or not, @-mentions, and who has read it |
 
@@ -1399,7 +1409,7 @@ urgent. Categories are configured (§14.10).
 
 | Record | What it holds, and what it links to |
 |---|---|
-| **Supplier** | Name, country, address and DUNS number, risk rating (low, medium, high, critical), onboarding, screening and risk-assessment status with its expiry, the categories it serves, tier, primary contact, certifications, spend history and performance score; whether it is prospective, and the request that brought it in |
+| **Supplier** | Name, country, address and DUNS number, risk rating (low, medium, high, critical), onboarding, screening status with the screening's reference and date, risk-assessment status with its expiry and the assessment it stands on, the categories it serves, tier, primary contact, certifications, spend history and performance score; whether it is prospective, and the request that brought it in |
 | **Risk assessment** | About a supplier or a contract: category (security, financial, operational, data privacy, compliance, ESG), risk level and score, status, assessor, validity, summary, mitigations, the data class it covers, whether it can be reused, and the requests it serves |
 | **Sourcing event, response** | An event raised from a request — type, status, budget, dates, requirements and evaluation criteria, the awarded supplier — and each invited supplier's response: status, price, lead time, scores, whether shortlisted, whether awarded (one per event) |
 | **Contract** | Supplier, value, dates, the recorded status (draft, under review, active, expiring, expired, terminated) — shown as read from the end date against the renewal window (§9) — owner, department, category, renewal date, utilisation |
