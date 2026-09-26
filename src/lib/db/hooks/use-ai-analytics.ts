@@ -11,7 +11,7 @@
 //  * No cache and no refetch: the data was as old as the moment the component
 //    mounted, and navigating away and back re-read everything.
 //
-// Everything else in `src/lib/db` goes through hooks (see CLAUDE.md). This is
+// Everything else in `src/lib/db` goes through hooks (see AGENTS.md). This is
 // that page joining them.
 import { useQuery } from '@tanstack/react-query';
 import { listAllConversations } from '../assistant-conversations';

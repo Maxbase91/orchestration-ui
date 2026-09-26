@@ -98,8 +98,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     const value = Number(request.value ?? 0);
     if (!Number.isFinite(value) || value < 0) throw new IntakeError('validation_error', 422, 'Estimated value must be zero or greater.', { value: 'Enter a valid amount' });
     const deliveryDate = optionalIsoDate(request.deliveryDate, 'deliveryDate');
-    // The same list the Details step gates on, so the requester is asked for
-    // these before this refusal can ever be reached.
+    // The same list the intake conversation asks from, so the requester is
+    // asked for these before this refusal can ever be reached.
     const gaps = submissionGaps({
       title: typeof request.title === 'string' ? request.title : null,
       costCentre: typeof request.costCentre === 'string' ? request.costCentre : null,

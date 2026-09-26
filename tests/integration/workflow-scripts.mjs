@@ -43,22 +43,32 @@ if (missing.length) {
 console.log(`workflow-scripts: every npm run call in .github/workflows resolves (${scripts.size} scripts defined)`);
 
 // ── The other direction: a suite nobody can find is a suite nobody runs ──────
-// The README's Testing section is the only index of what each suite covers, and
-// it was hand-maintained, so it drifted: sixteen `test:*` scripts existed with
-// no entry, including whole areas (approval derivation, the lifecycle e2e,
-// schema drift). A reader looking for "is this covered?" concluded it was not.
-const readme = readFileSync(path.join(ROOT, 'README.md'), 'utf8');
+// The test playbook's catalogue is the one index of what each suite covers
+// (docs/testing/TEST_PLAYBOOK.md → "The catalogue"). It was the README's
+// Testing section until the documentation boundaries of 2026-09-26, and it
+// drifted there: sixteen `test:*` scripts existed with no entry, including whole
+// areas (approval derivation, the lifecycle e2e, schema drift), and a reader
+// looking for "is this covered?" concluded it was not. Only the catalogue
+// counts — a script named in passing elsewhere in the playbook is not an entry.
+const playbook = readFileSync(path.join(ROOT, 'docs', 'testing', 'TEST_PLAYBOOK.md'), 'utf8');
+const catalogueStart = playbook.indexOf('### The catalogue');
+if (catalogueStart < 0) {
+  console.error('workflow-scripts: docs/testing/TEST_PLAYBOOK.md has no "### The catalogue" section');
+  process.exit(1);
+}
+const catalogueEnd = playbook.slice(catalogueStart + 1).search(/\n##? /);
+const catalogue = catalogueEnd < 0 ? playbook.slice(catalogueStart) : playbook.slice(catalogueStart, catalogueStart + 1 + catalogueEnd);
 const undocumented = [...scripts]
   .filter((name) => name.startsWith('test:'))
   // The two aggregates are described in prose rather than as list entries.
   .filter((name) => name !== 'test:all' && name !== 'test:ui:all')
-  .filter((name) => !readme.includes(`npm run ${name} `) && !readme.includes(`npm run ${name}\n`));
+  .filter((name) => !catalogue.includes(`npm run ${name} `) && !catalogue.includes(`npm run ${name}\n`));
 
 if (undocumented.length) {
-  console.error(`workflow-scripts: ${undocumented.length} test script(s) are not documented in README.md`);
+  console.error(`workflow-scripts: ${undocumented.length} test script(s) are not in the test playbook's catalogue`);
   for (const name of undocumented) console.error(`  npm run ${name}`);
-  console.error('  Add a one-line entry to the Testing section saying what the suite covers.');
+  console.error('  Add a one-line entry to "The catalogue" in docs/testing/TEST_PLAYBOOK.md saying what the suite covers.');
   process.exit(1);
 }
 
-console.log(`workflow-scripts: every test:* script has a README entry`);
+console.log('workflow-scripts: every test:* script has an entry in the test playbook\'s catalogue');

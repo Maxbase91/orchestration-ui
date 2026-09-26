@@ -1,5 +1,6 @@
 // What a full request must carry before it can be submitted — one list, read by
-// the server that refuses the submit and by the Details step that gates it.
+// the server that refuses the submit and by the intake conversation, which asks
+// for each gap before it confirms the buying channel.
 //
 // They used to disagree. The server required a need-by date and a cost centre;
 // the Details step let a requester through without either, the conversation
@@ -37,7 +38,7 @@ export function isIsoCalendarDate(value: unknown): value is string {
 const blank = (value: string | null | undefined): boolean => !value || value.trim().length === 0;
 
 /**
- * Everything still missing, in the order the Details step asks for it. The
+ * Everything still missing, in the order the conversation asks for it. The
  * estimated value is deliberately not here: a requester may not know the budget
  * yet, and the server accepts zero.
  */

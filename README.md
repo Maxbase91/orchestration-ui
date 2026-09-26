@@ -1,341 +1,85 @@
 # Procurement Orchestration Platform
 
-A procurement orchestration platform with a React SPA, a private application-owned Neon PostgreSQL store, and Vercel API functions. Browser data access is routed through the allowlisted `/api/db` boundary. It demonstrates end-to-end internal procurement workflows, AI-assisted decision making, and integration handover records across 40+ interactive screens.
+One front door for every procurement need, and the internal system of record behind it: a
+requester says what they need, the platform works out what it is, checks the catalogue and existing
+contracts first, decides how it will be bought, asks only what that route still needs, and runs the
+request through approval, sourcing, ordering, receipt and invoice. A React single-page app on a
+private Neon PostgreSQL database, with Vercel serverless functions.
 
 **Live demo:** [orchestration-ui.vercel.app](https://orchestration-ui.vercel.app)
 
-**Status (12 September 2026).** `npm run test:all` runs 90 suites green, including
-the live-database checks; `npm run test:ui` (browser smoke) is green. The most
-recent work is the approval mechanism, the request lifecycle through to goods
-receipt, and a security pass over the `/api/db` boundary and the assistant's
-confirm-before-act path.
+---
 
-**Release documentation:** [product backlog](docs/roadmap/PRODUCT_BACKLOG.md) · [R1 roadmap](docs/roadmap/R1_BACKLOG_FIT_GAP.md) · [implementation evidence index](docs/roadmap/R1_IMPLEMENTATION_EVIDENCE.md) · [test playbook](docs/testing/TEST_PLAYBOOK.md)
+## Documentation
+
+Each document owns one kind of fact; the others link to it rather than repeat it
+([the full map](docs/README.md)).
+
+| Read | For |
+|---|---|
+| [docs/PRD.md](docs/PRD.md) | What the platform is for, who uses it, its principles, and what Release 1 includes and leaves out |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | How it is built — the system, the one data path, the decision engines, configuration, AI, security, testing |
+| [AGENTS.md](AGENTS.md) | The rules for working in this repo, and the Definition of Done |
+| [Functional specification](docs/specs/functional-specification.md) and [requirements](docs/specs/requirements/) | What each screen does, in business terms, and the numbered requirements behind it |
+| [The admin map](docs/specs/admin-map.md) | Every Admin item — what it is for, where it is stored, what reads it |
+| [Test playbook](docs/testing/TEST_PLAYBOOK.md) | Every automated suite and what it covers, and the manual regression suites |
+| [Roadmap](docs/roadmap/R1_BACKLOG_FIT_GAP.md) and [product backlog](docs/roadmap/PRODUCT_BACKLOG.md) | Where Release 1 stands, and the stories still to deliver |
+| [Decisions](docs/adr/) | Why the non-obvious boundaries are where they are |
 
 ---
 
-## What This Is
-
-R1 is an internally operated system of record backed by private Neon. It owns request, PR, internal PO, workflow, sourcing, supplier, contract, risk, catalogue, ticket, conversation, and audit records. There are no live upstream writes: the connector layer is the seam for R2 integrations. Governed catalogue and contract checkout submits through `/api/governed-checkout`, which recomputes policy and contract coverage server-side and atomically captures a request, purchase requisition and lines before creating an internal PO when policy permits. Contract scope is effective-dated and matched on service description, deliverables, exclusions and context; `/api/contract-match` provides explainable candidates and targeted clarification questions. Policy edits persist through `/api/policy-config` so browser previews and server writes share one configuration. Role switching remains a simulation/UAT mechanism; authentication and production authorization are deferred.
-
-### Key Capabilities Demonstrated
-
-- **Intelligent Intake** — a conversation that reads what is needed back as a category and code, checks the catalogue and the contracts first, then asks only what the chosen route still needs, with the request building beside it — asking everything before concluding anything
-- **Contract-aware intake** — structured scope versions, deliverable/exclusion matching, explainable ranking and adaptive clarification before a call-off
-- **One standardised requester experience** — no mode to choose. The evidence behind every determination is available to everyone, collapsed by default, and simplification comes from the role: a requester's default dashboard is their own requests, not KPIs (ADR-0008)
-- **Configurable home** — one dashboard per role, with widgets each user can add, remove and reorder; the layout persists
-- **Workflow Orchestration** — Kanban, table, and timeline views of active procurement workflows with bottleneck detection
-- **System Integration Handovers** — Internal handover records for future SAP Ariba, Coupa Risk, Sirion CLM, and SAP S/4HANA connectors (R2; no external writes)
-- **AI Compliance Agent** — Automated PR compliance reviews with detailed check reports before PO creation
-- **Supplier 360** — Unified supplier directory with risk, spend, performance, and compliance views
-- **Supplier Portal** — Self-service portal for external suppliers (onboarding, invoices, messaging)
-- **No-Code Admin** — Visual routing rules engine, drag-and-drop workflow designer, AI agent configuration
-- **Analytics** — Spend dashboards, compliance KPIs, pipeline analytics, and a drag-and-drop report builder
-- **Support Ticket Inbox** — agent-side queue for tickets raised from Contact Support or the assistant: assign, forward, reply, internal notes, resolve, **priority-based SLAs with breach flags**, references to the requests / POs / suppliers a ticket is about, and the full chat transcript for assistant-raised tickets
-
----
-
-## Screens
-
-### Core Experience
-| Screen | Description |
-|--------|-------------|
-| Role-Based Dashboards | 5 tailored dashboards (Service Owner, Procurement Manager, Vendor Manager, Operations Lead, Admin) |
-| Operational home dashboard | Expert users receive one consistent role-based dashboard with live KPIs, pipeline, workload and action widgets. Decorative alternate layouts were retired to avoid confusing users with inconsistent navigation. |
-| New request — the conversation | One page for every demand (the Intake Prototype's Door 1, since 2026-09-26), where **every question is asked before any conclusion is shown**. The conversation runs in three phases — **What you need** (the words, Home's `?q=` or an attached PDF/DOCX, read back as a category and code to confirm), **How it is bought** (the catalogue and the contracts checked first, then a catalogue item to order on the Catalogue page, a contract to call off, or — when nothing covers it — a new request) and **What it needs** (a call-off's details, or the service description, then the supplier, then the risk questions the supplier decides, as Yes/No choices). **Your request** fills in on the right with where each value came from, edits inputs in place, and counts what the route needs — reaching M of M exactly when **Buying channel confirmed** appears, which it does only when submit would accept the request. The **Channel page** then shows how it will be bought: every stage of the channel's template with *Applies / If … / Skipped* and why (the server's landing rule plus the engine's own branch walk), what the requester does at each, the approvers submit will write, who sourcing will invite, and the checks, with the workings and Export one click down; a call-off submits there too. There is one page and one view of it (`test:mode-equivalence`). Goods/Services is an internal routing value and never a requester choice; the structured description keeps Included, Excluded, Deliverables and Acceptance Criteria separate with provenance; the conversation is deterministic when AI is unavailable, and submitted requests enter the first actionable workflow stage. |
-| Request Detail | Full lifecycle tracker with 7 tabs (Overview, Workflow, Comments, Approvals, Documents, Related, Audit). Validation confirms the request, supplier, contract, risk, and capacity data; approval is the separate budget/authority decision and is only required when policy or risk calls for it. Both stages show the **service description** and its quality score, so a reviewer sees what they are approving |
-| Vendor onboarding | A real conditional stage, not a preview label. **Light onboarding** (supplier record exists and screening has cleared) gates **sourcing** — you cannot invite a supplier that does not exist — and gates **completing the risk assessment**, which hangs off a supplier record. **Full onboarding** gates **contracting** for the awarded supplier only, so paperwork is not demanded up front from vendors who may not win. A supplier named at intake but absent from the directory can be created as a **prospective** record from the conversation's supplier question |
-| Active Workflows | Kanban board (drag-and-drop), sortable table, Gantt timeline — with system integration badges |
-| Workflow Monitor | Bottleneck dashboard, stuck requests, SLA tracker, heatmap, AI bottleneck analysis |
-
-### Supplier Management
-| Screen | Description |
-|--------|-------------|
-| Supplier Directory | Card grid and table views with risk ratings, compliance status, spend data |
-| Supplier Profile | 7-tab 360 view (Overview, Contracts, Risk, Spend charts, Performance, Documents, Activity) |
-| Supplier Portal | External self-service: dashboard, onboarding wizard, invoices, **real sourcing invitations with response submission**, documents, messaging |
-| Supplier Messages | Internal messaging threads with suppliers |
-
-### Sourcing & Contracts
-| Screen | Description |
-|--------|-------------|
-| Sourcing Events | DB-backed event register and detail, **raised from a request in the sourcing stage** (`request_id` link, incumbent seeded as the first invitation) and surfaced two-way on the request's Related tab. Q&A board remains a labelled mock |
-| Evaluation & Award | Weighted scoring of real supplier responses against the event's criteria, persisted as they are edited; ranking and award gates come from one shared rule so the recommendation and the award cannot disagree. **The award writes the winning supplier back onto the request, closes the event and resumes the workflow** — a half-applied write-back is detected and repairable |
-| Sourcing Pipeline | The same live events as the register, arranged by stage (Draft → Published → In Evaluation → Award Pending → Completed) with real invitation counts; rows deep-link into the event |
-| Contract Register | Lifecycle management with renewal alerts, obligation tracking, financial comparison |
-| Purchase Orders | PO management with goods receipt, AI compliance review |
-| Invoice Queue | Invoice management with AI data extraction, three-way match visualizer |
-
-### Admin & Configuration
-What each Admin item is for, where it is stored and what reads it: [docs/specs/admin-map.md](docs/specs/admin-map.md).
-
-| Screen | Description |
-|--------|-------------|
-| Catalogue (Door 2) | Order pre-approved items with no request form: the catalogues the items belong to, a search across them, a basket with total, deliver to and charged to (profile first), a purpose, and a note from the real decision (a purchase order straight away, approval first, or a risk review first). A basket across suppliers is **one order per supplier, approved on the basket total**, placed all or none (ADR-0009). Every other way to a catalogue item — Home, the assistant, an item's page, intake's match — adds to this basket |
-| Smart Command Bar | **Door 1 on Home**, beside Door 2's catalogue card (for those who buy): free-text entry with an **intent step**, every outcome shown as one **Understood as** card (something to buy, a catalogue item, a policy question, a status question) with its action — a demand shows its card before intake opens: a **status question** ("where is REQ-…", "what's waiting for me", a PO, invoice, contract or supplier) is answered in place by the Status Answers agent — only what its configuration lets this role see; a **policy question** is answered in place — a direct answer computed from Decisioning thresholds and approval chains (quotes, approvers, buying channel, catalogue auto-approval) plus the knowledge-base rule with live figures; each offers a follow-up in the assistant. A **demand goes straight into intake**, carrying its wording, so classification starts immediately; anything else reaches the assistant. A demand the **catalogue genuinely serves** is **named** — the matched item, its price and lead time — with a link to its governed checkout and an always-visible "not what you need?" route into full intake; it never navigates on the requester's behalf. The catalogue decision is `lib/procurement/intake-routing.ts` — the same category-gated, naming-word decision the conversation's catalogue check makes, so both entry points agree. The order (status → catalogue → policy → demand → assistant) is **one route**, `lib/assistant/question-route.ts`, which **the assistant takes too**; the catalogue can be browsed in place by the catalogues its items belong to |
-| Routing Rules Engine | 3-panel layout: rule tree, visual IF/THEN editor, test panel. The **editor, the test panel and the runtime share one vocabulary** — every field and operator the editor offers is evaluated in production, and the test panel calls the production evaluator rather than reimplementing it. An **active rule that cannot fire is diagnosed** at the top of the page (unknown field, unsupported operator, malformed `between`, no conditions) instead of silently never matching |
-| Decisioning Thresholds | The numbers every decision compares against (approval, materiality, risk, sourcing, contract, catalogue matching). Routing rules, approval chains, workflow branches and forms decide what happens and **name** these numbers (`policy:<key>`) rather than restating them. Under each threshold: **where the code uses it** and the **configuration that names it**, read live — the rules, chain bands, workflow branches, forms, service-description conditions and knowledge-base articles — with a warning when nothing reads it. Save applies them to the live front door; a simulation previews a sample demand |
-| Support SLAs | How soon a support ticket needs a first response, in hours per priority (`sla_targets`, stage `ticket`); a priority with no row says what it gets instead. Stage SLAs are set on the stage in the Workflow Designer |
-| Service Description | Configure the service description end to end: the **generation prompt** (guidance, system prompt, temperature, token budget, with a preview of the assembled prompt), the **components asked** at intake (question, example, required, and the condition that shows it), **what is generated** (the detailed sections, which are asked vs inferred, and which compose the compact narrative), and **reuse in later steps** (which sections seed a sourcing event's requirements, plus the default evaluation criteria). Per-category with a `default` fallback — the built-in is stored as the `default` row, and a category without its own row shows the default it inherits; stored in Postgres so the serverless generation and intake routes read the same config. Generation is **signal-aware**: the capture-time materiality, inherent risk, data sensitivity and sourcing read (`demand-signals.ts`) is passed to the model, and the template's `requiredWhen` conditions say which sections that read makes mandatory — so a material, competitively-sourced engagement is required to cover scope, deliverables and measurable acceptance criteria while a small order is not. The determination reports any required section still missing rather than regenerating the document behind the requester. |
-| Workflow Designer | React Flow canvas with 10 custom node types, drag-from-palette, node configuration, simulation |
-| AI Agent Configuration | The switches on what the platform automates, each described as it really works: AI-001 category classifier (language model, configured keywords as fallback), AI-002 request validator (the Channel page's policy checks — rules), AI-004 spend anomaly checks (rules on Decisioning thresholds), AI-005 supplier recommender, AI-007 **Status Answers** — which configures what status questions may be answered: per object, every attribute of the data (label, in the answer / when asked / off, who may see it; new attributes appear switched off) and a role × object matrix (None / Own / All), with a test panel that asks as any role against live data. No invented accuracy, decision counts or performance charts (removed 2026-09-25) |
-| Categories | The demand taxonomy — **what kind of thing is being bought**, which decides routing (consulting and contingent labour are procurement-led), approvals (category managers) and whether the catalogue can serve it. Per category: label and description (what the AI classifier reads), **classifier keywords** (the offline classifier, matched at the start of a word) and an **order** that is the classifier's precedence, catalogue eligibility, managers, preferred suppliers, supplier tags, and the **commodity codes** beneath it (UNSPSC codes with the words that point at each, plus a default code). No icon or timeline: the icon was never shown and the timeline disagreed with the workflow's stage targets, which are the one "how long" |
-| Approval Chains | Value-banded approval chains (bands follow Decisioning thresholds), steps picked from the **Roles** list — which system role acts as Finance, Legal, CFO, Vendor management… (configuration, not code). Record-backed roles resolve to the cost-centre owner, category managers or contract owner first; an ownerless Budget Owner step goes to procurement managers; nobody approves their own request. The rules that name a chain are read from the rules |
-| Knowledge Base | One knowledge base for the assistant, the Home box and **Help → Knowledge Base**, which shows it grouped by **topic** (each entry's topic and order are set here) with a search over the text as read. Governed figures are **references**, not restated numbers (`{{policy:…}}`, `{{approval-chains}}`, `{{preferred-suppliers:…}}`), rendered from the live configuration when answered or read; each entry is marked *Linked to configuration* or *Policy text only*, and a reference that names nothing is flagged. The Help page's own twelve hardcoded articles (a retired channel, the old wizard, features the platform does not have) and its unrecorded feedback buttons are gone |
-
-### Analytics & Platform
-| Screen | Description |
-|--------|-------------|
-| Spend Overview | Bar charts, treemap, top suppliers, managed vs unmanaged, contract coverage |
-| Compliance KPIs | Policy breaches, first-time-right rate, classification accuracy, SRA coverage |
-| Pipeline & Cycle Time | Funnel visualization, cycle time distribution, throughput, ageing analysis. **"Active Sourcing" counts live sourcing events**, not requests parked in the stage |
-| Report Builder | Drag-and-drop report creation with chart type selection |
-| Notifications | Grouped feed with type filtering and notification preferences |
-| AI Assistant | Floating chat overlay + full-page mode. Every message takes the **same route as the Home box** first: a status or policy question gets the same card, a catalogue item or a demand the same next step (New Request with the requester's words — the server's `start_demand` builds the same link); only the rest reaches the model (Groq, Gemini fallback), with the earlier cards given to it as text. In a conversation, a follow-up counts as a demand only when it says it wants something ("and for consulting?" asks). Each conversation is **named by the question that started it** |
-| Ticket Inbox | Agent-only support queue (`/help/inbox`): standing views incl. **Breaching**, SLA badges, headline metrics, filters and search, plus a drawer to **assign, forward, reply, add internal notes and resolve**. Tickets link to requests, POs, suppliers, contracts and invoices; assistant-raised tickets carry the **full conversation transcript** |
-
----
-
-## Tech Stack
-
-| Layer | Technology |
-|-------|------------|
-| Build | Vite |
-| Framework | React 19 + TypeScript |
-| Routing | React Router 7 |
-| Styling | Tailwind CSS 4 |
-| Components | shadcn/ui |
-| Charts | Recharts |
-| Drag & Drop | @dnd-kit |
-| Workflow Canvas | @xyflow/react (React Flow) |
-| State | Zustand |
-| Icons | lucide-react |
-| Deployment | Vercel — SPA plus serverless functions in `api/`, capped at 12 by the Hobby plan (`test:vercel-functions`) |
-
----
-
-## Getting Started
+## Getting started
 
 ```bash
-# Install dependencies
-npm install
-
-# Start dev server
-npm run dev
-
-# Build for production
-npm run build
-
-# Lint — clean, and expected to stay that way
-npm run lint
-
-# Preview production build
-npm run preview
+npm install           # dependencies
+npm run dev           # dev server on http://localhost:5173
+npm run build         # typecheck and production build
+npm run lint          # lint — clean, and expected to stay that way
+npm run preview       # serve the production build
 ```
 
-`npm run lint` exits 0 on `main`. It runs the React Compiler rules, which catch
-more than style: impure render, refs read during render, state mirrored from
-server data by an effect, and manual memoization the compiler cannot preserve
-(which silently disables optimization for the whole component). Note that the
-compiler stops analysing a file after a bailout, so fixing one finding often
-reveals others in the same file — a falling count is progress, not regression.
+The app reads its data through `/api/db`, a Vercel function, so a plain `npm run dev` shows the
+screens without data. Run against a deployment, or use the browser suites' stub (see Testing).
+Copy `.env.example` to `.env.local` for the live suites and the seed script.
 
-Open [http://localhost:5173](http://localhost:5173) in your browser.
+`npm run lint` runs the React Compiler rules, which catch more than style: impure render, refs read
+during render, state mirrored from server data by an effect, and manual memoization the compiler
+cannot preserve (which silently disables optimization for the whole component). The compiler stops
+analysing a file after a bailout, so fixing one finding often reveals others in the same file — a
+falling count is progress, not regression.
 
-### Testing
-
-Integration tests run as standalone Node scripts under `tests/integration/`:
+## Testing
 
 ```bash
-npm run test:all                  # every non-browser suite in one run — pass/skip/fail counted separately
-npm run test:ui:all               # …including the browser suites (needs a Chromium binary)
-npm run test:db-casts             # every query parameter is cast to its column's type, never blindly to text
-npm run test:mode-equivalence     # Simple and Expert reach the same governance decision for the same demand —
-                                  # the determination takes no density argument, and both write an identical compliance record
-npm run test:intake-determination # the intake determination, pinned: determinism (`now` is an input), honesty
-                                  # (no unrun check is recorded as passed) and one derivation of the buying channel
-npm run test:intake-evidence      # a request never carries a compliance check that did not run
-npm run test:e2e                  # end-to-end request → approval workflow
-npm run test:routing              # routing-rule evaluator
-npm run test:routing-rule-integrity # editor ↔ runtime ↔ test-panel parity — every offered field/operator is evaluated, a broken rule is diagnosed
-npm run test:intake               # intake sequence
-npm run test:connectors           # source-connector layer (registry, query, live-swap seam)
-npm run test:contract-matching    # deterministic scope matching, exclusions, dates and clarification gates
-npm run test:contract-match-api   # read-only live Neon contract-match endpoint check
-npm run test:preference           # preferred-supplier (PSL) + competitive-sourcing controls
-npm run test:materiality          # materiality & criticality determination
-npm run test:category-code        # commodity codes per category (Admin → Categories) and the resolvers that read them
-npm run test:submission-requirements # submit's required fields — one list for the server's refusal and the conversation's "Buying channel confirmed"
-npm run test:risk-segmentation    # inherent-risk cascade + risk outcome (reuse/amend/change/new)
-npm run test:risk-reuse           # structured risk-register reuse model (supplier/scope/data-class/validity)
-npm run test:handoff              # downstream handoff / next-steps model (systems, status, deep-links)
-npm run test:determination        # contract-type + sourcing-type determination
-npm run test:status-agent         # Status Answers agent — every attribute listed, access matrix, one composer for Home, browser and server lookups
-npm run test:knowledge-links      # knowledge base linked to configuration — references resolve, no governed amount restated, one renderer both sides;
-                                  # the Help page holds no articles, every entry has a topic, grouping and search
-npm run test:determination-export # exportable determination (structured Markdown)
-npm run test:second-contract      # second contract check (frameworks/MSAs vs transactable)
-npm run test:sourcing             # sourcing: weights, ranking, award write-back, stage gate, entitlement
-npm run test:sow-narrative        # SOW narrative is synthesised from the service description
-npm run test:service-description-config # service description config — drives the real evaluators: serialised slots reproduce the built-in agenda, an unusable condition is false and reported, the governance signals reach slots, a template's requiredWhen binds, narrative composition, sourcing seed
-npm run test:tickets              # support tickets — entitlement, internal notes, status lifecycle, references
-npm run test:ticket-sla           # ticket SLA — targets, due dates, breach/at-risk, waiting-on-user pause
-npm run test:approval-to-source   # approval-to-source gate (light vs full pre-sourcing approvals)
-npm run test:residual-questions   # criteria-triggered stage-5 residual questions (mini-IRQ deltas)
-npm run test:demand-conversation  # dynamic intake — answer-driven next question + carry-forward + branching + conditional rationale
-npm run test:intake-guidance      # progress reaches 100%, inferred sections are not outstanding, the conversation's mandatory floor,
-                                  # the page names its phases and has no stepper, one way on to the Channel page, the opening invitation,
-                                  # every question's stated reason, and a source scan: no service-description record cast to a map of
-                                  # strings, no unguarded .trim() over its values
-npm run test:unified-intake        # unified text/PDF/DOCX intake, specific commodity candidates, separate scope/exclusions,
-                                  # contextual guidance boundaries, no requester-facing Goods/Services choice, and the
-                                  # deep-link parsers (a route is never taken as a category; fulfilment context survives)
-npm run test:answer-quality       # the deterministic answer judge — placeholder/filler rejected, real answers accepted, slot-aware floor
-npm run test:assistant-intents    # assistant routes procurement demands to intake, not a support ticket (the real classifier)
-npm run test:question-route       # one route for Home and the assistant — order, demand vs not, follow-ups, chat turns, conversation titles
-npm run test:assistant-honesty    # the assistant never claims it did something it did not do — start_demand
-                                  # offers a pre-filled form and says so, and a completion claim is replaced
-npm run test:operational-risk     # preliminary operational risk assessment (per-dimension screen)
-npm run test:classification-eval  # classification eval harness + accuracy baseline (CLS-G1)
-npm run test:demand-signals       # capture-time governance read (materiality/risk/sourcing) + config-driven required sections
-npm run test:onboarding-stage     # vendor onboarding — light gate (sourcing + risk) and full gate (contracting)
-npm run test:intake-routing       # catalogue vs contract vs new demand — category gate, naming-word rule, LLM intent
-npm run test:intake-routing-eval  # intake routing eval harness + accuracy baseline
-npm run test:referral             # demand disposition — proceed / request-change / refer-back (RTE-06)
-npm run test:knowledge            # grounded policy-Q&A retrieval — ranking, citations, low-confidence, and that the
-                                  #   assistant answers from the admin's knowledge_base rather than the built-in fixture
-npm run test:design-tokens        # the design foundation holds — every text token clears WCAG AA on every
-                                  #   ground in BOTH themes (computed, not eyeballed), the three theme states are
-                                  #   wired, the fonts are fetched, and a migrated screen names no palette colour
-npm run test:integration-health    # /admin/health reports what happened to the recorded handovers — a failing
-                                  #   system never averages into a green card, an unused one says so, and no
-                                  #   uptime/error-rate/session figure is invented; plus the budget-owner picker
-npm run test:admin-delete-controls # config you can create and edit, you can also remove — the four surfaces whose
-                                  #   useDeleteX hook had no caller, each behind a confirmation that names the record
-                                  #   and its consequence; and the two reference tables that deliberately stay undeletable
-npm run test:csv-export           # one CSV implementation, RFC 4180 quoting, a BOM so Excel keeps the € signs,
-                                  #   and the audit Export button actually exporting the filtered set
-npm run test:policy-config        # central decisioning thresholds (defaults pinned + override resolver)
-npm run test:policy-config-server # Neon policy singleton save/load/validation (self-cleaning)
-npm run test:governed-checkout    # contract/risk/capacity gates and PR/PO routing decisions
-npm run test:catalogue-basket     # a basket is one order per supplier, approved on the basket total the server computes — all or none (ADR-0009)
-npm run test:governed-checkout-atomic # atomic Neon request → PR → lines → conditional PO, replay/conflict/concurrency
-npm run test:checkout-gates       # a governed check cannot be skipped by the failure of its own data read
-npm run test:workflow-atomic      # transitions commit with their stage history, and write the NEW stage's SLA deadline (or NULL) — never the previous stage's
-npm run test:execute-action       # a confirmed assistant action writes a real record, or says it cannot
-npm run test:shared-core          # browser and server write tickets/preferences through one implementation
-npm run test:request-id           # request ids come from the database sequence, not Math.random()
-npm run test:llm-json-mode        # the prose fallback returns prose on both LLM providers
-npm run test:intake-submit        # atomic full-demand intake, ISO-date validation and first-stage selection
-# Neon-backed live suites report unavailable when the configured database hostname cannot be resolved.
-npm run test:catalogue-ui         # catalogue item detail and checkout entry-point regressions
-npm run test:supplier-candidates  # several suppliers can go to sourcing while exactly one drives the
-                                  # determination, and "no supplier" is an explicit choice
-npm run test:reference-data       # cost centres and delivery locations are administered rows the server
-                                  # validates against — an absent or retired one is rejected, and absent
-                                  # reference data fails closed rather than passing
-npm run test:assistant-extraction # the intake assistant may fill demand facts and nothing else — no buying route,
-                                  # cost centre or risk answer arrives from the model
-npm run test:dashboard-widgets    # the widget catalogue and its renderer agree — nothing offered that cannot render,
-                                  # nothing rendered that cannot be reached, every icon mapped
-npm run test:screening            # supplier screening — clear / pending / flagged / unknown + blocking
-npm run test:supplier-data        # supplier master-data completeness → remediation handoff (RTE-04)
-npm run test:approver-resolution  # approval step role → switchable directory rep (one identity namespace)
-npm run test:approval-chain-persistence # self-cleaning DB check — a value-banded approval-chain key persists on a request
-npm run test:ai-api-config        # API regression — missing active database/AI server config returns a controlled 503, not a function crash
-npm run test:api-imports          # every api/*.ts function's import graph has explicit file extensions (tsc/vercel dev don't enforce this; Vercel's real build does)
-npm run test:vercel-functions     # keeps the explicit API surface within the Vercel Hobby 12-function budget
-npm run test:workflow-scripts     # every `npm run` call in .github/workflows still names a script that exists in package.json
-npm run test:admin-editors        # every admin editor that claims to save, saves — a live round trip per table, Support SLAs included
-                                  #   (JSONB columns still arrays afterwards) plus a static check that the Save
-                                  #   handler calls the mutation; 10 surfaces, and the read-only ones stay read-only
-npm run test:orchestration        # end-to-end orchestration rules across intake, routing and workflow
-npm run test:lifecycle-e2e        # a request walks intake → approval → PO → goods receipt in the live store
-npm run test:lifecycle-consistency # every request's status, stage history and workflow instance agree
-npm run test:approval-derivation  # approvers derive from the records, and one derivation serves every path
-npm run test:request-tabs         # the request-detail tabs show the stages a request actually traverses
-npm run test:refresh              # every lifecycle action invalidates every view it can affect
-npm run test:assistant-boundary   # the confirm card describes the queued write; the assistant reads only the caller's records
-npm run test:audit                # audit rows are written for the actions that claim them
-npm run test:derived              # database-derived columns track their inputs (live; cleans up its fixtures)
-npm run test:kpis                 # dashboard KPI aggregates match the underlying rows
-npm run test:ai-agents            # agent registry shape and activation rules
-npm run test:api-domain-routing   # every vercel.json rewrite reaches a real ?domain= handler
-npm run test:catalogue-order      # a catalogue order carries what the cXML hand-off requires
-npm run test:intake-quick-fixes   # scroll reset, date parsing, contract selectability and the removed filler copy
-npm run test:schema-drift         # db/schema.sql matches the live database's information_schema, and row-level security stays removed
-npm run test:forms                # every form triggers on a real stage, and none on validation
-npm run test:config-consumption   # admin configuration reaches what it configures — channel stages, template node ids, live lifecycle coherence, and no config nothing reads (sla_targets stage rows, match_count, templateless requests), and a stored default service description
-npm run test:seed-parity          # the checked-in workflow seed matches live, so re-seeding cannot destroy a Designer edit
-npm run test:policy-tokens        # every governed threshold is nameable, editable and validated; no decisioning literal shadows one;
-                                  # each says where code uses it (true both ways), and the used-by list finds every `policy:` reference
-npm run test:policy-token-routing # routing rules reference governed thresholds; tokenising changed no channel, and no token reaches the evaluator
-npm run test:routing-fallback     # the catch-all rules reproduce the deleted if-ladder exactly, and a hole in the rule set is visible
-npm run test:approval-bands       # a chain with no value band never shadows one that has it; gaps and overlaps are reported
-npm run test:form-gates           # the blocking form gate is a subset of what renders, so a form can never strand a request
-npm run test:form-builder         # the builder offers every stage a form uses, the shared condition editor, and reports a form that cannot fire
-npm run test:channel-stages      # the workflow templates are the only definition of a channel lifecycle — and of the requester's wording for it; no code restates either
-npm run test:edge-conditions     # a decision node actually decides, every palette type round-trips, every workflow signal evaluates
-                                  #   both ways, a rejected approval goes back to the requester in every template, and no shipped or
-                                  #   live template has a node the engine cannot branch from unambiguously
-npm run test:channel-plan        # the Channel page's stage plan agrees with the server's landing and the engine's walk, for every template and signal
-npm run test:channel-checks       # the Channel page's checks, from real determinations and call-off decisions — nothing that did not run shown as clear
-npm run test:intake-conversation  # the conversation page's parts: classification, a call-off asked as questions, Your request's provenance, inputs-only
-                                  #   edits and N of M; "Buying channel confirmed" held by every risk question, the supplier and each submission gap,
-                                  #   and not by a question given up on; titles from long briefs; AI-005's supplier ranking
-npm run test:models               # each pinned Groq/Gemini model is still served by its provider (calls the providers, so it is outside the default gate — run it on demand or via `test:all -- --external`)
-npm run test:table-lists          # hand-maintained relation lists match db/schema.sql
-npm run test:requester-entry-ui   # browser smoke (stubbed) — requester entry screen renders and fits 320px
-npm run walkthrough               # visual QA harness (Playwright) — drives the front door across scenarios + every tab, screenshots to /tmp/fd (no assertions)
-npm run test:ui                   # browser smoke (Playwright) — the conversation page end to end over the shipped templates: a catalogue
-                                  #   item to the basket, a call-off (with the direct call-off limit) to its Channel page and submit, a new
-                                  #   request through the supplier, the risk questions and a panel edit to its Channel page; UI_SHOT_DIR=… saves screenshots
-npm run test:e2e-ui               # full-app browser sweep — every route × role, captures console/runtime errors
-npm run test:ui-full              # evidence harness — 60+ checkpoints screenshotted; asserts only "no crash, not blank"
-npm run test:ui-lifecycle         # static guard that call-offs, stage actions and invoice transitions stay UI-governed
-npm run test:service-description-ui # browser smoke — /admin/service-description renders all four config areas
-npm run test:routing-rules-ui     # browser smoke — /admin/rules shows governed thresholds by name and real approval chains
-npm run test:approval-chains-ui   # browser smoke — /admin/approvals band editor, governed bounds, and gap reporting
-npm run test:approvals-ui         # the approvals queue — nothing claims to be AI, the amount is measurably
-                                  #   larger than the metadata beside it, the row awaiting you looks different
-                                  #   from one that does not, and every control the old card had is reachable
-npm run test:form-builder-ui      # browser smoke — /admin/forms offers every stage, sets blocking, and reports a form that cannot fire
-npm run test:intake-guidance-ui   # browser smoke (offline) — the page opens by asking, names its phases, Your request's legend, no Next to walk past
-npm run test:reference-data-ui    # browser smoke — admin maintains cost centres and delivery locations (a retired
-                                  # row disappears from every picker), category managers, commodity codes, the
-                                  # category-list thresholds as checklists, where each threshold is used (and
-                                  # a failed load is not read as "unused"), and the Support SLAs
-npm run test:dashboard-ui         # browser smoke — the role's default dashboard covers its work, customising is a
-                                  # mode whose controls exist only inside it, and adding or removing a widget
-                                  # survives a reload
-npm run test:dashboard-widgets    # static — every widget id is in both the registry and the renderer, and
-                                  #   each role's default layout resolves to widgets that role may have
-npm run test:dashboard-widget-states # browser smoke — with every table failing, the five converted widgets
-                                  #   each name what they could not read; with the tables answering, no alert at all;
-                                  #   the attention band counts delegated approvals, is absent when nothing waits,
-                                  #   and reports an unreadable queue instead of going quiet
-npm run test:preferred-suppliers  # the category's preferred-supplier list decides "preferred", every preferred supplier is
-                                  #   invited to sourcing, and the recommender reads the category's supplier tags
-npm run test:personal-queue       # static — one definition of "mine" (assigned or delegated), and no other
-                                  #   module tests approval ownership itself
-npm run test:request-list-filters # static — the request list's URL filters round-trip, a misspelt one is reported,
-                                  #   the personal views are personal-queue.ts, and no module hand-builds a list URL
-npm run test:request-list-ui      # browser smoke — the band's and Requests-by-Stage's links show the rows they
-                                  #   counted, filters show as removable chips, priority is written, badges are tokens
-npm run test:request-detail-ui    # browser check on fixtures (no credentials, no network) — the request detail renders, every
-                                  # workflow step opens, and the risk form pre-populates from the service description;
-                                  # one filled header action with the rest in More, no "AI-generated" claim, stage names
-                                  # in the type scale, and a failed read is not reported as a removed request
-npm run test:interactions-ui      # interaction E2E — the conversation to submit, admin save, AI assistant (self-cleaning)
-npm run test:link-route-integrity # static deep-link contract for active request/dashboard destinations
-npm run test:link-navigation      # deployed role-aware link navigation and requester read-only details
-npm run test:neon-migration       # one data path, one client, and no Supabase identifier in src/, api/ or tests/
-npm run test:neon-live            # read-only Neon schema, relationship, and catalogue-governance validation
-npm run test:sql-splitter         # a backfill splits on real statement boundaries — a `;` or `--` inside a
-                                  # quoted string is data, not a boundary
-# GET /api/neon-health reports safe configuration, DNS, TLS, authentication, connection, and schema classes.
-# …see package.json "test:*" scripts for the full list
+npm run test:all      # every non-browser suite — pass, skip and fail counted separately
+npm run test:ui       # the New request browser smoke (Playwright — run `npx playwright install chromium` once)
+npm run test:<suite>  # one suite
+```
 
+What every suite covers, how the browser suites run offline against a stub, and how to run them
+against a deployment: [the test playbook](docs/testing/TEST_PLAYBOOK.md#the-automated-suites).
+
+## Using the demo
+
+Use the role switcher in the top-right corner to act as each persona. It is a presentation and
+acceptance-testing mechanism, **not** authentication or authorization.
+
+- **Service Owner** — requests and the actions waiting on them
+- **Procurement Manager** — the full orchestration control tower
+- **Vendor Manager** — validation queue and supplier compliance
+- **Operations Lead** — workflow health, bottlenecks, SLA tracking
+- **Supplier (External)** — the self-service portal, with its own layout
+- **Admin** — the configuration
+
+The database is pre-loaded with representative seed data. Seeding goes through **one**
+authenticated route, `POST /api/admin/seed` with an `x-admin-secret` header (`ADMIN_SEED_SECRET`
+below); typed local fixtures remain for the offline browser suites.
+
+## Data maintenance
+
+One-time data changes are idempotent scripts in `db/backfills/`, never tests:
+
+```bash
 npm run backfill:compliance       # one-time data migration, NOT a test — fills the front-door
                                    # determination fields on application-owned `requests` rows that predate
                                    # them, using the same decisioning logic live intake runs.
@@ -362,170 +106,16 @@ npm run backfill:service-description-and-forms # stores the built-in service des
                                    # unless an admin has switched one on. Idempotent; --dry-run.
 ```
 
-`test:ui` uses Playwright. First-time setup: `npm install` then `npx playwright install chromium`.
-It boots the dev server itself and needs `.env.local` with `NEON_DATABASE_URL` set.
-
-The stub-backed suites are the exception. They stub the data API inside the browser
-(`installDbStub()` in `tests/ui/db-stub.mjs`) and run with **no credentials and no network**;
-`installDbStub(page, rows, { fail: ['<relation>'] })` makes a relation answer with the
-endpoint's 500, which is the only way a suite reaches a screen's error state. Seven run in CI
-(`.github/workflows/ci.yml`): `test:request-detail-ui`, `test:requester-entry-ui`,
-`test:service-description-ui`, `test:intake-guidance-ui`, `test:approvals-ui`,
-`test:dashboard-widget-states` and `test:request-list-ui`. `test:routing-rules-ui`,
-`test:approval-chains-ui` and `test:form-builder-ui` are stub-backed too but not yet in that list.
-Use that harness for any screen worth checking where the database is unreachable — a suite that
-can only run against a live database does not run in CI or in a sandbox, which is how a
-render crash on the request detail reached production unnoticed.
-
-Stub the boundary the client actually posts to, `/api/db`. That suite (now `test:requester-entry-ui`) intercepted
-`**/rest/v1/**`, the PostgREST path from before the Neon cutover, so it caught nothing and two of its
-checks failed for months against a pre-check screen that was really crashing.
-
-The link-navigation suite uses only visible role controls. It verifies that
-supplier, contract, sourcing, purchase-order and request links land on the intended record instead
-of silently redirecting to Home. Requesters may inspect supplier and contract details read-only;
-operational edits remain restricted to entitled roles.
-Set `E2E_API_BASE=https://orchestration-ui.vercel.app` for deployed API tests and
-`E2E_UI_BASE=https://orchestration-ui.vercel.app` for the interaction suite against a deployed build.
-
-Per the repo's Definition of Done (see `CLAUDE.md`), every change ships with updated tests and docs.
-
-### Role Switching (simulation)
-
-Use the role switcher dropdown in the top-right corner to simulate each persona during demos and UAT. It is a presentation/testing mechanism, not authentication or authorization.
-
-Switch between:
-
-- **Service Owner** — simplified view focused on requests and actions
-- **Procurement Manager** — full orchestration control tower
-- **Vendor Manager** — validation queue and compliance focus
-- **Operations Lead** — workflow health, bottlenecks, SLA tracking
-- **Supplier (External)** — self-service portal with distinct layout
-- **Admin** — routing rules, workflow designer, AI agents, system health
-
----
-
-## Seed and demo data
-
-The internal Neon store is pre-loaded with representative seed data for demos and UAT. Typed local
-fixtures remain available for offline UI tests.
-
-Seeding goes through **one** authenticated route — `POST /api/admin/seed` with an `x-admin-secret`
-header (see `ADMIN_SEED_SECRET` below). An unauthenticated `/api/seed` endpoint that upserted a
-smaller, duplicated fixture set over the same tables has been removed.
-
-| Entity | Count |
-|--------|-------|
-| Procurement Requests | 35 |
-| Suppliers | 23 |
-| Contracts | 18 |
-| Purchase Orders | 13 |
-| Invoices | 14 |
-| Users | 12 |
-| Routing Rules | 12 |
-| AI Agents | 6 |
-| Compliance Reports | 10 |
-| System Integrations | 15 |
-| Notifications | 25 |
-| Comments | 60 |
-| KPI Data | 12 months |
-
-AI classification uses the governed Groq → Gemini server-side fallback with deterministic client routing when the classifier is unavailable. The AI agent configuration is held in the platform store and read by the Vercel handlers.
-
-There is one LLM helper, `api/_llm.ts`, and it pins two Groq models: `openai/gpt-oss-120b` for the assistant (which needs tool-calling) and `openai/gpt-oss-20b` for the four single-shot callers. Changing either — or adding a provider — is a governed decision (CLS-G0); see the AI section of [CLAUDE.md](CLAUDE.md).
-
----
-
-## System Integrations
-
-The platform visualizes handovers to enterprise systems at each workflow stage:
-
-| Stage | System | Purpose |
-|-------|--------|---------|
-| Validation | Coupa Risk Assess | Supplier risk assessment |
-| Sourcing | SAP Ariba | RFx creation and bid management |
-| Contracting | Sirion CLM | Contract drafting and review |
-| Purchase Order | SAP S/4HANA | PO creation in ERP |
-
-Integration status is visible on the process stepper, workflow cards, request detail, and table views.
-
-### Source-connector layer
-
-Upstream-shaped business objects (requests, orders, invoices, contracts, suppliers, tickets, risk
-records, …) are read through a single, standardised connector interface in `src/lib/integrations`.
-The default implementation reads the platform's **own Neon store** — the R1 system of record — so no
-live connection is required. R2 can register a **live** connector for any object type with no change
-at the call site. Every result carries a provenance envelope (`sourceSystem`, `mode`, `retrievedAt`,
-freshness). See `src/lib/integrations/README.md` and the [R1 evidence index](docs/roadmap/R1_IMPLEMENTATION_EVIDENCE.md).
-
----
-
-## Project Structure
-
-```
-api/                 # Vercel entrypoints. `_`-prefixed modules are shared code, not routes,
-│                    #   so they do not count against the 12-function Hobby cap.
-├── _domains/        # Low-volume handlers dispatched by api/db.ts?domain=, with the
-│                    #   public paths rewritten in vercel.json
-src/
-├── config/          # Theme, navigation, roles
-├── data/            # Domain types (types.ts) + seed fixtures for api/admin/seed.ts (see its README)
-├── stores/          # Zustand state stores
-├── hooks/           # Custom React hooks
-├── lib/             # Utilities, formatters, decisioning and AI adapters
-│   ├── db/          # Data-access modules + TanStack Query hooks — one module per relation,
-│   │                #   and the only place db-client is imported (see its README for the
-│   │                #   layer rule, the *-core.ts pattern and the two known exceptions).
-│   ├── integrations/# Standardised source-connector layer (own-store → live swap)
-│   ├── procurement/ # Pure decisioning modules (catalogue-basket.ts plans a basket as orders) (classify, materiality, risk, residual risk questions and
-│   │                #   their conversation-slot adapter, intake determination + its
-│   │                #   compliance record, governed checkout, …) + service description config (SERVICE_DESCRIPTION.md)
-│   │                #   personal-queue.ts is the one definition of what is on a person's plate
-│   │                #   (approvals assigned or delegated to them, referred back, overdue)
-│   │                #   request-list-filters.ts is the /requests URL contract every link builds with
-│   │                #   policy-tokens.ts names every threshold; policy-references.ts finds what configuration names one
-│   ├── routing/     # Routing-rule evaluator + diagnostics, and the one buying-channel resolver both the
-│   │                #   buy-route screen and the determination call (plus its plain-English requester copy)
-│   ├── assistant/   # Assistant providers, intents and capability handlers; question-route.ts is the
-│   │                #   one route a free-text question takes, on Home and in the assistant
-│   └── workflow/    # Workflow engine, transition primitive, gate model (see its README)
-├── components/
-│   ├── ui/          # shadcn/ui primitives
-│   ├── layout/      # App shell, sidebar, topbar, portal layout
-│   ├── shared/      # Reusable components (badges, cards, tables, charts, FactGrid, AsyncBoundary)
-│   └── charts/      # Recharts wrappers
-└── features/        # Feature modules
-    ├── dashboard/   # Role-based dashboards, the command bar, and the Simple requester home;
-    │                #   a platform-owned attention band above a grid customised in one mode
-    ├── requests/    # New request — new-request/conversation/ is the conversation page (its engines and
-    │                #   Your request), new-request/channel/ the Channel page; use-intake-determination.ts
-    │                #   mounts the determination once (see its README); request detail
-    ├── catalogue/   # Door 2: the Catalogue page and its basket, item detail (see its README)
-    ├── workflows/   # Kanban, table, timeline, monitor
-    ├── suppliers/   # Directory, profile, portal
-    ├── approvals/   # Approval queue, delegation
-    ├── admin/       # Rules, workflow designer, AI agents, service description config, and the
-    │                #   cost-centre / delivery-location reference data the checkout validates against
-    ├── sourcing/    # Events, evaluation centre (picker + per-event scoring and award)
-    ├── contracts/   # Register, detail
-    ├── purchasing/  # PO, invoice, three-way match
-    ├── analytics/   # Dashboards, report builder
-    ├── notifications/
-    ├── ai-assistant/
-    └── help/        # Knowledge base (the knowledge_base table by topic), assistant, support
-```
+The schema is `db/schema.sql`, applied to Neon by `db/migrations/apply-neon-schema.mjs` (see its
+README).
 
 ---
 
 ## Deployment
 
-Deployed as a Vite SPA with Vercel serverless functions. The `vercel.json` preserves `/api/*` before its SPA fallback:
-
-```json
-{ "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }] }
-```
-
-Push to `main` triggers automatic deployment.
+A push to `main` deploys to Vercel: the single-page app, and the serverless functions in `api/`
+(capped at 12 by the Hobby plan — [ARCHITECTURE.md §2](docs/ARCHITECTURE.md#2-runtime-and-deployment)).
+`vercel.json` routes the low-volume endpoints through `/api/db` before its SPA fallback.
 
 ### Environment variables
 
@@ -539,7 +129,7 @@ Full descriptions live in `.env.example`.
 | `ADMIN_SEED_SECRET` | Serverless (`api/`) | Only for seeding | Shared secret for `api/admin/seed.ts` |
 | `VITE_ASSISTANT_PROVIDER` | Browser | No | `groq` (default) or `mock` for a fully offline assistant |
 | `GROQ_API_KEY` / `GEMINI_API_KEY` | Serverless (`api/`) | For AI classification and assistant | Server-side only. Five routes use them, all through `api/_llm.ts`: `api/chat.ts`, `api/ai.ts`, `api/chat-intake.ts`, `api/generate-sow.ts` and the rerank in `api/_domains/contract-match.ts` |
-| `GROQ_MODEL` | Serverless (`api/`) | No | Overrides the **single-shot** Groq model (default `openai/gpt-oss-20b`) used by every route except the assistant. The assistant's tool-calling model (`openai/gpt-oss-120b`) is pinned in code and has no override — see CLAUDE.md on CLS-G0 |
+| `GROQ_MODEL` | Serverless (`api/`) | No | Overrides the **single-shot** Groq model (default `openai/gpt-oss-20b`) used by every route except the assistant. The assistant's tool-calling model (`openai/gpt-oss-120b`) is pinned in code and has no override — see AGENTS.md rule 5 (CLS-G0) |
 
 The browser holds **no** database credential: it posts to the allowlisted `/api/db` boundary, and
 there is no provider switch to get wrong. `NEON_DATABASE_URL`/`DATABASE_URL` must be configured only

@@ -6,7 +6,7 @@
 // had a handover in `timeout` and Coupa Risk one in `error`.
 //
 // There is no uptime to report. Nothing pings these systems — R1 has no live
-// connections at all (see CLAUDE.md), so "connected" is not a fact the platform
+// connections at all (see AGENTS.md rule 2), so "connected" is not a fact the platform
 // possesses, and neither is an error rate or a session count. What it does
 // possess is `system_integrations`: one row per handover, with the status it
 // reached and, when it came back, when. That is what this derives.

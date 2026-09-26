@@ -104,7 +104,7 @@ error classes without exposing connection details.
 Server-side handlers — `api/_domains/*` and `api/governed-checkout.ts` — read with raw SQL rather
 than through these ports, because the layer is browser-shaped (`useSourceData`, TanStack hooks) and
 has no server-side connector factory. That is a **gap**, recorded here rather than argued away: the
-ground rule in CLAUDE.md says reads go through the ports, and these do not. Closing it means adding a
+ground rule in AGENTS.md (rule 2) says reads go through the ports, and these do not. Closing it means adding a
 server-side factory that the handlers can call, not adding more direct reads.
 
 ## Consumers on the layer

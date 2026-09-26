@@ -1,13 +1,13 @@
 import type { AssistantTurn } from '../../../data/types.js';
 
-// A demand raised in the assistant goes where one raised on Home goes: to the
-// describe step, carrying the words, which classifies it with the configured
+// A demand raised in the assistant goes where one raised on Home goes: to New
+// request, carrying the words, whose conversation classifies it with the configured
 // categories and finds a named supplier in the directory.
 //
 // This module used to classify on its own and look the supplier up in a list
 // of ten names typed here, then pass `category`, `value` and `supplier` as
-// query parameters — a second classification that could disagree with the
-// describe step about the same sentence, and a supplier list nobody maintained.
+// query parameters — a second classification that could disagree with
+// intake's own about the same sentence, and a supplier list nobody maintained.
 
 // The server assistant (api/chat.ts, `start_demand`) says the same thing and
 // links the same way — it passed the model's category, value and supplier,

@@ -8,7 +8,7 @@
 // whether anything was wrong was told, in green, that nothing was.
 //
 // There is no uptime to report and no sessions to count. R1 has no live
-// connections (CLAUDE.md, ground rule 2), so "connected" is not a fact this
+// connections (AGENTS.md, ground rule 2), so "connected" is not a fact this
 // platform holds. What it holds is `system_integrations`: one row per handover,
 // the status it reached, and when it came back. That is what this shows, and
 // where a figure does not exist it is absent rather than invented.

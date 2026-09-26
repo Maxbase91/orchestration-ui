@@ -10,7 +10,7 @@
 //
 // So this asks the providers what they serve instead of trusting the constant.
 // It also prints the served list, because the standing rule is to run the
-// latest free model on each provider (CLS-G0, see CLAUDE.md) and you cannot
+// latest free model on each provider (CLS-G0, see AGENTS.md rule 5) and you cannot
 // follow that rule without seeing what has been released.
 //
 // A missing provider key is a coverage gap, not a breakage: the suite passes on
@@ -108,7 +108,7 @@ const PROVIDERS = 2;
 
 if (failures > 0) {
   console.error(`\nmodel-currency: ${failures} pinned model(s) are no longer served.`);
-  console.error('Changing a model id is a CLS-G0 decision — see the AI section of CLAUDE.md.');
+  console.error('Changing a model id is a CLS-G0 decision — see rule 5 of AGENTS.md.');
   process.exit(1);
 }
 if (skipped === PROVIDERS) {

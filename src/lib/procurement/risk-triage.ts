@@ -3,7 +3,7 @@
 // Moved out of `step-compliance.tsx`, a 1,200-line component that exported it
 // alongside the component itself — which breaks Fast Refresh for that module
 // and hid a decisioning rule inside a screen. Decisioning belongs in
-// `lib/procurement` (see CLAUDE.md conventions), where it is reachable by tests
+// `lib/procurement` (see AGENTS.md conventions), where it is reachable by tests
 // and by anything else that needs the same answer.
 //
 // Behaviour is unchanged: this is a move, not a retune.

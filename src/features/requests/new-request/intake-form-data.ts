@@ -67,7 +67,7 @@ export interface IntakeFormData {
   categoryDescription: string;
   /**
    * The assistant's read of what kind of demand this is (api/ai.ts `intent`),
-   * carried from the describe step into the routing decision. Empty when AI-001
+   * carried from the conversation's first phase into the routing decision. Empty when AI-001
    * is off or the call failed, in which case the deterministic rules decide.
    */
   llmIntent: string;

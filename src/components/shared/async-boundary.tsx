@@ -58,7 +58,7 @@ function firstError(queries: AsyncState[]): unknown {
  * Why the error text says so little.
  *
  * A query error can carry a database message naming columns and constraints.
- * The house rule is that internals do not reach users (CLAUDE.md), so the
+ * The house rule is that internals do not reach users (AGENTS.md), so the
  * surface states that the read failed and the console carries the detail — the
  * same split `api/` uses for its `{ error, code }` responses.
  */

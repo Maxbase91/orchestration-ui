@@ -1,8 +1,8 @@
 // Compliance tab on the request detail page — the single home for every
 // risk/compliance/policy signal about this request: the intake-time policy
 // checks (buying channel, SRA, reused risk assessments, risk
-// flags), the fuller compliance report produced after Validation, the
-// front-door determination, and the linked supplier's own risk assessment.
+// flags), the front-door determination, the contract position of a catalogue
+// order or call-off, and the linked supplier's own risk assessment.
 // Any of these blocks may be absent depending on how far the request has
 // progressed. This used to be split across this tab and a second copy
 // embedded per-stage in the Workflow tab (ComplianceStageSection) — removed,
@@ -69,7 +69,7 @@ export function TabCompliance({ request }: TabComplianceProps) {
     : undefined;
 
   // The determination now lives on the request itself, so there is something to
-  // show even before the intake record or the post-validation report exist.
+  // show even before the intake record exists.
   const determination: { label: string; value: string }[] = [
     { label: 'Inherent risk', value: request.inherentRiskTier ?? '' },
     { label: 'Materiality', value: request.materialityTier ?? '' },
@@ -99,7 +99,7 @@ export function TabCompliance({ request }: TabComplianceProps) {
         <ShieldCheck className="size-10 opacity-30" />
         <p className="text-sm">No compliance record for this request.</p>
         <p className="text-xs">
-          Requests submitted through the intake wizard carry their determination from
+          Requests submitted through New request carry their determination from
           submission; this one predates that.
         </p>
       </div>

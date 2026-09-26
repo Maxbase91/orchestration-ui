@@ -1,4 +1,4 @@
-// The describe step's text from a link — `?q=<words>` from the Home box, the
+// The conversation's first message from a link — `?q=<words>` from the Home box, the
 // assistant or Start renewal — read on the first render, before anything else
 // can clear the URL.
 //
@@ -12,7 +12,7 @@ import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 export interface UseIntakeDeepLinkResult {
-  /** The demand text from `?q=`, so the describe step can start populated. */
+  /** The demand text from `?q=`, so the conversation can start from it. */
   prefill: string;
 }
 

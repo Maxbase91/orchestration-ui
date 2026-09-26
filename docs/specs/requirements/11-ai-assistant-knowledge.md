@@ -137,7 +137,7 @@ FR11-43 · **Help → Knowledge Base** (`/help/kb`) reads the same pool the assi
 - `api/chat.ts` — tool loop, tool handlers, SYSTEM_PROMPT, record scoping
 - `api/_llm.ts` — the one LLM helper: Groq first, Gemini fallback, streaming and
   tool-calling. Pins both Groq models (`openai/gpt-oss-120b` for the assistant,
-  `openai/gpt-oss-20b` for single-shot callers) — governed under CLS-G0, see CLAUDE.md
+  `openai/gpt-oss-20b` for single-shot callers) — governed under CLS-G0, see AGENTS.md rule 5
 - `api/_action-description.ts` — builds the confirm card's text from the action itself
 - `api/execute-action.ts` — runs a confirmed action and its audit row in one transaction
 - `src/features/ai-assistant/ai-chat-overlay.tsx`

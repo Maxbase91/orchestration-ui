@@ -153,6 +153,42 @@ block, details-supplier, the call-off form), the stepper and the wizard footer.
 4. [x] 4d — the production interaction suite (8 flows, including a submit through the conversation) and the walkthrough's five front-door scenarios pass against the deployed app; screenshots checked against the artboard
    - Found in production and fixed (`8aa16e2`): a contract past its end date was offered as coverage — both matchers trusted the status column, and 12 of the 30 live contracts are past their end date while still marked active or expiring (flagged: nothing recomputes the status)
 
+## Decided 2026-09-26 — three workstreams, in order
+- **A. Documentation boundaries** — "PRD + ARCHITECTURE, one home per fact" and "AGENTS.md, CLAUDE.md imports it". `docs/PRD.md` (why/what/scope), `docs/ARCHITECTURE.md` (how), `AGENTS.md` the one rulebook (CLAUDE.md imports it), the `test:*` catalogue moved to TEST_PLAYBOOK (guarded by `test:workflow-scripts`), the README slimmed to setup/commands/env/deploy, the functional spec audited section by section against the code and rewritten to what it does.
+- **B. Required sections** — "Conversation asks what must be covered" (see below).
+- **C. Contract status** — "Derive status from the dates": the read view derives expired/expiring from the end date; the renewal window becomes a Decisioning threshold; every screen reads the derived status; stored rows untouched.
+
+## Open — found by the functional-spec audit (2026-09-26)
+Four read-only audits compared every spec section with the code. The spec now says
+what the code does; these are the things it now has to say that need a decision.
+
+**Defects — behaviour that is wrong or records what did not happen**
+1. **Cancel advances the request.** `advanceWorkflow(id, 'cancelled')`: with no workflow instance nothing happens and "Request cancelled" is still shown; with one, no edge carries `cancelled`, so the default edge moves the request to its next stage (`action-buttons.tsx:227-258`, `edge-conditions.ts:287-313`).
+2. **Risk Approve / onboarding Complete record screening clear and an SRA valid without any screening** (`profile-risk-tab.tsx:43-54`, `onboarding-pipeline-page.tsx:30-36`) — AGENTS.md rule 3. Their "rationale" is asked for and not saved.
+3. **A Kanban drag moves any request to any stage** — `api/workflow-action.ts` checks the stage exists, not that the request may go there, so gates, forms and approvals are bypassed.
+4. **Intake submit stores the browser's channel and compliance record** without recomputing (rule 3; ARCHITECTURE §10).
+5. **The audit log is editable** through `/api/db` (update/delete by id).
+6. **Notifications have no recipient** — one shared feed; Mark all read marks it for everyone.
+7. **User Management's Remove is a hard delete**; the Delegation page keeps only local state.
+8. **An unlisted supplier named in New request is written to the directory at once**, as a prospective supplier, although the page says nothing is created until submit; an abandoned request leaves it behind.
+9. **Risk Approve / Refer back and the portal's onboarding form set a Completed supplier back to In progress**, which then blocks contracting; the light onboarding gate is checked only by the request page's stage action (not when approval moves a request into Sourcing), and the full gate is not checked again on leaving Vendor Onboarding.
+10. **Saving contract coverage drops a service family** that matches none of the stored ones, and saves the rest without it.
+11. **The disposition is shown and not acted on** — the Channel page says a request "will be referred back" or "a change will be asked for", and the request enters its first stage as usual.
+12. **Deadlines after some moves** — on a request with no workflow instance, a stage entered by the stage action, an approval or an award gets no deadline and the actor becomes its owner; a full goods receipt moves a request on without resetting its deadline. The header's Reject asks for no reason. The Monitor's stuck table repeats days overdue as days in stage.
+
+**Demonstration surfaces presented as real** — decide: remove, or build for real
+- Analytics: Report Builder (sample data, Save saves nothing), Scheduled Reports, Exports; the average-contract-value "flat 2%".
+- Workflows: the heatmap (7 of 8 weeks random), the Bottlenecks escalation feed, the stuck-table buttons, the "AI bottleneck analysis" (a top-3 ranking).
+- Suppliers: the profile's template "AI summary", fixed spend split, performance sub-scores and trend, placeholder documents and activity; Supplier Messages; the portal's static dashboard, disabled documents, messages that send nothing, hardcoded bank details, static onboarding list.
+- Sourcing: the Q&A board and the templates gallery. Contracts: obligations, documents, the fixed 85% committed. Purchasing: the three-way-match scenarios page.
+- Cards labelled "AI-generated" that hold template text (supplier summary, risk classification, spend insight, invoice matching, top bottleneck).
+- Contact Support's email, hours, response time and hotline (the response time contradicts the Support SLAs).
+- Dead code: `src/data/ai-responses.ts`, `getAIResponse`, `getAICategorySuggestions`.
+
+**Hardcoded where a governed value is expected** — High Value €500,000 (Active Workflows); at-risk windows of 3 days / 24 h / 4 days in three places; the approval chains' lowest band (€10,000 literal); the 90-day expiring window (workstream C).
+
+**White-label** — real company names in UI mock content (sourcing Q&A, portal identity and messages, three-way-match scenarios, bottlenecks feed), a real bank in the portal profile, real supplier names in `api/chat-intake.ts`'s prompt and an example in `api/chat.ts`'s tool description; the seed suppliers are real companies.
+
 ## Open — "required sections" means two things (found 2026-09-26)
 The conversation's panel counts the questions that must be answered before the
 channel is confirmed (`requiredSlots`: the floor, the template's `required`,

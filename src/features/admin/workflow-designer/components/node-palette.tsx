@@ -19,7 +19,7 @@ import type { DragEvent } from 'react';
 // stage — the label survived, everything that made it that kind of node did
 // not, and nothing said so.
 //
-// Six now, and every one of them persists:
+// Seven now, and every one of them persists:
 //   - Approval is gone: approval chains decide who approves, by value band or
 //     by a routing rule naming one. A second place to configure approvers is
 //     the drift this tranche exists to remove.

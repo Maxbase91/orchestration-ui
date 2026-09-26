@@ -23,7 +23,7 @@ function mapFlowToTemplateGraph(
   // Every palette type maps back to a template type the engine handles. It
   // mapped four of ten, so an Approval or Timer node dropped on the canvas
   // saved as a plain stage — the label survived and the node kind did not.
-  // The palette is six now and this covers all of them.
+  // The palette is seven now and this covers all of them.
   const reverseType: Record<string, string> = {
     start: 'start',
     end: 'end',
@@ -397,8 +397,8 @@ export function WorkflowDesignerPage() {
             {channels.length === 0 && (
               <span className="text-xs text-ink-3">none — no request will run on this template</span>
             )}
-            {/* What a requester is told about this channel, on the intake's
-                How you'll buy step and the buying-channel review. It was a
+            {/* What a requester is told about this channel, in the intake
+                conversation's offer and on the Channel page. It was a
                 hard-coded map in code, so reshaping a template here left the
                 wording describing the old one. */}
             {channels.length > 0 && (

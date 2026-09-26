@@ -76,8 +76,8 @@ const NOT_A_DEMAND = /\b(need|want|require)s? (some )?(help|advice|information|i
 
 /**
  * The catalogue items that serve this demand, or none. The same category-gated,
- * naming-word decision intake's "How you'll buy" step makes — one decision,
- * both doors. Contracts are not checked here: the box decides only "order this
+ * naming-word decision the intake conversation makes when it checks how a
+ * demand is bought — one decision, both doors. Contracts are not checked here: the box decides only "order this
  * from the catalogue" or "take it to intake", and intake runs the contract check.
  */
 export function catalogueItemsFor(query: string, data: QuestionRouteData): CatalogueItem[] {

@@ -40,8 +40,8 @@ export const aiAgents: AIAgent[] = [
     name: 'Supplier Recommender',
     type: 'recommendation',
     status: 'active',
-    lastUpdated: '2026-09-25',
-    description: 'Ranks suppliers for the request on the Details step: the category\'s preferred suppliers first, then by how well the supplier\'s categories fit, its performance score and its risk rating. When it is not active, no ranked suggestions are shown and the supplier can still be chosen.',
+    lastUpdated: '2026-09-26',
+    description: 'Suggests suppliers in the New request conversation when the requester chooses a supplier or adds one to invite: the category\'s preferred suppliers first, then by how well the supplier\'s categories fit, its performance score and its risk rating. A shortlist to choose from, not a decision. When it is not active, no suggestions are shown and the supplier can still be named.',
   },
   {
     id: 'AI-007',

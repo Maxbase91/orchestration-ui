@@ -18,7 +18,7 @@ backlog uses three: **Requester** (raises demand), **Buyer** (procurement
 operator), **Reviewer/Approver** (governs).
 
 **Ground rules that constrain every story below** — from
-[CLAUDE.md](../../CLAUDE.md):
+[AGENTS.md](../../AGENTS.md):
 
 1. **Standardised and white-label.** No organisation or sector naming anywhere in
    code, copy, or data.
@@ -282,7 +282,7 @@ from had nowhere to be seen or corrected.
 | 8.1.2 | As a **Requester**, I want accounting defaults filled from my profile, not asked for. | Cost centre, delivery location and beneficiary come from `procurement_profiles`. All three are **shown pre-filled and changed from a picker**, never typed: the options are the active rows of `cost_centres` and `delivery_locations`, which is exactly what the governed checkout accepts. Before, one checkout offered five **invented** cost centres, the other free text, and the delivery location was validated against a list on the profile that nothing ever populated. | 🟢 |
 | 8.1.3 | As a **Buyer**, I want an ambiguous contract refused, not guessed. | Two active contracts for one item produce an error ("procurement must select one"), never a silent pick. Pinned by `test:mode-equivalence`. | 🟢 |
 | 8.1.4 | As a **Buyer**, I want only real risk assessments used. | Only `completed` assessments count, and an unexpired one is preferred. | 🟢 |
-| 8.1.5 | As a **Requester**, I want a call-off to make clear it is not the whole contract. | The Details step states that the contract ceiling is not the value of this individual call-off. | 🟢 |
+| 8.1.5 | As a **Requester**, I want a call-off to make clear it is not the whole contract. | The conversation asks what *this call-off* is worth, apart from the contract's ceiling, which the offer shows as the amount left. | 🟢 |
 | 8.1.6 | As a **Buyer**, I want delivery locations validated. | `shipToLocationId` must be one the profile approves; a value outside the list is rejected by `evaluateGovernedCheckout`. | 🟢 |
 
 **Technical** — `src/lib/procurement/governed-checkout.ts`, `submit-governed-checkout.ts`, `api/governed-checkout.ts` (ADR-0002, basket mode ADR-0009), `src/lib/procurement/catalogue-basket.ts`, `src/features/catalogue/catalogue-page.tsx`, `new-request/conversation/call-off-agenda.ts` and `new-request/call-off.ts`.

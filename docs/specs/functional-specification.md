@@ -1,13 +1,15 @@
 # Procurement Orchestration Platform — Functional Specification
 
-**Version:** 1.0
-**Date:** 30 August 2026
+**Version:** 1.1
+**Date:** 26 September 2026
 **Status:** Approved
 **Classification:** Business-Facing — No Technical Implementation Detail
 
-> **Current implementation note:** R1 now owns internal request, PR, PO, workflow, sourcing, supplier,
-> contract, risk, catalogue, ticket, conversation, and audit records in private Neon. External-system
-> execution and authentication remain deferred; see the [current roadmap](../roadmap/R1_BACKLOG_FIT_GAP.md).
+> **What this document is:** the detailed reference for what each part of the platform does for
+> the people who use it. Why the platform exists and what Release 1 includes is the
+> [PRD](../PRD.md); how it is built is [ARCHITECTURE.md](../ARCHITECTURE.md); the requirement
+> numbers are in [requirements/](requirements/). It describes only what the platform does today —
+> anything planned says so.
 
 ---
 
@@ -31,20 +33,22 @@ The platform serves six distinct user groups:
 ### 1.3 Problems It Solves
 
 - **Fragmented intake:** Procurement requests arrive via email, phone, and spreadsheets. The platform provides a single, intelligent intake channel.
-- **Manual classification and routing:** Category assignment and approval routing are error-prone and slow. The platform uses AI to classify and route requests automatically.
+- **Manual classification and routing:** Category assignment and approval routing are error-prone and slow. The platform reads the demand with AI, and configured rules decide the buying channel and the approvers.
 - **Compliance gaps:** Policy checks, risk assessments, and approval thresholds are often missed. The platform enforces them systematically at every stage.
 - **Lack of visibility:** Stakeholders cannot see where their request is or why it is stuck. The platform provides real-time tracking, bottleneck detection, and SLA monitoring.
-- **Disconnected systems:** Procurement, sourcing, contracting, and finance tools operate in silos. The platform integrates with external systems and provides a unified view.
-- **Slow cycle times:** Manual handoffs between stages cause delays. The platform automates transitions, escalates overdue items, and predicts processing times.
+- **Disconnected systems:** Procurement, sourcing, contracting, and finance tools operate in silos. The platform holds the records in one place, and reads each one through a connector layer that live connections to those systems will replace (Release 2).
+- **Slow cycle times:** Manual handoffs between stages cause delays. The platform moves each request through its channel's stages, tracks each stage against its deadline, and shows what is overdue and where work is stuck.
 
 ### 1.4 Key Capabilities
 
-- **AI-powered request intake** with natural language understanding, automatic category classification, and guided service description generation
-- **End-to-end workflow orchestration** across 10 procurement stages with configurable routing rules, approval chains, and SLA tracking
-- **Automated compliance enforcement** including budget validation, supplier risk checks, policy adherence, duplicate detection, and a dedicated AI compliance agent
-- **Full supplier lifecycle management** from onboarding through risk assessment, performance tracking, and an external self-service portal
-- **Integrated sourcing and evaluation** with event management, side-by-side supplier comparison, weighted scoring, and AI-assisted evaluation
-- **Real-time analytics and reporting** with four dashboards, six KPI trackers, a drag-and-drop report builder, and scheduled report distribution
+- **One front door.** A Home box that answers status and policy questions in place and starts a request for anything to buy (§3.1); a New request conversation that reads the demand, checks the catalogue and existing contracts first, decides the buying channel and asks only what that channel needs (§4.2); and a catalogue with a basket (§4.5)
+- **Workflow orchestration.** Each buying channel's lifecycle is a configurable workflow — stages, owners, deadlines in working days, gates and branches — and every request moves through the stages its channel runs (§5)
+- **Compliance by rule.** Policy checks, materiality and risk, approval to source and the approvers are decided by configured rules against governed thresholds, and recorded as the request's compliance record; a check that did not run is reported as not run (§6)
+- **Supplier lifecycle.** A directory and profile, onboarding with gates, risk assessments, and a supplier portal for sourcing responses and invoices (§7)
+- **Sourcing, contracts, purchasing and payment.** Sourcing events raised from a request, scored and awarded back to it (§8); a contract register with renewals (§9); internal purchase orders, goods receipt, invoices worked through review, match and approval, and payment tracking — nothing is sent to a supplier, an ERP or a bank (§10)
+- **Analytics** — dashboards, and a home dashboard per role (§3.2, §11)
+- **An assistant** that takes the same route as the Home box, answers from the knowledge base and the records a person may see, acts only on confirmation, and hands over to support (§3.5, §18)
+- **Configuration, not code.** The thresholds, rules, approval chains, workflows, forms, categories and agents are changed in Admin, without a release (§14)
 
 ---
 
@@ -54,7 +58,7 @@ The platform serves six distinct user groups:
 
 #### Requestor / End User (Service Owner)
 
-The business user who needs to procure something. They initiate requests, track their progress, respond to queries from the procurement team, and confirm receipt of goods or services. They see only their own requests and relevant approvals.
+The business user who needs to procure something. They describe what they need, order from the catalogue, track their requests, answer questions from the procurement team, and decide the approvals assigned to them. Their sidebar shows their own requests.
 
 **Typical users:** Department heads, project managers, team leads, budget owners.
 
@@ -84,158 +88,187 @@ An external supplier who accesses the platform through a dedicated self-service 
 
 #### Admin / Platform Owner
 
-The system administrator who configures the platform. They manage routing rules, approval chains, form templates, workflow designs, user accounts, AI agent settings, and policies. They have full access to all features including system health monitoring and audit logs.
+The system administrator who configures the platform (§14): the thresholds, categories, routing rules, approval chains, workflows, forms, the service description, the knowledge base, AI agents, reference data and users, with System Health and the Audit Log. They also see the operational screens — requests, approvals, workflows, sourcing, suppliers, contracts, purchasing and analytics — but do not buy: New Request and the Catalogue are not in their sidebar.
 
 **Typical users:** Procurement system administrators, IT admins supporting procurement.
 
-### 2.2 Permission Matrix
+### 2.2 What each role is shown
 
-| Feature Area | Requestor | Procurement Manager | Vendor Manager | Operations Lead | Supplier | Admin |
+The sidebar each role is shown ([navigation](../../src/config/navigation.ts)):
+
+| Area | Requester | Procurement Manager | Vendor Manager | Operations Lead | Admin | Supplier |
 |---|---|---|---|---|---|---|
-| Home Dashboard | Own view | Full view | Validation view | Operations view | Portal view | System view |
-| My Requests | Yes | Yes | Yes | Yes | No | No |
-| All Requests | No | Yes | Yes | Yes | No | Yes |
-| New Request | Yes | Yes | No | No | No | No |
-| Approvals | Own | All | All | All | No | All |
-| Tasks | Own | Own + Team | Own | Own + Team | No | Own |
-| Active Workflows | No | Yes | No | Yes | No | Yes |
-| Workflow Monitor | No | Yes | No | Yes | No | Yes |
-| Bottlenecks & Alerts | No | Yes | No | Yes | No | Yes |
-| Demand Pipeline | No | Yes | No | Yes | No | Yes |
-| Sourcing Events | No | Yes | Yes | No | No | Yes |
-| Evaluation Centre | No | Yes | Yes | No | No | Yes |
-| Supplier Directory | No | Yes | Yes | Yes | No | Yes |
-| Onboarding Pipeline | No | Yes | Yes | Yes | No | Yes |
-| Risk & Compliance | No | Yes | Yes | Yes | No | Yes |
-| Supplier Messages | No | Yes | Yes | Yes | No | Yes |
-| Contract Register | No | Yes | No | Yes | No | Yes |
-| Purchase Orders | No | Yes | No | Yes | No | Yes |
-| Invoices | No | Yes | No | Yes | No | Yes |
-| Analytics Dashboards | No | Yes | No | Yes | No | Yes |
-| Report Builder | No | Yes | No | Yes | No | Yes |
-| Routing Rules | No | No | No | No | No | Yes |
-| Form Builder | No | No | No | No | No | Yes |
-| Workflow Designer | No | No | No | No | No | Yes |
-| Approval Chains | No | No | No | No | No | Yes |
-| AI Agent Configuration | No | No | No | No | No | Yes |
-| User Management | No | No | No | No | No | Yes |
-| System Health | No | No | No | No | No | Yes |
-| Audit Log | No | No | No | No | No | Yes |
-| AI Assistant | Yes | Yes | Yes | Yes | Yes | Yes |
-| Knowledge Base | Yes | Yes | Yes | Yes | Yes | Yes |
-| Supplier Portal | No | No | No | No | Yes | No |
+| Home | ✓ | ✓ | ✓ | ✓ | ✓ | Portal (§7.6) |
+| Buy something — New Request, Catalogue | ✓ | ✓ | – | – | – | – |
+| My Requests | ✓ | ✓ | ✓ | ✓ | – | – |
+| All Requests | – | ✓ | ✓ | ✓ | ✓ | – |
+| My Approvals, Delegation, My Tasks | ✓ | ✓ | ✓ | ✓ | ✓ | – |
+| Team Tasks | – | ✓ | – | ✓ | – | – |
+| Orchestration — Workflows (Active, Monitor, Bottlenecks & Alerts), Pipeline (Demand, Sourcing) | – | ✓ | – | ✓ | ✓ | – |
+| Sourcing — Active Events, New Event, Templates, Evaluation Centre | – | ✓ | ✓ | – | ✓ | – |
+| Suppliers — Directory, Onboarding Pipeline, Risk & Compliance, Supplier Portal Admin, Messages | – | ✓ | ✓ | ✓ | ✓ | – |
+| Contracts — Active, Renewals & Expiries, Templates | – | ✓ | – | ✓ | ✓ | – |
+| Purchasing — Open POs, Goods Receipt, Invoice Queue, Three-Way Match, Payment Tracker | – | ✓ | – | ✓ | ✓ | – |
+| Analytics — the four dashboards, Report Builder, Scheduled Reports, Exports | – | ✓ | – | ✓ | ✓ | – |
+| Admin (§14) | – | – | – | – | ✓ | – |
+| Help — AI Assistant, Knowledge Base, Contact Support | ✓ | ✓ | ✓ | ✓ | ✓ | Assistant only |
+| Help — Ticket Inbox | – | ✓ | – | ✓ | ✓ | – |
+
+**Access in Release 1.** The role is chosen with a role switcher — a simulation for
+demonstrations and acceptance testing, not an access boundary: there is no authentication yet
+([ADR-0003](../adr/0003-private-neon-database-migration.md)). The pages behind the sidebar are
+guarded by broader role groups — every internal role, for example, can open New Request from the
+Home box or a quick action — and only the personal lists are filtered to the person: My
+Requests, My Approvals, My Tasks. An internal role that reaches any other list sees all of its
+records. A supplier is always sent to the portal.
 
 ---
 
 ## 3. Home Page & Navigation
 
-### 3.1 Smart Command Bar
+### 3.1 The Home box
 
-The home page features a prominent command bar at the top where users can type natural language queries. The system detects the user's intent and responds accordingly:
+The home page opens with one box — **What do you need?** — for anything a person has in mind:
+something to buy, a policy question, or where a request is, asked in their own words. Example
+questions sit beneath it.
 
-- **Buy intent:** When a user types something like "buy paper" or "I need new laptops", the system detects this as a purchase intent. If the item matches a catalogue product, matching products are displayed inline with prices, quantities, and an "Add to Cart" button. If it is not a catalogue item, the demand is shown as *Understood as — Something to buy*, and **Start the request** opens New request with its words as the first message.
+What is typed takes the platform's one **question route**, the same one the assistant takes
+(§3.5), in this order:
 
-- **Lookup intent:** When a user types "where is REQ-2024-0001" or "check my requests", the system navigates to the appropriate tracking page.
+1. **A status question** — a record named by its id ("where is REQ-2026-0012?") or the person's
+   own items ("what's waiting for me?", "where are my requests?"). It is answered in place, from
+   the Status Answers agent's configuration (§12.1): only the details that agent may state, and
+   only the records the person's role may ask about.
+2. **A catalogue item** — when the demand's category is one the catalogue may serve and catalogue
+   items are named in it. Up to three items are shown with their price, unit, supplier and lead
+   time, each with **Order this**, which puts it into the basket on the Catalogue page (§4.5). The
+   box says that an order up to the catalogue auto-approval threshold becomes a purchase order
+   straight away, and offers *Not what you need? Describe it in full* and *Browse the whole
+   catalogue*.
+3. **A policy question** — phrased as a question ("do I need three quotes for a €40,000 order?").
+   It is answered in place: the direct answer the configuration gives, and the knowledge-base
+   article that states the rule, its figures taken from the live configuration. *This is
+   something I need to buy* takes the words to New request instead.
+4. **Something to buy** — a stated wish to buy, order, hire or engage, or a phrase naming
+   something the configured categories recognise ("cleaning services for the Berlin office"). The
+   box says it will check the catalogue and existing contracts first and then ask only what is
+   still needed; **Start the request** opens New request with the words as the first message.
+   Nothing is created until the request is submitted.
+5. **Anything else** opens the assistant with the words.
 
-- **Policy intent:** When a user types "what is the approval threshold" or "consulting policy", the system surfaces relevant policy information from the knowledge base.
-
-- **Create intent:** When a user types "new request" or "onboard a supplier", the system navigates to the corresponding creation wizard.
-
-The command bar shows up to 3 matching catalogue items inline with product name, description, price, and a quick-add button. For example, typing "coffee" displays "Coffee Beans 1kg — Premium Arabica blend, medium roast — EUR 22.00/bag" with an instant order option.
+Every outcome is shown first as an **Understood as** card — *Something to buy*, *A catalogue
+item*, *A policy question* or *A status question* — so the person sees how their words were read
+before anything opens. A status or policy answer offers *Ask a follow-up*, which continues in the
+assistant.
 
 ### 3.2 Customisable Dashboard
 
-Each role sees a personalised dashboard with drag-and-drop widgets. Users can rearrange widgets, add new ones from a widget library, and remove those they do not need. The platform provides 18 widget types:
+Below the Home box (§3.1) each internal role has a dashboard. A requester and a procurement
+manager also see *Know exactly what you want?* beside the box, which opens the Catalogue.
 
-| Widget | Description | Available To |
+**The attention band** sits above the widgets and cannot be moved or removed: the approvals
+waiting on the person, their overdue items and the requests referred back to them. It appears
+only when there is something in it — and never disappears because a read failed.
+
+**The widgets.** With **Customise**, a person adds widgets from the library, drags them into
+order, removes them, and chooses their quick actions; the layout is kept per role. The widgets:
+
+| Widget | What it shows | Available to |
 |---|---|---|
-| My Active Requests | List of the user's open requests with status tracking | All internal users |
-| Open Demand | Count and total value of open demand items with trend sparkline | Procurement Manager, Operations Lead, Admin |
-| Active Sourcing | Number of active sourcing events | Procurement Manager, Operations Lead, Admin |
-| Avg Cycle Time | Average request processing duration in days with trend | Procurement Manager, Operations Lead, Admin |
-| Compliance Rate | Policy compliance percentage with trend | Procurement Manager, Operations Lead, Admin |
-| Demand Pipeline | Bar chart showing requests by workflow stage | Procurement Manager, Operations Lead, Admin |
-| Team Workload | Request distribution per team member | Procurement Manager, Operations Lead |
-| Attention Required | Overdue and referred-back items needing action | All internal users |
-| AI Insights | AI-generated strategic procurement insights | All internal users |
-| Validation Queue | Requests awaiting validation review | Vendor Manager, Procurement Manager |
-| Workflow Health | Active workflows, stuck count, average processing days | Operations Lead, Procurement Manager, Admin |
-| Recent Activity | Latest platform events and updates | All internal users |
-| SLA Tracker | Requests approaching or past SLA deadlines | Operations Lead, Procurement Manager |
-| System Health | Platform health and integration status | Admin only |
-| Expiring Contracts | Contracts expiring within 90 days | All internal users |
-| Supplier Risk Alerts | Suppliers with elevated risk ratings | Vendor Manager, Procurement Manager, Admin |
-| Monthly Summary | Requests submitted, approved, and completed this month | All users |
-| AI Assistant | Quick access to the procurement AI assistant | All users |
+| My Active Requests | The person's open requests and where each is | All internal roles |
+| Requests by Stage | How many requests sit in each active stage, each a click through | All internal roles |
+| Attention Required | Overdue and referred-back items | All internal roles |
+| Pipeline Insights | Counts derived from the live requests and suppliers — rules, not a model | All internal roles |
+| Recent Activity | The latest events | All internal roles |
+| Expiring Contracts | Contracts ending within 90 days | All internal roles |
+| Mentions | Comments where someone @-mentioned the person, unread first | All internal roles |
+| Monthly Summary | Requests submitted, approved and completed this month — *approved* and *completed* read from each request's current stage | All internal roles |
+| AI Assistant | Opens the assistant | All internal roles |
+| Open pipeline | Requests in an active intake or procurement stage | Procurement Manager, Operations Lead, Admin |
+| Active Sourcing | Live sourcing events | Procurement Manager, Operations Lead, Admin |
+| Avg Cycle Time | Average processing time of completed requests | Procurement Manager, Operations Lead, Admin |
+| Compliance rate | The first-time-right rate of the latest month with completed requests | Procurement Manager, Operations Lead, Admin |
+| Demand Pipeline | Requests by workflow stage | Procurement Manager, Operations Lead, Admin |
+| Open Purchase Orders | POs awaiting delivery or closure, overdue first | Procurement Manager, Operations Lead, Admin |
+| Invoice Exceptions | Disputed, unmatched or overdue invoices needing a decision | Procurement Manager, Operations Lead, Admin |
+| Workflow Health | Active workflows, how many are stuck, average processing days | Procurement Manager, Operations Lead, Admin |
+| Suppliers Blocking Work | Suppliers whose onboarding or screening is incomplete, each gating sourcing, contracting or a PO | Procurement Manager, Vendor Manager, Operations Lead, Admin |
+| Supplier Risk Alerts | Suppliers with elevated risk ratings | Procurement Manager, Vendor Manager, Admin |
+| Validation Queue | Requests awaiting validation | Procurement Manager, Vendor Manager |
+| Team Workload | Requests per team member | Procurement Manager, Operations Lead |
+| SLA Tracker | Requests approaching or past their stage deadline | Procurement Manager, Operations Lead |
+| System Health | People with open work, requests raised, and whether the data store responds | Admin |
 
 **Default layouts by role:**
 
-- **Requestor:** Monthly Summary, My Active Requests, Recent Activity, AI Assistant, AI Insights, Expiring Contracts
-- **Procurement Manager:** Open Demand, Active Sourcing, Avg Cycle Time, Compliance Rate, Demand Pipeline, Team Workload, Attention Required, AI Insights
-- **Vendor Manager:** Validation Queue, Monthly Summary, Supplier Risk Alerts, Recent Activity, AI Insights
-- **Operations Lead:** Workflow Health, SLA Tracker, Attention Required, AI Insights, Recent Activity
-- **Admin:** System Health, Monthly Summary, Workflow Health, Supplier Risk Alerts, AI Insights
+- **Requester:** My Active Requests, Requests by Stage, Monthly Summary, Expiring Contracts, Pipeline Insights
+- **Procurement Manager:** Attention Required, Open pipeline, Avg Cycle Time, Compliance rate, Open Purchase Orders, Invoice Exceptions, Demand Pipeline, Pipeline Insights
+- **Vendor Manager:** Validation Queue, Suppliers Blocking Work, Monthly Summary, Mentions, Supplier Risk Alerts, Recent Activity, Pipeline Insights
+- **Operations Lead:** Workflow Health, SLA Tracker, Attention Required, Open Purchase Orders, Mentions, Pipeline Insights, Recent Activity
+- **Admin:** System Health, Monthly Summary, Workflow Health, Suppliers Blocking Work, Invoice Exceptions, Supplier Risk Alerts, Pipeline Insights
 
 ### 3.3 Quick Actions
 
-Below the command bar, the dashboard displays a row of quick-action buttons tailored to the user's role. These provide one-click access to the most common tasks:
+A row of quick-action buttons sits above the widgets, tailored to the role:
 
-- **Requestor:** New Request, Track a Request, My Approvals, Ask AI Assistant, Browse Catalogue
+- **Requester:** New Request, Track a Request, My Approvals, Ask AI Assistant, Browse Catalogue
 - **Procurement Manager:** New Request, All Requests, Active Workflows, Supplier Directory, Spend Overview, Bottlenecks
 - **Vendor Manager:** All Requests, Risk & Compliance, Supplier Directory, Messages, My Approvals
 - **Operations Lead:** Active Workflows, Bottlenecks, All Requests, My Tasks
 - **Admin:** Routing Rules, Workflow Designer, User Management, Spend Overview
 
-Users can customise which quick actions appear in their dashboard.
+Under **Customise**, a person chooses which of the actions available to their role appear.
 
 ### 3.4 Navigation Structure
 
-The left sidebar organises the platform into the following groups, with items filtered by the user's role:
+The left sidebar's groups, each item shown to the roles in §2.2:
 
-1. **Home** — Home page (all users)
-2. **Work** — Requests (My/All/New), Approvals (My/Delegation), Tasks (My/Team)
-3. **Orchestration** — Workflows (Active/Monitor/Bottlenecks), Pipeline (Demand/Sourcing)
-4. **Sourcing** — Events (Active/New/Templates/Evaluation Centre)
-5. **Suppliers** — Directory (All/Onboarding Pipeline/Risk & Compliance/Portal Admin/Messages)
-6. **Contracts** — Register (Active/Renewals & Expiries/Templates)
-7. **Purchasing** — Purchase Orders (Open POs/Goods Receipt), Invoices (Queue/Three-Way Match/Payment Tracker)
-8. **Analytics** — Dashboards (Spend/Compliance/Pipeline/Supplier Performance), Reports (Builder/Scheduled/Exports)
-9. **Admin** — Routing Rules, Form Builder, Approval Chains, Workflow Designer, AI Agent Configuration, Knowledge Base, User Management, System Health, Audit Log
-10. **Help** — AI Assistant, Knowledge Base, Contact Support
+1. **Home**
+2. **Buy something** — New Request, Catalogue
+3. **Work** — Requests (My, All), Approvals (My Approvals, Delegation), Tasks (My, Team)
+4. **Orchestration** — Workflows (Active, Monitor, Bottlenecks & Alerts), Pipeline (Demand, Sourcing)
+5. **Sourcing** — Events (Active, New Event, Templates, Evaluation Centre)
+6. **Suppliers** — Directory (All Suppliers, Onboarding Pipeline, Risk & Compliance, Supplier Portal Admin, Messages)
+7. **Contracts** — Contract Register (Active Contracts, Renewals & Expiries, Templates)
+8. **Purchasing** — Purchase Orders (Open POs, Goods Receipt), Invoices (Invoice Queue, Three-Way Match, Payment Tracker)
+9. **Analytics** — Dashboards (Spend Overview, Compliance KPIs, Pipeline & Cycle Time, Supplier Performance), Reports (Report Builder, Scheduled Reports, Exports)
+10. **Admin** — Database, Categories, Cost Centres, Delivery Locations, Support SLAs, Routing Rules, Decisioning Thresholds, Service Description, Form Builder, Approval Chains, Workflow Designer, AI Agent Configuration, KB Management, AI Analytics, User Management, System Health, Audit Log
+11. **Help** — AI Assistant, Knowledge Base, Contact Support, Ticket Inbox
 
 ### 3.5 AI Assistant
 
-A floating chat button is accessible from any screen in the platform. When opened, it provides a conversational interface where users can ask questions in natural language. The assistant understands 62 distinct query patterns and responds with:
+The assistant is a chat panel, opened from a button present on every screen or from Help → AI
+Assistant. Each person's conversations are kept, titled from their first question.
 
-- Contextual answers about procurement processes, policies, and data
-- Direct navigation links to relevant pages (for example, "Open My Approvals Queue" or "View Bottlenecks & Alerts")
-- Actionable suggestions for next steps
-- Real-time data summaries (such as spend figures, overdue counts, or contract status)
-
-For example, asking "What invoices are pending?" returns: "14 invoices in the system: 2 under review, 1 disputed (Accenture EUR 85K — no matching PO), 1 scheduled for payment. Total pending: EUR 428K." along with clickable links to the Invoice Queue, Three-Way Match, and Payment Tracker.
+- **It takes the same route as the Home box** (§3.1). A first message that is a status, catalogue,
+  policy or buying question gets the same answer, and the same next step, as it would on Home. A
+  later message counts as something to buy only when it says it wants something — "and for
+  consulting?" asks about consulting, it does not order it.
+- **It answers the rest with the language model**, which must answer through its tools: the
+  knowledge base (figures taken from the live configuration), the records the person's role may
+  see, and lists of them. It cites where an answer came from, and says so plainly when it cannot
+  ground one.
+- **It proposes and acts only on confirmation.** A change — marking yourself out of office,
+  setting a delegate, reassigning a request, asking for a risk reassessment, a contract renewal, a
+  PO change or a payment escalation — is shown as a confirmation card first. Confirmed, it is
+  written together with an audit entry, or the assistant says plainly why it cannot be done here
+  (adding a watcher; substituting an approver, where Delegate on the approval card is the way).
+  It never writes to an upstream system.
+- **It starts a request** by taking a buying need to New request with the person's words; nothing
+  is created until the requester submits.
+- **It hands over to a person**: asking for a human raises a support ticket carrying the whole
+  conversation, which the support team works in the Ticket Inbox (§18).
 
 ---
 
 ## 4. Request Intake & Management
 
-### 4.1 Smart Command Bar (Detailed)
+### 4.1 Starting a request
 
-The home page command bar serves as the primary entry point for all procurement activity. When a user begins typing, the system performs real-time intent detection:
-
-**Buy intent examples:**
-- "buy paper" — Detects as catalogue item. Shows "A4 Paper 500 sheets — EUR 5.00/pack" inline with quantity selector and order button.
-- "I need 50 new laptops" — Detects a purchase; **Start the request** opens New request with the words as its first message, where the catalogue and contracts are checked before anything else.
-- "order coffee beans" — Detects as catalogue item. Shows "Coffee Beans 1kg — Premium Arabica blend, medium roast — EUR 22.00/bag" with quick ordering.
-
-**Lookup intent examples:**
-- "where is my cloud hosting request" — Navigates to REQ-2024-0001 detail page.
-- "show overdue requests" — Navigates to Bottlenecks & Alerts page.
-
-**Policy intent examples:**
-- "what is the approval limit for consulting" — Returns policy information: "All consulting engagements require Procurement-Led procurement regardless of value."
-- "who approves requests over 1 million" — Returns approval chain information.
-
-The system uses keyword matching with stop-word filtering to identify catalogue matches. Stop words such as "I", "want", "to", "buy", "need", "some", "the", "please" are excluded from the search, allowing natural phrasing.
+A request starts on **New request** (§4.2). The Home box (§3.1), the assistant (§3.5) and *Start
+renewal* on a contract all arrive there the same way — with the words as the conversation's first
+message — and the conversation reads and classifies them itself: a category is never carried in
+from a link. A catalogue item is ordered on the Catalogue page instead (§4.5), with no request.
 
 ### 4.2 New Request — the conversation, then the Channel page
 
@@ -269,6 +302,10 @@ The conversation runs in three phases, in one transcript with one reply box:
    the list asked why), then the one or two risk questions the supplier and the
    description decide, as Yes/No.
 
+**Known defect:** naming a supplier the directory does not hold adds it to the
+directory at once, as a prospective supplier (§7.1) — before submit, although
+the Home box and the conversation say nothing is created until then.
+
 Beside the conversation, **Your request** fills in as it goes: every value with
 where it came from (from you · derived · drafted — check it · still to come),
 the inputs edited in place, and "N of M known" counting what the route needs.
@@ -298,160 +335,223 @@ The AI provides category-specific examples and prompts. For a consulting request
 
 ### 4.4 Service Description (Statement of Work)
 
-For services, consulting, and complex procurement categories, the system generates a structured service description with 9 sections:
+A new request's service description is written up from the conversation (§4.3). Its sections,
+which of them are asked, the questions and the prompt that writes them are configured in Admin →
+Service Description (§14), per category, with a default for categories without their own. The
+default has ten sections — **Objective**, **Scope**, **Exclusions**, **Deliverables**,
+**Timeline**, **Resources**, **Acceptance Criteria**, **Pricing Model**, **Location** (written up,
+not asked) and **Dependencies** — plus a **narrative summary** that reads them as prose.
 
-1. **Objective** — What the engagement aims to achieve. Example: "Migrate on-premise infrastructure to AWS cloud to reduce operational costs and improve scalability."
-2. **Scope** — What is in scope and explicitly out of scope. Example: "In scope: infrastructure assessment, migration planning, execution for 45 workloads. Out of scope: application refactoring, end-user training."
-3. **Deliverables** — Numbered list of expected outputs. Example: "1) Infrastructure assessment report, 2) Migration strategy and roadmap, 3) Migration execution, 4) Post-migration validation report, 5) Operational runbook."
-4. **Timeline** — Phased timeline with durations. Example: "6 months: Discovery (weeks 1-4), Planning (weeks 5-8), Migration (weeks 9-20), Validation (weeks 21-24)."
-5. **Resources** — Required team composition. Example: "AWS Certified Solutions Architect (lead), 2 Cloud Engineers, DevOps specialist, Project Manager."
-6. **Acceptance Criteria** — How success will be measured. Example: "All 45 workloads migrated and operational. Zero data loss. Performance baseline met or exceeded."
-7. **Pricing Model** — Commercial structure. Example: "Fixed price for discovery and planning. T&M for migration execution with monthly cap."
-8. **Location** — Where work will be performed. Example: "Hybrid — on-site for discovery workshops, remote for execution."
-9. **Dependencies** — Prerequisites and assumptions. Example: "Access to current infrastructure documentation. Maintenance windows for migration."
+The request detail page shows the sections and the narrative, with **Copy Summary**. A sourcing
+event raised from the request starts from the sections the template nominates (§8.1).
 
-The AI generates a **narrative summary** that combines all 9 sections into readable prose. This narrative includes a copy button for easy transfer to other documents. The service description is carried through the entire workflow and displayed on the request detail page.
+### 4.5 Catalogue — Door 2
 
-### 4.5 Catalogue Purchasing
+`/catalogue` is where catalogue items are ordered, with no request form. Everything on it is
+stored data or configuration:
 
-When a user selects the Catalogue category or triggers a catalogue match from the command bar, they enter a streamlined purchasing flow.
+- **The catalogues** are the ones the items belong to, each with its item count; a search spans
+  them all. Each item shows its name, description, price and unit, supplier, the agreement it is
+  bought under, and its lead time. Items, prices and catalogues are maintained in Admin →
+  Database (§14).
+- **The basket** belongs to the person and shows the total, **deliver to** and **charged to**
+  (the person's profile first, from the configured delivery locations and cost centres), and asks
+  what the order is for. It says what will happen before anything is placed, from the same
+  decision the server makes.
+- **Placing it.** A basket is placed as **one order per supplier and contract**, each a request,
+  a purchase requisition and — when allowed — an internal purchase order, written together: all
+  of the orders or none. **Approval is judged on the basket total**, so splitting a basket cannot
+  keep it under a threshold ([ADR-0009](../adr/0009-catalogue-basket.md)):
+  - up to the **catalogue auto-approval threshold** (a Decisioning threshold), an order is
+    approved and its purchase order raised at once;
+  - above it, the order waits for approval by the approvers its approval chain names;
+  - a supplier risk assessment that has lapsed sends the order to risk review, at any value.
+- **Refused**, with the reason: an item with no supplier risk assessment behind it, a supplier
+  flagged in screening, an agreement that is no longer active or has no capacity left, an
+  inactive delivery location or cost centre, or no purpose.
 
-**Six sub-catalogues are available:**
-
-| Catalogue | Items | Example Products |
-|---|---|---|
-| IT Equipment | 8 items | ThinkPad T14 (EUR 1,299), Dell 27" Monitor (EUR 449), Logitech Keyboard (EUR 109), USB-C Hub (EUR 59), Wireless Mouse (EUR 49), Webcam (EUR 89), Headset (EUR 179), Ethernet Cable (EUR 12) |
-| Office Supplies | 8 items | A4 Paper (EUR 5/pack), Pens (EUR 8/pack), Sticky Notes (EUR 4/pack), Toner Cartridge (EUR 45), Binder Clips (EUR 3/pack), Whiteboard Markers (EUR 12/pack), File Folders (EUR 15/pack), Desk Organizer (EUR 22) |
-| Furniture | 6 items | Electric Standing Desk (EUR 699), Ergonomic Chair (EUR 549), Dual Monitor Arm (EUR 89), Bookshelf (EUR 199), Magnetic Whiteboard (EUR 129), Filing Cabinet (EUR 249) |
-| Safety & PPE | 5 items | Safety Gloves (EUR 25/pack), Hard Hat (EUR 35), Hi-Vis Vest (EUR 15), First Aid Kit (EUR 45), Safety Glasses (EUR 18) |
-| Catering & Pantry | 5 items | Coffee Beans 1kg (EUR 22), Tea Selection Box (EUR 15), Water Dispenser (EUR 89), Paper Cups (EUR 8/pack), Snack Box (EUR 35) |
-| Print & Stationery | 5 items | Business Cards 500 (EUR 35), Letterhead 100 sheets (EUR 28), Envelopes (EUR 12/pack), Custom Rubber Stamps (EUR 18), Laminating Pouches (EUR 15/pack) |
-
-Each catalogue item displays: name, description, unit price, unit of measure, supplier name, and lead time (1-14 days depending on item).
-
-**Ordering flow:**
-1. Browse or search the catalogue
-2. Select items and set quantities
-3. Items are added to a cart with running total
-4. For orders under EUR 5,000 — no approval needed; fast-track processing
-5. For orders between EUR 5,000 and EUR 25,000 — line manager approval required
-6. Submit order — a purchase order is generated automatically
-
-Approximately 37 items are available across 6 catalogues from pre-approved suppliers.
+Everything else that offers a catalogue item — the Home box, the assistant, an item's own page,
+and New request's catalogue check — puts it into this basket. No upstream purchasing system is
+written.
 
 ### 4.6 Request Detail Page
 
-Each procurement request has a comprehensive detail page with 8 tabs:
+Each request has one page: a header with its title, id, status and actions; the **lifecycle
+stepper** — every stage its buying channel runs, the current one highlighted, completed ones
+checked, the ones its channel skips shown as skipped — where clicking a stage opens it on the
+Workflow tab; and seven tabs.
 
-#### Overview Tab
-- Request header: title, ID, status badge, priority indicator, category tag, value
-- Lifecycle stepper showing all 10 stages (Draft, Intake, Validation, Approval, Sourcing, Contracting, PO, Receipt, Invoice, Payment, Completed) with the current stage highlighted and completed stages checked
-- Key information cards: requestor, owner, supplier, contract, PO reference, cost centre, budget owner, commodity code, buying channel, delivery date, days in current stage, SLA deadline
-- Service description display (if applicable) with all 9 structured sections and the narrative summary with copy button
-- Business justification
-
-#### Compliance Tab
-- Intake compliance results: buying channel determination with reasoning, SRA check, policy checks, duplicate detection, risk flags
-- AI Compliance Report from the PR Compliance Reviewer agent (see Section 6.3): decision (Approved/Needs Review/Rejected), confidence score, 6-category review with pass/fail/warning indicators, detailed findings, and recommendation
-
-#### Workflow Tab
-- Visual workflow diagram showing all stages with the current position highlighted
-- Stage history table: each transition with date, handler, action taken, and notes
-- System integration timeline showing when external systems were engaged, their status, and reference IDs
-- Current stage details with assigned handler and SLA countdown
-
-#### Comments Tab
-- Threaded conversation timeline with internal and external comments
-- Comment input with rich text support
-- Attachment capability
-- Internal/external visibility toggle (internal comments are hidden from suppliers)
-
-#### Approvals Tab
-- List of all approval entries for the request
-- Each entry shows: approver name, role, status (Pending/Approved/Rejected/Delegated), requested date, responded date, and comments
-- Delegation information if an approver is out of office
-
-#### Documents Tab
-- List of all documents attached to the request
-- Upload capability
-- Document type indicators (quote, contract, invoice, specification, etc.)
-
-#### Related Tab
-- Linked entities: related contracts, purchase orders, invoices, other requests, sourcing events, and supplier profile
-- Each linked entity is clickable and navigates to its detail page
-
-#### Audit Tab
-- Immutable chronological log of every action taken on the request
-- Entry types: system actions, human actions, AI decisions, warnings, and blocking events
-- Each entry shows: timestamp, user/system, action description, and detail
+- **Overview** — the facts, grouped as a reader asks about them: *what* (category, commodity or
+  service family, value, buying channel, sourcing type), *who* (requester, who it is bought for,
+  current owner, budget owner, cost centre), the *supplier*, and *when* (needed by, days in the
+  current stage, created, last updated); then the service description's sections and narrative
+  summary with **Copy Summary**, or the business justification when there is none.
+- **Compliance** — the one place for every risk and policy signal about the request: the
+  determination made at submission (inherent risk, materiality, screening, demand disposition,
+  sourcing type, whether a risk assessment is required), the intake policy checks and risk flags,
+  risk assessments reused, the supplier's own risk assessment, and — for a catalogue order or a
+  call-off — the contract it was called off against and the evidence of the match (§6).
+- **Workflow** — the workflow template the request runs on, each stage as a card with its owner,
+  deadline and state, the forms it collects (§6.4) and its comments; *What is open* with its
+  deadline; and the timeline of recorded hand-overs to upstream systems (§13). The stage actions
+  are in the page header (§5.3).
+- **Approvals** — each approval with approver, role, status and dates, and how many are complete.
+  The current approver can approve, reject with a reason, or ask for more information; approvals
+  are decided in order.
+- **Documents** — the documents each workflow stage recorded as added, in one list. Download is
+  not available yet: there is no document store behind it.
+- **Activity** — comments (with @mentions), stage events, audit entries and notifications in one
+  timeline, newest first, filtered by kind or to *My actions*.
+- **Related** — the linked contract and purchase order, sourcing events raised from the request,
+  and the suppliers invited to source it, each opening its own page.
 
 ---
 
 ## 5. Workflow Orchestration
 
+Each request runs the workflow template that claims its buying channel (§14.3). A request
+submitted from New request enters the first stage of that channel that needs action — past Intake
+and Vendor Onboarding, and past Risk Assessment unless the intake found an assessment is needed
+(§6.1). Each stage has an owner role and a deadline in working days, set when the stage opens.
+*Days in stage* counts calendar days since the stage opened.
+
 ### 5.1 Active Workflows
 
-The Active Workflows page provides three views of all in-flight procurement requests:
+Three views of the requests in Intake, Validation, Approval, Sourcing, Contracting, Purchase Order,
+Goods Receipt, Invoice and Payment. Requests in Risk Assessment or Vendor Onboarding appear in none
+of them, and not on the Monitor (§5.2).
 
-#### Kanban Board View
-Requests displayed as cards arranged in columns by workflow stage. Users can drag and drop cards between stages (where permitted by their role) to advance or reassign requests. Each card shows: request title, ID, value, priority badge, days in stage, owner avatar, and overdue indicator.
+- **Kanban** — a column per stage, with its count and total value. A card shows the id, a priority
+  icon, the title, the requester, the value, the owner's initials, days in stage and any open
+  hand-over to an upstream system (§13). Its border is red when the stage is overdue and amber
+  at four or more days in stage (fixed in code). Dropping a card on another column moves the
+  request there and records the move, with the new stage's deadline.
+- **Table** — id, title, requester, category, value, stage, owner, open hand-over, days in stage
+  (amber above five, red above ten), SLA status (*Overdue*; *At Risk* at four or more days in
+  stage; *On Track*), priority and buying channel. It is searchable and sorts by one column at a
+  time; a row opens the request.
+- **Timeline** — a bar per request across the nine stages: the current stage sized by its days in
+  stage, later stages grey. Completed stages are drawn at a fixed three days each, not their real
+  duration, so their width and colour say nothing about how long they took.
 
-#### Table View
-A sortable, filterable, searchable table of all active requests. Columns include: ID, title, category, status, priority, value, owner, supplier, days in stage, SLA status, and last updated. Supports multi-column sorting and advanced filtering.
+**Filters, across the three views:** *Stuck > 5 days* (despite its label, past the stage
+deadline), *Awaiting my action* (the person owns the request), *High value* (€500,000 or more,
+fixed in code) and *Escalated* (overdue and marked urgent — not the escalations raised in §5.3);
+and dropdowns for category (a fixed list in code: Goods, Services, Software, Consulting,
+Contingent Labour), priority and stage.
 
-#### Timeline View (Gantt-Style)
-A horizontal timeline showing each request as a bar spanning its active period. Stages are colour-coded. This view is useful for spotting requests that have been in a single stage for an unusually long time.
-
-**Quick filters available across all views:**
-- Stuck > 5 days — Requests that have not progressed in 5 or more days
-- My Action — Requests where the current user is the assigned handler
-- High Value — Requests above EUR 100,000
-- Escalated — Requests that have been escalated
-- Overdue — Requests past their SLA deadline
+**Known defect:** a Kanban drag checks no role and no gate. Anyone who can open the page can move
+any card to any stage, past approvals, blocking forms (§6.4) and the onboarding gates; the server
+checks only that the stage exists.
 
 ### 5.2 Workflow Monitor & Bottlenecks
 
-#### Bottleneck Dashboard
-Displays average days per stage across all active requests, highlighting stages where requests tend to stall. For example, if the average time in the "Approval" stage is 12 days against a 7-day SLA, this stage is flagged red.
+The Monitor reads the requests in the nine stages above:
 
-#### SLA Tracker
-A countdown display for each active request showing time remaining until SLA breach. Colour-coded: green (on track), amber (at risk — within 48 hours), red (breached).
+- **Top bottleneck** — the stage whose requests have the highest average days in stage. Its
+  "SLA target: 5 days" is fixed text, not that stage's deadline.
+- **Average days per stage** — a bar per stage, red when the average passes that stage's deadline
+  (§14.3). The dashed line marks the Approval stage's deadline only.
+- **Stuck requests** — every request past its stage deadline, most overdue first, with its stage,
+  owner, deadline in days, days overdue and last activity. **Known defect:** the *Days in Stage*
+  column repeats the days overdue.
+- **Bottleneck Analysis** — the three stages, of all those the templates use, with the highest
+  average days in stage, and how many of their requests are past the deadline. A calculation, not
+  a model.
+- **SLA Tracker** — each request with a stage deadline, overdue first, plus up to five without one
+  that have four or more days in stage. The countdown is green, amber with three days or fewer
+  left (fixed in code) and red once overdue.
 
-#### Heatmap
-A matrix visualization showing stages on one axis and weeks on the other. Cell colour intensity represents the number of requests in each stage during each week. This reveals seasonal patterns and persistent bottlenecks.
+**Heatmap — a demonstration.** Requests per stage over eight weeks: only the current week is
+real; the seven earlier weeks are random numbers drawn around it on every load.
 
-#### AI Bottleneck Analysis
-The AI analyses workflow data and generates recommendations. For example: "Approval stage average has increased from 5 to 12 days over the past 6 weeks. Root cause: 67% of pending approvals are assigned to Robert Fischer, who is currently out of office. Recommendation: Activate delegation to Dr. Katrin Bauer for all pending items."
-
-#### Stuck Requests Table
-A filtered table showing only requests that have exceeded their SLA or have been in the same stage for more than 5 days. Each row includes an escalation action button allowing the user to escalate, reassign, or send a reminder.
+**Bottlenecks & Alerts** repeats the chart, the analysis and the stuck-requests table. **A
+demonstration:** its *Escalation Management* list is four sample escalations fixed in code, not
+the escalations people raise (§5.3), and the stuck table's Send Reminder, Escalate and Reassign
+buttons do nothing.
 
 ### 5.3 Workflow Actions
 
-At each stage of the workflow, authorised users can perform the following actions:
+A request's actions are in its page header (§4.6); a completed or cancelled request has none.
 
-- **Approve** — Advance the request to the next stage. Records the approver, timestamp, and any comments.
-- **Reject** — Block the request from proceeding. Requires a reason. The request moves to "Cancelled" status.
-- **Refer Back** — Return the request to a previous stage for rework. The refer-back count is incremented and tracked.
-- **Reassign** — Transfer ownership to a different user. Records the reassignment in the audit trail.
-- **Escalate** — Flag the request for senior management attention. Triggers a notification to the escalation target.
-- **Cancel** — Terminate the request entirely. Requires a cancellation reason.
+**Moving a stage on.** A gated stage has one action for its owner:
 
-Every action is persisted with a full audit trail including: who performed the action, when, the previous and new stage, and any comments or reasons provided.
+| Stage | Action | Who |
+|---|---|---|
+| Validation | Complete validation | The category's managers (§14.10), or an administrator |
+| Risk Assessment | Record risk decision | Vendor managers, administrators — once the supplier record exists and has cleared screening; the assessment itself is not checked |
+| Vendor Onboarding | Complete vendor onboarding | Vendor managers, procurement managers, administrators |
+| Contracting | Contract signed | Procurement managers, administrators |
+| Goods Receipt | Goods received | Operations leads, procurement managers, administrators |
+| Invoice, Payment | Invoice matched, Payment released | Operations leads, administrators |
+
+While a blocking form for the stage is outstanding the action is disabled and names the form;
+administrators are exempt. A named supplier must exist and have cleared screening before the
+request can enter Sourcing. Procurement managers and administrators can **Create sourcing event**
+at Sourcing (or open the one raised), which the request leaves when the event is awarded (§8), and
+**Create PO** at Purchase Order — it needs a supplier and a delivery date — which the request
+leaves when a full goods receipt is recorded (§10).
+
+**Approvals.** *Approve* and *Reject* appear to whoever may act on the earliest open approval step:
+their own, one delegated to them, or one open to a role they hold. An approval records who decided
+and when; the request moves on only when the last one is in. On the Approvals tab and in My
+Approvals (§4.6), a rejection needs a reason and sends the request back to Intake, and an approver
+can ask for more information instead; My Approvals also offers *Delegate*.
+
+**Known defect:** the header's *Reject* asks for no reason. It marks the approval rejected; with a
+workflow instance the template's *Rejected* branch sends the request to Referred Back, and without
+one the request does not move. Nothing sets a request to *Cancelled*.
+
+**More:**
+
+- **Refer back** — to Intake, Validation, Approval, Sourcing or Contracting (a fixed list, whatever
+  the channel), with a coded reason (incomplete information, incorrect category, classification
+  mismatch, risk assessment required, other) and optional text; the refer-back count goes up.
+  Procurement managers, vendor managers, operations leads, administrators, and the requester on
+  their own request.
+- **Reassign** — a new owner and a required reason; the stage is kept. Procurement managers,
+  operations leads, administrators.
+- **Escalate** — a level (Team Lead, Department Head, VP), an optional urgency and a required
+  reason. It adds an *escalated* event to the stage and a notification to the shared feed (§15.1),
+  so no one in particular is told; *Critical* also marks the request urgent. Same roles as
+  Reassign.
+- **Cancel request** — a confirmation only; same roles as Refer back. **Known defect:** it does not
+  cancel. Without a workflow instance nothing changes, though the page says the request was
+  cancelled; with one, no branch handles a cancellation, so the engine follows the stage's
+  default branch and can move the request on to its next stage.
+
+**What is recorded.** Stage changes, reassignments and escalations are written to the request's
+stage history — when, the stage, its owner, the action and any reason — and shown on the Activity
+tab. The history names the stage's owner, not who acted (for an escalation, the owner recorded is
+the person escalating). An approval records who decided; decisions taken on the Approvals tab or
+in My Approvals also write an audit entry.
+
+**Known defect:** on a request with no workflow instance, a stage entered through the stage
+action, an approval or an award gets no deadline, and the person who acted becomes its owner. A
+full goods receipt moves a request on without resetting its deadline, so it keeps the Purchase
+Order stage's.
 
 ### 5.4 Clickable Step Details
 
-Each step in the workflow can be expanded to reveal comprehensive information:
+The Workflow tab (§4.6) shows each stage of the request's channel as a card — *Completed*, *In
+Progress*, *Blocked* (the current stage once overdue), *Pending* or *Skipped*; pending and skipped
+cards do not open. A card shows the stage's owner and role, its days and dates, and the last
+action or note. Opened, it adds:
 
-- **Handler:** Name, role, and department of the person responsible for that step
-- **Action Taken:** Description of what was done (e.g., "Validated buying channel, commodity code, and supplier eligibility")
-- **Decision:** Outcome (Approved/Rejected/Referred Back/Escalated/Completed), reason, and any conditions
-- **System Integration:** Which external system was engaged, its reference ID, and current status
-- **Forms Completed:** Which forms were filled in during that step, with field-level detail
-- **Documents Added:** Files uploaded or generated during that step
-- **Comments:** Internal and external comments made during that step
-- **Duration:** When the step started, when it completed, and total days in the step
-- **SLA Status:** Whether the step was completed on track, at risk, or in breach
+- a marker for a refer-back, an escalation or a request for information, with who, when and why;
+- on Validation, Risk Assessment, Approval, Sourcing and Contracting, the service description's
+  narrative, its quality score and any required sections still empty;
+- the stage's forms (§6.4) — filled in on the current stage, read-only once submitted;
+- the stage's comments, with a box to add one on the current stage only.
+
+Beside the cards, **What is open** gives the action the stage waits for and its exit criteria, the
+owner (or the role, when nobody is assigned), the days held and the deadline: *On track*, *Due
+soon* (within 24 hours, fixed in code), *Overdue* or *No SLA set*. Documents are on the Documents
+tab, not the stage card.
+
+A stage's department, decision, upstream-system reference and SLA verdict appear only where a
+stored step-detail record exists; nothing in the platform writes those records, so only sample
+requests show them.
 
 ---
 
@@ -459,102 +559,88 @@ Each step in the workflow can be expanded to reveal comprehensive information:
 
 ### 6.1 Intake Compliance Checks
 
-When a request is submitted, the system automatically performs the following compliance checks:
+During the New request conversation (§4.2) the platform works out a **determination** from the
+demand, the chosen supplier, the contracts and the configuration. The Channel page shows it before
+submit; submit stores it on the request and as the request's compliance record, both shown on the
+Compliance tab (§4.6).
 
-**Buying Channel Classification**
-The system evaluates the request's category, value, and supplier to determine the correct buying channel:
-- **Catalogue** — a pre-approved catalogue item the requester added
-- **Framework Call-Off** — covered by a transactable contract the contract check found, within the direct call-off limit
-- **Business-Led** — any other demand up to the business-led ceiling (€50,000), except consulting and contingent labour; the business agrees a contract with Legal before the PO
-- **Procurement-Led** — consulting, contingent labour, software over the budget-approval threshold, anything over the materiality threshold, and everything above the ceiling
+**Known defect:** the determination runs only in the browser. Submit stores the buying channel,
+the approval chain, the determination and the compliance record as the browser sends them. The
+server checks that the channel exists and that required details — and a reason for a supplier off
+the preferred list — are present, then places the request by its channel; it recomputes none of
+it.
 
-Direct PO and P-card were retired on 2026-09-25: nothing at intake reached either honestly.
+**Buying channel.** *Catalogue* when the requester orders a catalogue item (§4.5); *framework
+call-off* when the contract check finds a contract that covers the demand at or below the direct
+call-off limit (Decisioning Thresholds, §14.9); otherwise *business-led* or *procurement-led*, by
+the routing rules (§17.2). The Channel page explains the choice in the matched rule's own
+description; the record stores the rule's name. Direct PO and P-card were retired on 2026-09-25.
 
-The system provides a plain-language explanation of why the channel was selected. For example: "Value (EUR 480,000) exceeds EUR 100K threshold and category is Software — Procurement-Led Sourcing required."
+**The determination:**
 
-**Supplier Risk Assessment (SRA) Status Check**
-If a supplier is identified, the system checks:
-- Whether the supplier has a valid SRA on file
-- When the SRA expires
-- Whether the SRA is approaching expiry (within 90 days)
-- Whether re-assessment is needed
+| | How it is decided |
+|---|---|
+| Supplier risk assessment (SRA) | The supplier's recorded status: *valid* passes, *expiring* warns, *expired* or never assessed fails; not applicable with no supplier. *Expiring* is a status held on the supplier record — no expiry window is computed. The Compliance tab shows an SRA as expired once its date has passed. |
+| Policy checks | Only while the Request Validator (AI-002, §12.1) is active; otherwise one entry saying they did not run, shown as failed. The same checks for every category: contract required before a PO (contract-required threshold), budget approval (budget approval threshold), SRA valid, competitive sourcing (competitive-sourcing threshold, minimum competitive quotes, categories exempt from competitive quotes) and preferred-supplier routing — plus risk-assessment reuse when a reusable assessment exists. |
+| Screening | The supplier's status: clear; pending (complete before award); not yet screened; or flagged, which makes the disposition *refer back*. |
+| Materiality | Material when the demand supports a critical service, the data is highly sensitive (read from the service description), the supplier's risk is high or critical, or the value reaches the materiality value threshold. |
+| Inherent risk | Low to critical, highest driver wins: critical service, privileged access, data sensitivity, supplier risk, and value against the inherent-risk bands. |
+| Risk questions | Up to two, Yes/No: privileged access (categories set to *Ask about privileged access*, or data of medium sensitivity or more) and critical service (the critical-service question threshold, a high- or critical-risk supplier, or highly sensitive data). An unanswered one is recorded as *not answered*. |
+| Risk assessment | Required when no completed, in-date assessment of the chosen supplier can be reused — so always when no supplier is named. |
+| Vendor onboarding | Needed with no supplier, or one not fully onboarded or holding an expired certification. |
+| Contract check | Among the supplier's contracts: transact under one below the contract utilisation headroom, author a SOW under a framework, renew one within the contract expiry buffer, or a new contract. |
+| Disposition | *Refer back* (mandatory detail missing, or a supplier flagged in screening), *request change* (a failed policy check), otherwise *proceed*. |
 
-**Policy Checks (4-5 per request)**
-The specific checks vary by category. Common checks include:
-- Budget pre-approval confirmed by budget owner
-- Value within delegated authority limits
-- Competitive sourcing requirement satisfied (or waiver justification)
-- Category-specific policies (e.g., data protection assessment for cloud services, consulting engagement policy for advisory work)
-- Business justification completeness and quality
+The Channel page's workings also show an operational-risk view (continuity, data handling,
+concentration, regulatory, access) and the approval-to-source gate — *light*, or *full* at the
+full approval-to-source threshold or for material or high-risk demand. Neither is stored, and the
+gate creates no approval.
 
-**Duplicate Detection**
-The system compares the new request against all active and recently archived requests. It evaluates similarity based on title, description, supplier, category, and value. If similarity exceeds a threshold, a warning is displayed with a link to the potential duplicate.
+**Known defect:** the Channel page says a request "will be referred back" or that "a change will
+be asked for", but nothing acts on the disposition: the request enters its first stage as usual.
 
-**Risk Flags**
-Special conditions that require attention:
-- High-value contract requiring dual sign-off
-- New supplier requiring onboarding
-- Supplier in high-risk jurisdiction
-- SRA expired or expiring
+**The compliance record** keeps the channel and the rule behind it, the SRA check, the policy
+checks, the reusable assessments and these flags: material, the inherent-risk tier, risk
+assessment required, supplier onboarding required, screening blocked, the disposition when it is
+not *proceed*, and each risk question's answer. When the workflow engine opens Risk Assessment, it
+reuses a matching assessment from the register or raises a draft one. Duplicate detection was
+retired on 2026-09-25: nothing searched for duplicates.
 
 ### 6.2 Smart Assessment
 
-The Smart Assessment panel provides a quick-read summary of the request's procurement path:
-
-- **Vendor Match:** "Existing supplier — Amazon Web Services (AWS), SUP-006" or "New supplier — onboarding required"
-- **Contract Coverage:** "Active contract found — CON-006, valid until 2027-06-30" or "No active contract — sourcing required"
-- **SRA Status:** "SRA valid until 2026-01-31. Supplier fully assessed with low risk rating." or "SRA expired — renewal required before proceeding"
-- **Estimated Processing Path:** "Intake > Validation > Approval > Contracting > PO > Receipt > Invoice > Payment. Sourcing skipped (existing framework). Estimated: 18 days."
+Retired with the intake's Review step: it re-derived contract coverage with its own fixed €25,000
+figure instead of the governed threshold. The contract check on the Channel page (§4.2), and the
+Compliance tab's contract position for a call-off (§4.6), replace it.
 
 ### 6.3 PR Compliance Agent
 
-The PR Compliance Reviewer is an AI agent (96.1% accuracy, 534 decisions made) that performs a comprehensive 6-category review of each request before purchase order creation:
-
-**Review Categories:**
-
-1. **Budget** — Validates budget availability, checks quarterly allocation thresholds, confirms budget code and GL account
-2. **Contract** — Verifies contract coverage, checks framework agreement validity, confirms call-off permissions
-3. **Supplier Compliance** — Validates SRA status, checks sanctions screening, reviews supplier certifications
-4. **Policy** — Confirms delegated authority, validates buying channel compliance, checks category-specific policies
-5. **Risk** — Evaluates supplier risk rating, assesses concentration risk, reviews adverse findings
-6. **Value** — Benchmarks pricing against market rates, compares with historical spend, checks rate card compliance
-
-**Output:**
-- **Decision:** Approved / Needs Review / Rejected
-- **Confidence Score:** Percentage indicating the agent's confidence in the decision (e.g., 97.2%)
-- **Detailed Findings:** Each check is listed with its status (Pass, Fail, Warning, Info), detail text, and severity (Critical, High, Medium, Low)
-- **Recommendation:** A plain-language recommendation (e.g., "All compliance checks passed. Recommend proceeding to PO creation without additional review.")
-
-**Example findings for a high-value request:**
-- Budget availability: PASS — "Budget confirmed, EUR 480,000 within approved IT capex envelope for FY2024."
-- Contract coverage: PASS — "Active contract found (CON-006), valid until 2026-03-31."
-- SRA status: PASS — "SRA valid until 2025-12-15. Supplier fully assessed."
-- Delegated authority: PASS — "Value within delegated authority for Head of Engineering."
-- Supplier risk rating: PASS — "Supplier risk rating: Low. No adverse findings in last 12 months."
-- Market benchmark: PASS — "Pricing within market benchmark plus or minus 10% based on Gartner cloud pricing index."
+Removed on 2026-09-25 with the reports it had stored: four of its six checks — sanctions
+screening, contract coverage, the supplier's risk assessment and a market benchmark — were
+recorded as passed without being run, under a confidence score nobody measured. The compliance
+record (§6.1) holds only checks that ran and says when one did not.
 
 ### 6.4 Configurable Forms
 
-The platform includes 5 form templates across 3 categories, containing 50 fields total and supporting 11 field types. Each is attached to the workflow stage whose evidence it collects:
+A form collects a stage's evidence. Each template (Form Builder, §14.2) has a category, a status,
+the stages it belongs to, optional trigger conditions and its fields. An active template appears
+on its stage's card (§5.4) when all its conditions hold; a condition tests the request's category,
+value, supplier, commodity code, urgency or contract, and can name a Decisioning threshold. Anyone
+who can open the request can fill in the current stage's forms; a submission is kept with who
+submitted it and when.
 
-**Form Templates:**
-
-| Form | Category | Trigger Stage | Fields | Purpose |
-|---|---|---|---|---|
-| Full Risk Questionnaire | Risk | Risk | 13 fields | Comprehensive supplier risk assessment |
-| IT Security Assessment | Risk | Risk (Software only) | 10 fields | Security review for SaaS and cloud procurement |
-| Vendor Onboarding Form | Procurement | Onboarding | 10 fields | Captures vendor master data for ERP registration |
-| Contract Intake Form | Procurement | Contracting | 10 fields | Collects commercial and legal parameters for contract drafting |
-| Budget Approval Form | Compliance | Approval | 7 fields | Budget validation and manager sign-off |
-
-Three earlier forms were removed on 2026-09-25 with their seeded submissions, because none of them ever rendered: Risk Assessment Triage (the intake triage and the supplier record answer it), Goods Receipt Confirmation (the goods receipt itself advances the request) and Change Request (a draft on seven stages).
-
-**11 Field Types Supported:**
-Text, Textarea, Number, Select (dropdown), Multi-Select, Radio buttons, Checkbox, Date picker, File Upload, Separator (visual divider), Info Text (read-only information display)
-
-**Pre-Population:** Forms can be configured to pre-populate fields from request context. For example, the Budget Approval Form fills the cost centre and the budget owner from the request, and the Vendor Onboarding Form the supplier's name.
-
-**Conditional Display:** Forms can be configured to appear only when specific conditions are met. For example, the IT Security Assessment form only appears when the request category is "Software".
+- **Blocking** — a blocking form must be submitted before the stage's action unlocks (§5.3);
+  administrators are exempt. None of the shipped templates is blocking.
+- **Pre-population** — a field can be filled from the request (title, description, category,
+  commodity code, value, currency, cost centre, budget owner, business justification, delivery
+  date, buying channel, supplier name, PO, contract, request id, beneficiary, the supplier's SRA
+  status) or a service-description section, and locked.
+- **Shipped templates** — Full Risk Questionnaire and IT Security Assessment (Risk Assessment; the
+  second only for Software), Vendor Onboarding Form (Vendor Onboarding), Contract Intake Form
+  (Contracting) and Budget Approval Form (Approval). Three templates that never rendered were
+  removed on 2026-09-25 with their submissions.
+- **Field types** — text, text area, number, select, multi-select, radio, checkbox, date, file
+  upload, separator and info text. **Known defect:** a File Upload field shows a drop zone but
+  takes no file.
 
 ---
 
@@ -562,286 +648,210 @@ Text, Textarea, Number, Select (dropdown), Multi-Select, Radio buttons, Checkbox
 
 ### 7.1 Supplier Directory
 
-The Supplier Directory provides a searchable, filterable view of all 23 registered suppliers. Two view modes are available:
+Every supplier, as cards or a table, searched by name, country or category and filtered by risk
+rating, contract status, onboarding status, tier and country; active contracts and 12-month spend
+are computed from the contracts and invoices. A card's **New Request** opens New request without
+the supplier. **Add Supplier** does nothing: a supplier is added in Admin → Database (§14.17), or
+created as *prospective* — onboarding not started, screening pending — the moment a requester
+names one the directory lacks in New request (§4.2).
 
-**Card Grid View:** Each supplier displayed as a card showing company name, country flag, risk rating badge, active contracts count, 12-month spend, onboarding status, and tier indicator.
+### 7.2 Supplier Profile
 
-**Table View:** Sortable columns for all supplier attributes.
+Tabs for the overview, contracts (not linked; a banner for any ending within 90 days, fixed in
+code), risk and compliance (supplier risk assessment (SRA) and screening status, certifications),
+spend by year, performance, documents and activity. A requester opens it read-only from their
+request. The Vendor Manager and Admin can **Approve risk** or **Refer back**, each with a
+rationale.
 
-**Filters available:**
-- Risk rating: Low, Medium, High, Critical
-- SRA status: Valid, Expiring, Expired, Not Assessed
-- Onboarding status: Completed, In Progress, Not Started
-- Tier: 1, 2, 3
-- Country
-- Category
-- Screening status: Clear, Flagged, Pending
+**Known defect:** *Approve risk* records the SRA as valid and screening as clear, and *Refer back*
+records screening as flagged, though nothing was assessed or screened; the rationale is not saved;
+and both set a *Completed* onboarding back to *In progress*, which blocks contracting (§7.7).
 
-### 7.2 Supplier Profile (360-Degree View)
-
-Each supplier has a comprehensive profile page with 7 tabs:
-
-**Overview Tab:**
-- Company information: legal name, country, address, DUNS number
-- Primary contact details
-- AI-generated summary card highlighting key facts and risks
-- Risk rating badge, SRA status with expiry date, screening status
-- Tier classification
-- Categories served
-
-**Contracts Tab:**
-- List of all contracts with the supplier
-- Status, value, start/end dates, utilisation percentage
-- Direct links to contract detail pages
-
-**Risk Tab:**
-- Current risk rating with trend
-- SRA assessment history
-- Certification list with expiry dates and status (Valid, Expiring, Expired)
-- Sanctions screening results
-- Adverse media alerts
-
-**Spend Tab:**
-- 3-year spend history displayed as a bar chart
-- Spend breakdown by category
-- Year-over-year comparison
-
-**Performance Tab:**
-- Performance score (0-100)
-- Scorecard dimensions: quality, delivery, responsiveness, compliance, value
-- Historical performance trend
-
-**Documents Tab:**
-- All documents associated with the supplier: contracts, certificates, risk assessments, onboarding documents
-
-**Activity Tab:**
-- Timeline of all interactions: requests, contract events, risk assessments, communications
+**A demonstration:** the *AI Summary* (a sentence assembled from the record), spend by category
+(fixed shares), the performance sub-scores and trend (derived from one stored score), documents
+(the same placeholders for every supplier; download does nothing) and activity (a fixed timeline).
 
 ### 7.3 Onboarding Pipeline
 
-A 3-column kanban board showing the supplier onboarding pipeline:
+Suppliers in three columns by onboarding status — Not Started, In Progress, Completed. The
+Procurement Manager and Admin can **Complete** an in-progress supplier.
 
-- **Not Started** — Suppliers who have been identified but not yet begun onboarding (e.g., GreenEnergy GmbH)
-- **In Progress** — Suppliers currently going through the onboarding process (e.g., Databricks, TechBridge Solutions)
-- **Completed** — Fully onboarded suppliers with all checks passed
-
-Each card shows supplier name, country, risk rating, and the number of onboarding steps completed.
+**Known defect:** the completion note it requires is not saved.
 
 ### 7.4 Risk & Compliance
 
-A dedicated risk management view providing:
+Counts of high- and critical-risk suppliers, lapsing SRAs and pending screenings (their trend
+arrows are fixed in code), over each supplier's rating, SRA, screening, certifications and tier.
 
-- **Risk Rating Table:** All suppliers listed with their risk rating, SRA status, SRA expiry date, screening status, and certification status. Rows are colour-coded by risk level.
-- **Expiry Alerts:** Suppliers with SRAs expiring within 30, 60, or 90 days
-- **SRA Coverage Tracking:** Percentage of active suppliers with valid SRAs
-- **Certification Management:** Grid showing which suppliers hold which certifications (ISO 27001, ISO 9001, SOC 2, etc.) and their expiry status
+### 7.5 Supplier Messaging — a demonstration
 
-### 7.5 Supplier Messaging
+Sample conversations. **Send** shows a message on screen only — it reaches no one and is gone on
+reload; **New Message** does nothing.
 
-A threaded messaging interface for communicating with suppliers:
+### 7.6 Supplier Portal
 
-- Conversations can be linked to specific requests, invoices, or contracts
-- Messages support attachments
-- Internal notes can be added that are not visible to the supplier
-- Message history is searchable
+The Supplier role opens the portal (§2.2). There is no supplier sign-in: it always acts for one
+fixed supplier.
 
-### 7.6 Supplier Portal (External Self-Service)
+- **Sourcing** — the supplier's invitations. Opening one marks it viewed and shows the
+  requirements, never the criteria, weights or budget; a price, lead time and proposal can be
+  submitted and changed until the deadline (§8.1).
+- **Invoices** — **Submit Invoice** records an invoice as *Submitted* and *Unmatched*, for the
+  supplier of the purchase order it cites, if it cites one (§10.2).
+- **Onboarding** — the company details and contact, saved with onboarding set to *In progress*.
+- **Profile** — the record's details, read-only.
 
-Suppliers access the platform through a separate portal with its own layout and horizontal navigation. The portal includes:
+**Known defect:** saving the onboarding form sets a *Completed* supplier back to *In progress*.
 
-**Portal Dashboard:**
-- Overview of the supplier's current activity: open sourcing events, pending invoices, onboarding status, recent messages
+**A demonstration:** the dashboard (only its recent invoices are real), the profile's bank details,
+the six-step onboarding list, documents (upload and download disabled) and messages (Send does
+nothing) — and, in the internal app, **Supplier Portal Admin** (sample figures; settings cannot be
+saved).
 
-**Profile Management:**
-- View and update company information, contacts, banking details, and certifications
-- Upload supporting documents
+### 7.7 Onboarding gates
 
-**Onboarding Wizard (6 Steps):**
-1. Company information — Legal name, trade name, address, DUNS
-2. Financial details — Bank account, payment terms, tax ID
-3. Compliance — Certifications, insurance, sanctions declaration
-4. Risk questionnaire — Data handling, business continuity, subcontractor usage
-5. Document upload — Required certificates, financial statements, insurance certificates
-6. Review and submit — Summary of all provided information for final submission
+- **Light — the supplier exists and is screened clear.** Needed to complete a request's Risk
+  Assessment stage, and to complete a stage into Sourcing when a supplier is named. Only the stage
+  action on the request page checks it: a request that reaches Sourcing through its last approval
+  is not checked.
+- **Full — onboarding Completed.** Checked at award (§8.2): a winner who is not fully onboarded
+  sends the request to Vendor Onboarding instead of Contracting. Leaving Vendor Onboarding does
+  not check it again.
 
-**Sourcing Events:**
-- View active sourcing events the supplier has been invited to
-- Download specifications and questionnaires
-- Submit bids and responses
-- View Q&A boards
-
-**Invoices:**
-- Submit invoices against purchase orders
-- Track invoice status (Submitted, Under Review, Matched, Approved, Scheduled, Paid, Disputed)
-- View payment history
-
-**Documents:**
-- Access shared documents, contracts, and specifications
-- Upload requested documents
-
-**Messages:**
-- View and respond to messages from the procurement team
-- Message history and attachment support
+A channel's workflow can route a request whose supplier is prospective or not fully onboarded
+through Vendor Onboarding (§5, §14.3).
 
 ---
 
 ## 8. Sourcing & Evaluation
 
+An event is *Draft*, *Published*, *In evaluation*, *Award pending*, *Completed* or *Cancelled*; the
+platform sets only Draft, Published and Completed, and the rest are set in Admin → Database
+(§14.17). An invitation is *Not viewed*, *Viewed*, *Responded* or *Declined*, though a supplier
+cannot decline. Nothing is sent to an upstream sourcing system (§13).
+
 ### 8.1 Sourcing Events
 
-**Event List:**
-A table of all sourcing events with status tracking (Draft, Published, Bid Collection, Evaluation, Awarded, Cancelled). Each event shows: title, type, value, number of invited suppliers, number of responses received, deadline, and status.
+**From a request.** At a request's Sourcing stage, **Create sourcing event** (Procurement Manager,
+Admin) makes a draft from the request. Its requirements and criteria are seeded as Admin → Service
+Description sets them (§14.11), and it invites the named supplier, the requester's shortlist and
+the category's preferred suppliers (§14.10).
 
-**New Event Wizard (5 Steps):**
-1. **Event Setup** — Title, description, category, estimated value, event type
-2. **Requirements** — Specification document, evaluation criteria, weighting
-3. **Supplier Selection** — Invite suppliers from the directory
-4. **Timeline** — Publication date, Q&A deadline, bid submission deadline, evaluation period
-5. **Review & Publish** — Summary review and publication
+**New Event** is a five-step wizard: details (a category from a list fixed in code; RFI, RFP or
+RFQ), suppliers, requirements, criteria weighted and scored 1–5, and review. Publishing needs the
+weights to total 100%. A draft published from its event page also needs an invitation and a
+requirement, and moves its request to Sourcing.
 
-**Event Detail Page:**
-- Event overview with key dates and status
-- Q&A board where suppliers can ask questions and the buyer can respond (visible to all invited suppliers)
-- Supplier response tracking showing which suppliers have acknowledged, are preparing bids, or have submitted
+The event page tracks each invitation's status and price. Responses arrive through the portal
+(§7.6) and raise a notification (§15.1); the proposal text and lead time are not shown to the
+buyer. **The Q&A Board is a demonstration:** five sample questions, the same on every event.
 
 ### 8.2 Evaluation Centre
 
-The Evaluation Centre provides structured tools for comparing and scoring supplier bids:
+Lists the published, in-evaluation and award-pending events. Each supplier who has responded is
+scored 1–5 per criterion, saved as it is typed; the weighted total is a weighted average in which
+an unscored criterion counts as zero, and any supplier can be eliminated. There is no AI scoring
+and there are no rounds. The recommendation is the shortlisted responder with the highest total,
+a tie going to the lower price.
 
-**Side-by-Side Comparison:**
-Supplier responses displayed in parallel columns for easy comparison across all evaluation dimensions.
+**The award** cannot be undone, and an event has one. It completes the event, is audited and
+notified, and for an event raised from a request makes the winner the request's supplier and moves
+the request to Contracting — or to Vendor Onboarding if the winner is not fully onboarded (§7.7).
+If the request cannot be updated, the award stands and the event offers **Re-apply award to
+request**.
 
-**Scoring Matrix:**
-A grid with evaluation criteria on rows and suppliers on columns. Each cell contains a score. Criteria are weighted and the platform calculates weighted totals automatically.
+### 8.3 Sourcing Templates — a demonstration
 
-**AI-Assisted Scoring:**
-The AI analyses supplier responses against evaluation criteria and suggests preliminary scores with rationale. Evaluators can accept, adjust, or override AI scores.
-
-**Shortlist / Eliminate Workflow:**
-Evaluators can shortlist or eliminate suppliers at each evaluation round. Eliminated suppliers are greyed out but remain visible for audit purposes.
-
-**Award Recommendation:**
-Based on the weighted scores, the system generates a ranked recommendation. The winning supplier is highlighted with a recommendation summary explaining the rationale.
-
-### 8.3 Sourcing Templates
-
-5 pre-configured sourcing templates are available:
-
-1. **Simple RFQ (Request for Quotation)** — For straightforward price-based procurement. Minimal evaluation criteria. Best for standardised goods.
-2. **Full RFP (Request for Proposal)** — Comprehensive evaluation with technical, commercial, and qualitative criteria. Best for complex services and consulting.
-3. **Framework Mini-Competition** — For call-offs under an existing framework agreement. Simplified process with pre-qualified suppliers.
-4. **Reverse Auction** — Price-focused competitive bidding where suppliers bid downward. Best for commoditised goods with clear specifications.
-5. **Expression of Interest** — Pre-qualification stage to identify potential suppliers before a formal sourcing event.
+Five template cards with timelines and usage counts fixed in code. **Use Template** opens the empty
+wizard; there is no auction or mini-competition.
 
 ---
 
 ## 9. Contract Management
 
+A contract's status — *Draft*, *Under review*, *Active*, *Expiring*, *Expired* or *Terminated* —
+dates, value and utilisation are stored on it, and only Admin → Database (§14.17) creates or
+changes a contract. A requester can open a contract read-only.
+
 ### 9.1 Contract Register
 
-The Contract Register lists all 18 contracts with the following information:
-- Contract ID and title
-- Supplier name
-- Total value
-- Start and end dates
-- Status: Draft, Under Review, Active, Expiring, Expired, Terminated
-- Owner name and department
-- Category
-- Utilisation percentage (spend against contract value)
-
-**Status Filters:**
-- All Contracts (18)
-- Active (9)
-- Expiring within 90 days (3: Siemens IoT Platform, WPP Marketing Services, Sodexo Catering)
-- Expired (1: SAP S/4HANA Enterprise License)
-- Under Review (2: Capgemini DevOps, Microsoft 365 Enterprise)
-- Draft (1: Cushman & Wakefield Facilities Management)
-
-**Renewal Alerts:**
-The system automatically generates alerts at 30, 60, and 90 days before contract expiry. These appear as notifications and are displayed on the Expiring Contracts dashboard widget.
+Tabs **All**, **Active**, **Expiring** and **Expired** — each the stored status — with filters by
+status, supplier and category, and a countdown beside a live contract ending within 90 days (red
+within 30; both fixed in code). No notification is raised for an expiring contract (§15.1); the
+**Expiring Contracts** widget (§3.2) lists up to five ending within 90 days (fixed in code) or
+already ended.
 
 ### 9.2 Contract Detail
 
-Each contract has a detail page with the following sections:
+- **Summary** — the terms, dates, owner and utilisation, and how many requests name the contract.
+- **Coverage & Matching** — the service family, scope, deliverables and exclusions that New
+  request's contract check matches a demand against (§4.2); a contract without saved coverage is
+  never matched. **Preview match** tries example words.
+- **Financial** — *actual spend* is the value times the stored utilisation; *committed* is 85% of
+  the value, fixed in code.
+- **Renewal** — fixed 90/60/30-day guidance and **Start renewal**, which opens New request with
+  "Renew *title* with *supplier*" as the conversation's first message (§4.1).
+- **Related** — the purchase orders that name the contract, and their invoices.
+- **Obligations** and **Documents** — a demonstration: the same samples on every contract, and
+  nothing done there is kept.
 
-- **Summary:** Title, parties, value, dates, status, owner, category, linked request IDs
-- **Financial:** Contract value versus actual spend, utilisation percentage displayed as a progress bar, spend trend chart
-- **Obligations:** Key obligations of each party (populated from the Contract Intake Form)
-- **Renewal:** Renewal date, auto-renewal flag, renewal terms, recommended action (renew, renegotiate, or recompete)
-- **Documents:** All contract-related documents (signed agreement, amendments, schedules)
-- **Related:** Linked requests, purchase orders, invoices, and supplier profile
+**Known defect:** a service family that matches none stored is dropped when coverage is saved.
 
-### 9.3 Contract Templates
+### 9.3 Contract Templates — a demonstration
 
-6 contract templates are available for use when creating new contracts:
+Six agreement templates, shown as placeholder text. **Use This Template** closes the preview and
+creates nothing.
 
-1. **Standard Services Agreement** — For ongoing operational service engagements
-2. **Software License Agreement** — For SaaS subscriptions and software licences
-3. **Consulting Agreement** — For advisory and project-based engagements
-4. **Non-Disclosure Agreement (NDA)** — For confidentiality protection during pre-engagement discussions
-5. **Master Services Agreement (MSA)** — Framework agreement establishing overarching terms for multiple engagements
-6. **Statement of Work (SOW)** — Project-specific scope and deliverables document, typically under an existing MSA
+### 9.4 Renewals & Expiries
+
+Every contract with the days to, or past, its end date; counts ending within 30 and 90 days and
+already ended, and the value ending within 90 days (windows fixed in code; trend arrows fixed
+text). Its tabs read the end date, not the stored status. Each row has **Start renewal**.
 
 ---
 
 ## 10. Purchasing & Payments
 
+Nothing here is sent to a supplier, an ERP or a bank (§13).
+
 ### 10.1 Purchase Orders
 
-**PO List:**
-13 purchase orders tracked with the following statuses:
-- **Draft** (3) — PO created but not yet submitted to supplier
-- **Submitted** (1) — PO sent to supplier, awaiting acknowledgement
-- **Acknowledged** (1) — Supplier confirmed receipt of PO
-- **Partially Received** (2) — Some line items received
-- **Received** (2) — All line items received
-- **Closed** (4) — PO fully received and reconciled
+An order is raised by catalogue checkout (§4.5) or by **Create PO** on a request at its PO stage
+(Procurement Manager, Admin; one line, the request at its value), and starts *Submitted*. A goods
+receipt sets *Partially received* or *Received*; *Draft*, *Acknowledged* and *Closed* are set only
+in Admin → Database (§14.17).
 
-**PO Detail:**
-Each purchase order shows:
-- PO ID, supplier, value, status, creation date, delivery date
-- Contract reference (if applicable)
-- Request reference
-- Line items table: description, quantity ordered, unit price, quantity received, line total
-- Delivery status indicator per line item
+The PO page shows a status stepper, each line's quantity received against ordered, and **Not
+ready to hand off**: what an upstream system would reject, such as a line with no supplier part
+number or unit of measure, read from the request's order lines.
 
-**Goods receipt:**
-When goods or services are received, the requestor or operations team records the goods receipt against the PO lines. The receipt feeds the three-way match and advances the request. (A separate Goods Receipt Confirmation form duplicated this and was removed on 2026-09-25.)
+**Goods receipt**, not open to requesters, records the quantities received, never more than
+ordered; they decide whether it is complete or partial. A complete receipt moves the request out of
+its PO stage.
 
 ### 10.2 Invoice Management
 
-**Invoice Queue:**
-14 invoices tracked across 7 statuses:
-- **Submitted** (2) — Invoice received from supplier, awaiting review
-- **Under Review** (2) — Invoice being reviewed by accounts payable
-- **Matched** (1) — Invoice matched against PO and goods receipt
-- **Approved** (2) — Invoice approved for payment
-- **Scheduled** (1) — Payment scheduled with bank
-- **Paid** (5) — Payment completed
-- **Disputed** (1) — Invoice has a discrepancy requiring resolution
+An invoice is *Submitted*, *Under review*, *Matched*, *Approved*, *Scheduled*, *Paid* or
+*Disputed*, with a match of *Matched*, *Partial match*, *Unmatched* or *Variance*. Suppliers enter
+invoices in the portal (§7.6); nothing reads data from an invoice document (§12.1).
 
-**AI Data Extraction:**
-When invoices are submitted, the Document Extractor AI agent (89.5% accuracy) automatically extracts key data: supplier name, invoice number, date, amount, line items, tax amounts, and payment terms. This eliminates manual data entry.
+On the **Invoice Queue** the Operations Lead reviews an invoice, then marks it matched or a
+variance (disputed); the Procurement Manager approves it; the Admin schedules and then releases it
+as paid.
 
-**Three-Way Match:**
-The system automatically matches invoices against purchase orders and goods receipts:
-- **Matched** — Invoice amount matches PO and goods receipt exactly
-- **Partial Match** — Invoice covers only some line items (e.g., partial delivery)
-- **Unmatched** — No matching PO found (e.g., INV-011 from Accenture for EUR 85,000 with no corresponding PO)
-- **Variance** — Amounts do not match exactly. The variance amount is calculated and displayed. (e.g., INV-002 from AWS shows a EUR 2,400 variance against PO-001)
+**Matching is a person's decision:** *Match* compares nothing and *Variance* records no amount,
+whatever the queue's "auto-matched within tolerance" card says. An invoice does not move its
+request: the request's Invoice and Payment stages are closed on the request (§4.6).
 
-Unmatched invoices are flagged for manual review. Variances above a configurable threshold require approval.
+**Three-Way Match is a demonstration:** four fixed scenarios judged against the *Invoice Match
+Tolerance* in a person's Settings — not a Decisioning threshold (§14.9). Its buttons do nothing.
 
 ### 10.3 Payment Tracker
 
-The payment lifecycle tracks invoices through four stages:
-
-1. **Matched** — Invoice successfully matched to PO and receipt
-2. **Approved** — Invoice approved for payment by authorised approver
-3. **Scheduled** — Payment scheduled with bank for the next payment run
-4. **Paid** — Payment executed and confirmed
-
-Each invoice shows its current position in the payment lifecycle, the due date, and days until or past the due date. Overdue payments are highlighted.
+Each invoice's match, approval and payment state, its progress, and its due and paid dates.
+*Scheduled This Week* and *Paid This Month* total every scheduled and every paid invoice, whatever
+the date. Nothing is paid: Schedule and Release record the state only, as the tracker tells the
+Admin. Overdue invoices are not highlighted.
 
 ---
 
@@ -849,80 +859,38 @@ Each invoice shows its current position in the payment lifecycle, the due date, 
 
 ### 11.1 Dashboards
 
-Four analytics dashboards provide comprehensive insight into procurement performance:
+Four dashboards, computed live from the platform's own records over the last six months:
 
-**Spend Overview:**
-- Total spend trend (monthly, quarterly, annual)
-- Managed versus unmanaged spend ratio
-- Spend by category breakdown (pie/bar chart)
-- Spend by supplier (top 10)
-- Spend by department
-- Year-over-year comparison
-
-**Compliance KPIs:**
-- Overall compliance rate trend (82.5% in January 2024 to 91.0% in December 2024)
-- Policy breach count trend (8 per month down to 2)
-- First-time-right rate trend (68% to 85%)
-- SRA coverage percentage
-- Buying channel compliance breakdown
-
-**Pipeline & Cycle Time:**
-- Average cycle time trend (42 days down to 29 days over 12 months)
-- Requests submitted versus completed per month
-- Open demand count and value
-- Active sourcing events
-- Stage-by-stage cycle time analysis
-
-**Supplier Performance:**
-- Supplier performance scores (ranked table)
-- Performance trend over time
-- Category-level performance comparison
-- Risk rating distribution across supplier base
+- **Spend Overview** — spend year to date, the managed-spend share, the average contract value,
+  the monthly spend trend, spend by category (from the value of the requests), the top twenty
+  suppliers by spend, and — when AI-004 is active — the spend anomaly checks (§12.1). The average
+  contract value's "flat 2%" trend is fixed text, not computed.
+- **Compliance KPIs** — the first-time-right rate, supplier risk assessment coverage, policy
+  breaches this month (a breach is a request referred back), the average cycle time, the
+  refer-back rate, duplicate supplier records, and contract against off-contract spend.
+- **Pipeline & Cycle Time** — the request funnel by stage group (intake, approval, sourcing,
+  contract, PO and delivery), requests completed, days per stage group, and how long open requests
+  have been waiting.
+- **Supplier Performance** — each supplier's score in one table, with the five best and the five
+  weakest.
 
 ### 11.2 KPI Cards
 
-6 primary KPIs are tracked with sparkline trends and drill-down capability:
+Each KPI card shows its current value, the change on the previous period, and a six-month
+sparkline. Cards do not drill down.
 
-| KPI | Latest Value | Trend Direction |
-|---|---|---|
-| Open Demand | 28 requests | Increasing |
-| Active Sourcing | 12 events | Increasing |
-| Avg Cycle Time | 29 days | Decreasing (improving) |
-| Compliance Rate | 91.0% | Increasing (improving) |
-| Total Spend (monthly) | EUR 4,800,000 | Increasing |
-| Managed Spend | EUR 4,250,000 (88.5%) | Increasing (improving) |
+### 11.3 Report Builder — a demonstration
 
-Each KPI card shows: current value, percentage change from previous period, 12-month sparkline trend, and a drill-down link to the detailed dashboard.
+The Report Builder charts **sample data**, not the platform's records: a source (requests,
+suppliers, contracts, spend, compliance), a title and a chart type (bar, line, pie, table;
+*scatter* draws bars), with a CSV export. **Save Report only confirms on screen** — nothing is
+stored.
 
-12 months of historical data are maintained (January 2024 through December 2024) supporting trend analysis and year-over-year comparison.
+### 11.4 Scheduled Reports and Exports — demonstrations
 
-### 11.3 Report Builder
-
-A visual report creation tool allowing users to build custom reports:
-
-- **Data Source Selection:** Choose from requests, suppliers, contracts, invoices, purchase orders, spend, or KPI data
-- **Chart Type Selector:** Bar, line, pie, area, scatter, table, or number card
-- **Drag-and-Drop Configuration:** Select dimensions (x-axis), measures (y-axis), filters, and groupings
-- **Live Preview:** Report updates in real-time as configuration changes
-- **Export Options:** PDF, Excel (spreadsheet), and CSV formats
-
-### 11.4 Scheduled Reports
-
-5 pre-configured scheduled reports are available:
-
-| Report | Frequency | Description |
-|---|---|---|
-| Weekly Pipeline Summary | Weekly (Monday) | Open demand, active sourcing, stuck requests, upcoming deadlines |
-| Monthly Spend Report | Monthly (1st) | Total spend, managed spend ratio, category breakdown, top suppliers |
-| Quarterly Compliance Review | Quarterly | Compliance rate, policy breaches, SRA coverage, audit findings |
-| Contract Expiry Alert | Monthly (15th) | Contracts expiring in next 90 days with renewal recommendations |
-| Supplier Performance Scorecard | Quarterly | Performance scores, risk ratings, certification status for all active suppliers |
-
-Each report can be configured with:
-- Distribution list (email recipients)
-- Frequency (daily, weekly, monthly, quarterly)
-- Enable/disable toggle
-- Custom date range
+**Scheduled Reports** lists five sample report definitions with an on/off switch that is not kept;
+nothing is scheduled or sent. **Exports** offers sample files, ignores its date fields, and shows a
+sample list of recent exports. Neither reads the platform's records.
 
 ---
 
@@ -930,215 +898,290 @@ Each report can be configured with:
 
 ### 12.1 AI Agents
 
-The platform employs 6 AI agents, each specialising in a specific aspect of procurement intelligence:
+Each agent is a switch on something the platform really does. Its status — active, draft or
+disabled — is set in Admin → AI Agent Configuration, and only *active* turns it on. Nothing reports
+an accuracy or a count of decisions, because nothing measures them.
 
-| Agent | Type | Accuracy | Decisions Made | Status | Function |
-|---|---|---|---|---|---|
-| Category Classifier | Classification | 94.2% | 1,247 | Active | Classifies requests into categories and assigns commodity codes based on title, description, and historical patterns. Trained on 3 years of procurement data. |
-| Request Validator | Validation | 91.8% | 892 | Active | Validates requests for completeness, policy compliance, and data quality. Checks for missing fields, budget availability, duplicates, and policy violations. |
-| Document Extractor | Extraction | 89.5% | 2,340 | Active | Extracts key data from uploaded documents including invoices, contracts, quotes, and proposals. Identifies supplier names, amounts, dates, terms, and line items. |
-| Spend Anomaly Detector | Anomaly Detection | 87.3% | 156 | Active | Monitors spending patterns across categories, suppliers, and cost centres. Detects unusual spend spikes, off-contract purchasing, invoice duplicates, and price variance outliers. |
-| Supplier Recommender | Recommendation | 78.6% | 45 | Draft (Pilot) | Recommends optimal suppliers based on category match, performance scores, risk ratings, and pricing history. Currently below production accuracy threshold. |
-| PR Compliance Reviewer | Validation | 96.1% | 534 | Active | Reviews purchase requisitions before PO creation across 6 compliance categories. Produces a compliance report with pass/fail decision and detailed findings. |
+| Agent | What it does when active | When it is not active |
+|---|---|---|
+| **AI-001 Category Classifier** | Reads the demand as the requester wrote it, in New request, and suggests the category — and a title, supplier and value where it can find them — through the language model. It chooses only among the configured categories. | The configured category keywords classify instead, as they do when the model is unavailable |
+| **AI-002 Request Validator** | Runs the policy checks the Channel page shows before submit: contract required before a PO, budget approval, the supplier's risk assessment, competitive sourcing and the preferred-supplier rule, each against Decisioning thresholds and the category's preferred suppliers. Rules, not a model. | The checks are reported as not run — never as passed |
+| **AI-004 Spend Anomaly Checks** | Flags, on Analytics, open requests at or above the contract-required threshold with no contract behind them, and suppliers with several requests in flight whose combined value is above the budget-approval threshold. Rules, not a model. | The Analytics card says the checks are off |
+| **AI-005 Supplier Recommender** | Suggests suppliers in New request when the requester chooses a supplier or adds one to invite: the category's preferred suppliers first, then by category fit, performance score and risk rating. A shortlist, not a decision. | No suggestions; the supplier can still be named |
+| **AI-007 Status Answers** | Answers status questions on Home and in the assistant — a request, what is waiting on you, a PO, an invoice, a contract or a supplier. Which details it may state, and whose records each role may ask about, are configured on the agent. | A status question is told that status answers are switched off |
+
+Two agents were removed on 2026-09-25: a document extractor that only relabelled a disabled
+upload button, and a compliance reviewer whose report recorded checks as passed that had never
+run.
 
 ### 12.2 AI-Powered Features
 
-**Intake Intelligence:**
-- **Category Detection:** When a user describes what they need in natural language, the AI identifies the correct procurement category and explains its reasoning. For example, "I need a cybersecurity consultant" is classified as Consulting with the note: "Professional advisory engagement where the provider brings their own methodology."
-- **Commodity Code Assignment:** The AI assigns the appropriate commodity code from the UNSPSC taxonomy. For example, cloud hosting is assigned code 81112200 (Cloud computing services).
-- **Service Description Generation:** For consulting and services categories, the AI conducts a conversational intake and generates a structured 9-section Statement of Work.
-- **Buying Channel Suggestion:** Based on category, value, and supplier, the AI suggests the appropriate buying channel with reasoning.
+**The model reads and phrases; rules decide.** A language model is called in the five places
+below; which providers and model versions are used is a governed product decision
+([ARCHITECTURE.md §7](../ARCHITECTURE.md#7-ai)). Of the five, only the classifier has an agent
+switch (AI-001, §12.1); the others run whenever a provider answers. Each has a path without the
+model, taken when the provider does not answer.
 
-**Compliance Automation:**
-- **PR Compliance Review:** The 6-category automated compliance review described in Section 6.3.
-- **Risk Triage:** Automated determination of whether a full supplier risk assessment is required based on spend level, data sensitivity, and jurisdiction.
-- **Policy Checks:** Automated validation against configurable policy rules at the point of request submission.
+| Where | What the model does | What rules decide | Without the model |
+|---|---|---|---|
+| **Reading the demand** (§4.2) | Suggests a category from the configured ones, a title, a supplier and a value, and reads the words as a catalogue item or a new demand, which decides whether a catalogue match is offered | The requester confirms the reading. The commodity code is matched from the category's configured codes. No catalogue item is offered that the catalogue check did not find | The configured category keywords |
+| **The service-description conversation** (§4.3) | Phrases the next question, extracts the answers, judges whether an answer addresses the question and drafts one it can ground | The engine chooses the next question and when the description is complete; a reply that is not a single question is replaced by fixed wording | Fixed wording, and rule checks on the answers |
+| **Writing the service description** (§4.4) | Writes the configured sections and the narrative from the captured answers, told which sections this demand must cover | A quality score from rule checks: every section at least 40 characters (fixed in code), deliverables as a list, measurable acceptance criteria, a timeline with phases or dates | The sections assembled from the answers, with standard wording where one is missing |
+| **Contract match** (§4.2) | When two or more contracts qualify, puts them in order and adds a reason | Which contracts qualify, from their dated scope, and their scores. The model cannot add a contract or promote one that does not qualify, and checkout repeats the match without it | The rules' order |
+| **The assistant** (§3.5) | Answers what the Home box's route does not, and only through its tools | What the tools may read and do (below) | An offline assistant that recognises a fixed set of requests |
 
-**Operational Intelligence:**
-- **Bottleneck Analysis:** The AI identifies workflow stages causing delays, analyses root causes, and recommends remediation actions.
-- **SLA Prediction:** Based on historical processing times, the AI estimates how long each remaining stage will take for a given request.
-- **Spend Anomaly Alerts:** Automated detection of unusual spending patterns with explanatory context.
+**Rules, not a model:** the commodity code; the buying channel (routing rules, §14.1 — the reason
+shown is the matched rule's description); the Home box's route (§3.1); the policy checks
+(AI-002), materiality, inherent risk and whether a risk assessment is needed (§6); supplier
+suggestions (AI-005: the category's preferred suppliers first, then category fit, performance and
+risk); status answers (AI-007); the spend anomaly checks (AI-004); the bottleneck analysis, which
+names the three active stages with the longest average time in stage (§5.2); and reading the text
+of an attached PDF or DOCX. Stage deadlines are set per stage (§14.3); nothing predicts how long a
+stage will take.
 
-**AI Assistant Chat (62 Response Patterns):**
-The conversational AI assistant covers queries across the following domains:
-- Request creation and tracking
-- Approval management
-- Supplier information and risk
-- Spend and budget queries
-- Contract management
-- Invoice and payment tracking
-- Workflow and pipeline status
-- Policy and process guidance
-- Catalogue ordering
-- Supplier onboarding status
-- Sourcing events
-- Report navigation
+**The assistant's tools.** It searches the knowledge base; looks up a record or lists records by
+filter — only the records and details the Status Answers agent allows the person's role; proposes
+an action; raises a support ticket when the person asks for a human; takes a buying need to New
+request; and remembers a fact the person gives it (a delegate, cost centre, department or
+preferred supplier) for their later conversations. **Confirm before act:** a proposed change is a
+confirmation card, nothing changes until the person confirms, and the change is then written with
+an audit entry (§14.8). Nothing is written upstream. Every answer can be voted helpful or not
+helpful; the votes, which do not record the voter, are counted in AI Analytics (§14.16).
 
-Each response includes actionable navigation links. For example, asking about supplier risk generates links to the Compliance KPI Dashboard, Supplier Risk & Compliance page, and the Knowledge Base.
-
-**Smart Command Bar (Natural Language to Action):**
-As described in Section 4.1, the command bar translates natural language input into platform actions, including real-time catalogue search results.
+**Known defect:** when the server refuses or fails a confirmed action — its answer says nothing
+was changed — the chat shows the offline assistant's reply instead: "This action has already been
+executed or has expired", or, for a proposal the offline assistant made, "Done" for out of office,
+a delegate or a watcher, although nothing was written.
 
 ### 12.3 AI Visual Language
 
-AI-generated content throughout the platform follows a consistent visual language:
+- **Model output is named in words and confirmed by choice.** The conversation says which layer
+  read the demand — "Read by the category classifier." or "Matched on the configured category
+  keywords." — and offers the reading for confirmation: *Yes*, another likely code, *None of these
+  codes*, or describe it again. A drafted answer is offered with *Use this*, and the written-up
+  service description is edited in place (§4.2–§4.4).
+- **No confidence figures.** The model returns none, and the platform does not invent one.
+- **The *AI-generated* card** — a tinted card with the sparkle icon and that label — appears on the
+  supplier profile, the Invoice Queue and the Workflow Monitor. Only the Invoice Queue's can be
+  dismissed, which hides it until the page is opened again; nothing offers Accept or Override on AI
+  output.
+- **The sparkle icon** also marks the Home box, the assistant and the spend anomaly checks: it is
+  the assistant's mark, not a sign that a model wrote what it sits on.
 
-- **Blue-tinted cards** distinguish AI-generated insights from human-entered data
-- **Sparkle icon** marks all AI-generated content, recommendations, and suggestions
-- **Confidence badges** display the AI's confidence level as a percentage (e.g., "94.2% confident")
-- **Accept / Dismiss / Override controls** appear on every AI recommendation, allowing users to:
-  - Accept the AI's suggestion and apply it
-  - Dismiss the suggestion (with optional reason)
-  - Override with a manual value
-
-This ensures transparency — users always know when they are looking at AI-generated content and always have the ability to override it.
+**Known defect:** the cards labelled *AI-generated* hold text built by fixed templates from the
+record, not by a model — the supplier profile's **AI Summary**, **Risk Classification** and
+**Spend Insight**, the Invoice Queue's **Invoice Matching Summary**, and the Workflow Monitor's
+**Top Bottleneck Identified**, which also states a fixed "SLA target: 5 days" and "this month"
+whatever the stage's deadline and the period.
 
 ---
 
 ## 13. System Integrations
 
-### 13.1 External Systems
+### 13.1 No live connections in Release 1
 
-The platform integrates with 4 external systems, each serving a specific purpose at specific workflow stages:
+The platform writes to no upstream system — ERP, contract management, risk provider, supplier
+network or payments — and reads from none. Sourcing events, risk assessments, contracts,
+requisitions and purchase orders are its own records (§7–§10); a purchase order is an internal
+one. Where an upstream system would act, the platform shows the step and links to its own page for
+it (§13.4), and the assistant proposes but never writes upstream (§3.5). Live connections are
+Release 2.
 
-#### SAP Ariba
-- **Purpose:** Sourcing event management and supplier bid collection
-- **Engaged at stage:** Sourcing
-- **What it does:** RFx events are created in SAP Ariba, suppliers are invited to bid, and responses are collected. The platform tracks the Ariba event reference and bid status.
-- **Example:** For REQ-2024-0006 (Data Analytics Platform), an RFx event was created in Ariba with 3 suppliers invited.
+### 13.2 Hand-over records
 
-#### Coupa Risk Assess
-- **Purpose:** Supplier risk assessment and due diligence
-- **Engaged at stage:** Validation
-- **What it does:** Supplier profiles are submitted for automated risk scoring. The system returns a risk score and assessment report.
-- **Example:** For REQ-2024-0001 (Cloud Hosting Migration), a risk assessment for AWS returned "Risk score: Low (12/100)."
+A hand-over record says that a request was handed to an upstream system at a stage: the system —
+**SAP Ariba**, **Coupa Risk Assess**, **Sirion CLM** or **SAP S/4HANA** — the stage, a status, when
+it was sent and answered, the external reference and a note. Records show on the request's
+lifecycle stepper and Workflow tab (newest first), on Active Workflows (the first one not
+completed), and in System Health (§14.7).
 
-#### Sirion CLM (Contract Lifecycle Management)
-- **Purpose:** Contract drafting, review, and execution
-- **Engaged at stage:** Contracting
-- **What it does:** Contract documents are generated using templates, reviewed by legal, red-lined, and executed. The platform tracks the Sirion reference and review status.
-- **Example:** For REQ-2024-0013 (Microsoft E5 Upgrade), the license agreement is under legal review in Sirion CLM.
+**Nothing writes one today.** The records are sample data loaded with the platform. No screen, rule
+or workflow step creates one, and a workflow's automated steps (§14.3) are passed over when a
+request runs. The four system names are labels on those records, not connections.
 
-#### SAP S/4HANA
-- **Purpose:** Purchase order creation and financial processing
-- **Engaged at stage:** PO Creation
-- **What it does:** Purchase orders are created in the ERP system with the correct supplier, line items, and financial coding. The platform receives the SAP PO number as confirmation.
-- **Example:** For REQ-2024-0016 (Laptop Refresh), PO 4500012089 for 350 ThinkPad laptops was created in SAP.
+The statuses are a fixed list: *Pending hand-over* (grey); *Submitted*, *Awaiting response* and
+*Processing* (amber); *Completed* (green); *Error* and *Timeout* (red, Timeout with a clock).
+**Nothing moves a record between statuses:** each keeps the status it was loaded with, and there is
+no timeout rule.
 
-### 13.2 Integration Status Lifecycle
+### 13.3 The connector layer
 
-Each integration interaction passes through 7 possible states, each with a distinct visual indicator:
+Each upstream-shaped record has a connector, answered today by the platform's own store:
+suppliers, contracts, purchase requests, purchase orders, invoices, risk assessments, catalogue
+items, sourcing events, support tickets, and supplier payment details — the last from a fixed data
+set in code, not the store. A record read through a connector says where it came from, whether
+that source is live and when it was read, so in Release 2 a live connection can replace the
+own-store connector without changing the code that reads through it. Today New request's catalogue
+and contract checks, its determination and the assistant's lookups read through the connectors;
+most other screens and the server's own checks read the store directly, and risk screening, the
+category taxonomy and form submissions have no connector yet
+([ARCHITECTURE.md §4.4](../ARCHITECTURE.md#44-the-source-connector-layer)).
 
-| Status | Description | Visual |
-|---|---|---|
-| Pending Handover | Data prepared but not yet sent to external system | Grey |
-| Submitted | Data sent to external system, awaiting acknowledgement | Blue |
-| Awaiting Response | External system acknowledged, processing not yet complete | Amber |
-| Processing | External system actively working on the request | Blue (animated) |
-| Completed | External system returned a successful result with reference ID | Green |
-| Error | External system returned an error or could not process | Red |
-| Timeout | No response received within the expected timeframe (30 days) | Red (with clock) |
+### 13.4 Hand-off steps
 
-The integration timeline on each request's Workflow tab shows all system interactions chronologically, making it clear when handoffs occurred and whether external systems are causing delays.
+Among the Channel page's workings (§4.2), **Next steps** lists what follows submission — the
+supplier's master data when it is incomplete, the risk assessment (reuse, a delta or a full one),
+heightened approval and the regulatory register for a material demand, a sourcing event, the
+contract (a call-off or a new one) and the purchase requisition — each with the area it belongs
+to, whether it is required or recommended, and an **Open** link to the platform's own page for it.
+None of them sends anything anywhere.
 
 ---
 
 ## 14. Administration
 
+Admin is the administrator's; each item has one job. What each is for, where it is stored and
+what in the platform reads it is the [admin map](admin-map.md) — the one home for that. This
+section says what an administrator can do on each. The numbers every decision compares against
+live in one place, Decisioning Thresholds (§14.9); routing rules, approval chains, workflow
+branches, forms and knowledge-base articles name them rather than restate them.
+
 ### 14.1 Routing Rules Engine
 
-The Routing Rules Engine determines how requests are classified and routed through the workflow. It uses a 3-panel editor:
+Routing rules decide one thing: whether a demand that no catalogue item or contract covers is
+**business-led** or **procurement-led** — and, optionally, an approval chain that applies whatever
+the value (§14.4). Catalogue orders and call-offs are not routing outcomes; they come from the
+checks in New request (§4.2). One evaluator decides in the conversation, on the Channel page and at
+submit.
 
-**Panel 1: Rule List**
-A table of all 12 routing rules showing: rule name, status (Active/Draft/Disabled), category, match count (how many times the rule has been triggered), and last modified date.
+**How they apply.** Active rules are checked in a stored order — ordinary rules before the
+catch-alls; the page does not change it — and the first whose conditions all hold decides. Its
+description is the reason the requester is shown. If none matches, the demand is procurement-led by
+a fallback fixed in code. As shipped: consulting, contingent labour, urgent demand and a supplier
+rated high or critical (which also takes the Compliance Escalation chain) are procurement-led;
+after those, a demand above the *Budget approval threshold* is procurement-led, one at or below the
+*Business-led ceiling* business-led, and everything else procurement-led.
 
-**Panel 2: Visual Rule Builder**
-An interactive condition builder with IF/THEN logic:
+**The page** has three panels:
 
-- **IF** conditions: field, operator, value. Supports AND/OR grouping.
-  - Fields: category, value, priority, supplier, commodity code, urgency flag, supplier risk rating
-  - Operators: equals, not equals, greater than, less than, between, in (list), starts with, contains
-- **THEN** actions: buying channel assignment and approval chain definition
+- **Rules**, grouped under a label each rule carries, with its name, status and last change.
+  *Add Rule* starts a draft; *Delete rule* asks first and says where that demand will go instead.
+- **Editor**: the name; the status (active, draft or disabled); the channel; the approval chain —
+  *Let the value band decide*, or a chain; and conditions, all of which must hold (there is no OR).
+  A condition is a field, an operator and a value:
+  - fields — value, category, supplier chosen, the supplier's risk rating, contract exists, the
+    demand's risk tier, materiality, commodity code, urgent;
+  - operators — equals, does not equal, greater than, less than, contains, starts with, is in,
+    between, is empty, is not empty, risk rating is;
+  - a value names a Decisioning threshold or is a typed amount, and a typed amount equal to a
+    threshold is flagged with the offer to name it; categories are the configured ones.
 
-**Panel 3: Test Panel**
-A simulation area where administrators can input test request data and see which rule would match and what routing would result.
+  A plain-English summary follows the edits. The description the requester sees is not edited
+  here: a new rule has none, so its name is shown.
+- **Test**: a sample demand run through the same evaluator — which rule matches and the outcome;
+  *Test All* shows which active rules fire for it.
 
-**Seeded rules (Door 1).** Routing decides only **business-led** or **procurement-led**. Every rule can change an outcome: RR-001 (software above the budget-approval threshold), RR-006 (above materiality) and the draft RR-011 were removed on 2026-09-25 because RR-902 already gave the same answer. Rule conditions can use: value, category, supplier chosen, the supplier's risk rating, contract exists, the demand's risk tier, materiality, commodity code, urgent. Catalogue and framework call-off are never routed to: they come from a real catalogue item or a transactable contract found by the buy-route checks. Direct PO and P-card were retired on 2026-09-25 (no honest intake path reached either). Thresholds are `policy:` references to the Decisioning Thresholds page, not restated numbers.
+Above the panels, the page lists active rules that can never fire — an unknown field, operator or
+threshold, no conditions, a chain that does not exist — and warns when some demand matches no rule.
 
-| Rule | Conditions | Buying Channel | Status |
-|---|---|---|---|
-| RR-003 Consulting engagements | Category = Consulting | Procurement-Led | Active |
-| RR-013 Contingent labour | Category = Contingent Labour (a call-off only when the contract check finds a framework) | Procurement-Led | Active |
-| RR-010 Urgent request | Marked urgent | Procurement-Led | Active |
-| RR-012 High-risk supplier | The chosen supplier's own risk rating is high or critical | Procurement-Led, Compliance Escalation chain | Active |
-| RR-902 Catch-all — above budget approval | Value > budget-approval threshold | Procurement-Led | Active |
-| RR-904 Catch-all — business-led ceiling | Value ≤ business-led ceiling (€50K) | Business-Led | Active |
-| RR-905 Catch-all — everything else | Any value | Procurement-Led | Active |
+**Known defect:** the test panel offers a fixed list of five categories and has no input for the
+supplier's risk rating or materiality, so a rule on either — the high-risk-supplier rule among
+them — cannot be tried there.
 
 ### 14.2 Form Builder
 
-The Form Builder allows administrators to create and modify form templates using a 3-panel editor:
+A form is the evidence a workflow stage collects. It appears on a request's Workflow tab at each
+stage it is placed on, when its conditions hold, and a **blocking** form holds the stage until it
+is submitted (§4.6, §6.4).
 
-**Panel 1: Form List**
-A table of the form templates (5 today) with: name, category, status (Active/Draft/Disabled), trigger stages, field count, version number, and last modified date.
+**The page** has three panels:
 
-**Panel 2: Field Editor**
-A drag-and-drop interface for adding and configuring form fields:
-- Drag field types from a palette (11 types available)
-- Configure each field: label, placeholder text, help text, required flag, validation rules, default value, pre-population source, display width (full or half)
-- Reorder fields by dragging
-- Add conditional display logic
+- **Forms**, grouped by form category (Risk, Procurement, Compliance, Operations), each with its
+  name, status, the stages it appears on and its number of fields. *Add Form* starts a draft;
+  *Delete form* asks first.
+- **The form**: name, description, status (active, draft or disabled), category, the stages it
+  appears on (chosen from the stages the channels run), its conditions — the routing-rule
+  vocabulary, which can name a Decisioning threshold, all of which must hold — and **Blocking**. A
+  form that can never be asked for (no stage, a stage no channel runs, a condition on something
+  nothing supplies, an unknown operator or threshold) is flagged. Fields are added from a menu of
+  ten types — text, text area, number, select, radio, checkbox, date, file upload, section header,
+  info text — and removed with ×; they cannot be reordered.
+- **The field, and a live preview**: the selected field's label, placeholder, help text, whether it
+  is required, its width (full or half), the options of a select or radio field, the minimum and
+  maximum of a number, the text of an info field, and **Pre-populate from** a request field or a
+  service-description section, optionally locked. The preview shows the form as it will appear and
+  follows the edits.
 
-**Panel 3: Live Preview**
-A real-time preview of how the form will appear to users, updating as fields are added or modified.
+*Save Form* writes it. The version shown is a label that saving does not change.
+
+**Known defect:** *Add Form* numbers the new form from the count of forms, so after any deletion
+it reuses an existing form's id — today FORM-006 — and the edits and the save go to that existing
+form.
 
 ### 14.3 Workflow Designer
 
-A visual canvas for designing procurement workflows:
+A visual canvas for the lifecycle of each buying channel. There are four templates, and each
+claims the channels it runs: **Procurement-led** (WF-001), **Catalogue** (WF-002), **Business-led**
+(WF-006) and **Call-off** (WF-008). A channel claimed by two templates, or by none, is flagged.
 
-**10 Node Types:**
-1. **Start** — Entry point of the workflow
-2. **Stage** — A processing step (e.g., Intake, Validation, Approval)
-3. **Decision** — A branching point with conditions (e.g., "Value > EUR 1M?")
-4. **Parallel** — Splits the workflow into concurrent paths (e.g., running sanctions screening and financial checks simultaneously)
-5. **Approval** — A step requiring human sign-off
-6. **Integration** — A handoff to an external system
-7. **Form** — A step requiring form completion
-8. **Timer** — A wait step with SLA deadline
-9. **Error** — An exception path (e.g., Referred Back, Rejected)
-10. **End** — Completion of the workflow
+**Node types.** Each node type the palette offers saves as it was drawn:
 
-**Design interaction:**
-- Drag nodes from a palette onto the canvas
-- Click to configure each node (set label, assign handler role, define conditions, attach forms)
-- Connect nodes with edges by clicking and dragging
-- Label edges with transition conditions (e.g., "Approved", "Rejected", "> EUR 5K")
+1. **Start** — where the workflow begins
+2. **Stage** — a stage the request sits in, with a label, an owner role, a deadline in working
+   days, what leaving it takes (automatic or a manual gate), its purpose, and **what the
+   requester does here** (shown on the Channel page)
+3. **Decision** — a branch; each outgoing edge carries a condition, which may name a Decisioning
+   threshold rather than restate a number (the catalogue template's auto-approval branch does)
+4. **System Action**, 5. **AI Agent** and 6. **Notification** — automated steps, saved as
+   integration steps and told apart by their kind
+7. **End** — completion
 
-**Template Library (4 Templates):**
+A template may also carry an error path (WF-001's *Referred Back*), which is kept when the
+template is saved. Approvers are not configured here — approval chains own them
+(§14.4) — and neither is waiting: a stage's deadline is.
 
-1. **Standard Procurement** — Full end-to-end workflow: Request Submitted > Intake > Validation > Auto-Route (decision) > Approval or Direct to Sourcing > Contracting > PO Creation > Receipt > Invoice > Payment > Completed. Includes a Referred Back error path.
+**Per channel**, the designer also holds the **requester wording** — the headline and the
+sentence the conversation and the Channel page use for that way of buying.
 
-2. **Catalogue Purchase** — Simplified workflow: Catalogue Order > Auto-Validate > Value Check (decision: > EUR 5K requires Manager Approval, < EUR 5K goes to Auto-PO) > PO Created > Receipt > Complete.
-
-3. **Supplier Onboarding** — Multi-step workflow with parallel processing: Onboarding Request > Initial Review > Due Diligence > Parallel Checks (Sanctions Screening + Financial Check + SRA Assessment) > Risk Decision > Compliance Approval > System Setup > Active Supplier. Includes a Rejected error path.
-
-4. **Contract Renewal** — Decision-based workflow: Renewal Trigger > Performance Review > Renew or Recompete (decision) > Either Market Benchmark then Sourcing (RFP), or Negotiation then Approval > Contract Execution > Active Contract.
-
-**Simulation Mode:**
-Administrators can run a test request through a workflow design to verify that routing, conditions, and transitions work correctly before deploying to production.
+**Checks and simulation.** The designer lists what is wrong with a template's branches — a
+condition on something nothing supplies, an operator not implemented, a threshold that does not
+exist, a labelled branch with no condition, a decision with no default branch, a branch that can
+never be reached, an approvable step with no *Rejected* branch — and can run a test request
+through the canvas as it stands before it is saved.
 
 ### 14.4 Approval Chains
 
-4 pre-configured approval chains determine who must approve requests at different value thresholds:
+An approval chain says **who approves**: steps in order, each a role, over a **value band**.
 
-| Chain | Steps | Used When |
+**Which chain applies.** A routing rule that names a chain decides, whatever the value; otherwise
+the chain whose band holds the request's value — a band includes its lower end and stops short of
+its upper end. A chain with no band is reached only through a rule, and when neither applies the
+Standard chain does, by a fallback fixed in code. A call-off puts the contract's owner first, and
+a supplier chosen outside the category's preferred list adds the category manager when *Category
+manager approves a non-preferred supplier* is on (§14.9). The Channel page names the approvers
+before submit and submit writes them (§4.2). On the request's Approvals tab only the earliest
+outstanding step can be decided (§4.6), and nobody may approve a step of their own request.
+
+**Who holds a role.** *Budget Owner* is the owner of the request's cost centre (§14.14),
+*Category Manager* the category's managers (§14.10), *Contract Owner* the contract's owner. When
+that record names nobody — and for every other role, such as Finance, Legal, CFO or Vendor
+management — the **Roles** panel on this page says which system role acts. A role still named on a
+chain step or a workflow stage cannot be deleted. An approver who is out of office with a delegate
+is recorded with the delegate, who may act in their place (§14.6).
+
+**The page** lists each chain with its band and number of steps. With *Edit*, an administrator
+chooses each step's role from the Roles list, adds a step at the end or removes one (one must
+stay), and sets the band's two ends — open, a Decisioning threshold, or a typed amount. The routing
+rules that name the chain are listed under it. *Add Chain* starts a chain with no band; *Delete*
+asks first. Bands that overlap or leave a gap are flagged above the list. A step is a role and
+nothing more: there are no escalation timeouts or delegation rules, and steps cannot be reordered.
+
+**As shipped:**
+
+| Chain | Steps | Band |
 |---|---|---|
-| Standard | Line Manager > Category Manager > Finance | Default for most requests EUR 5K-100K |
-| Fast-Track | Category Manager > VP Procurement | Urgent requests; skips finance step |
-| VP-Level | Category Manager > Finance > VP Procurement | High-value requests EUR 100K-1M |
-| Board-Level | Category Manager > Finance > VP Procurement > CPO | Requests exceeding EUR 1M |
+| Fast-Track | Category Manager | Below €10,000 — an amount typed on the chain, not a Decisioning threshold |
+| Standard | Budget Owner › Category Manager › Finance | From €10,000 (typed on the chain) to the *Budget approval threshold* |
+| VP-Level | The Standard steps, then VP Procurement | From the *Budget approval threshold* to the *Delegated authority threshold* |
+| Board-Level | The VP-Level steps, then CFO and Board | From the *Delegated authority threshold* |
+| Compliance Escalation | Supplier Manager › Legal › Category Manager | None — reached only through the high-risk-supplier rule (§14.1) |
 
-Each chain is visually editable with a step editor showing: step number, approver role, escalation timeout, and delegation rules.
+**Known defect:** a chain's name and description cannot be edited here, so a new chain stays *New
+Chain*.
+
+**Known defect:** a request of exactly the *Budget approval threshold* takes the VP-Level chain,
+while the budget-approval check calls it within standard limits — the threshold is defined as
+"above this value" (§14.9).
 
 ### 14.5 Policy Management (removed)
 
@@ -1146,233 +1189,250 @@ Removed on 2026-09-25: it was a static copy of the policy text that nothing used
 
 ### 14.6 User Management
 
-A user management table showing all 12 platform users with:
-- Name, email, role, department
-- Active/inactive status
-- Out-of-office flag and delegate assignment
-- Last login date
+Who uses the platform and in which system role — the directory that approvers, cost-centre owners,
+category managers and request owners are picked from. There is no sign-in in Release 1
+([ARCHITECTURE.md §8](../ARCHITECTURE.md#8-security-posture)), so nothing records a login.
 
-Administrators can:
-- Assign or change user roles
-- Set up out-of-office status with automatic delegation
-- Activate or deactivate accounts
+The page shows how many people there are, how many are active and how many on leave, and a table —
+name, email, role, department and status (*Active*, or *On Leave* when the person is marked out of
+office) — searched and filtered by role and department. An administrator can **add** a person
+(name and email required; the role is Requestor / End User and the department General unless
+chosen), **edit a role**, and **remove** a person. The delegate is not shown, and out of office is
+not set here.
 
-**Out-of-Office Management:**
-When a user is marked as out of office, all their pending approvals and tasks are automatically delegated to their designated delegate. The platform tracks which items were delegated and generates notifications. Currently, Thomas Weber (delegated to Anna Muller) and Robert Fischer (delegated to Dr. Katrin Bauer) have active delegations.
+**Out of office.** A person marks themselves out of office, and names their approval delegate,
+through the assistant (§3.5). An approval created for someone who is out of office with a delegate
+records the delegate, who may act in their place (§14.4). Approvals already waiting are not moved,
+and no notification is sent.
+
+**Known defect:** *Remove* deletes the record outright. It is refused when the person raised or
+owns a request, or owns a support ticket or a purchase order; otherwise it also deletes their
+assistant conversations, procurement profile and category-manager assignments, and blanks them as
+the approver on past approvals.
+
+**Known defect:** nothing turns out of office off — the assistant can only turn it on, and the end
+date it is given is stored and never read.
+
+**Known defect:** the Delegation page (Work → Approvals → Delegation; its requirements are in
+[Approvals & Delegation](requirements/03-approvals-delegation.md)) keeps delegations on screen
+only, starting from a sample entry, and saves nothing. On My Approvals, accepting the out-of-office
+warning's delegate only shows "Routed to …"; nothing changes.
 
 ### 14.7 System Health
 
-A monitoring dashboard showing:
-- **Integration Status:** Real-time status of all 4 external system connections (SAP Ariba, Coupa Risk, Sirion CLM, SAP S/4HANA)
-- **Uptime Metrics:** Platform availability percentage
-- **Error Log:** Recent system errors with severity, timestamp, and detail
-- **Response Time:** Average response times for key operations
+What happened to the hand-overs the platform recorded to upstream systems. There are no live
+connections in Release 1, so the page reports no uptime, error rate or sessions: it summarises the
+hand-over records, per system and across all of them — completed, still open, failed (an error or
+a timeout), the last activity and the mean time to a response — and marks a system with no
+hand-overs as unused rather than healthy.
 
 ### 14.8 Audit Log
 
-An immutable, chronological log of every significant action taken in the platform:
+What happened and who did it, newest first, fifteen entries to a page: when, who, the action, the
+kind of record and its id, and a description. An administrator can filter by date range, person,
+action and kind of record — each offering the values present — and **Export** the filtered entries
+as CSV. The page loads the most recent 200 entries, so the filters and the export work within
+those, and it refreshes every 30 seconds.
 
-- **User actions:** Request created, approved, rejected, escalated, reassigned, commented
-- **System actions:** Workflow transitions, SLA breach detected, notification sent
-- **AI actions:** Classification made, compliance review generated, anomaly detected
-- **Warning events:** SRA expiring, budget threshold exceeded, duplicate detected
-- **Blocking events:** Compliance check failed, sanctions screening flagged
+**What writes an entry:**
 
-Each entry shows: timestamp, user/system identifier, action type (system/human/AI/warning/block), object type and ID, and detailed description.
+- an approval decision — approve, reject or ask for information (§4.6);
+- inviting suppliers to a sourcing event, and an award (§8);
+- work on a support ticket — assignment, status, a reply or an internal note, a link added or
+  removed (§18.3);
+- a record created, edited or deleted in Admin → Database (§14.17);
+- an action confirmed in the assistant, marked as the assistant's (§3.5).
 
-Filters available: date range, user, action type, object type, severity.
+Nothing else does: submitting a request, a stage change (kept in the request's stage history,
+§4.6), a comment, a notification, a classification or a change to any other Admin configuration
+leaves no entry. Whether an entry came from a person or the assistant is stored, but neither shown
+nor filtered.
+
+**Known defect:** the log is not protected — an entry can be changed or deleted by its id through
+the data boundary (`/api/db`), as any record on its allowlist can while there is no sign-in
+([ARCHITECTURE.md §8](../ARCHITECTURE.md#8-security-posture)).
+
+### 14.9 Decisioning Thresholds
+
+Every number a decision compares against — money thresholds, percentages, scores and days — with
+two category lists and one switch. Each shows **where it is used** and **the configuration that
+names it** (a routing rule, an approval chain band, a workflow branch, a form, an article), read
+live, so an administrator can see what moving it will move. A save is checked whole — a
+configuration missing a key or holding the wrong type is refused — and records who changed it
+and when.
+
+### 14.10 Categories
+
+The demand taxonomy — *what kind of thing* is being bought. For each category the administrator
+sets its label and description (which the AI classifier reads), its classifier keywords and their
+order (the keyword classifier's precedence), whether the catalogue may serve it, its **commodity
+codes** (a default and keyword codes, resolved within the category), its **managers** (several
+allowed; a category without one is flagged, because then only an administrator can move its
+requests out of validation), its **preferred suppliers**, and the supplier tags that recognise a supplier as
+covering it.
+
+### 14.11 Service Description
+
+Per category, with a default that categories without their own inherit: the **generation
+prompt** (the system prompt, per-category guidance, temperature and length); the **components
+asked at intake** — each question, whether it is required, and when it is asked (a condition that
+can name a Decisioning threshold); **what is generated** — the detailed sections and the compact
+narrative; the **risk questions**; and **what a sourcing event starts with** — the sections its
+requirements are seeded from and the starting evaluation criteria.
+
+### 14.12 KB Management
+
+The knowledge-base articles the assistant, the Home box and Help → Knowledge Base answer from:
+title, body, topic and order. An article names a governed figure as a reference rather than
+typing it; each article says whether it is linked to configuration or is policy text only, and a
+reference that names nothing is flagged here instead of reaching a requester as a raw token.
+
+### 14.13 Support SLAs
+
+The first-response target for a support ticket, in hours, per priority (§18.3). Stage deadlines
+are not here: they are set on each stage in the Workflow Designer (§14.3).
+
+### 14.14 Cost Centres and Delivery Locations
+
+The accounts a request or order can be charged to, with the **owner** of each — the Budget Owner
+who approves — and the places an order can be delivered to. Checkout refuses anything not active
+here. Neither can be deleted, because orders keep the code: an entry is deactivated instead,
+which takes it out of every picker and keeps old records readable.
+
+### 14.15 AI Agent Configuration
+
+The status of each agent (§12.1) — active, draft or disabled — and its description. The Status
+Answers agent (AI-007) also carries its configuration: which details it may state for each kind
+of record, and whose records each role may ask about.
+
+### 14.16 AI Analytics
+
+A report of how the assistant is used: conversations and questions per day, and the helpful and
+not-helpful votes on its answers. Nothing here is set.
+
+### 14.17 Database
+
+Maintains the records other screens show — suppliers, contracts, risk assessments, purchase
+orders, invoices, requests, approvals, sourcing events and catalogue items — each in its own table,
+with its related records linked both ways.
 
 ---
 
 ## 15. Notifications
 
-### 15.1 Notification Types
+### 15.1 What raises a notification
 
-The platform generates 7 types of notifications:
+Three things write a notification:
 
-| Type | Description | Example |
-|---|---|---|
-| Approval Request | A request requires the user's approval | "Approval required: Org design transformation — McKinsey engagement for EUR 1.85M requires VP-level approval." |
-| Status Update | A request has moved to a new stage | "Request moved to contracting — REQ-2024-0013 (Microsoft 365 E5 upgrade) has moved to contracting stage." |
-| SLA Warning | A request is approaching or has exceeded its SLA | "SLA breach: ERP integration middleware — REQ-2024-0006 has been in sourcing for 42 days, exceeding the 30-day SLA." |
-| Escalation | A request has been escalated due to inaction or urgency | "Escalation: Java developers request overdue — REQ-2024-0007 approval has exceeded SLA by 19 days." |
-| Comment | Someone has commented on a request the user is involved with | "New comment on AWS cloud migration — Elena Petrova commented: 'Final migration report attached.'" |
-| System Alert | A system event requires attention | "Contract expiring: Siemens IoT Platform — CON-008 expires on 2025-02-28. Renewal action required within 30 days." |
-| AI Insight | An AI agent has generated a notable finding | "AI: Potential duplicate request detected — REQ-2024-0022 has 78% similarity with an archived request from 2023." |
+- **Escalate** on a request (type *escalation*);
+- a supplier's sourcing response, and an award (type *status update*);
+- a support ticket being raised, answered or resolved (type *status update*).
 
-### 15.2 Notification Preferences
+Nothing else does — a request changing stage, an approval falling due, an SLA breach or a comment
+raises no notification. Older rows of other types (approval request, SLA warning, comment, system
+alert, AI insight) are seeded examples.
 
-Users can configure notification preferences per channel:
-- **In-App:** Notifications appear in the notification bell in the top navigation bar. Unread count is shown as a badge.
-- **Email:** Notifications sent to the user's registered email address
-- **Push:** Browser push notifications for urgent items
+**One shared feed.** A notification has no recipient: everyone sees the same feed, and *Mark all
+read* marks it read for everyone.
 
-### 15.3 Quiet Hours & Digest
+### 15.2 Where they are read
 
-- **Quiet Hours:** Users can set hours during which non-urgent notifications are suppressed
-- **Daily Digest:** Instead of individual notifications, users can opt to receive a single daily summary email
+The **bell** in the top bar shows the unread count and opens **Notifications** — the feed grouped
+by date, filtered by type, with mark read and mark all read. Home's **Mentions** widget lists the
+comments where someone @-mentioned the person (§3.2).
+
+### 15.3 Preferences
+
+Settings holds notification preferences — in-app, email and mobile push channels, quiet hours
+and a daily digest (on by default). **They are saved and read by nothing**: no email or push is
+sent, and the in-app choice does not filter the feed.
 
 ---
 
 ## 16. Data Model
 
-### 16.1 Core Entities and Business Fields
+The platform's records live in its own database, and [`db/schema.sql`](../../db/schema.sql) is
+their authoritative definition ([ARCHITECTURE.md §4.2](../ARCHITECTURE.md#42-schema-and-change)).
+This section names the records, what each holds for the business and how they connect; it does
+not list every field. Some values are worked out when read rather than stored: a supplier's active
+contracts and twelve-month spend, a request's days in its current stage, and the requests linked
+to a contract.
 
-**Procurement Request**
-The central entity around which the platform operates.
-- Request ID, title, description
-- Category (Goods, Services, Software, Consulting, Contingent Labour, Contract Renewal, Supplier Onboarding, Catalogue)
-- Status (Draft, Intake, Validation, Approval, Sourcing, Contracting, PO, Receipt, Invoice, Payment, Completed, Cancelled, Referred Back)
-- Priority (Low, Medium, High, Urgent)
-- Estimated value and currency
-- Requestor, owner (assigned procurement handler)
-- Supplier reference, contract reference, PO reference
-- Buying channel (Procurement-Led, Business-Led, Framework Call-Off, Catalogue)
-- Commodity code and label
-- Cost centre, budget owner
-- Business justification
-- Delivery date, urgency flag
-- Days in current stage, overdue indicator, refer-back count
-- SLA deadline
-- Created and updated timestamps
+### 16.1 Demand and the buying chain
 
-**User**
-- User ID, name, email
-- Role, department
-- Initials, avatar
-- Out-of-office flag, delegate reference
+| Record | What it holds, and what it links to |
+|---|---|
+| **Request** | The demand: title and description, category and commodity code (with the codes offered), value and currency, priority and urgency, need-by date, cost centre and budget owner, buying channel, current stage and its deadline, refer-back count, and attachments with their text; the requester, who it is for and its owner. It keeps the determination made at submission — sourcing type, approval chain, inherent-risk and materiality tiers, whether a risk assessment is required, the screening outcome and disposition, and why a non-preferred supplier was chosen — and links to its supplier, contract, risk assessment, requisition, purchase order and workflow template |
+| **Service description** | For a request: its sections, the narrative, the quality score and checks, and the governance signals that made sections mandatory |
+| **Intake compliance record** | For a request: the channel decision, the supplier risk-assessment check, the policy checks ("not run" included), the risk flags and the assessments reused |
+| **Purchase requisition** | For a catalogue order or a call-off: status (draft, submitted, pending approval, risk review, contract amendment required, approved, PO created, cancelled), supplier, contract and its scope version, value and dates, purpose, charging and delivery, whether approval, risk review or a contract amendment is needed, and the evidence of the contract match |
+| **Request line** | A line of that order: description, quantity, unit and price, supplier, contract, catalogue item, commodity code |
+| **Supplier candidate** | A supplier named for a request's sourcing, and whether it is preferred |
 
-**Supplier**
-- Supplier ID, company name
-- Country, address, DUNS number
-- Risk rating (Low, Medium, High, Critical)
-- Active contracts count, 12-month total spend
-- Onboarding status (Completed, In Progress, Not Started)
-- SRA status (Valid, Expiring, Expired, Not Assessed), SRA expiry date
-- Screening status (Clear, Flagged, Pending)
-- Categories served, tier (1, 2, 3)
-- Primary contact name and email
-- Certifications (name, expiry date, status)
-- Spend history (3 years)
-- Performance score (0-100)
+A request's stage is one of draft, intake, validation, approval, risk, onboarding, sourcing,
+contracting, PO, receipt, invoice, payment, completed, cancelled and referred back; its channel is
+procurement-led, business-led, framework call-off or catalogue; its priority low, medium, high or
+urgent. Categories are configured (§14.10).
 
-**Contract**
-- Contract ID, title
-- Supplier reference
-- Total value, start date, end date
-- Status (Draft, Under Review, Active, Expiring, Expired, Terminated)
-- Owner, department, category
-- Renewal date, utilisation percentage
-- Linked request IDs
+### 16.2 Workflow and approvals
 
-**Purchase Order**
-- PO ID, supplier reference
-- Total value, status (Draft, Submitted, Acknowledged, Received, Partially Received, Closed)
-- Created date, delivery date
-- Contract reference, request reference
-- Line items (description, quantity, unit price, received quantity)
+| Record | What it holds, and what it links to |
+|---|---|
+| **Workflow template** | A channel's lifecycle (§14.3): the channels it claims, its stages (owner role, deadline in working days, gate, purpose, what the requester does), the branches and their conditions, and the requester wording |
+| **Workflow instance, stage history, stage detail** | Where a request is in its template; each stage it entered and left, with owner, action and notes; and per stage the handler, decision, forms completed, documents added and deadline status |
+| **Approval chain, role** | A chain's steps and value band, and which system role acts as each role (§14.4) |
+| **Approval** | One step for one request: its order, role, the person asked or any holder of the role, status (pending, approved, rejected, delegated, information requested), dates, comments, the delegate, and who actually decided |
+| **Form template, form submission** | A stage's form (§14.2); the answers given to it for a request at a stage, and by whom |
+| **Comment** | On a request, optionally at a stage: internal or not, @-mentions, and who has read it |
 
-**Invoice**
-- Invoice ID, supplier reference
-- Amount, currency
-- Status (Submitted, Under Review, Matched, Approved, Scheduled, Paid, Disputed)
-- Invoice date, due date, paid date
-- PO reference
-- Match status (Matched, Partial Match, Unmatched, Variance)
-- Match variance amount
+### 16.3 Suppliers, sourcing and contracts
 
-**Stage History**
-- Request reference, stage name
-- Entered at, completed at
-- Owner (handler at that stage)
-- Action taken, notes
+| Record | What it holds, and what it links to |
+|---|---|
+| **Supplier** | Name, country, address and DUNS number, risk rating (low, medium, high, critical), onboarding, screening and risk-assessment status with its expiry, the categories it serves, tier, primary contact, certifications, spend history and performance score; whether it is prospective, and the request that brought it in |
+| **Risk assessment** | About a supplier or a contract: category (security, financial, operational, data privacy, compliance, ESG), risk level and score, status, assessor, validity, summary, mitigations, the data class it covers, whether it can be reused, and the requests it serves |
+| **Sourcing event, response** | An event raised from a request — type, status, budget, dates, requirements and evaluation criteria, the awarded supplier — and each invited supplier's response: status, price, lead time, scores, whether shortlisted, whether awarded (one per event) |
+| **Contract** | Supplier, value, dates, status (draft, under review, active, expiring, expired, terminated), owner, department, category, renewal date, utilisation |
+| **Contract scope** | What a contract covers, dated: narrative, service family, eligible categories, geographies, business units, call-off requirements, deliverables and exclusions — what the contract match (§4.2) reads |
 
-**Approval Entry**
-- Approval ID, request reference
-- Approver name, role
-- Status (Pending, Approved, Rejected, Delegated)
-- Requested at, responded at
-- Comments, delegation target
+### 16.4 Purchasing
 
-**Comment**
-- Comment ID, request reference
-- Author name and initials
-- Content, timestamp
-- Internal/external visibility flag
-- Attachments
+| Record | What it holds, and what it links to |
+|---|---|
+| **Purchase order** | Internal: supplier, value, status (draft, submitted, acknowledged, received, partially received, closed), dates, owner, charging and delivery, the request, requisition and contract behind it, and line items with the quantity received |
+| **Goods receipt** | What was received against a purchase order, by whom and when |
+| **Invoice** | Supplier, amount, status (submitted, under review, matched, approved, scheduled, paid, disputed), dates, the purchase order, and the match — matched, partial match, unmatched or variance — with the variance |
+| **Catalogue item** | Name, description, price and unit, catalogue, supplier and part number, the contract it is bought under, the risk assessment behind it, commodity code, lead time, availability |
 
-**Compliance Report**
-- Request reference, agent ID
-- Decision (Approved, Needs Review, Rejected)
-- Confidence score
-- Summary, recommendation
-- Individual checks (category, check name, status, detail, severity)
+Supplier payment and banking details are not in the database: they are read from a fixed data set
+in code (§13.3).
 
-**Notification**
-- Notification ID, type
-- Title, description
-- Timestamp, read status
-- Action URL, related entity reference
+### 16.5 Support and the assistant
 
-**Routing Rule**
-- Rule ID, name, status
-- Conditions (field, operator, value)
-- Action (buying channel, approval chain)
-- Description, match count, category
+| Record | What it holds, and what it links to |
+|---|---|
+| **Support ticket** | Summary, context and the conversation it was raised from, category, priority, status, owner, due time, resolution; its replies and internal notes; links to the records it concerns (§18) |
+| **Assistant conversation, vote** | A person's conversations with the assistant; a helpful or not-helpful vote on an answer |
+| **Preferences** | Per person: facts the assistant was asked to remember, an out-of-office end date, notification settings |
+| **Notification** | One shared feed (§15) |
+| **Audit entry** | §14.8 |
+| **Hand-over record** | §13.2 |
 
-**Form Template**
-- Form ID, name, description
-- Status, category, version
-- Trigger stages, trigger conditions
-- Fields (type, label, required, options, validation, pre-population)
+### 16.6 Configuration
 
-**Workflow Template**
-- Workflow ID, name, description, type
-- Nodes (ID, type, label, position)
-- Edges (source, target, label)
+| Record | What it holds |
+|---|---|
+| **Person** | Name, email, system role, department, country; out of office and delegate (§14.6) |
+| **Decisioning thresholds** | One record of every governed number, the category lists and the switch, with who changed it last (§14.9) |
+| **Routing rule** | Conditions, channel, optional chain, status and order (§14.1) |
+| **Category** | Label, description, keywords and their order, catalogue eligibility, commodity codes, supplier tags; its managers and preferred suppliers (§14.10) |
+| **Service-description template** | Per category, with a default (§14.11) |
+| **Knowledge-base article** | Title, body, topic and order (§14.12) |
+| **AI agent** | Status and description, and the Status Answers agent's configuration (§14.15) |
+| **Cost centre, delivery location, procurement profile, support SLA** | §14.13, §14.14; a procurement profile holds a person's checkout defaults |
 
-**AI Agent**
-- Agent ID, name
-- Type (Classification, Validation, Extraction, Recommendation, Knowledge Base, Anomaly Detection)
-- Status (Active, Draft, Disabled)
-- Accuracy percentage, decisions made count
-- Description
-
-**Service Description**
-- Request reference
-- 9 sections: Objective, Scope, Deliverables, Timeline, Resources, Acceptance Criteria, Pricing Model, Location, Dependencies
-- Generated narrative summary
-
-**System Integration**
-- Integration ID, request reference
-- External system name
-- Status (Pending Handover, Submitted, Awaiting Response, Processing, Completed, Error, Timeout)
-- Submitted at, responded at
-- External reference ID
-- Workflow stage, detail description
-
-**Catalogue Item**
-- Item ID, name, description
-- Unit price, unit of measure
-- Catalogue ID and name
-- Supplier name and reference
-- Lead time
-
-### 16.2 Key Relationships
-
-- A **Request** is created by a **User** (requestor) and assigned to a **User** (owner)
-- A **Request** may reference a **Supplier**, a **Contract**, and a **Purchase Order**
-- A **Request** has multiple **Stage History** entries, **Comments**, **Approval Entries**, and **Form Submissions**
-- A **Request** may have one **Compliance Report** and one **Service Description**
-- A **Request** may have multiple **System Integration** records
-- A **Supplier** has multiple **Contracts** and multiple **Invoices**
-- A **Contract** belongs to one **Supplier** and is linked to one or more **Requests**
-- A **Purchase Order** belongs to one **Supplier**, may reference one **Contract**, and is linked to one **Request**
-- An **Invoice** belongs to one **Supplier** and may reference one **Purchase Order**
-- **Routing Rules** determine the buying channel and approval chain for **Requests**
-- **Form Templates** are triggered at specific workflow stages for specific **Requests**
-- **AI Agents** generate **Compliance Reports** and influence **Request** classification
-- **Notifications** reference **Requests**, **Contracts**, **Suppliers**, or **Users**
+Three older records are read by nothing: the compliance reports of the retired compliance reviewer
+(§12.1), monthly KPI snapshots, and an earlier per-request assistant history.
 
 ---
 
@@ -1380,133 +1440,125 @@ The central entity around which the platform operates.
 
 ### 17.1 Procurement Categories
 
-8 categories with detailed classification guidance:
+Categories are configuration: Admin → Categories (§14.10) holds each one's label, description,
+keywords and their order, commodity codes, and whether the catalogue may serve it. As shipped:
 
-#### Catalogue
-Pre-approved items available for direct ordering. No sourcing or additional approval needed. Fast track 2-3 days.
+| Category | Covers | Catalogue may serve it |
+|---|---|---|
+| Catalogue Purchase | Standard catalogue items — office supplies, peripherals, stationery. Marks catalogue-type demand; a request is not classified into it (below). | Yes |
+| Goods | Physical products: hardware, equipment, furniture, raw materials, branded merchandise | Yes |
+| Services | Ongoing operational services: cleaning, catering, facilities, security, translation, travel management, HR administration, managed print, maintenance, payroll | No |
+| Software / IT | Software licences, SaaS and PaaS, cloud platforms, subscriptions, APIs and IT tools | No |
+| Consulting | Advisory and project work: strategy, operating model, transformation, organisational design, change and programme management, business cases, assessments, audits, due diligence, feasibility studies | No |
+| Contingent Labour | Temporary staff, contractors, interim roles and IT staffing working under the buyer's direction | No |
 
-**Examples:** Office supplies (paper, pens, toner, folders, sticky notes, binder clips, whiteboard markers, desk organizers), IT peripherals (keyboards, mice, headsets, webcams, cables, USB hubs, monitor arms), standard monitors under EUR 500, catering and pantry items (coffee, tea, water, cups, snack boxes), safety equipment (gloves, hard hats, vests, first aid kits, safety glasses), print and stationery (business cards, envelopes, letterheads), standard furniture under EUR 500, standard laptops when no custom configuration is needed.
+**How New request classifies a demand (§4.2):**
 
-**Threshold:** Individual items under EUR 500, total order under EUR 5,000.
+1. With AI-001 active (§12.1), the language model chooses among the active categories from their
+   labels and descriptions.
+2. Otherwise, or when the model does not answer, the keywords decide: the first category, in the
+   configured order, one of whose keywords begins a word in the demand; if none, Goods. As
+   shipped, Consulting is tried before Services, and Goods last.
+3. *Catalogue Purchase* is taken as a signal to check the catalogue, not as the category: the
+   demand is classified again without it. An answer that is not an active category falls back to
+   the keywords.
+4. The commodity code is the category's configured code whose keywords best match the description
+   (the demand's own category wins a tie), else the category's default code. The requester
+   confirms it or picks another.
 
-**Not Catalogue:** Custom specifications, bulk orders above EUR 5K, items requiring IT configuration, bespoke furniture.
-
-#### Goods
-Physical products requiring a formal procurement process. Not available in catalogue or above catalogue thresholds.
-
-**Examples:** Bulk laptop orders (more than 5 units or requiring custom configuration), servers, workstations, networking equipment, custom furniture (standing desks, ergonomic chairs in bulk, office fit-outs), industrial equipment (sensors, IoT devices, machinery, tools), vehicles, warehouse racking, specialised lab equipment.
-
-**Threshold:** Items above EUR 500 per unit, requiring specification, custom configuration, or bulk orders.
-
-**Buying Channel:** Under EUR 25K: business-led. EUR 25K-100K: procurement-led. Above EUR 100K: procurement-led with VP approval.
-
-#### Services
-Ongoing operational services delivered by external providers. Not one-off advisory work.
-
-**Examples:** Facilities management (cleaning, maintenance, security, reception), catering services, travel management, fleet management, managed print services, document management, waste management, energy management, training and professional development programmes, logistics, warehousing, distribution.
-
-**Not Services:** One-off advisory or strategy work (that is Consulting). Staff augmentation (that is Contingent Labour).
-
-#### Software
-Software licences, SaaS subscriptions, cloud services, and IT platforms.
-
-**Examples:** SaaS platforms (Salesforce, SAP, ServiceNow, Databricks, Workday), cloud infrastructure (AWS, Azure, GCP), software licences (Microsoft 365, Adobe Creative Suite, Atlassian), development tools, databases, API platforms, middleware, cybersecurity tools, SIEM, monitoring platforms, data analytics and BI platforms.
-
-**Not Software:** IT consulting or system implementation services (that is Consulting). Hardware (that is Goods).
-
-#### Consulting
-Professional advisory, strategy, and project-based intellectual services. The provider brings their own methodology and expertise.
-
-**Examples:** Management consulting (strategy, transformation, operating model design), IT consulting (system implementation, architecture review, digital transformation), financial advisory (audit support, due diligence, tax advisory, transfer pricing), legal advisory (regulatory, compliance, M&A support), market research, benchmarking, ESG advisory.
-
-**Not Consulting:** Ongoing managed services (that is Services). Staff working under company direction (that is Contingent Labour).
-
-#### Contingent Labour
-Temporary workers, contractors, or freelancers working under the company's direction and management.
-
-**Examples:** IT contractors (developers, architects, testers, project managers), interim managers, administrative temps, reception cover, data entry, seasonal workers, event staff.
-
-**Not Contingent Labour:** Consulting firms delivering a project with their own methodology (that is Consulting).
-
-#### Renewals and new suppliers are not categories
-There were *Contract Renewal* and *Supplier Onboarding* categories; both were retired on 2026-09-25 (inactive, so historic requests keep them). A renewal is classified by what is being bought and recognised by the contract check when the covering contract is expiring (contract type *renew*, sourcing type *renewal*); "Start renewal" on a contract opens Door 1 with the demand written. A new supplier is the Vendor Onboarding stage inside the request.
+Renewals and new suppliers are not categories. *Contract renewal* and *Supplier onboarding* were
+retired on 2026-09-25 and kept inactive, so older requests keep them. A renewal is classified by
+what is being bought, and the contract check recognises it when the covering contract is expiring;
+*Start renewal* on a contract opens New request with the demand written (§4.1). A new supplier is
+the Vendor Onboarding stage inside the request.
 
 ### 17.2 Buying Channel Determination Logic
 
-The system determines the buying channel based on three factors: category, value, and supplier context:
+Catalogue and framework call-off come first, and only from a match: a catalogue item the requester
+orders (§4.5), or a contract that covers the demand at or below the direct call-off limit (§14.9).
+Every other demand goes to the routing rules (§14.1), which choose business-led or
+procurement-led.
 
-Catalogue and framework call-off come first, and only from a match: a catalogue item the requester adds, or a transactable contract the contract check finds (within the direct call-off limit). Everything else is routed by Door 1, which decides between the two remaining channels by category and value:
+Rules are tried in priority order, then by id. The first active rule whose conditions all hold
+decides the channel, and may name an approval chain. A condition can test the category, value,
+supplier chosen, the supplier's risk rating, whether a covering contract was found, the inherent
+risk tier, materiality, the commodity code or the urgent flag, and can name a Decisioning
+threshold. If no rule matches, the request is procurement-led — fixed in code.
 
-| Condition | Buying Channel |
-|---|---|
-| Category is Consulting or Contingent Labour (any value) | Procurement-Led |
-| Software AND value > budget-approval threshold (€100K) | Procurement-Led |
-| Any category AND value > materiality threshold (€1M) | Procurement-Led |
-| Priority = Urgent | Procurement-Led |
-| Any category AND value > budget-approval threshold (€100K) | Procurement-Led |
-| Any other demand AND value ≤ business-led ceiling (€50K) | Business-Led (the business agrees a contract with Legal before the PO) |
-| Everything else | Procurement-Led |
+The shipped rules, in the order they are tried:
+
+| Rule | When | Channel |
+|---|---|---|
+| RR-003 | The category is Consulting | Procurement-led |
+| RR-010 | The request is marked urgent | Procurement-led |
+| RR-012 | The chosen supplier's risk rating is high or critical | Procurement-led, Compliance Escalation chain |
+| RR-013 | The category is Contingent Labour | Procurement-led |
+| RR-902 | The value is above the budget approval threshold | Procurement-led |
+| RR-904 | The value is at or below the business-led ceiling | Business-led |
+| RR-905 | Any other demand | Procurement-led |
+
+A business-led request is bought by the business itself, and still passes approval and, before
+the purchase order, Contracting with Legal (§14.3).
 
 ### 17.3 Threshold Rules
 
-| Threshold | Approval Requirement |
-|---|---|
-| Under EUR 5,000 | Line manager only (or no approval for catalogue) |
-| EUR 5,000 - EUR 25,000 | Line Manager + Category Manager |
-| EUR 25,000 - EUR 100,000 | Category Manager + Finance |
-| EUR 100,000 - EUR 500,000 | Category Manager + Finance + VP Procurement |
-| EUR 500,000 - EUR 1,000,000 | Category Manager + Finance + VP Procurement (dual VP for consulting) |
-| Above EUR 1,000,000 | Category Manager + Finance + VP Procurement + CPO |
+Who approves is set by approval chains (§14.4). A routing rule can name a chain — RR-012 names
+*Compliance Escalation*: supplier manager, legal, then category manager. Otherwise the chain whose
+value band holds the request's value applies, the lower bound included and the upper excluded. As
+shipped:
+
+| Value | Approvers | Bounds |
+|---|---|---|
+| Below €10,000 | Category manager | €10,000 is written into the band, not a Decisioning threshold |
+| €10,000 up to the budget approval threshold | Budget owner, category manager, finance | Upper bound names the budget approval threshold |
+| Budget approval threshold up to the delegated authority threshold | As above, plus VP Procurement | Both bounds name thresholds |
+| The delegated authority threshold and above | As above, plus CFO and Board | Lower bound names the delegated authority threshold |
+
+A contract call-off asks the contract's owner first. A supplier outside the category's preferred
+list adds the category manager when *Category manager approves a non-preferred supplier* is on
+(§14.9) and the chain does not already ask them. A catalogue order or call-off needs no approval up
+to the catalogue auto-approval threshold (§4.5).
 
 ---
 
-## 18. Appendix: Mock Data Summary
+## 18. Help and Support
 
-### 18.1 Entity Record Counts
+Help is in every role's sidebar: **AI Assistant** (§3.5), **Knowledge Base**, **Contact Support**,
+and — for the roles that work tickets (administrator, procurement manager, operations lead) —
+**Ticket Inbox**.
 
-| Entity | Record Count | Notes |
-|---|---|---|
-| Procurement Requests | 35 | 5 completed, 30 in various active stages |
-| Users | 12 | 2 currently out of office with active delegation |
-| Suppliers | 23 | 19 fully onboarded, 2 in progress, 2 not started |
-| Contracts | 18 | 9 active, 3 expiring, 1 expired, 2 under review, 2 draft, 1 terminated |
-| Purchase Orders | 13 | 4 closed, 2 received, 2 partially received, 1 acknowledged, 1 submitted, 3 draft |
-| Invoices | 14 | 5 paid, 2 approved, 2 under review, 2 submitted, 1 matched, 1 scheduled, 1 disputed |
-| Catalogue Items | 37 | Across 6 sub-catalogues |
-| Routing Rules | 12 | 10 active, 1 draft, 1 disabled |
-| Form Templates | 8 | All active, across 4 categories |
-| Workflow Templates | 4 | Standard, Catalogue, Onboarding, Renewal |
-| AI Agents | 6 | 5 active, 1 in draft/pilot |
-| AI Response Patterns | 62 | Across intake, chat, approval, supplier, and general contexts |
-| Notifications | 25 | 7 types represented |
-| Compliance Reports | 10 | 6 approved, 2 needs-review, 1 rejected, 1 additional |
-| Service Descriptions | 5 | Detailed 9-section SOWs |
-| System Integrations | 15 | Across 4 external systems |
-| Approval Entries | 30 | Various statuses |
-| Stage History Entries | ~100 | Tracking all stage transitions |
-| Workflow Step Details | 61 | Detailed step-level data |
-| Form Submissions | 15 | Completed forms linked to requests |
-| Comments | 60 | Internal and external |
-| KPI Data Points | 12 | Monthly data for January-December 2024 |
+### 18.1 Knowledge Base
 
-### 18.2 Supplier Distribution
+The policy and how-to articles, grouped by topic in the configured order — the same entries the
+assistant and the Home box answer from. An article's figures (a threshold, the approval chains, a
+category's preferred suppliers) are references to the configuration, rendered as it stands, so an
+article cannot drift from what the platform does. Articles are edited in Admin → KB Management
+(§14.12).
 
-| Attribute | Breakdown |
-|---|---|
-| By Country | Germany (5), United States (6), United Kingdom (4), France (2), Netherlands (2), Ireland (1), India (1) |
-| By Tier | Tier 1: 10 suppliers, Tier 2: 7 suppliers, Tier 3: 6 suppliers |
-| By Risk Rating | Low: 17, Medium: 4, High: 2, Critical: 0 |
-| By Onboarding Status | Completed: 19, In Progress: 2, Not Started: 2 |
-| By SRA Status | Valid: 17, Expiring: 2, Expired: 0, Not Assessed: 4 |
+### 18.2 Contact Support
 
-### 18.3 Request Distribution
+A person raises a ticket with a category (General, Technical, Billing, Feature Request, Bug
+Report), a priority (Low, Medium, High), a subject and a description, and sees their own tickets
+with the replies on them. The page suggests trying the assistant first. Asking the assistant for a
+person raises a ticket too, carrying the whole conversation (§3.5).
 
-| Attribute | Breakdown |
-|---|---|
-| By Status | Completed: 5, Payment: 1, Receipt: 2, Invoice: 1, PO: 3, Contracting: 4, Sourcing: 3, Approval: 5, Validation: 4, Intake: 2, Draft: 1, Cancelled: 2, Referred Back: 2 |
-| By Category | Software: 7, Consulting: 8, Services: 5, Goods: 5, Contingent Labour: 4, Contract Renewal: 3, Supplier Onboarding: 2, Catalogue: 1 |
-| By Priority | Low: 5, Medium: 12, High: 12, Urgent: 6 |
-| By Buying Channel | Procurement-Led: 18, Framework Call-Off: 6, Business-Led: 5, Direct PO: 3, Catalogue: 3 |
+Beside the form the page shows a fixed *Support Information* panel — an email address, business
+hours, a response time and an emergency number. **These are placeholder text, not
+configuration**: the response time there is not the configured Support SLAs.
+
+### 18.3 Ticket Inbox and SLAs
+
+Every ticket is given a **first-response deadline** when it is created, from the Support SLAs
+configured per priority (§14.13); a changed target applies to new tickets. The inbox shows the
+queue in standing views — **Unassigned** first, **Breaching** (at risk or past the deadline),
+**Mine**, **All open** and **All** — filtered by priority and category, and each ticket's SLA state is
+worked out as the queue is read, so a ticket that crosses its deadline reads as breached without a
+refresh.
+
+A ticket opens in a drawer beside the queue: what it is about — links to the requests, purchase
+orders, suppliers, contracts and invoices concerned, picked from the records rather than typed —
+then the actions (assign, forward with a handover note, change status, reply) and the thread.
+Statuses: open, in progress, waiting on the user, resolved, cancelled.
 
 ---
 

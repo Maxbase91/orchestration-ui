@@ -1,7 +1,7 @@
 // The determination, wired to the data layer — the one React seam over
 // `evaluateIntakeDetermination`.
 //
-// Mounted once per intake, in the page, so the Details step (which asks the
+// Mounted once per intake, in the page, so the conversation (which asks the
 // residual risk questions) and the Channel page (which shows the conclusions)
 // read the *same* object rather than each computing its own. Two screens
 // deriving the same governance answer independently is the drift this codebase

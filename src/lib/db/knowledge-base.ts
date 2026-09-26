@@ -11,7 +11,7 @@
 //
 // The admin screen used to talk to the database directly through a hand-rolled
 // `useEffect` + `useState` fetch; this module and its hooks put it on the same
-// footing as every other entity (see CLAUDE.md: `lib/db/<entity>.ts` plus
+// footing as every other entity (see AGENTS.md: `lib/db/<entity>.ts` plus
 // `lib/db/hooks/use-<entity>.ts`).
 
 import { db } from '../db-client.js';

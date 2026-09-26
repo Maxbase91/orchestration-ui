@@ -29,7 +29,7 @@ export const widgetRegistry: WidgetConfig[] = [
   { id: 'workflow-health', title: 'Workflow Health', description: 'Active workflows, stuck count, avg processing days', icon: 'Activity', size: 'full', availableTo: ['operations-lead', 'procurement-manager', 'admin'] },
   { id: 'recent-activity', title: 'Recent Activity', description: 'Latest platform events and updates', icon: 'Bell', size: 'small', availableTo: allInternal },
   { id: 'sla-tracker', title: 'SLA Tracker', description: 'Requests approaching or past SLA deadlines', icon: 'Timer', size: 'small', availableTo: ['operations-lead', 'procurement-manager'] },
-  { id: 'system-health', title: 'System Health', description: 'Platform health and integration status', icon: 'Monitor', size: 'medium', availableTo: ['admin'] },
+  { id: 'system-health', title: 'System Health', description: 'People with open work, requests raised, and whether the data store responds', icon: 'Monitor', size: 'medium', availableTo: ['admin'] },
   { id: 'expiring-contracts', title: 'Expiring Contracts', description: 'Contracts expiring within 90 days', icon: 'FileWarning', size: 'small', availableTo: allInternal },
   { id: 'supplier-risk', title: 'Supplier Risk Alerts', description: 'Suppliers with elevated risk ratings', icon: 'ShieldAlert', size: 'small', availableTo: ['vendor-manager', 'procurement-manager', 'admin'] },
   { id: 'quick-stats', title: 'Monthly Summary', description: 'Requests submitted, approved and completed this month', icon: 'BarChart', size: 'small', availableTo: allRoles },

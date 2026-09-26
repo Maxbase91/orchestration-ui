@@ -163,6 +163,239 @@ they are recorded as unavailable rather than treated as application passes.
 
 ---
 
+## The automated suites
+
+Every `test:*` script, what it covers, and how the suites run. **This catalogue
+is the one index of them** — `test:workflow-scripts` fails when a script in
+`package.json` has no entry in it. The manual regression suites follow in the
+rest of this playbook.
+
+### Running them
+
+- `npm run test:all` runs every non-browser suite, counting pass, skip and fail
+  separately; `npm run test:ui:all` adds the browser suites. One suite:
+  `npm run test:<suite>`.
+- The browser suites use Playwright: after `npm install`, run
+  `npx playwright install chromium` once. Each starts its own dev server; it
+  should claim its own port with `--strictPort` and check that the page it
+  finds is this app, and `UI_PORT` overrides the port.
+- **The stub-backed browser suites** answer the data API inside the browser
+  (`installDbStub()` in `tests/ui/db-stub.mjs`) and run with **no credentials
+  and no network**; `installDbStub(page, rows, { fail: ['<relation>'] })` makes
+  a relation answer with the endpoint's 500, which is the only way a suite
+  reaches a screen's error state. Seven run in CI (`.github/workflows/ci.yml`):
+  `test:request-detail-ui`, `test:requester-entry-ui`,
+  `test:service-description-ui`, `test:intake-guidance-ui`, `test:approvals-ui`,
+  `test:dashboard-widget-states` and `test:request-list-ui`.
+  `test:routing-rules-ui`, `test:approval-chains-ui` and `test:form-builder-ui`
+  are stub-backed too but not yet in that list. Use that harness for any screen
+  worth checking where the database is unreachable — a suite that can only run
+  against a live database does not run in CI or in a sandbox, which is how a
+  render crash on the request detail reached production unnoticed.
+- Stub the boundary the client actually posts to, `/api/db`. An earlier suite
+  intercepted `**/rest/v1/**`, the PostgREST path from before the Neon cutover,
+  so it caught nothing and two of its checks failed for months against a screen
+  that was really crashing.
+- **Against a deployment:** set `E2E_UI_BASE=https://orchestration-ui.vercel.app`
+  for the interaction suite and the walkthrough, and
+  `E2E_API_BASE=https://orchestration-ui.vercel.app` for the deployed API
+  tests. The link-navigation suite uses only visible role controls: it checks
+  that supplier, contract, sourcing, purchase-order and request links land on
+  the intended record instead of silently redirecting to Home.
+- Neon-backed live suites report *unavailable* when the configured database
+  hostname cannot be resolved; `GET /api/neon-health` reports safe
+  configuration, DNS, TLS, authentication, connection and schema classes.
+
+### The catalogue
+
+```bash
+npm run test:all                  # every non-browser suite in one run — pass/skip/fail counted separately
+npm run test:ui:all               # …including the browser suites (needs a Chromium binary)
+npm run test:db-casts             # every query parameter is cast to its column's type, never blindly to text
+npm run test:mode-equivalence     # Simple and Expert reach the same governance decision for the same demand —
+                                  # the determination takes no density argument, and both write an identical compliance record
+npm run test:intake-determination # the intake determination, pinned: determinism (`now` is an input), honesty
+                                  # (no unrun check is recorded as passed) and one derivation of the buying channel
+npm run test:intake-evidence      # a request never carries a compliance check that did not run
+npm run test:e2e                  # end-to-end request → approval workflow
+npm run test:routing              # routing-rule evaluator
+npm run test:routing-rule-integrity # editor ↔ runtime ↔ test-panel parity — every offered field/operator is evaluated, a broken rule is diagnosed
+npm run test:intake               # intake sequence
+npm run test:connectors           # source-connector layer (registry, query, live-swap seam)
+npm run test:contract-matching    # deterministic scope matching, exclusions, dates and clarification gates
+npm run test:contract-match-api   # read-only live Neon contract-match endpoint check
+npm run test:preference           # preferred-supplier (PSL) + competitive-sourcing controls
+npm run test:materiality          # materiality & criticality determination
+npm run test:category-code        # commodity codes per category (Admin → Categories) and the resolvers that read them
+npm run test:submission-requirements # submit's required fields — one list for the server's refusal and the conversation's "Buying channel confirmed"
+npm run test:risk-segmentation    # inherent-risk cascade + risk outcome (reuse/amend/change/new)
+npm run test:risk-reuse           # structured risk-register reuse model (supplier/scope/data-class/validity)
+npm run test:handoff              # downstream handoff / next-steps model (systems, status, deep-links)
+npm run test:determination        # contract-type + sourcing-type determination
+npm run test:status-agent         # Status Answers agent — every attribute listed, access matrix, one composer for Home, browser and server lookups
+npm run test:knowledge-links      # knowledge base linked to configuration — references resolve, no governed amount restated, one renderer both sides;
+                                  # the Help page holds no articles, every entry has a topic, grouping and search
+npm run test:determination-export # exportable determination (structured Markdown)
+npm run test:second-contract      # second contract check (frameworks/MSAs vs transactable)
+npm run test:sourcing             # sourcing: weights, ranking, award write-back, stage gate, entitlement
+npm run test:sow-narrative        # SOW narrative is synthesised from the service description
+npm run test:service-description-config # service description config — drives the real evaluators: serialised slots reproduce the built-in agenda, an unusable condition is false and reported, the governance signals reach slots, a template's requiredWhen binds, narrative composition, sourcing seed
+npm run test:tickets              # support tickets — entitlement, internal notes, status lifecycle, references
+npm run test:ticket-sla           # ticket SLA — targets, due dates, breach/at-risk, waiting-on-user pause
+npm run test:approval-to-source   # approval-to-source gate (light vs full pre-sourcing approvals)
+npm run test:residual-questions   # criteria-triggered stage-5 residual questions (mini-IRQ deltas)
+npm run test:demand-conversation  # dynamic intake — answer-driven next question + carry-forward + branching + conditional rationale
+npm run test:intake-guidance      # progress reaches 100%, inferred sections are not outstanding, the conversation's mandatory floor,
+                                  # the page names its phases and has no stepper, one way on to the Channel page, the opening invitation,
+                                  # every question's stated reason, and a source scan: no service-description record cast to a map of
+                                  # strings, no unguarded .trim() over its values
+npm run test:unified-intake        # unified text/PDF/DOCX intake, specific commodity candidates, separate scope/exclusions,
+                                  # contextual guidance boundaries, no requester-facing Goods/Services choice, and the
+                                  # deep-link parsers (a route is never taken as a category; fulfilment context survives)
+npm run test:answer-quality       # the deterministic answer judge — placeholder/filler rejected, real answers accepted, slot-aware floor
+npm run test:assistant-intents    # assistant routes procurement demands to intake, not a support ticket (the real classifier)
+npm run test:question-route       # one route for Home and the assistant — order, demand vs not, follow-ups, chat turns, conversation titles
+npm run test:assistant-honesty    # the assistant never claims it did something it did not do — start_demand
+                                  # offers a pre-filled form and says so, and a completion claim is replaced
+npm run test:operational-risk     # preliminary operational risk assessment (per-dimension screen)
+npm run test:classification-eval  # classification eval harness + accuracy baseline (CLS-G1)
+npm run test:demand-signals       # capture-time governance read (materiality/risk/sourcing) + config-driven required sections
+npm run test:onboarding-stage     # vendor onboarding — light gate (sourcing + risk) and full gate (contracting)
+npm run test:intake-routing       # catalogue vs contract vs new demand — category gate, naming-word rule, LLM intent
+npm run test:intake-routing-eval  # intake routing eval harness + accuracy baseline
+npm run test:referral             # demand disposition — proceed / request-change / refer-back (RTE-06)
+npm run test:knowledge            # grounded policy-Q&A retrieval — ranking, citations, low-confidence, and that the
+                                  #   assistant answers from the admin's knowledge_base rather than the built-in fixture
+npm run test:design-tokens        # the design foundation holds — every text token clears WCAG AA on every
+                                  #   ground in BOTH themes (computed, not eyeballed), the three theme states are
+                                  #   wired, the fonts are fetched, and a migrated screen names no palette colour
+npm run test:integration-health    # /admin/health reports what happened to the recorded handovers — a failing
+                                  #   system never averages into a green card, an unused one says so, and no
+                                  #   uptime/error-rate/session figure is invented; plus the budget-owner picker
+npm run test:admin-delete-controls # config you can create and edit, you can also remove — the four surfaces whose
+                                  #   useDeleteX hook had no caller, each behind a confirmation that names the record
+                                  #   and its consequence; and the two reference tables that deliberately stay undeletable
+npm run test:csv-export           # one CSV implementation, RFC 4180 quoting, a BOM so Excel keeps the € signs,
+                                  #   and the audit Export button actually exporting the filtered set
+npm run test:policy-config        # central decisioning thresholds (defaults pinned + override resolver)
+npm run test:policy-config-server # Neon policy singleton save/load/validation (self-cleaning)
+npm run test:governed-checkout    # contract/risk/capacity gates and PR/PO routing decisions
+npm run test:catalogue-basket     # a basket is one order per supplier, approved on the basket total the server computes — all or none (ADR-0009)
+npm run test:governed-checkout-atomic # atomic Neon request → PR → lines → conditional PO, replay/conflict/concurrency
+npm run test:checkout-gates       # a governed check cannot be skipped by the failure of its own data read
+npm run test:workflow-atomic      # transitions commit with their stage history, and write the NEW stage's SLA deadline (or NULL) — never the previous stage's
+npm run test:execute-action       # a confirmed assistant action writes a real record, or says it cannot
+npm run test:shared-core          # browser and server write tickets/preferences through one implementation
+npm run test:request-id           # request ids come from the database sequence, not Math.random()
+npm run test:llm-json-mode        # the prose fallback returns prose on both LLM providers
+npm run test:intake-submit        # atomic full-demand intake, ISO-date validation and first-stage selection
+npm run test:catalogue-ui         # catalogue item detail and checkout entry-point regressions
+npm run test:supplier-candidates  # several suppliers can go to sourcing while exactly one drives the
+                                  # determination, and "no supplier" is an explicit choice
+npm run test:reference-data       # cost centres and delivery locations are administered rows the server
+                                  # validates against — an absent or retired one is rejected, and absent
+                                  # reference data fails closed rather than passing
+npm run test:assistant-extraction # the intake assistant may fill demand facts and nothing else — no buying route,
+                                  # cost centre or risk answer arrives from the model
+npm run test:dashboard-widgets    # the widget catalogue and its renderer agree — nothing offered that cannot render,
+                                  # nothing rendered that cannot be reached, every icon mapped
+npm run test:screening            # supplier screening — clear / pending / flagged / unknown + blocking
+npm run test:supplier-data        # supplier master-data completeness → remediation handoff (RTE-04)
+npm run test:approver-resolution  # approval step role → switchable directory rep (one identity namespace)
+npm run test:approval-chain-persistence # self-cleaning DB check — a value-banded approval-chain key persists on a request
+npm run test:ai-api-config        # API regression — missing active database/AI server config returns a controlled 503, not a function crash
+npm run test:api-imports          # every api/*.ts function's import graph has explicit file extensions (tsc/vercel dev don't enforce this; Vercel's real build does)
+npm run test:vercel-functions     # keeps the explicit API surface within the Vercel Hobby 12-function budget
+npm run test:workflow-scripts     # every `npm run` call in .github/workflows still names a script that exists in package.json
+npm run test:admin-editors        # every admin editor that claims to save, saves — a live round trip per table, Support SLAs included
+                                  #   (JSONB columns still arrays afterwards) plus a static check that the Save
+                                  #   handler calls the mutation; 10 surfaces, and the read-only ones stay read-only
+npm run test:orchestration        # end-to-end orchestration rules across intake, routing and workflow
+npm run test:lifecycle-e2e        # a request walks intake → approval → PO → goods receipt in the live store
+npm run test:lifecycle-consistency # every request's status, stage history and workflow instance agree
+npm run test:approval-derivation  # approvers derive from the records, and one derivation serves every path
+npm run test:request-tabs         # the request-detail tabs show the stages a request actually traverses
+npm run test:refresh              # every lifecycle action invalidates every view it can affect
+npm run test:assistant-boundary   # the confirm card describes the queued write; the assistant reads only the caller's records
+npm run test:audit                # audit rows are written for the actions that claim them
+npm run test:derived              # database-derived columns track their inputs (live; cleans up its fixtures)
+npm run test:kpis                 # dashboard KPI aggregates match the underlying rows
+npm run test:ai-agents            # agent registry shape and activation rules
+npm run test:api-domain-routing   # every vercel.json rewrite reaches a real ?domain= handler
+npm run test:catalogue-order      # a catalogue order carries what the cXML hand-off requires
+npm run test:intake-quick-fixes   # scroll reset, date parsing, contract selectability and the removed filler copy
+npm run test:schema-drift         # db/schema.sql matches the live database's information_schema, and row-level security stays removed
+npm run test:forms                # every form triggers on a real stage, and none on validation
+npm run test:config-consumption   # admin configuration reaches what it configures — channel stages, template node ids, live lifecycle coherence, and no config nothing reads (sla_targets stage rows, match_count, templateless requests), and a stored default service description
+npm run test:seed-parity          # the checked-in workflow seed matches live, so re-seeding cannot destroy a Designer edit
+npm run test:policy-tokens        # every governed threshold is nameable, editable and validated; no decisioning literal shadows one;
+                                  # each says where code uses it (true both ways), and the used-by list finds every `policy:` reference
+npm run test:policy-token-routing # routing rules reference governed thresholds; tokenising changed no channel, and no token reaches the evaluator
+npm run test:routing-fallback     # the catch-all rules reproduce the deleted if-ladder exactly, and a hole in the rule set is visible
+npm run test:approval-bands       # a chain with no value band never shadows one that has it; gaps and overlaps are reported
+npm run test:form-gates           # the blocking form gate is a subset of what renders, so a form can never strand a request
+npm run test:form-builder         # the builder offers every stage a form uses, the shared condition editor, and reports a form that cannot fire
+npm run test:channel-stages      # the workflow templates are the only definition of a channel lifecycle — and of the requester's wording for it; no code restates either
+npm run test:edge-conditions     # a decision node actually decides, every palette type round-trips, every workflow signal evaluates
+                                  #   both ways, a rejected approval goes back to the requester in every template, and no shipped or
+                                  #   live template has a node the engine cannot branch from unambiguously
+npm run test:channel-plan        # the Channel page's stage plan agrees with the server's landing and the engine's walk, for every template and signal
+npm run test:channel-checks       # the Channel page's checks, from real determinations and call-off decisions — nothing that did not run shown as clear
+npm run test:intake-conversation  # the conversation page's parts: classification, a call-off asked as questions, Your request's provenance, inputs-only
+                                  #   edits and N of M; "Buying channel confirmed" held by every risk question, the supplier and each submission gap,
+                                  #   and not by a question given up on; titles from long briefs; AI-005's supplier ranking
+npm run test:models               # each pinned Groq/Gemini model is still served by its provider (calls the providers, so it is outside the default gate — run it on demand or via `test:all -- --external`)
+npm run test:table-lists          # hand-maintained relation lists match db/schema.sql
+npm run test:requester-entry-ui   # browser smoke (stubbed) — requester entry screen renders and fits 320px
+npm run walkthrough               # visual QA harness (Playwright) — drives the front door across scenarios + every tab, screenshots to /tmp/fd (no assertions)
+npm run test:ui                   # browser smoke (Playwright) — the conversation page end to end over the shipped templates: a catalogue
+                                  #   item to the basket, a call-off (with the direct call-off limit) to its Channel page and submit, a new
+                                  #   request through the supplier, the risk questions and a panel edit to its Channel page; UI_SHOT_DIR=… saves screenshots
+npm run test:e2e-ui               # full-app browser sweep — every route × role, captures console/runtime errors
+npm run test:ui-full              # evidence harness — 60+ checkpoints screenshotted; asserts only "no crash, not blank"
+npm run test:ui-lifecycle         # static guard that call-offs, stage actions and invoice transitions stay UI-governed
+npm run test:service-description-ui # browser smoke — /admin/service-description renders all four config areas
+npm run test:routing-rules-ui     # browser smoke — /admin/rules shows governed thresholds by name and real approval chains
+npm run test:approval-chains-ui   # browser smoke — /admin/approvals band editor, governed bounds, and gap reporting
+npm run test:approvals-ui         # the approvals queue — nothing claims to be AI, the amount is measurably
+                                  #   larger than the metadata beside it, the row awaiting you looks different
+                                  #   from one that does not, and every control the old card had is reachable
+npm run test:form-builder-ui      # browser smoke — /admin/forms offers every stage, sets blocking, and reports a form that cannot fire
+npm run test:intake-guidance-ui   # browser smoke (offline) — the page opens by asking, names its phases, Your request's legend, no Next to walk past
+npm run test:reference-data-ui    # browser smoke — admin maintains cost centres and delivery locations (a retired
+                                  # row disappears from every picker), category managers, commodity codes, the
+                                  # category-list thresholds as checklists, where each threshold is used (and
+                                  # a failed load is not read as "unused"), and the Support SLAs
+npm run test:dashboard-ui         # browser smoke — the role's default dashboard covers its work, customising is a
+                                  # mode whose controls exist only inside it, and adding or removing a widget
+                                  # survives a reload
+npm run test:dashboard-widgets    # static — every widget id is in both the registry and the renderer, and
+                                  #   each role's default layout resolves to widgets that role may have
+npm run test:dashboard-widget-states # browser smoke — with every table failing, the five converted widgets
+                                  #   each name what they could not read; with the tables answering, no alert at all;
+                                  #   the attention band counts delegated approvals, is absent when nothing waits,
+                                  #   and reports an unreadable queue instead of going quiet
+npm run test:preferred-suppliers  # the category's preferred-supplier list decides "preferred", every preferred supplier is
+                                  #   invited to sourcing, and the recommender reads the category's supplier tags
+npm run test:personal-queue       # static — one definition of "mine" (assigned or delegated), and no other
+                                  #   module tests approval ownership itself
+npm run test:request-list-filters # static — the request list's URL filters round-trip, a misspelt one is reported,
+                                  #   the personal views are personal-queue.ts, and no module hand-builds a list URL
+npm run test:request-list-ui      # browser smoke — the band's and Requests-by-Stage's links show the rows they
+                                  #   counted, filters show as removable chips, priority is written, badges are tokens
+npm run test:request-detail-ui    # browser check on fixtures (no credentials, no network) — the request detail renders, every
+                                  # workflow step opens, and the risk form pre-populates from the service description;
+                                  # one filled header action with the rest in More, no "AI-generated" claim, stage names
+                                  # in the type scale, and a failed read is not reported as a removed request
+npm run test:interactions-ui      # interaction E2E — the conversation to submit, admin save, AI assistant (self-cleaning)
+npm run test:link-route-integrity # static deep-link contract for active request/dashboard destinations
+npm run test:link-navigation      # deployed role-aware link navigation and requester read-only details
+npm run test:neon-migration       # one data path, one client, and no Supabase identifier in src/, api/ or tests/
+npm run test:neon-live            # read-only Neon schema, relationship, and catalogue-governance validation
+npm run test:sql-splitter         # a backfill splits on real statement boundaries — a `;` or `--` inside a
+                                  # quoted string is data, not a boundary
+```
+
 ## How to use this playbook
 
 - **Environments:** record the URL + JS bundle hash (DevTools → Sources, or `document.querySelector('script[src*="/assets/"]').src`) so you know which build you tested.
@@ -484,7 +717,7 @@ determination for both densities, and no record of a check that never ran.
 | TC-AI-H1 | Ask the assistant "I need to buy business consultant" | It offers New Request **with the requester's words** and says nothing exists until they submit it (it used to say "a pre-filled consulting request" — nothing was pre-filled; intake classifies the words). It must never answer "your request has been routed… we'll begin the process" — nothing is created, routed or begun; a deep link is offered. Three defences: the tool result states `created/submitted/routed: false`, the system prompt forbids completion claims, and a deterministic guard replaces the sentence if the model claims one anyway (`test:assistant-honesty`) |
 | TC-AI-H2 | Confirm an assistant action such as a risk reassessment or PO change | It says the action is noted for the session, that **nothing has been sent**, and where to raise it directly. It used to answer "Task created and routed to the relevant team. Reference: ACT-1234. You'll be notified when they respond" — for six action types that push to an in-memory array with no consumer |
 | TC-CAT-BASKET | A catalogue basket across suppliers (`npm run test:catalogue-basket`) | Items from two suppliers become **two orders**, placed in one transaction. Approval is judged on the **basket total**: two orders under the auto-approval threshold that together exceed it both go to approval and no PO is raised. The total is the server's, from stored prices — a client claiming €1 changes nothing. A retry returns the same orders; a basket only part of which exists is refused; a reused key for a different order is refused (ADR-0009) |
-| TC-LINK-1 | Open `/requests/new?q=a few reams of printer paper` | The describe step is seeded with the words and classifies them itself; the category is never taken from a link. The `?step=2&category=…` link — which could carry `catalogue`, a route, as a category — is gone with its last producer (the Home box and the assistant take one question route since 2026-09-25) and is no longer parsed (`test:unified-intake`, `test:assistant-intents`) |
+| TC-LINK-1 | Open `/requests/new?q=a few reams of printer paper` | The conversation starts from the words and classifies them itself; the category is never taken from a link. The `?step=2&category=…` link — which could carry `catalogue`, a route, as a category — is gone with its last producer (the Home box and the assistant take one question route since 2026-09-25) and is no longer parsed (`test:unified-intake`, `test:assistant-intents`) |
 | TC-LINK-2 | Order this / Add to order, from Home, the assistant, an item's page or intake's catalogue match | Each lands on the **Catalogue page** with the item in the basket — once (the add ran twice under React's strict mode and ordered two). The `?catalogueItem=` return trip into a one-item checkout inside the wizard is retired with it (`test:catalogue-ui`, `test:ui`) |
 | TC-CAT-PAGE | The Catalogue page (`npm run test:requester-entry-ui`, `npm run test:ui`) | Catalogues are the items' own; items from two suppliers show "Placed as 2 orders"; under the threshold the note says it becomes a purchase order straight away, over it (on the **basket** total) that it is approved before the purchase order is raised; Place order waits for deliver to, charged to (active reference rows only) and a purpose; placing sends one basket call with every order decided on the total, names each placed order with what happens next, and empties the basket |
 | TC-DENS-1 | The Channel page's workings (`npm run test:ui`) | Checks lead, each a verdict with its reason — why this channel in the matched rule's own words, disposition, contract coverage, risk, the approvers submit will write, failed policy checks. *How this was worked out* holds the reasons behind them, collapsed, **for everyone**: materiality, inherent and operational risk, approval to source, contract and sourcing type, every policy check, next steps — and **Export**. A **blocking** result is a check, never behind the disclosure |
@@ -641,7 +874,7 @@ not in a component — because RLS is currently `USING (true)`.
 | TC-SRC-10 | Gate is stage-based (`npm run test:sourcing`) | The action shows on `status='sourcing'` **regardless of `sourcing_type`** — including requests created before the column existed (all 101 of them). It is hidden in every other stage |
 | TC-SRC-11 | Two-way surfacing | The request's **Related** tab lists its sourcing events (id, type, deadline, status badge) linking to `/sourcing/:id`; the event's overview shows **Raised from REQ-…** linking back. A request with no event and nothing else related still shows the single "No related items" empty state |
 | TC-SRC-13 | Supplier tracking is real | The event's **Supplier Tracking** tab lists actual invitations (supplier, status, price, response date) and the overview shows Invited / Responded / Response rate. The register's **Suppliers** column counts them |
-| TC-SRC-12 | Sourcing type persists | A request submitted (or saved as draft) through the wizard stores `sourcing_type` + `sourcing_type_reason` and shows **Sourcing Type** on the detail overview. Catalogue fast-track requests correctly store none |
+| TC-SRC-12 | Sourcing type persists | A request submitted (or saved as draft) through New request stores `sourcing_type` + `sourcing_type_reason` and shows **Sourcing Type** on the detail overview. Catalogue fast-track requests correctly store none |
 
 ## Suite SUP — suppliers (internal)
 
@@ -716,11 +949,11 @@ not in a component — because RLS is currently `USING (true)`.
 | TC-ADM-02d | The test panel tests what runs | The panel calls the production evaluator. It used to implement its own — including `contractId` and `is_empty`, which production ignored — so it could **confirm a rule that never fired**. Set a priority and a commodity code in the panel; both are now inputs |
 | TC-ADM-02e | A rule that cannot fire looks broken | `/admin/rules` shows a banner listing active rules with an unknown field, an unsupported operator, a malformed `between` (one bound), or no conditions. Each is clickable to the rule. **Live proof this was needed:** RR-001 "High-value IT software" was active, first in evaluation order, described as routing software over €100k to procurement-led, and carried `match_count: 42`. All three of its conditions evaluated false — it had never matched once. Repaired in `db/backfills/2026-08-28-rr001-repair.sql`, with `match_count` reset to 0 rather than carrying a history it never had |
 | TC-ADM-03 | `/admin/forms` Form Builder | Add/configure/reorder fields; live preview; Save persists |
-| TC-ADM-03b | Form status reflects reality | `triggerStages` is metadata shown on the form's card — it is **not** consumed anywhere in the wizard or request-detail, so setting it does not make a form actually appear at those stages yet. `FORM-008` "Change Request Form" is `draft` for exactly this reason (confirmed no consumer of `triggerStages` outside this admin page and its data hooks). Flip a form to `active` only once a stage genuinely renders it |
+| TC-ADM-03b | Form status reflects reality (`npm run test:forms`, `npm run test:form-gates`) | An active form renders on the request's Workflow tab at its trigger stage when its conditions hold, and a blocking form holds the stage until it is submitted. The three forms that never rendered (FORM-001, FORM-007, FORM-008) were deleted on 2026-09-25; every remaining form is active and placed on a stage its workflow runs |
 | TC-ADM-04 | `/admin/workflows` Designer | All 4 templates render node graphs; add node; Simulate; Save persists |
 | TC-ADM-05 | Designer drives runtime (target) | Editing a template changes how a new request progresses |
 | TC-ADM-06 | `/admin/approvals` Approval Chains | Edit chain; **Save persists across reload** (requires `approval_chains` table) |
-| TC-ADM-01c | Categories carry the classifier (`npm run test:classification-eval`, `npm run test:reference-data-ui`) | Each category shows its classifier keywords; reorder with the arrows — the order is the classifier's precedence. Add a keyword to a category → a demand using it classifies there when AI-001 is off. "a pending approval" is not software and "quarterly spend review" is not catalogue (keywords match at the start of a word). The benchmark runs the real classifier on the seeded and on the live configuration (100% on 19 labelled demands). Buy-route and Review show **working days from the workflow's stage targets**, not a per-category figure |
+| TC-ADM-01c | Categories carry the classifier (`npm run test:classification-eval`, `npm run test:reference-data-ui`) | Each category shows its classifier keywords; reorder with the arrows — the order is the classifier's precedence. Add a keyword to a category → a demand using it classifies there when AI-001 is off. "a pending approval" is not software and "quarterly spend review" is not catalogue (keywords match at the start of a word). The benchmark runs the real classifier on the seeded and on the live configuration (100% on 19 labelled demands). The Channel page shows **working days from the workflow's stage targets**, not a per-category figure |
 | TC-ADM-06a | Roles (`npm run test:approval-chains-ui`, `test:approval-derivation`, `test:approver-resolution`, `test:admin-editors`) | The Roles table lists what acts as each role; remap one → it persists; a step role is a picker, not free text; a role a chain names but nobody configured is flagged; a role in use cannot be deleted. As a requester, open a request you raised with a pending approval: no Approve button, whatever the step. A Budget Owner step on a cost centre with no owner is actionable by a procurement manager, not by requesters. Every role a live chain, stage or pending approval names is configured |
 | TC-ADM-07 | Chain change affects a new request | Generated approvers reflect the edited chain; OOO→delegate |
 | TC-ADM-08 | `/admin/agents` AI Agents | 5 agents, each described as it really works; no accuracy, decision counts or performance charts (they were invented). Open one: the configuration form (the status agent adds its test panel and configuration); **toggle status + Save persists**; `test:ai-agents` flips each and watches the effect |
@@ -835,7 +1068,7 @@ six groups:
 | TC-CAT-01 | Category-code mapping (`npm run test:category-code`) | Runs the real module over the seed taxonomy (it used to test a hand-kept copy). Keyword match resolves a code (confidence scales with hits); no keyword + known category → category default; keyword wins over default; unknown/none/empty book → null; every seeded category has a default code. Keywords match at a **word start** — "maintenance", "chair" and "campaign" are no longer coded as data analytics, "erp" is not counted inside "enterprise", "temp" still finds "temporary", a capitalised admin keyword still matches. A tie goes to the demand's own category, and the first candidate agrees with the headline code. Inactive categories and keywordless codes contribute nothing; a store row is read defensively. No code table remains in `category-code.ts`; the commodity-match endpoint and all three intake screens read the configured book. Live: every active category has a default and a laptop demand codes as laptops |
 | TC-CFG-01 | Central policy config (`npm run test:policy-config`) | `DEFAULT_POLICY_CONFIG` pins every decisioning threshold (approval/materiality/risk-band/competitive-sourcing/contract); all decisioning modules source their constants from it (values unchanged — dependent suites stay green); `resolvePolicyConfig` merges a partial override without mutating defaults; an override changes the decision (200k → light at default, → full at a 150k threshold). |
 | TC-CFG-02 | Decisioning Thresholds admin page (`/admin/thresholds`, route sweep `npm run test:e2e-ui`) | Admin edits a threshold; the **live simulation** recomputes a sample demand's materiality / inherent risk / approval gate under the edited values; **Save** validates and persists to the Neon policy singleton before showing success (drives the live front door, survives reload); Reset restores defaults. A failed save leaves the prior active config. Page renders clean in the route sweep. The settings cards stack on the left with the simulation beside them, and **Save / Reset sit in that sticky column** with an "Unsaved changes" cue — in the first card's header they were out of sight while lists further down were edited. **Category-list thresholds are checklists** of the configured categories (competitive-sourcing exemptions, P-card eligible, never on a P-card): typed ids saved cleanly and matched nothing on a typo; an id naming no category is shown and flagged so it can be removed (`test:reference-data-ui`). |
-| TC-CFG-02b | Direct call-off limit (`npm run test:governed-checkout`, `npm run test:intake-routing`, `npm run test:ui`) | `directCallOffLimit` (default €250,000, a Decisioning threshold). Above it a contract call-off is not a direct award — it needs a mini-competition — so it is enforced in three places that agree: **checkout refuses** a `contract-call-off` over the limit (a catalogue order is not held to it); **How you'll buy rules the contract route out in place**, naming the contract and the limit, when the estimated value is already over it; and the **call-off form** says so beside the value and holds Review. Each reads the configured limit, not a literal. `test:intake-routing` now runs the real route decision and channel resolver — it carried copies of both, one still holding the fallback ladder C3 deleted |
+| TC-CFG-02b | Direct call-off limit (`npm run test:governed-checkout`, `npm run test:intake-routing`, `npm run test:ui`) | `directCallOffLimit` (default €250,000, a Decisioning threshold). Above it a contract call-off is not a direct award — it needs a mini-competition — so it is enforced in three places that agree: **checkout refuses** a `contract-call-off` over the limit (a catalogue order is not held to it); **the route decision rules the contract out**, naming the contract and the limit, when the estimated value is already over it; and the **conversation refuses a call-off value over it**, offering to raise a new request instead. Each reads the configured limit, not a literal. `test:intake-routing` now runs the real route decision and channel resolver — it carried copies of both, one still holding the fallback ladder C3 deleted |
 | TC-CFG-02c | Preferred-supplier override (`npm run test:preferred-suppliers`, `npm run test:submission-requirements`, `npm run test:ui`) | A supplier chosen outside a category's **non-empty** preferred list is an override (no list, or "none in mind", is not). Details asks "why this supplier?" beside the supplier and holds Next until answered; the footer names it. Submit **recomputes** the override from `category_preferred_suppliers`, refuses without a reason and stores it (`requests.supplier_override_reason`) only when there was one. With `preferredSupplierOverrideNeedsApproval` on (default; a switch under Supplier choice at `/admin/thresholds`) a Category Manager step is added to the approvals unless the chain already asks them — in submit, the engine and the Channel page alike. The reason shows under the supplier on the request's Overview. The policy check says what the override costs instead of "allowed, but flag for review" |
 | TC-DB-VIEW | Derived views carry every column (`npm run test:schema-drift`) | A view over `x.*` fixes its columns when created, and the applier rebuilt the views mid-file, before later `ADD COLUMN`s — so a new column reached `requests_with_derived` (what the app reads requests through) only on the next apply, never on a fresh database. The applier now rebuilds every view after all statements; the suite asserts no table column is missing from its `*_with_derived` view |
 | TC-CFG-03 | Governed threshold tokens (`npm run test:policy-tokens`) | Every numeric `PolicyConfig` key has admin metadata, is accepted by the server validator, and reaches the page; so does every **category-list** key (`CATEGORY_LIST_POLICY_META`), rendered as a checklist and covered by save. The server derives its key list from the defaults by type, and **GET merges a stored row key by key** (`configFromRow`) — all-or-nothing meant adding a key reverted every saved threshold in the browser (`test:policy-config-server` proves it on a row missing the newest key). The competitive-sourcing exemptions were a default argument in `supplier-preference.ts`; they are `competitiveSourcingExemptCategories` (default `contingent-labour`, unchanged) and the determination passes its own policy rather than the module singleton (`test:preferred-suppliers`) — which now *derives* its field list rather than restating it. `delegatedAuthorityThreshold` was live in the compliance report, server-validated, and absent from the hand-maintained list: uneditable, and erased whenever an admin saved any other field. Also asserts `policy:<key>` resolution (literal passthrough; an unknown key reported rather than silently swallowed; per-bound resolution for `between`), that non-currency keys are never offered for a value condition, and that no decisioning check compares against a literal a governed key already owns — `intake-determination.ts` hard-coded 25,000 and 100,000 while identical numbers sat in the config. |

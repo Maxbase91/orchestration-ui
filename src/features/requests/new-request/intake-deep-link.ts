@@ -1,9 +1,10 @@
 // Links into intake, built here so every caller builds them the same way.
 //
 // Intake reads one link: `?q=<words>` — from the Home box, the assistant and
-// Start renewal — which seeds the describe step (use-intake-deep-link.ts). Two
-// others are gone: `?step=2&category=…&title=…` carried a second
-// classification of the demand past the describe step, and lost its last
+// Start renewal — which becomes the conversation's first message
+// (use-intake-deep-link.ts). Two others are gone: `?step=2&category=…&title=…`
+// carried a second classification of the demand past the retired describe
+// step, and lost its last
 // producer when the Home box and the assistant took one question route; and
 // `?catalogueItem=…` was the return trip from an item's page into a one-item
 // checkout inside the wizard, retired when catalogue orders moved to the

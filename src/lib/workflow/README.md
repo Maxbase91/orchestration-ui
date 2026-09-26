@@ -126,7 +126,7 @@ node happened to carry an `slaDays`, so a request moving into a stage without on
 and in the Stuck and bottleneck views for the remaining nineteen days. There is exactly one source —
 the node for the stage being entered — and exactly one arithmetic (`business-days.ts`).
 
-Approval chains resolve explicit chain → value band → `'chain-1'`. The intake wizard persists the
+Approval chains resolve explicit chain → value band → `'chain-1'`. Intake persists the
 selected `approval_chains.id` — never a routing rule's human-readable role label — because the
 request column is a foreign key. `npm run test:approval-chain-persistence` verifies the chosen key
 round-trips through the real database. Previously the engine selected a

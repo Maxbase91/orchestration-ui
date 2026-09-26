@@ -8,7 +8,7 @@
 // may see, for records the role may ask about.
 //
 // Raw SQL rather than the connector ports: the known server-side gap recorded
-// in CLAUDE.md. The mappers make the rows the same domain shape the browser's
+// in AGENTS.md rule 2. The mappers make the rows the same domain shape the browser's
 // connectors return, so the one composer serves both.
 import type { NeonCompatibleClient, DbRow } from '../../src/lib/neon-compatible-client.js';
 import type { Role } from '../../src/config/roles.js';

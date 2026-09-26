@@ -2,7 +2,7 @@
 // suppliers, contracts, invoices.
 //
 // The point is that whoever picks the ticket up can see the context without
-// hunting: the requester writes "the Bosch PO is wrong", and the agent needs the
+// hunting: the requester writes "the office-chairs PO is wrong", and the agent needs the
 // PO in one click. Many-to-many because a ticket is routinely about a PO *and*
 // the supplier behind it.
 //
