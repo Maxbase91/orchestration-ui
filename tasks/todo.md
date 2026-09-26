@@ -150,7 +150,8 @@ block, details-supplier, the call-off form), the stepper and the wizard footer.
    - Kept, not lost with the retired steps: AI-005's supplier ranking (now `lib/procurement/supplier-suggestions.ts`, offered in the supplier turn); the urgency note derived from the live rules (at the Urgent toggle — it replaces a hardcoded claim); the catalogue offer's matched words; which layer classified (FR01-13); the description's quality badge (FR01-46)
    - Removed as dead once the Details screen went: the hook's invitation opening and `api/chat-intake`'s opening-turn prompt (no client sends an empty conversation), `details-sections.ts` and `test:details-progression` (its checks moved to `test:intake-conversation`), the already-orphaned `compliance-check-result.tsx`
    - Fixed on the way: giving up on the last open question (a date that never parsed) asked for it again offline and said nothing on the model path — it now closes the description; the completion message is short and said once
-4. [ ] 4d — the production interaction suite and the walkthrough against the deployed app, screenshots against the artboard
+4. [x] 4d — the production interaction suite (8 flows, including a submit through the conversation) and the walkthrough's five front-door scenarios pass against the deployed app; screenshots checked against the artboard
+   - Found in production and fixed (`8aa16e2`): a contract past its end date was offered as coverage — both matchers trusted the status column, and 12 of the 30 live contracts are past their end date while still marked active or expiring (flagged: nothing recomputes the status)
 
 ## Next — documentation boundaries (raised 2026-09-26)
 There is no PRD and no ARCHITECTURE.md; AGENTS.md points to CLAUDE.md. What a
