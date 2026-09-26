@@ -153,6 +153,19 @@ block, details-supplier, the call-off form), the stepper and the wizard footer.
 4. [x] 4d — the production interaction suite (8 flows, including a submit through the conversation) and the walkthrough's five front-door scenarios pass against the deployed app; screenshots checked against the artboard
    - Found in production and fixed (`8aa16e2`): a contract past its end date was offered as coverage — both matchers trusted the status column, and 12 of the 30 live contracts are past their end date while still marked active or expiring (flagged: nothing recomputes the status)
 
+## Open — "required sections" means two things (found 2026-09-26)
+The conversation's panel counts the questions that must be answered before the
+channel is confirmed (`requiredSlots`: the floor, the template's `required`,
+slot `requiredWhen`); the Channel page counts the sections generation says this
+demand's description must cover (`sowRequiredSections`, from
+`ConfiguredSection.requiredWhen`, which the determination checks). Both are
+labelled "required", so one demand read "required 4 of 4" then "1 of 1 required
+sections". Recommendation: make the conversation ask what generation will
+require — a section required by the signals makes its slot required — so both
+screens count one set and "Buying channel confirmed" also means the description
+covers what the determination checks. It changes what a material demand is
+asked, so it wants a decision first.
+
 ## Next — documentation boundaries (raised 2026-09-26)
 There is no PRD and no ARCHITECTURE.md; AGENTS.md points to CLAUDE.md. What a
 PRD and an architecture doc would hold is spread across the functional spec,
