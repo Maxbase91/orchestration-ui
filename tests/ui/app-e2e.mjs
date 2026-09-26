@@ -8,10 +8,11 @@
 //
 // Run: npm run test:e2e-ui   (requires .env.local with NEON_DATABASE_URL)
 
-import { spawn } from 'node:child_process';
 import { chromium } from 'playwright';
+import { devServer } from './dev-server.mjs';
 
-const BASE = 'http://localhost:5173';
+const server = devServer('5200');
+const BASE = server.base;
 
 const USERS = {
   admin: { id: 'u11', name: 'Christine Dupont', email: 'christine.dupont@company.com', role: 'admin', department: 'Global Procurement', initials: 'CD' },
@@ -65,15 +66,6 @@ const LAUNCH_OPTS = process.env.PW_CHROMIUM_PATH
   ? { executablePath: process.env.PW_CHROMIUM_PATH }
   : {};
 
-async function waitForServer(timeoutMs = 40000) {
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    try { if ((await fetch(BASE)).ok) return; } catch { /* not up */ }
-    await new Promise((r) => setTimeout(r, 500));
-  }
-  throw new Error('Dev server not ready');
-}
-
 async function visit(page, route) {
   const pageErrors = [];
   const consoleErrors = [];
@@ -109,10 +101,9 @@ async function sweep(browser, role, routes) {
   await context.close();
 }
 
-const server = spawn('npm', ['run', 'dev'], { stdio: 'ignore' });
 let browser;
 try {
-  await waitForServer();
+  await server.start();
   browser = await chromium.launch(LAUNCH_OPTS);
   await sweep(browser, 'admin', ADMIN_ROUTES);
   await sweep(browser, 'supplier', SUPPLIER_ROUTES);
@@ -151,5 +142,5 @@ try {
   process.exitCode = 1;
 } finally {
   if (browser) await browser.close();
-  server.kill('SIGTERM');
+  server.stop();
 }

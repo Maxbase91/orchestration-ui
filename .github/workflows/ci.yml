@@ -71,10 +71,11 @@ jobs:
       - run: npx playwright install --with-deps chromium
 
       # These browser suites drive the real screens against a stubbed database
-      # (tests/ui/db-stub.mjs), so they need no credentials and no dev server.
-      # The rest of the BROWSER set in tests/run-all.mjs is deliberately left
-      # out: it needs a live Neon database or a server on :5173, so running it
-      # here would fail for its infrastructure rather than for the code.
+      # (tests/ui/db-stub.mjs), so they need no credentials; each starts its
+      # own dev server, on a port of its own. The rest of the BROWSER set in
+      # tests/run-all.mjs is deliberately left out: it needs a live Neon
+      # database or a deployment, so running it here would fail for its
+      # infrastructure rather than for the code.
       #
       # The list is explicit for that reason, which means it can drift out of
       # package.json — it did, when the Simple/Expert refactor deleted

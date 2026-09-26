@@ -8,15 +8,16 @@
 //
 // Run: npm run test:interactions-ui   (requires .env.local with NEON_DATABASE_URL)
 
-import { spawn } from 'node:child_process';
 import { chromium } from 'playwright';
 import { neon } from '@neondatabase/serverless';
 import { neonClient, loadEnv, purgeAuditEntries } from '../lib/live.mjs';
+import { devServer } from './dev-server.mjs';
 
 // A deployed base exercises Vercel functions as well as the SPA. Without it,
 // this suite starts Vite for fast UI-only development feedback.
-const BASE = process.env.E2E_UI_BASE ?? 'http://localhost:5173';
 const USE_DEPLOYED_APP = Boolean(process.env.E2E_UI_BASE);
+const server = USE_DEPLOYED_APP ? null : devServer('5206');
+const BASE = server ? server.base : process.env.E2E_UI_BASE;
 const ADMIN = { id: 'u11', name: 'Christine Dupont', email: 'christine.dupont@company.com', role: 'admin', department: 'Global Procurement', initials: 'CD' };
 
 // neonClient hydrates .env.local into process.env, so E2E_UI_BASE above still
@@ -48,11 +49,6 @@ const LAUNCH_OPTS = process.env.PW_CHROMIUM_PATH
   ? { executablePath: process.env.PW_CHROMIUM_PATH }
   : {};
 
-async function waitForServer(t = 40000) {
-  const s = Date.now();
-  while (Date.now() - s < t) { try { if ((await fetch(BASE)).ok) return; } catch { /* */ } await new Promise(r => setTimeout(r, 500)); }
-  throw new Error('server not ready');
-}
 async function deleteRequest(reqId) {
   const childTables = ['stage_history', 'workflow_instances', 'workflow_step_details', 'approval_entries',
     'comments', 'notifications', 'system_integrations', 'intake_compliance_records',
@@ -157,10 +153,9 @@ async function answerConversation(page, budget) {
   return (await confirmed.count()) > 0;
 }
 
-const server = USE_DEPLOYED_APP ? null : spawn('npm', ['run', 'dev'], { stdio: 'ignore' });
 let browser;
 try {
-  if (!USE_DEPLOYED_APP) await waitForServer();
+  await server?.start();
   browser = await chromium.launch(LAUNCH_OPTS);
 
   // Pre-clean any artifacts a prior interrupted run may have left behind, so
@@ -479,5 +474,5 @@ try {
     }
   }
   if (browser) await browser.close();
-  server?.kill('SIGTERM');
+  server?.stop();
 }

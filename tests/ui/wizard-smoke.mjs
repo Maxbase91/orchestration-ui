@@ -10,18 +10,15 @@
 // Run: npm run test:ui   (no credentials — the database is stubbed)
 //      UI_SHOT_DIR=<dir> npm run test:ui   also screenshots the Channel pages
 
-import { spawn } from 'node:child_process';
 import { chromium } from 'playwright';
 import { installDbStub, templateRows } from './db-stub.mjs';
+import { devServer } from './dev-server.mjs';
 import { workflowTemplates } from '../../src/data/workflows.ts';
 
 class LocalServerlessUnavailable extends Error {}
 
-// Its own port, claimed with --strictPort, and checked to be this app: with the
-// shared default a second dev server on 5173 (another project's, once) was
-// found by the readiness probe and tested instead. UI_PORT overrides it.
-const PORT = process.env.UI_PORT ?? '5180';
-const BASE = `http://localhost:${PORT}`;
+const server = devServer('5180');
+const BASE = server.base;
 let failures = 0;
 function check(name, cond, detail = '') {
   if (cond) {
@@ -40,41 +37,6 @@ const LAUNCH_OPTS = process.env.PW_CHROMIUM_PATH
   ? { executablePath: process.env.PW_CHROMIUM_PATH }
   : {};
 
-let serverExited = false;
-async function waitForServer(timeoutMs = 40000) {
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    if (serverExited) throw new Error(`The dev server did not start — is port ${PORT} in use? Set UI_PORT to another port.`);
-    try {
-      const res = await fetch(BASE);
-      // Something answering is not enough: it has to be this app.
-      if (res.ok) {
-        if ((await res.text()).includes('<title>Procurement Orchestration Platform</title>')) return true;
-        throw new Error(`Port ${PORT} is serving another app. Set UI_PORT to a free port.`);
-      }
-    } catch (error) {
-      if (error instanceof Error && /another app/.test(error.message)) throw error;
-      // not up yet
-    }
-    await new Promise((r) => setTimeout(r, 500));
-  }
-  throw new Error(`Dev server did not become ready at ${BASE} within ${timeoutMs}ms`);
-}
-
-// Keep this full Expert-path smoke deterministic even when a developer's local
-// Neon preferences have a saved Simple view. The dedicated experience-mode
-// browser suite covers the requester presentation separately.
-const server = spawn('npm', ['run', 'dev', '--', '--port', PORT, '--strictPort'], {
-  stdio: 'ignore',
-  env: {
-    ...process.env,
-    // Browser smoke uses the in-memory PostgREST fixture below. This keeps the
-    // test independent from the developer's Neon URL while production remains
-    // Neon-backed through the private API boundary.
-    VITE_SIMPLE_EXPERIENCE_ENABLED: 'false',
-  },
-});
-server.on('exit', () => { serverExited = true; });
 let browser;
 let page;
 const SHOT_DIR = process.env.UI_SHOT_DIR;
@@ -90,7 +52,7 @@ async function shot(name) {
   if (size) await page.setViewportSize(size);
 }
 try {
-  await waitForServer();
+  await server.start();
   browser = await chromium.launch(LAUNCH_OPTS);
   const context = await browser.newContext();
   // The app is now Neon-backed in production, while Vite serves no Vercel API
@@ -728,5 +690,5 @@ try {
   }
 } finally {
   if (browser) await browser.close();
-  server.kill('SIGTERM');
+  server.stop();
 }

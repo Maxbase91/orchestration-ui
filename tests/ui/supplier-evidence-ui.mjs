@@ -9,14 +9,12 @@
 //
 // Run: npm run test:supplier-evidence-ui   (no credentials, no network)
 
-import { spawn } from 'node:child_process';
 import { chromium } from 'playwright';
 import { installDbStub } from './db-stub.mjs';
+import { devServer } from './dev-server.mjs';
 
-// Its own port, with --strictPort: a port taken by another app fails the start
-// rather than testing that app. UI_PORT overrides it.
-const PORT = process.env.UI_PORT ?? '5186';
-const BASE = `http://localhost:${PORT}`;
+const server = devServer('5186');
+const BASE = server.base;
 const LAUNCH_OPTS = process.env.PW_CHROMIUM_PATH ? { executablePath: process.env.PW_CHROMIUM_PATH } : {};
 const ADMIN = { id: 'u11', name: 'Christine Dupont', email: 'christine.dupont@company.com', role: 'admin', department: 'Global Procurement', initials: 'CD' };
 
@@ -25,24 +23,6 @@ let ran = false;
 function check(label, ok, detail = '') {
   console.log(`  ${ok ? '\x1b[32m✓\x1b[0m' : '\x1b[31m✗\x1b[0m'} ${label}${ok || !detail ? '' : ` — ${detail}`}`);
   if (!ok) failures++;
-}
-
-let serverExited = false;
-async function waitForServer() {
-  for (let i = 0; i < 90; i++) {
-    if (serverExited) throw new Error(`The dev server did not start — is port ${PORT} in use? Set UI_PORT to another port.`);
-    try {
-      const res = await fetch(BASE);
-      if (res.ok) {
-        if ((await res.text()).includes('<title>Procurement Orchestration Platform</title>')) return;
-        throw new Error(`Port ${PORT} is serving another app. Set UI_PORT to a free port.`);
-      }
-    } catch (error) {
-      if (error instanceof Error && /another app/.test(error.message)) throw error;
-    }
-    await new Promise((resolve) => setTimeout(resolve, 500));
-  }
-  throw new Error('Dev server not ready');
 }
 
 const iso = (offset) => new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
@@ -76,11 +56,9 @@ const OVERRIDES = {
   audit_entries: [],
 };
 
-const server = spawn('npm', ['run', 'dev', '--', '--port', PORT, '--strictPort'], { stdio: 'ignore' });
-server.on('exit', () => { serverExited = true; });
 let browser;
 try {
-  await waitForServer();
+  await server.start({ timeoutMs: 45000 });
   browser = await chromium.launch(LAUNCH_OPTS);
   const context = await browser.newContext({ viewport: { width: 1360, height: 1000 } });
   const stub = await installDbStub(context, OVERRIDES);
@@ -149,7 +127,7 @@ try {
   process.exitCode = 1;
 } finally {
   if (browser) await browser.close();
-  server.kill('SIGTERM');
+  server.stop();
 }
 
 console.log('');

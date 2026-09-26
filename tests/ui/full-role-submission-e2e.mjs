@@ -17,8 +17,13 @@
 // Its output goes to a gitignored directory: a run writes ~5 MB of PNGs.
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { chromium } from 'playwright';
+import { devServer } from './dev-server.mjs';
 
-const BASE = process.env.E2E_UI_BASE ?? 'http://localhost:5173';
+// Without a deployed base it starts its own dev server. It used to start
+// nothing and open whatever answered on 5173 — another project's app, when one
+// held that port.
+const server = process.env.E2E_UI_BASE ? null : devServer('5205');
+const BASE = server ? server.base : process.env.E2E_UI_BASE;
 const LIVE_WRITES = process.env.ALLOW_LIVE_WRITES === '1';
 const LOCAL_VITE = /^https?:\/\/(localhost|127\.0\.0\.1)(?::\d+)?$/i.test(BASE);
 const runId = `ui-e2e-${new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 14)}`;
@@ -172,4 +177,12 @@ async function run() {
   if (failures > 0) process.exitCode = 1;
 }
 
-run().catch((error) => { console.error(error); process.exitCode = 1; });
+try {
+  await server?.start();
+  await run();
+} catch (error) {
+  console.error(error);
+  process.exitCode = 1;
+} finally {
+  server?.stop();
+}

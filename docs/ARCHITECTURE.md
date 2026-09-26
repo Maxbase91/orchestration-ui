@@ -264,7 +264,7 @@ checks), AI-004 (spend anomaly rules), AI-005 (supplier suggestions) and AI-007
 |---|---|---|
 | Integration | Node suites run with `tsx`, one `test:*` script each; `npm run test:all` runs every non-browser suite | `tests/integration/`, `tests/run-all.mjs` |
 | Live | Suites that assert governed writes against Neon; in CI `REQUIRE_LIVE=1` makes an unreachable database a failure, not a skip | `tests/integration/` via `tests/lib/live.mjs` |
-| Browser, offline | Playwright suites that answer `/api/db` in the browser from fixtures — no credentials, no network. Each should claim its own dev-server port with `--strictPort` and check it found this app (§10) | `tests/ui/`, `tests/ui/db-stub.mjs` |
+| Browser, offline | Playwright suites that answer `/api/db` in the browser from fixtures — no credentials, no network. Every browser suite starts its dev server on a port of its own (`UI_PORT` overrides it) and tests only the server it started, serving this app | `tests/ui/`, `tests/ui/db-stub.mjs`, `tests/ui/dev-server.mjs` |
 | Browser, deployed | The interaction suite and the walkthrough against a deployment (`E2E_UI_BASE`) | `tests/ui/` |
 | CI | Typecheck, lint, build and `test:all`; the offline browser suites | `.github/workflows/ci.yml` |
 
@@ -293,6 +293,3 @@ the defect it catches. The catalogue of suites, and what each covers, is the
 - **The live suites write to the shared database** — fixtures are cleaned up,
   but a run that dies midway leaves rows behind; a dedicated test branch would
   close that.
-- **Nine browser suites still assume port 5173** without claiming it, so a
-  second dev server there is tested instead of this app; eight already claim
-  their own.

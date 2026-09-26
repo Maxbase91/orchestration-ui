@@ -7,30 +7,22 @@
 // against a list on the requester's profile that nothing ever populated.
 //
 // The REST surface is stubbed, so this never touches real data.
-import { spawn } from 'node:child_process';
 import { chromium } from 'playwright';
 import { installDbStub, FIXTURES } from './db-stub.mjs';
+import { devServer } from './dev-server.mjs';
 
-const PORT = '5187';
-const BASE = `http://localhost:${PORT}`;
+const server = devServer('5187');
+const BASE = server.base;
 const LAUNCH_OPTS = process.env.PW_CHROMIUM_PATH ? { executablePath: process.env.PW_CHROMIUM_PATH } : {};
 let failures = 0;
 function check(label, ok, detail = '') {
   console.log(`  ${ok ? '\x1b[32m✓\x1b[0m' : '\x1b[31m✗\x1b[0m'} ${label}${ok || !detail ? '' : ` — ${detail}`}`);
   if (!ok) failures++;
 }
-async function waitForServer() {
-  for (let i = 0; i < 90; i++) {
-    try { if ((await fetch(BASE)).ok) return; } catch { /* starting */ }
-    await new Promise((resolve) => setTimeout(resolve, 500));
-  }
-  throw new Error('Dev server not ready');
-}
 
-const server = spawn('npm', ['run', 'dev', '--', '--port', PORT, '--strictPort'], { stdio: 'ignore' });
 let browser;
 try {
-  await waitForServer();
+  await server.start({ timeoutMs: 45000 });
   browser = await chromium.launch(LAUNCH_OPTS);
   const context = await browser.newContext({ viewport: { width: 1360, height: 900 } });
   // The stub's fixtures carry one retired cost centre and one closed location,
@@ -384,7 +376,7 @@ try {
   failures++;
 } finally {
   if (browser) await browser.close();
-  server.kill('SIGTERM');
+  server.stop();
 }
 
 console.log(failures === 0

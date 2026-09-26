@@ -19,14 +19,11 @@
 //
 // Run: npm run test:intake-guidance-ui
 
-import { spawn } from 'node:child_process';
 import { chromium } from 'playwright';
+import { devServer } from './dev-server.mjs';
 
-// Its own port, claimed with --strictPort, and checked to be this app: with the
-// shared default a second dev server on 5173 (another project's, once) was
-// found by the readiness probe and tested instead. UI_PORT overrides it.
-const PORT = process.env.UI_PORT ?? '5181';
-const BASE = `http://localhost:${PORT}`;
+const server = devServer('5181');
+const BASE = server.base;
 const ROUTE = '/requests/new';
 
 const LAUNCH_OPTS = process.env.PW_CHROMIUM_PATH
@@ -39,32 +36,9 @@ function check(name, cond, detail = '') {
   else { failures++; console.error(`  \x1b[31m✗\x1b[0m ${name}${detail ? ` — ${detail}` : ''}`); }
 }
 
-let serverExited = false;
-async function waitForServer(timeoutMs = 40000) {
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    if (serverExited) throw new Error(`The dev server did not start — is port ${PORT} in use? Set UI_PORT to another port.`);
-    try {
-      const res = await fetch(BASE);
-      // Something answering is not enough: it has to be this app.
-      if (res.ok) {
-        if ((await res.text()).includes('<title>Procurement Orchestration Platform</title>')) return true;
-        throw new Error(`Port ${PORT} is serving another app. Set UI_PORT to a free port.`);
-      }
-    } catch (error) {
-      if (error instanceof Error && /another app/.test(error.message)) throw error;
-      // not up yet
-    }
-    await new Promise((r) => setTimeout(r, 500));
-  }
-  throw new Error(`Dev server did not become ready at ${BASE} within ${timeoutMs}ms`);
-}
-
-const server = spawn('npm', ['run', 'dev', '--', '--port', PORT, '--strictPort'], { stdio: 'ignore' });
-server.on('exit', () => { serverExited = true; });
 let browser;
 try {
-  await waitForServer();
+  await server.start();
   browser = await chromium.launch(LAUNCH_OPTS);
   // No auth seeding: the wizard is a requester route and the app's default
   // session already reaches it — tests/ui/wizard-smoke.mjs does the same.
@@ -128,5 +102,5 @@ try {
   process.exitCode = 1;
 } finally {
   if (browser) await browser.close();
-  server.kill('SIGTERM');
+  server.stop();
 }

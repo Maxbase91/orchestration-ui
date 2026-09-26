@@ -18,11 +18,12 @@
 //
 // Run: npm run test:request-detail-ui   (no credentials, no network)
 
-import { spawn } from 'node:child_process';
 import { chromium } from 'playwright';
 import { installDbStub } from './db-stub.mjs';
+import { devServer } from './dev-server.mjs';
 
-const BASE = 'http://localhost:5178';
+const server = devServer('5178');
+const BASE = server.base;
 const REQUEST_ID = 'REQ-TEST-0001';
 const ADMIN = {
   id: 'u11', name: 'Christine Dupont', email: 'christine.dupont@company.com',
@@ -39,23 +40,12 @@ function check(label, ok, detail) {
   if (!ok) failures++;
 }
 
-async function waitForServer(timeoutMs = 60000) {
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    try { if ((await fetch(BASE)).ok) return; } catch { /* not up yet */ }
-    await new Promise((r) => setTimeout(r, 500));
-  }
-  throw new Error('Dev server not ready');
-}
-
 // No credentials: the client posts to /api/db, which the stub intercepts before
 // it leaves the page. That is the point — this suite runs where no database is
 // reachable, against the same client production runs.
-const server = spawn('npm', ['run', 'dev', '--', '--port', '5178', '--strictPort'], { stdio: 'ignore' });
-
 let browser;
 try {
-  await waitForServer();
+  await server.start({ timeoutMs: 60000 });
   browser = await chromium.launch(LAUNCH_OPTS);
   const context = await browser.newContext();
   const stub = await installDbStub(context);
@@ -402,7 +392,7 @@ try {
   failures++;
 } finally {
   if (browser) await browser.close();
-  server.kill('SIGTERM');
+  server.stop();
 }
 
 console.log('');

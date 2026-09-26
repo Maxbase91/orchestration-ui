@@ -6,12 +6,13 @@
 //
 // Screenshots → /tmp/fd/NN-name.png. Run: node tests/ui/walkthrough.mjs
 
-import { spawn } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import { chromium } from 'playwright';
+import { devServer } from './dev-server.mjs';
 
-const BASE = process.env.E2E_UI_BASE ?? 'http://localhost:5173';
 const USE_DEPLOYED_APP = Boolean(process.env.E2E_UI_BASE);
+const server = USE_DEPLOYED_APP ? null : devServer('5210');
+const BASE = server ? server.base : process.env.E2E_UI_BASE;
 const DIR = '/tmp/fd';
 mkdirSync(DIR, { recursive: true });
 
@@ -30,15 +31,6 @@ async function shot(page, name) {
   await page.screenshot({ path: file, fullPage: true });
   log(`  📸 ${file}`);
   return file;
-}
-
-async function waitForServer(timeoutMs = 60000) {
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    try { if ((await fetch(BASE)).ok) return; } catch { /* not up */ }
-    await new Promise((r) => setTimeout(r, 500));
-  }
-  throw new Error('dev server did not start');
 }
 
 const errors = [];
@@ -154,10 +146,9 @@ async function fullScenario(page, { key, demand, detail, answers, toggleCritical
   }
 }
 
-const server = USE_DEPLOYED_APP ? null : spawn('npm', ['run', 'dev'], { stdio: 'ignore' });
 let browser;
 try {
-  if (!USE_DEPLOYED_APP) await waitForServer();
+  await server?.start({ timeoutMs: 60000 });
   browser = await chromium.launch(LAUNCH_OPTS);
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   await context.addInitScript(() => {
@@ -276,5 +267,5 @@ try {
   process.exitCode = 1;
 } finally {
   if (browser) await browser.close();
-  server?.kill('SIGTERM');
+  server?.stop();
 }

@@ -123,6 +123,7 @@
     "test:e2e-ui": "node tests/ui/app-e2e.mjs",
     "test:ui-full": "node tests/ui/full-role-submission-e2e.mjs",
     "test:ui-lifecycle": "node tests/integration/ui-lifecycle-hardening.mjs",
+    "test:ui-dev-server": "node tests/integration/ui-dev-server.mjs",
     "test:service-description-ui": "node tests/ui/service-description-admin.mjs",
     "test:routing-rules-ui": "node tests/ui/routing-rules-admin.mjs",
     "test:approval-chains-ui": "node --import tsx/esm tests/ui/approval-chains-admin.mjs",

@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 // Browser smoke for the mode contract: role defaults, visible switching, and persistence.
 // The REST surface is stubbed so this test never writes request or production data.
-import { spawn } from 'node:child_process';
 import { chromium } from 'playwright';
 import { installDbStub, FIXTURES, channelTemplate } from './db-stub.mjs';
+import { devServer } from './dev-server.mjs';
 
-const BASE = 'http://localhost:5179';
+const server = devServer('5179');
+const BASE = server.base;
 const USER = { id: 'u6', name: "James O'Brien", email: 'james.obrien@company.com', role: 'service-owner', department: 'Marketing', initials: 'JO' };
 const LAUNCH_OPTS = process.env.PW_CHROMIUM_PATH ? { executablePath: process.env.PW_CHROMIUM_PATH } : {};
 let failures = 0;
@@ -13,24 +14,9 @@ function check(label, ok, detail = '') {
   console.log(`  ${ok ? '\x1b[32m✓\x1b[0m' : '\x1b[31m✗\x1b[0m'} ${label}${ok || !detail ? '' : ` — ${detail}`}`);
   if (!ok) failures++;
 }
-async function waitForServer() {
-  for (let i = 0; i < 80; i++) {
-    try { if ((await fetch(BASE)).ok) return; } catch { /* starting */ }
-    await new Promise((resolve) => setTimeout(resolve, 500));
-  }
-  throw new Error('Dev server not ready');
-}
-
-const server = spawn('npm', ['run', 'dev', '--', '--port', '5179', '--strictPort'], {
-  stdio: 'ignore', env: {
-    ...process.env,
-    // Keep this browser suite deterministic and independent from a developer's
-    // local Neon URL. The route handoff only needs the fixture REST surface.
-  },
-});
 let browser;
 try {
-  await waitForServer();
+  await server.start();
   browser = await chromium.launch(LAUNCH_OPTS);
   const context = await browser.newContext();
   // The stub used to intercept `**/rest/v1/**`, the PostgREST path from before
@@ -312,7 +298,7 @@ try {
   failures++;
 } finally {
   if (browser) await browser.close();
-  server.kill('SIGTERM');
+  server.stop();
 }
 console.log('');
 if (failures) console.error(`FAILED: ${failures} check(s)`);

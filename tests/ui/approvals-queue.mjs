@@ -19,11 +19,12 @@
 //
 // Run: npm run test:approvals-ui
 
-import { spawn } from 'node:child_process';
 import { chromium } from 'playwright';
 import { installDbStub } from './db-stub.mjs';
+import { devServer } from './dev-server.mjs';
 
-const BASE = 'http://localhost:5173';
+const server = devServer('5202');
+const BASE = server.base;
 const ADMIN = {
   id: 'u11', name: 'Christine Dupont', email: 'christine.dupont@company.com',
   role: 'admin', department: 'Global Procurement', initials: 'CD',
@@ -40,19 +41,9 @@ const check = (name, cond, detail = '') => {
   else { failures++; console.error(`  \x1b[31m✗\x1b[0m ${name}${detail ? ` — ${detail}` : ''}`); }
 };
 
-async function waitForServer(timeoutMs = 40000) {
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    try { if ((await fetch(BASE)).ok) return; } catch { /* not up */ }
-    await new Promise((r) => setTimeout(r, 500));
-  }
-  throw new Error(`dev server not ready at ${BASE}`);
-}
-
-const server = spawn('npm', ['run', 'dev'], { stdio: 'ignore' });
 let browser;
 try {
-  await waitForServer();
+  await server.start();
   browser = await chromium.launch(LAUNCH);
   const context = await browser.newContext({ viewport: { width: 1360, height: 900 } });
   await installDbStub(context);
@@ -123,7 +114,7 @@ try {
   process.exitCode = 1;
 } finally {
   if (browser) await browser.close();
-  server.kill('SIGTERM');
+  server.stop();
 }
 
 console.log('');

@@ -12,11 +12,12 @@
 //
 // Run: npm run test:form-builder-ui
 
-import { spawn } from 'node:child_process';
 import { chromium } from 'playwright';
 import { installDbStub } from './db-stub.mjs';
+import { devServer } from './dev-server.mjs';
 
-const BASE = 'http://localhost:5173';
+const server = devServer('5204');
+const BASE = server.base;
 const ROUTE = '/admin/forms';
 const ADMIN = {
   id: 'u11', name: 'Christine Dupont', email: 'christine.dupont@company.com',
@@ -52,19 +53,9 @@ const check = (name, cond, detail = '') => {
   else { failures++; console.error(`  \x1b[31m✗\x1b[0m ${name}${detail ? ` — ${detail}` : ''}`); }
 };
 
-async function waitForServer(timeoutMs = 40000) {
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    try { if ((await fetch(BASE)).ok) return; } catch { /* not up yet */ }
-    await new Promise((r) => setTimeout(r, 500));
-  }
-  throw new Error(`Dev server did not become ready at ${BASE}`);
-}
-
-const server = spawn('npm', ['run', 'dev'], { stdio: 'ignore' });
 let browser;
 try {
-  await waitForServer();
+  await server.start();
   browser = await chromium.launch(LAUNCH_OPTS);
   const context = await browser.newContext({ viewport: { width: 1360, height: 960 } });
   await context.addInitScript((u) => {
@@ -123,5 +114,5 @@ try {
   process.exitCode = 1;
 } finally {
   if (browser) await browser.close();
-  server.kill('SIGTERM');
+  server.stop();
 }

@@ -178,9 +178,16 @@ rest of this playbook.
   separately; `npm run test:ui:all` adds the browser suites. One suite:
   `npm run test:<suite>`.
 - The browser suites use Playwright: after `npm install`, run
-  `npx playwright install chromium` once. Each starts its own dev server; it
-  should claim its own port with `--strictPort` and check that the page it
-  finds is this app, and `UI_PORT` overrides the port.
+  `npx playwright install chromium` once. **Each browser suite claims its own
+  port**: it starts its dev server through `tests/ui/dev-server.mjs` on the
+  default port the suite names, and `UI_PORT=<port>` overrides it for a run.
+  The port is taken with `--strictPort`, and nothing is tested until what
+  answers there is the server the suite started, serving this app — a port
+  that already answers is refused, even by this app (another checkout's
+  server, or one a killed run left behind), and so is a page with another
+  `<title>`. None uses Vite's default 5173: when the suites shared it, another
+  project's dev server there was tested instead. `test:ui-dev-server` keeps the
+  ports distinct and drives each refusal.
 - **The stub-backed browser suites** answer the data API inside the browser
   (`installDbStub()` in `tests/ui/db-stub.mjs`) and run with **no credentials
   and no network**; `installDbStub(page, rows, { fail: ['<relation>'] })` makes
@@ -199,7 +206,11 @@ rest of this playbook.
   so it caught nothing and two of its checks failed for months against a screen
   that was really crashing.
 - **Against a deployment:** set `E2E_UI_BASE=https://orchestration-ui.vercel.app`
-  for the interaction suite and the walkthrough, and
+  for the interaction suite, the evidence harness (`test:ui-full`) and the
+  walkthrough. Without it, each starts its own dev server, which serves no
+  serverless functions, so their flows that need one skip or fail locally:
+  the interaction suite stops at the category save, the harness at the
+  catalogue checkout, and the walkthrough's scenarios A–D. Also set
   `E2E_API_BASE=https://orchestration-ui.vercel.app` for the deployed API
   tests. The link-navigation suite uses only visible role controls: it checks
   that supplier, contract, sourcing, purchase-order and request links land on
@@ -373,6 +384,10 @@ npm run test:ui                   # browser smoke (Playwright) — the conversat
 npm run test:e2e-ui               # full-app browser sweep — every route × role, captures console/runtime errors
 npm run test:ui-full              # evidence harness — 60+ checkpoints screenshotted; asserts only "no crash, not blank"
 npm run test:ui-lifecycle         # static guard that call-offs, stage actions and invoice transitions stay UI-governed
+npm run test:ui-dev-server        # every browser suite starts its dev server through tests/ui/dev-server.mjs, on a port no
+                                  #   other suite uses and not on or next to Vite's default 5173; the helper refuses a port
+                                  #   that already answers (even as this app) and a page with another title, gives the port
+                                  #   back on stop, and takes its server down when the run is killed (no browser needed)
 npm run test:service-description-ui # browser smoke — /admin/service-description renders all four config areas
 npm run test:routing-rules-ui     # browser smoke — /admin/rules shows governed thresholds by name and real approval chains
 npm run test:approval-chains-ui   # browser smoke — /admin/approvals band editor, governed bounds, and gap reporting
@@ -450,9 +465,10 @@ really a crashing screen. Use `installDbStub()` from `tests/ui/db-stub.mjs`; its
 takes `{ fail: ['<relation>'] }`, which answers those relations with the 500 the endpoint returns
 when a read cannot be served — the only way a suite reaches a screen's **error** state, since a stub
 that always answers can only ever exercise loading and loaded. The offline browser
-suites named in `.github/workflows/ci.yml` run in CI. That list is explicit — the rest of the
-`BROWSER` set in `tests/run-all.mjs` needs a live Neon database or a server on :5173 — so it can
-drift out of `package.json`, and `test:workflow-scripts` is what catches it when it does.
+suites named in `.github/workflows/ci.yml` run in CI. That list is explicit — not every suite in
+the `BROWSER` set of `tests/run-all.mjs` can run there; some need a live Neon database or a
+deployment — so it can drift out of `package.json`, and `test:workflow-scripts` is what catches it
+when it does.
 
 **Only `tests/lib/live.mjs` reads `.env.local`,** and `test:neon-migration` enforces it. Five scripts
 had carried their own copy of that loader; two had no `try`/`catch`, so on any machine with the file

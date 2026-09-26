@@ -16,10 +16,11 @@
 //
 // Run: npm run test:service-description-ui
 
-import { spawn } from 'node:child_process';
 import { chromium } from 'playwright';
+import { devServer } from './dev-server.mjs';
 
-const BASE = 'http://localhost:5173';
+const server = devServer('5209');
+const BASE = server.base;
 const ROUTE = '/admin/service-description';
 
 // Only an admin may reach /admin/*; the route guard redirects everyone else to
@@ -47,24 +48,9 @@ function check(name, cond, detail = '') {
   }
 }
 
-async function waitForServer(timeoutMs = 40000) {
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    try {
-      const res = await fetch(BASE);
-      if (res.ok) return true;
-    } catch {
-      // not up yet
-    }
-    await new Promise((r) => setTimeout(r, 500));
-  }
-  throw new Error(`Dev server did not become ready at ${BASE} within ${timeoutMs}ms`);
-}
-
-const server = spawn('npm', ['run', 'dev'], { stdio: 'ignore' });
 let browser;
 try {
-  await waitForServer();
+  await server.start();
   browser = await chromium.launch(LAUNCH_OPTS);
   const context = await browser.newContext();
   await context.addInitScript((u) => {
@@ -213,5 +199,5 @@ try {
   process.exitCode = 1;
 } finally {
   if (browser) await browser.close();
-  server.kill('SIGTERM');
+  server.stop();
 }
