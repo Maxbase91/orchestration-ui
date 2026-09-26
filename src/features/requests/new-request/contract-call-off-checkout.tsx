@@ -17,18 +17,10 @@ import { useDeliveryLocations } from '@/lib/db/hooks/use-delivery-locations';
 import { cn } from '@/lib/utils';
 import { usePolicyConfig } from '@/lib/procurement/use-policy-config';
 import { formatCurrency } from '@/lib/format';
+import type { ContractCallOffDraft } from './conversation/call-off-agenda';
 
-export interface ContractCallOffDraft {
-  title: string;
-  value: number;
-  needBy: string;
-  serviceStartDate: string;
-  serviceEndDate: string;
-  deliveryLocation: string;
-  recipient: string;
-  purpose: string;
-  costCentre: string;
-}
+export type { ContractCallOffDraft };
+
 
 interface ContractCallOffCheckoutProps {
   contract?: Contract;

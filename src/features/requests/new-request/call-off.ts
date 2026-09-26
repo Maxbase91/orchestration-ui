@@ -16,7 +16,7 @@ import {
 } from '@/lib/procurement/governed-checkout';
 import type { SubmitGovernedCheckoutInput } from '@/lib/procurement/submit-governed-checkout';
 import { parseDeliveryDate } from '@/lib/parse-delivery-date';
-import type { ContractCallOffDraft } from './contract-call-off-checkout';
+import type { ContractCallOffDraft } from './conversation/call-off-agenda';
 import type { IntakeFormData } from './intake-form-data';
 
 export interface CallOffInput {

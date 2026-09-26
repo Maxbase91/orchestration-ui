@@ -516,7 +516,12 @@ export function isConversationComplete(
  * floor as `requiredSlotsFilled` — that function is this one being empty — so
  * the two cannot drift into disagreeing about what is required.
  */
-export function outstandingRequiredSlots(
+/**
+ * Every mandatory slot this demand is asked, answered or not — the M in the
+ * conversation page's "N of M known". The same rule as `outstandingRequiredSlots`,
+ * which is this filtered to the unanswered ones.
+ */
+export function requiredSlots(
   ctx: DemandConversationContext,
   slots: DemandSlot[] = ALL_SLOTS,
   config: PolicyConfig = getActivePolicyConfig(),
@@ -539,8 +544,16 @@ export function outstandingRequiredSlots(
       || s.required
       || (s.requiredWhen?.length
         ? s.requiredWhen.every((c) => evaluateSlotCondition(c, signals, config))
-        : false))
-    .filter((s) => !isSlotFilled(s, ctx));
+        : false));
+}
+
+export function outstandingRequiredSlots(
+  ctx: DemandConversationContext,
+  slots: DemandSlot[] = ALL_SLOTS,
+  config: PolicyConfig = getActivePolicyConfig(),
+): DemandSlot[] {
+  // One rule for "mandatory": `requiredSlots`, reused rather than restated.
+  return requiredSlots(ctx, slots, config).filter((s) => !isSlotFilled(s, ctx));
 }
 
 export function requiredSlotsFilled(

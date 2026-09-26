@@ -280,6 +280,7 @@ npm run test:channel-stages      # the workflow templates are the only definitio
 npm run test:edge-conditions     # a decision node actually decides, every palette type round-trips, every workflow signal evaluates
 npm run test:channel-plan        # the Channel page's stage plan agrees with the server's landing and the engine's walk, for every template and signal
 npm run test:channel-checks       # the Channel page's checks, from real determinations and call-off decisions — nothing that did not run shown as clear
+npm run test:intake-conversation  # the conversation page's parts: classification, a call-off asked as questions, Your request's provenance, inputs-only edits and N of M
                                   #   both ways, a rejected approval goes back to the requester in every template, and no shipped or
                                   #   live template has a node the engine cannot branch from unambiguously
 npm run test:models               # each pinned Groq/Gemini model is still served by its provider (calls the providers, so it is outside the default gate — run it on demand or via `test:all -- --external`)

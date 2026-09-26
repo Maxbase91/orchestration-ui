@@ -142,3 +142,9 @@ block, details-supplier, the call-off form), the stepper and the wizard footer.
 - Q6 **"N of M known" counts what the route needs**: a new request's key facts
   plus its required service-description sections; a call-off's details. It
   reaches M of M exactly when "Buying channel confirmed" appears.
+
+**Build order**
+1. [x] 4a — the service-description engine becomes a hook, unchanged (`c6f8ba0`)
+2. [x] 4b — pure modules, tested on their own: `classify-demand.ts` (from step-category), `use-route-checks.ts` (from step-buy-route), `call-off-agenda.ts` (the call-off's questions, prefilled from the words and the profile), `request-rows.ts` (Your request's rows, provenance, inline-editability per Q5, "N of M known" per Q6)
+3. [ ] 4c — the page: transcript + reply box + turn cards, Your request panel; new-request-page switches to it; step-category, step-buy-route, the Details step pieces, the stepper and footer are deleted; browser suites rewritten
+4. [ ] 4d — docs, production interaction suite, screenshots against the artboard
