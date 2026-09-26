@@ -1,21 +1,21 @@
 #!/usr/bin/env node
-// Browser smoke for the New Request wizard's guidance surfaces.
+// Browser smoke for the New request page's guidance surfaces — how it says
+// where the requester is and what it needs, before anything has loaded.
 //
-// `tsc -b` proves the wizard compiles; it cannot prove a step renders. These
-// four changes are all things a green build is blind to:
+// `tsc -b` proves the page compiles; it cannot prove it renders, or that it
+// opens by asking rather than by presenting a form. What this holds:
 //
-//   * step 1 shows ONE classification block, not the demand three times over
-//     with a 600 ms banner nobody can read;
-//   * every step carries a header panel saying what it is for, what it needs
-//     and what happens after;
-//   * the stepper renders the per-step description that had been defined and
-//     drawn nowhere since the wizard was written;
-//   * step 3's Next is disabled until the mandatory floor is met.
+//   * the page opens with one open question, in the requester's own words;
+//   * the header names the three phases and marks the current one;
+//   * Your request says where each value comes from (the legend) and that the
+//     channel waits for the checks;
+//   * there is no Next to walk past — the conversation confirms the channel
+//     itself — and no field the requester is not asked for.
 //
-// `test:ui` (the full wizard smoke) cannot complete in a sandbox where the database
-// is unreachable — it dies at the catalogue step. This is the narrow,
-// offline-tolerant check, in the same shape as test:service-description-ui:
-// domcontentloaded rather than networkidle, and network errors ignored.
+// `test:ui` drives every route through the conversation against the stub.
+// This is the narrow, offline-tolerant check, in the same shape as
+// test:service-description-ui: domcontentloaded rather than networkidle, and
+// network errors ignored.
 //
 // Run: npm run test:intake-guidance-ui
 
@@ -68,56 +68,38 @@ try {
   await page.goto(BASE, { waitUntil: 'domcontentloaded' });
   await page.locator('#root *').first().waitFor({ timeout: 20000 });
   await page.goto(`${BASE}${ROUTE}`, { waitUntil: 'domcontentloaded' });
-  await page.getByText('Describe what you need', { exact: true }).waitFor({ timeout: 20000 });
+  await page.locator('#intake-reply').waitFor({ timeout: 20000 });
 
-  console.log('The wizard explains itself');
-  // The panel leads with the consequence — the one thing no other element on the
-  // screen says. It used to render purpose, what-you-supply and what-happens-next
-  // all at once, which on step 1 was ninety words of chrome above a single box.
-  check('the step header panel leads with the consequence',
-    (await page.getByText(/catalogue item or an existing contract already covers this/).count()) > 0);
-  // Purpose and the supply list are a disclosure now, not the default view.
-  const disclosure = page.getByRole('button', { name: /What you need/ });
-  check('purpose and the supply list are one click away, not on screen',
-    (await disclosure.count()) > 0
-    && (await page.getByText(/you do not pick a category/).count()) === 0);
-  await disclosure.click();
-  check('opening the disclosure reveals both',
-    (await page.getByText(/you do not pick a category/).count()) > 0
-    && (await page.getByText(/pasted brief, or PDF\/DOCX/).count()) > 0);
-  // The toggle relabels itself, so collapsing it is a different locator — and
-  // that relabelling is the affordance telling the reader it is a toggle at all.
-  await page.getByRole('button', { name: /Less/ }).click();
-  check('it collapses again',
-    (await page.getByText(/you do not pick a category/).count()) === 0);
+  console.log('The page explains itself');
+  check('it opens by asking, in the requester\u2019s own words',
+    (await page.getByText(/What do you need\? Say it in your own words/).count()) === 1);
+  check('and says what happens first — the catalogue and contracts are checked',
+    (await page.getByText(/I.ll check the catalogue and existing contracts first, then ask only what is still missing/).count()) === 1);
+  const progress = page.getByRole('list', { name: 'Progress' });
+  check('the header names the three phases',
+    /1 · What you need[\s\S]*2 · How it is bought[\s\S]*3 · What it needs/.test(await progress.innerText()));
+  check('and marks the one the requester is in',
+    (await progress.locator('[aria-current="step"]').innerText()) === '1 · What you need');
+  check('the assistant says what it is doing', (await page.getByText('identifying what you need', { exact: true }).count()) === 1);
 
-  // The copy that was dead config for the wizard's whole life. Only the current
-  // step's description renders: all seven put fourteen labels across every screen.
-  check("the stepper renders the current step's description",
-    (await page.getByText('What do you need?', { exact: true }).count()) > 0);
-  check('and not the other steps’ descriptions',
-    (await page.getByText('Catalogue & contract match', { exact: true }).count()) === 0);
+  console.log('\nYour request says where everything comes from');
+  const panel = page.locator('aside[aria-label="Your request"]');
+  check('the legend names the four sources',
+    /From you[\s\S]*Derived[\s\S]*Drafted — check it[\s\S]*Still to come/.test(await panel.innerText()));
+  check('the channel waits for the checks, and says so',
+    /Deciding — the catalogue and contracts are checked first/.test(await panel.innerText()));
+  check('it counts what is known against what is needed', /\d+ of \d+ known/.test(await panel.innerText()));
 
-  console.log('\nStep 1 asks once and shows the demand once');
-  check('the free-text prompt is present',
-    (await page.getByPlaceholder(/I need business consulting/).count()) > 0);
-  // The banner repeated the category and supplier from the card above it and
-  // auto-advanced after 600 ms. It should not exist at all now.
+  console.log('\nNothing to walk past, nothing not asked for');
+  check('there is no stepper and no Next', (await page.getByRole('button', { name: /^Next$/ }).count()) === 0);
+  check('the reply box shows an example, and Send waits for words',
+    /e\.g\./.test(await page.locator('#intake-reply').getAttribute('placeholder') ?? '')
+    && await page.getByRole('button', { name: /^Send$/ }).isDisabled());
   check('no accepted banner in the markup',
     !(await page.content()).includes('Details pre-filled. Moving to next step'));
-  check('the false "routes the request" sub-label is gone',
-    !(await page.content()).includes('routes the request'));
-  // Step 1 classifies. It does not author the request's justification — the
-  // business need is captured in the service description at step 3.
-  check('no generated business justification on step 1',
-    !(await page.content()).includes('Business justification'));
-
-  console.log('\nThe wizard cannot be walked past its gates');
-  const next = page.getByRole('button', { name: /^Next$/ });
-  check('Next is present', (await next.count()) > 0);
-  // Step 1 has no category until something is classified, so Next is disabled —
-  // the same mechanism that holds step 3 to the mandatory floor.
-  check('Next is disabled before the step is satisfied', await next.first().isDisabled());
+  // The business need is captured in the service description, not typed into a
+  // justification field.
+  check('no business justification field', (await page.getByText(/Business justification/i).count()) === 0);
 
   check('no non-network render errors', pageErrors.length === 0, pageErrors.slice(0, 3).join(' | '));
 

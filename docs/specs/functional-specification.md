@@ -133,7 +133,7 @@ The system administrator who configures the platform. They manage routing rules,
 
 The home page features a prominent command bar at the top where users can type natural language queries. The system detects the user's intent and responds accordingly:
 
-- **Buy intent:** When a user types something like "buy paper" or "I need new laptops", the system detects this as a purchase intent. If the item matches a catalogue product, matching products are displayed inline with prices, quantities, and an "Add to Cart" button. If it is not a catalogue item, the system navigates to the New Request wizard with pre-populated fields.
+- **Buy intent:** When a user types something like "buy paper" or "I need new laptops", the system detects this as a purchase intent. If the item matches a catalogue product, matching products are displayed inline with prices, quantities, and an "Add to Cart" button. If it is not a catalogue item, the demand is shown as *Understood as — Something to buy*, and **Start the request** opens New request with its words as the first message.
 
 - **Lookup intent:** When a user types "where is REQ-2024-0001" or "check my requests", the system navigates to the appropriate tracking page.
 
@@ -224,7 +224,7 @@ The home page command bar serves as the primary entry point for all procurement 
 
 **Buy intent examples:**
 - "buy paper" — Detects as catalogue item. Shows "A4 Paper 500 sheets — EUR 5.00/pack" inline with quantity selector and order button.
-- "I need 50 new laptops" — Detects as bulk goods purchase (above catalogue threshold). Navigates to New Request wizard with category pre-set to "Goods" and buying channel to "Procurement-Led".
+- "I need 50 new laptops" — Detects a purchase; **Start the request** opens New request with the words as its first message, where the catalogue and contracts are checked before anything else.
 - "order coffee beans" — Detects as catalogue item. Shows "Coffee Beans 1kg — Premium Arabica blend, medium roast — EUR 22.00/bag" with quick ordering.
 
 **Lookup intent examples:**
@@ -237,125 +237,64 @@ The home page command bar serves as the primary entry point for all procurement 
 
 The system uses keyword matching with stop-word filtering to identify catalogue matches. Stop words such as "I", "want", "to", "buy", "need", "some", "the", "please" are excluded from the search, allowing natural phrasing.
 
-### 4.2 New Request Wizard (5 Steps)
+### 4.2 New Request — the conversation, then the Channel page
 
-The request creation process follows a guided 5-step wizard:
+One page for every demand (the Intake Prototype's Door 1, since 26 September
+2026), organised around one rule: **every question is asked before any
+conclusion is shown**. Requirement-level detail, with the FR numbers, is in
+`docs/specs/requirements/01-intake-new-request.md`; the module's own README
+(`src/features/requests/README.md`) says which code decides what.
 
-#### Step 1: Category Selection
+The conversation runs in three phases, in one transcript with one reply box:
 
-The user sees 8 procurement categories displayed as selectable cards:
+1. **What you need.** The requester says what they need in their own words,
+   pastes a brief or attaches a PDF/DOCX (or arrives from Home with their words
+   already typed). The assistant reads it back — "That sounds like *category* —
+   *code*. Is that right?" — with the other likely codes, "None of these codes",
+   and "describe it again". There is no category to pick: Goods/Services is
+   internal routing metadata.
+2. **How it is bought.** The catalogue and the contracts are checked first, and
+   both results are reported in one turn. Then the way to buy is offered, headed
+   in the channel's own words (its workflow template's, edited in Admin →
+   Workflows): a catalogue item — naming the words it matched on — which is
+   ordered on the Catalogue page; a contract to call off, with its supplier, end
+   date, ceiling left and the direct call-off limit; or, when nothing covers the
+   demand, a new request, on its own. If one detail would settle which contract
+   covers it, the assistant asks for that detail.
+3. **What it needs.** A call-off's details — value, dates, who it is for, the
+   purpose, where it goes, what it is charged to — are filled from the words and
+   the profile first, and the rest asked one at a time. A new request's service
+   description is asked next (see §4.3), then the supplier (the category's
+   preferred suppliers named, "go to market" an explicit answer, a supplier off
+   the list asked why), then the one or two risk questions the supplier and the
+   description decide, as Yes/No.
 
-1. **Catalogue** — Pre-approved items available for direct ordering. Fast track, 2-3 days. Examples: office supplies, IT peripherals, standard monitors under EUR 500, catering items, safety equipment, standard furniture.
-2. **Goods** — Physical products requiring formal procurement. Examples: bulk laptop orders, servers, custom furniture, industrial equipment.
-3. **Services** — Ongoing operational services from external providers. Examples: facilities management, cleaning, catering services, training programmes, logistics.
-4. **Software** — Software licences, SaaS subscriptions, cloud services. Examples: Salesforce, AWS, Microsoft 365, cybersecurity tools.
-5. **Consulting** — Professional advisory and project-based intellectual services. Examples: management consulting, IT consulting, audit support, legal advisory.
-6. **Contingent Labour** — Temporary workers and contractors working under company direction. Examples: IT contractors, interim managers, administrative temps.
-7. **Contract Renewal** — Extending or renewing an existing supplier contract.
-8. **Supplier Onboarding** — Registering and qualifying a new supplier.
+Beside the conversation, **Your request** fills in as it goes: every value with
+where it came from (from you · derived · drafted — check it · still to come),
+the inputs edited in place, and "N of M known" counting what the route needs.
+It reaches M of M exactly when **Buying channel confirmed** appears — which it
+does only when submit would accept the request, the conversation having named
+anything still missing (a need-by date, a cost centre) and where to add it.
 
-**AI Classification:** If the user is unsure, they can type a natural language description in the command area. The AI Category Classifier (94.2% accuracy) analyses the text and suggests the most appropriate category with an explanation. For example, typing "We need someone to review our cybersecurity posture" would suggest "Consulting" with the reasoning: "One-off advisory work with the provider bringing their own methodology falls under Consulting, not Services."
+**The Channel page** then shows how it will be bought: the channel's headline
+and sentence, every stage of its template in order with *You are here / Applies
+/ If … / Skipped* and why, what the requester does at each stage, what is being
+submitted, who sourcing will invite, and the checks — why this channel, risk,
+the approvers submit will write — with the workings and an Export one click
+down. Save as draft and Submit are there; Back to the conversation returns to it
+as it was left. Submitting creates the request atomically and enters it in the
+first stage that needs action; the confirmation shows what happens next.
 
-**Key distinctions the AI enforces:**
-- "Business consulting" is classified as Consulting, not Goods
-- "IT consulting" is classified as Consulting, not Software
-- "I need a laptop" is classified as Catalogue (standard ThinkPad available)
-- "50 custom laptops" is classified as Goods (bulk/custom)
-- "Cleaning service" is classified as Services
-- "SAP license" is classified as Software
-- "Temp developer" is classified as Contingent Labour
+### 4.3 AI-Guided Service Description
 
-If the user selects "Catalogue", they proceed to the catalogue browsing step. For all other categories, they proceed to Step 2.
+A new request's service description is asked in the conversation. The assistant:
 
-#### Step 2: Details & Intake
-
-This step offers three parallel intake methods — the user can choose whichever suits them:
-
-**Option A: AI-Guided Chat Intake** (default for services, consulting, and contingent labour)
-
-An AI-powered conversational interface asks questions one at a time to build a complete request specification. The AI extracts structured data from natural language responses and progressively fills in the request form fields. See Section 4.3 for full details.
-
-**Option B: Traditional Form**
-
-A conventional form with the following fields:
-- Title (text, required)
-- Description (textarea, required)
-- Estimated Value (number, required, in EUR)
-- Priority (select: Low / Medium / High / Urgent)
-- Supplier (optional, searchable dropdown of existing suppliers)
-- Delivery Date (date picker, required)
-- Cost Centre (text, required)
-- Budget Owner (text, required)
-- Business Justification (textarea, required)
-- Urgency Flag (checkbox with justification field)
-
-**Option C: Catalogue Browse** (only if category is Catalogue)
-
-A browsable catalogue interface. See Section 4.5 for full details.
-
-Fields are pre-populated from context where possible. For example, if the user mentioned "AWS" in the command bar, the supplier field is pre-set to "Amazon Web Services (AWS)" and the category to "Software".
-
-#### Step 3: Compliance & Risk Checks
-
-Before the request can proceed, the system runs automated compliance checks. These happen in real time while the user watches, with each check displaying a pass/fail indicator:
-
-1. **Buying Channel Determination** — The system evaluates the request category, value, and supplier to determine the correct buying channel (Catalogue, Framework Call-Off, Business-Led or Procurement-Led). The reasoning is displayed.
-
-2. **Supplier Risk Assessment (SRA) Check** — If a supplier is specified, the system checks whether they have a valid SRA. Statuses: Valid, Expiring (within 90 days), Expired, or Not Assessed.
-
-3. **Policy Checks** — The system evaluates 4-5 policy rules specific to the request:
-   - Budget pre-approval
-   - Delegated authority limits
-   - Competitive sourcing requirements
-   - Category-specific policies (e.g., consulting engagement policy, data protection assessment)
-   - Business justification completeness
-
-4. **Duplicate Detection** — The system scans existing active and archived requests for similarity. If a duplicate is detected (above 78% similarity), a warning is shown.
-
-5. **Risk Flags** — Any special risk considerations are highlighted (e.g., "High-value contract: requires dual sign-off").
-
-Additionally, a **Smart Assessment** panel provides:
-- **Vendor Match:** Whether an existing supplier is available or a new supplier is needed
-- **Contract Coverage:** Whether an active contract covers this engagement
-- **SRA Status:** Current assessment status and expiry date
-- **Estimated Processing Path:** Which workflow stages will be required, which can be skipped, and the estimated number of days to completion
-
-#### Step 4: Routing Preview
-
-The system displays the predicted workflow path for the request, showing:
-
-- The buying channel assigned (e.g., "Procurement-Led Sourcing")
-- The approval chain that will apply (e.g., "Category Manager > Finance > VP Procurement")
-- Each workflow stage the request will pass through, with estimated days per stage
-- The total estimated processing time
-- Any stages that can be skipped based on the request characteristics (e.g., sourcing may be skipped if an existing framework agreement covers the need)
-
-The routing is determined by the platform's routing rules engine (see Section 14.1).
-
-#### Step 5: Confirmation
-
-A summary page showing all captured information:
-- Request title, description, category, and priority
-- Estimated value and currency
-- Supplier (if specified)
-- Buying channel and approval path
-- Compliance check results
-- Service description (if applicable)
-
-The user reviews and submits the request. Upon submission, the request enters the "Intake" stage and appears in the relevant queues.
-
-### 4.3 AI-Guided Chat Intake
-
-For categories where a detailed specification is important (services, consulting, contingent labour, and complex goods), the platform offers an AI-guided conversational intake. The AI assistant:
-
-1. **Asks questions one at a time** in natural language, adapting based on previous answers.
+1. **Asks questions one at a time** in natural language, adapting based on previous answers — the engine chooses which question is next and when the description is complete; the model only phrases the question in the requester's own terms.
 2. **Extracts structured data** from conversational responses. For example, if the user says "We need this done by end of Q2 and the budget is around 450K", the system extracts the delivery date and value.
-3. **Pre-populates from context** — if the user already selected a supplier or mentioned a value, the AI skips those questions.
-4. **Offers two modes:**
-   - **Detailed SOW mode** — Builds a comprehensive 9-section Statement of Work (see Section 4.4)
-   - **Quick essentials mode** — Captures only the minimum required fields for rapid submission
+3. **Carries forward what it already knows** — a value, a supplier or a date named earlier is never asked again.
+4. **Pushes back once** on an answer that does not answer the question, offering a drafted answer where it can ground one in what was said, and **gives up** on a date or a budget after two unreadable answers rather than asking forever.
 
-The AI provides category-specific examples and prompts. For a consulting request, it might ask: "What is the primary objective of this engagement? For example: 'Conduct a cybersecurity audit to identify vulnerabilities and provide remediation recommendations.'"
+The AI provides category-specific examples and prompts. For a consulting request, it might ask: "What is the primary objective of this engagement?", with an example beneath it. The description is written up automatically once it is captured — there is no "Generate" button — and each section can be edited in place on the right.
 
 ### 4.4 Service Description (Statement of Work)
 

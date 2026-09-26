@@ -13,7 +13,8 @@ const read = (rel) => readFileSync(new URL(`../../${rel}`, import.meta.url), 'ut
 const page = read('src/features/catalogue/catalogue-page.tsx');
 const detail = read('src/features/catalogue/catalogue-item-detail-page.tsx');
 const commandBar = read('src/features/dashboard/components/smart-command-bar.tsx');
-const requestEntry = read('src/features/requests/new-request/new-request-page.tsx');
+const requestEntry = read('src/features/requests/new-request/new-request-page.tsx')
+  + read('src/features/requests/new-request/conversation/intake-conversation.tsx');
 const routeTurns = read('src/lib/assistant/route-turns.ts');
 const app = read('src/App.tsx');
 
@@ -40,8 +41,10 @@ console.log('\nEvery way in adds to the basket');
 check('the Home box', /go\(`\/catalogue\?add=\$\{encodeURIComponent\(item\.id\)\}`\)/.test(commandBar));
 check('the assistant', /\/catalogue\?add=\$\{encodeURIComponent\(item\.id\)\}/.test(routeTurns));
 check('an item\'s page', /navigate\(`\/catalogue\?add=\$\{encodeURIComponent\(item\.id\)\}`\)/.test(detail));
-check('intake\'s catalogue match', /onChooseCatalogue[\s\S]*?navigate\(`\/catalogue\?add=/.test(requestEntry));
-check('intake\'s "browse the catalogue"', /onBrowseCatalogue=\{\(\) => navigate\('\/catalogue'\)\}/.test(requestEntry));
+// The conversation offers a catalogue item when the check finds one, and
+// "Order it" adds that item. It has no "browse the catalogue" button of its
+// own: the catalogue is Home's second door and the navigation's Catalogue.
+check('intake\'s catalogue match', /navigate\(`\/catalogue\?add=\$\{encodeURIComponent\(item\.id\)\}`\)/.test(requestEntry));
 
 console.log('\nNo second way to order');
 check('the wizard has no catalogue step or checkout of its own',

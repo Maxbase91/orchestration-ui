@@ -53,69 +53,59 @@ function attachErrorCapture(page, tag) {
   page.on('pageerror', (e) => errors.push(`[${tag}] pageerror: ${e.message}`));
 }
 
-// Drive the staged pre-check to the full-request step. Returns true if it reached it.
-async function toFullRequest(page, demand, enrichment) {
+// Say what is needed, confirm how it was read, and wait for the catalogue and
+// contract checks — the conversation's first two phases.
+async function describe(page, demand) {
   await page.goto(`${BASE}/requests/new`, { waitUntil: 'networkidle' });
-  await page.locator('#need-input').fill(demand);
-  await page.locator('#need-input').press('Enter');
-  await page.getByRole('button', { name: /Accept & continue/ }).click();
-  // Catalogue-fulfillable goods show catalogue first; services, consulting,
-  // and renewals legitimately skip it and open directly on contract coverage.
-  // Accept either valid funnel shape instead of treating the configured skip
-  // as a timeout.
-  await page.getByText(/^(Catalogue check|Contract check)$/, { exact: true }).first()
-    .waitFor({ timeout: 15000 });
-  if (await page.getByText('Catalogue check', { exact: true }).count()) {
-    await page.locator('textarea').first().fill(enrichment);
-    await page.getByRole('button', { name: /Check for a covering contract/ }).click();
-    await page.getByText('Contract check', { exact: true }).waitFor({ timeout: 15000 }).catch(() => {});
-  }
-  const proceed = page.getByRole('button', { name: /Proceed to full request/ });
-  await proceed.first().waitFor({ timeout: 8000 });
-  await proceed.first().click();
-  return true;
+  const reply = page.locator('#intake-reply');
+  await reply.fill(demand);
+  await reply.press('Enter');
+  const conversation = page.locator('section[aria-label="Conversation"]');
+  await conversation.getByRole('button', { name: 'Yes', exact: true }).first().click();
+  await conversation.getByText(/Checked the catalogue|could not reach the catalogue/).first().waitFor({ timeout: 15000 });
+  return conversation;
 }
 
-// The full-request step is the dynamic demand CONVERSATION — answer each
-// question (value first) until the wizard's Next button unlocks.
-// The conversation now ends with the criteria-driven risk questions, asked as
-// yes/no choices with the text input disabled — so the loop has to press a
-// button when one is pending rather than typing at it forever.
-async function answerChat(page, answers, { answerRiskYes = false } = {}) {
-  const input = page.getByPlaceholder(/Type your answer|Choose Yes or No/);
-  const next = page.getByRole('button', { name: /^Next$/ });
+// A new request's conversation, to "Buying channel confirmed": the queued
+// answers in order, the supplier left to the market, every risk question
+// answered the same way, and a cost centre added in the panel if one is owed.
+async function toConfirmed(page, conversation, answers, { answerRiskYes = false } = {}) {
+  const reply = page.locator('#intake-reply');
+  const confirmed = conversation.locator('[data-turn="card"]').filter({ hasText: 'Buying channel confirmed' });
   const queue = [...answers];
-  for (let turn = 0; turn < answers.length + 6; turn++) {
-    if (await next.isEnabled().catch(() => false)) break;
-    const choice = page.getByRole('button', { name: answerRiskYes ? /^Yes$/ : /^No$/ });
-    if (await choice.count()) {
-      await choice.last().click();
-      await new Promise((r) => setTimeout(r, 900));
+  for (let turn = 0; turn < answers.length + 12; turn++) {
+    if (await confirmed.count()) return true;
+    const market = conversation.getByRole('button', { name: /No — go to market|Not decided yet/ });
+    if (await market.count() && await market.last().isEnabled()) { await market.last().click(); await new Promise((r) => setTimeout(r, 900)); continue; }
+    const choice = conversation.getByRole('button', { name: answerRiskYes ? 'Yes' : 'No', exact: true });
+    if (await choice.count() && await choice.last().isEnabled()) { await choice.last().click(); await new Promise((r) => setTimeout(r, 900)); continue; }
+    if (await conversation.getByText(/needs a cost centre/).count()) {
+      const panel = page.locator('aside[aria-label="Your request"]');
+      await panel.getByRole('button', { name: 'Edit Charged to' }).click();
+      const centre = panel.locator('[data-editing="costCentre"] select');
+      await centre.selectOption(await centre.evaluate((el) => [...el.options].map((o) => o.value).find(Boolean) ?? ''));
+      await panel.getByRole('button', { name: 'Done' }).click();
+      await new Promise((r) => setTimeout(r, 600));
       continue;
     }
-    const answer = queue.shift() ?? answers[answers.length - 1];
-    await input.waitFor({ timeout: 8000 });
-    if (await input.isDisabled().catch(() => false)) break;
-    await input.fill(answer);
-    await input.press('Enter');
-    await new Promise((r) => setTimeout(r, 900));
+    if (await reply.isDisabled()) { await new Promise((r) => setTimeout(r, 900)); continue; }
+    await reply.fill(queue.shift() ?? answers[answers.length - 1]);
+    await reply.press('Enter');
+    await new Promise((r) => setTimeout(r, 1000));
   }
-  await new Promise((r) => setTimeout(r, 500));
+  return (await confirmed.count()) > 0;
 }
 
-// Walk a full-request demand through conversation → risk → determination → routing.
-async function fullScenario(page, { key, demand, enrichment, answers, toggleCritical }) {
+// Walk a demand through the conversation to the Channel page. Nothing is
+// submitted: this harness can run against the deployed app.
+async function fullScenario(page, { key, demand, answers, toggleCritical }) {
   log(`\n▶ Front door — ${key}`);
   try {
-    await toFullRequest(page, demand, enrichment);
-    await page.getByText('Service description', { exact: true }).waitFor({ timeout: 15000 }).catch(() => {});
-    // The risk questions are answered inside the conversation now, so this is
-    // one screen where it used to be three (Details → Risk → Determination →
-    // Routing became Details → the Channel page).
-    await answerChat(page, answers, { answerRiskYes: toggleCritical });
+    const conversation = await describe(page, demand);
+    await conversation.getByText('Then this is a new request.').waitFor({ timeout: 15000 });
+    if (!(await toConfirmed(page, conversation, answers, { answerRiskYes: toggleCritical }))) throw new Error('the channel was never confirmed');
     await shot(page, `${key}-1-conversation`);
-    const next = page.getByRole('button', { name: /^Next$/ });
-    await next.click();                                                      // → your buying channel
+    await page.getByRole('button', { name: /See how it will be bought/ }).click();          // → your buying channel
     // Let the config queries resolve before the shot: the stage list proves the
     // template loaded; an approvals line in the checks proves the chain did.
     await page.getByRole('list', { name: 'Stages' }).waitFor({ timeout: 15000 })
@@ -123,7 +113,7 @@ async function fullScenario(page, { key, demand, enrichment, answers, toggleCrit
     await page.getByRole('list', { name: 'Checks' }).getByText(/approval/i).first().waitFor({ timeout: 10000 })
       .catch(() => log('  ⚠ the approvers did NOT resolve'));
     await new Promise((r) => setTimeout(r, 400));
-    await shot(page, `${key}-4-channel`);
+    await shot(page, `${key}-2-channel`);
     log(`  ✓ ${key} reached the Channel page`);
   } catch (e) {
     failures++;
@@ -145,27 +135,24 @@ try {
   attachErrorCapture(page, 'frontdoor');
 
   // ── FRONT DOOR ────────────────────────────────────────────────────────────
-  // Scenario A: catalogue fast-track (single-click order, no risk/determination).
-  log('\n▶ Front door — A: catalogue fast-track');
+  // Scenario A: a catalogue match — offered in the conversation, ordered on the
+  // Catalogue page. Stops at the basket: placing it would write an order.
+  log('\n▶ Front door — A: catalogue match');
   try {
-    await page.goto(`${BASE}/requests/new`, { waitUntil: 'networkidle' });
-    await page.getByRole('button', { name: /Browse the catalogue/ }).click();
-    await page.getByText('Browse Catalogues').waitFor({ timeout: 10000 });
-    await shot(page, 'A-1-catalogue-grid');
-    await page.getByRole('button', { name: /IT Equipment/ }).first().click();
-    await page.getByRole('button', { name: /^Add$/ }).first().click();
-    await shot(page, 'A-2-cart');
-    await page.getByRole('button', { name: /Place Order/ }).first().click();
-    await page.getByText('Request Submitted Successfully').waitFor({ timeout: 15000 });
-    await shot(page, 'A-3-confirmation');
-    log('  ✓ A placed a catalogue order in one click');
+    const conversation = await describe(page, 'printer paper and toner for the office');
+    const card = conversation.locator('[data-turn="card"]').filter({ hasText: 'This is in the catalogue' });
+    await card.waitFor({ timeout: 15000 });
+    await shot(page, 'A-1-catalogue-offer');
+    await card.getByRole('button', { name: /Order it/ }).first().click();
+    await page.locator('aside[aria-label="Your order"]').waitFor({ timeout: 10000 });
+    await shot(page, 'A-2-basket');
+    log('  ✓ A offered the catalogue item and put it in the basket');
   } catch (e) { failures++; log(`  ✗ A failed: ${e.message}`); await shot(page, 'A-ERROR'); }
 
   // Scenario B: full request — consulting "promptathon", mid value (VP-Level band),
   // no supplier → dynamic Risk + Vendor onboarding steps on the routing lifecycle.
   await fullScenario(page, {
     key: 'B-promptathon', demand: 'I need consultants for a promptathon',
-    enrichment: 'a 2-day facilitated promptathon to upskill ~40 staff on AI tooling',
     toggleCritical: false,
     answers: ['120000', 'run a 2-day promptathon to upskill 40 staff on AI tooling',
       'in: facilitation, materials and coaching; out: tooling licences',
@@ -178,7 +165,6 @@ try {
   // full approval-to-source gate, critical inherent risk.
   await fullScenario(page, {
     key: 'C-highvalue-critical', demand: 'managed security operations service for the EMEA region',
-    enrichment: '24x7 managed SOC covering EMEA, multi-year, supports a critical service',
     toggleCritical: true,
     answers: ['600000', 'stand up a 24x7 managed SOC for the EMEA region',
       'in: monitoring, triage and response; out: remediation tooling',
@@ -190,30 +176,20 @@ try {
   // Scenario D: full request — low value → Fast-Track band (single approver).
   await fullScenario(page, {
     key: 'D-lowvalue', demand: 'a short advisory workshop on procurement strategy',
-    enrichment: 'a one-day advisory workshop, single facilitator, no data access',
     toggleCritical: false,
     answers: ['6000', 'a one-day advisory workshop on procurement strategy',
       'in: one facilitated workshop; out: implementation', 'workshop materials and a short summary',
       'a single facilitator', 'one day next month', 'sign-off on the summary', 'fixed fee'],
   });
 
-  // Scenario E: the pre-check itself — what the contract check surfaces for a renewal.
-  log('\n▶ Front door — E: pre-check (renewal → contract check screen)');
+  // Scenario E: the checks themselves — what the catalogue and contract checks
+  // say for a renewal.
+  log('\n▶ Front door — E: the checks for a renewal');
   try {
-    await page.goto(`${BASE}/requests/new`, { waitUntil: 'networkidle' });
-    await page.locator('#need-input').fill('renew our existing vendor contract for another year');
-    await page.locator('#need-input').press('Enter');
-    await page.getByRole('button', { name: /Accept & continue/ }).click();
-    await page.getByText(/^(Catalogue check|Contract check)$/, { exact: true }).first()
-      .waitFor({ timeout: 15000 });
-    await shot(page, 'E-1-catalogue-check');
-    if (await page.getByText('Catalogue check', { exact: true }).count()) {
-      await page.locator('textarea').first().fill('annual renewal of an existing vendor engagement, EMEA');
-      await page.getByRole('button', { name: /Check for a covering contract/ }).click();
-      await page.getByText('Contract check', { exact: true }).waitFor({ timeout: 15000 }).catch(() => {});
-    }
-    await shot(page, 'E-2-contract-check');
-    log('  ✓ E captured the staged pre-check');
+    await describe(page, 'renew our existing vendor contract for another year');
+    await new Promise((r) => setTimeout(r, 800));
+    await shot(page, 'E-1-checks');
+    log('  ✓ E captured the catalogue and contract checks');
   } catch (e) { failures++; log(`  ✗ E failed: ${e.message}`); await shot(page, 'E-ERROR'); }
 
   // ── OTHER TABS (admin role) ─────────────────────────────────────────────────

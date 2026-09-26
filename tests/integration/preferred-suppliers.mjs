@@ -62,15 +62,21 @@ check('no list for the category → the heuristic still answers', () =>
 
 console.log('\nThe screens read configuration, and claim nothing unmeasured');
 const actions = read('src/features/requests/request-detail/components/action-buttons.tsx');
-const recommender = read('src/features/requests/new-request/components/supplier-recommender-card.tsx');
+// AI-005's ranking, which the conversation's supplier turn offers.
+const recommender = read('src/lib/procurement/supplier-suggestions.ts');
+const conversation = read('src/features/requests/new-request/conversation/intake-conversation.tsx');
 const categoriesPage = read('src/features/admin/categories-page.tsx');
 const dbBoundary = read('api/db.ts');
 check('creating a sourcing event invites through sourcingInvitees with the category list', () => {
   assert.ok(/sourcingInvitees\(\{[\s\S]*preferredIds: preferredSupplierIds/.test(actions));
 });
 check('the recommender has no hard-coded category → keyword map', () =>
-  assert.ok(!/CATEGORY_KEYWORDS/.test(recommender) && /supplierTags/.test(recommender)));
-check('the recommender prints no accuracy figure', () => assert.ok(!/accuracy \$\{/.test(recommender)));
+  assert.ok(!/CATEGORY_KEYWORDS/.test(recommender) && /\?\.supplierTags \?\? \[\]/.test(conversation)));
+check('the recommender prints no accuracy figure', () => assert.ok(!/accuracy \$\{/.test(recommender + conversation)));
+check('the suggestions are offered only while AI-005 is active', () =>
+  assert.ok(/useAiAgent\('AI-005'\)/.test(conversation) && /recommenderAgent\?\.status === 'active'/.test(conversation)));
+check('they are ranked with the category\u2019s own tags and preferred list', () =>
+  assert.ok(/rankSupplierSuggestions\(suppliers, \{\s*tags: categoryTags,\s*preferredIds: preferredSupplierIds/.test(conversation)));
 check('Categories maintains preferred suppliers and supplier tags', () =>
   assert.ok(/useSetCategoryPreferredSuppliers/.test(categoriesPage) && /cat-supplier-tags/.test(categoriesPage)));
 check('the preferred-supplier table is reachable through /api/db', () =>

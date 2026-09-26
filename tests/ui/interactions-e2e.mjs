@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Interaction E2E — exercises the highest-value write/interaction paths in a real
 // browser, then cleans up after itself:
-//   1. New-request wizard → submit → a request is created (then deleted).
+//   1. New request: the conversation → the Channel page → submit → a request is
+//      created (then deleted).
 //   2. Admin category create → persists & shows in the table (then deleted).
 //   3. AI assistant → send a message → a response renders (no hang).
 //
@@ -62,67 +63,65 @@ async function deleteRequest(reqId) {
 
 
 /**
- * The wizard cannot leave the describe step without the classification and
- * contract-match endpoints, and local Vite serves no serverless handlers — so
- * the flows that walk the funnel need a deployed base (`E2E_UI_BASE`). Report
- * that as unavailable rather than as a failure, the way `wizard-smoke` does;
- * a red suite that is red for the environment teaches nobody anything.
+ * The conversation cannot get past its checks without the contract-match and
+ * commodity endpoints, and local Vite serves no serverless handlers — so the
+ * flows that walk it need a deployed base (`E2E_UI_BASE`). Report that as
+ * unavailable rather than as a failure, the way `wizard-smoke` does; a red
+ * suite that is red for the environment teaches nobody anything.
  */
-async function reachBuyRoute(page, demand) {
-  await page.locator('#need-input').fill(demand);
-  await page.locator('#need-input').press('Enter');
-  await page.getByRole('button', { name: /Accept & continue/ }).click();
-  await Promise.race([
-    page.getByText("How you'll buy this", { exact: true }).waitFor({ timeout: 15000 }),
-    page.getByText('We could not check what already exists', { exact: true }).waitFor({ timeout: 15000 }),
-  ]).catch(() => {});
-  if (!(await page.getByText("How you'll buy this", { exact: true }).count())) return false;
-  await page.getByRole('button', { name: /^Start$/ }).last().click();
-  await page.getByPlaceholder(/Type your answer/).waitFor({ timeout: 15000 });
-  return true;
+async function reachNewRequest(page, demand) {
+  await page.locator('#intake-reply').waitFor({ timeout: 15000 });
+  await page.locator('#intake-reply').fill(demand);
+  await page.locator('#intake-reply').press('Enter');
+  const conversation = page.locator('section[aria-label="Conversation"]');
+  await conversation.getByRole('button', { name: 'Yes', exact: true }).first().click();
+  await conversation.getByText(/Checked the catalogue|could not reach the catalogue/).first().waitFor({ timeout: 20000 }).catch(() => {});
+  if (!(await conversation.getByText(/Checked the catalogue/).count())) return false;
+  // Nothing in the catalogue or on contract for this demand, so the
+  // conversation makes it a new request on its own.
+  return conversation.getByText('Then this is a new request.').waitFor({ timeout: 20000 }).then(() => true).catch(() => false);
 }
 
 /**
- * Answer the demand conversation until Next unlocks: the budget and the date
- * by what the question asks for, a yes/no risk question with No, anything else
- * with prose. Every full request is captured this way since the form path went
- * with the renewal category (2026-09-25). A cost centre is picked if Details
- * still names it as missing.
+ * Answer the conversation until the buying channel is confirmed: the budget
+ * and the date by what the question asks for, anything else with a real
+ * description; the supplier left to the market; a yes/no risk question with No;
+ * and a cost centre added on the right if the conversation says one is owed.
  */
 async function answerConversation(page, budget) {
-  const next = page.getByRole('button', { name: /^Next$/ });
-  for (let turn = 0; turn < 20; turn++) {
-    if (await next.isEnabled().catch(() => false)) break;
-    const no = page.getByRole('button', { name: /^No$/ });
-    if (await no.count()) { await no.last().click(); await page.waitForTimeout(900); continue; }
+  const conversation = page.locator('section[aria-label="Conversation"]');
+  const reply = page.locator('#intake-reply');
+  const confirmed = conversation.locator('[data-turn="card"]').filter({ hasText: 'Buying channel confirmed' });
+  for (let turn = 0; turn < 24; turn++) {
+    if (await confirmed.count()) return true;
+    const market = conversation.getByRole('button', { name: /No — go to market|Not decided yet/ });
+    if (await market.count() && await market.last().isEnabled()) { await market.last().click(); await page.waitForTimeout(900); continue; }
+    const no = conversation.getByRole('button', { name: 'No', exact: true });
+    if (await no.count() && await no.last().isEnabled()) { await no.last().click(); await page.waitForTimeout(900); continue; }
+    if (await conversation.getByText(/needs a cost centre/).count()) {
+      const panel = page.locator('aside[aria-label="Your request"]');
+      await panel.getByRole('button', { name: 'Edit Charged to' }).click();
+      const centre = panel.locator('[data-editing="costCentre"] select');
+      await centre.selectOption(await centre.evaluate((el) => [...el.options].map((o) => o.value).find(Boolean) ?? ''));
+      await panel.getByRole('button', { name: 'Done' }).click();
+      await page.waitForTimeout(900);
+      continue;
+    }
     // The input is disabled while the model is still replying. Wait for the
-    // reply — an enabled text box, or a yes/no question — rather than read the
-    // wait as the end of the conversation.
-    const ready = await page.waitForFunction(() => {
-      const box = document.querySelector('[placeholder^="Type your answer"]');
-      const yesNo = [...document.querySelectorAll('button')].some((b) => b.textContent.trim() === 'No');
-      return (box && !box.disabled) || yesNo;
-    }, null, { timeout: 30000 }).then(() => true).catch(() => false);
-    if (!ready) break;
-    if (await no.count()) continue;
-    const field = page.getByPlaceholder(/Type your answer/);
-    const text = await page.locator('main').innerText();
-    const q = text.slice(Math.max(0, text.lastIndexOf('?') - 160), text.lastIndexOf('?') + 1);
-    await field.fill(/budget/i.test(q) ? String(budget)
-      : /delivered or started by|need.*by/i.test(q) ? '2027-03-31'
+    // reply rather than read the wait as the end of the conversation.
+    if (await reply.isDisabled()) { await page.waitForTimeout(1200); continue; }
+    const q = await conversation.locator('[data-turn="assistant"]').last().innerText();
+    await reply.fill(/budget|cost|worth|spend/i.test(q) ? String(budget)
+      : /delivered or started by|need.*by|when/i.test(q) ? '2027-03-31'
       // A real description, not filler: the live model asks again until the
       // objective, scope, deliverables and resources are actually there.
       : 'Objective: replace spreadsheet reporting in finance. Scope: licences for 40 users, implementation and training. '
         + 'Deliverables: the configured platform, ten management dashboards and admin training. '
         + 'Resources: one vendor implementation consultant for six weeks. Done when month-end reporting runs on the platform.');
-    await field.press('Enter');
+    await reply.press('Enter');
     await page.waitForTimeout(1500);
   }
-  if (await page.getByText('Add a cost centre under Charged to.').count()) {
-    await page.getByText('Charged to', { exact: true }).locator('xpath=..').getByRole('button', { name: /Change/ }).click();
-    const centre = page.getByLabel('Cost centre', { exact: true });
-    await centre.selectOption(await centre.evaluate((el) => [...el.options].map((o) => o.value).find(Boolean) ?? ''));
-  }
+  return (await confirmed.count()) > 0;
 }
 
 const server = USE_DEPLOYED_APP ? null : spawn('npm', ['run', 'dev'], { stdio: 'ignore' });
@@ -140,7 +139,7 @@ try {
   }
 
   // ── Flow 1: wizard submit ───────────────────────────────────────────
-  console.log('Flow 1 — new-request wizard → submit');
+  console.log('Flow 1 — New request: the conversation → the Channel page → submit');
   let createdReqId = null;
   flow1: {
     const ctx = await browser.newContext();
@@ -149,20 +148,19 @@ try {
     page.on('pageerror', e => errors.push(e.message));
     await page.goto(`${BASE}/requests/new`, { waitUntil: 'networkidle' });
     // Free text is the only commodity entry — no category tiles (INT-10).
-    // Describe the need; the system derives the category. One screen then shows
-    // all three routes and the full-request escape is always startable — this
-    // used to be a two-stage funnel ("Contract check" → "Proceed to full
-    // request") across seven steps.
-    const reached = await reachBuyRoute(page, 'E2E submit test — an analytics software platform for the finance team');
+    // Describe the need; the system derives the category, checks the catalogue
+    // and the contracts, and — nothing covering it — makes it a new request.
+    const reached = await reachNewRequest(page, 'E2E submit test — an analytics software platform for the finance team');
     if (!reached) {
-      skip('wizard submit needs the serverless classification endpoints — set E2E_UI_BASE');
+      skip('submit needs the serverless contract-match endpoint — set E2E_UI_BASE');
       await ctx.close();
       break flow1;
     }
     // Submit requires a need-by date and a cost centre (submission-requirements.ts);
-    // the conversation asks for the date and Details names the cost centre.
-    await answerConversation(page, 60000);
-    await page.getByRole('button', { name: /Next/ }).click();          // → your buying channel
+    // the conversation asks for the date and names the cost centre before it
+    // confirms the channel.
+    check('the conversation confirms the buying channel', await answerConversation(page, 60000));
+    await page.getByRole('button', { name: /See how it will be bought/ }).click();          // → your buying channel
     const stages = page.getByRole('list', { name: 'Stages' });
     await stages.waitFor({ timeout: 15000 });
     check('the Channel page lists the stages before submit', (await stages.locator('li').count()) > 3);
@@ -299,15 +297,15 @@ try {
     check('admin simulation reflects the edited threshold (50k → full)', simFull > 0, `simFull=${simFull}`);
     await page.getByRole('button', { name: /^Save$/ }).click();
 
-    // 2. Drive a €50k demand through the wizard to the determination.
+    // 2. Drive a €50k demand through the conversation to the Channel page.
     await page.goto(`${BASE}/requests/new`, { waitUntil: 'networkidle' });
-    if (!(await reachBuyRoute(page, 'an analytics software platform for the finance team'))) {
-      skip('config-wiring check needs the serverless classification endpoints — set E2E_UI_BASE');
+    if (!(await reachNewRequest(page, 'an analytics software platform for the finance team'))) {
+      skip('config-wiring check needs the serverless contract-match endpoint — set E2E_UI_BASE');
       await ctx.close();
       break flow4;
     }
     await answerConversation(page, 50000);
-    await page.getByRole('button', { name: /Next/ }).click();   // → your buying channel
+    await page.getByRole('button', { name: /See how it will be bought/ }).click();   // → your buying channel
     // Approval to source is in the Channel page's workings, one click down.
     await page.getByRole('list', { name: 'Stages' }).waitFor({ timeout: 15000 });
     await page.getByText('How this was worked out').click();

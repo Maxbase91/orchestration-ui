@@ -1,9 +1,10 @@
 #!/usr/bin/env node
-// Browser smoke test for the new-request wizard.
+// Browser smoke test for New request — the conversation page, the Channel page
+// and the Catalogue page it hands off to (Intake Prototype, 2026-09-26).
 //
-// Boots the Vite dev server, drives the wizard in a headless browser, and
-// asserts the connector-backed pre-check step actually renders — the kind of
-// runtime/render failure that `tsc -b` and `npm run build` cannot catch.
+// Boots the Vite dev server, drives each route through the conversation in a
+// headless browser, and asserts what the requester sees and can do — the kind
+// of runtime/render failure that `tsc -b` and `npm run build` cannot catch.
 // Also fails on any uncaught page error or console error during the flow.
 //
 // Run: npm run test:ui   (no credentials — the database is stubbed)
@@ -124,9 +125,7 @@ try {
     if (/\/api\//.test(url) && /Failed to load resource/.test(m.text())) return;
     // Same cause, logged by the app's own catch rather than by the network
     // layer: the SOW composes from `/api/generate-sow`, which does not exist on
-    // a local Vite server. The chat falls back to a locally composed narrative.
-    // This surfaced here only because generation now fires when the DESCRIPTION
-    // is captured rather than when the whole conversation ends.
+    // a local Vite server. The conversation carries on without a narrative.
     if (/\[generate-sow\]/.test(m.text())) return;
     consoleErrors.push(m.text());
   });
@@ -137,91 +136,116 @@ try {
   await page.locator('#root *').first().waitFor({ timeout: 15000 });
   check('app shell mounts at /', (await page.locator('#root *').count()) > 0);
 
-  // 2. New-request wizard: free text is the ONLY commodity entry — there are no
-  //    category tiles (the fulfilment path is derived, not chosen). "Browse the
-  //    catalogue" is the one explicit alternative entry point.
+  // The conversation page, driven as a requester would: a message, then the
+  // buttons or the reply box, whichever the assistant is waiting on.
+  const conversation = page.locator('section[aria-label="Conversation"]');
+  const panel = page.locator('aside[aria-label="Your request"]');
+  const reply = page.locator('#intake-reply');
+  async function send(text) {
+    await reply.fill(text);
+    await reply.press('Enter');
+  }
+  async function describe(words) {
+    await page.goto(`${BASE}/requests/new`, { waitUntil: 'networkidle' });
+    await reply.waitFor({ timeout: 15000 });
+    await send(words);
+    await conversation.getByRole('button', { name: 'Yes', exact: true }).first().click();
+    await conversation.getByText(/Checked the catalogue|could not reach the catalogue/).first().waitFor({ timeout: 15000 });
+    if (await conversation.getByText(/could not reach the catalogue/).count()) {
+      throw new LocalServerlessUnavailable('Local Vite has no serverless API handlers; the catalogue and contract checks are unavailable.');
+    }
+  }
+  const lastQuestion = async () => conversation.locator('[data-turn="assistant"]').last().innerText();
+  /** Answer whatever is asked in the reply box until `done`, choosing the answer by the question. */
+  async function converse(done, answerFor, maxTurns = 20) {
+    for (let turn = 0; turn < maxTurns; turn++) {
+      if (await done()) return true;
+      if (await reply.isDisabled()) { await page.waitForTimeout(700); continue; }
+      await send(answerFor(await lastQuestion()));
+      await page.waitForTimeout(1000);
+    }
+    return done();
+  }
+  /** "N of M known", as the panel counts it. */
+  async function panelCount() {
+    const [, known, required] = (await panel.innerText()).match(/(\d+) of (\d+) known/) ?? [];
+    return { known: Number(known), required: Number(required) };
+  }
+  const confirmedCard = conversation.locator('[data-turn="card"]').filter({ hasText: 'Buying channel confirmed' });
+  const supplierCard = conversation.locator('[data-turn="card"]').filter({ hasText: /preferred supplier|Do you have a supplier in mind|Which supplier/i });
+
+  // 2. The page opens by asking — one open question, in the requester's own
+  //    words. There are no category tiles: the fulfilment path is derived from
+  //    what they say, never chosen up front.
   await page.goto(`${BASE}/requests/new`, { waitUntil: 'networkidle' });
-  // exact: the step-1 guidance panel opens with "Describe what you need in
-  // plain language…", so a loose match now resolves to two elements.
-  await page.getByText('Describe what you need', { exact: true }).waitFor({ timeout: 15000 });
-  check('wizard category step renders free-text entry', true);
-  check('unified intake labels the first step Describe', (await page.getByText('Describe', { exact: true }).count()) > 0);
-  check('unified intake offers PDF/DOCX upload', (await page.locator('#intake-upload').count()) > 0);
+  await reply.waitFor({ timeout: 15000 });
+  check('the page opens by asking what is needed, in the requester’s own words',
+    (await conversation.getByText(/What do you need\? Say it in your own words/).count()) === 1);
+  check('the header names the three phases',
+    /1 · What you need[\s\S]*2 · How it is bought[\s\S]*3 · What it needs/.test(await page.getByRole('list', { name: 'Progress' }).innerText()));
+  check('a PDF or Word brief can be attached as the description',
+    (await page.getByRole('button', { name: /Attach a document/ }).count()) === 1
+    && (await page.locator('input[type="file"][accept*="pdf"]').count()) === 1);
+  check('the cursor is already in the reply box', await page.evaluate(() => document.activeElement?.id === 'intake-reply'));
+  check('Your request waits for the checks before naming a channel',
+    /Deciding — the catalogue and contracts are checked first/.test(await panel.innerText()));
 
   // 2b. The floating AI assistant button is `fixed bottom-6 right-6`, mounted
   //     globally over every page. Content that scrolls to the bottom of a
-  //     wide/tall step (e.g. this wizard's own Back/Next footer) must never
-  //     end up underneath it — see app-layout.tsx / supplier-portal-layout.tsx.
-  //     Assert the invariant generically from the FAB's own rendered geometry
-  //     (not a hardcoded pixel count), so this can't silently rot if the FAB's
-  //     size ever changes.
+  //     page must never end up underneath it — see app-layout.tsx /
+  //     supplier-portal-layout.tsx. Asserted from the FAB's own rendered
+  //     geometry, so this can't silently rot if its size ever changes. The
+  //     conversation page scrolls inside its own columns, so they must end
+  //     above it too.
   const fabClearance = await page.evaluate(() => {
     const main = document.querySelector('main');
     const fab = Array.from(document.querySelectorAll('button')).find((b) => {
       const r = b.getBoundingClientRect();
       return getComputedStyle(b).position === 'fixed' && r.width > 40 && r.width < 80;
     });
-    if (!main || !fab) return null;
+    const columns = document.querySelector('section[aria-label="Conversation"]')?.parentElement;
+    if (!main || !fab || !columns) return null;
     const fabRect = fab.getBoundingClientRect();
-    const viewportBottom = window.innerHeight;
-    // Height of the FAB's fixed exclusion zone, measured from the bottom of
-    // the viewport (its own height plus its offset from the bottom edge).
-    const exclusionZone = viewportBottom - fabRect.top;
-    const paddingBottom = parseFloat(getComputedStyle(main).paddingBottom);
-    return { exclusionZone, paddingBottom };
+    return {
+      exclusionZone: window.innerHeight - fabRect.top,
+      paddingBottom: parseFloat(getComputedStyle(main).paddingBottom),
+      columnsBottom: columns.getBoundingClientRect().bottom,
+      fabTop: fabRect.top,
+    };
   });
   check('scrollable content reserves enough bottom clearance to never sit under the AI assistant button',
-    fabClearance !== null && fabClearance.paddingBottom >= fabClearance.exclusionZone,
-    fabClearance ? `exclusion zone ${fabClearance.exclusionZone}px, main padding-bottom ${fabClearance.paddingBottom}px` : 'FAB or <main> not found');
-
+    fabClearance !== null && fabClearance.paddingBottom >= fabClearance.exclusionZone && fabClearance.columnsBottom <= fabClearance.fabTop,
+    fabClearance ? JSON.stringify(fabClearance) : 'FAB, <main> or the columns not found');
   check('NO commodity-category tiles (Goods/Contingent Labour are not a choice)',
     (await page.getByText('Goods', { exact: true }).count()) === 0
     && (await page.getByText('Contingent Labour', { exact: true }).count()) === 0);
-  check('catalogue is the one explicit alternative entry point',
-    (await page.getByRole('button', { name: /Browse the catalogue/ }).count()) > 0);
 
-  // 3. Describe a need in free text → the system derives the category and shows
-  //    all three ways to buy it at once, recommendation first. The two-stage
-  //    funnel this replaced hid whichever route it had not reached yet, so a
-  //    wrong catalogue match hid the contract check behind a green button
-  //    pointing the other way.
-  await page.locator('#need-input').fill('a few standard office laptops for a new starter');
-  await page.locator('#need-input').press('Enter');
-  await page.getByRole('button', { name: /Accept & continue/ }).click();
-  await Promise.race([
-    page.getByText("How you'll buy this", { exact: true }).waitFor({ timeout: 15000 }),
-    page.getByText('We could not check what already exists', { exact: true }).waitFor({ timeout: 15000 }),
-  ]);
-  if (await page.getByText('We could not check what already exists', { exact: true }).count()) {
-    throw new LocalServerlessUnavailable('Local Vite has no serverless API handlers; the buy-route check is unavailable.');
-  }
-  check('free-text classification routes into the buy-route screen', true);
-  // Regression: a plain product word ("laptops") must surface catalogue items,
-  // even though the seed laptop is named by model ("ThinkPad T14 Gen 5").
+  // 3. THE CATALOGUE. A plain product word ("laptops") must surface the item,
+  //    even though the seed laptop is named by model ("ThinkPad T14 Gen 5").
+  await describe('a few standard office laptops for a new starter');
+  check('the words are read back as a category and a code, to confirm',
+    (await conversation.getByText(/That sounds like goods — 43211500 Laptop computers\. Is that right\?/).count()) === 1);
+  const catalogueCard = conversation.locator('[data-turn="card"]').filter({ hasText: 'This is in the catalogue' });
+  await catalogueCard.waitFor({ timeout: 15000 });
   check('catalogue items surface for a plain product word (laptops)',
-    (await page.getByRole('button', { name: /Order this/ }).count()) > 0);
-  // All three routes are visible together, so the requester can compare rather
-  // than being walked through a funnel one gate at a time.
-  check('every way to buy is on the screen at once',
-    (await page.getByText('Order it from the catalogue').count()) > 0
-    && (await page.getByText('Call it off an existing contract').count()) > 0
-    && (await page.getByText('Raise a full request').count()) > 0);
-  check('the recommendation is marked, not just ordered first',
-    (await page.getByText('Recommended', { exact: true }).count()) > 0);
-  // The route must stay explainable — but as an audit trail a buyer opens, not
-  // as annotations a requester has to read past.
-  check('the matched words are evidence behind a disclosure, not on the surface',
-    (await page.getByText(/matched on/).count()) === 0
-    && (await page.getByRole('button', { name: /Why this\?/ }).count()) > 0);
-  await page.getByRole('button', { name: /Why this\?/ }).click();
-  check('the evidence names the words that matched and the rule that decided it',
-    (await page.getByText(/matched on/).count()) > 0
-    && (await page.getByText(/routing rule|default fallback/).count()) > 0);
-  // Ordering the suggested item puts THAT item in the basket on the Catalogue
-  // page — where every catalogue order is placed (ADR-0009) — rather than
-  // dropping the requester at the catalogue root to find it again. Once: the
-  // add used to run twice and order two.
-  await page.getByRole('button', { name: /Order this/ }).first().click();
+    (await catalogueCard.getByRole('button', { name: /Order it/ }).count()) > 0);
+  // A suggestion the requester can check is one they can reject.
+  check('each item says which words it matched on', /matched on “/.test(await catalogueCard.innerText()), await catalogueCard.innerText());
+  check('both checks are reported before anything is offered',
+    /Checked the catalogue — one item matches\.[\s\S]*Checked contracts — IT Equipment Framework covers this\./.test(await conversation.innerText()));
+  // A contract that covers it too is a real alternative, offered on the card
+  // rather than found by describing it again.
+  check('a contract that also covers it is offered beside the catalogue',
+    (await catalogueCard.getByRole('button', { name: 'Call off IT Equipment Framework instead' }).count()) === 1);
+  {
+    const { known, required } = await panelCount();
+    check('a catalogue match reads complete — the rest is asked where the order is placed', known > 0 && known === required, `${known} of ${required}`);
+  }
+  // Ordering the item puts THAT item in the basket on the Catalogue page —
+  // where every catalogue order is placed (ADR-0009) — rather than dropping
+  // the requester at the catalogue root to find it again. Once: the add used
+  // to run twice and order two.
+  await catalogueCard.getByRole('button', { name: /Order it/ }).first().click();
   await page.waitForURL((url) => url.pathname === '/catalogue', { timeout: 10000 });
   const order = page.locator('aside[aria-label="Your order"]');
   await order.getByText('ThinkPad T14 Gen 5').waitFor({ timeout: 10000 });
@@ -229,40 +253,60 @@ try {
     (await order.innerText()).includes('ThinkPad T14 Gen 5'));
   check('…once', (await page.getByRole('button', { name: /Add another ThinkPad T14 Gen 5 \(1 in your order\)/ }).count()) === 1);
 
-  // 3a. THE DIRECT CALL-OFF LIMIT. Above it a call-off needs a mini-competition,
-  //     and the checkout refuses it — so the form says so beside the value and
-  //     holds the way on, rather than the refusal arriving after submit.
-  await page.goto(`${BASE}/requests/new`, { waitUntil: 'networkidle' });
-  await page.locator('#need-input').fill('a few standard office laptops for a new starter');
-  await page.locator('#need-input').press('Enter');
-  await page.getByRole('button', { name: /Accept & continue/ }).click();
-  await page.getByText("How you'll buy this", { exact: true }).waitFor({ timeout: 15000 });
-  const callOff = page.getByRole('button', { name: /Call it off/ }).first();
-  check('the covering contract can be called off', (await callOff.count()) > 0);
-  await callOff.click();
-  await page.locator('#calloff-value').waitFor({ timeout: 10000 });
-  await page.locator('#calloff-value').fill('300000');
-  check('a call-off above the limit is named as needing a mini-competition',
-    (await page.getByRole('alert').filter({ hasText: /direct call-off limit/ }).count()) > 0);
-  check('…and the way on is held',
-    !(await page.getByRole('button', { name: 'See how it will be bought' }).isEnabled()));
-  await page.locator('#calloff-value').fill('20000');
-  check('under the limit the warning goes',
-    (await page.getByRole('alert').filter({ hasText: /direct call-off limit/ }).count()) === 0);
-  // The rest of the details, then on to the Channel page — the call-off no
-  // longer submits from this form.
-  await page.locator('#calloff-title').fill('Laptops for the new starter');
-  await page.locator('#calloff-recipient').fill('The new starter');
-  await page.locator('#calloff-purpose').fill('Equipment for the first week');
-  await page.locator('#calloff-need-by').fill('2026-12-01');
-  for (const id of ['#calloff-location', '#calloff-cost-centre']) {
-    const select = page.locator(id);
-    if (!(await select.inputValue())) await select.selectOption(await select.evaluate((el) => [...el.options].map((o) => o.value).find(Boolean) ?? ''));
+  // 3a. A CALL-OFF, and THE DIRECT CALL-OFF LIMIT. Above it a call-off needs a
+  //     mini-competition, and the checkout refuses it — so the conversation
+  //     says so at the value, and offers the way out, rather than the refusal
+  //     arriving after submit.
+  await describe('a few standard office laptops for a new starter');
+  await catalogueCard.waitFor({ timeout: 15000 });
+  await catalogueCard.getByRole('button', { name: /Keep describing/ }).click();
+  // The old "Add detail" button was dead: it set a flag that was already set.
+  // Whenever a typed answer is wanted, the cursor is in the box.
+  await page.waitForTimeout(300);
+  check('asking for more puts the cursor in the reply box', await page.evaluate(() => document.activeElement?.id === 'intake-reply'));
+  check('the catalogue offer stays in the history, answered',
+    (await catalogueCard.count()) === 1 && !(await catalogueCard.getByRole('button', { name: /Keep describing/ }).isEnabled()));
+  await send('Lenovo laptops through the IT equipment framework');
+  const contractCard = conversation.locator('[data-turn="card"]').filter({ hasText: 'IT Equipment Framework covers this.' });
+  await contractCard.waitFor({ timeout: 15000 });
+  check('with the catalogue declined, the re-check reports only the contract',
+    /With that detail: checked contracts — IT Equipment Framework covers this\./.test(await conversation.innerText())
+    && !/With that detail: checked the catalogue/.test(await conversation.innerText()));
+  check('the contract card shows what is left under the ceiling and the direct limit',
+    /ceiling left/.test(await contractCard.innerText()) && /a direct call-off up to €250,000/.test(await contractCard.innerText()));
+  await contractCard.getByRole('button', { name: 'Call it off', exact: true }).click();
+  await conversation.getByText(/I've filled what I could/).waitFor({ timeout: 10000 });
+  check('the call-off says what it filled from the words and the profile, and how much is left',
+    /things? left\./.test(await conversation.getByText(/I've filled what I could/).innerText()));
+  check('its details build on the right', (await panel.getByText('The call-off', { exact: true }).count()) === 1);
+  let sawLimit = false;
+  let sawLimitWayOut = false;
+  const callOffDone = await converse(async () => {
+    if (await confirmedCard.count()) return true;
+    // A choice between configured rows is answered with its buttons.
+    const question = conversation.locator('[data-turn="assistant"]').last().locator('xpath=..');
+    const choice = question.getByRole('button').filter({ hasNotText: /Not known yet|Raise a new request/ });
+    if (await reply.isDisabled() && await choice.count()) { await choice.first().click(); await page.waitForTimeout(400); }
+    return (await confirmedCard.count()) > 0;
+  }, (question) => {
+    if (/worth/.test(question) && !sawLimit) { sawLimit = true; return '300000'; }
+    if (/above the €250,000 direct call-off limit/.test(question)) return '20000';
+    if (/worth/.test(question)) return '20000';
+    if (/need it by|work start/.test(question)) return '2026-12-01';
+    if (/work end/.test(question)) return 'not known yet';
+    if (/Who is it for/.test(question)) return 'The new starter';
+    if (/What is it for/.test(question)) return 'Equipment for the first week';
+    return 'Laptops for the new starter';
+  });
+  sawLimitWayOut = (await conversation.getByText(/above the €250,000 direct call-off limit, so it needs a mini-competition/).count()) > 0;
+  check('a call-off above the limit is named as needing a mini-competition, at the value', sawLimitWayOut);
+  check('…and under the limit it moves on', callOffDone && (await conversation.getByRole('button', { name: 'Raise a new request instead' }).count()) === 0);
+  check('with everything asked, the buying channel is confirmed', callOffDone);
+  {
+    const { known, required } = await panelCount();
+    check('the panel reaches M of M exactly when the channel is confirmed', known === required, `${known} of ${required}`);
   }
-  const onward = page.getByRole('button', { name: 'See how it will be bought' });
-  check('with the details complete, the call-off can go on to its Channel page',
-    await onward.isEnabled(), await page.getByText(/^Still needed:/).innerText().catch(() => ''));
-  await onward.click();
+  await confirmedCard.getByRole('button', { name: /See how it will be bought/ }).click();
   const offPane = page.locator('section[aria-label="How it will be bought"]');
   await offPane.getByRole('list', { name: 'Stages' }).waitFor({ timeout: 15000 }).catch(async (error) => {
     console.error((await page.locator('main').innerText()).slice(0, 600));
@@ -271,6 +315,9 @@ try {
   });
   await page.waitForTimeout(600);
   await shot('channel-call-off');
+  check('the Channel page is headed as the artboard draws it, with the way back',
+    (await page.getByRole('heading', { name: 'Your buying channel', exact: true }).count()) === 1
+    && (await page.getByRole('button', { name: /Back to the conversation/ }).count()) > 0);
   check('a call-off gets a Channel page too, in its template\'s words',
     (await offPane.getByRole('heading', { name: 'Call it off an existing contract' }).count()) === 1);
   const offStages = await offPane.getByRole('list', { name: 'Stages' }).locator('li').evaluateAll((items) => items.map((li) => `${li.dataset.stage}:${li.dataset.applicability}`));
@@ -280,7 +327,15 @@ try {
   const offChecks = await page.locator('aside[aria-label="What you are submitting"]').getByRole('list', { name: 'Checks' }).innerText();
   check('the call-off\'s checks come from its governed decision',
     /The contract can be called off/.test(offChecks) && /Within the direct call-off limit/.test(offChecks), offChecks);
+  // Back keeps the conversation as it was left — its transcript is state no
+  // form field could rebuild.
+  await page.getByRole('button', { name: /Back to the conversation/ }).first().click();
+  await confirmedCard.waitFor({ timeout: 5000 });
+  check('back on the conversation, nothing has been lost',
+    (await confirmedCard.count()) === 1 && (await conversation.getByText('Equipment for the first week').count()) > 0);
+  await confirmedCard.getByRole('button', { name: /See how it will be bought/ }).click();
   const submitCallOff = page.getByRole('button', { name: /Submit the call-off/ });
+  await submitCallOff.waitFor({ timeout: 10000 });
   if (await submitCallOff.isEnabled()) {
     await submitCallOff.click();
     await page.getByRole('heading', { name: 'Request submitted', exact: true }).waitFor({ timeout: 15000 });
@@ -296,145 +351,90 @@ try {
   //     item "Business Cards 500" — the word "business" hit the item name and
   //     carried the whole match, while "consulting" matched nothing and cost
   //     nothing. A consulting demand must never be offered a catalogue item.
-  await page.goto(`${BASE}/requests/new`, { waitUntil: 'networkidle' });
-  await page.locator('#need-input').fill('I want to buy business consulting');
-  await page.locator('#need-input').press('Enter');
-  await page.getByRole('button', { name: /Accept & continue/ }).click();
-  await page.getByText("How you'll buy this", { exact: true }).waitFor({ timeout: 15000 });
-  check('a consulting demand is not offered the catalogue', true);
-  check('NO catalogue order CTA for a consulting demand',
-    (await page.getByRole('button', { name: /Order this/ }).count()) === 0);
+  await describe('I want to buy business consulting');
+  await conversation.getByText('Then this is a new request.').waitFor({ timeout: 15000 });
+  check('NO catalogue order for a consulting demand',
+    (await conversation.getByRole('button', { name: /Order it/ }).count()) === 0);
   check('"Business Cards" is never offered for a consulting demand',
     (await page.getByText(/Business Cards/).count()) === 0);
-  // A ruled-out route states its reason on the option itself rather than
-  // disappearing — silence is as unhelpful as a wrong suggestion.
-  check('the ruled-out catalogue says why, in place',
-    (await page.getByText(/isn.t fulfilled from the catalogue|No catalogue item covers/).count()) > 0);
-  check('the full-request route is always startable',
-    (await page.getByRole('button', { name: /^Start$/ }).count()) > 0);
+  // A ruled-out route states its reason rather than disappearing — silence is
+  // as unhelpful as a wrong suggestion.
+  check('the ruled-out catalogue says why',
+    (await conversation.getByText(/isn.t fulfilled from the catalogue|No catalogue item covers/).count()) > 0);
+  check('with nothing covering it, it becomes a new request without a button to press',
+    (await conversation.getByRole('button', { name: /raise a new request/i }).count()) === 0);
 
-  // 3c. "Add detail" has to *act*. Both ruled-out routes offer it, but the
-  //     handler only set the flag that reveals the enrichment box — and that box
-  //     already renders whenever nothing matched, which is exactly when the
-  //     buttons appear. So the press was a no-op the requester could see: the
-  //     screen did not move. Focus landing in the box is the observable proof.
-  const addDetail = page.getByRole('button', { name: /^Add detail$/ });
-  check('a ruled-out route offers a way to add detail', (await addDetail.count()) > 0);
-  await addDetail.first().click();
-  await page.waitForTimeout(600);
-  check('pressing "Add detail" puts the cursor in the detail box',
-    (await page.evaluate(() => document.activeElement?.tagName ?? 'NONE')) === 'TEXTAREA');
-
-  // 3e. THE CHAT PATH. The risk questions used to be a card of switches BELOW
-  //     the conversation, and supplier selection was on screen from the moment
-  //     the step opened — everything visible at once, before the requester had
-  //     answered anything. They are now the tail of the conversation itself,
-  //     asked as yes/no with the text input disabled, and supplier appears only
-  //     once the conversation is done.
-  await page.goto(`${BASE}/requests/new`, { waitUntil: 'networkidle' });
-  await page.locator('#need-input').fill('IT strategy consulting to design a target operating model');
-  await page.locator('#need-input').press('Enter');
-  await page.getByRole('button', { name: /Accept & continue/ }).click();
-  await page.getByText("How you'll buy this", { exact: true }).waitFor({ timeout: 15000 });
-  await page.getByRole('button', { name: /^Start$/ }).last().click();
-  await page.getByPlaceholder(/Type your answer/).waitFor({ timeout: 15000 });
-  check('the chat path opens on the conversation alone',
-    (await page.getByText('Mini risk questionnaire').count()) === 0
-    && (await page.getByText('Selected supplier').count()) === 0);
-
-  // One answer that satisfies whichever slot is asked: prose, a value, a date.
+  // 3e. A NEW REQUEST. The description first; then the supplier, because it
+  //     decides the risk questions; then those, as yes/no; then whatever
+  //     submit would still refuse. Nothing is on screen before it is asked.
+  await describe('IT strategy consulting to design a target operating model');
+  await conversation.getByText('Then this is a new request.').waitFor({ timeout: 15000 });
+  check('the new request opens on the service description alone',
+    (await supplierCard.count()) === 0 && (await conversation.getByRole('button', { name: 'No', exact: true }).count()) === 0);
   const chatAnswer = 'Target operating model design for the IT function, budget 250000 EUR, '
     + 'needed by 2027-01-15, covering assessment, target design, a roadmap, '
     + 'accepted at steering-group sign-off, fixed price, depends on finance availability.';
-  let reachedChoice = false;
-  for (let turn = 0; turn < 16; turn++) {
-    if (await page.getByRole('button', { name: /^Yes$/ }).count()) { reachedChoice = true; break; }
-    const field = page.getByPlaceholder(/Type your answer|Choose Yes or No/);
-    if (await field.isDisabled().catch(() => true)) { reachedChoice = true; break; }
-    await field.fill(chatAnswer);
-    await field.press('Enter');
-    await page.waitForTimeout(1200);
-  }
-  check('the conversation reaches its risk questions', reachedChoice);
-  check('a risk question is asked as a choice, not a text box',
-    (await page.getByRole('button', { name: /^Yes$/ }).count()) > 0
-    && (await page.getByRole('button', { name: /^No$/ }).count()) > 0);
-  // The guarantee: there is no free-text path into a governance answer, so a
-  // model cannot fill one by extracting it from the requester's prose.
-  check('the text input is disabled while a choice is pending',
-    (await page.getByPlaceholder(/Choose Yes or No/).count()) > 0);
-  check('the question still carries its rationale',
-    (await page.getByText(/Asked because/).count()) > 0);
-  check('Next is blocked while a triggered risk question is unanswered',
-    !(await page.getByRole('button', { name: /^Next$/ }).isEnabled().catch(() => true)));
-  check('supplier selection is still not on screen', (await page.getByText('Selected supplier').count()) === 0);
-
-  // Answer every risk question, then the last section appears.
-  for (let turn = 0; turn < 6; turn++) {
-    if (await page.getByRole('button', { name: /^Next$/ }).isEnabled().catch(() => false)) break;
-    const no = page.getByRole('button', { name: /^No$/ });
-    if (!(await no.count())) break;
-    await no.last().click();
-    await page.waitForTimeout(1200);
-  }
-  check('supplier selection appears once the conversation is finished',
-    (await page.getByText('Selected supplier').count()) > 0);
-  // Intake could name exactly one supplier, and "go out to market" was only
-  // expressible by leaving the field blank — which reads as an omission.
-  // The ranked list only renders when the recommender agent is active and the
-  // fixture has suppliers in the category — so assert the CONTRACT (both
-  // actions offered together) rather than that a list happens to be there.
-  const preferCount = await page.getByRole('button', { name: /^Prefer$/ }).count();
-  const inviteCount = await page.getByRole('button', { name: /Also invite/ }).count();
-  check('a recommended supplier can be preferred, and others invited alongside',
-    preferCount === inviteCount, `prefer=${preferCount} invite=${inviteCount}`);
-  check('having no supplier in mind is an explicit choice',
-    (await page.getByRole('button', { name: /I have none in mind/ }).count()) > 0);
-  // A supplier outside the category's preferred list (consulting lists only
-  // Advisory Partner A) is allowed, but owes a reason — asked here, where the
-  // choice is made, and named in the footer until it is given.
+  const answerFor = (question) => (/budget/i.test(question) ? '250000'
+    : /delivered or started by|need.*by/i.test(question) ? '2027-01-15'
+      : chatAnswer);
+  await converse(async () => (await supplierCard.count()) > 0, answerFor);
+  check('the supplier is asked once the description is captured, before any risk question',
+    (await supplierCard.count()) === 1 && (await conversation.getByText(/privileged or system access/).count()) === 0);
+  check('the category’s preferred supplier is named, and invited on a sourcing channel',
+    /Consulting has one preferred supplier — Advisory Partner A\. It is invited when sourcing starts\./.test(await supplierCard.innerText()));
+  check('going to market is an explicit choice', (await supplierCard.getByRole('button', { name: 'No — go to market' }).count()) === 1);
+  check('a supplier off the list is said to need a reason, up front',
+    /A supplier that isn.t preferred for this category needs a reason/.test(await supplierCard.innerText()));
+  await supplierCard.getByRole('button', { name: 'Yes, add a supplier' }).click();
   await page.getByRole('combobox').filter({ hasText: /Search supplier directory/ }).click();
   await page.getByPlaceholder('Type supplier name...').fill('Lenovo');
   await page.getByRole('option', { name: /Lenovo/ }).click();
-  await page.locator('#supplier-override-reason').waitFor({ timeout: 5000 }).catch(() => {});
-  check('a non-preferred supplier asks why',
-    (await page.getByText('Not on the preferred list for this category — why this supplier?').count()) > 0);
-  check('…says a category manager will approve it',
-    (await page.getByText(/A category manager approves this choice/).count()) > 0);
-  check('…and the footer names the reason as still needed',
-    (await page.getByText(/Add why this supplier rather than a preferred one under Supplier/).count()) > 0);
-  await page.locator('#supplier-override-reason').fill('Only supplier with the certification this work needs');
-  await page.waitForTimeout(300);
-  check('giving the reason clears it from the footer',
-    (await page.getByText(/why this supplier rather than a preferred one/).count()) === 0);
-  await page.getByRole('button', { name: /I have none in mind/ }).click();
-  await page.waitForTimeout(600);
-  check('choosing it says so, and is reversible',
-    (await page.getByText(/No supplier in mind — sourcing will identify candidates/).count()) > 0
-    && (await page.getByRole('button', { name: /I do have one/ }).count()) > 0);
+  await conversation.getByText(/Why this supplier\?/).waitFor({ timeout: 5000 });
+  check('a supplier off the category’s list is asked why, and the category manager approves it',
+    (await conversation.getByText(/Lenovo isn't preferred for this category, so the choice needs a reason — and the category manager approves it\./).count()) === 1);
+  check('the reply box is waiting for the reason', (await reply.getAttribute('placeholder')) === 'Why this supplier?' && await reply.isEnabled());
+  check('the panel names the reason as owed',
+    /Not yet given/.test(await panel.locator('[data-row="supplierOverrideReason"]').innerText()));
+  await send('Only supplier with the certification this work needs');
+  await conversation.getByText('Anyone else you would like invited?').waitFor({ timeout: 5000 });
+  check('the reason lands on the request',
+    /Only supplier with the certification/.test(await panel.locator('[data-row="supplierOverrideReason"]').innerText()));
+  check('on a sourcing channel, anyone else can be invited', (await conversation.getByRole('button', { name: "No, that's all" }).count()) === 1);
+  await conversation.getByRole('button', { name: "No, that's all" }).click();
+  await conversation.getByRole('button', { name: 'No', exact: true }).first().waitFor({ timeout: 10000 });
+  check('a risk question is asked as a choice, not a text box',
+    (await conversation.getByRole('button', { name: 'Yes', exact: true }).count()) > 0);
+  // The guarantee: there is no free-text path into a governance answer, so a
+  // model cannot fill one by extracting it from the requester's prose.
+  check('the text input is disabled while a choice is pending',
+    await reply.isDisabled() && (await reply.getAttribute('placeholder')) === 'Answer with the buttons above.');
+  check('the question still carries its rationale', (await conversation.getByText(/^Asked because /).count()) > 0);
+  check('no channel is confirmed while a triggered risk question is unanswered', (await confirmedCard.count()) === 0);
+  for (let turn = 0; turn < 6; turn++) {
+    const no = conversation.getByRole('button', { name: 'No', exact: true });
+    if (!(await no.count()) || !(await no.last().isEnabled())) break;
+    await no.last().click();
+    await page.waitForTimeout(900);
+  }
   // Submit requires a cost centre (submission-requirements.ts), and this user
-  // has none on their profile. Details used to let them through and the server
-  // refused on the final click; now Details holds Next and says where to add it.
-  check('with every question answered, Next still waits for a cost centre',
-    !(await page.getByRole('button', { name: /^Next$/ }).isEnabled().catch(() => true)));
-  check('…and the footer says where to add it',
-    (await page.getByText(/Add a cost centre under Charged to/).count()) > 0);
+  // has none on their profile. The conversation says so before it confirms
+  // anything, and says where it goes.
+  await conversation.getByText(/Before the channel can be confirmed/).waitFor({ timeout: 10000 });
+  check('with every question answered, it still waits for a cost centre, and says where to add it',
+    (await conversation.getByText('Before the channel can be confirmed, the request needs a cost centre — add it on the right.').count()) === 1
+    && (await confirmedCard.count()) === 0);
   check('Charged to says it is needed, not that it can wait',
-    (await page.getByText('Not set yet — needed before you submit').count()) > 0);
-  await page.getByText('Charged to', { exact: true }).locator('xpath=..').getByRole('button', { name: /Change/ }).click();
-  const centre = page.getByLabel('Cost centre', { exact: true });
-  const firstCentre = await centre.evaluate((el) => [...el.options].map((o) => o.value).find(Boolean) ?? '');
-  await centre.selectOption(firstCentre);
-  await page.waitForTimeout(400);
-  // The conversation gave up on the need-by date inside that long answer. It
-  // used to be read-only in Key facts, so a skipped date could never be added
-  // and the request could never be submitted.
-  check('a skipped need-by date is named, with where to add it',
-    (await page.getByText('Add a need-by date under Key facts.').count()) > 0);
-  await page.locator('#key-facts-need-by').fill('2027-01-15');
-  await page.waitForTimeout(400);
-  check('Next opens once every risk question is answered and a cost centre and date are given',
-    await page.getByRole('button', { name: /^Next$/ }).isEnabled().catch(() => false));
+    /Needed before you submit/.test(await panel.locator('[data-row="costCentre"]').getAttribute('title')));
+  await panel.getByRole('button', { name: 'Edit Charged to' }).click();
+  const centre = panel.locator('[data-editing="costCentre"] select');
+  await centre.selectOption(await centre.evaluate((el) => [...el.options].map((o) => o.value).find(Boolean) ?? ''));
+  await panel.getByRole('button', { name: 'Done' }).click();
+  await confirmedCard.waitFor({ timeout: 10000 }).catch(() => {});
+  check('the edit lands, and the channel is confirmed', (await confirmedCard.count()) === 1);
+  {
+    const { known, required } = await panelCount();
+    check('…as the panel reaches M of M', known === required, `${known} of ${required}`);
+  }
 
   // 3f. BUDGET "NOT KNOWN" — THE REPORTED DEFECT. Budget used to be slot #2,
   //     asked immediately after the title, and a requester who did not yet
@@ -443,112 +443,60 @@ try {
   //     forever. Budget (and the delivery date) are now asked LAST, and
   //     answering "not known" is accepted after one retry instead of looped
   //     on.
-  await page.goto(`${BASE}/requests/new`, { waitUntil: 'networkidle' });
-  await page.locator('#need-input').fill('a market-research study for APAC expansion');
-  await page.locator('#need-input').press('Enter');
-  await page.getByRole('button', { name: /Accept & continue/ }).click();
-  await page.getByText("How you'll buy this", { exact: true }).waitFor({ timeout: 15000 });
-  await page.getByRole('button', { name: /^Start$/ }).last().click();
-  await page.getByPlaceholder(/Type your answer/).waitFor({ timeout: 15000 });
-
-  // Answer the opening invitation first, deliberately WITHOUT a figure in it,
-  // and confirm the very next question is not the budget — pinning down the
-  // reorder itself, not just that budget shows up somewhere within N turns.
+  await describe('a market-research study for APAC expansion');
+  await conversation.getByText('Then this is a new request.').waitFor({ timeout: 15000 });
   const fillerAnswer = 'A detailed answer covering everything this question needs for the request.';
-  await page.getByPlaceholder(/Type your answer/).fill(fillerAnswer);
-  await page.getByPlaceholder(/Type your answer/).press('Enter');
-  await page.waitForTimeout(1200);
   check('budget is NOT the first substantive question (it used to be slot #2, right after the title)',
-    (await page.getByText(/estimated budget/i).count()) === 0);
-
-  let sawBudgetQuestion = false;
-  for (let turn = 0; turn < 8 && !sawBudgetQuestion; turn++) {
-    if (await page.getByText(/estimated budget/i).count()) { sawBudgetQuestion = true; break; }
-    const field = page.getByPlaceholder(/Type your answer/);
-    if (await field.isDisabled().catch(() => true)) break;
-    await field.fill(fillerAnswer);
-    await field.press('Enter');
-    await page.waitForTimeout(1200);
-  }
-  check('budget is still asked eventually, once the description is captured',
-    sawBudgetQuestion);
-
-  const budgetField = page.getByPlaceholder(/Type your answer/);
-  await budgetField.fill('not known yet');
-  await budgetField.press('Enter');
+    !/estimated budget/i.test(await lastQuestion()));
+  const sawBudgetQuestion = await converse(async () => /estimated budget/i.test(await lastQuestion()), () => fillerAnswer, 8);
+  check('budget is still asked eventually, once the description is captured', sawBudgetQuestion);
+  await send('not known yet');
   await page.waitForTimeout(1200);
   // "approximate figure" only — NOT "not known yet", which is also the text of
-  // the user's own message bubble still on screen and would match regardless
-  // of whether the assistant actually replied with a retry hint.
+  // the user's own message bubble still on screen.
   check('a vague first budget answer gets a retry hint, not silence',
-    (await page.getByText(/approximate figure/i).count()) > 0);
-
-  await budgetField.fill('not known yet');
-  await budgetField.press('Enter');
+    (await conversation.getByText(/approximate figure/i).count()) > 0);
+  await send('not known yet');
   await page.waitForTimeout(1200);
   check('a second "not known" gives up on the budget rather than re-asking it',
-    (await page.getByText(/leave the budget open/i).count()) > 0);
+    (await conversation.getByText(/leave the budget open/i).count()) > 0);
   check('the conversation moves on — the next question is delivery date, not budget again',
-    (await page.getByText(/When do you need this delivered or started by/i).count()) > 0);
+    /When do you need this delivered or started by/i.test(await lastQuestion()));
 
-  // 4. A material demand through the conversation to Review. This walked a
-  //    "renew our vendor contract" demand through a separate form path; the
-  //    renewal category and that form are gone (2026-09-25) — a renewal is a
-  //    demand like any other, and every full request is captured by the
-  //    conversation. €150k of software is procurement-led by the value rules,
-  //    and material enough for the critical-service question.
-  await page.goto(`${BASE}/requests/new`, { waitUntil: 'networkidle' });
-  await page.locator('#need-input').fill('an analytics software platform for the finance team');
-  await page.locator('#need-input').press('Enter');
-  await page.getByRole('button', { name: /Accept & continue/ }).click();
-  await page.getByText("How you'll buy this", { exact: true }).waitFor({ timeout: 15000 });
-  await page.getByRole('button', { name: /^Start$/ }).last().click();
-  await page.getByPlaceholder(/Type your answer/).waitFor({ timeout: 15000 });
-
-  // Answer whatever is asked: the budget and the date by what the question
-  // asks for, a yes/no risk question with Yes, anything else with prose —
-  // until Next unlocks. The residual questions are criteria-driven (INT-10
-  // stage 5), so reaching one proves the €150k answer was read.
-  let sawRationale = false;
-  {
-    const next = page.getByRole('button', { name: /^Next$/ });
-    for (let turn = 0; turn < 20; turn++) {
-      if (await next.isEnabled().catch(() => false)) break;
-      if (await page.getByText(/^Asked because/).count()) sawRationale = true;
-      const yes = page.getByRole('button', { name: /^Yes$/ });
-      if (await yes.count()) {
-        await yes.last().click();
-        await page.waitForTimeout(900);
-        continue;
-      }
-      const field = page.getByPlaceholder(/Type your answer/);
-      if (await field.isDisabled().catch(() => true)) break;
-      const bubbles = await page.locator('main').innerText();
-      const lastQuestion = bubbles.slice(bubbles.lastIndexOf('?') - 160, bubbles.lastIndexOf('?') + 1);
-      const answer = /budget/i.test(lastQuestion) ? '150000'
-        : /delivered or started by|need.*by/i.test(lastQuestion) ? '2027-03-31'
-        : fillerAnswer;
-      await field.fill(answer);
-      await field.press('Enter');
-      await page.waitForTimeout(1200);
-    }
+  // 4. A material demand through the conversation to the Channel page. €150k
+  //    of software is procurement-led by the value rules, and material enough
+  //    for the critical-service question.
+  await describe('an analytics software platform for the finance team');
+  await conversation.getByText('Then this is a new request.').waitFor({ timeout: 15000 });
+  await converse(async () => (await supplierCard.count()) > 0, (question) => (/budget/i.test(question) ? '150000'
+    : /delivered or started by|need.*by/i.test(question) ? '2027-03-31' : fillerAnswer));
+  check('with no preferred supplier for the category, the question is plain',
+    /Do you have a supplier in mind\?/.test(await supplierCard.innerText()));
+  await supplierCard.getByRole('button', { name: 'No — go to market' }).click();
+  // The residual questions are criteria-driven (INT-10 stage 5), so reaching
+  // one proves the €150k answer was read.
+  await conversation.getByRole('button', { name: 'Yes', exact: true }).last().waitFor({ timeout: 10000 });
+  check('a residual risk question is asked, with its rationale', (await conversation.getByText(/^Asked because /).count()) > 0);
+  for (let turn = 0; turn < 6; turn++) {
+    const yes = conversation.getByRole('button', { name: 'Yes', exact: true });
+    if (!(await yes.count()) || !(await yes.last().isEnabled())) break;
+    await yes.last().click();
+    await page.waitForTimeout(900);
   }
-  check('a residual risk question is asked, with its rationale', sawRationale);
-  // Submit needs a cost centre; the profile supplies it on the chat path, and
-  // Details still names it when it is missing.
-  if (await page.getByText('Add a cost centre under Charged to.').count()) {
-    await page.getByText('Charged to', { exact: true }).locator('xpath=..').getByRole('button', { name: /Change/ }).click();
-    const centre = page.getByLabel('Cost centre', { exact: true });
-    await centre.selectOption(await centre.evaluate((el) => [...el.options].map((o) => o.value).find(Boolean) ?? ''));
+  if (await conversation.getByText(/needs a cost centre/).count()) {
+    await panel.getByRole('button', { name: 'Edit Charged to' }).click();
+    const centreField = panel.locator('[data-editing="costCentre"] select');
+    await centreField.selectOption(await centreField.evaluate((el) => [...el.options].map((o) => o.value).find(Boolean) ?? ''));
+    await panel.getByRole('button', { name: 'Done' }).click();
   }
-  check('the conversation, a date and a cost centre open Next on the chat path',
-    await page.getByRole('button', { name: /^Next$/ }).isEnabled().catch(() => false));
+  await confirmedCard.waitFor({ timeout: 10000 });
+  check('the conversation, a date and a cost centre confirm the channel', (await confirmedCard.count()) === 1);
 
   // 5. The Channel page — how it will be bought, stage by stage, and what is
   //    being submitted (Intake Prototype, 2026-09-26). It replaced Review &
   //    submit, whose fifteen cards put the channel, three risk readings, two
   //    approval panels and every policy result at one weight.
-  await page.getByRole('button', { name: /Next/ }).click();              // → your buying channel
+  await confirmedCard.getByRole('button', { name: /See how it will be bought/ }).click();
   const channelPane = page.locator('section[aria-label="How it will be bought"]');
   const stageList = channelPane.getByRole('list', { name: 'Stages' });
   await stageList.waitFor({ timeout: 15000 });
@@ -585,8 +533,6 @@ try {
     /Procurement-Led Sourcing/.test(await checksList.locator('li').first().innerText()));
   // The derivation submit writes, chain and all: the €150k band's VP step,
   // which nobody holds in these fixtures, so any holder of the role may act.
-  // (The old screen's "Christine Dupont" matched its reviewer chips, not an
-  // approver.)
   check('the approvers are the ones submit will ask (the same derivation)',
     /One approval/.test(await checksList.innerText()) && /Any VP Procurement/.test(await checksList.innerText()), await checksList.innerText());
   check('the risk read is a conclusion, not a tier',
@@ -621,46 +567,33 @@ try {
     download ? download.suggestedFilename() : 'no download');
   await shot('channel-request-workings');
 
-  // 5. Service-description capture (chat intake): the SOW and the service
-  //    description are one document built automatically from the conversation —
-  //    there is NO manual "Generate SOW" button.
-  await page.goto(`${BASE}/requests/new`, { waitUntil: 'networkidle' });
-  await page.locator('#need-input').fill('management consulting to design a target operating model');
-  await page.locator('#need-input').press('Enter');
-  await page.getByRole('button', { name: /Accept & continue/ }).click();
-  await page.getByText("How you'll buy this", { exact: true }).waitFor({ timeout: 15000 });
-  await page.getByRole('button', { name: /^Start$/ }).click();
-  await page.getByText('Service description', { exact: true }).waitFor({ timeout: 15000 });
-  check('service-description capture renders (components panel)', true);
-
-  // Requester context (who / where) is established in the shell for every path:
-  // location is auto-derived from the profile, beneficiary defaults to self.
-  check('requester-context block renders requester location',
-    (await page.getByText('Requesting from').count()) > 0);
-  check('requester location is a read-only profile value',
-    (await page.getByText('from your profile').count()) > 0);
-  check('beneficiary defaults to self with a Change control',
-    (await page.getByText('Buying for').count()) > 0 &&
-    (await page.getByRole('button', { name: /Change/ }).count()) > 0);
-  check('NO manual "Generate SOW" button (auto-composed from chat)',
+  // 5a. What the panel says from the first answer: who and where, and the
+  //     service description building as it is asked — auto-composed, with NO
+  //     manual "Generate SOW" button.
+  await describe('management consulting to design a target operating model');
+  await conversation.getByText('Then this is a new request.').waitFor({ timeout: 15000 });
+  await panel.getByText(/Service description · required/).waitFor({ timeout: 10000 });
+  check('the service description builds on the right as it is asked', (await panel.getByText(/Service description · required/).count()) === 1);
+  check('where the requester is comes from their profile and is never typed over',
+    (await panel.locator('[data-row="requesterCountry"]').count()) === 1
+    && (await panel.getByRole('button', { name: 'Edit Requesting from' }).count()) === 0);
+  check('buying for defaults to the requester, and can be changed',
+    /\(you\)/.test(await panel.locator('[data-row="beneficiary"]').innerText())
+    && (await panel.getByRole('button', { name: 'Edit Buying for' }).count()) === 1);
+  check('what the platform decides is not an input — the channel and the category have no editor',
+    (await panel.getByRole('button', { name: /Edit Channel|Edit Category/ }).count()) === 0);
+  check('NO manual "Generate SOW" button (auto-composed from the conversation)',
     (await page.getByRole('button', { name: /Generate SOW/ }).count()) === 0);
-  check('SOW sections build from the conversation (no generate hint)',
-    (await page.getByText(/click Generate SOW/i).count()) === 0);
 
-  // 5b. The catalogue is its own door. "Browse the catalogue" used to open a
-  //     catalogue step inside this wizard with a one-line cart; since
-  //     2026-09-25 it opens the Catalogue page, whose basket is placed through
-  //     the governed checkout (ADR-0009).
-  await page.goto(`${BASE}/requests/new`, { waitUntil: 'networkidle' });
-  await page.getByRole('button', { name: /Browse the catalogue/ }).click();
-  await page.waitForURL((url) => url.pathname === '/catalogue', { timeout: 10000 });
+  // 5b. The catalogue is its own door — Home's second, and the navigation's
+  //     Catalogue — whose basket is placed through the governed checkout
+  //     (ADR-0009).
+  await page.goto(`${BASE}/catalogue`, { waitUntil: 'networkidle' });
   const basket = page.locator('aside[aria-label="Your order"]');
   await basket.waitFor({ timeout: 10000 });
-  check('"Browse the catalogue" opens the Catalogue page, not a wizard step',
-    new URL(page.url()).pathname === '/catalogue' && !/How you.ll buy/.test(await page.locator('main').innerText()));
-  // The item "Order this" put there earlier is still in the basket: it is
-  // the requester's until placed, across pages.
-  check('the basket keeps what was added from the buy-route screen',
+  // The item "Order it" put there earlier is still in the basket: it is the
+  // requester's until placed, across pages.
+  check('the basket keeps what was added from the conversation',
     (await basket.innerText()).includes('ThinkPad T14 Gen 5'));
   // A picker, and every option an active row of `cost_centres` — not the five
   // invented entries ("CC-1001 Marketing", …) a catalogue checkout once offered
@@ -699,7 +632,7 @@ try {
     console.error(`FAILED: ${failures} UI check(s) failed`);
     process.exitCode = 1;
   } else {
-    console.log('All wizard UI smoke checks passed.');
+    console.log('All New request UI smoke checks passed.');
   }
 } catch (err) {
   if (err instanceof LocalServerlessUnavailable) {

@@ -114,6 +114,11 @@ export function nextCallOffQuestion(
   return questions.find((q) => !isAnswered(draft, q.field) && !passed.has(q.field)) ?? null;
 }
 
+/** The questions still to ask — how the call-off's opening counts what is left. */
+export function callOffRemaining(questions: CallOffQuestion[], draft: ContractCallOffDraft): CallOffQuestion[] {
+  return questions.filter((q) => !isAnswered(draft, q.field));
+}
+
 /** "N of M": the required details that are in. */
 export function callOffProgress(questions: CallOffQuestion[], draft: ContractCallOffDraft): { known: number; required: number } {
   const required = questions.filter((q) => q.required);
@@ -130,7 +135,8 @@ const NOT_KNOWN = /^(not (yet )?(known|sure|decided)( yet)?|don'?t know( yet)?|u
 
 export type CallOffAnswer =
   | { ok: true; draft: ContractCallOffDraft; passed?: CallOffFieldId }
-  | { ok: false; retry: string };
+  /** `overLimit`: the amount needs a mini-competition — a new request, not a call-off. */
+  | { ok: false; retry: string; overLimit?: true };
 
 /**
  * Apply a typed answer to the question it answers.
@@ -160,7 +166,7 @@ export function applyCallOffAnswer(
       // the contract's suppliers, and the checkout refuses it — said here, at the
       // value, not after submit.
       if (amount > limits.directCallOffLimit) {
-        return { ok: false, retry: `€${amount.toLocaleString('en-GB')} is above the €${limits.directCallOffLimit.toLocaleString('en-GB')} direct call-off limit, so it needs a mini-competition among the contract's suppliers. Give a smaller amount, or raise it as a new request instead.` };
+        return { ok: false, retry: `€${amount.toLocaleString('en-GB')} is above the €${limits.directCallOffLimit.toLocaleString('en-GB')} direct call-off limit, so it needs a mini-competition among the contract's suppliers. Give a smaller amount, or raise it as a new request instead.`, overLimit: true };
       }
       return { ok: true, draft: { ...draft, value: amount } };
     }

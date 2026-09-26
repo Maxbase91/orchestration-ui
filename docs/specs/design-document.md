@@ -189,7 +189,7 @@ Navigation items are filtered by role — each role sees only what's relevant.
 | Module | Screens | Key Patterns |
 |--------|---------|--------------|
 | Dashboard | 5 role views | KPI cards, charts, action lists |
-| Requests | 10 (wizard, detail, lists) | Multi-step wizard, tabbed detail, data tables |
+| Requests | 10 (the conversation, the Channel page, detail, lists) | Conversation with a live summary panel, tabbed detail, data tables |
 | Workflows | 6 (kanban, table, timeline, monitor) | Drag-and-drop, view toggle, heatmap |
 | Approvals | 3 (queue, delegation, detail) | Card-based queue, one-click approve |
 | Tasks | 2 (my, team) | Priority-sorted tables |
@@ -231,44 +231,45 @@ should be placed per this table, not wherever seems locally convenient.
 
 ### 6.1 New Request — Intelligent Intake
 
-The single front door for all procurement needs. A 5-step wizard that adapts based on what the user needs.
+The single front door for all procurement needs, as the Intake Prototype draws
+it (Door 1, 26 September 2026): a **conversation** that ends on "Buying channel
+confirmed", then the **Channel page**, then the confirmation. The requirement
+detail is FR-01 (`docs/specs/requirements/01-intake-new-request.md`).
 
-> **Out of date (2026-09-26).** Intake is now one four-step engine — Describe → How you'll buy →
-> Details → Your buying channel (the Channel page, which replaced Review & submit) — with no category to pick, no renewal or onboarding tiles (both are
-> ordinary demands now), no duplicate check and no inline forms. The README's *New Request Wizard*
-> row and `src/features/requests/README.md` describe what runs. This section is
-> rewritten with the intake mockups, which change these screens again.
+**The conversation page** — two columns that fill the window and scroll inside
+it, ending above the floating assistant button.
 
-**Step 1 — What do you need?**
-- Free-text input: user describes their need naturally
-- AI analyses text and suggests: category, buying channel, commodity code, estimated timeline
-- Guidance card shows full routing recommendation with "Accept & continue"
-- OR select from category tiles: Catalogue Purchase, Goods, Services, Software/IT, Consulting, Contingent Labour, Contract Renewal, Supplier Onboarding
-- Smart detection: catalogue-like keywords trigger green "fast track" suggestion
-- "Not sure?" helper with examples and expected routing outcomes
+- **Header:** "New request" and the three phases — *1 · What you need*, *2 · How
+  it is bought*, *3 · What it needs* — the current one in ink, the ones before it
+  in ink-2.
+- **Left — the conversation:** a status bar ("Procurement assistant · checking
+  the catalogue and contracts"); the transcript, with a phase label where each
+  phase begins; one reply box with **Attach a document** and **Send**. Assistant
+  turns are cards on the left, the requester's turns filled accent bubbles on the
+  right. A question with a reason carries "Asked because …" beneath it, an
+  example "For example: …". A turn answered with buttons keeps them, disabled,
+  so the history reads as it happened; a Yes/No governance question disables the
+  reply box. Offers — a catalogue item, a contract, the supplier question — are
+  cards with an eyebrow; "Buying channel confirmed" is the green card that ends
+  it, with **See how it will be bought** and "Nothing is submitted yet." Once the
+  conversation reaches the supplier, the middle of the description folds behind
+  "Show N earlier answers" — the answers are all on the right.
+- **Right — Your request (420px):** "N of M known" with a meter (accent, green
+  at M of M); a legend of four dots — from you, derived, drafted — check it,
+  still to come; the rows grouped Channel · Who and where · What (or The
+  call-off) · Supplier · Service description, each a dot, a label, a one-line
+  value and — for an input — a pencil. Clicking an input opens its editor in
+  place (text, amount, date, a picker, a directory search), with where the value
+  came from and "the assistant uses your edit from here on". The executive
+  summary sits beneath, with its quality score.
 
-**Step 2 — Details** (or Catalogue Browse)
-- *Standard requests:* Dynamic form with supplier autocomplete, value, justification, delivery date, cost centre, commodity code with AI suggestion
-- *Services/consulting:* AI Service Description Generator — 6 guided questions produce a professional 3-4 paragraph scope description
-- *Catalogue purchases:* Browse 6 sub-catalogues (IT Equipment, Office Supplies, Furniture, Safety, Catering, Print) with product grid, search, quantity selectors, and cart sidebar
-
-**Step 3 — Compliance & Risk Check**
-- Auto-runs: buying channel classification, SRA status, policy checks
-- Risk triage (derived from the description and the supplier record, not a form): whether a supplier risk assessment is needed
-- Results with green/amber indicators
-
-**Step 4 — Routing Preview**
-- Visual workflow preview showing the steps this request will follow
-- Required approvers with names, roles, expected response time
-- Estimated timeline
-- Add watchers, notes for approvers
-- Submit or Save as Draft
-
-**Step 5 — Confirmation**
-- Request ID generated
-- Summary card with all details
-- AI follow-up offer
-- Track / Share / Submit Another actions
+**The Channel page** — "Back to the conversation | Your buying channel", then
+two columns (400px on the right): the navy band with the channel's headline, the
+value, the stages that apply and the stage targets; *Step by step*, every stage
+of the template with its tag, purpose, owner and target days; and, on the right,
+*What you are submitting* and the *Checks*, with the workings collapsed beneath.
+The footer carries Back, Save as draft and Submit, with a note saying where the
+request goes first and who owns it.
 
 ### 6.2 Request Lifecycle
 

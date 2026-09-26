@@ -59,7 +59,7 @@ hooks, the documented live-swap seam (`src/lib/integrations/README.md`), and own
 **eight objects** (supplier, contract, purchase-request, purchase-order, invoice, risk-assessment,
 catalogue-item, **payment** — supplier banking/payment master, a vendor-data foundation behind the
 ports); covered by `npm run test:connectors` (drift guard pins the object set).
-**Consumers routed:** the front-door catalogue + contract checks (`step-buy-route.tsx`) and the
+**Consumers routed:** the front-door catalogue + contract checks (the conversation page's `use-route-checks.ts`) and the
 **assistant lookups** (the supplier/contract reads in `step-compliance.tsx` went with that step on
 2026-09-26 — the Channel page shows the determination, which already carries them)
 (`src/lib/assistant/capabilities/lookup.ts` now reads suppliers/requests/contracts/POs/invoices/risk
@@ -129,7 +129,7 @@ board on the event page remains a labelled mock.
 | Story | Summary | State | Note |
 |---|---|---|---|
 | INT-01 | Role-based landing page | 🟢 | 5 role dashboards |
-| INT-02 | Light intake | 🟢 | **Free text is the only commodity entry — there is no category selection.** Commodity categories (Goods/Services/…) are derived metadata, not a user choice; the fulfilment path (catalogue / contract / full request) is derived by the funnel. The catalogue is the one explicit alternative entry (INT-10). **Requester context** (`requester-context-block.tsx`) is established up front for every path: the **requester's country is auto-derived from their profile** (read-only — structured `country`/`countryCode` to drive country workflows later) and the **beneficiary defaults to self** (never asked) with a name type-ahead to buy on behalf of another directory user. Both are carried onto the request and surfaced on the determination/overview |
+| INT-02 | Light intake | 🟢 | **Free text is the only commodity entry — there is no category selection.** Commodity categories (Goods/Services/…) are derived metadata, not a user choice; the fulfilment path (catalogue / contract / full request) is derived by the funnel. The catalogue is its own door, the Catalogue page (INT-10). **Requester context** — the *Who and where* rows of the conversation page's **Your request** — is established up front for every path: the **requester's country is auto-derived from their profile** (read-only — structured `country`/`countryCode` to drive country workflows later) and the **beneficiary defaults to self** (never asked) with a name type-ahead to buy on behalf of another directory user. Both are carried onto the request and surfaced on the determination/overview |
 | INT-03 | Full service description + quality gates | 🟡 | **Unified, auto-composed capture** — the chat builds one service description (request key facts + SOW elements in one panel, no separate Summary/SOW tabs and **no manual "Generate SOW" button**); the conversation asks until all components are captured, then the document is **composed automatically** (quality score shown). The conversation is now **dynamic / answer-driven** — a pure slot-filling engine (`src/lib/procurement/demand-conversation.ts`) computes the next question from prior answers, **carries everything forward** (never re-asks), and **branches on category + value** (high-value consulting also asks timeline / acceptance / pricing / dependencies; a low-value goods order is asked only the essentials). The same engine drives both the LLM endpoint and the offline fallback (`test:demand-conversation`). Inline-editable; graceful offline. The **critical-service qualification already feeds materiality** (via the criteria-triggered mini-IRQ delta → `determineMateriality`), and those questions are now asked **inside the conversation** as Yes/No choices rather than as a card of switches below it, with an unanswered question recorded as `not-answered` rather than silently as "no"; parsing richer free-text "how it qualifies" from the SD is the remaining bit **The whole description is now admin-configurable** via `/admin/service-description` (`service_description_templates`, per category with a `default` fallback): the generation prompt and model params, the components asked (the slot set serialised, with `appliesWhen` as a `{field, operator, value}` condition instead of a closure), and what is generated (the detailed sections, asked vs inferred, and which compose the compact narrative). Read server-side by `api/generate-sow.ts`, so an edit takes effect without a redeploy — the reason it is a table and not a settings store (`PolicyConfig` is localStorage-only and never reaches a serverless route). **The conversation itself now runs off the template too** — `demand-conversation.ts` takes its slot set from the resolved config, so *what is asked* is admin-editable and not only *what is generated* (168 agendas verified identical to the built-in). **Generation is signal-aware**: `demand-signals.ts` computes the capture-time materiality / inherent-risk / data-sensitivity / sourcing read and passes it to the model, and `ConfiguredSection.requiredWhen` says which sections that read makes mandatory — a material, competitively-sourced engagement must cover scope, deliverables and measurable acceptance criteria; a small order need not. The determination reports missing required sections rather than regenerating. `quality_score` / `quality_checks` are finally persisted (they were computed, rendered and discarded, so the badge never appeared). **The conversation now finishes, and says so.** Progress is measured against the questions this demand is actually asked (`conversationProgress`) rather than a fixed 14, which capped a fully-answered conversation at 57–86% and listed items that were never going to be asked; the panel's section list comes from the resolved template, with `asked: false` sections shown as **inferred** rather than outstanding; **step 3 will not release until the mandatory floor is met** — `requiredSlotsFilled` was defined as the guarantee against an LLM short-circuiting the conversation and was never consulted at the gate, which needed only a title and a value; conditional questions carry a configurable **"Asked because…"** rationale; and the close states what was captured and where it is reused (`test:intake-guidance`). |
 | INT-04 | Draft save & resume | 🟢 | Saves draft to the own store |
 | INT-05 | Edit in-flight demand | 🟡 | Partial |
@@ -185,6 +185,17 @@ board on the event page remains a labelled mock.
 > and stays clickable. Enrichment still carries forward into the request; the decision itself
 > (`decideIntakeRoute`) is unchanged.
 >
+> **Superseded again (2026-09-26): the conversation page.** The four steps are one conversation
+> (the Intake Prototype's Door 1): *What you need* reads the words back as a category and code to
+> confirm; *How it is bought* reports both checks in one turn and offers the way to buy — a catalogue
+> item naming the words it matched on, a contract to call off, or, when nothing covers it, a new
+> request on its own; *What it needs* asks a call-off's details or the service description, then the
+> supplier, then the risk questions. **Your request** builds beside it — provenance, inputs edited in
+> place, "N of M known" counting what the route needs — and *Buying channel confirmed* is the one way
+> on to the Channel page, held until submit would accept the request. The decisions are the same
+> functions (`classify-demand.ts`, `use-route-checks.ts`, `call-off-agenda.ts`, the service-description
+> engine); what changed is that the requester is asked, in order, rather than shown every screen.
+>
 > **Also built: the journey explains itself and shows its consequence.** Every step carries a
 > header panel — what it is for, what it needs from the requester, what happens after (now in
 > `intake-steps.ts`, alongside the step's order and its gate) — and the stepper renders the per-step `description` that had been defined on
@@ -205,8 +216,8 @@ board on the event page remains a labelled mock.
    derives category/commodity code (CLS) rather than asking the user to pre-classify. There is
    **no commodity-category selection at all** — Goods/Services/… are derived metadata, not a choice;
    to correct a misread the user re-describes ("Try again"), there is no category grid (CLS-03).
-2. **Browse catalogue directly** — for users who already know they want a catalogue item; jumps
-   straight to the punchout/catalogue-order early exit.
+2. **The Catalogue page** (Door 2) — for users who already know they want a catalogue item: the
+   basket, placed through the governed checkout (ADR-0009).
 
 **Progressive, stage-gated derivation** (each stage runs *only* when the prior one fails to resolve,
 and only once it has enough signal):
@@ -221,9 +232,9 @@ and only once it has enough signal):
 
 **Defect fixed, then superseded:** the staged pre-check must not assert a match it has not earned.
 That still holds — `decideIntakeRoute` gates every route on category eligibility and a naming-word
-match — but it is now enforced in the **decision**, not by hiding a stage. `step-buy-route.tsx`
-shows all three routes with their reasons, so "no premature assertions" means *no route is claimed
-without evidence*, not *no route is visible yet*.
+match — but it is now enforced in the **decision**, not by hiding a stage. The conversation reports both
+checks with their reasons before it offers anything, so "no premature assertions" means *no route is
+claimed without evidence*, not *no route is visible yet*.
 
 **Acceptance criteria.** (a) ✅ Free text is the only commodity entry — there is **no category grid**;
 the fulfilment path is derived, not chosen, and the catalogue is the one explicit alternative entry.

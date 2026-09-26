@@ -109,7 +109,8 @@ server-side factory that the handlers can call, not adding more direct reads.
 
 ## Consumers on the layer
 
-The front-door **catalogue and contract checks** (`step-buy-route.tsx`) and
+The front-door **catalogue and contract checks** (the conversation page's
+`new-request/conversation/use-route-checks.ts`) and
 client-side assistant lookups read through `useSourceData`/`requireConnector`. (The
 supplier and contract reads in `step-compliance.tsx` went with that step on
 2026-09-26: the Channel page shows the determination, which already has them.) Risk **reuse-matching**

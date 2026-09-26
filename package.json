@@ -66,7 +66,6 @@
     "test:ticket-sla": "node tests/integration/ticket-sla.mjs",
     "test:approval-to-source": "node tests/integration/approval-to-source.mjs",
     "test:residual-questions": "node --import tsx/esm tests/integration/residual-questions.mjs",
-    "test:details-progression": "node --import tsx/esm tests/integration/details-progression.mjs",
     "test:demand-conversation": "node --import tsx/esm tests/integration/demand-conversation.mjs",
     "test:intake-guidance": "node --import tsx/esm tests/integration/intake-guidance.mjs",
     "test:unified-intake": "node --import tsx/esm tests/integration/unified-intake.mjs",

@@ -1,6 +1,7 @@
 // The Channel page for a contract call-off. Its submit used to sit on the
-// Details form, whose button read "Review request" and submitted instead, so a
+// call-off form, whose button read "Review request" and submitted instead, so a
 // call-off was the one Door 1 route whose requester never saw where it would go.
+// The details are now captured in the conversation, and changed there.
 //
 // The governed decision is built by `buildCallOff`, the same builder submit
 // calls, and the request lands where `checkoutEntryStage` puts it — the rule
@@ -15,7 +16,7 @@ import { checkoutEntryStage, CHECKOUT_ENTRY_CONDITIONS } from '@/lib/procurement
 import { onboardingRequired } from '@/lib/workflow/onboarding-stage';
 import { submitNoteFor, type PlanInput } from '@/lib/workflow/channel-plan';
 import type { CallOff } from '../call-off';
-import type { ContractCallOffDraft } from '../contract-call-off-checkout';
+import type { ContractCallOffDraft } from '../conversation/call-off-agenda';
 import { ChannelPage, ChecksList, FactList, PanelGroup, SupplierList } from './channel-page';
 import { useChannelPlan } from './use-channel-plan';
 
@@ -83,7 +84,7 @@ export function StepChannelCallOff(props: StepChannelCallOffProps) {
       value={decision.totalValue}
       config={config}
       hints={{ riskReused: !decision.riskReviewRequired && Boolean(callOff.riskAssessment) }}
-      backLabel="Back to the call-off details"
+      backLabel="Back to the conversation"
       onBack={props.onBack}
       submitLabel="Submit the call-off"
       submitNote={submitNote}
@@ -91,7 +92,7 @@ export function StepChannelCallOff(props: StepChannelCallOffProps) {
       // The server refuses what the decision refuses; the button says so first.
       canSubmit={decision.ok}
       submitting={props.submitting}
-      changeLabel="Change the details"
+      changeLabel="Change in the conversation"
       onChange={props.onBack}
     >
       <PanelGroup title="The call-off">

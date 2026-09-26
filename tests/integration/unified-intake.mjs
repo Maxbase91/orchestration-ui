@@ -7,10 +7,6 @@ import { DEFAULT_CATEGORY_TAXONOMY } from '../../src/data/category-taxonomy.ts';
 import { seedServiceDescriptionFromText } from '../../src/lib/procurement/intake-seed.ts';
 import { existsSync, readFileSync } from 'node:fs';
 import {
-  progressStepsForRoute,
-  routeFromOutcome,
-} from '../../src/features/requests/new-request/intake-steps.ts';
-import {
   renewalDemandHref,
 } from '../../src/features/requests/new-request/intake-deep-link.ts';
 
@@ -25,14 +21,19 @@ check('low-confidence classification shows one fallback', resolveCommodityCandid
 
 const seeded = seedServiceDescriptionFromText('We need a new customer analytics platform for the sales team. The work should include implementation, data migration and training. Deliverables include a configured platform and handover report.');
 const intakePage = readFileSync('src/features/requests/new-request/new-request-page.tsx', 'utf8');
-const buyRoutePage = readFileSync('src/features/requests/new-request/step-buy-route.tsx', 'utf8');
+// The describe and buy-route steps are the conversation page since 2026-09-26.
+const conversation = readFileSync('src/features/requests/new-request/conversation/intake-conversation.tsx', 'utf8');
+const routeChecks = readFileSync('src/features/requests/new-request/conversation/use-route-checks.ts', 'utf8');
+const callOffAgenda = readFileSync('src/features/requests/new-request/conversation/call-off-agenda.ts', 'utf8');
+const panelSources = ['your-request-panel.tsx', 'request-rows.ts', 'turns.tsx']
+  .map((f) => readFileSync(`src/features/requests/new-request/conversation/${f}`, 'utf8')).join('\n');
 const lifecycleStepper = readFileSync('src/features/requests/request-detail/components/lifecycle-stepper.tsx', 'utf8');
 check('long pasted brief seeds objective and scope', Boolean(seeded.objective && seeded.scope));
 check('deliverables remain a distinct section', Boolean(seeded.deliverables));
 check('exclusions are distinct from scope in the intake model', /exclusions/.test(readFileSync('src/features/requests/new-request/new-request-page.tsx', 'utf8')) && /id: 'exclusions'/.test(readFileSync('src/lib/procurement/service-description-defaults.ts', 'utf8')));
 check('scope prompt does not combine Included and Excluded questions', !readFileSync('src/lib/procurement/demand-conversation.ts', 'utf8').includes('in scope — and anything explicitly out of scope'));
 check('document context carries into the adaptive chat', readFileSync('src/features/requests/new-request/conversation/use-service-description-conversation.ts', 'utf8').includes('data.serviceDescription ?? {}'));
-check('requester-facing intake does not render a business justification field', !/label.*Business Justification/.test(readFileSync('src/features/requests/new-request/step-chat-intake.tsx', 'utf8')));
+check('requester-facing intake does not render a business justification field', !/Business Justification/i.test(conversation + panelSources));
 check('upload API boundary exists', readFileSync('api/_domains/intake-upload.ts', 'utf8').includes('PDF'));
 // The "helpful guidance from similar requests" card is gone, along with its
 // endpoint. It was not similar to anything — the query ignored the category,
@@ -42,61 +43,59 @@ check('upload API boundary exists', readFileSync('api/_domains/intake-upload.ts'
 // the database on every keystroke.
 check('no similar-requests guidance card remains', !existsSync(new URL('../../src/features/requests/new-request/components/intake-guidance-card.tsx', import.meta.url)));
 check('no intake-guidance endpoint remains', !existsSync(new URL('../../api/_domains/intake-guidance.ts', import.meta.url)));
-// The home box already asked what they need; asking again on the describe step
-// was friction that also used to discard the text. The classification runs on
-// the prefill and advances on its own.
-check('a home demand seeds the describe step and advances itself',
-  intakePage.includes('prefill={categoryPrefill}') && intakePage.includes("onAutoAdvance={() => setStepId('buy-route')}"));
-check('the full-request escape sets an explicit outcome, never an inherited one',
-  intakePage.includes("updateFormData({ preCheckOutcome: 'full-request' })"));
-check('contract call-off details explain per-call value and timing',
-  intakePage.includes('Contract call-off') && intakePage.includes('contract ceiling is not'));
-// The form path's own footer ("To review this request, add …") went with the
-// form (2026-09-25); the conversation names its slots and the submission gaps.
-check('a disabled Next names what is still missing',
-  intakePage.includes('Still needed:') && /gapsToName\.map\(/.test(intakePage));
+// The home box already asked what they need; asking again was friction that
+// also used to discard the text. The words are the conversation's first
+// message, classified on arrival — once, not again after "Start over".
+check('a home demand is the conversation\u2019s first message',
+  intakePage.includes('prefill={conversationKey === 0 ? prefill : undefined}') && conversation.includes('void classify(props.prefill.trim())'));
+check('a new request is an explicit outcome, never an inherited one',
+  conversation.includes("updateFormData({ preCheckOutcome: 'full-request' })") && conversation.includes("preCheckOutcome: 'full-request', contractId: ''"));
+// The call-off's value is its own — the contract's ceiling is shown beside it,
+// never taken for it.
+check('a call-off is asked its own value, with the contract ceiling shown apart',
+  /What is this call-off worth\?/.test(callOffAgenda) && /ceiling left/.test(conversation));
+// There is no disabled Next to explain: the conversation asks, and says what
+// submit would still refuse before it confirms the channel.
+check('what is still missing is named in the conversation, not behind a disabled button',
+  /the request needs \{list\(gaps\.map/.test(conversation) && !/Still needed:|disabled=\{!canProceed/.test(intakePage));
 // The stepper is what actually draws the distinction; the deleted Simple
 // detail page only restated it in prose.
 check('call-off lifecycle distinguishes compliance validation from budget approval',
   lifecycleStepper.includes('Contract & compliance check') && lifecycleStepper.includes('Budget approval'));
 const intakeForm = readFileSync('src/features/requests/new-request/intake-form-data.ts', 'utf8');
-check('the demand text is title + lifted detail + the draft being typed, each counted once',
-  buyRoutePage.includes('[title, demandDetail, enrich]') && buyRoutePage.includes('text: demandText'));
+check('the demand text is the title and the lifted detail, each counted once',
+  routeChecks.includes("[input?.title ?? '', input?.demandDetail ?? '']") && routeChecks.includes('text: demandText'));
 // Clicking "Use this detail" looked ignored: the text was appended behind the
 // screen while the box kept its contents, so the decision then read it twice.
-check('using a detail clears the draft and confirms it landed',
-  buyRoutePage.includes('setEnrich(\'\')') && buyRoutePage.includes('setDetailAdded(true)')
-  && buyRoutePage.includes('the options above have been re-checked'));
+// A detail is now a message: it lands in the transcript, and the re-check says
+// what it changed.
+check('an answered detail lands, and the re-check says what it found',
+  conversation.includes('With that detail:') && conversation.includes('setAsking(null)'));
 // Appending to `title` renamed the request: "buy business consulting — IT
 // strategy consulting to define a new org structure — IT strategy consulting…"
 // became what the request was called everywhere afterwards.
 check('added detail has its own field and never renames the request',
   intakeForm.includes('demandDetail: string')
-  && !/title: formData\.title \? `\$\{formData\.title\} — \$\{text\}`/.test(intakePage)
-  && intakePage.includes('demandDetail: formData.demandDetail'));
+  && !/title: formData\.title \? `\$\{formData\.title\} — \$\{text\}`/.test(conversation)
+  && conversation.includes('demandDetail: formData.demandDetail ?'));
 // Four contracts behind disabled "Confirm details first" buttons is not a
-// choice, it is furniture — the requester cannot act on any of them.
-check('contract candidates appear only once they can be acted on',
-  buyRoutePage.includes('showContractCandidates')
-  && buyRoutePage.includes('canCallOff || detailAdded'));
+// choice, it is furniture — the requester cannot act on any of them. The card
+// appears once the contract can be called off; until then, the one detail
+// that would settle it is asked.
+check('a contract is offered only once it can be acted on',
+  conversation.includes('contract && checks.canCallOff') && conversation.includes("setAsking('detail')"));
 // ADR-0004: the matcher asks up to three clarifying questions rather than
 // guessing. Asking its question beats a generic prompt.
-check('the matcher\'s own question is what the detail box asks',
-  buyRoutePage.includes('clarifyingQuestion') && buyRoutePage.includes('serverMatch.questions[0]'));
+check('the matcher\'s own question is the one asked',
+  routeChecks.includes('serverMatch.questions[0]') && conversation.includes('checks.clarifyingQuestion ??'));
 // A ROUTE, never a category. Keying the journey off `category === 'catalogue'`
 // is what let a classifier answering "catalogue" for a paper-and-toner demand
-// put the whole wizard on the fast track before the funnel had run. Asserted by
-// calling the resolver rather than by grepping for the expression that happens
-// to implement it.
-check('expert full-request escape cannot be forced back into catalogue steps',
-  routeFromOutcome('full-request') === 'full-request'
-  && progressStepsForRoute(routeFromOutcome('full-request')).some((step) => step.id === 'channel'));
-// The wizard has no catalogue route any more: a catalogue order is placed on
-// the Catalogue page (ADR-0009). A call-off reaches the Channel page like a
-// full request, with its governed decision in place of a determination.
-check('an unset outcome is a full request, and a call-off also ends on the Channel page',
-  routeFromOutcome('') === 'full-request'
-  && progressStepsForRoute('contract').some((step) => step.id === 'channel'));
+// put the whole wizard on the fast track before the funnel had run. The page
+// has no catalogue route at all — a catalogue order is placed on the
+// Catalogue page (ADR-0009) — and tells a call-off from a new request by the
+// outcome the conversation recorded.
+check('the route is the recorded outcome, never the category',
+  intakePage.includes("const isCallOff = formData.preCheckOutcome === 'contract';") && !/category === 'catalogue'/.test(intakePage + conversation));
 
 
 // ── Deep links carry context in; each one has cost a defect ─────────────────
@@ -113,13 +112,14 @@ const params = (obj) => ({ get: (key) => (key in obj ? String(obj[key]) : null) 
 // matched no branch and rendered nothing. The route lives in preCheckOutcome.
 {
   const { readdirSync, readFileSync } = await import('node:fs');
-  const dir = new URL('../../src/features/requests/new-request/', import.meta.url);
   // A stored request's category is typed `as RequestCategory`; a form write is
   // not. (The one such site, the wizard's own catalogue order, is gone with the
   // wizard's catalogue route.)
-  const writers = readdirSync(dir)
+  const dirs = ['', 'conversation/', 'channel/'].map((sub) => new URL(`../../src/features/requests/new-request/${sub}`, import.meta.url));
+  const writers = dirs.flatMap((dir) => readdirSync(dir)
     .filter((f) => /\.tsx?$/.test(f))
-    .flatMap((f) => readFileSync(new URL(f, dir), 'utf8').split('\n')
+    .map((f) => [f, new URL(f, dir)]))
+    .flatMap(([f, url]) => readFileSync(url, 'utf8').split('\n')
       .filter((line) => !/^\s*(\/\/|\*|\{\/\*)/.test(line))
       .filter((line) => /category:\s*'catalogue'/.test(line) && !/as RequestCategory/.test(line))
       .map((line) => `${f}: ${line.trim()}`));

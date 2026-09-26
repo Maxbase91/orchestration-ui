@@ -1,10 +1,10 @@
-// "Marking this urgent changes where it goes" — shown as the toggle is ticked.
+// "Marking this urgent changes where it goes" — shown with the Urgent toggle in
+// the conversation page's Your request panel.
 //
-// The buying channel is settled on the pre-check (step 2) and shown there. One
-// thing can still move it afterwards: a rule keyed on urgency, which is set on
-// step 3. Rather than relocate the urgency control — it belongs with the other
-// commercial facts — the change is made VISIBLE and user-caused. Nothing about
-// the channel changes silently, which is the property actually wanted.
+// The buying channel is settled in the conversation, and one thing the
+// requester sets can still move it: a rule keyed on urgency. The change is made
+// VISIBLE and user-caused at the toggle, so nothing about the channel changes
+// silently.
 //
 // Derived from the live rule set, not hardcoded: today RR-010 ("Urgent request
 // fast-track") only ever escalates to procurement-led, but an admin can write a

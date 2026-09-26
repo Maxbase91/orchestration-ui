@@ -1,6 +1,14 @@
+// The New request page — Door 1 of the Intake Prototype: the conversation, the
+// Channel page, then the confirmation. One form state and one determination for
+// the whole journey; the views change, the demand does not.
+//
+// There was a stepper here — Describe, How you'll buy, Details, Your buying
+// channel — with a gate per step and a footer of Back / Save / Next. The
+// conversation replaced the first three (2026-09-26): it asks in the order the
+// stepper did, and its "Buying channel confirmed" is the gate the Details step
+// was.
 import { useState, useCallback, useEffect, useMemo, useRef, Component, type ReactNode, type ErrorInfo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, Save, Send, AlertTriangle, Loader2 } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -12,70 +20,43 @@ import { useAuthStore } from '@/stores/auth-store';
 import { createRequest, nextRequestId } from '@/lib/db/requests';
 import { saveRequestSupplierCandidates } from '@/lib/db/request-supplier-candidates';
 import { parseDeliveryDate } from '@/lib/parse-delivery-date';
-import { riskSlotsFor } from '@/lib/procurement/residual-question-slots';
-import { descriptionComplete } from './details-sections';
 import { useCostCentres } from '@/lib/db/hooks/use-cost-centres';
 import { useDeliveryLocations } from '@/lib/db/hooks/use-delivery-locations';
 import { useWorkflowTemplates } from '@/lib/db/hooks/use-workflow-templates';
 import { templateForChannel } from '@/lib/workflow/channel-stages';
 import { queryClient } from '@/lib/query-client';
 import type { RequestCategory, BuyingChannel } from '@/data/types';
-import {
-  INITIAL_INTAKE_DATA,
-  type IntakeFormData,
-} from './intake-form-data';
+import { INITIAL_INTAKE_DATA, type IntakeFormData } from './intake-form-data';
 import { useIntakeDetermination } from './use-intake-determination';
 import { useIntakeDeepLink } from './use-intake-deep-link';
 import { buildIntakeComplianceRecord } from '@/lib/procurement/intake-compliance-record';
-import { StepCategory } from './step-category';
-import { StepChatIntake } from './step-chat-intake';
-import { StepBuyRoute } from './step-buy-route';
-import { DetailsSupplier } from './details-supplier';
 import { StepConfirmation } from './step-confirmation';
 import { StepChannelRequest } from './channel/step-channel-request';
 import { StepChannelCallOff } from './channel/step-channel-call-off';
 import { buildCallOff } from './call-off';
-import { StepHeaderPanel } from './components/step-header-panel';
-import {
-  nextStep,
-  previousStep,
-  progressStepsForRoute,
-  routeFromOutcome,
-  stepById,
-  stepDescription,
-  stepGuidance,
-  stepNumber,
-  submitStepFor,
-  detailsSubmissionGaps,
-  type IntakeStepId,
-} from './intake-steps';
-import { sectionValuesOf } from '@/lib/procurement/service-description-seed';
+import { IntakeConversation } from './conversation/intake-conversation';
+import type { ContractCallOffDraft } from './conversation/call-off-agenda';
 import { useServiceDescriptionTemplate } from '@/lib/db/hooks/use-service-description-templates';
-import { outstandingRequiredSlots, resolveSlots } from '@/lib/procurement/demand-conversation';
-import { RequesterContextBlock } from './components/requester-context-block';
-import type { Contract } from '@/data/types';
-import type { CatalogueItem } from '@/data/catalogue-items';
 import { getProcurementProfile } from '@/lib/db/procurement-profiles';
 import { useProcurementProfile } from '@/lib/db/hooks/use-procurement-profile';
 import { buyingChannelLabel } from '@/lib/routing/evaluate-routing-rules';
 import { submitGovernedCheckout } from '@/lib/procurement/submit-governed-checkout';
 import { submitIntake } from '@/lib/procurement/submit-intake';
 import { usePreferredSupplierIds } from '@/lib/db/hooks/use-category-preferred-suppliers';
-import { ContractCallOffCheckout, type ContractCallOffDraft } from './contract-call-off-checkout';
 
-class StepErrorBoundary extends Component<{ children: ReactNode; onReset: () => void }, { error: Error | null }> {
+class ViewErrorBoundary extends Component<{ children: ReactNode; onReset: () => void }, { error: Error | null }> {
   state: { error: Error | null } = { error: null };
   static getDerivedStateFromError(error: Error) { return { error }; }
-  componentDidCatch(error: Error, info: ErrorInfo) { console.error('Step error:', error, info); }
+  componentDidCatch(error: Error, info: ErrorInfo) { console.error('New request error:', error, info); }
   render() {
     if (this.state.error) {
       return (
         <div className="flex flex-col items-center justify-center py-12 text-center">
-          <AlertTriangle className="size-8 text-warn mb-3" />
-          <p className="text-sm font-medium text-ink mb-1">Something went wrong in this step</p>
-          <p className="text-xs text-ink-3 mb-4 max-w-md">{this.state.error.message}</p>
+          <AlertTriangle className="mb-3 size-8 text-warn" />
+          <p className="mb-1 text-sm font-medium text-ink">Something went wrong with this request</p>
+          <p className="mb-4 max-w-md text-xs text-ink-3">{this.state.error.message}</p>
           <Button size="sm" variant="outline" onClick={() => { this.setState({ error: null }); this.props.onReset(); }}>
-            Start Over
+            Start over
           </Button>
         </div>
       );
@@ -84,24 +65,12 @@ class StepErrorBoundary extends Component<{ children: ReactNode; onReset: () => 
   }
 }
 
-/**
- * The intake, for every requester.
- *
- * There were two of these: a 1100-line Expert wizard and a 500-line Simple page
- * with its own phase machine, its own form shape and its own duplicated submit.
- * They shared step components and decision helpers, but each owned a journey —
- * which is exactly how they drifted, twice, into producing different governance
- * outcomes for the same demand (see `tests/integration/mode-equivalence.mjs`).
- *
- * They were unified behind one engine and one step config, with a `density`
- * prop deciding only how much evidence was on screen. That prop is gone too:
- * the switch asked the requester to choose a view before they could start, and
- * what it actually changed was some copy and whether the workings were on the
- * page at all. The evidence is now there for everyone, collapsed by default.
- */
+type View = 'conversation' | 'channel' | 'confirmation';
+
 export function NewRequestPage() {
-  const navigate = useNavigate();
-  const [stepId, setStepId] = useState<IntakeStepId>('describe');
+  const [view, setView] = useState<View>('conversation');
+  // A new key is a new conversation — how "Start over" and "Raise another" begin again.
+  const [conversationKey, setConversationKey] = useState(0);
   const [formData, setFormData] = useState<IntakeFormData>(INITIAL_INTAKE_DATA);
   const [requestId, setRequestId] = useState('');
   // One id per submission attempt, held in a ref rather than state: a double
@@ -118,7 +87,7 @@ export function NewRequestPage() {
     return attemptIdRef.current;
   }, []);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  /** The profile default, so the context block can say where the value came from. */
+  /** The profile default, so the panel can say where the cost centre came from. */
   const [profileCostCentre, setProfileCostCentre] = useState('');
   const { currentUser } = useAuthStore();
   const { data: suppliers = [] } = useSuppliers();
@@ -135,11 +104,9 @@ export function NewRequestPage() {
   const { data: riskAssessments = [] } = useRiskAssessments();
   const { data: users = [] } = useUsers();
 
-  // One determination for the whole wizard. It used to be computed inside the
-  // compliance step and mirrored back into form state through `onUpdate`; the
-  // screen and the record it wrote were then two copies of one answer, free to
-  // fall out of step. The steps that show conclusions and the submit that
-  // records them now read the same object.
+  // One determination for the whole journey. The conversation asks the risk
+  // questions it decides, the Channel page shows its conclusions, and submit
+  // records it — three readers of one object rather than three computations.
   const { determination } = useIntakeDetermination({
     category: formData.category,
     estimatedValue: formData.estimatedValue,
@@ -153,15 +120,13 @@ export function NewRequestPage() {
   });
 
   // The template a draft records is the one that claims the channel the
-  // determination chose — the same rule submit applies. It was derived from the
-  // category, which gave the standard procurement template to nearly everything.
+  // determination chose — the same rule submit applies.
   const { data: workflowTemplates = [] } = useWorkflowTemplates();
   const channelTemplateId = templateForChannel(workflowTemplates, determination?.buyingChannelSlug) ?? '';
 
-  // Accounting defaults from the requester's stored profile, so a call-off does
-  // not ask for a cost centre they have used every time. Never overwrites a
-  // value already entered. Simple intake had this and Expert did not, which is
-  // the kind of divergence one engine removes by construction.
+  // Accounting defaults from the requester's stored profile, so nobody is asked
+  // for a cost centre they have used every time. Never overwrites a value
+  // already entered.
   useEffect(() => {
     let cancelled = false;
     void getProcurementProfile(currentUser.id).then((profile) => {
@@ -173,128 +138,34 @@ export function NewRequestPage() {
         beneficiaryId: prev.beneficiaryId || profile.beneficiaryId || '',
       }));
     }).catch(() => {
-      // The form stays usable when the additive profile table is unavailable.
+      // The page stays usable when the additive profile table is unavailable.
     });
     return () => { cancelled = true; };
-  }, [currentUser.id]);
+  }, [currentUser.id, conversationKey]);
 
-  // Auto-derive the requester's country from their profile (read-only). Runs
-  // once the directory loads; the user never sets or edits this. It can drive
-  // country-based workflows in future.
+  // The requester's country, from their directory entry — read-only, never asked.
   useEffect(() => {
     if (formData.requesterCountry) return;
     const me = users.find((u) => u.id === currentUser.id);
     if (me?.country) {
-      setFormData((prev) => ({
-        ...prev,
-        requesterCountry: me.country ?? '',
-        requesterCountryCode: me.countryCode ?? '',
-      }));
+      setFormData((prev) => ({ ...prev, requesterCountry: me.country ?? '', requesterCountryCode: me.countryCode ?? '' }));
     }
   }, [users, currentUser.id, formData.requesterCountry]);
 
-  // The words from the Home box or the assistant (`?q=`), seeding the describe
-  // step. A catalogue order is placed on the Catalogue page, not here.
-  const { prefill: categoryPrefill } = useIntakeDeepLink();
+  // The words from the Home box or the assistant (`?q=`), sent as the first
+  // message. A catalogue order is placed on the Catalogue page, not here.
+  const { prefill } = useIntakeDeepLink();
 
   const updateFormData = useCallback((updates: Partial<IntakeFormData>) => {
     setFormData((prev) => ({ ...prev, ...updates }));
   }, []);
 
-  // Catalogue fast track — drives the reduced stepper and the Step-3 "Create
-  // order" action that skips risk/determination/routing.
-  // The fulfilment route is settled by the pre-check outcome, not by the
-  // broad commodity value. A user can explicitly reject a catalogue result
-  // and continue as a full request; retaining the category-only fallback here
-  // would silently put that choice back into the reduced catalogue wizard.
-  // The journey is keyed off the ROUTE the buy-route step settled, never off
-  // the category: a classifier answering "catalogue" for a paper-and-toner
-  // demand used to put the whole wizard on the fast track before the funnel
-  // had run.
-  const route = routeFromOutcome(formData.preCheckOutcome);
-
-  // Step 3's floor. The chat path is the only one that captures the service
-  // description through the conversation; the catalogue, contract and
-  // form-based paths have their own completeness rules below.
-  const { data: sdTemplate } = useServiceDescriptionTemplate(formData.category);
-  const conversationSlots = useMemo(() => resolveSlots(sdTemplate?.slots), [sdTemplate]);
-  // Keyed on the route; 'catalogue' is not in the list because it is not a
-  // category the form can hold (see onBrowseCatalogue). A draft saved before
-  // that fix may still carry it, and on the full-request route it must get the
-  // conversation, not nothing.
-  // Every full request is a conversation. There was a plain form for the
-  // 'contract-renewal' and 'supplier-onboarding' categories; both are retired
-  // (a renewal is found by the contract check, onboarding is a stage).
-  const isChatIntakePath = formData.preCheckOutcome === 'full-request';
-  const conversationCtx = useMemo(
-    () => ({
-      category: formData.category,
-      title: formData.title || undefined,
-      estimatedValue: formData.estimatedValue || undefined,
-      deliveryDate: formData.deliveryDate || undefined,
-      // Text sections only: the description also carries capture flags, which
-      // are not answers and must not be walked as if they were.
-      sow: sectionValuesOf(formData.serviceDescription),
-      risk: formData.miniIrq,
-    }),
-    [formData.category, formData.title, formData.estimatedValue, formData.deliveryDate, formData.serviceDescription, formData.miniIrq],
-  );
-  // The risk questions are part of the same agenda, so the step gate counts
-  // them: Next used to open with a triggered question still unanswered,
-  // because the switches lived outside the conversation the gate read.
-  const riskSlots = useMemo(
-    () => riskSlotsFor(determination?.residualQuestions ?? []),
-    [determination],
-  );
-  // Reveal the supplier section only once the conversation (and its risk-question
-  // tail) is done: the Details step used to put the chat, a card of risk
-  // switches and supplier selection on screen at once, before the requester had
-  // answered anything.
-  const detailsDescriptionDone = useMemo(
-    () => descriptionComplete({
-      isChatIntakePath,
-      conversationCtx,
-      conversationSlots: [...conversationSlots, ...riskSlots],
-    }),
-    [isChatIntakePath, conversationCtx, conversationSlots, riskSlots],
-  );
-  const outstanding = useMemo(
-    () => (isChatIntakePath
-      ? outstandingRequiredSlots(conversationCtx, [...conversationSlots, ...riskSlots])
-      : []),
-    [isChatIntakePath, conversationCtx, conversationSlots, riskSlots],
-  );
-  // Named, not counted: a requester staring at a disabled button needs to know
-  // which. The submission gaps are the server's own list; a slot the assistant
-  // is still going to ask about is left to the assistant rather than named twice.
-  // Decides whether the chosen supplier is an override that owes a reason.
+  const isCallOff = formData.preCheckOutcome === 'contract';
   const preferredSupplierIds = usePreferredSupplierIds(formData.category);
-  const outstandingFields = new Set<string>(outstanding.map((slot) => slot.target.field));
-  const gapsToName = detailsSubmissionGaps(formData, preferredSupplierIds).filter((gap) => !outstandingFields.has(gap.field));
-  // The title and date are in Key facts, the cost centre under Charged to.
-  const whereEntered = (field: string) => (
-    field === 'costCentre' ? 'Charged to' : field === 'supplierOverrideReason' ? 'Supplier' : 'Key facts'
-  );
+  const { data: sdTemplate } = useServiceDescriptionTemplate(formData.category);
 
-  const wizardSteps = progressStepsForRoute(route);
-  const submitStepId = submitStepFor(route);
-
-  // One gate per step, defined beside the step it guards. This was a
-  // `switch (currentStep)` that had to be renumbered by hand whenever the step
-  // order changed.
-  const canProceed = (): boolean =>
-    stepById(stepId).canProceed({
-      data: formData,
-      isChatIntakePath,
-      conversationCtx,
-      conversationSlots: [...conversationSlots, ...riskSlots],
-      hasDetermination: determination !== null,
-      preferredSupplierIds,
-    });
-
-  // A call-off's details, once the Details form has them. Held here rather
-  // than in the form so that going back from the Channel page shows the form
-  // as it was left.
+  // A call-off's details, held here rather than in the conversation so the
+  // Channel page and submit read the same draft the conversation fills.
   const [callOffDraft, setCallOffDraft] = useState<ContractCallOffDraft | null>(null);
   const { data: storedProfile = null } = useProcurementProfile(currentUser.id);
   const callOffContract = contracts.find((candidate) => candidate.id === formData.contractId);
@@ -311,8 +182,7 @@ export function NewRequestPage() {
   );
 
   // Contract call-offs go through the governed checkout, like catalogue
-  // orders. Keeping this path here prevents it falling back to the generic
-  // request writer and losing the PR/PO audit links.
+  // orders, so the PR/PO audit links are written with them.
   const submitCallOff = async () => {
     if (!callOffInputs) { toast.error('The contract or its supplier is no longer available.'); return; }
     setIsSubmitting(true);
@@ -322,123 +192,103 @@ export function NewRequestPage() {
       if (!decision.ok) throw new Error(decision.errors.join(' '));
       await submitGovernedCheckout({ requestId: id, requisitionId: `PR-${id}`, decision, checkout, request, lines });
       // The checkout creates the workflow instance on the call-off template.
-      // This used to add a second one here, on the category's template.
       queryClient.invalidateQueries({ queryKey: ['requests'] });
       toast.success('Contract call-off submitted');
-      attemptIdRef.current = null; setRequestId(id); setStepId('confirmation');
+      attemptIdRef.current = null; setRequestId(id); setView('confirmation');
     } catch (error) {
       toast.error(`Could not submit contract call-off: ${error instanceof Error ? error.message : 'Please try again.'}`);
     } finally { setIsSubmitting(false); }
   };
 
-  const handleNext = async () => {
-    if (stepId === submitStepId) {
-      // Submit
-      const id = await claimRequestId();
-      setIsSubmitting(true);
-      try {
-        const sow = formData.serviceDescription ?? null;
-        if (!determination) {
-          // Never submit a governed record with no determination behind it:
-          // the compliance row would claim checks that never ran.
-          toast.error('The compliance checks are still running. Please try again in a moment.');
-          return;
-        }
-        const parsedDeliveryDate = parseDeliveryDate(formData.deliveryDate);
-        if (formData.deliveryDate && !parsedDeliveryDate) {
-          toast.error('Please provide a specific need-by date before submitting.');
-          return;
-        }
-        await submitIntake({
-          request: {
-            id, title: formData.title, description: sow?.narrative ?? formData.title,
-            category: formData.category as RequestCategory, status: 'intake',
-            priority: formData.isUrgent ? 'urgent' : 'medium', value: formData.estimatedValue,
-            currency: formData.currency, supplierId: formData.supplierId, contractId: formData.contractId || undefined,
-            // Advisory: the server recomputes the override and keeps the reason only if there was one.
-            supplierOverrideReason: formData.supplierOverrideReason.trim() || undefined,
-            buyingChannel: (determination?.buyingChannelSlug ?? 'procurement-led') as BuyingChannel,
-            approvalChain: determination?.approvalChain, sourcingType: determination?.sourcingType.type,
-            sourcingTypeReason: determination?.sourcingType.reason, inherentRiskTier: determination?.inherentRisk.tier,
-            materialityTier: determination?.materiality.criticality, riskAssessmentRequired: determination?.riskAssessmentRequired,
-            screeningOutcome: determination?.screening.status, referralDisposition: determination?.referral.outcome,
-            commodityCode: formData.commodityCode, commodityCodeLabel: formData.commodityCodeLabel,
-            commodityCandidates: formData.commodityCandidates, commodityClassificationConfirmed: formData.commodityClassificationConfirmed,
-            attachments: formData.attachments, costCentre: formData.costCentre, budgetOwner: currentUser.name,
-            businessJustification: undefined, deliveryDate: parsedDeliveryDate ?? undefined, isUrgent: formData.isUrgent,
-            requestorId: currentUser.id, ownerId: currentUser.id, daysInStage: 0, isOverdue: false, referBackCount: 0,
-            requesterCountry: formData.requesterCountry || undefined, requesterCountryCode: formData.requesterCountryCode || undefined,
-            beneficiaryId: formData.beneficiaryId || undefined, beneficiaryName: formData.beneficiaryName || undefined,
-            beneficiaryCountry: formData.beneficiaryCountry || undefined, beneficiaryCountryCode: formData.beneficiaryCountryCode || undefined,
-          },
-          serviceDescription: sow ? {
-            objective: sow.objective ?? '', scope: sow.scope ?? '', exclusions: sow.exclusions ?? '', deliverables: sow.deliverables ?? '',
-            timeline: sow.timeline ?? '', resources: sow.resources ?? '', acceptanceCriteria: sow.acceptanceCriteria ?? '',
-            pricingModel: sow.pricingModel ?? '', location: sow.location ?? '', dependencies: sow.dependencies ?? '', narrative: sow.narrative ?? '',
-            ...(formData.sowQualityScore != null ? { qualityScore: formData.sowQualityScore } : {}),
-            ...(formData.sowQualityChecks ? { qualityChecks: formData.sowQualityChecks } : {}),
-            ...(formData.sowSignals ? { signals: formData.sowSignals } : {}),
-            ...(formData.sowRequiredSections ? { requiredSections: formData.sowRequiredSections } : {}),
-            ...(sow.captureFlags ? { captureFlags: sow.captureFlags } : {}),
-          } : undefined,
-          // One builder, both densities. It derives the record from the
-          // determination's structured fields rather than from the sentences
-          // this screen displays — the SRA outcome used to be read out of a
-          // rendered label, so a never-assessed supplier recorded a pass.
-          compliance: buildIntakeComplianceRecord(determination, { determinedAt: new Date().toISOString() }),
-          buyingChannel: determination.buyingChannelSlug,
-          idempotencyKey: `intake-${id}`,
-        });
-
-        // The alternates, after the request exists. Deliberately not part of the
-        // atomic intake write: a candidate list is a sourcing input, and failing
-        // to record one must not roll back a submitted request. It is upserted
-        // on (request_id, supplier_id), so a retry cannot duplicate rows.
-        const candidates = [
-          ...(formData.supplierId ? [{ requestId: id, supplierId: formData.supplierId, isPreferred: true }] : []),
-          ...formData.supplierCandidateIds
-            .filter((candidateId) => candidateId !== formData.supplierId)
-            .map((candidateId) => ({ requestId: id, supplierId: candidateId, isPreferred: false })),
-        ];
-        try {
-          await saveRequestSupplierCandidates(candidates);
-        } catch (error) {
-          // Say so rather than pretending: the request IS submitted, and a
-          // silent failure here would leave sourcing to discover an empty
-          // candidate list with no explanation.
-          console.error('Failed to record supplier candidates:', error);
-          toast.warning('Request submitted, but the supplier shortlist could not be saved.');
-        }
-
-        queryClient.invalidateQueries({ queryKey: ['requests'] });
-        toast.success('Request submitted successfully');
-        attemptIdRef.current = null;
-        setRequestId(id);
-        setStepId('confirmation');
-      } catch (e) {
-        console.error('Failed to persist request:', e);
-        // The dispatcher returns safe field-level validation text; surface it
-        // instead of masking actionable date/accounting errors behind a generic toast.
-        toast.error(e instanceof Error ? e.message : 'Failed to submit request. Please try again.');
-      } finally {
-        setIsSubmitting(false);
-      }
+  const submitRequest = async () => {
+    // Never submit a governed record with no determination behind it: the
+    // compliance row would claim checks that never ran.
+    if (!determination) {
+      toast.error('The compliance checks are still running. Please try again in a moment.');
       return;
     }
-    const next = nextStep(stepId, route);
-    if (next !== 'submit') setStepId(next);
-  };
+    const parsedDeliveryDate = parseDeliveryDate(formData.deliveryDate);
+    if (formData.deliveryDate && !parsedDeliveryDate) {
+      toast.error('Please provide a specific need-by date before submitting.');
+      return;
+    }
+    const id = await claimRequestId();
+    setIsSubmitting(true);
+    try {
+      const sow = formData.serviceDescription ?? null;
+      await submitIntake({
+        request: {
+          id, title: formData.title, description: sow?.narrative ?? formData.title,
+          category: formData.category as RequestCategory, status: 'intake',
+          priority: formData.isUrgent ? 'urgent' : 'medium', value: formData.estimatedValue,
+          currency: formData.currency, supplierId: formData.supplierId, contractId: formData.contractId || undefined,
+          // Advisory: the server recomputes the override and keeps the reason only if there was one.
+          supplierOverrideReason: formData.supplierOverrideReason.trim() || undefined,
+          buyingChannel: determination.buyingChannelSlug as BuyingChannel,
+          approvalChain: determination.approvalChain, sourcingType: determination.sourcingType.type,
+          sourcingTypeReason: determination.sourcingType.reason, inherentRiskTier: determination.inherentRisk.tier,
+          materialityTier: determination.materiality.criticality, riskAssessmentRequired: determination.riskAssessmentRequired,
+          screeningOutcome: determination.screening.status, referralDisposition: determination.referral.outcome,
+          commodityCode: formData.commodityCode, commodityCodeLabel: formData.commodityCodeLabel,
+          commodityCandidates: formData.commodityCandidates, commodityClassificationConfirmed: formData.commodityClassificationConfirmed,
+          attachments: formData.attachments, costCentre: formData.costCentre, budgetOwner: currentUser.name,
+          businessJustification: undefined, deliveryDate: parsedDeliveryDate ?? undefined, isUrgent: formData.isUrgent,
+          requestorId: currentUser.id, ownerId: currentUser.id, daysInStage: 0, isOverdue: false, referBackCount: 0,
+          requesterCountry: formData.requesterCountry || undefined, requesterCountryCode: formData.requesterCountryCode || undefined,
+          beneficiaryId: formData.beneficiaryId || undefined, beneficiaryName: formData.beneficiaryName || undefined,
+          beneficiaryCountry: formData.beneficiaryCountry || undefined, beneficiaryCountryCode: formData.beneficiaryCountryCode || undefined,
+        },
+        serviceDescription: sow ? {
+          objective: sow.objective ?? '', scope: sow.scope ?? '', exclusions: sow.exclusions ?? '', deliverables: sow.deliverables ?? '',
+          timeline: sow.timeline ?? '', resources: sow.resources ?? '', acceptanceCriteria: sow.acceptanceCriteria ?? '',
+          pricingModel: sow.pricingModel ?? '', location: sow.location ?? '', dependencies: sow.dependencies ?? '', narrative: sow.narrative ?? '',
+          ...(formData.sowQualityScore != null ? { qualityScore: formData.sowQualityScore } : {}),
+          ...(formData.sowQualityChecks ? { qualityChecks: formData.sowQualityChecks } : {}),
+          ...(formData.sowSignals ? { signals: formData.sowSignals } : {}),
+          ...(formData.sowRequiredSections ? { requiredSections: formData.sowRequiredSections } : {}),
+          ...(sow.captureFlags ? { captureFlags: sow.captureFlags } : {}),
+        } : undefined,
+        // The record is derived from the determination's structured fields,
+        // never from the sentences the Channel page displays — the SRA outcome
+        // used to be read out of a rendered label, so a never-assessed
+        // supplier recorded a pass.
+        compliance: buildIntakeComplianceRecord(determination, { determinedAt: new Date().toISOString() }),
+        buyingChannel: determination.buyingChannelSlug,
+        idempotencyKey: `intake-${id}`,
+      });
 
-  // A step change starts at the top. Nothing reset scroll anywhere, so leaving
-  // the tall Details screen for Review landed the requester in the middle of a
-  // page they had not read the start of.
-  useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'auto' });
-  }, [stepId]);
+      // The alternates, after the request exists. Deliberately not part of the
+      // atomic intake write: a candidate list is a sourcing input, and failing
+      // to record one must not roll back a submitted request. It is upserted
+      // on (request_id, supplier_id), so a retry cannot duplicate rows.
+      const candidates = [
+        ...(formData.supplierId ? [{ requestId: id, supplierId: formData.supplierId, isPreferred: true }] : []),
+        ...formData.supplierCandidateIds
+          .filter((candidateId) => candidateId !== formData.supplierId)
+          .map((candidateId) => ({ requestId: id, supplierId: candidateId, isPreferred: false })),
+      ];
+      try {
+        await saveRequestSupplierCandidates(candidates);
+      } catch (error) {
+        // Say so rather than pretending: the request IS submitted, and a silent
+        // failure would leave sourcing to discover an empty candidate list.
+        console.error('Failed to record supplier candidates:', error);
+        toast.warning('Request submitted, but the supplier shortlist could not be saved.');
+      }
 
-  const handleBack = () => {
-    const previous = previousStep(stepId, route);
-    if (previous) setStepId(previous);
+      queryClient.invalidateQueries({ queryKey: ['requests'] });
+      toast.success('Request submitted successfully');
+      attemptIdRef.current = null;
+      setRequestId(id);
+      setView('confirmation');
+    } catch (e) {
+      console.error('Failed to persist request:', e);
+      // The dispatcher returns safe field-level validation text; surface it
+      // instead of masking actionable date/accounting errors behind a generic toast.
+      toast.error(e instanceof Error ? e.message : 'Failed to submit request. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleSaveDraft = async () => {
@@ -463,9 +313,7 @@ export function NewRequestPage() {
         supplierId: formData.supplierId,
         contractId: formData.contractId || undefined,
         workflowTemplateId: channelTemplateId || undefined,
-        // The slug, not the label. `buyingChannelResult` is the display form
-        // ("Procurement-Led Sourcing") and every consumer of this column keys
-        // on the slug, so a draft saved here routed as an unknown channel.
+        // The slug, not the label: every consumer of this column keys on the slug.
         buyingChannel: (determination?.buyingChannelSlug ?? 'procurement-led') as BuyingChannel,
         sourcingType: determination?.sourcingType.type,
         sourcingTypeReason: determination?.sourcingType.reason,
@@ -477,9 +325,8 @@ export function NewRequestPage() {
         costCentre: formData.costCentre,
         budgetOwner: '',
         businessJustification: undefined,
-        // A draft is saved from whatever is on screen, so this can still be
-        // blank or half-typed. Normalise it the way the three submit paths do
-        // rather than handing the raw field to a DATE column.
+        // Normalised the way submit does, rather than handing a half-typed
+        // field to a DATE column.
         deliveryDate: parseDeliveryDate(formData.deliveryDate) ?? undefined,
         isUrgent: formData.isUrgent,
         daysInStage: 0,
@@ -504,402 +351,132 @@ export function NewRequestPage() {
 
   const handleReset = () => {
     setFormData(INITIAL_INTAKE_DATA);
-    setStepId('describe');
+    setCallOffDraft(null);
     setRequestId('');
+    setView('conversation');
+    setConversationKey((key) => key + 1);
   };
 
-  return (
-    <div
-      // The chat step and the Channel page are two panes, so they earn the
-      // width; every other step is a single column and reads better narrow.
-      className={cn('mx-auto space-y-6', (stepId === 'details' && isChatIntakePath) || stepId === 'channel' ? 'max-w-6xl' : 'max-w-3xl')}
-    >
-      {/* One header. This used to say "Simple requester view" / "New Request" /
-          "Create a new procurement request in N steps" depending on a mode the
-          requester had to pick first — three framings of one journey. */}
-      <div>
-        {/* The header sat outside the confirmation guard, so a submitted
-            request was still headed "Start a request" — inviting the one thing
-            the requester had just finished doing. */}
-        <h1 className="mt-1 text-xl font-semibold text-ink">
-          {stepId === 'confirmation' ? 'Request submitted' : 'Start a request'}
-        </h1>
-        <p className="mt-0.5 text-sm text-ink-3">
-          {stepId === 'confirmation'
-            ? `${requestId} is with procurement. Track it from your dashboard.`
-            : 'Tell us what you need. We will find the simplest compliant way to handle it.'}
-        </p>
-      </div>
+  // A view change starts at the top of the page.
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  }, [view]);
 
-      {/* Progress Bar */}
-      {stepId !== 'confirmation' && (
-        <div className="flex items-center gap-1">
-          {wizardSteps.map((step, index) => {
-            const position = index + 1;
-            const current = stepNumber(stepId, route);
-            return (
-            <div key={step.id} className="flex flex-1 flex-col items-center gap-1.5">
-              <div className="flex w-full items-center">
-                <div
-                  className={cn(
-                    'flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-medium transition-colors',
-                    position < current
-                      ? 'bg-ok text-paper'
-                      : position === current
-                        ? 'bg-accent-solid text-paper'
-                        : 'border-2 border-line bg-card text-ink-3'
-                  )}
-                >
-                  {position < current ? (
-                    <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
-                  ) : (
-                    position
-                  )}
-                </div>
-                {position < wizardSteps.length && (
-                  <div
-                    className={cn(
-                      'mx-1 h-0.5 flex-1',
-                      position < current ? 'bg-ok' : 'bg-line'
-                    )}
-                  />
-                )}
-              </div>
-              <span
-                className={cn(
-                  'text-xs text-center',
-                  position === current
-                    ? 'font-semibold text-accent-solid'
-                    : position < current
-                      ? 'font-medium text-ok'
-                      : 'text-ink-3'
-                )}
-              >
-                {step.label}
-              </span>
-              {/* Only the current step's description. Rendering all of them put
-                  two labels per step across the top of every screen — wayfinding
-                  turned into a wall of text. The titles still show the whole
-                  path; the detail belongs to where you actually are. */}
-              {position === current && (
-                <span className="hidden text-center text-[10px] leading-tight text-ink-3 sm:block">
-                  {stepDescription(step.id, route)}
-                </span>
-              )}
-            </div>
-            );
-          })}
+  const backToConversation = () => setView('conversation');
+
+  return (
+    <div className={cn('mx-auto', view === 'confirmation' ? 'max-w-3xl space-y-6' : 'max-w-7xl')}>
+      {/* The conversation stays mounted behind the Channel page, so "Back to
+          the conversation" returns to it as it was left — its transcript is
+          state that no form field could rebuild. */}
+      {view !== 'confirmation' && (
+        <div hidden={view !== 'conversation'}>
+          <ViewErrorBoundary onReset={handleReset}>
+            <IntakeConversation
+              key={conversationKey}
+              prefill={conversationKey === 0 ? prefill : undefined}
+              formData={formData}
+              updateFormData={updateFormData}
+              determination={determination}
+              requester={{ id: currentUser.id, name: currentUser.name }}
+              profileCostCentre={profileCostCentre}
+              storedProfile={storedProfile}
+              callOffDraft={callOffDraft}
+              setCallOffDraft={setCallOffDraft}
+              onSeeChannel={() => setView('channel')}
+            />
+          </ViewErrorBoundary>
         </div>
       )}
 
-      {/* No step heading: the stepper directly above already renders this step's
-          title and description, so an `h2` repeating "Describe: What do you
-          need?" was the same words twice within one screen height. */}
-
-      {/* The Channel page: its own two-pane frame and its own action bar, so it
-          sits outside the step card and the wizard footer. */}
-      {stepId === 'channel' && (
-        <StepErrorBoundary onReset={handleReset}>
-          {route === 'contract' ? (
-            callOffPreview && callOffDraft && callOffContract && callOffSupplier ? (
-              <StepChannelCallOff
-                callOff={callOffPreview}
-                draft={callOffDraft}
-                contract={callOffContract}
-                supplier={callOffSupplier}
+      {view === 'channel' && (
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-3.5">
+            <Button variant="ghost" size="sm" className="-ml-2" onClick={backToConversation}>
+              <ArrowLeft className="size-4" aria-hidden="true" /> Back to the conversation
+            </Button>
+            <span className="h-4 w-px bg-line" aria-hidden="true" />
+            <h1 className="text-heading font-semibold text-ink">Your buying channel</h1>
+          </div>
+          <ViewErrorBoundary onReset={handleReset}>
+            {isCallOff ? (
+              callOffPreview && callOffDraft && callOffContract && callOffSupplier ? (
+                <StepChannelCallOff
+                  callOff={callOffPreview}
+                  draft={callOffDraft}
+                  contract={callOffContract}
+                  supplier={callOffSupplier}
+                  costCentres={allCostCentres}
+                  deliveryLocations={allDeliveryLocations}
+                  onBack={backToConversation}
+                  onSubmit={() => void submitCallOff()}
+                  submitting={isSubmitting}
+                />
+              ) : (
+                <p className="rounded-lg border border-warn-line bg-warn-soft px-4 py-3 text-sm text-warn">
+                  The call-off details are not complete — go back to the conversation and add them.
+                </p>
+              )
+            ) : determination ? (
+              <StepChannelRequest
+                formData={formData}
+                determination={determination}
+                suppliers={suppliers}
+                preferredSupplierIds={preferredSupplierIds}
+                sections={sdTemplate?.sections ?? []}
                 costCentres={allCostCentres}
-                deliveryLocations={allDeliveryLocations}
-                onBack={() => setStepId('details')}
-                onSubmit={() => void submitCallOff()}
+                requester={{ id: currentUser.id, name: currentUser.name }}
+                onBack={backToConversation}
+                onSubmit={() => void submitRequest()}
+                onSaveDraft={() => void handleSaveDraft()}
                 submitting={isSubmitting}
               />
             ) : (
-              <p className="rounded-lg border border-warn-line bg-warn-soft px-4 py-3 text-sm text-warn">
-                The call-off details are not complete — go back and add them.
-              </p>
-            )
-          ) : determination ? (
-            <StepChannelRequest
-              formData={formData}
-              determination={determination}
-              suppliers={suppliers}
-              preferredSupplierIds={preferredSupplierIds}
-              sections={sdTemplate?.sections ?? []}
-              costCentres={allCostCentres}
-              requester={{ id: currentUser.id, name: currentUser.name }}
-              onBack={() => setStepId('details')}
-              onSubmit={() => void handleNext()}
-              onSaveDraft={() => void handleSaveDraft()}
-              submitting={isSubmitting}
-            />
-          ) : (
-            // A governed record is never written without a determination, so
-            // the page waits for it rather than drawing stages it cannot know.
-            <p className="flex items-center justify-center gap-2 py-16 text-sm text-ink-3" role="status">
-              <Loader2 className="size-4 animate-spin" /> Running the checks for your request…
-            </p>
-          )}
-        </StepErrorBoundary>
-      )}
-
-      {/* Step Content */}
-      {stepId !== 'channel' && (
-      <div className="rounded-lg border border-line bg-card p-6">
-        {/* What this step is for, what it needs, and what follows from it. The
-            confirmation step carries its own version of this and is excluded in
-            the guidance map. */}
-        <StepHeaderPanel guidance={stepGuidance(stepId, route) ?? null} />
-        <StepErrorBoundary onReset={handleReset}>
-        {stepId === 'describe' && (
-          <StepCategory
-            prefill={categoryPrefill}
-            onUpdate={(d) => updateFormData(d)}
-            onAutoAdvance={() => setStepId('buy-route')}
-            // The catalogue is its own door: pick items and order them on the
-            // Catalogue page, without a request.
-            onBrowseCatalogue={() => navigate('/catalogue')}
-          />
-        )}
-        {stepId === 'buy-route' && (
-          <StepBuyRoute
-            title={formData.title || formData.categoryDescription}
-            demandDetail={formData.demandDetail}
-            category={formData.category}
-            estimatedValue={formData.estimatedValue}
-            supplierId={formData.supplierId}
-            isUrgent={formData.isUrgent}
-            commodityCode={formData.commodityCode}
-            llmIntent={formData.llmIntent}
-            onChooseCatalogue={(items: CatalogueItem[]) => {
-              if (items.length === 0) return;
-              // The matched items go into the basket on the Catalogue page,
-              // where catalogue orders are placed — not into this wizard.
-              navigate(`/catalogue?add=${items.map((item) => encodeURIComponent(item.id)).join(',')}`);
-            }}
-            onChooseContract={(contract: Contract) => {
-              updateFormData({
-                preCheckOutcome: 'contract',
-                contractId: contract.id,
-                contractTitle: contract.title,
-                supplier: contract.supplierName,
-                supplierId: contract.supplierId,
-                supplierProvenance: 'named',
-                category: formData.category || contract.category.toLowerCase(),
-              });
-              setStepId('details');
-            }}
-            onProceedToFullRequest={() => {
-              updateFormData({ preCheckOutcome: 'full-request' });
-              setStepId('details');
-            }}
-            onEnrich={(text) => {
-              // Into its own field, never appended to the title. It still
-              // reaches the matcher (passed below), the service description and
-              // the second contract check — without renaming the request.
-              updateFormData({
-                demandDetail: formData.demandDetail ? `${formData.demandDetail} ${text}` : text,
-              });
-            }}
-          />
-        )}
-        {/* Requester context — who / where — established before the per-path
-            capture so catalogue / contract / SOW all inherit it. */}
-        {stepId === 'details' && (
-          <RequesterContextBlock
-            requestorId={currentUser.id}
-            requesterCountry={formData.requesterCountry}
-            beneficiaryId={formData.beneficiaryId}
-            beneficiaryName={formData.beneficiaryName}
-            costCentre={formData.costCentre}
-            profileCostCentre={profileCostCentre}
-            onUpdate={(d) => updateFormData(d)}
-          />
-        )}
-        {stepId === 'details' && formData.preCheckOutcome === 'contract' && (
-          <div className="mb-4 rounded-lg border border-accent-line bg-accent-soft/40 p-4 text-sm">
-            <p className="font-medium text-accent-solid">Contract call-off</p>
-            <p className="mt-0.5 text-accent-solid">
-              Confirm the value and timing for this purchase against{' '}
-              {formData.contractTitle || 'the selected contract'}. The contract ceiling is not
-              the value of this individual call-off.
-            </p>
-          </div>
-        )}
-        {stepId === 'details' && formData.preCheckOutcome === 'contract' && (
-          <ContractCallOffCheckout
-            contract={callOffContract}
-            initialValues={callOffDraft ?? { title: formData.title || formData.contractTitle, value: formData.estimatedValue, needBy: formData.deliveryDate, recipient: formData.beneficiaryName, purpose: formData.businessJustification, costCentre: formData.costCentre }}
-            onContinue={(draft) => { setCallOffDraft(draft); setStepId('channel'); }}
-          />
-        )}
-        {stepId === 'details' && isChatIntakePath && (
-          <StepChatIntake
-            category={formData.category}
-            categoryDescription={formData.categoryDescription}
-            data={{
-              title: formData.title,
-              supplier: formData.supplier,
-              supplierId: formData.supplierId,
-              estimatedValue: formData.estimatedValue,
-              currency: formData.currency,
-              // The detail added at the buy-route step is context the
-              // conversation should not ask for again.
-              businessJustification: [formData.businessJustification, formData.demandDetail]
-                .filter(Boolean).join(' ').trim(),
-              deliveryDate: formData.deliveryDate,
-              isUrgent: formData.isUrgent,
-              costCentre: formData.costCentre,
-              commodityCode: formData.commodityCode,
-              commodityCodeLabel: formData.commodityCodeLabel,
-              serviceDescription: formData.serviceDescription,
-            }}
-            onUpdate={(d) => updateFormData(d)}
-            // The risk questions are asked as the tail of this conversation
-            // rather than as a card of switches below it. The determination
-            // still decides WHICH are asked; this only carries them in.
-            riskQuestions={determination?.residualQuestions}
-            riskAnswers={formData.miniIrq}
-          />
-        )}
-        {/* The supplier comes last, once the conversation is done: the Details
-            step used to put the chat, a card of risk switches and supplier
-            selection on screen at once, before anything had been answered. */}
-        {stepId === 'details' && formData.preCheckOutcome === 'full-request' && detailsDescriptionDone && (
-          <DetailsSupplier
-            supplierProvenance={formData.supplierProvenance}
-            onSelectSupplier={(sup) =>
-              updateFormData({
-                supplier: sup.name,
-                supplierId: sup.id,
-                supplierProvenance: 'chosen',
-                // Choosing a supplier is itself the answer to "do you have one
-                // in mind", so it clears an earlier "go out to market".
-                supplierIntent: 'named',
-                supplierCandidateIds: formData.supplierCandidateIds.filter((id) => id !== sup.id),
-              })
-            }
-            supplierCandidateIds={formData.supplierCandidateIds}
-            supplierOverrideReason={formData.supplierOverrideReason}
-            onSupplierOverrideReasonChange={(reason) => updateFormData({ supplierOverrideReason: reason })}
-            onToggleSupplierCandidate={(sup) =>
-              updateFormData({
-                supplierIntent: 'named',
-                supplierCandidateIds: formData.supplierCandidateIds.includes(sup.id)
-                  ? formData.supplierCandidateIds.filter((id) => id !== sup.id)
-                  : [...formData.supplierCandidateIds, sup.id],
-              })
-            }
-            supplierIntent={formData.supplierIntent}
-            onSupplierIntentChange={(intent) =>
-              updateFormData(intent === 'to-be-sourced'
-                // An explicit "no supplier" clears any earlier selection, so the
-                // screen and the record cannot disagree about what was decided.
-                ? { supplierIntent: intent, supplier: '', supplierId: '', supplierCandidateIds: [] }
-                : { supplierIntent: intent })
-            }
-            category={formData.category}
-            estimatedValue={formData.estimatedValue}
-            supplierId={formData.supplierId}
-            supplier={formData.supplier}
-          />
-        )}
-        {stepId === 'confirmation' && (
-          <StepConfirmation
-            requestId={requestId}
-            // The same next steps the Channel page's workings listed, so the
-            // two screens cannot disagree about what happens next.
-            nextSteps={determination?.handoffSteps ?? []}
-            data={{
-              title: formData.title,
-              category: formData.category,
-              supplier: formData.supplier,
-              estimatedValue: formData.estimatedValue,
-              currency: formData.currency,
-              costCentre: formData.costCentre,
-              deliveryDate: formData.deliveryDate,
-              isUrgent: formData.isUrgent,
-              // The channel the record carries: a call-off's is the one its
-              // checkout records, whatever the determination would route the
-              // same words to as a new demand.
-              buyingChannelResult: route === 'contract' && callOffPreview
-                ? buyingChannelLabel(callOffPreview.request.buyingChannel as BuyingChannel)
-                : determination?.buyingChannelResult ?? '',
-              commodityCodeLabel: formData.commodityCodeLabel,
-            }}
-            onReset={handleReset}
-          />
-        )}
-        </StepErrorBoundary>
-      </div>
-      )}
-
-      {/* Navigation — the Channel page carries its own. */}
-      {stepId !== 'confirmation' && stepId !== 'channel' && (
-        <div className="flex items-center justify-between">
-          <Button
-            variant="ghost"
-            onClick={handleBack}
-            disabled={stepId === 'describe'}
-          >
-            <ArrowLeft className="size-4" />
-            Back
-          </Button>
-          <div className="flex items-center gap-2">
-            {/* A disabled Next that does not say why is a dead end. Name what is
-                still outstanding, in the requester's terms. */}
-            {stepId === 'details' && isChatIntakePath && outstanding.length > 0 && (
-              <p className="mr-1 max-w-md text-right text-xs text-ink-3">
-                Still needed:{' '}
-                {outstanding
-                  .map((slot) => slot.target.field.replace(/([A-Z])/g, ' $1').toLowerCase())
-                  .join(', ')}
-                {' — '}keep answering the assistant.
+              // A governed record is never written without a determination, so
+              // the page waits for it rather than drawing stages it cannot know.
+              <p className="flex items-center justify-center gap-2 py-16 text-sm text-ink-3" role="status">
+                <Loader2 className="size-4 animate-spin" /> Running the checks for your request…
               </p>
             )}
-            {/* What submit will require and nothing on this step has asked for
-                yet — a need-by date the conversation skipped, a cost centre. */}
-            {stepId === 'details' && route === 'full-request' && gapsToName.length > 0 && (
-              <p className="mr-1 max-w-md text-right text-xs text-ink-3">
-                {gapsToName.map((gap) => `Add ${gap.label} under ${whereEntered(gap.field)}`).join('; ')}.
-              </p>
-            )}
-            {stepId === 'details' && (
-              <Button variant="ghost" onClick={handleSaveDraft} disabled={isSubmitting}>
-                <Save className="size-4" />
-                Save as Draft
-              </Button>
-            )}
-            {/* A call-off's Details form continues to the Channel page itself,
-                so the footer shows no primary action there. */}
-            {!(stepId === 'details' && formData.preCheckOutcome === 'contract') && (
-              <Button
-                onClick={handleNext}
-                disabled={!canProceed() || isSubmitting}
-              >
-                {stepId === submitStepId ? (
-                  isSubmitting ? (
-                    <>
-                      <Loader2 className="size-4 animate-spin" />
-                      Submitting...
-                    </>
-                  ) : (
-                    <>
-                      <Send className="size-4" />
-                      Submit Request
-                    </>
-                  )
-                ) : (
-                  <>
-                    Next
-                    <ArrowRight className="size-4" />
-                  </>
-                )}
-              </Button>
-            )}
-          </div>
+          </ViewErrorBoundary>
         </div>
+      )}
+
+      {view === 'confirmation' && (
+        <>
+          <div>
+            <h1 className="text-xl font-semibold text-ink">Request submitted</h1>
+            <p className="mt-0.5 text-sm text-ink-3">{requestId} is with procurement. Track it from your dashboard.</p>
+          </div>
+          <div className="rounded-lg border border-line bg-card p-6">
+            <StepConfirmation
+              requestId={requestId}
+              // The same next steps the Channel page's workings listed, so the
+              // two screens cannot disagree about what happens next.
+              nextSteps={determination?.handoffSteps ?? []}
+              // A call-off's own details are its draft's — the words it started
+              // from can differ from what was called off.
+              data={{
+                title: isCallOff && callOffDraft ? callOffDraft.title : formData.title,
+                category: formData.category,
+                supplier: formData.supplier,
+                estimatedValue: isCallOff && callOffDraft ? callOffDraft.value : formData.estimatedValue,
+                currency: formData.currency,
+                costCentre: isCallOff && callOffDraft ? callOffDraft.costCentre : formData.costCentre,
+                deliveryDate: isCallOff && callOffDraft ? callOffDraft.needBy : formData.deliveryDate,
+                isUrgent: formData.isUrgent,
+                // The channel the record carries: a call-off's is the one its
+                // checkout records, whatever the determination would route the
+                // same words to as a new demand.
+                buyingChannelResult: isCallOff && callOffPreview
+                  ? buyingChannelLabel(callOffPreview.request.buyingChannel as BuyingChannel)
+                  : determination?.buyingChannelResult ?? '',
+                commodityCodeLabel: formData.commodityCodeLabel,
+              }}
+              onReset={handleReset}
+            />
+          </div>
+        </>
       )}
     </div>
   );

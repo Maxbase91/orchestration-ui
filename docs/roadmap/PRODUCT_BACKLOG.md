@@ -69,12 +69,12 @@ Every question the front door asks them to answer *about procurement* rather tha
 | 1.2.1 | As a **Requester**, I want the system to work out the category, so that I never choose between "Goods" and "Contingent Labour". | There is **no category grid**. The broad category is internal routing metadata (ADR-0005). Pinned by `test:ui`. | 🟢 |
 | 1.2.2 | As a **Requester**, I want to see and correct the commodity/service family it inferred. | Up to 3 candidates with a confidence and the reason each matched, plus "None of these". | 🟢 |
 | 1.2.3 | As a **Buyer**, I want classification accuracy tracked against a labelled set, so that a prompt change cannot silently regress it. | `test:classification-eval` reports accuracy against a baseline (CLS-G1). | 🟢 |
-| 1.2.4 | As a **Requester**, I want classification to work when the AI is unavailable. | A deterministic keyword classifier answers, and the screen says which produced the answer ("AI Classification" vs "Keyword match"). | 🟢 |
+| 1.2.4 | As a **Requester**, I want classification to work when the AI is unavailable. | A deterministic keyword classifier answers, and the conversation says which produced the answer ("Read by the category classifier" vs "Matched on the configured category keywords"). | 🟢 |
 
 **Rules**
-- A **route is not a category.** A classifier answering `catalogue` is converted to an *intent*; the route is decided by the buy-route step. Guarded by `ROUTE_LIKE_CATEGORY` on both the step-1 path and the `?category=` deep link — without it, a paper-and-toner demand puts the whole wizard on the fast track before the funnel runs.
+- A **route is not a category.** A classifier answering `catalogue` is converted to an *intent*; the route is decided by the conversation's catalogue and contract checks. Guarded by `ROUTE_LIKE_CATEGORY` in `classify-demand.ts` — without it, a paper-and-toner demand would skip the checks altogether. (The `?category=` deep link it also guarded was retired on 2026-09-25.)
 
-**Technical** — `src/features/requests/new-request/step-category.tsx`, `src/lib/procurement/classify.ts`, `src/lib/procurement/commodity-candidates.ts`.
+**Technical** — `src/features/requests/new-request/conversation/classify-demand.ts`, `src/lib/procurement/classify.ts`, `src/lib/procurement/commodity-candidates.ts`.
 
 ---
 
@@ -98,12 +98,12 @@ stated in procurement's vocabulary, four steps after it became knowable.
 | 2.1.6 | As a **Requester**, when the catalogue and contract register cannot be reached, I want to be told nothing was checked. | The screen says neither was checked and nothing was ruled in or out, and offers the full-request route. Never a spinner, never "no match" for a check that never ran. | 🟢 |
 
 **Rules**
-- **One derivation.** The channel comes from `resolveDemandChannel`; the buy-route screen and the determination behind the Channel page call the same function with the same inputs, so they cannot disagree.
+- **One derivation.** The channel comes from `resolveDemandChannel`; the conversation's route checks and the determination behind the Channel page call the same function with the same inputs, so they cannot disagree.
 - Routing inputs are the **superset**: category, value, supplier, matched contract, urgency, inherent-risk tier and materiality. Supplying a subset on one path was how the two densities produced different channels for one demand.
 - Routing decides only **business-led vs procurement-led** (2026-09-25): consulting and contingent labour always procurement-led, then the value rules and the business-led ceiling. The catalogue and a call-off come from a real item or contract; Direct PO and P-card are retired.
 - Contract call-off needs a **primary signal** — supplier match, category match, or ≥2 keyword hits — plus remaining capacity ≥5%.
 
-**Technical** — `src/features/requests/new-request/step-buy-route.tsx` (presenter only), `src/lib/routing/demand-channel.ts`, `src/lib/routing/evaluate-routing-rules.ts`, `src/lib/routing/p-card.ts`, `api/_domains/contract-match.ts`, served at `/api/contract-match` by a `vercel.json` rewrite (ADR-0004).
+**Technical** — `src/features/requests/new-request/conversation/use-route-checks.ts`, `src/lib/routing/demand-channel.ts`, `src/lib/routing/evaluate-routing-rules.ts`, `src/lib/routing/p-card.ts`, `api/_domains/contract-match.ts`, served at `/api/contract-match` by a `vercel.json` rewrite (ADR-0004).
 
 ---
 
@@ -135,7 +135,7 @@ why they are being asked.
 - The completeness floor is `requiredSlotsFilled` — deliberately the mandatory floor, not "every slot the template marks required", so an LLM cannot short-circuit the conversation.
 - Sections marked `asked: false` (e.g. `location`) are inferred at generation, never asked.
 
-**Technical** — `src/features/requests/new-request/step-chat-intake.tsx`, `src/lib/procurement/demand-conversation.ts`, `api/chat-intake.ts`, `api/generate-sow.ts`, `src/lib/db/service-description-templates.ts`.
+**Technical** — `src/features/requests/new-request/conversation/use-service-description-conversation.ts`, `src/lib/procurement/demand-conversation.ts`, `api/chat-intake.ts`, `api/generate-sow.ts`, `src/lib/db/service-description-templates.ts`.
 
 ---
 
@@ -145,24 +145,29 @@ why they are being asked.
 was eight cards of which exactly one was a question, with nothing marking which
 was which.
 
-### Feature 4.1 — Four steps, one config
+### Feature 4.1 — One conversation, then the Channel page
+
+Four steps (Describe → How you'll buy → Details → Your buying channel) replaced
+the seven; on 2026-09-26 the first three became one conversation (the Intake
+Prototype's Door 1), and the fourth is the Channel page it leads to.
 
 | # | Story | Acceptance criteria | Status |
 |---|---|---|---|
-| 4.1.1 | As a **Requester**, I want a short, legible path. | Four steps — Describe → How you'll buy → Details → Your buying channel — plus a confirmation outcome, for a full request and a call-off alike. Pinned by `test:intake-guidance`. | 🟢 |
-| 4.1.2 | As a **Requester**, I want every question in one place. | Details holds the service description, the residual risk questions and supplier selection (a call-off: its own details). Nothing after it asks for anything. The intake copy of the IT security form is gone (2026-09-26): it discarded its answers; the form is filled at the risk stage it is configured for. | 🟢 |
-| 4.1.3 | As a **Requester**, I want a disabled Next to tell me what is missing. | Chat path names the outstanding slots; form paths name the missing fields ("To review this request, add a title, an estimated value"). | 🟢 |
-| 4.1.4 | As a **Requester**, I want each step to say what it is for and what follows. | A header panel per step: purpose, what you provide, what happens next — held in the same config as the step's order and gate. | 🟢 |
-| 4.1.5 | As a **Buyer**, I want a catalogue order to skip governance it does not need. | A catalogue order is placed on the Catalogue page, not through the intake wizard: pre-approved, pre-priced items reach no determination, and none is manufactured (the wizard's catalogue route was retired on 2026-09-25). | 🟢 |
-| 4.1.6 | As a **Developer**, I want step order to live in one place. | `intake-steps.ts` owns order, per-route applicability, gates and guidance. Renumbering used to mean editing five hand-synced places. | 🟢 |
+| 4.1.1 | As a **Requester**, I want a short, legible path. | One conversation in three phases — What you need · How it is bought · What it needs — then the Channel page, for a new request and a call-off alike, plus a confirmation outcome. Pinned by `test:intake-guidance` and `test:ui`. | 🟢 |
+| 4.1.2 | As a **Requester**, I want every question in one place. | The conversation holds the service description, the supplier and the residual risk questions (a call-off: its own details). Nothing after it asks for anything. The intake copy of the IT security form is gone (2026-09-26): it discarded its answers; the form is filled at the risk stage it is configured for. | 🟢 |
+| 4.1.3 | As a **Requester**, I want to be told what is still missing before I go on. | The conversation names each gap submit would refuse — a need-by date, a cost centre, a reason for a supplier off the preferred list — and says where to add it; "Buying channel confirmed" is held until then. | 🟢 |
+| 4.1.4 | As a **Requester**, I want to know where I am and why I am being asked. | The header names the three phases and marks the current one; each conditional question says why it is asked; Your request says where each value came from. | 🟢 |
+| 4.1.5 | As a **Buyer**, I want a catalogue order to skip governance it does not need. | A catalogue order is placed on the Catalogue page, not through the conversation: pre-approved, pre-priced items reach no determination, and none is manufactured (intake's own catalogue route was retired on 2026-09-25). | 🟢 |
+| 4.1.6 | As a **Developer**, I want the confirmation rule in one place. | `conversation-rules.ts` owns when the conversation is through and when the channel is confirmed, and `request-rows.ts` what the route needs — tested together, so the panel's "N of M known" and the confirmation cannot disagree (`test:intake-conversation`). | 🟢 |
 | 4.1.7 | As a **Developer**, I want deep links parsed where they can be tested. | `?q=` is the one link intake reads (the `?step=2&category=…` and `?catalogueItem=…` links were retired on 2026-09-25 with their producers), and the page no longer reads `searchParams` at all. Pinned by `test:unified-intake` and `test:assistant-intents`. | 🟢 |
+| 4.1.8 | As a **Requester**, I want to watch my request build, and correct it in place. | Your request lists every value with its provenance and edits the inputs — title, value, dates, who and where, supplier, sections — in place; what the platform decides has no editor (decided 2026-09-26). | 🟢 |
 
 ### Feature 4.2 — Risk, asked as questions
 
 | # | Story | Acceptance criteria | Status |
 |---|---|---|---|
-| 4.2.1 | As a **Requester**, I only want to be asked what could not be inferred. | The mini-IRQ asks 0–2 switches (privileged access, critical service), each with its "asked because" reason, and says so when there is nothing to ask. | 🟢 |
-| 4.2.2 | As a **Requester**, I want the risk questions beside the demand they refer to. | They render on Details, not four screens later. | 🟢 |
+| 4.2.1 | As a **Requester**, I only want to be asked what could not be inferred. | The mini-IRQ asks 0–2 Yes/No questions (privileged access, critical service), each with its "asked because" reason, and none when there is nothing to ask. | 🟢 |
+| 4.2.2 | As a **Requester**, I want the risk questions beside the demand they refer to. | They are asked in the conversation, after the supplier who decides them — not four screens later. | 🟢 |
 | 4.2.3 | As a **Service owner**, I want to confirm or reject a proposed reuse of an existing risk assessment. | 🔴 The reuse decision is computed and shown; there is no explicit accept/reject control (RSK-05). | 🔴 |
 
 **Rules**
@@ -170,7 +175,7 @@ was which.
 - Inherent risk is a highest-attribute-wins cascade over data sensitivity, supplier risk rating, value (`riskMediumValue` €50,000, `riskHighValue` €250,000), privileged access and critical service.
 - Data sensitivity is inferred conservatively: an unknown sensitive term reads **high**, not low.
 
-**Technical** — `src/features/requests/new-request/intake-steps.ts`, `details-supplier.tsx`, `src/lib/procurement/residual-questions.ts`, `risk-segmentation.ts`, `demand-signals.ts`.
+**Technical** — `src/features/requests/new-request/conversation/` (`intake-conversation.tsx`, `conversation-rules.ts`, `request-rows.ts`), `src/lib/procurement/residual-questions.ts`, `risk-segmentation.ts`, `demand-signals.ts`.
 
 ---
 
@@ -280,7 +285,7 @@ from had nowhere to be seen or corrected.
 | 8.1.5 | As a **Requester**, I want a call-off to make clear it is not the whole contract. | The Details step states that the contract ceiling is not the value of this individual call-off. | 🟢 |
 | 8.1.6 | As a **Buyer**, I want delivery locations validated. | `shipToLocationId` must be one the profile approves; a value outside the list is rejected by `evaluateGovernedCheckout`. | 🟢 |
 
-**Technical** — `src/lib/procurement/governed-checkout.ts`, `submit-governed-checkout.ts`, `api/governed-checkout.ts` (ADR-0002, basket mode ADR-0009), `src/lib/procurement/catalogue-basket.ts`, `src/features/catalogue/catalogue-page.tsx`, `new-request/contract-call-off-checkout.tsx`.
+**Technical** — `src/lib/procurement/governed-checkout.ts`, `submit-governed-checkout.ts`, `api/governed-checkout.ts` (ADR-0002, basket mode ADR-0009), `src/lib/procurement/catalogue-basket.ts`, `src/features/catalogue/catalogue-page.tsx`, `new-request/conversation/call-off-agenda.ts` and `new-request/call-off.ts`.
 
 ---
 

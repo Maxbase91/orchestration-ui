@@ -57,7 +57,7 @@ interface ChannelPageProps {
 export function ChannelPage(props: ChannelPageProps) {
   const { plan } = props;
   return (
-    <div className="grid overflow-hidden rounded-xl border border-line bg-card shadow-[var(--shadow)] lg:grid-cols-[minmax(0,1fr)_380px]">
+    <div className="grid overflow-hidden rounded-xl border border-line bg-card shadow-[var(--shadow)] lg:grid-cols-[minmax(0,1fr)_400px]">
       <section aria-label="How it will be bought" className="flex min-w-0 flex-col">
         <div className="flex flex-col gap-4 p-6">
           {/* The navy of the navigation rail: this band is the page's one

@@ -20,7 +20,7 @@ R1 is an internally operated system of record backed by private Neon. It owns re
 
 ### Key Capabilities Demonstrated
 
-- **Intelligent Intake** — a four-step AI-assisted wizard that auto-classifies categories, suggests commodity codes, shows every way to buy on one screen, and runs compliance checks — asking everything before concluding anything
+- **Intelligent Intake** — a conversation that reads what is needed back as a category and code, checks the catalogue and the contracts first, then asks only what the chosen route still needs, with the request building beside it — asking everything before concluding anything
 - **Contract-aware intake** — structured scope versions, deliverable/exclusion matching, explainable ranking and adaptive clarification before a call-off
 - **One standardised requester experience** — no mode to choose. The evidence behind every determination is available to everyone, collapsed by default, and simplification comes from the role: a requester's default dashboard is their own requests, not KPIs (ADR-0008)
 - **Configurable home** — one dashboard per role, with widgets each user can add, remove and reorder; the layout persists
@@ -42,9 +42,9 @@ R1 is an internally operated system of record backed by private Neon. It owns re
 |--------|-------------|
 | Role-Based Dashboards | 5 tailored dashboards (Service Owner, Procurement Manager, Vendor Manager, Operations Lead, Admin) |
 | Operational home dashboard | Expert users receive one consistent role-based dashboard with live KPIs, pipeline, workload and action widgets. Decorative alternate layouts were retired to avoid confusing users with inconsistent navigation. |
-| New Request Wizard | One shared intake for every demand type, in **four steps** — Describe → How you'll buy → Details → Your buying channel — on one engine, where **every question is asked before any conclusion is shown**: Details holds everything the requester supplies and reveals it **one section at a time** — the conversation first, its criteria-driven risk questions as Yes/No choices at the end of that same conversation, then supplier selection — while the **Channel page** holds what the platform concluded: how it will be bought, every stage of the channel's template with *Applies / If … / Skipped* and why (the server's landing rule plus the engine's own branch walk), what the requester does at each, the approvers submit will write, who sourcing will invite, and the checks, with the workings and Export one click down. A contract call-off submits there too. There is one page and one view of it: the workings behind every conclusion are shown to everyone, collapsed by default, and never a step, a gate, a decision or what is written — anything that *blocks* the request is never hidden. The step order, gates and guidance live in one config (`intake-steps.ts`), and `test:mode-equivalence` asserts there is no second intake page to drift. Describe or upload a brief, confirm a specific commodity/service family, clarify only missing details, review the recommended route, complete governed fulfilment fields, and submit. Goods/Services is an internal routing value and is never a requester choice. PDF/DOCX text is extracted server-side for confirmation; the structured description keeps Included, Excluded, Deliverables and Acceptance Criteria separate with provenance. The adaptive conversation and contextual guidance are deterministic when AI is unavailable, and completed submissions enter the first actionable workflow stage rather than remaining in intake. Catalogue remains the only visible shortcut; a contract call-off is discovered by the contract check, and otherwise routing decides business-led or procurement-led. A demand started from the home command bar carries its text into route evaluation and skips the duplicate describe screen; choosing “Proceed to full request” always opens the adaptive details path. |
+| New request — the conversation | One page for every demand (the Intake Prototype's Door 1, since 2026-09-26), where **every question is asked before any conclusion is shown**. The conversation runs in three phases — **What you need** (the words, Home's `?q=` or an attached PDF/DOCX, read back as a category and code to confirm), **How it is bought** (the catalogue and the contracts checked first, then a catalogue item to order on the Catalogue page, a contract to call off, or — when nothing covers it — a new request) and **What it needs** (a call-off's details, or the service description, then the supplier, then the risk questions the supplier decides, as Yes/No choices). **Your request** fills in on the right with where each value came from, edits inputs in place, and counts what the route needs — reaching M of M exactly when **Buying channel confirmed** appears, which it does only when submit would accept the request. The **Channel page** then shows how it will be bought: every stage of the channel's template with *Applies / If … / Skipped* and why (the server's landing rule plus the engine's own branch walk), what the requester does at each, the approvers submit will write, who sourcing will invite, and the checks, with the workings and Export one click down; a call-off submits there too. There is one page and one view of it (`test:mode-equivalence`). Goods/Services is an internal routing value and never a requester choice; the structured description keeps Included, Excluded, Deliverables and Acceptance Criteria separate with provenance; the conversation is deterministic when AI is unavailable, and submitted requests enter the first actionable workflow stage. |
 | Request Detail | Full lifecycle tracker with 7 tabs (Overview, Workflow, Comments, Approvals, Documents, Related, Audit). Validation confirms the request, supplier, contract, risk, and capacity data; approval is the separate budget/authority decision and is only required when policy or risk calls for it. Both stages show the **service description** and its quality score, so a reviewer sees what they are approving |
-| Vendor onboarding | A real conditional stage, not a preview label. **Light onboarding** (supplier record exists and screening has cleared) gates **sourcing** — you cannot invite a supplier that does not exist — and gates **completing the risk assessment**, which hangs off a supplier record. **Full onboarding** gates **contracting** for the awarded supplier only, so paperwork is not demanded up front from vendors who may not win. A supplier named at intake but absent from the directory can be created as a **prospective** record from the wizard |
+| Vendor onboarding | A real conditional stage, not a preview label. **Light onboarding** (supplier record exists and screening has cleared) gates **sourcing** — you cannot invite a supplier that does not exist — and gates **completing the risk assessment**, which hangs off a supplier record. **Full onboarding** gates **contracting** for the awarded supplier only, so paperwork is not demanded up front from vendors who may not win. A supplier named at intake but absent from the directory can be created as a **prospective** record from the conversation's supplier question |
 | Active Workflows | Kanban board (drag-and-drop), sortable table, Gantt timeline — with system integration badges |
 | Workflow Monitor | Bottleneck dashboard, stuck requests, SLA tracker, heatmap, AI bottleneck analysis |
 
@@ -72,7 +72,7 @@ What each Admin item is for, where it is stored and what reads it: [docs/specs/a
 | Screen | Description |
 |--------|-------------|
 | Catalogue (Door 2) | Order pre-approved items with no request form: the catalogues the items belong to, a search across them, a basket with total, deliver to and charged to (profile first), a purpose, and a note from the real decision (a purchase order straight away, approval first, or a risk review first). A basket across suppliers is **one order per supplier, approved on the basket total**, placed all or none (ADR-0009). Every other way to a catalogue item — Home, the assistant, an item's page, intake's match — adds to this basket |
-| Smart Command Bar | **Door 1 on Home**, beside Door 2's catalogue card (for those who buy): free-text entry with an **intent step**, every outcome shown as one **Understood as** card (something to buy, a catalogue item, a policy question, a status question) with its action — a demand shows its card before intake opens: a **status question** ("where is REQ-…", "what's waiting for me", a PO, invoice, contract or supplier) is answered in place by the Status Answers agent — only what its configuration lets this role see; a **policy question** is answered in place — a direct answer computed from Decisioning thresholds and approval chains (quotes, approvers, buying channel, catalogue auto-approval) plus the knowledge-base rule with live figures; each offers a follow-up in the assistant. A **demand goes straight into intake**, carrying its wording, so classification starts immediately; anything else reaches the assistant. A demand the **catalogue genuinely serves** is **named** — the matched item, its price and lead time — with a link to its governed checkout and an always-visible "not what you need?" route into full intake; it never navigates on the requester's behalf. The catalogue decision is `lib/procurement/intake-routing.ts` — the same category-gated, naming-word decision the wizard's pre-check makes, so both entry points agree. The order (status → catalogue → policy → demand → assistant) is **one route**, `lib/assistant/question-route.ts`, which **the assistant takes too**; the catalogue can be browsed in place by the catalogues its items belong to |
+| Smart Command Bar | **Door 1 on Home**, beside Door 2's catalogue card (for those who buy): free-text entry with an **intent step**, every outcome shown as one **Understood as** card (something to buy, a catalogue item, a policy question, a status question) with its action — a demand shows its card before intake opens: a **status question** ("where is REQ-…", "what's waiting for me", a PO, invoice, contract or supplier) is answered in place by the Status Answers agent — only what its configuration lets this role see; a **policy question** is answered in place — a direct answer computed from Decisioning thresholds and approval chains (quotes, approvers, buying channel, catalogue auto-approval) plus the knowledge-base rule with live figures; each offers a follow-up in the assistant. A **demand goes straight into intake**, carrying its wording, so classification starts immediately; anything else reaches the assistant. A demand the **catalogue genuinely serves** is **named** — the matched item, its price and lead time — with a link to its governed checkout and an always-visible "not what you need?" route into full intake; it never navigates on the requester's behalf. The catalogue decision is `lib/procurement/intake-routing.ts` — the same category-gated, naming-word decision the conversation's catalogue check makes, so both entry points agree. The order (status → catalogue → policy → demand → assistant) is **one route**, `lib/assistant/question-route.ts`, which **the assistant takes too**; the catalogue can be browsed in place by the catalogues its items belong to |
 | Routing Rules Engine | 3-panel layout: rule tree, visual IF/THEN editor, test panel. The **editor, the test panel and the runtime share one vocabulary** — every field and operator the editor offers is evaluated in production, and the test panel calls the production evaluator rather than reimplementing it. An **active rule that cannot fire is diagnosed** at the top of the page (unknown field, unsupported operator, malformed `between`, no conditions) instead of silently never matching |
 | Decisioning Thresholds | The numbers every decision compares against (approval, materiality, risk, sourcing, contract, catalogue matching). Routing rules, approval chains, workflow branches and forms decide what happens and **name** these numbers (`policy:<key>`) rather than restating them. Under each threshold: **where the code uses it** and the **configuration that names it**, read live — the rules, chain bands, workflow branches, forms, service-description conditions and knowledge-base articles — with a warning when nothing reads it. Save applies them to the live front door; a simulation previews a sample demand |
 | Support SLAs | How soon a support ticket needs a first response, in hours per priority (`sla_targets`, stage `ticket`); a priority with no row says what it gets instead. Stage SLAs are set on the stage in the Workflow Designer |
@@ -165,7 +165,7 @@ npm run test:contract-match-api   # read-only live Neon contract-match endpoint 
 npm run test:preference           # preferred-supplier (PSL) + competitive-sourcing controls
 npm run test:materiality          # materiality & criticality determination
 npm run test:category-code        # commodity codes per category (Admin → Categories) and the resolvers that read them
-npm run test:submission-requirements # submit's required fields — one list for the server's refusal and the Details gate
+npm run test:submission-requirements # submit's required fields — one list for the server's refusal and the conversation's "Buying channel confirmed"
 npm run test:risk-segmentation    # inherent-risk cascade + risk outcome (reuse/amend/change/new)
 npm run test:risk-reuse           # structured risk-register reuse model (supplier/scope/data-class/validity)
 npm run test:handoff              # downstream handoff / next-steps model (systems, status, deep-links)
@@ -183,8 +183,8 @@ npm run test:ticket-sla           # ticket SLA — targets, due dates, breach/at
 npm run test:approval-to-source   # approval-to-source gate (light vs full pre-sourcing approvals)
 npm run test:residual-questions   # criteria-triggered stage-5 residual questions (mini-IRQ deltas)
 npm run test:demand-conversation  # dynamic intake — answer-driven next question + carry-forward + branching + conditional rationale
-npm run test:intake-guidance      # progress reaches 100%, inferred sections are not outstanding, the Details gate, per-step guidance copy,
-                                  # the four-step config (order, per-route steps, derived submit step), the chat's opening invitation,
+npm run test:intake-guidance      # progress reaches 100%, inferred sections are not outstanding, the conversation's mandatory floor,
+                                  # the page names its phases and has no stepper, one way on to the Channel page, the opening invitation,
                                   # every question's stated reason, and a source scan: no service-description record cast to a map of
                                   # strings, no unguarded .trim() over its values
 npm run test:unified-intake        # unified text/PDF/DOCX intake, specific commodity candidates, separate scope/exclusions,
@@ -231,8 +231,6 @@ npm run test:intake-submit        # atomic full-demand intake, ISO-date validati
 npm run test:catalogue-ui         # catalogue item detail and checkout entry-point regressions
 npm run test:supplier-candidates  # several suppliers can go to sourcing while exactly one drives the
                                   # determination, and "no supplier" is an explicit choice
-npm run test:details-progression  # the Details step reveals one section at a time, and the reveal is the
-                                  # same predicate as the step gate — they cannot disagree
 npm run test:reference-data       # cost centres and delivery locations are administered rows the server
                                   # validates against — an absent or retired one is rejected, and absent
                                   # reference data fails closed rather than passing
@@ -278,16 +276,20 @@ npm run test:form-gates           # the blocking form gate is a subset of what r
 npm run test:form-builder         # the builder offers every stage a form uses, the shared condition editor, and reports a form that cannot fire
 npm run test:channel-stages      # the workflow templates are the only definition of a channel lifecycle — and of the requester's wording for it; no code restates either
 npm run test:edge-conditions     # a decision node actually decides, every palette type round-trips, every workflow signal evaluates
-npm run test:channel-plan        # the Channel page's stage plan agrees with the server's landing and the engine's walk, for every template and signal
-npm run test:channel-checks       # the Channel page's checks, from real determinations and call-off decisions — nothing that did not run shown as clear
-npm run test:intake-conversation  # the conversation page's parts: classification, a call-off asked as questions, Your request's provenance, inputs-only edits and N of M
                                   #   both ways, a rejected approval goes back to the requester in every template, and no shipped or
                                   #   live template has a node the engine cannot branch from unambiguously
+npm run test:channel-plan        # the Channel page's stage plan agrees with the server's landing and the engine's walk, for every template and signal
+npm run test:channel-checks       # the Channel page's checks, from real determinations and call-off decisions — nothing that did not run shown as clear
+npm run test:intake-conversation  # the conversation page's parts: classification, a call-off asked as questions, Your request's provenance, inputs-only
+                                  #   edits and N of M; "Buying channel confirmed" held by every risk question, the supplier and each submission gap,
+                                  #   and not by a question given up on; titles from long briefs; AI-005's supplier ranking
 npm run test:models               # each pinned Groq/Gemini model is still served by its provider (calls the providers, so it is outside the default gate — run it on demand or via `test:all -- --external`)
 npm run test:table-lists          # hand-maintained relation lists match db/schema.sql
 npm run test:requester-entry-ui   # browser smoke (stubbed) — requester entry screen renders and fits 320px
 npm run walkthrough               # visual QA harness (Playwright) — drives the front door across scenarios + every tab, screenshots to /tmp/fd (no assertions)
-npm run test:ui                   # browser smoke (Playwright) — wizard end-to-end to the Channel page (full request and call-off) over the shipped templates; UI_SHOT_DIR=… saves screenshots
+npm run test:ui                   # browser smoke (Playwright) — the conversation page end to end over the shipped templates: a catalogue
+                                  #   item to the basket, a call-off (with the direct call-off limit) to its Channel page and submit, a new
+                                  #   request through the supplier, the risk questions and a panel edit to its Channel page; UI_SHOT_DIR=… saves screenshots
 npm run test:e2e-ui               # full-app browser sweep — every route × role, captures console/runtime errors
 npm run test:ui-full              # evidence harness — 60+ checkpoints screenshotted; asserts only "no crash, not blank"
 npm run test:ui-lifecycle         # static guard that call-offs, stage actions and invoice transitions stay UI-governed
@@ -298,7 +300,7 @@ npm run test:approvals-ui         # the approvals queue — nothing claims to be
                                   #   larger than the metadata beside it, the row awaiting you looks different
                                   #   from one that does not, and every control the old card had is reachable
 npm run test:form-builder-ui      # browser smoke — /admin/forms offers every stage, sets blocking, and reports a form that cannot fire
-npm run test:intake-guidance-ui   # browser smoke — step-1 single classification block, per-step header panels, the step gate
+npm run test:intake-guidance-ui   # browser smoke (offline) — the page opens by asking, names its phases, Your request's legend, no Next to walk past
 npm run test:reference-data-ui    # browser smoke — admin maintains cost centres and delivery locations (a retired
                                   # row disappears from every picker), category managers, commodity codes, the
                                   # category-list thresholds as checklists, where each threshold is used (and
@@ -324,7 +326,7 @@ npm run test:request-detail-ui    # browser check on fixtures (no credentials, n
                                   # workflow step opens, and the risk form pre-populates from the service description;
                                   # one filled header action with the rest in More, no "AI-generated" claim, stage names
                                   # in the type scale, and a failed read is not reported as a removed request
-npm run test:interactions-ui      # interaction E2E — wizard submit, admin save, AI assistant (self-cleaning)
+npm run test:interactions-ui      # interaction E2E — the conversation to submit, admin save, AI assistant (self-cleaning)
 npm run test:link-route-integrity # static deep-link contract for active request/dashboard destinations
 npm run test:link-navigation      # deployed role-aware link navigation and requester read-only details
 npm run test:neon-migration       # one data path, one client, and no Supabase identifier in src/, api/ or tests/
@@ -336,7 +338,7 @@ npm run test:sql-splitter         # a backfill splits on real statement boundari
 
 npm run backfill:compliance       # one-time data migration, NOT a test — fills the front-door
                                    # determination fields on application-owned `requests` rows that predate
-                                   # them, using the same decisioning logic the live wizard runs.
+                                   # them, using the same decisioning logic live intake runs.
                                    # Only ever fills nulls; safe to re-run.
 npm run backfill:intake-compliance # restores the 39 intake_compliance_records rows the cutover's
                                    # copy list omitted. Every statement is ON CONFLICT DO NOTHING.
@@ -495,9 +497,9 @@ src/
 └── features/        # Feature modules
     ├── dashboard/   # Role-based dashboards, the command bar, and the Simple requester home;
     │                #   a platform-owned attention band above a grid customised in one mode
-    ├── requests/    # Intake — ONE four-step page for both densities (intake-steps.ts owns the order,
-    │                #   gates and guidance; use-intake-determination.ts mounts the determination once;
-    │                #   new-request/channel/ is the Channel page; see its README), request detail
+    ├── requests/    # New request — new-request/conversation/ is the conversation page (its engines and
+    │                #   Your request), new-request/channel/ the Channel page; use-intake-determination.ts
+    │                #   mounts the determination once (see its README); request detail
     ├── catalogue/   # Door 2: the Catalogue page and its basket, item detail (see its README)
     ├── workflows/   # Kanban, table, timeline, monitor
     ├── suppliers/   # Directory, profile, portal

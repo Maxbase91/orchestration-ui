@@ -121,15 +121,16 @@ try {
   });
 
   await page.goto(`${BASE}/requests/new`, { waitUntil: 'networkidle' });
-  check('the describe screen renders', await page.getByText('Describe what you need', { exact: true }).isVisible().catch(() => false));
+  check('the conversation page renders, asking what is needed',
+    await page.getByText(/What do you need\? Say it in your own words/).isVisible().catch(() => false));
   // There is no experience switch to find any more: one UI, so nothing to pick
   // before the requester can start.
   check('no experience-view switch is offered',
     (await page.locator('button[aria-label*="Experience view"]').count()) === 0);
 
-  // A demand entered on Home is already the first intake signal, and it lands on
-  // the describe step with that text ALREADY CLASSIFIED — the commodity
-  // assessment is the point of that screen, not a duplicate of the home box.
+  // A demand entered on Home is already the first intake signal: it arrives as
+  // the conversation's first message, ALREADY CLASSIFIED — "That sounds like …
+  // Is that right?" is the point of that turn, not a duplicate of the home box.
   // What must never happen is being asked for the text a second time.
   const homeDemand = 'I need a new laptop for a new starter';
   await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
@@ -147,39 +148,44 @@ try {
   await understood.getByRole('button', { name: /Start the request/ }).click();
   await page.waitForURL(`${BASE}/requests/new?q=${encodeURIComponent(homeDemand)}`, { timeout: 10000 });
   await page.waitForLoadState('networkidle');
-  const classified = await page.getByText(/suggested commodity or service family/i)
+  const conversation = page.locator('section[aria-label="Conversation"]');
+  const classified = await conversation.getByText(/That sounds like .* Is that right\?/)
     .waitFor({ timeout: 15000 }).then(() => true).catch(() => false);
-  check('home demand lands on the commodity assessment, already classified', classified);
-  check('the demand text is carried, not retyped',
-    (await page.getByText(homeDemand).count()) > 0);
+  check('the home demand arrives as the first message, already classified', classified);
+  check('the demand text is carried, not retyped', (await conversation.getByText(homeDemand, { exact: true }).count()) === 1);
   check('the requester is not asked for the text a second time',
-    (await page.locator('#need-input').inputValue().catch(() => '')) !== ''
-    || (await page.getByText(homeDemand).count()) > 0);
+    (await page.locator('#intake-reply').inputValue()) === '' && (await conversation.getByText(/What do you need\? Say it in your own words/).count()) === 0);
 
-  await page.getByRole('button', { name: /Accept & continue/ }).click();
-  // The buy-route screen only resolves when the catalogue and contract sources
-  // are reachable; this suite's dev server has no serverless handlers, so it
-  // legitimately reports that neither could be checked. Accept either — what is
-  // asserted here is that the demand reached the route decision at all.
-  const reachedRouteScreen = await Promise.race([
-    page.getByText("How you'll buy this", { exact: true }).waitFor({ timeout: 15000 }).then(() => true),
-    page.getByText('We could not check what already exists', { exact: true }).waitFor({ timeout: 15000 }).then(() => true),
-  ]).catch(() => false);
-  check('accepting the classification reaches the buy-route decision', reachedRouteScreen);
-  check('the catalogue option reads its wording from the workflow template',
-    await page.getByText('Configured catalogue headline', { exact: true }).isVisible().catch(() => false));
-  await page.getByRole('button', { name: /^Start$|^Continue$/ }).last().click();
-  check('full-request escape opens the adaptive details path', await page.getByPlaceholder('Type your answer...').isVisible().catch(() => false));
-  check('full-request escape does not open catalogue selection', (await page.getByText('Choose your items', { exact: true }).count()) === 0);
+  await conversation.getByRole('button', { name: 'Yes', exact: true }).first().click();
+  // The server matcher answers "no contract covers this" here (the route above),
+  // and no catalogue item is a laptop — so the demand becomes a new request on
+  // its own, and the service description starts.
+  const reachedNewRequest = await conversation.getByText('Then this is a new request.')
+    .waitFor({ timeout: 15000 }).then(() => true).catch(() => false);
+  check('confirming the classification reaches the route decision', reachedNewRequest);
+  check('the new request opens on the service description, not on catalogue selection',
+    (await page.locator('#intake-reply').getAttribute('placeholder')) === 'Type your answer…'
+    && (await page.getByText('Choose your items', { exact: true }).count()) === 0);
 
-  // "Browse the catalogue" is its own door now: the Catalogue page, where
-  // catalogue items are ordered without a request (ADR-0009). It opened a
-  // catalogue step inside this wizard, whose route outlived a change of mind
-  // and left the Details step rendering nothing.
+  // A catalogue offer is headed in the catalogue template's own words
+  // (Admin → Workflows), not a line in code.
   await page.goto(`${BASE}/requests/new`, { waitUntil: 'networkidle' });
-  await page.getByRole('button', { name: /Browse the catalogue/ }).click();
+  await page.locator('#intake-reply').fill('a 27-inch monitor for my desk');
+  await page.locator('#intake-reply').press('Enter');
+  await conversation.getByRole('button', { name: 'Yes', exact: true }).first().click();
+  const catalogueCard = conversation.locator('[data-turn="card"]').filter({ hasText: 'This is in the catalogue' });
+  await catalogueCard.waitFor({ timeout: 15000 }).catch(() => {});
+  check('the catalogue offer reads its wording from the workflow template',
+    (await catalogueCard.getByText('Configured catalogue headline', { exact: true }).count()) === 1
+    && (await catalogueCard.getByText(/Configured catalogue description\./).count()) === 1);
+
+  // The catalogue is its own door: the Catalogue page, where catalogue items
+  // are ordered without a request (ADR-0009) — Home's second door, and the
+  // navigation's Catalogue.
+  // The navigation's entries are buttons, not links.
+  await page.locator('aside, nav').getByRole('button', { name: 'Catalogue', exact: true }).first().click();
   await page.waitForURL((url) => url.pathname === '/catalogue', { timeout: 10000 });
-  check('"Browse the catalogue" opens the Catalogue page', new URL(page.url()).pathname === '/catalogue');
+  check('the navigation\u2019s Catalogue opens the Catalogue page', new URL(page.url()).pathname === '/catalogue');
 
   console.log('\nDoor 2 — the Catalogue page');
   const catalogues = page.getByRole('navigation', { name: 'Catalogues' });

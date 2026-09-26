@@ -107,24 +107,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const complete = isConversationComplete(ctx, policy, slots);
   const remaining = buildAgenda(ctx, policy, slots).map((s) => s.id).join(', ') || 'none';
 
-  // The opening turn is an INVITATION, not the first question on the agenda.
-  //
-  // Before this, an empty conversation was handed the same "ask exactly this
-  // one thing" instruction as every other turn, so the requester's first
-  // experience was being asked for an acceptance criterion before they had
-  // been allowed to say what they wanted. Everything they would have written
-  // in one paragraph had to be extracted one question at a time.
-  //
-  // Opening openly is also what makes the rest of the conversation short: the
-  // first answer usually fills several slots at once, and the agenda is then
-  // genuinely only the gaps.
-  const isOpening = (messages ?? []).length === 0;
-
-  const agendaBlock = isOpening
-    ? `## YOUR NEXT MESSAGE\nThis is the FIRST message. Do not ask anything from the agenda yet.\nInvite them to describe what they need, openly and in their own words, in the context of what they have already told you. One or two short sentences, ending in a question mark. Make clear they can write as much or as little as they like and that you will only ask about what is missing afterwards.\nDo NOT list the things you still need. Do NOT ask for a specific field.\nStill to capture once they have answered: ${remaining}.`
-    : next
+  // No opening turn here. The conversation page asks what the requester needs,
+  // in their own words, before this endpoint is ever called, and the first
+  // question is the engine's — so every call has an agenda question to phrase,
+  // or none left.
+  const agendaBlock = next
     ? `## YOUR NEXT MESSAGE\nAsk EXACTLY this one thing, and nothing else:\n"${next.prompt}"\n\nPut it in the context of what THIS requester has actually described — refer to their own words for what they are buying. Keep it a single short question, one sentence, ending in a question mark. Do NOT answer it yourself, do NOT append an example, and do NOT mention any project other than theirs.\nThe user's answer fills the "${next.slot.target.kind === 'sow' ? 'serviceDescription.' : ''}${next.slot.target.field}" field.\nStill to capture after this (do NOT ask these yet): ${remaining}.`
-    : `## YOUR NEXT MESSAGE\nAll required details are captured. Do NOT ask anything else. Generate "narrative" (a professional 2-3 paragraph SOW summary) and return a short closing like "Thanks — all details captured, you can proceed to the next step."`;
+    : `## YOUR NEXT MESSAGE\nAll required details are captured. Do NOT ask anything else. Generate "narrative" (a professional 2-3 paragraph SOW summary) and return one short closing sentence thanking them.`;
 
   const systemMessage = `${BASE_PROMPT}\n\n${agendaBlock}\n\nRequest category: ${category}\nConversation complete: ${complete}\nData collected so far: ${JSON.stringify(extractedSoFar ?? {})}`;
 

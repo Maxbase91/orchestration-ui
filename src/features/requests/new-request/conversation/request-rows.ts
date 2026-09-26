@@ -31,7 +31,8 @@ export type RowEditor =
   | { kind: 'delivery-location' }
   | { kind: 'beneficiary' }
   | { kind: 'supplier' }
-  | { kind: 'section'; section: string };
+  | { kind: 'section'; section: string }
+  | { kind: 'toggle'; field: 'isUrgent' };
 
 export interface RequestRow {
   key: string;
@@ -146,8 +147,11 @@ function what(input: RequestRowsInput): RequestGroup {
     return {
       title: 'What',
       rows: [
-        { key: 'item', label: 'Item', value: input.catalogue.name, provenance: 'derived', source: 'Catalogue', required: false, known: true },
-        { key: 'price', label: 'Price', value: input.catalogue.price, provenance: 'derived', source: 'Catalogue', required: false, known: true },
+        // What a catalogue order needs is the item, its price and its supplier —
+        // all read from the catalogue, so the panel is complete: the rest is
+        // asked where the order is placed.
+        { key: 'item', label: 'Item', value: input.catalogue.name, provenance: 'derived', source: 'Catalogue', required: true, known: true },
+        { key: 'price', label: 'Price', value: input.catalogue.price, provenance: 'derived', source: 'Catalogue', required: true, known: true },
       ],
     };
   }
@@ -188,6 +192,13 @@ function what(input: RequestRowsInput): RequestGroup {
       required: input.route !== 'catalogue', known: Boolean(form.deliveryDate), edit: { kind: 'date', field: 'deliveryDate' },
     },
   ];
+  // Urgency is the requester's to say, and routing reads it (an urgent request
+  // is run by procurement, whatever its value — the fast-track rule).
+  rows.push({
+    key: 'isUrgent', label: 'Urgent', value: form.isUrgent ? 'Yes' : 'No',
+    provenance: 'known', source: form.isUrgent || input.edited.has('isUrgent') ? from(input, 'isUrgent', 'From you') : 'Default',
+    required: false, known: true, edit: { kind: 'toggle', field: 'isUrgent' },
+  });
   for (const risk of input.riskAnswers ?? []) {
     rows.push({
       key: `risk:${risk.key}`, label: risk.label,
@@ -211,7 +222,7 @@ function supplier(input: RequestRowsInput): RequestGroup {
   if (input.route === 'catalogue' && input.catalogue) {
     return {
       title: 'Supplier',
-      rows: [{ key: 'supplier', label: 'Supplier', value: input.catalogue.supplierName, provenance: 'derived', source: 'From the catalogue item', required: false, known: true }],
+      rows: [{ key: 'supplier', label: 'Supplier', value: input.catalogue.supplierName, provenance: 'derived', source: 'From the catalogue item', required: true, known: true }],
     };
   }
   const named = Boolean(form.supplier);
@@ -293,7 +304,9 @@ export function requestRows(input: RequestRowsInput): { groups: RequestGroup[]; 
     ...(input.channel
       ? { provenance: (input.channel.settled ? 'known' : 'derived') as Provenance, source: input.channel.source }
       : pending('Derived')),
-    required: true, known: Boolean(input.channel?.settled),
+    // A catalogue match is the route decided — nothing is confirmed here, the
+    // order is placed on the Catalogue page.
+    required: true, known: Boolean(input.channel?.settled) || (input.route === 'catalogue' && Boolean(input.catalogue)),
   };
   const groups: RequestGroup[] = [
     { title: 'Channel', rows: [channel] },

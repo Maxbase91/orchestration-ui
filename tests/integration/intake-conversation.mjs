@@ -9,7 +9,12 @@
 //     from what is already known, with the form's rules (dates and amounts
 //     parsed, the direct call-off limit held at the value, choices by button);
 //   - request-rows.ts: the "Your request" panel — provenance, inputs-only
-//     editing (Q5) and "N of M known" counting what the route needs (Q6).
+//     editing (Q5) and "N of M known" counting what the route needs (Q6);
+//   - conversation-rules.ts: when the conversation is through and the buying
+//     channel is confirmed — the gate the wizard's Details step was, so these
+//     are that step's checks (the retired test:details-progression), carried
+//     over to the page that replaced it;
+//   - supplier-suggestions.ts: AI-005's ranking, offered in the supplier turn.
 //
 // Run: npm run test:intake-conversation
 import { classifyDemand, acceptClassification } from '../../src/features/requests/new-request/conversation/classify-demand.ts';
@@ -17,6 +22,11 @@ import {
   callOffQuestions, prefillCallOff, nextCallOffQuestion, applyCallOffAnswer, callOffProgress, callOffMissing,
 } from '../../src/features/requests/new-request/conversation/call-off-agenda.ts';
 import { requestRows } from '../../src/features/requests/new-request/conversation/request-rows.ts';
+import { channelConfirmed, conversationComplete, shortTitle } from '../../src/features/requests/new-request/conversation/conversation-rules.ts';
+import { intakeSubmissionGaps } from '../../src/features/requests/new-request/intake-submission-gaps.ts';
+import { rankSupplierSuggestions } from '../../src/lib/procurement/supplier-suggestions.ts';
+import { resolveSlots } from '../../src/lib/procurement/demand-conversation.ts';
+import { riskSlotsFor } from '../../src/lib/procurement/residual-question-slots.ts';
 import { INITIAL_INTAKE_DATA } from '../../src/features/requests/new-request/intake-form-data.ts';
 import { DEFAULT_CATEGORY_TAXONOMY } from '../../src/data/category-taxonomy.ts';
 import { EMPTY_CODE_BOOK } from '../../src/lib/procurement/category-code.ts';
@@ -149,6 +159,112 @@ const base = {
     && rows.supplier.source === 'From the contract' && !rows.supplier.edit && rows.deliveryLocation.value === 'Head office');
   // Required: channel, cost centre, deliver to, what, value, need by, for, purpose = 8; missing need by, for, purpose.
   check('a call-off\'s "N of M" is its details', required === 8 && known === 5, `${known} of ${required}`);
+}
+
+{
+  // A catalogue match is complete as it stands: the item, its price and its
+  // supplier are what the order needs, and the rest is asked on the Catalogue
+  // page — so the panel reads M of M without anything being confirmed here.
+  const catalogue = requestRows({
+    ...base, route: 'catalogue', sections: undefined, riskAnswers: undefined,
+    channel: { value: 'Catalogue order — no request', source: 'Derived', settled: false },
+    catalogue: { name: 'Paper cups, 100-pack', price: '€6.40 / pack', supplierName: 'Office Supplier' },
+  });
+  const rows = Object.fromEntries(catalogue.groups.flatMap((g) => g.rows).map((r) => [r.key, r]));
+  check('a catalogue match reads complete — M of M', catalogue.known === catalogue.required && catalogue.required === 4, `${catalogue.known} of ${catalogue.required}`);
+  check('…and its channel stays derived, not "from you"', rows.channel.provenance === 'derived' && !rows.channel.edit);
+  check('nothing a catalogue order does not need is counted', !rows.costCentre.required && !rows.deliveryDate);
+}
+
+console.log('\nBuying channel confirmed');
+{
+  const RISK = riskSlotsFor([
+    { id: 'privileged-access', field: 'privilegedAccess', question: 'Does this engagement grant privileged or system access?', reason: 'consulting engagements often involve system access' },
+  ]);
+  const SLOTS = [...resolveSlots(), ...RISK];
+  const ctx = (over = {}) => ({
+    category: 'consulting', title: 'Target operating model design', estimatedValue: 250_000, deliveryDate: '2027-01-15',
+    sow: {
+      objective: 'Design a target operating model', scope: 'Assessment, design, roadmap', exclusions: 'Implementation',
+      deliverables: 'Report, model, roadmap', resources: 'Partner plus three consultants', timeline: 'Twelve weeks',
+      acceptanceCriteria: 'Steering-group sign-off', pricingModel: 'Fixed price', dependencies: 'Finance availability',
+    },
+    ...over,
+  });
+  // What submit requires is present, so each check isolates one condition.
+  const SUBMITTABLE = { ...INITIAL_INTAKE_DATA, title: 'A demand', costCentre: 'CC-1', deliveryDate: '2027-01-15', category: 'consulting', preCheckOutcome: 'full-request' };
+  const confirmedFor = ({ risk = { privilegedAccess: false }, form = SUBMITTABLE, slots = SLOTS, context, supplierSettled = true, hasDetermination = true } = {}) => channelConfirmed({
+    route: 'new-request', conversationComplete: conversationComplete(context ?? ctx({ risk }), slots), supplierSettled,
+    gaps: intakeSubmissionGaps(form), hasDetermination, callOffComplete: false,
+  });
+  check('a finished conversation, a settled supplier and nothing submit would refuse: confirmed', confirmedFor());
+  check('a triggered risk question holds it until answered', !confirmedFor({ risk: {} }));
+  check('answering yes confirms it exactly as answering no does',
+    confirmedFor({ risk: { privilegedAccess: true } }) && confirmedFor({ risk: { privilegedAccess: false } }));
+  check('an unanswered required section holds it', !confirmedFor({ context: ctx({ risk: { privilegedAccess: false }, sow: { objective: 'Design a target operating model' } }) }));
+  // The conversation drops a question it gave up on (a need-by date that never
+  // parsed); that must not hold the conversation open — but submit still needs
+  // the date, so the channel waits for it to be added on the right.
+  const withoutDate = ctx({ risk: { privilegedAccess: false } });
+  delete withoutDate.deliveryDate;
+  const givenUp = SLOTS.filter((slot) => slot.target.field !== 'deliveryDate');
+  check('a question given up on does not hold the conversation open', conversationComplete(withoutDate, givenUp));
+  check('…but the date it was asking for still holds the channel',
+    !confirmedFor({ context: withoutDate, slots: givenUp, form: { ...SUBMITTABLE, deliveryDate: '' } })
+    && confirmedFor({ context: withoutDate, slots: givenUp }));
+  for (const missing of ['costCentre', 'deliveryDate', 'title']) {
+    check(`a finished conversation still waits for ${missing}`, !confirmedFor({ form: { ...SUBMITTABLE, [missing]: '' } }));
+  }
+  check('a need-by date that does not parse is not a date', !confirmedFor({ form: { ...SUBMITTABLE, deliveryDate: 'sometime soon' } }));
+  check('a supplier off the preferred list owes its reason first', (() => {
+    const override = { ...SUBMITTABLE, supplierId: 'SUP-X' };
+    const gaps = (form) => intakeSubmissionGaps(form, ['SUP-P']);
+    return gaps(override).some((g) => g.field === 'supplierOverrideReason')
+      && gaps({ ...override, supplierOverrideReason: 'The only certified supplier' }).length === 0;
+  })());
+  check('the supplier question holds it until answered', !confirmedFor({ supplierSettled: false }));
+  check('no determination, no confirmation — nothing is recorded that did not run', !confirmedFor({ hasDetermination: false }));
+  const callOff = (callOffComplete) => channelConfirmed({ route: 'call-off', conversationComplete: false, supplierSettled: false, gaps: [], hasDetermination: false, callOffComplete });
+  check('a call-off is confirmed when nothing is left to ask', callOff(true) && !callOff(false));
+  check('a demand still being described is never confirmed',
+    !channelConfirmed({ route: 'describing', conversationComplete: true, supplierSettled: true, gaps: [], hasDetermination: true, callOffComplete: true }));
+
+  // Q6: "N of M known" reaches M of M exactly when the channel is confirmed.
+  const panel = (confirmed, form) => requestRows({
+    ...base, form: { ...base.form, ...form }, supplierAnswered: true,
+    channel: { ...base.channel, settled: confirmed },
+    sections: base.sections.map((s) => ({ ...s, text: s.text || 'Written.', asking: false })),
+    riskAnswers: [{ key: 'privilegedAccess', label: 'System access', answer: false }],
+  });
+  const complete = { deliveryDate: '2027-01-11' };
+  const whole = panel(confirmedFor(), complete);
+  const missingCentre = panel(confirmedFor({ form: { ...SUBMITTABLE, costCentre: '' } }), { ...complete, costCentre: '' });
+  check('the panel reads M of M when the channel is confirmed', whole.known === whole.required, `${whole.known} of ${whole.required}`);
+  check('…and short of M while it is not', missingCentre.known < missingCentre.required, `${missingCentre.known} of ${missingCentre.required}`);
+}
+
+console.log('\nA title from a description');
+check('a short description is its own title', shortTitle('Finance transformation consulting') === 'Finance transformation consulting');
+check('a pasted brief is called by its first sentence',
+  shortTitle('Redesign of the record-to-report process in two countries. The work covers the close, the consolidation and the reporting pack, and runs to June.') === 'Redesign of the record-to-report process in two countries');
+check('one long sentence is cut at a word, and says so', (() => {
+  const t = shortTitle('An engagement to redesign the record-to-report process in Ireland and Germany including the ERP close module and the consolidation');
+  return t.length <= 101 && t.endsWith('…') && !/\s…$/.test(t);
+})());
+
+console.log('\nSupplier suggestions (AI-005)');
+{
+  const supplier = (id, over = {}) => ({ id, name: id, performanceScore: 80, riskRating: 'low', categories: ['Consulting'], ...over });
+  const pool = [
+    supplier('A'), supplier('B', { performanceScore: 95 }), supplier('C', { riskRating: 'critical' }),
+    supplier('D', { categories: ['Hardware'] }), supplier('E', { performanceScore: 0 }), supplier('P', { categories: [], performanceScore: 60 }),
+  ];
+  const ranked = rankSupplierSuggestions(pool, { tags: ['Consulting'], preferredIds: ['P'] });
+  check('the category\'s preferred suppliers first, then by fit × performance × risk',
+    ranked.map((r) => r.supplier.id).join(',') === 'P,B,A', ranked.map((r) => r.supplier.id).join(','));
+  check('no performance history, no category fit: not suggested', !ranked.some((r) => ['D', 'E'].includes(r.supplier.id)));
+  check('whoever is already chosen or invited is left out',
+    !rankSupplierSuggestions(pool, { tags: ['Consulting'], preferredIds: ['P'], exclude: ['P', 'B'] }).some((r) => ['P', 'B'].includes(r.supplier.id)));
 }
 
 console.log('');

@@ -8,12 +8,12 @@
 //   conversation abandon the need-by date entirely. The parser accepted no
 //   day-first numeric form at all.
 //   Pressing Enter in the chat scrolled the whole page.
-//   Moving between steps landed the requester mid-page.
+//   Moving between steps (now views) landed the requester mid-page.
 //   A submitted request was still headed "Start a request".
 //   Contract candidates sat at "awaiting confirmation" that nothing could clear.
 //   A contract that expired in May 2025 was presented as an "Active contract".
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { parseDeliveryDate } from '../../src/lib/parse-delivery-date.ts';
 
 let failures = 0;
@@ -58,34 +58,35 @@ check('31.02 is refused rather than rolled into March', () => {
 
 console.log('\nThe page stays where the requester put it');
 
-const chat = read('src/features/requests/new-request/step-chat-intake.tsx');
+const chat = read('src/features/requests/new-request/conversation/intake-conversation.tsx');
 check('the chat scrolls its own container, not the window', () => {
   assert.match(chat, /scrollIntoView\(\{[^}]*block: 'nearest'/,
     "scrollIntoView without `block` scrolls every ancestor including the window");
 });
 
 const page = read('src/features/requests/new-request/new-request-page.tsx');
-check('a step change starts at the top', () => {
-  assert.match(page, /window\.scrollTo\(\{ top: 0/, 'nothing resets scroll between steps');
+check('a view change starts at the top', () => {
+  assert.match(page, /window\.scrollTo\(\{ top: 0/, 'nothing resets scroll between views');
 });
 
 console.log('\nThe screen says where the requester is');
 
 check('a submitted request is not headed "Start a request"', () => {
-  assert.match(page, /stepId === 'confirmation' \? 'Request submitted'/);
+  assert.match(page, /<h1[^>]*>Request submitted<\/h1>/);
+  assert.doesNotMatch(page, /Start a request/);
 });
+// The strip lived in the stepper's guidance panels, which went with the stepper
+// (2026-09-26); this keeps the sentence from coming back anywhere in intake.
+const intakeDir = 'src/features/requests/new-request';
+const intakeFiles = [intakeDir, `${intakeDir}/conversation`, `${intakeDir}/channel`, `${intakeDir}/components`]
+  .flatMap((dir) => readdirSync(new URL(`../../${dir}`, import.meta.url)).filter((f) => /\.tsx?$/.test(f)).map((f) => `${dir}/${f}`));
 check('the standing "nothing after this asks you for anything" strip is gone', () => {
-  assert.doesNotMatch(read('src/features/requests/new-request/intake-steps.ts'),
-    /Nothing after this asks you for anything/);
-});
-check('a step with nothing to say about what follows says nothing', () => {
-  assert.match(read('src/features/requests/new-request/components/step-header-panel.tsx'),
-    /\(nextOverride \?\? guidance\.next\) &&/, 'an absent next still renders an empty line');
+  for (const file of intakeFiles) assert.doesNotMatch(read(file), /Nothing after this asks you for anything/, file);
 });
 
 console.log('\nA contract candidate can be chosen');
 
-const route = read('src/features/requests/new-request/step-buy-route.tsx');
+const route = read('src/features/requests/new-request/conversation/use-route-checks.ts');
 check('adding the detail the matcher asked for makes a contract selectable', () => {
   assert.match(route, /canCallOff = contractMatches\.length > 0[\s\S]{0,240}detailAdded/,
     'a clarify verdict is still terminal, so the row can never be clicked');
@@ -108,12 +109,13 @@ check('an expired contract is named rather than reported as none', () => {
 console.log('\nAn unset cost centre says when it is needed');
 
 // This pinned "you can add it later", which was untrue: submit refuses a
-// request without a cost centre (submission-requirements.ts). It now says the
-// true thing — still not "Not set on your profile", which reads as a failure.
+// request without a cost centre (submission-requirements.ts). It says the true
+// thing — still not "Not set on your profile", which reads as a failure. The
+// requester context block went with the Details step; the row is in Your request.
 check('it says it is needed before submit', () => {
-  const block = read('src/features/requests/new-request/components/requester-context-block.tsx');
-  assert.match(block, /needed before you submit/, 'the requester would first hear of it on the final click');
-  assert.doesNotMatch(block, /you can add it later|Not set on your profile/);
+  const rows = read('src/features/requests/new-request/conversation/request-rows.ts');
+  assert.match(rows, /pending\('Needed before you submit'\)/, 'the requester would first hear of it on the final click');
+  assert.doesNotMatch(rows, /you can add it later|Not set on your profile/);
 });
 
 if (failures > 0) { console.error(`\nintake-quick-fixes: ${failures} check(s) failed.`); process.exit(1); }

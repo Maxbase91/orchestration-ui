@@ -219,9 +219,9 @@ async function scenarioChatIntakePromptDynamic() {
 
   // The client drives the next question + completeness through the engine, not
   // a static sequence — and no longer needs an instruction-leak sanitiser.
-  // The engine moved into its hook (2026-09-26); the screen renders it.
+  // The engine moved into its hook (2026-09-26); the conversation page renders it.
   const clientSrc = readFileSync(
-    new URL('../../src/features/requests/new-request/step-chat-intake.tsx', import.meta.url),
+    new URL('../../src/features/requests/new-request/conversation/intake-conversation.tsx', import.meta.url),
     'utf8',
   ) + readFileSync(new URL('../../src/features/requests/new-request/conversation/use-service-description-conversation.ts', import.meta.url), 'utf8');
   assert(

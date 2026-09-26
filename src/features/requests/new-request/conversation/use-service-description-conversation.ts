@@ -27,11 +27,11 @@ import {
   conversationProgress,
   determineNextQuestion,
   isConversationComplete,
-  requiredSlotsFilled,
   resolveSlots,
   type DemandConversationContext,
 } from '@/lib/procurement/demand-conversation';
 import { DEFAULT_SECTIONS } from '@/lib/procurement/service-description-defaults';
+import { conversationComplete } from './conversation-rules';
 import type {
   MiniIrqAnswers,
   ServiceDescription,
@@ -69,6 +69,12 @@ export interface ServiceDescriptionConversationInput {
   riskQuestions?: readonly ResidualQuestion[];
   /** Answers so far. An absent key means the question has not been answered. */
   riskAnswers?: MiniIrqAnswers;
+  /**
+   * Whether the conversation has started. The conversation page holds the
+   * engine from the start, before it knows the demand is a new request; nothing
+   * is asked or composed until this turns true.
+   */
+  enabled?: boolean;
 }
 
 export interface ChatMessage {
@@ -106,19 +112,6 @@ export interface ChatMessage {
 }
 
 
-/**
- * The opening invitation.
- *
- * One open question, deliberately, and the same one for every category. The
- * conversation used to open on slot #1 whenever the describe step had captured
- * a title or a value — which it always had — so the requester's first
- * experience was being asked "What's the primary objective of this engagement?"
- * with no chance to just say what they wanted. Everything they would have said
- * in one paragraph had to be dragged out of them one question at a time.
- *
- * So: ask once, openly, and let the first turn extract whatever it can. The
- * remaining questions are then genuinely only the gaps.
- */
 // Stable identities for the optional props: an inline `= []` default would be a
 // new reference each render and destabilise every memo that depends on it.
 const EMPTY_RISK_QUESTIONS: readonly ResidualQuestion[] = [];
@@ -136,10 +129,6 @@ function choiceFor(slot: DemandSlot | undefined): { choice: { slotId: string; fi
   if (!slot || slot.answerType !== 'yes-no' || slot.target.kind !== 'risk') return {};
   return { choice: { slotId: slot.id, field: slot.target.field } };
 }
-
-const OPENING_INVITATION =
-  'Tell me about the service you need — in your own words, as much or as little as you like. '
-  + "I'll pull out what I can and then only ask about what's missing.";
 
 
 
@@ -296,17 +285,12 @@ function buildCompletionMessage(
   ctx: DemandConversationContext,
   slots: DemandSlot[],
 ): string {
-  const asked = applicableSlots(ctx, undefined, slots);
-  const captured = asked
-    // Human-readable: `acceptanceCriteria` -> `acceptance criteria`.
-    .map((slot) => slot.target.field.replace(/([A-Z])/g, ' $1').toLowerCase())
-    .join(', ');
+  // No field list: the conversation page's panel shows every answer beside the
+  // transcript, so naming them here said the same thing twice.
+  const asked = applicableSlots(ctx, undefined, slots).length;
   return [
-    `That's everything I need — ${asked.length} of ${asked.length} answered.`,
-    '',
-    `Captured: ${captured}.`,
-    '',
-    'Your service description is written from these answers and carried forward: the risk assessment, the determination and any sourcing event all read it, so you will not be asked for this again. Click Next to continue.',
+    `That covers the service description — ${asked} ${asked === 1 ? 'answer' : 'answers'}.`,
+    'I am writing it up from what you said. The risk assessment and any sourcing event read it, so you will not be asked for any of it again.',
   ].join('\n');
 }
 
@@ -374,28 +358,7 @@ function usableQuestion(text: unknown): string | undefined {
   return t;
 }
 
-function buildWelcomeMessage(
-  data: ConversationData,
-): { content: string; example?: string } {
-  const parts: string[] = [];
-
-  // Acknowledge what's already known, so the requester can see they are not
-  // starting from nothing and does not repeat it.
-  if (data.title || data.supplier || data.estimatedValue > 0) {
-    parts.push("Here's what I have so far:");
-    if (data.title) parts.push(`• **${data.title}**`);
-    if (data.supplier) parts.push(`• Supplier: ${data.supplier}`);
-    if (data.estimatedValue > 0) parts.push(`• Value: €${data.estimatedValue.toLocaleString()}`);
-    parts.push('');
-  }
-  // Always the open invitation, never slot #1: see OPENING_INVITATION.
-  parts.push(OPENING_INVITATION);
-
-  return { content: parts.join('\n') };
-}
-
-
-export function useServiceDescriptionConversation({ category, data, onUpdate, riskQuestions = EMPTY_RISK_QUESTIONS, riskAnswers = EMPTY_RISK_ANSWERS }: ServiceDescriptionConversationInput) {
+export function useServiceDescriptionConversation({ category, data, onUpdate, riskQuestions = EMPTY_RISK_QUESTIONS, riskAnswers = EMPTY_RISK_ANSWERS, enabled = true }: ServiceDescriptionConversationInput) {
   const { data: suppliers = [] } = useSuppliers();
   const codeBook = useCommodityCodeBook();
   const preferredSupplierIds = usePreferredSupplierIds(category);
@@ -454,7 +417,7 @@ export function useServiceDescriptionConversation({ category, data, onUpdate, ri
       unresolvedAttemptsRef.current[field] = 0;
       return {
         hint: field === 'deliveryDate'
-          ? 'No problem — add the need-by date under Key facts once you know it. It is needed before you can submit.\n\n'
+          ? 'No problem — add the need-by date on the right once you know it. It is needed before you can submit.\n\n'
           : 'No problem — we will leave the budget open and you can add it once it is known.\n\n',
         skipped: true,
       };
@@ -466,12 +429,7 @@ export function useServiceDescriptionConversation({ category, data, onUpdate, ri
       skipped: false,
     };
   }, []);
-  // The opening turn is a fixed invitation rather than the first slot question,
-  // so it does not depend on the template resolving. The LLM may rewrite it in
-  // context (see the opening effect below); if that fails, this stands.
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    { role: 'assistant', ...buildWelcomeMessage(data) },
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [summary, setSummary] = useState('');
@@ -498,68 +456,25 @@ export function useServiceDescriptionConversation({ category, data, onUpdate, ri
 
 
   /**
-   * Let the assistant open the conversation.
+   * Open with the engine's next question, once, when the conversation starts.
    *
-   * The greeting above is composed deterministically at mount so the panel is
-   * never blank — but it is a template, which is what made the chat feel
-   * scripted from the very first line. This replaces it, once, with an opening
-   * written against what step 1 actually captured.
-   *
-   * Runs at most once (`openedRef`), never re-greets when the template resolves
-   * later, and silently keeps the deterministic greeting if the call fails —
-   * which is what happens with no LLM configured.
+   * No invitation first: the conversation page has already asked what the
+   * requester needs, in their own words, and said a new request is next — a
+   * second "tell me about it" would ask them to repeat themselves. `openedRef`
+   * keeps StrictMode's second run from asking twice.
    */
   const openedRef = useRef(false);
   useEffect(() => {
-    if (openedRef.current) return;
+    if (openedRef.current || !enabled) return;
     openedRef.current = true;
-    let cancelled = false;
-
-    (async () => {
-      setIsTyping(true);
-      try {
-        const res = await fetch('/api/chat-intake', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            messages: [],
-            category,
-            extractedSoFar: {
-              title: data.title || undefined,
-              supplier: data.supplier || undefined,
-              estimatedValue: data.estimatedValue || undefined,
-              deliveryDate: data.deliveryDate || undefined,
-            },
-          }),
-        });
-        if (!res.ok) throw new Error('API error');
-        const result = await res.json();
-        const opening = usableQuestion(result.nextQuestion);
-        // Only replace the greeting if the requester has not already started
-        // typing into the conversation.
-        if (opening && !cancelled) {
-          setMessages((prev) => (prev.length === 1 ? [{ role: 'assistant', content: opening }] : prev));
-        }
-      } catch {
-        // Keep the deterministic greeting — see the docstring.
-      } finally {
-        // Unconditionally. `cancelled` guards writing a MESSAGE into a
-        // conversation the requester may have moved on from — it must not gate
-        // the typing flag, which disables the input.
-        //
-        // Under StrictMode the effect runs, is cleaned up, and runs again on
-        // the same instance. `openedRef` makes the second run a no-op, so the
-        // only call that can clear this flag is the first run's — and it saw
-        // `cancelled === true` from the cleanup. The input stayed disabled
-        // forever and the service-description step could not be used at all.
-        setIsTyping(false);
-      }
-    })();
-
-    return () => { cancelled = true; };
-    // Mount-only: re-running would restart the conversation under the requester.
+    const next = determineNextQuestion(progressCtx, undefined, slots);
+    if (next) {
+      setMessages([{ role: 'assistant', content: next.prompt, why: next.slot.why, example: next.example, ...choiceFor(next.slot) }]);
+    }
+    // Once, when the conversation starts: re-running would restart it under the
+    // requester.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [enabled]);
 
   // Progress against the questions THIS demand is actually asked.
   //
@@ -587,18 +502,14 @@ export function useServiceDescriptionConversation({ category, data, onUpdate, ri
    * question behind a "complete" banner. It cannot oscillate — the criteria in
    * `determineResidualQuestions` never read the answers.
    */
-  const isComplete = useMemo(
-    () => isConversationComplete(progressCtx, undefined, slots) && requiredSlotsFilled(progressCtx, slots),
-    [progressCtx, slots],
-  );
+  const isComplete = useMemo(() => conversationComplete(progressCtx, slots), [progressCtx, slots]);
   /**
    * The description alone. Generation depends on the description, not on the
    * risk answers, so the SOW composes as soon as the prose is captured rather
    * than waiting for two yes/no questions that contribute nothing to it.
    */
   const descriptionComplete = useMemo(
-    () => isConversationComplete(progressCtx, undefined, descriptionSlots)
-      && requiredSlotsFilled(progressCtx, descriptionSlots),
+    () => conversationComplete(progressCtx, descriptionSlots),
     [progressCtx, descriptionSlots],
   );
 
@@ -771,7 +682,7 @@ export function useServiceDescriptionConversation({ category, data, onUpdate, ri
       };
       const ctx = buildContext(category, mergedData, mergedSow, riskAnswers);
 
-      if (isConversationComplete(ctx, undefined, slots) && requiredSlotsFilled(ctx, slots)) {
+      if (conversationComplete(ctx, slots)) {
         setSummary(result.summary ?? 'Service description captured. Ready for supplier identification and compliance.');
         // The deterministic close, not the model's — what was captured and what
         // is done with it are facts the engine holds, so they are stated the
@@ -789,7 +700,12 @@ export function useServiceDescriptionConversation({ category, data, onUpdate, ri
           !(dateOutcome.skipped && slot.id === 'deliveryDate')
           && !(valueOutcome.skipped && slot.id === 'value'));
         const next = determineNextQuestion(ctx, undefined, remainingSlots);
-        if (next) {
+        const hint = dateOutcome.hint || valueOutcome.hint;
+        if (!next) {
+          // Giving up on the last open question ends the description; say so,
+          // rather than leave the answer with no reply at all.
+          setMessages((prev) => [...prev, { role: 'assistant', content: `${hint}${buildCompletionMessage(ctx, remainingSlots)}` }]);
+        } else {
           // The ENGINE chooses WHICH slot is asked and when the conversation is
           // done. The assistant chooses the WORDS. Both halves matter: the
           // guarantees are the engine's, but the endpoint already asks the model
@@ -801,7 +717,6 @@ export function useServiceDescriptionConversation({ category, data, onUpdate, ri
           // Guarded: the model's line is used only if it is a plausible single
           // question. Anything else falls back to the canned wording.
           const phrased = usableQuestion(result.nextQuestion);
-          const hint = dateOutcome.hint || valueOutcome.hint;
           setMessages((prev) => [
             ...prev,
             {
@@ -869,23 +784,26 @@ export function useServiceDescriptionConversation({ category, data, onUpdate, ri
         ? noteUnresolvedAttempt(offlineField, Boolean(fallback.warning))
         : { hint: '', skipped: false };
       // When the slot is given up on, the question that follows must be the
-      // NEXT one, not the one just abandoned.
-      const offlineNext = offlineOutcome.skipped
-        ? determineNextQuestion(
-            buildContext(category, data, svcDesc, riskAnswers),
-            undefined,
-            slots.filter((slot) => slot.id !== offlineField),
-          )
-        : null;
+      // NEXT one, not the one just abandoned — read against this answer, which
+      // may have filled others. With nothing left, that is the end of the
+      // description, and it says so: falling back to the engine's own next
+      // question here asked for the date it had just given up on.
+      const remainingSlots = offlineOutcome.skipped ? slots.filter((slot) => slot.id !== offlineField) : slots;
+      const afterAnswer = buildContext(
+        category, { ...data, ...(fallback.extracted as Partial<ConversationData>) }, { ...svcDesc, ...fallback.sow }, riskAnswers,
+      );
+      const offlineNext = offlineOutcome.skipped ? determineNextQuestion(afterAnswer, undefined, remainingSlots) : null;
       setMessages((prev) => [
         ...prev,
-        {
-          role: 'assistant',
-          content: `${offlineOutcome.hint}${offlineNext?.prompt ?? fallback.nextQuestion}`,
-          why: offlineNext?.slot.why ?? fallback.why,
-          example: offlineNext?.example ?? fallback.example,
-          ...choiceFor(offlineNext?.slot ?? fallback.nextSlot),
-        },
+        offlineOutcome.skipped && !offlineNext
+          ? { role: 'assistant', content: `${offlineOutcome.hint}${buildCompletionMessage(afterAnswer, remainingSlots)}` }
+          : {
+              role: 'assistant',
+              content: `${offlineOutcome.hint}${offlineNext?.prompt ?? fallback.nextQuestion}`,
+              why: offlineNext?.slot.why ?? fallback.why,
+              example: offlineNext?.example ?? fallback.example,
+              ...choiceFor(offlineNext?.slot ?? fallback.nextSlot),
+            },
       ]);
 
       if (fallback.complete) {
@@ -994,11 +912,28 @@ export function useServiceDescriptionConversation({ category, data, onUpdate, ri
   // (all components captured). Runs once; no button required.
   const autoGeneratedRef = useRef(false);
   useEffect(() => {
-    if (descriptionComplete && !autoGeneratedRef.current) {
+    if (enabled && descriptionComplete && !autoGeneratedRef.current) {
       autoGeneratedRef.current = true;
       generateServiceDescription();
     }
-  }, [descriptionComplete, generateServiceDescription]);
+  }, [enabled, descriptionComplete, generateServiceDescription]);
+
+  /**
+   * Ask whatever the engine says is next, when it is not already being asked.
+   *
+   * For a question that appears after the conversation had finished: the risk
+   * questions, which the conversation page puts after the supplier question
+   * because the supplier decides them. Never asks twice.
+   */
+  const askNext = useCallback(() => {
+    const next = determineNextQuestion(progressCtx, undefined, slots);
+    if (!next) return;
+    setMessages((prev) => {
+      const last = prev[prev.length - 1];
+      if (last?.role === 'assistant' && last.content === next.prompt) return prev;
+      return [...prev, { role: 'assistant', content: next.prompt, why: next.slot.why, example: next.example, ...choiceFor(next.slot) }];
+    });
+  }, [progressCtx, slots]);
 
   /**
    * Accept a drafted answer as the requester's own.
@@ -1064,7 +999,10 @@ export function useServiceDescriptionConversation({ category, data, onUpdate, ri
             example: next.example,
             ...choiceFor(next.slot),
           }]
-        : [{ role: 'assistant' as const, content: buildCompletionMessage(nextCtx, slots) }]),
+        // The last risk answer completes the request, and the page says so with
+        // its "Buying channel confirmed" card — a second completion message
+        // before it would be the same news twice.
+        : []),
     ]);
   }, [riskAnswers, onUpdate, category, data, svcDesc, slots]);
 
@@ -1083,6 +1021,8 @@ export function useServiceDescriptionConversation({ category, data, onUpdate, ri
     generating, qualityScore, qualityChecks, showQuality, setShowQuality,
     unifiedTotal, unifiedDone, unifiedPct, isComplete, descriptionComplete,
     sections, getFieldValue, handleSend, awaitingChoice, acceptDraft,
-    answerRiskQuestion, handleSowEdit,
+    answerRiskQuestion, handleSowEdit, askNext,
+    /** What the page's panel reads: the agenda, its context, and what was given up on. */
+    slots, progressCtx, leftOpen: skippedSlots,
   };
 }

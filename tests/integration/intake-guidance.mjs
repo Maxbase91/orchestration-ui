@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-// Intake guidance: a progress bar that can reach 100%, a step that will not let
-// you leave without the essentials, and a wizard that explains itself.
+// Intake guidance: a progress count that can reach 100%, a conversation that
+// will not confirm a channel without the essentials, and a page that explains
+// itself.
 //
 // The three failures this exists to prevent:
 //
@@ -12,14 +13,15 @@
 //   2. `location` sat in the panel's outstanding list while the template marks
 //      it `asked: false` — it is inferred, never captured, so it could only
 //      ever read "Pending".
-//   3. Step 3's Next needed only `title` and `estimatedValue > 0`.
+//   3. The Details step's Next needed only `title` and `estimatedValue > 0`.
 //      `requiredSlotsFilled` — the mandatory-SOW guarantee the engine defines
 //      to stop an LLM short-circuiting the conversation — was computed in the
-//      chat component and never consulted at the gate.
+//      chat component and never consulted at the gate. The wizard is gone
+//      (2026-09-26); the gate is the conversation page's "Buying channel
+//      confirmed", and it is held to the same floor.
 //
-// Self-contained — mirrors src/lib/procurement/demand-conversation.ts,
-// src/lib/procurement/service-description-defaults.ts and
-// src/features/requests/new-request/step-guidance.ts. Keep in sync.
+// Self-contained — mirrors src/lib/procurement/demand-conversation.ts and
+// src/lib/procurement/service-description-defaults.ts. Keep in sync.
 // Run: npm run test:intake-guidance
 
 let failures = 0;
@@ -101,36 +103,27 @@ const SECTIONS = [
   { id: 'dependencies', asked: true },
 ];
 
-// ── the guidance copy is READ, not mirrored ─────────────────────────────────
+// ── the page's copy is READ, not mirrored ───────────────────────────────────
 //
-// Everything above is a mirror because it is logic. Guidance is copy, and a
-// mirrored copy of copy asserts nothing — it would pass while the real map was
-// empty. So this reads the real copy.
-//
-// It used to *parse* it out of a `Record<number, StepGuidance>` source literal
-// with a hand-written brace matcher, because the map lived in a module the
-// tests could not import. The step config is importable, so the copy is now
-// fetched by calling `stepGuidance` — which also means renaming or reordering a
-// step cannot break the test in a way that looks like missing copy.
+// Everything above is a mirror because it is logic. Copy is not, and a mirrored
+// copy of copy asserts nothing — it would pass while the real page said
+// something else. So this reads the real source; the completeness predicate is
+// imported and called.
 
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import {
-  progressStepsForRoute,
-  stepById,
-  stepGuidance,
-  stepsForRoute,
-  submitStepFor,
-} from '../../src/features/requests/new-request/intake-steps.ts';
+import { conversationComplete } from '../../src/features/requests/new-request/conversation/conversation-rules.ts';
 import { resolveSlots } from '../../src/lib/procurement/demand-conversation.ts';
 import { DEFAULT_SLOTS } from '../../src/lib/procurement/service-description-defaults.ts';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const CONFIG_SRC = readFileSync(
-  join(ROOT, 'src/features/requests/new-request/intake-steps.ts'), 'utf8');
-const WIZARD_SRC = readFileSync(
-  join(ROOT, 'src/features/requests/new-request/new-request-page.tsx'), 'utf8');
+const read = (rel) => readFileSync(join(ROOT, rel), 'utf8');
+const WIZARD_SRC = read('src/features/requests/new-request/new-request-page.tsx');
+const PAGE_SRC = read('src/features/requests/new-request/conversation/intake-conversation.tsx');
+const TURNS_SRC = read('src/features/requests/new-request/conversation/turns.tsx');
+const PANEL_SRC = read('src/features/requests/new-request/conversation/your-request-panel.tsx');
+const ROWS_SRC = read('src/features/requests/new-request/conversation/request-rows.ts');
 
 // ── the bar reaches 100% ────────────────────────────────────────────────────
 
@@ -191,7 +184,7 @@ check('every ASKED section that is a slot appears in some agenda',
     !ALL_SLOTS.some((s) => s.field === sec.id) ||
     DEMANDS.some(([, ctx]) => agenda(ctx).some((s) => s.field === sec.id))));
 
-console.log('\nStep 3 will not let you leave without the essentials');
+console.log('\nThe conversation is not through without the essentials');
 // The old gate. Two fields and out.
 const twoFields = ctxOf({ title: 'Business consulting', estimatedValue: 50_000 });
 const oldGate = (ctx) => !!ctx.title && (ctx.estimatedValue ?? 0) > 0;
@@ -217,70 +210,41 @@ check('conditional slots do not hold the gate', (() => {
 check('the gate is exactly "no outstanding required slots"',
   DEMANDS.every(([, ctx]) => requiredFilled(ctx) === (outstandingRequired(ctx).length === 0)));
 
-console.log('\nEvery step explains itself');
-// Except the Channel page, which is its own explanation: it opens with how the
-// request will be bought and its submit button says what happens next, so a
-// panel above it would say the same thing twice.
-for (const step of progressStepsForRoute('full-request').filter((s) => s.id !== 'channel')) {
-  const entry = stepGuidance(step.id, 'full-request');
-  check(`${step.id} has guidance`, entry !== undefined);
-  if (!entry) continue;
-  check(`${step.id} says what it is for`, typeof entry.purpose === 'string' && entry.purpose.length > 60);
-  // `next` is no longer required on every step. Requiring it universally is
-  // what produced "Nothing after this asks you for anything — the next screen
-  // shows what we concluded and routes the request" on the Details step: a
-  // sentence written to satisfy the rule rather than to tell the requester
-  // anything, and removed at their request. Where a step does say what follows,
-  // it still has to be worth the line it occupies.
-  check(`${step.id} either says what happens after, or says nothing`,
-    entry.next === undefined || (typeof entry.next === 'string' && entry.next.length > 20));
-  check(`${step.id} says what the requester supplies`, Array.isArray(entry.youProvide) && entry.youProvide.length > 0);
-}
-// The confirmation screen carries its own "What happens next?" — a panel there
-// would be the duplication this guidance was introduced to remove.
-check('the confirmation step is deliberately without a panel',
-  stepGuidance('confirmation', 'full-request') === undefined);
-for (const step of progressStepsForRoute('contract').filter((s) => s.id !== 'channel')) {
-  check(`call-off ${step.id} has guidance`, stepGuidance(step.id, 'contract') !== undefined);
-}
-check('the Channel page carries no guidance panel', stepGuidance('channel', 'full-request') === undefined);
+console.log('\nThe page explains itself');
+// The stepper's labels and a guidance panel per step said where the requester
+// was and what each screen was for. The conversation says it in the header —
+// three phases, the current one marked — and in the transcript, where each
+// phase begins.
+check('the header names the three phases', /'1 · What you need', '2 · How it is bought', '3 · What it needs'/.test(PAGE_SRC)
+  && /aria-current=\{index === stage \? 'step' : undefined\}/.test(PAGE_SRC));
+check('the transcript marks where each phase begins', (PAGE_SRC.match(/<PhaseLabel>/g) ?? []).length >= 4);
+check('the assistant says what it is doing now', /Procurement assistant/.test(PAGE_SRC) && /\{phaseText\}/.test(PAGE_SRC));
+check('the stepper and its guidance panels are gone',
+  !existsSync(join(ROOT, 'src/features/requests/new-request/intake-steps.ts'))
+  && !existsSync(join(ROOT, 'src/features/requests/new-request/components/step-header-panel.tsx'))
+  && !/StepHeaderPanel|stepDescription|progressStepsForRoute|canProceed/.test(WIZARD_SRC));
 
-console.log('\nThe step config is the only source of step order');
-// Four steps, not seven: every question is asked before any conclusion is
-// shown, so Details holds the inputs and the Channel page the conclusions.
-check('the full-request path is four steps',
-  progressStepsForRoute('full-request').map((s) => s.id).join(',') === 'describe,buy-route,details,channel',
-  progressStepsForRoute('full-request').map((s) => s.id).join(','));
-// There is no catalogue route: a catalogue order is placed on the Catalogue
-// page (ADR-0009), outside this wizard. A call-off ends on the Channel page
-// too — it used to submit from its Details form and skip it.
-check('the contract call-off ends on the Channel page as well',
-  progressStepsForRoute('contract').map((s) => s.id).join(',') === 'describe,buy-route,details,channel');
-check('both routes submit from the Channel page',
-  submitStepFor('contract') === 'channel' && submitStepFor('full-request') === 'channel');
-check('every route ends in confirmation',
-  ['full-request', 'contract'].every(
-    (route) => stepsForRoute(route).at(-1).id === 'confirmation'));
-// `handleNext` used to hardcode `currentStep === 6`; on a route that skipped
-// steps that could only ever be right by coincidence.
-check('the submit step is derived per route, not hardcoded',
-  submitStepFor('full-request') === 'channel' && submitStepFor('contract') === 'channel');
+console.log('\nOne way on to the Channel page, and one way to submit');
+// "Buying channel confirmed" is the gate the Details step was: the Channel page
+// is reached only from it, and both routes submit from the Channel page.
+check('the Channel page is reached from "Buying channel confirmed" alone',
+  /onSeeChannel=\{\(\) => setView\('channel'\)\}/.test(WIZARD_SRC)
+  && (PAGE_SRC.match(/props\.onSeeChannel/g) ?? []).length === 1
+  && /\{confirmed && \(/.test(PAGE_SRC));
+check('a new request and a call-off both submit from the Channel page',
+  /onSubmit=\{\(\) => void submitRequest\(\)\}/.test(WIZARD_SRC) && /onSubmit=\{\(\) => void submitCallOff\(\)\}/.test(WIZARD_SRC));
+check('every submission ends on the confirmation', (WIZARD_SRC.match(/setView\('confirmation'\)/g) ?? []).length === 2);
 
-console.log('\nThe guidance is white-label and actually rendered');
+console.log('\nThe copy is white-label');
 // Ground rule 1: no organisation or sector naming anywhere in requester copy.
 const BANNED = /\b(bank|banking|insurer|insurance|financial services|fintech|hospital|retailer)\b/i;
-check('no organisation or sector naming in the guidance copy', !BANNED.test(CONFIG_SRC),
-  (CONFIG_SRC.match(BANNED) ?? [])[0]);
-// The failure that made `step.description` dead config for the wizard's whole
-// life: defined on every STEPS entry and drawn nowhere.
-check('the wizard renders the header panel', /<StepHeaderPanel/.test(WIZARD_SRC));
-check("the stepper renders each step's description", /stepDescription\(step\.id, route\)/.test(WIZARD_SRC));
-// The gate that stops an LLM short-circuiting the conversation. Now asserted by
-// CALLING it rather than grepping for the helper's name: the predicate moved to
-// `details-sections.ts` (shared with the screen's reveal, so the two cannot
-// disagree) and the grep would have gone quietly false either way. An empty
-// context must not pass; a captured one must. `test:details-progression` covers
-// the risk-question half.
+const COPY_SRC = PAGE_SRC + TURNS_SRC + PANEL_SRC + ROWS_SRC;
+check('no organisation or sector naming in the conversation\u2019s copy', !BANNED.test(COPY_SRC),
+  (COPY_SRC.match(BANNED) ?? [])[0]);
+// The gate that stops an LLM short-circuiting the conversation, asserted by
+// CALLING the predicate the page confirms with (conversation-rules.ts). An empty
+// context must not pass; a captured one must. test:intake-conversation covers
+// the risk-question half and the submission gaps.
 {
   const emptyCtx = { category: 'consulting', sow: {} };
   const fullCtx = {
@@ -290,13 +254,8 @@ check("the stepper renders each step's description", /stepDescription\(step\.id,
       timeline: 't', acceptanceCriteria: 'a', pricingModel: 'p', dependencies: 'x',
     },
   };
-  const gate = (conversationCtx) => stepById('details').canProceed({
-    // What submit requires is present; the floor is what is under test here.
-    data: { preCheckOutcome: 'full-request', category: 'consulting', catalogueItems: [], title: 'A demand', estimatedValue: 0, costCentre: 'CC-1', deliveryDate: '2027-01-15' },
-    isChatIntakePath: true, conversationCtx, conversationSlots: resolveSlots(), hasDetermination: true,
-  });
-  check('the details gate holds the conversation to its mandatory floor', !gate(emptyCtx));
-  check('a captured conversation passes the details gate', gate(fullCtx));
+  check('the conversation is held to its mandatory floor', !conversationComplete(emptyCtx, resolveSlots()));
+  check('a captured conversation is through', conversationComplete(fullCtx, resolveSlots()));
 }
 
 console.log('\nThe chat is not canned');
@@ -306,10 +265,9 @@ console.log('\nThe chat is not canned');
 // and discarding the model's phrasing.
 const CONV_SRC = readFileSync(
   join(ROOT, 'src/lib/procurement/demand-conversation.ts'), 'utf8');
-// The conversation's screen and its engine (the hook it moved into), read as one.
-const CHAT_SRC = readFileSync(
-  join(ROOT, 'src/features/requests/new-request/step-chat-intake.tsx'), 'utf8')
-  + readFileSync(join(ROOT, 'src/features/requests/new-request/conversation/use-service-description-conversation.ts'), 'utf8');
+// The conversation's engine (the hook), and the page and turns that draw it.
+const HOOK_SRC = read('src/features/requests/new-request/conversation/use-service-description-conversation.ts');
+const CHAT_SRC = HOOK_SRC + PAGE_SRC + TURNS_SRC;
 const INTAKE_API_SRC = readFileSync(join(ROOT, 'api/chat-intake.ts'), 'utf8');
 
 // The concatenation that produced "…engagement? run a promptathon to upskill 40
@@ -321,7 +279,8 @@ check('the example is returned as its own field',
 // The wrapper lived in one path only, so configured slots rendered bare and
 // built-in ones wrapped — two styles in one conversation.
 check('no "(e.g. …)" wrapper is baked into the data', !/\(e\.g\. \$\{/.test(CONV_SRC));
-check('the chat renders the example as its own element', /msg\.example &&/.test(CHAT_SRC));
+check('the chat renders the example as its own element',
+  /example=\{message\.example\}/.test(PAGE_SRC) && /\{example && /.test(TURNS_SRC));
 // The endpoint generated a contextual phrasing that the client threw away.
 check("the assistant's phrasing is used, not discarded",
   /usableQuestion\(result\.nextQuestion\)/.test(CHAT_SRC));
@@ -333,18 +292,17 @@ console.log('\nThe conversation opens by asking, not by interrogating');
 // It opened on slot #1 whenever the describe step had captured a title or a
 // value — which it always had — so the requester's first experience was being
 // asked for an acceptance criterion before they had been allowed to say what
-// they wanted. Everything they would have written in one paragraph had to be
-// dragged out one question at a time.
-check('the client opens with an invitation, not the first agenda question',
-  /OPENING_INVITATION/.test(CHAT_SRC)
-  && !/parts\.push\(next\?\.prompt/.test(CHAT_SRC));
-check('the invitation asks for their own words and promises to ask only for gaps',
-  /in your own words/.test(CHAT_SRC) && /only ask about what.s missing/i.test(CHAT_SRC));
-check('the endpoint has a distinct opening turn',
-  /const isOpening = \(messages \?\? \[\]\)\.length === 0/.test(INTAKE_API_SRC));
-check('the opening turn is forbidden from asking an agenda question',
-  /Do not ask anything from the agenda yet/.test(INTAKE_API_SRC)
-  && /Do NOT ask for a specific field/.test(INTAKE_API_SRC));
+// they wanted. The page now opens with one open question, and the service
+// description starts from what that answer did not cover.
+check('the page opens with an invitation in the requester\u2019s own words',
+  /What do you need\? Say it in your own words/.test(PAGE_SRC));
+check('and promises to ask only for what is missing', /ask only what is still missing/.test(PAGE_SRC));
+check('the service description then asks the engine\u2019s next question, not a second invitation',
+  /const next = determineNextQuestion\(progressCtx, undefined, slots\)/.test(HOOK_SRC)
+  && !/OPENING_INVITATION|buildWelcomeMessage/.test(HOOK_SRC));
+// The endpoint's opening turn phrased an invitation for an empty conversation;
+// no client sends one any more, so there is none to reach.
+check('the endpoint has no unreachable opening turn', !/isOpening/.test(INTAKE_API_SRC));
 
 console.log('\nEvery question says what the answer is used for');
 // A question with no stated purpose reads as bureaucracy. Each `why` names a
@@ -367,7 +325,7 @@ console.log('\nEvery question says what the answer is used for');
   const disagreeing = asked.filter((slot) => (inCode.get(slot.id) ?? '') !== (slot.why ?? ''));
   check('the serialised template and the in-code slots agree on every reason',
     disagreeing.length === 0, disagreeing.map((slot) => slot.id).join(', '));
-  check('the chat renders the reason with the question', /msg\.why/.test(CHAT_SRC));
+  check('the chat renders the reason with the question', /why=\{message\.why\}/.test(PAGE_SRC) && /Asked because/.test(TURNS_SRC));
   check('the reason travels with the question it explains', /why: next\.slot\.why/.test(CHAT_SRC));
 }
 
@@ -388,7 +346,7 @@ check('an unreadable answer is given up on rather than re-asked',
   && /attempts >= 2/.test(CHAT_SRC)
   // It says where to add the date instead of promising it can stay open —
   // submit requires one (submission-requirements.ts).
-  && /add the need-by date under Key facts/.test(CHAT_SRC)
+  && /add the need-by date on the right/.test(CHAT_SRC)
   && /skippedSlots/.test(CHAT_SRC));
 // Both fields with a parser behind them, not just the date.
 check('the budget gives up too, rather than a second copy of the rule',
@@ -401,24 +359,21 @@ check('both the assistant and the offline paths share one rule',
   /const noteUnresolvedAttempt = useCallback/.test(CHAT_SRC)
   && /offlineOutcome/.test(CHAT_SRC));
 
-console.log('\nThe opening turn cannot leave the input disabled');
-// Under StrictMode the effect runs, is cleaned up, then runs again on the same
-// instance; `openedRef` makes the second run a no-op, so the first run's
-// `finally` is the only thing that can clear the typing flag — and it was
-// hidden behind the `cancelled` the cleanup had just set. The chat input stayed
-// disabled forever and the step could not be used at all.
+console.log('\nA failed answer cannot leave the input disabled');
+// Under StrictMode an effect runs, is cleaned up, then runs again on the same
+// instance, and a typing flag cleared only when "not cancelled" was never
+// cleared — the input stayed disabled for good. The flag is cleared
+// unconditionally wherever it is set.
 check('the typing flag is cleared unconditionally',
   /finally \{[\s\S]{0,400}?setIsTyping\(false\);/.test(CHAT_SRC)
   && !/if \(!cancelled\) setIsTyping\(false\)/.test(CHAT_SRC));
 
-console.log('\nThe capture panel says what it is for');
+console.log('\nThe conversation says what the description is for');
 // "6 of 14 questions answered" is a progress bar; it never said why any of it
-// mattered. The description is reused across the process, and the panel now
-// states the goal it is measuring against.
-check('the progress is stated against the downstream use',
-  /Enough for the risk assessment and sourcing/.test(CHAT_SRC));
-check('the panel says the description is reused across the process',
-  /reused across the process/.test(CHAT_SRC));
+// mattered. The close says who reads it — so the requester knows they will not
+// be asked again.
+check('the close says who reads the description',
+  /The risk assessment and any sourcing event read it/.test(HOOK_SRC));
 check('the engine still chooses the slot and completeness',
   /determineNextQuestion\(ctx, undefined, slots\)/.test(CHAT_SRC)
   && /isConversationComplete\(ctx, undefined, slots\)/.test(CHAT_SRC));
@@ -468,20 +423,19 @@ check('the endpoint forbids inventing a suggestion',
   /Invent NOTHING/.test(INTAKE_API_SRC) && /leave "suggested" empty/.test(INTAKE_API_SRC));
 
 console.log('\nOne service description, and it is editable');
-// Count renders of the narrative TEXT, not references to it: a copy button
-// legitimately reads the same value without displaying it again.
-const narrativeRenders = (CHAT_SRC.match(/\{svcDesc\.narrative\}/g) ?? []).length;
-check('the narrative text is rendered exactly once', narrativeRenders === 1,
-  `${narrativeRenders} renders`);
-check('and it is no longer duplicated as "Generated Service Description"',
-  !/Generated Service Description<\/p>/.test(CHAT_SRC));
+// The executive summary is drawn once, in Your request, from the one narrative.
+check('the narrative text is rendered exactly once',
+  (PANEL_SRC.match(/\{props\.summary\}/g) ?? []).length === 1
+  && /summary=\{route === 'new-request' \? sd\.svcDesc\.narrative/.test(PAGE_SRC)
+  && !/\{svcDesc\.narrative\}|\{sd\.svcDesc\.narrative\}/.test(PAGE_SRC + PANEL_SRC));
+check('and it is not duplicated as "Generated Service Description"',
+  !/Generated Service Description/.test(PAGE_SRC + PANEL_SRC));
 // "either it is polished by AI or not required"
-check('no unpolished narrative is composed in the chat',
-  !/unpolished: true/.test(CHAT_SRC));
-check('the carried-over description is editable',
-  /key === 'title' \|\| key === 'estimatedValue'/.test(CHAT_SRC));
-check('the assistant opens the conversation',
-  /openedRef/.test(CHAT_SRC) && /messages: \[\]/.test(CHAT_SRC));
+check('no unpolished narrative is composed in the chat', !/unpolished: true/.test(CHAT_SRC));
+check('a section is edited in place, through the engine',
+  /case 'section': sd\.handleSowEdit\(editor\.section, text\)/.test(PAGE_SRC)
+  && /edit: \{ kind: 'section' as const, section: s\.id \}/.test(ROWS_SRC));
+check('the conversation opens once', /openedRef/.test(HOOK_SRC));
 
 console.log('\nNothing calls .trim() on a value it has not proved is a string');
 //

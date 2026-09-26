@@ -44,6 +44,12 @@ export const RESIDUAL_QUESTION_TEXT: Record<ResidualQuestionId, string> = {
   'critical-service': 'Does it support a critical business service?',
 };
 
+/** The answer's name where it is listed — the conversation page's "Your request" panel. */
+export const RESIDUAL_QUESTION_LABEL: Record<ResidualQuestionId, string> = {
+  'privileged-access': 'System access',
+  'critical-service': 'Critical service',
+};
+
 const questionText = (id: ResidualQuestionId, wording?: Readonly<Record<string, string>>): string =>
   wording?.[id]?.trim() || RESIDUAL_QUESTION_TEXT[id];
 

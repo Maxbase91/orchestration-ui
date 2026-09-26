@@ -132,21 +132,23 @@ check('no supplier table or category cascade in the box',
 
 // ── The third door: classification choosing the route ───────────────────────
 //
-// The wizard keys its ENTIRE journey off the category — `isCatalogue` in
-// new-request-page turns on for `category === 'catalogue'` and swaps the step
-// list, the step-3 screen and the gates. So a classifier answering "catalogue"
-// silently reconfigured the whole flow and skipped `decideIntakeRoute`
-// altogether. Two ways in: step 1's own classification prompt, which listed
+// The wizard used to key its ENTIRE journey off the category — `isCatalogue`
+// turned on for `category === 'catalogue'` and swapped the step list, the
+// step-3 screen and the gates. So a classifier answering "catalogue" silently
+// reconfigured the whole flow and skipped `decideIntakeRoute` altogether. Two
+// ways in: the describe step's own classification prompt, which listed
 // `catalogue` among the categories (api/ai.ts never did), and the `?category=`
-// link the command bar builds from the deterministic classifier.
+// link the command bar built from the deterministic classifier. The describe
+// step's classification now lives in the conversation page's classify-demand.ts.
 //
 // Source checks again, for the same reason as the command bar above: a mirror
-// of the decision would pass while the wizard ignored it.
+// of the decision would pass while the page ignored it.
 
-const STEP1_SRC = readFileSync(
-  new URL('../../src/features/requests/new-request/step-category.tsx', import.meta.url), 'utf8');
+const CLASSIFY_SRC = readFileSync(
+  new URL('../../src/features/requests/new-request/conversation/classify-demand.ts', import.meta.url), 'utf8');
 const WIZARD_SRC = readFileSync(
-  new URL('../../src/features/requests/new-request/new-request-page.tsx', import.meta.url), 'utf8');
+  new URL('../../src/features/requests/new-request/new-request-page.tsx', import.meta.url), 'utf8')
+  + readFileSync(new URL('../../src/features/requests/new-request/conversation/intake-conversation.tsx', import.meta.url), 'utf8');
 const DEEP_LINK_SRC = readFileSync(
   new URL('../../src/features/requests/new-request/intake-deep-link.ts', import.meta.url), 'utf8');
 const ITEMS_SRC = readFileSync(
@@ -156,16 +158,16 @@ console.log('\nClassification does not get to choose the route');
 // The wizard's prompt widened api/ai.ts's category list with a route.
 // The category list is no longer typed into the client's request at all: the
 // server builds it from the configured categories (api/ai.ts).
-check('step 1 does not type a category list into its request to the model',
-  !/"category":"goods\|/.test(STEP1_SRC) && /one of the configured category ids/.test(STEP1_SRC));
+check('the classifier does not type a category list into its request to the model',
+  !/"category":"goods\|/.test(CLASSIFY_SRC) && /one of the configured category ids/.test(CLASSIFY_SRC));
 check('the classifier prompt is built from the configured categories',
   (() => { const ai = readFileSync(new URL('../../api/ai.ts', import.meta.url), 'utf8').replace(/^\s*\/\/.*$/gm, '');
     return /systemPromptFor\(categories\)/.test(ai) && /from\('procurement_categories'\)/.test(ai) && !/Pens €8|Items under €500/.test(ai); })());
-check('step 1 guards a route-shaped classification',
-  /ROUTE_LIKE_CATEGORY/.test(STEP1_SRC) && /classifyCommodityCategory\(/.test(STEP1_SRC));
+check('the classifier guards a route-shaped classification',
+  /ROUTE_LIKE_CATEGORY/.test(CLASSIFY_SRC) && /classifyCommodityCategory\(/.test(CLASSIFY_SRC));
 // The signal is corrected, not discarded: "catalogue" becomes an intent, which
 // the pre-check already honours AND guards.
-check('a route-shaped answer is kept as an intent', /intent = 'catalogue'/.test(STEP1_SRC));
+check('a route-shaped answer is kept as an intent', /intent = 'catalogue'/.test(CLASSIFY_SRC));
 // The guard moved out of the page into the deep-link parser, where it can be
 // asserted by CALLING it — see test:unified-intake, which parses a
 // `category=catalogue` link and checks the category is re-derived. This keeps

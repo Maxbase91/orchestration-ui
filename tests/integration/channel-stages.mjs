@@ -234,8 +234,10 @@ console.log('\nThe requester’s wording for a channel comes from its template')
   if (/BUYING_CHANNEL_PLAIN\s*[:=]|export function buyingChannelPlain/.test(routing)) {
     bad('the hard-coded channel wording is gone', 'BUYING_CHANNEL_PLAIN is back in evaluate-routing-rules.ts');
   } else ok('no hard-coded channel wording remains');
-  if (!/useChannelCopy\(\)/.test(read('src/features/requests/new-request/step-buy-route.tsx'))) {
-    bad('the buy-route step reads the configured wording');
+  // "Then this is a new request." — the conversation says what the channel
+  // means in the template's words.
+  if (!/useChannelCopy\(\)/.test(read('src/features/requests/new-request/conversation/intake-conversation.tsx'))) {
+    bad('the conversation reads the configured wording');
   }
   // The Channel page reads it through channelCopy — the same function, over the
   // same templates (use-channel-plan.ts).
