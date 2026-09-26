@@ -219,7 +219,14 @@ export async function initWorkflow(
 }
 
 /** Advance the workflow for a request (call after user action / approval). */
-export async function advanceWorkflow(requestId: string, outcome?: string): Promise<void> {
+/**
+ * Move a request's workflow on from where its instance rests.
+ *
+ * `notes` is the reason for the move the caller causes — a rejection's reason —
+ * and is written with the first stage the engine enters for it, so the request's
+ * history says why it went there.
+ */
+export async function advanceWorkflow(requestId: string, outcome?: string, notes?: string): Promise<void> {
   try {
     const instance = await getWorkflowInstanceForRequest(requestId);
     if (!instance) {
@@ -240,7 +247,7 @@ export async function advanceWorkflow(requestId: string, outcome?: string): Prom
 
     const wasSuspended = instance.status === 'suspended';
     const fresh = { ...instance, status: 'running' as const };
-    await advanceInstance(fresh, template, outcome, wasSuspended);
+    await advanceInstance(fresh, template, outcome, wasSuspended, notes);
   } catch (e) {
     console.error('[engine] advanceWorkflow error:', e);
   }
@@ -260,6 +267,8 @@ async function advanceInstance(
    * re-generate approval entries for the approval node.
    */
   resuming = false,
+  /** Written with the first node this advance executes — see advanceWorkflow. */
+  notes?: string,
 ): Promise<void> {
   const nodeMap = new Map(template.nodes.map((n) => [n.id, n]));
 
@@ -299,6 +308,7 @@ async function advanceInstance(
   // Back' loops back to n2), not a business rule — an unbounded loop here would
   // hang the caller.
   let steps = 0;
+  let pendingNotes = notes;
   while (nodeId && steps < MAX_STEPS_PER_ADVANCE) {
     steps++;
     const node = nodeMap.get(nodeId);
@@ -308,9 +318,18 @@ async function advanceInstance(
     // engine reaches by itself afterwards advances on its own merits.
     const stepOutcome = steps === 1 ? outcome : undefined;
 
+    // A gated stage the request already sits in has been entered: whoever put
+    // it there — submit, the governed checkout — wrote its history, owner,
+    // deadline and approvals, and stored the instance `running` on it. The
+    // first decision then re-ran the stage, suspended on it again, and was lost:
+    // an approval or a rejection that moved nothing (found 2026-09-26).
+    const alreadyEntered = steps === 1 && node.type === 'stage'
+      && nodeToStatus(node.label) === row.status && isGatedStage(node, String(row.status));
+
     // Skip execution of the node whose gate was just satisfied; advance from it.
-    if (!(resuming && steps === 1)) {
-      const result = await executeNode(node, instance.requestId, template, stepOutcome);
+    if (!((resuming || alreadyEntered) && steps === 1)) {
+      const result = await executeNode(node, instance.requestId, template, stepOutcome, pendingNotes);
+      pendingNotes = undefined;
 
       if (result === 'suspend') {
         await updateWorkflowInstance(instanceId, { currentNodeIds: [nodeId], status: 'suspended' });
@@ -406,17 +425,18 @@ async function executeNode(
   requestId: string,
   _template: WorkflowTemplate,
   outcome: string | undefined,
+  notes?: string,
 ): Promise<NodeResult> {
   switch (node.type) {
     case 'start':
       return 'continue';
 
     case 'end':
-      await transitionStage({ requestId, toStage: 'completed', action: outcome ?? 'completed', node });
+      await transitionStage({ requestId, toStage: 'completed', action: outcome ?? 'completed', node, notes });
       return 'complete';
 
     case 'error':
-      await transitionStage({ requestId, toStage: 'referred-back', action: 'referred-back', node });
+      await transitionStage({ requestId, toStage: 'referred-back', action: 'referred-back', node, notes });
       return 'suspend';
 
     case 'stage': {
@@ -429,6 +449,7 @@ async function executeNode(
         toStage: newStatus,
         action: outcome ?? 'advanced',
         node,
+        notes,
       });
 
       // Risk stage → make sure there is an assessment to act on. Reuse wins

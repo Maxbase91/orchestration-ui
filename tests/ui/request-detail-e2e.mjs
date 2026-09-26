@@ -281,6 +281,99 @@ try {
     JSON.stringify(posted));
   await viewContext.close();
 
+  // One way to reject (2026-09-26). The header's Reject asked for no reason,
+  // wrote no audit entry and ended somewhere other than the Approvals tab's.
+  // It now asks why and goes through recordApprovalDecision, to where the
+  // template's Rejected branch leads — with a workflow instance (the engine
+  // walks it, even one stored `running` on the approval node, which used to
+  // lose the first decision) and without one (the branch is read from the
+  // template).
+  const REJECT_TEMPLATE = {
+    id: 'WF-001', name: 'Standard Procurement', description: '', type: 'procurement', channels: ['procurement-led'],
+    nodes: [
+      { id: 'n1', type: 'start', label: 'Request Submitted' },
+      { id: 'n2', type: 'stage', label: 'Intake', gate: 'auto' },
+      { id: 'n5', type: 'stage', label: 'Approval', role: 'Approver', slaDays: 5, gate: 'manual' },
+      { id: 'n6', type: 'stage', label: 'Sourcing', role: 'Procurement Lead', slaDays: 20, gate: 'manual' },
+      { id: 'n13', type: 'error', label: 'Referred Back', slaDays: 3 },
+    ],
+    edges: [
+      { source: 'n1', target: 'n2' }, { source: 'n2', target: 'n5' },
+      { source: 'n5', target: 'n6', label: 'Approved' }, { source: 'n5', target: 'n13', label: 'Rejected' },
+      { source: 'n13', target: 'n2', label: 'Resubmit' },
+    ],
+  };
+  const REASON = 'The cost centre has not been confirmed';
+  async function rejectFromHeader(requestId, withInstance) {
+    const ctx = await browser.newContext();
+    const rejectStub = await installDbStub(ctx, {
+      requests: [{
+        id: requestId, title: `Rejection ${requestId}`, description: '', category: 'services', status: 'approval',
+        priority: 'medium', value: 30000, currency: 'EUR', requestor_id: 'u02', owner_id: 'u11',
+        buying_channel: 'procurement-led', workflow_template_id: 'WF-001', cost_centre: 'CC-TEST', is_urgent: false,
+        days_in_stage: 1, is_overdue: false, refer_back_count: 0, created_at: '2026-09-20T09:00:00Z', updated_at: '2026-09-25T09:00:00Z',
+      }],
+      workflow_templates: [REJECT_TEMPLATE],
+      workflow_instances: withInstance ? [{
+        id: `WI-${requestId}`, request_id: requestId, template_id: 'WF-001', current_node_ids: ['n5'], status: 'running',
+        variables: {}, created_at: '2026-09-25T09:00:00Z', updated_at: '2026-09-25T09:00:00Z',
+      }] : [],
+      approval_entries: [{
+        id: `APR-${requestId}`, request_id: requestId, approver_id: 'u11', approver_name: 'Christine Dupont',
+        approver_role: 'Approver', status: 'pending', requested_at: '2026-09-25T09:00:00Z', step_order: 1, assignment_mode: 'person',
+      }],
+      stage_history: [{
+        id: `sh-${requestId}`, request_id: requestId, stage: 'approval', entered_at: '2026-09-25T09:00:00Z',
+        completed_at: null, owner_id: 'u11', action: 'submitted', notes: null,
+      }],
+      audit_entries: [],
+    });
+    await ctx.addInitScript((user) => {
+      localStorage.setItem('auth', JSON.stringify({ state: { currentRole: 'admin', currentUser: user }, version: 0 }));
+    }, ADMIN);
+    const rejectPage = await ctx.newPage();
+    await rejectPage.goto(`${BASE}/requests/${requestId}`, { waitUntil: 'domcontentloaded' });
+    const headerReject = rejectPage.getByRole('button', { name: 'Reject', exact: true }).first();
+    await headerReject.waitFor({ timeout: 20000 });
+    await headerReject.click();
+    const dialog = rejectPage.getByRole('dialog');
+    const confirmReject = dialog.getByRole('button', { name: 'Reject', exact: true });
+    const waitedForReason = await confirmReject.isDisabled();
+    await dialog.getByLabel('Why is it being rejected?').fill(REASON);
+    await confirmReject.click();
+    await rejectPage.waitForTimeout(2000);
+    const tables = rejectStub.tables;
+    const result = {
+      waitedForReason,
+      status: tables.requests.find((r) => r.id === requestId)?.status,
+      approval: tables.approval_entries.find((a) => a.id === `APR-${requestId}`),
+      history: tables.stage_history.filter((h) => h.request_id === requestId),
+      audit: tables.audit_entries.filter((a) => a.action === 'approval.rejected'),
+      instance: tables.workflow_instances.find((w) => w.request_id === requestId),
+      unsupported: rejectStub.unsupported,
+    };
+    await ctx.close();
+    return result;
+  }
+  for (const [label, withInstance] of [['with a workflow instance', true], ['without one', false]]) {
+    const outcome = await rejectFromHeader(withInstance ? 'REQ-REJ-0001' : 'REQ-REJ-0002', withInstance);
+    check(`header Reject waits for a reason (${label})`, outcome.waitedForReason);
+    check(`…and sends the request where the template’s Rejected branch goes (${label})`,
+      outcome.status === 'referred-back', outcome.status);
+    check(`…recording the reason on the approval, who decided (${label})`,
+      outcome.approval?.status === 'rejected' && outcome.approval?.comments === REASON && outcome.approval?.decided_by === 'u11',
+      JSON.stringify(outcome.approval));
+    check(`…in the history, with the approval stage closed (${label})`,
+      outcome.history.some((h) => h.stage === 'referred-back' && (h.notes ?? '').includes(REASON))
+        && outcome.history.some((h) => h.stage === 'approval' && h.completed_at), JSON.stringify(outcome.history));
+    check(`…and in the audit log (${label})`, outcome.audit.length === 1 && outcome.audit[0].detail.includes(REASON));
+    if (withInstance) {
+      check('…and the workflow waits on its Referred Back node', outcome.instance?.status === 'suspended'
+        && JSON.stringify(outcome.instance?.current_node_ids) === '["n13"]', JSON.stringify(outcome.instance));
+    }
+    check(`…with every query answered (${label})`, outcome.unsupported.length === 0, [...new Set(outcome.unsupported)].join(', '));
+  }
+
   // A failed read is not a missing request.
   const failContext = await browser.newContext();
   await installDbStub(failContext, {}, { fail: ['requests_with_derived'] });

@@ -72,7 +72,11 @@ function advanceInstance(template, startNodeId, outcome, store, resuming = false
 
     // The node we are suspended ON already ran — that run is what suspended us.
     // Re-running it re-fires the gate and suspends on the same node forever.
-    if (resuming && steps === 1) {
+    // So has a gated stage the request already sits in, whoever put it there:
+    // submit and the checkout store the instance `running` on it (2026-09-26).
+    const alreadyEntered = steps === 1 && node.type === 'stage'
+      && nodeToStatus(node.label) === store.request.status && isGatedStage(node, store.request.status);
+    if ((resuming || alreadyEntered) && steps === 1) {
       const skipTo = getNextNodeIds(nodeId, template.edges, stepOutcome, ctx);
       if (skipTo.length === 0) return { status: 'completed', at: [] };
       nodeId = skipTo[0];
@@ -265,6 +269,21 @@ check('validation is now closed',
 check('the approval chain is resolved once', s2.approvalChains.length === 1);
 check('the chain is the value-banded one, not always chain-1',
   s2.approvalChains[0] === 'chain-3');
+
+console.log('\nA gated stage the request already sits in counts as entered');
+// Submit and the governed checkout write the stage's history and approvals
+// themselves and store the instance `running` on its node. The engine re-ran
+// that node on the first decision, suspended on it again, and the decision
+// moved nothing. The real engine is held to this in test:request-detail-ui,
+// where the page's Reject drives it against the stubbed store.
+const sEntered = newStore();
+transitionStage(sEntered, 'approval', WF001.nodes.find((n) => n.label === 'Approval'));
+const approvalNode = WF001.nodes.find((n) => n.label === 'Approval').id;
+const chainsBefore = sEntered.approvalChains.length;
+advanceInstance(WF001, approvalNode, 'approved', sEntered);
+check('the first decision on an instance stored running at approval takes its branch',
+  sEntered.request.status !== 'approval', `still ${sEntered.request.status}`);
+check('…without generating the approvals a second time', sEntered.approvalChains.length === chainsBefore);
 
 console.log('\nTransition safety');
 const s3 = newStore();

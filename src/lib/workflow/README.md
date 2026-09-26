@@ -12,6 +12,8 @@ config plane that is actually read at runtime.
 | `risk-stage.ts` | The conditional risk stage — reuse an existing assessment, else raise a draft |
 | `onboarding-stage.ts` | Vendor onboarding: the light gate (sourcing + risk completion) and the full gate (contracting) |
 | `approver-resolution.ts` | Chain role → directory rep |
+| `approval-decision.ts` | `recordApprovalDecision` — the one way an approval is decided, from the page header, the Approvals tab and My Approvals: the entry stamped with who decided, the audit entry, and what follows — the next stage when the last one is in, the workflow's Rejected branch for a rejection |
+| `branch-target.ts` | `branchTarget` — where a node's branch for an outcome leads (the stage, error path or end the engine would reach), read from the template alone, so a request with no instance follows the same branch and a workflow with no such branch is known before anything is written |
 | `channel-stages.ts` | Which stages a channel has — **derived from the workflow templates**, which claim their channels. Replaced `buying-channel-stages.ts`, a code map that disagreed with the templates for every channel. Also where a request may be referred back to (`referBackTargets`), which the dialog offers and the server enforces |
 | `stage-labels.ts` | What a stage is called. Was ten copies with five different answers for `po` |
 | `stage-sla.ts` | A stage's SLA in working days, from the template node that owns it. Returns **null**, never a default — replaced `src/lib/db/sla-targets.ts`, whose `resolveSla` answered 5 for any stage nobody had configured |
@@ -49,6 +51,34 @@ It now loops until a node returns `suspend` or `complete`, bounded by `MAX_STEPS
 suspended. Re-running it re-fires its own gate, forever. So `advanceInstance(…, resuming)` skips
 execution of the first step and advances *from* it. This is the subtle one; the regression test for
 it is in `tests/integration/orchestration.mjs`.
+
+**A gated stage the request already sits in counts as entered** (2026-09-26). Submit and the
+governed checkout write the first stage's history, owner, deadline and approvals themselves, and
+store the instance `running` on its node. The engine re-ran that node on the first decision,
+suspended on it again, and the decision was lost — an approval or a rejection that moved nothing.
+The first step is now skipped the same way when the node is a gated stage and the request's status
+is already that stage. `test:request-detail-ui` drives the real engine through it from the page
+header; `test:orchestration` holds the copy of the walk.
+
+**Why a move happened.** `advanceWorkflow(requestId, outcome, notes)` writes `notes` with the first
+stage the engine enters for the call — a rejection's reason reaches the Referred Back row of the
+history that way.
+
+## A rejection goes where the workflow sends it
+
+Decided 2026-09-26: the template's *Rejected* branch decides, not code. The page header followed
+it (with no reason and no audit entry); the Approvals tab and My Approvals sent every rejection to
+Intake. `recordApprovalDecision` now finds the branch before writing anything (`branchTarget` from
+the node the request rests on — the instance's, or the template node for its status); a workflow
+with no *Rejected* path refuses. With an instance the engine walks the branch; without one the
+branch's destination is entered directly. The request is then read back, because the engine reports
+nothing when it fails, and the page does not say "sent back to the requester" for a request that
+did not move. The last approval moves a request once: the engine where there is an instance, the
+channel's next stage where there is none — it used to do both, which could pull a request the engine
+had branched past the next stage back to it.
+
+Every shipped workflow's *Rejected* branch leads to **Referred Back**, whose *Resubmit* edge leads to
+Intake. Nothing offers the requester that Resubmit yet — it is designed with the disposition.
 
 ## The gate model
 

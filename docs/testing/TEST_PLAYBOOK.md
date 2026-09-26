@@ -322,10 +322,12 @@ npm run test:workflow-scripts     # every `npm run` call in .github/workflows st
 npm run test:admin-editors        # every admin editor that claims to save, saves — a live round trip per table, Support SLAs included
                                   #   (JSONB columns still arrays afterwards) plus a static check that the Save
                                   #   handler calls the mutation; 10 surfaces, and the read-only ones stay read-only
-npm run test:orchestration        # end-to-end orchestration rules across intake, routing and workflow
+npm run test:orchestration        # end-to-end orchestration rules across intake, routing and workflow; a gated stage the request already
+                                  #   sits in counts as entered, so the first decision takes its branch
 npm run test:lifecycle-e2e        # a request walks intake → approval → PO → goods receipt in the live store
 npm run test:lifecycle-consistency # every request's status, stage history and workflow instance agree
-npm run test:approval-derivation  # approvers derive from the records, and one derivation serves every path
+npm run test:approval-derivation  # approvers derive from the records, one derivation serves every path, and every approval surface —
+                                  #   the header included — decides through recordApprovalDecision; a rejection follows the Rejected branch
 npm run test:request-tabs         # the request-detail tabs show the stages a request actually traverses
 npm run test:refresh              # every lifecycle action invalidates every view it can affect
 npm run test:assistant-boundary   # the confirm card describes the queued write; the assistant reads only the caller's records
@@ -351,7 +353,8 @@ npm run test:approval-bands       # a chain with no value band never shadows one
 npm run test:form-gates           # the blocking form gate is a subset of what renders, so a form can never strand a request
 npm run test:form-builder         # the builder offers every stage a form uses, the shared condition editor, and reports a form that cannot fire
 npm run test:channel-stages      # the workflow templates are the only definition of a channel lifecycle — and of the requester's wording for it; no code restates either
-npm run test:edge-conditions     # a decision node actually decides, every palette type round-trips, every workflow signal evaluates
+npm run test:edge-conditions     # a decision node actually decides, every palette type round-trips, every workflow signal evaluates;
+                                  #   branchTarget finds where an outcome's branch leads — every shipped Rejected branch reaches Referred Back
                                   #   both ways, a rejected approval goes back to the requester in every template, and no shipped or
                                   #   live template has a node the engine cannot branch from unambiguously
 npm run test:channel-plan        # the Channel page's stage plan agrees with the server's landing and the engine's walk, for every template and signal
@@ -403,8 +406,9 @@ npm run test:request-list-ui      # browser smoke — the band's and Requests-by
 npm run test:request-detail-ui    # browser check on fixtures (no credentials, no network) — the request detail renders, every
                                   # workflow step opens, and the risk form pre-populates from the service description;
                                   # one filled header action with the rest in More, no "AI-generated" claim, stage names
-                                  # in the type scale, Refer back offers only the channel's earlier stages, and a failed
-                                  # read is not reported as a removed request
+                                  # in the type scale, Refer back offers only the channel's earlier stages, the header's
+                                  # Reject asks why and follows the workflow's Rejected branch (with and without an
+                                  # instance), and a failed read is not reported as a removed request
 npm run test:supplier-evidence-ui # browser, stubbed DB (port 5186) — the Risk tab records a screening only with its reference
                                   #   and links only a completed, in-date assessment, neither touching onboarding; the pipeline
                                   #   completes onboarding only on a clear screening and keeps the note; every record is audited
@@ -851,7 +855,7 @@ not in a component — because RLS is currently `USING (true)`.
 | ID | Steps | Expected |
 |---|---|---|
 | TC-WF-00a | Approve a procurement-led request | It moves to **Sourcing**, then Contracting. WF-001's "Auto-Route" decision had two captioned exits the engine could not tell apart, so it always took Approval, and Approval led to Contracting — three live requests skipped sourcing (`test:edge-conditions`) |
-| TC-WF-00b | Reject an approval, in any template | The request goes back to the requester (Referred Back). Workflow signals were evaluated by the routing evaluator, which does not know them, so "Rejected" never matched and the engine took the first exit — "Approved". WF-002, WF-003 and WF-004 also had no Rejected branch at all (`test:edge-conditions`) |
+| TC-WF-00b | Reject an approval — from the page header, the Approvals tab and My Approvals, on a request with a workflow instance and one without | Each asks for a reason, and the request goes where its workflow's Rejected branch goes (Referred Back), with the reason on the approval, in the history and the audit log. The header used to ask for no reason and write no audit entry, and the tab sent the request to Intake. A workflow with no Rejected path refuses and records nothing (`npm run test:request-detail-ui`, `npm run test:approval-derivation`, `npm run test:edge-conditions`). Workflow signals were once evaluated by the routing evaluator, which does not know them, so "Rejected" never matched and the engine took the first exit — "Approved" (`test:edge-conditions`) |
 | TC-WF-00c | Submit a contract call-off | It runs WF-008: no sourcing and no vendor onboarding; Contracting only if the contract needs amending, risk only if the supplier's assessment cannot be reused. Call-offs ran WF-001 (governed checkout) or WF-006 (with onboarding) before (`test:edge-conditions`) |
 | TC-WF-00d | Raise a PO for a request with no supplier or no date | The dialog says what is missing and does not create the PO. It used to invent supplier SUP-001 and "today + 30 days" (`test:ui-lifecycle`) |
 | TC-PSL-01 | `/admin/categories` → Preferred suppliers on a category; save; reload | The list persists. Suppliers whose capabilities match the category's **supplier tags** are listed first. There was no list: "preferred" came from a performance heuristic nobody could see (`test:admin-editors`, `test:preferred-suppliers`) |

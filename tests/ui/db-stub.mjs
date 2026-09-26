@@ -352,7 +352,10 @@ function compare(rowValue, op, raw) {
     case 'gte': return rowValue >= value;
     case 'lt': return rowValue < value;
     case 'lte': return rowValue <= value;
-    case 'is': return literal === 'null' ? rowValue == null : String(rowValue) === literal;
+    // A typed null arrives as null, not 'null'; matching only the string meant
+    // `.is('completed_at', null)` found nothing, so a stage being left was never
+    // closed here as it is in the database.
+    case 'is': return value === null ? rowValue == null : String(rowValue) === String(value);
     case 'in': {
       const set = Array.isArray(literal)
         ? literal
@@ -536,6 +539,24 @@ export async function installDbStub(target, overrides = {}, options = {}) {
         break;
       default:
         unsupported.push(`operation ${payload.operation}`);
+    }
+
+    // A view shows its base table. The derived copy above is taken once, on
+    // first read, so a write to `requests` left a `requests_with_derived` read
+    // earlier stale — and a screen that writes and reads back (the approval
+    // decision checks the request moved) saw a row production never returns.
+    const view = tables[`${table}_with_derived`];
+    if (view && ['insert', 'upsert', 'update', 'delete'].includes(payload.operation)) {
+      if (payload.operation === 'delete') {
+        const gone = new Set(body.map((row) => row.id));
+        tables[`${table}_with_derived`] = view.filter((row) => !gone.has(row.id));
+      } else {
+        for (const row of body) {
+          const mirrored = view.find((candidate) => candidate.id === row.id);
+          if (mirrored) Object.assign(mirrored, row);
+          else view.push({ ...row });
+        }
+      }
     }
 
     for (const { column, ascending } of payload.orders ?? []) {

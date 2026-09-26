@@ -22,6 +22,7 @@ import {
 } from '../../src/lib/workflow/edge-conditions.ts';
 import { DEFAULT_POLICY_CONFIG, resolvePolicyConfig } from '../../src/lib/procurement/policy-config.ts';
 import { workflowTemplates } from '../../src/data/workflows.ts';
+import { branchTarget, statusAtNode } from '../../src/lib/workflow/branch-target.ts';
 
 const ROOT = new URL('../../', import.meta.url);
 const read = (rel) => readFileSync(new URL(rel, ROOT), 'utf8');
@@ -259,6 +260,46 @@ const riskyCallOff = walk(wf008, { riskRequired: true, contractAmendmentRequired
 if (!riskyCallOff.includes('Contracting') || !riskyCallOff.includes('Risk Assessment')) {
   bad('a call-off needing an amendment and a risk review gets both', riskyCallOff.join(' → '));
 } else ok(`a call-off needing both runs ${riskyCallOff.join(' → ')}`);
+
+// ── Where a rejection goes (2026-09-26) ────────────────────────────────────
+// A rejection goes where its template's Rejected branch goes, for a request with
+// a workflow instance (the engine walks it) and one without (branchTarget walks
+// it) alike. The header's Reject followed the branch and the Approvals tab went
+// to Intake; one path now, and the Workflow Designer decides.
+console.log('\nA rejection goes where the template\u2019s Rejected branch goes');
+{
+  const wf001 = workflowTemplates.find((t) => t.id === 'WF-001');
+  const rejected = branchTarget(wf001, 'n5', 'rejected', {}, CONFIG);
+  if (rejected?.id !== 'n13' || statusAtNode(rejected) !== 'referred-back') {
+    bad('WF-001: a rejected approval goes to Referred Back', JSON.stringify(rejected));
+  } else ok('WF-001: a rejected approval goes to Referred Back');
+  const approved = branchTarget(wf001, 'n5', 'approved', {}, CONFIG);
+  if (statusAtNode(approved ?? { label: '' }) !== 'sourcing') bad('WF-001: an approval goes on to Sourcing', JSON.stringify(approved));
+  else ok('WF-001: an approval goes on to Sourcing');
+  if (branchTarget(wf001, 'n3', 'rejected', {}, CONFIG) !== null) {
+    bad('a stage with no Rejected exit has no branch for it — its default exit is not one');
+  } else ok('a stage with no Rejected exit has no branch for it — its default exit is not one');
+  const withRejection = workflowTemplates.flatMap((t) => t.edges
+    .filter((e) => (e.label ?? '').toLowerCase() === 'rejected')
+    .map((e) => [t, e.source]));
+  const strays = withRejection.filter(([t, from]) => statusAtNode(branchTarget(t, from, 'rejected', {}, CONFIG) ?? { label: '' }) !== 'referred-back');
+  if (withRejection.length === 0 || strays.length) {
+    bad('every shipped Rejected branch reaches Referred Back', strays.map(([t, from]) => `${t.id}:${from}`).join(', '));
+  } else ok(`every shipped Rejected branch reaches Referred Back (${withRejection.length})`);
+  // Past the first hop the walk is the engine's: decisions on the request's own
+  // values, the outcome no longer applying.
+  const detour = {
+    nodes: [{ id: 'a', type: 'stage', label: 'Approval' }, { id: 'd', type: 'decision', label: 'Big?' },
+      { id: 'x', type: 'stage', label: 'Sourcing' }, { id: 'e', type: 'error', label: 'Referred Back' }],
+    edges: [{ source: 'a', target: 'd', label: 'Rejected' },
+      { source: 'd', target: 'x', condition: { field: 'value', operator: 'greater_than', value: '1000' } },
+      { source: 'd', target: 'e' }],
+  };
+  const big = branchTarget(detour, 'a', 'rejected', { value: 5000 }, CONFIG)?.id;
+  const small = branchTarget(detour, 'a', 'rejected', { value: 500 }, CONFIG)?.id;
+  if (big !== 'x' || small !== 'e') bad('a decision past the Rejected exit is taken on the request\u2019s values', `${big} / ${small}`);
+  else ok('a decision past the Rejected exit is taken on the request\u2019s values');
+}
 
 // ── Live ───────────────────────────────────────────────────────────────────
 const env = loadEnv();

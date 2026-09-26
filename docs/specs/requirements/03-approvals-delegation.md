@@ -33,7 +33,7 @@ FR03-12 · For each step in the chain: find all `users` with `role = CHAIN_ROLE_
 FR03-13 · **OOO substitution**: if `user.is_ooo = true` and `user.delegate_id` is set, insert the entry with `approverId = delegateId`.
 FR03-14 · All entries are created with `status = 'pending'`. Multiple users for the same role = parallel approvals.
 FR03-15 · **All must approve**: the engine only advances when `areAllApprovalsComplete(requestId)` returns true (no pending entries remain).
-FR03-16 · On reject/cancel: `advanceWorkflow(requestId, outcome)` is called immediately (does not wait for other approvers).
+FR03-16 · **One way to decide** — the page header, the Approvals tab and My Approvals all go through `recordApprovalDecision` (`src/lib/workflow/approval-decision.ts`). A rejection needs a reason and is sent where the workflow's *Rejected* branch goes (`branchTarget`, `src/lib/workflow/branch-target.ts`) at once, without waiting for other approvers: the engine walks it when the request has a workflow instance, the branch read from the template is the destination when it has none, and a workflow with no *Rejected* path refuses before anything is written. The reason is on the approval, in the stage history and the audit log. The last approval moves the request once — the engine where there is an instance, the channel's next stage where there is none (`test:approval-derivation`, `test:edge-conditions`, `test:request-detail-ui`).
 
 ### Role mapping (`CHAIN_ROLE_TO_SYSTEM_ROLE`)
 
@@ -78,7 +78,7 @@ approval_entries
 
 FR03-30 · `/approvals` shows all `pending` approval entries where `approver_id = currentUser.id`.
 FR03-31 · Cards show request ID, title, value, requestor, days waiting, AI risk summary.
-FR03-32 · One-click Approve/Reject buttons; optional comment field.
+FR03-32 · One-click Approve; Reject asks for a reason (FR03-16).
 FR03-33 · Bulk approve available for multiple low-risk requests.
 FR03-34 · After actioning, the UI re-fetches both `approval_entries` and `requests` to reflect the updated state.
 

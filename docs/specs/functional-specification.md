@@ -497,13 +497,17 @@ leaves when a full goods receipt is recorded (§10).
 
 **Approvals.** *Approve* and *Reject* appear to whoever may act on the earliest open approval step:
 their own, one delegated to them, or one open to a role they hold. An approval records who decided
-and when; the request moves on only when the last one is in. On the Approvals tab and in My
-Approvals (§4.6), a rejection needs a reason and sends the request back to Intake, and an approver
-can ask for more information instead; My Approvals also offers *Delegate*.
+and when; the request moves on only when the last one is in. A rejection needs a reason, wherever it
+is made — the page header, the Approvals tab or My Approvals (§4.6) — and sends the request where
+its workflow's *Rejected* branch goes: Referred Back, in every shipped workflow, with the reason in
+its history and the audit log. A workflow with no *Rejected* path refuses the rejection and records
+nothing. An approver can ask for more information instead; My Approvals also offers *Delegate*.
+(Fixed 2026-09-26: the header's Reject asked for no reason and wrote no audit entry, and the
+Approvals tab sent a rejected request to Intake, while the header followed the workflow.) Only
+*Cancel request* sets a request to *Cancelled*.
 
-**Known defect:** the header's *Reject* asks for no reason. It marks the approval rejected; with a
-workflow instance the template's *Rejected* branch sends the request to Referred Back, and without
-one the request does not move. Only *Cancel request* sets a request to *Cancelled*.
+**Known defect:** nothing moves a request on from Referred Back — the requester has no Resubmit
+yet, though every shipped workflow draws one back to Intake.
 
 **More:**
 

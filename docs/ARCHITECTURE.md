@@ -184,7 +184,7 @@ a test can pin each one.
 | What the conversation asks, and when it is through; the sections a demand must cover (`requiredSectionIds` — the template's section rules ride on the slots that fill them) | `procurement/demand-conversation.ts`; `conversation/conversation-rules.ts`, `request-rows.ts` | The conversation page, `api/chat-intake`, the Channel page's section check, the record submit writes |
 | Who approves | `procurement/approval-derivation.ts`, `lib/db/approvals-core.ts` | The Channel page, submit, the approval stage |
 | Whether a catalogue or call-off order may be placed | `procurement/governed-checkout.ts`, `catalogue-basket.ts` | The Catalogue page, the Channel page, `api/governed-checkout.ts` |
-| How a request moves | `workflow/transition.ts`, `engine.ts`, `edge-conditions.ts`, `channel-stages.ts`, `channel-plan.ts`, `stage-sla.ts` ([its README](../src/lib/workflow/README.md)) | Every stage change; the Channel page's plan |
+| How a request moves | `workflow/transition.ts`, `engine.ts`, `edge-conditions.ts`, `branch-target.ts`, `approval-decision.ts`, `channel-stages.ts`, `channel-plan.ts`, `stage-sla.ts` ([its README](../src/lib/workflow/README.md)) | Every stage change and approval decision; the Channel page's plan |
 | What a free-text question is | `assistant/question-route.ts` | The Home box and the assistant — one route |
 
 Anything that creates a record recomputes its decision on the server from

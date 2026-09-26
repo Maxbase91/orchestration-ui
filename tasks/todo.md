@@ -169,18 +169,24 @@ thresholds → stage exits on the server.
       clearing of a deleted request's link; `purge_audit_entries(ids)` —
       unreachable through `/api/db`'s allowlist — is how the three live suites
       clean up their own rows. Guard `test:audit-append-only` (live).
-   b. *One way to reject* — decided: where the template's Rejected branch goes
-      (Referred Back in every shipped template). The header's Approve/Reject go
-      through `recordApprovalDecision` like the Approvals tab and My Approvals;
-      Reject asks for a reason. Found while reading: (i) submit writes the
-      workflow instance `running` on a gated start node, so the engine re-runs
-      the node on the first decision and suspends without taking its branch —
-      submit writes it `suspended`, and a backfill fixes the stored ones;
-      (ii) the last approval moved an instance-backed request twice (engine,
-      then the stage list) — the engine only when there is an instance;
-      (iii) with no instance, the Rejected branch is found by walking the
-      template (pure), and a template with no Rejected path refuses the
-      rejection before anything is written.
+   b. *One way to reject* — **done** — decided: where the template's Rejected
+      branch goes (Referred Back in every shipped template). The header's
+      Approve/Reject go through `recordApprovalDecision` like the Approvals tab
+      and My Approvals; Reject asks for a reason. Found while reading and fixed:
+      (i) submit and the checkout store the workflow instance `running` on a
+      gated start node, so the engine re-ran the node on the first decision and
+      suspended without taking its branch — fixed in the engine (a gated stage
+      the request already sits in counts as entered), which covers the stored
+      rows too, so the writers and a backfill were not needed; (ii) the last
+      approval moved an instance-backed request twice (engine, then the stage
+      list) — the engine only when there is an instance; (iii) with no
+      instance, `branchTarget` reads the Rejected branch from the template, and
+      a template with no Rejected path refuses before anything is written; the
+      request is read back after the move. Guards: `test:request-detail-ui`
+      (the header drives the real engine against the stub, with and without an
+      instance), `test:edge-conditions`, `test:approval-derivation`,
+      `test:orchestration`. The stub gained two fidelity fixes on the way — a
+      view mirrors writes to its table, and `.is(col, null)` matches.
 2. **Act on the disposition** — design question first (refuse at submit, or
    create in Referred Back), with the requester's Resubmit, which the templates
    already model (the Referred Back node's *Resubmit* edge back to Intake).
@@ -272,7 +278,7 @@ what the code does; these are the things it now has to say that need a decision.
 9. The onboarding reset is fixed (2026-09-26). Still open: the light onboarding gate is checked only by the request page's stage action (not when approval moves a request into Sourcing), and the full gate is not checked again on leaving Vendor Onboarding.
 10. **Saving contract coverage drops a service family** that matches none of the stored ones, and saves the rest without it.
 11. **The disposition is shown and not acted on** — the Channel page says a request "will be referred back" or "a change will be asked for", and the request enters its first stage as usual.
-12. **Deadlines after some moves** — on a request with no workflow instance, a stage entered by the stage action, an approval or an award gets no deadline and the actor becomes its owner; a full goods receipt moves a request on without resetting its deadline. The header's Reject asks for no reason. The Monitor's stuck table repeats days overdue as days in stage.
+12. **Deadlines after some moves** — on a request with no workflow instance, a stage entered by the stage action, an approval or an award gets no deadline and the actor becomes its owner; a full goods receipt moves a request on without resetting its deadline. ~~The header's Reject asks for no reason~~ (fixed 2026-09-26: one way to reject, with a reason). The Monitor's stuck table repeats days overdue as days in stage.
 
 **Demonstration surfaces presented as real** — decide: remove, or build for real
 - Analytics: Report Builder (sample data, Save saves nothing), Scheduled Reports, Exports; the average-contract-value "flat 2%".

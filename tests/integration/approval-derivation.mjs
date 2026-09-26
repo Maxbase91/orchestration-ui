@@ -174,7 +174,9 @@ check('the header no longer offers Approve on stage alone', () => {
   assert.doesNotMatch(source, /const canApprove = isApprovalStage \|\|/,
     'any persona can still approve any request sitting in the approval stage');
 });
-for (const [label, path] of SURFACES.slice(1)) {
+// All three, the header included since 2026-09-26: its Reject asked for no
+// reason, wrote no audit entry and ended somewhere other than the tab's.
+for (const [label, path] of SURFACES) {
   check(`${label} records the decision through the shared path`, () => {
     assert.match(read(path), /recordApprovalDecision/, 'stamps the entry without advancing the request');
   });
@@ -189,10 +191,24 @@ check('a decision writes to the timeline and the audit log', () => {
   assert.match(source, /transitionStage/, 'nothing reaches stage history');
   assert.match(source, /createAuditEntry/, 'nothing reaches the audit log');
 });
-check('a rejection refers back rather than cancelling', () => {
+check('a rejection goes where the template\u2019s Rejected branch goes, not to a stage named in code', () => {
   const source = read('src/lib/workflow/approval-decision.ts');
-  assert.match(source, /toStage: 'intake'/);
-  assert.match(source, /'referred-back'/);
+  assert.match(source, /branchTarget\(template, fromNodeId, 'rejected'/);
+  assert.match(source, /advanceWorkflow\(request\.id, 'rejected', notes\)/);
+  assert.doesNotMatch(source, /toStage: 'intake'/, 'a rejection is sent to Intake by code');
+});
+check('a workflow with no Rejected path refuses the rejection before anything is written', () => {
+  const source = read('src/lib/workflow/approval-decision.ts');
+  const routed = source.indexOf('await rejectionRoute(request)');
+  const stamped = source.indexOf('await updateApproval(approval.id');
+  assert.ok(routed > 0 && routed < stamped, 'the entry is stamped before the route is known');
+});
+check('the last approval moves the request once — the engine, or the stage list, never both', () => {
+  assert.match(read('src/lib/workflow/approval-decision.ts'),
+    /if \(await getWorkflowInstanceForRequest\(request\.id\)\) \{\s*await advanceWorkflow\(request\.id, 'approved'\);\s*\} else \{/);
+});
+check('the header asks why a request is rejected', () => {
+  assert.match(read('src/features/requests/request-detail/components/action-buttons.tsx'), /Why is it being rejected\?/);
 });
 check('a rejection must carry a reason', () => {
   assert.match(read('src/lib/workflow/approval-decision.ts'), /A rejection needs a reason/);
