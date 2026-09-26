@@ -6,13 +6,15 @@
 // connectors behave identically and a live upstream swap is a like-for-like
 // replacement.
 
+// Relative '.js' specifiers: the supplier, contract and risk-assessment
+// connectors are built on the server too (../shared-connectors.ts).
 import {
   type SourceConnector,
   type SourceObject,
   type SourceQuery,
   type SourceRecord,
   wrap,
-} from '../ports';
+} from '../ports.js';
 
 export interface OwnStoreConfig<TKey, TRecord> {
   object: SourceObject;

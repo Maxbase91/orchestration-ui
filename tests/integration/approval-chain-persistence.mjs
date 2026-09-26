@@ -56,6 +56,7 @@ const determination = evaluateIntakeDetermination({
   serviceDescription: { objective: 'Determining the approval chain for a mid-value demand' },
   miniIrq: { privilegedAccess: false, criticalService: false },
   now: new Date().toISOString().slice(0, 10),
+  policyConfig: DEFAULT_POLICY_CONFIG,
   suppliers: [],
   contracts: [],
   matchingRiskAssessments: [],

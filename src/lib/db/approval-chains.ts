@@ -1,48 +1,14 @@
 // Data access for the `approval_chains` table (admin-configured approval
 // sequences and their value thresholds). Components read through the
-// use-approval-chains hooks; this module owns the snake_case <-> camelCase
-// row mapping.
+// use-approval-chains hooks. The read and its row mapping are in
+// approval-chains-core.ts, shared with submit's second decision; the write
+// mapping is here.
 import { db } from '@/lib/db-client';
+import { listApprovalChainsWith, mapDbToChain, type ApprovalChain } from './approval-chains-core';
 
-export interface ApprovalChainStep {
-  id: string;
-  role: string;
-}
-
-export interface ApprovalChain {
-  id: string;
-  name: string;
-  description: string;
-  /**
-   * Rendered display label for the band, written from the bounds on save.
-   * Never parsed — it was, by regex, and a string with no number in it read as
-   * [0, Infinity) and shadowed every banded chain.
-   */
-  threshold: string;
-  /** Inclusive lower bound: a literal, a `policy:` token, or null for open. */
-  minValue?: string | null;
-  /** Exclusive upper bound: a literal, a `policy:` token, or null for open. */
-  maxValue?: string | null;
-  steps: ApprovalChainStep[];
-  createdAt?: string;
-  updatedAt?: string;
-}
+export type { ApprovalChain, ApprovalChainStep } from './approval-chains-core';
 
 const TABLE = 'approval_chains';
-
-function mapDbToChain(row: Record<string, unknown>): ApprovalChain {
-  return {
-    id: row.id as string,
-    name: row.name as string,
-    description: (row.description as string) ?? '',
-    threshold: (row.threshold as string) ?? '',
-    minValue: (row.min_value as string | null) ?? null,
-    maxValue: (row.max_value as string | null) ?? null,
-    steps: (row.steps as ApprovalChainStep[]) ?? [],
-    createdAt: row.created_at as string | undefined,
-    updatedAt: row.updated_at as string | undefined,
-  };
-}
 
 function mapChainToDb(chain: ApprovalChain): Record<string, unknown> {
   return {
@@ -59,9 +25,7 @@ function mapChainToDb(chain: ApprovalChain): Record<string, unknown> {
 }
 
 export async function listApprovalChains(): Promise<ApprovalChain[]> {
-  const { data, error } = await db.from(TABLE).select('*').order('id');
-  if (error) throw error;
-  return (data ?? []).map(mapDbToChain);
+  return listApprovalChainsWith(db);
 }
 
 export async function upsertApprovalChain(chain: ApprovalChain): Promise<ApprovalChain> {

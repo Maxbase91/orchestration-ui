@@ -34,9 +34,12 @@ The browser never holds a database credential: it posts to the allowlisted `/api
 production ran different clients once, so nothing tested what production executed, and three defects
 reached users that no local check could reproduce.
 
-The server handlers (`api/_domains/*`, `api/governed-checkout.ts`) read with SQL rather than through
-the ports — a known gap ([ARCHITECTURE.md §4.4](docs/ARCHITECTURE.md#44-the-source-connector-layer)).
-Closing it is real work, not a licence to add more direct reads.
+A server handler that reads an upstream object reads it through the ports too:
+`createSharedConnectors(client)` builds the supplier, contract and risk-assessment connectors for
+the server's client, as submit's second decision does. The other server handlers
+(`api/_domains/*`, `api/governed-checkout.ts`) still read with SQL — a known gap
+([ARCHITECTURE.md §4.4](docs/ARCHITECTURE.md#44-the-source-connector-layer)). Closing it is real
+work, not a licence to add more direct reads.
 
 ### 3. Own the internal record, defer upstream execution — and record honestly
 The front door **classifies, recommends, routes and then creates the internal record**. It owns the

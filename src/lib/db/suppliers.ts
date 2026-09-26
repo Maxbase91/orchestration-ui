@@ -1,22 +1,18 @@
 import { db } from '@/lib/db-client';
 import type { Supplier } from '@/data/types';
 import { mapDbToSupplier, mapSupplierToDb } from './mappers';
+import { getSupplierWith, listSuppliersWith } from './suppliers-core';
 
-// Read side uses the derived view so active_contracts / total_spend_12m
-// are recomputed on every fetch. Writes still target the base table.
-const READ_SOURCE = 'suppliers_with_derived';
+// Reads come from the derived view, through suppliers-core.ts — the same query
+// the server's supplier port runs. Writes still target the base table.
 const TABLE = 'suppliers';
 
 export async function listSuppliers(): Promise<Supplier[]> {
-  const { data, error } = await db.from(READ_SOURCE).select('*').order('name');
-  if (error) throw error;
-  return (data ?? []).map(mapDbToSupplier);
+  return listSuppliersWith(db);
 }
 
 export async function getSupplier(id: string): Promise<Supplier | null> {
-  const { data, error } = await db.from(READ_SOURCE).select('*').eq('id', id).maybeSingle();
-  if (error) throw error;
-  return data ? mapDbToSupplier(data) : null;
+  return getSupplierWith(db, id);
 }
 
 export async function createSupplier(record: Supplier): Promise<Supplier> {

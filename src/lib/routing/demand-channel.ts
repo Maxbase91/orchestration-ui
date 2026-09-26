@@ -12,11 +12,10 @@
 // implemented its own evaluator. So both screens call this, and the intake
 // routing test asserts they agree across the labelled demand set.
 
-import type { RiskTier } from '@/lib/procurement/risk-segmentation';
-import type { RiskRating } from '@/data/types';
-import type { BuyingChannel, RoutingRule } from '@/data/types';
-import type { PolicyConfig } from '@/lib/procurement/policy-config';
-import { resolveRouting, type RoutingMatch } from './evaluate-routing-rules';
+import type { RiskTier } from '../procurement/risk-segmentation.js';
+import type { BuyingChannel, RiskRating, RoutingRule } from '../../data/types.js';
+import type { PolicyConfig } from '../procurement/policy-config.js';
+import { resolveRouting, type RoutingMatch } from './evaluate-routing-rules.js';
 
 /**
  * Every routing input, and every one of them required.

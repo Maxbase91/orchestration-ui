@@ -23,7 +23,7 @@ import { readFileSync } from 'node:fs';
 import { evaluateIntakeDetermination } from '../../src/lib/procurement/intake-determination.ts';
 import { resolveDemandChannel } from '../../src/lib/routing/demand-channel.js';
 import { routingRules } from '../../src/data/routing-rules.ts';
-import { DEFAULT_POLICY_CONFIG } from '../../src/lib/procurement/policy-config.ts';
+import { DEFAULT_POLICY_CONFIG, applyPolicyOverrides, resetActivePolicyConfig } from '../../src/lib/procurement/policy-config.ts';
 
 const NOW = '2026-09-01';
 
@@ -114,6 +114,7 @@ const demand = (overrides = {}) => ({
   routingRules,
   approvalChains: APPROVAL_CHAINS,
   validatorAgent: ACTIVE_VALIDATOR,
+  policyConfig: DEFAULT_POLICY_CONFIG,
   ...overrides,
 });
 
@@ -168,6 +169,48 @@ everyCase('the answer does not move with the calendar', (today, input) => {
   assert.equal(today.inherentRisk.tier, marchNextYear.inherentRisk.tier);
   assert.deepEqual(today.policyChecks, marchNextYear.policyChecks);
 });
+
+// ── The given thresholds decide, wherever it runs ───────────────────────────
+
+console.log('\nThe thresholds it is given decide — not the ones the process holds');
+
+// Five helpers fell back to the module singleton instead of the policy the
+// determination was given: the admin's thresholds in the browser, the shipped
+// defaults on a server. Submit decides every demand again on the server and
+// refuses when the answers differ, so one demand must get one answer wherever
+// it runs (2026-09-26). The singleton is set to thresholds that change every
+// helper's result, and each case — plus one whose supplier holds a contract,
+// which is all the contract check reads — must come out exactly as with the
+// singleton untouched.
+{
+  const contractCase = demand({
+    contracts: [{
+      id: 'CT-NEAR', title: 'Cleaning framework', supplierId: 'SUP-OK', supplierName: 'Supplier SUP-OK', category: 'services',
+      status: 'active', isFramework: false, startDate: '2025-10-01', endDate: '2026-10-01', utilisationPercentage: 50,
+      value: 100000,
+    }],
+  });
+  const inputs = { ...CASES, 'supplier with a contract near its end': contractCase };
+  const untouched = Object.fromEntries(Object.entries(inputs).map(([name, input]) => [name, evaluateIntakeDetermination(input)]));
+  const scrambled = Object.fromEntries(Object.entries(DEFAULT_POLICY_CONFIG).map(([key, value]) => [
+    key, typeof value === 'number' ? 1 : typeof value === 'boolean' ? !value : value,
+  ]));
+  applyPolicyOverrides(scrambled);
+  try {
+    check('the process\u2019s thresholds change nothing when the determination is given its own', () => {
+      for (const [name, input] of Object.entries(inputs)) {
+        try { assert.deepEqual(evaluateIntakeDetermination(input), untouched[name]); }
+        catch (error) { throw new Error(`${name}: ${error.message.split('\n')[0]}`); }
+      }
+    });
+  } finally {
+    resetActivePolicyConfig();
+  }
+  check('…and the scrambled thresholds would have changed the answer', () => {
+    const given = evaluateIntakeDetermination({ ...contractCase, policyConfig: { ...DEFAULT_POLICY_CONFIG, ...scrambled } });
+    assert.notDeepEqual(given, untouched['supplier with a contract near its end']);
+  });
+}
 
 // ── Honesty ─────────────────────────────────────────────────────────────────
 

@@ -1,24 +1,27 @@
-import type { Contract } from '@/data/types';
-import { getContract, listContracts } from '@/lib/db/contracts';
-import type { SourceConnector } from '../ports';
-import { createOwnStoreConnector } from './factory';
+import type { Contract } from '../../../data/types.js';
+import type { NeonCompatibleClient } from '../../neon-compatible-client.js';
+import { getContractWith, listContractsWith } from '../../db/contracts-core.js';
+import type { SourceConnector } from '../ports.js';
+import { createOwnStoreConnector } from './factory.js';
 
 /**
- * Contract read connector backed by the platform's own store. Exposes the
- * fields the front-door contract checks rely on (status, category, supplier,
- * utilisation) and a transactability view derived from status + utilisation.
- * A live contract-management connector can replace this implementation without
+ * Contract read connector backed by the platform's own store, reading with the
+ * client it is given, in the browser or on the server. Exposes the fields the
+ * front-door contract checks rely on (status, category, supplier, utilisation)
+ * and a transactability view derived from status + utilisation. A live
+ * contract-management connector can replace this implementation without
  * changing the consuming checks.
  */
 export function createContractConnector(
+  client: NeonCompatibleClient,
   sourceSystem = 'contract-management',
 ): SourceConnector<string, Contract> {
   return createOwnStoreConnector<string, Contract>({
     object: 'contract',
     sourceSystem,
     freshnessTtlSeconds: 24 * 60 * 60,
-    loadAll: listContracts,
-    loadOne: (id) => getContract(id),
+    loadAll: () => listContractsWith(client),
+    loadOne: (id) => getContractWith(client, id),
     identity: (c) => c.id,
     searchText: (c) => [c.id, c.title, c.supplierName, c.category].join(' '),
     matchFilter: (c, field, value) => {

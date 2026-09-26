@@ -27,9 +27,10 @@ import { templateForChannel } from '@/lib/workflow/channel-stages';
 import { queryClient } from '@/lib/query-client';
 import type { RequestCategory, BuyingChannel } from '@/data/types';
 import { INITIAL_INTAKE_DATA, type IntakeFormData } from './intake-form-data';
-import { useIntakeDetermination } from './use-intake-determination';
+import { refreshDeterminationInputs, useIntakeDetermination } from './use-intake-determination';
 import { useIntakeDeepLink } from './use-intake-deep-link';
 import { buildIntakeComplianceRecord } from '@/lib/procurement/intake-compliance-record';
+import { recordedDetermination } from '@/lib/procurement/intake-determination';
 import { StepConfirmation } from './step-confirmation';
 import { StepChannelRequest } from './channel/step-channel-request';
 import { StepChannelCallOff } from './channel/step-channel-call-off';
@@ -44,7 +45,7 @@ import { getProcurementProfile } from '@/lib/db/procurement-profiles';
 import { useProcurementProfile } from '@/lib/db/hooks/use-procurement-profile';
 import { buyingChannelLabel } from '@/lib/routing/evaluate-routing-rules';
 import { submitGovernedCheckout } from '@/lib/procurement/submit-governed-checkout';
-import { submitIntake } from '@/lib/procurement/submit-intake';
+import { IntakeSubmitError, submitIntake } from '@/lib/procurement/submit-intake';
 import { usePreferredSupplierIds } from '@/lib/db/hooks/use-category-preferred-suppliers';
 
 class ViewErrorBoundary extends Component<{ children: ReactNode; onReset: () => void }, { error: Error | null }> {
@@ -236,11 +237,8 @@ export function NewRequestPage() {
           currency: formData.currency, supplierId: formData.supplierId, contractId: formData.contractId || undefined,
           // Advisory: the server recomputes the override and keeps the reason only if there was one.
           supplierOverrideReason: formData.supplierOverrideReason.trim() || undefined,
-          buyingChannel: determination.buyingChannelSlug as BuyingChannel,
-          approvalChain: determination.approvalChain, sourcingType: determination.sourcingType.type,
-          sourcingTypeReason: determination.sourcingType.reason, inherentRiskTier: determination.inherentRisk.tier,
-          materialityTier: determination.materiality.criticality, riskAssessmentRequired: determination.riskAssessmentRequired,
-          screeningOutcome: determination.screening.status, referralDisposition: determination.referral.outcome,
+          // What the requester reviewed; the server decides again and compares.
+          ...recordedDetermination(determination),
           commodityCode: formData.commodityCode, commodityCodeLabel: formData.commodityCodeLabel,
           commodityCandidates: formData.commodityCandidates, commodityClassificationConfirmed: formData.commodityClassificationConfirmed,
           attachments: formData.attachments, costCentre: formData.costCentre, budgetOwner: currentUser.name,
@@ -266,6 +264,9 @@ export function NewRequestPage() {
         // supplier recorded a pass.
         compliance: buildIntakeComplianceRecord(determination, { determinedAt: new Date().toISOString() }),
         buyingChannel: determination.buyingChannelSlug,
+        // The server decides the demand again and needs the answers it was
+        // decided on; the compliance record above is what it compares with.
+        riskAnswers: formData.miniIrq,
         idempotencyKey: `intake-${id}`,
       });
 
@@ -294,6 +295,18 @@ export function NewRequestPage() {
       setRequestId(id);
       setView('confirmation');
     } catch (e) {
+      // The server decided the demand again and got a different answer: nothing
+      // was written. Fetch what it decided on, so the Channel page redraws with
+      // it, and say what changed — the requester reviews it again here and
+      // submits the new answer or changes the demand.
+      if (e instanceof IntakeSubmitError && e.code === 'determination_changed') {
+        await refreshDeterminationInputs(queryClient);
+        toast.warning('What you reviewed has changed — check the Channel page again before you submit.', {
+          description: e.changes.join(' '),
+          duration: 15_000,
+        });
+        return;
+      }
       console.error('Failed to persist request:', e);
       // The dispatcher returns safe field-level validation text; surface it
       // instead of masking actionable date/accounting errors behind a generic toast.

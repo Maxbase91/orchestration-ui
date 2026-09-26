@@ -8,7 +8,10 @@
 // has already paid for more than once.
 
 import { useMemo } from 'react';
+import type { QueryClient } from '@tanstack/react-query';
 import { useSourceData } from '@/lib/integrations';
+import { usePolicyConfig } from '@/lib/procurement/use-policy-config';
+import { usePolicyConfigStore } from '@/stores/policy-config-store';
 import { useMatchingRiskAssessments } from '@/lib/db/hooks/use-risk-assessments';
 import { useRoutingRules } from '@/lib/db/hooks/use-routing-rules';
 import { useAiAgent } from '@/lib/db/hooks/use-ai-agents';
@@ -17,6 +20,7 @@ import { usePreferredSupplierIds } from '@/lib/db/hooks/use-category-preferred-s
 import { useServiceDescriptionTemplate } from '@/lib/db/hooks/use-service-description-templates';
 import {
   evaluateIntakeDetermination,
+  REQUEST_VALIDATOR_AGENT_ID,
   type DeterminationServiceDescription,
   type IntakeDetermination,
 } from '@/lib/procurement/intake-determination';
@@ -59,12 +63,16 @@ export function useIntakeDetermination(
   const { data: matches = EMPTY_MATCHES, isFetched: matchesFetched } =
     useMatchingRiskAssessments({ supplierId: input.supplierId });
   const { data: routingRules = EMPTY_RULES } = useRoutingRules();
-  const { data: validatorAgent } = useAiAgent('AI-002');
+  const { data: validatorAgent } = useAiAgent(REQUEST_VALIDATOR_AGENT_ID);
   const { data: approvalChains = EMPTY_APPROVAL_CHAINS } = useApprovalChains();
   const preferredSupplierIds = usePreferredSupplierIds(input.category);
   // How this category puts the risk questions (Admin → Service description).
   const { data: sdTemplate } = useServiceDescriptionTemplate(input.category);
   const riskQuestionWording = sdTemplate?.riskQuestionWording ?? EMPTY_WORDING;
+  // The admin's saved thresholds, as a subscription: the determination is
+  // decided again when they move, and submit compares it with one decided on
+  // the stored row.
+  const policyConfig = usePolicyConfig();
 
   // A fetch is pending if we have a supplierId and the matching-SRA lookup
   // hasn't resolved yet. Without a supplierId the query is disabled, so treat
@@ -99,13 +107,38 @@ export function useIntakeDetermination(
       approvalChains,
       validatorAgent: validatorAgent ?? undefined,
       riskQuestionWording,
+      policyConfig,
     });
   }, [
     loading, category, estimatedValue, supplierId, isUrgent, requestTitle, serviceDescription, commodityCode,
     miniIrq, contractId, suppliers, preferredSupplierIds, contracts, matches, routingRules, approvalChains, validatorAgent,
-    riskQuestionWording,
+    riskQuestionWording, policyConfig,
   ]);
 
 
   return { determination, loading };
+}
+
+/**
+ * The cached reads the determination above is made from, by query key. Submit
+ * decides the demand again on the server and refuses when the answer differs
+ * from what the requester reviewed (409 `determination_changed`); these are
+ * fetched again then, with the governed thresholds, so the Channel page
+ * redraws on what the server decided with. Keep it beside the hooks it mirrors:
+ * an input missing here would be refused again on the next submit.
+ */
+const DETERMINATION_INPUT_KEYS = [
+  ['source-connector', 'supplier'],
+  ['source-connector', 'contract'],
+  ['risk-assessments'],
+  ['routing-rules'],
+  ['approval-chains'],
+  ['ai-agents'],
+  ['category-preferred-suppliers'],
+  ['service-description-templates'],
+] as const;
+
+export async function refreshDeterminationInputs(queryClient: QueryClient): Promise<void> {
+  await usePolicyConfigStore.getState().hydrateFromServer();
+  await Promise.all(DETERMINATION_INPUT_KEYS.map((queryKey) => queryClient.invalidateQueries({ queryKey })));
 }

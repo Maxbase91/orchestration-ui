@@ -1,13 +1,13 @@
 import { db } from '@/lib/db-client';
 import type { RoutingRule } from '@/data/types';
 import { mapDbToRoutingRule, mapRoutingRuleToDb } from './mappers';
+import { listRoutingRulesWith } from './routing-rules-core';
 
 const TABLE = 'routing_rules';
 
+/** Through routing-rules-core.ts, the read submit's second decision runs too. */
 export async function listRoutingRules(): Promise<RoutingRule[]> {
-  const { data, error } = await db.from(TABLE).select('*').order('priority').order('id');
-  if (error) throw error;
-  return (data ?? []).map(mapDbToRoutingRule);
+  return listRoutingRulesWith(db);
 }
 
 export async function getRoutingRule(id: string): Promise<RoutingRule | null> {

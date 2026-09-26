@@ -20,6 +20,18 @@ export class ServerConfigurationError extends Error {
 }
 
 /**
+ * What /api/db would have answered. The endpoint's response goes through JSON,
+ * so the browser gets a date as an ISO string; the driver hands this in-process
+ * path a Date object. A server reader therefore saw other values than the
+ * browser for the same row — the risk port's reuse filter called `.slice` on a
+ * Date — and submit's second decision could not be compared with the browser's
+ * first (2026-09-26). Encoded the same way, it is one data path again.
+ */
+function asTheEndpointAnswers(result: unknown): unknown {
+  return result === undefined ? null : JSON.parse(JSON.stringify(result));
+}
+
+/**
  * Construct the privileged client only when an API handler needs it. Import-time
  * validation made every dependent Vercel function crash before it could return
  * a controlled error when a production environment variable was absent.
@@ -30,7 +42,7 @@ export class ServerConfigurationError extends Error {
 export function getDbAdmin(): NeonCompatibleClient {
   if (client) return client;
   if (!process.env.NEON_DATABASE_URL && !process.env.DATABASE_URL) throw new ServerConfigurationError();
-  client = new NeonCompatibleClient((payload) => executeNeonRequest(payload));
+  client = new NeonCompatibleClient(async (payload) => asTheEndpointAnswers(await executeNeonRequest(payload)));
   return client;
 }
 

@@ -1,6 +1,7 @@
 import { db } from '@/lib/db-client';
 import type { AIAgent } from '@/data/types';
 import { mapDbToAiAgent, mapAiAgentToDb } from './mappers';
+import { getAiAgentWith } from './ai-agents-core';
 
 const TABLE = 'ai_agents';
 
@@ -10,10 +11,9 @@ export async function listAiAgents(): Promise<AIAgent[]> {
   return (data ?? []).map(mapDbToAiAgent);
 }
 
+/** Through ai-agents-core.ts, the read submit's second decision runs too. */
 export async function getAiAgent(id: string): Promise<AIAgent | null> {
-  const { data, error } = await db.from(TABLE).select('*').eq('id', id).maybeSingle();
-  if (error) throw error;
-  return data ? mapDbToAiAgent(data) : null;
+  return getAiAgentWith(db, id);
 }
 
 export async function saveAiAgent(record: AIAgent): Promise<AIAgent> {

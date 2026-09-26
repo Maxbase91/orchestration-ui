@@ -35,6 +35,7 @@
     "test:intake": "node tests/integration/intake-sequence.mjs",
     "test:intake-quick-fixes": "node --import tsx/esm tests/integration/intake-quick-fixes.mjs",
     "test:intake-submit": "node --import tsx/esm tests/integration/intake-submit.mjs",
+    "test:submit-decides-again": "node --import tsx/esm tests/integration/submit-decides-again.mjs",
     "test:audit": "node --import tsx/esm tests/integration/audit-trail.mjs",
     "test:derived": "node --import tsx/esm tests/integration/derived-fields.mjs",
     "test:contract-status": "node --import tsx/esm tests/integration/contract-status.mjs",

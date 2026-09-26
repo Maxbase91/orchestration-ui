@@ -217,8 +217,13 @@ npm run test:db-casts             # every query parameter is cast to its column'
 npm run test:mode-equivalence     # Simple and Expert reach the same governance decision for the same demand —
                                   # the determination takes no density argument, and both write an identical compliance record
 npm run test:intake-determination # the intake determination, pinned: determinism (`now` is an input), honesty
-                                  # (no unrun check is recorded as passed) and one derivation of the buying channel
+                                  # (no unrun check is recorded as passed), one derivation of the buying channel, and the
+                                  # thresholds it is given decide — the process's own copy changes nothing
 npm run test:intake-evidence      # a request never carries a compliance check that did not run
+npm run test:submit-decides-again # submit decides the demand again on the server: a determination that differs from the one
+                                  #   reviewed is refused (409 determination_changed) and says what changed, nothing is written;
+                                  #   an honest submit records the server's values and compliance record; both sides read the
+                                  #   supplier, contracts and reusable assessments through the same ports (live part skips without a DB)
 npm run test:e2e                  # against the production API: the stage-move endpoint refuses a stage exit, cancels only
                                   #   with a reason, refers back and reassigns (a repeat records nothing); approval-entry writes
 npm run test:routing              # routing-rule evaluator
@@ -337,7 +342,8 @@ npm run test:config-consumption   # admin configuration reaches what it configur
 npm run test:seed-parity          # the checked-in workflow seed matches live, so re-seeding cannot destroy a Designer edit
 npm run test:policy-tokens        # every governed threshold is nameable, editable and validated; no decisioning literal shadows one;
                                   # each says where code uses it (true both ways), and the used-by list finds every `policy:` reference
-npm run test:policy-token-routing # routing rules reference governed thresholds; tokenising changed no channel, and no token reaches the evaluator
+npm run test:policy-token-routing # routing rules reference governed thresholds; tokenising changed no channel, no token reaches the
+                                  #   evaluator, the thresholds are a required input, and the one server module that decides reads the stored row
 npm run test:routing-fallback     # the catch-all rules reproduce the deleted if-ladder exactly, and a hole in the rule set is visible
 npm run test:approval-bands       # a chain with no value band never shadows one that has it; gaps and overlaps are reported
 npm run test:form-gates           # the blocking form gate is a subset of what renders, so a form can never strand a request
@@ -357,7 +363,8 @@ npm run test:requester-entry-ui   # browser smoke (stubbed) — requester entry 
 npm run walkthrough               # visual QA harness (Playwright) — drives the front door across scenarios + every tab, screenshots to /tmp/fd (no assertions)
 npm run test:ui                   # browser smoke (Playwright) — the conversation page end to end over the shipped templates: a catalogue
                                   #   item to the basket, a call-off (with the direct call-off limit) to its Channel page and submit, a new
-                                  #   request through the supplier, the risk questions and a panel edit to its Channel page; UI_SHOT_DIR=… saves screenshots
+                                  #   request through the supplier, the risk questions and a panel edit to its Channel page, where a refused
+                                  #   submit (409 determination_changed) says what changed and stays; UI_SHOT_DIR=… saves screenshots
 npm run test:e2e-ui               # full-app browser sweep — every route × role, captures console/runtime errors
 npm run test:ui-full              # evidence harness — 60+ checkpoints screenshotted; asserts only "no crash, not blank"
 npm run test:ui-lifecycle         # static guard that call-offs, stage actions and invoice transitions stay UI-governed
@@ -1133,6 +1140,7 @@ six groups:
 | TC-SDC-02 | Narrative composition | The compact narrative composes from `narrative_sections`, in order, in **one** function used by the API, the deterministic mock and the offline fallback — the three had drifted (six-field vs four-field joins) while the docstring claimed they were in step. An unanswered section contributes nothing rather than an empty clause. |
 | TC-SDC-03 | Downstream seeding | `seedRequirementsFromDescription` turns each nominated section into one labelled requirement and skips empty ones (a requirement a supplier cannot respond to is worse than one fewer); `seedCriteriaFromTemplate` returns the configured criteria and **reports** when the weights do not total 100 rather than shipping an event the wizard will refuse to publish. |
 | TC-SDC-04 | Resolution + fail-open | Category-first, then `default`, then the built-in template. A missing row, a malformed row, or an unreachable database all yield the built-in, so an admin mistake cannot take intake generation down. |
+| TC-DET-09 | Submit decides again (`npm run test:submit-decides-again`, `npm run test:ui`) | Open a new request's Channel page. In another tab, record a screening result for its supplier, or change a threshold in Decisioning thresholds that moves this demand. Submit: nothing is created, the page stays, a notice says what changed ("Supplier screening is now …") and the Channel page shows the new answer. Submit again: the request is created, and its Compliance tab shows the server's record. Submit used to store what the browser sent, so the page left open decided the record. Verified by removing the refusal, storing the browser's compliance record, and letting the server's client return raw dates — each fails |
 | TC-DET-07 | Supplier screening (`npm run test:screening` + UI smoke) | clear → cleared (green); flagged → blocking (red, refers the demand back); pending → caution (amber); unset → not-screened. "Supplier screening" line renders on the determination. |
 
 ### UI smoke (automated — `npm run test:ui`, Playwright)

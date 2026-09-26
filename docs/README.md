@@ -88,6 +88,7 @@ code. Read these before changing the boundaries they set.
 | [0007](adr/0007-atomic-intake-and-lifecycle-stabilisation.md) | Intake and every lifecycle transition commit atomically. |
 | [0008](adr/0008-one-standardised-requester-ui.md) | One standardised requester UI with progressive disclosure. Supersedes 0001. |
 | [0009](adr/0009-catalogue-basket.md) | A catalogue basket is placed as one order per supplier, approved on the basket total, all or nothing. Extends 0002. |
+| [0010](adr/0010-submit-decides-again.md) | Submit decides the demand again from stored data and refuses a different answer; the ports it reads get a server side. Extends 0007. |
 
 Implementation evidence for the capabilities these decisions cover is indexed in
 [R1_IMPLEMENTATION_EVIDENCE.md](roadmap/R1_IMPLEMENTATION_EVIDENCE.md).

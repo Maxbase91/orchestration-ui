@@ -62,7 +62,9 @@ that cap (`test:vercel-functions`):
 
 `api/_domains/` holds the handlers served through `api/db.ts`, each with a
 public path rewritten in `vercel.json`: `intake-submit` (the atomic new-request
-write, [ADR-0007](adr/0007-atomic-intake-and-lifecycle-stabilisation.md)),
+write, [ADR-0007](adr/0007-atomic-intake-and-lifecycle-stabilisation.md), which
+decides the demand again and refuses a different answer,
+[ADR-0010](adr/0010-submit-decides-again.md)),
 `contract-match` ([ADR-0004](adr/0004-contract-scope-matching.md)),
 `contract-scope`, `contract-vocabulary`, `commodity-match`, `intake-upload`,
 `policy-config`, `status-answers` and `neon-health`. Modules prefixed with `_`
@@ -72,7 +74,10 @@ are shared code, not routes, and do not count against the cap
 Server handlers build their database client lazily (`getDbAdmin()` in
 `api/_db-admin.ts`), so a missing connection string answers a controlled
 `503 { code: "service_unavailable" }` instead of crashing at module load, and
-`/api/neon-health` tells a DNS failure from a schema one. Environment variables
+`/api/neon-health` tells a DNS failure from a schema one. It runs `/api/db`'s
+executor in-process and JSON-encodes the answer as the endpoint does, so a
+server reader sees the values the browser sees — a date is an ISO string on
+both sides. Environment variables
 are listed in the [README](../README.md#environment-variables).
 
 ## 3. Code map
@@ -154,10 +159,14 @@ invoice, risk assessment, catalogue item, payment — is read through ports in
 `src/lib/integrations`, answered today by own-store connectors over the
 platform's database. A live connector can replace one for any object type with
 no change at the call site, and every result carries its provenance (source
-system, mode, when retrieved). **Known gap:** the server handlers
-(`api/_domains/*`, `api/governed-checkout.ts`) read with SQL rather than
-through the ports, because the port layer is browser-shaped (TanStack hooks)
-and has no server-side factory.
+system, mode, when retrieved). The supplier, contract and risk-assessment
+connectors are built by `createSharedConnectors(client)` for either side: the
+browser registers them with its `/api/db` client, and submit's second decision
+reads through them with the server's ([ADR-0010](adr/0010-submit-decides-again.md)).
+A live connector for one of them is swapped there, once, for both. **Known
+gap:** the other server handlers (`api/_domains/*`, `api/governed-checkout.ts`)
+still read with SQL rather than through the ports; the shared connectors are
+where they would move to.
 
 ## 5. The decision engines
 
@@ -170,7 +179,7 @@ a test can pin each one.
 | What the demand is — category, commodity code | `procurement/classify.ts`, `category-code.ts`, `commodity-candidates.ts`; `features/requests/new-request/conversation/classify-demand.ts` (AI-001 when active, the configured keywords otherwise) | The conversation, the Home box |
 | Whether the catalogue or a contract covers it | `procurement/intake-routing.ts` (`decideIntakeRoute`), `procurement/contract-matching.ts` served by `/api/contract-match` ([ADR-0004](adr/0004-contract-scope-matching.md)) | The conversation, the Home box |
 | The buying channel | `routing/evaluate-routing-rules.ts`, `routing/demand-channel.ts` (`resolveDemandChannel`) | The conversation, the determination, the submit gate — one evaluator |
-| The intake determination — materiality, risk, approval to source, contract and sourcing type, policy checks, the compliance record | `procurement/intake-determination.ts` (deterministic: `now` is an input), `intake-compliance-record.ts` | The Channel page, `/api/intake-submit` |
+| The intake determination — materiality, risk, approval to source, contract and sourcing type, policy checks, the compliance record | `procurement/intake-determination.ts` (deterministic: `now` and the thresholds are inputs), `intake-compliance-record.ts`; on the server `api/_determination.ts`, compared by `procurement/determination-changes.ts` | The Channel page; `/api/intake-submit`, which decides it again from stored data and refuses a different answer ([ADR-0010](adr/0010-submit-decides-again.md)) |
 | What a contract is today — active, expiring, expired — from its end date against the renewal window | `contracts_with_derived.status_live` (db/schema.sql); `procurement/contract-status.ts`, the same rule in TypeScript | Every contract screen, the governed checkout, the contract match, the assistant; a supplier's active-contract count |
 | What the conversation asks, and when it is through; the sections a demand must cover (`requiredSectionIds` — the template's section rules ride on the slots that fill them) | `procurement/demand-conversation.ts`; `conversation/conversation-rules.ts`, `request-rows.ts` | The conversation page, `api/chat-intake`, the Channel page's section check, the record submit writes |
 | Who approves | `procurement/approval-derivation.ts`, `lib/db/approvals-core.ts` | The Channel page, submit, the approval stage |
@@ -270,14 +279,6 @@ the defect it catches. The catalogue of suites, and what each covers, is the
   approval, an award — is still written from the browser by `transitionStage`
   over `/api/db`, so its gates, forms and approvals are checked in the page, not
   on the server.
-- **Intake submit does not decide again.** `intake-submit` checks the buying
-  channel against the channel vocabulary, recomputes the preferred-supplier
-  override and the submission gaps, and derives the first stage from the stored
-  workflows — but it stores the channel and the compliance record the browser
-  computed. [AGENTS.md](../AGENTS.md) rule 3 asks the server to recompute from
-  stored data, as the governed checkout does; closing it means running the
-  routing and the determination under `api/` against the stored policy
-  configuration (`api/_policy.ts`).
 - **The audit log is not append-only.** `audit_entries` is reachable through
   `/api/db`, where a row can be updated or deleted by id, and nothing in the
   database refuses it.

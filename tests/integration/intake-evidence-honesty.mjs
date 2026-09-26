@@ -20,6 +20,7 @@
 // has to render that differently from "checked, nothing found".
 
 import { readFileSync } from 'node:fs';
+import { DEFAULT_POLICY_CONFIG } from '../../src/lib/procurement/policy-config.ts';
 import {
   buildIntakeComplianceRecord,
   buildUndeterminedComplianceRecord,
@@ -78,6 +79,7 @@ const determinationFor = (overrides = {}) => evaluateIntakeDetermination({
   miniIrq: { privilegedAccess: false, criticalService: false }, now: '2026-09-01',
   suppliers: SUPPLIERS, contracts: [], matchingRiskAssessments: [], routingRules,
   approvalChains: APPROVAL_CHAINS, validatorAgent: { name: 'Request Validator', status: 'active' },
+  policyConfig: DEFAULT_POLICY_CONFIG,
   ...overrides,
 });
 const recordFor = (overrides = {}) =>

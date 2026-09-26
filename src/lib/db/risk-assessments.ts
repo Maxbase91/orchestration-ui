@@ -1,19 +1,19 @@
 import { db } from '@/lib/db-client';
 import type { RiskAssessment } from '@/data/types';
 import { mapDbToRiskAssessment, mapRiskAssessmentToDb } from './mappers';
+import { getRiskAssessmentWith, listRiskAssessmentsWith } from './risk-assessments-core';
 
 const TABLE = 'risk_assessments';
 
+// Reads go through risk-assessments-core.ts, the query the server's risk port
+// runs. The assessments a demand can reuse are read through that port too
+// (lib/integrations/reusable-assessments.ts), not from here.
 export async function listRiskAssessments(): Promise<RiskAssessment[]> {
-  const { data, error } = await db.from(TABLE).select('*').order('assessed_at', { ascending: false });
-  if (error) throw error;
-  return (data ?? []).map(mapDbToRiskAssessment);
+  return listRiskAssessmentsWith(db);
 }
 
 export async function getRiskAssessment(id: string): Promise<RiskAssessment | null> {
-  const { data, error } = await db.from(TABLE).select('*').eq('id', id).maybeSingle();
-  if (error) throw error;
-  return data ? mapDbToRiskAssessment(data) : null;
+  return getRiskAssessmentWith(db, id);
 }
 
 export async function createRiskAssessment(record: RiskAssessment): Promise<RiskAssessment> {
@@ -43,37 +43,4 @@ export async function updateRiskAssessment(
 export async function deleteRiskAssessment(id: string): Promise<void> {
   const { error } = await db.from(TABLE).delete().eq('id', id);
   if (error) throw error;
-}
-
-/**
- * Used by intake validation to surface reusable risk assessments that already
- * cover a supplier or contract. Matches the original synchronous helper in
- * src/data/risk-assessments.ts but backed by the database.
- */
-export async function findMatchingRiskAssessments(params: {
-  supplierId?: string;
-  contractId?: string;
-  now?: Date;
-}): Promise<RiskAssessment[]> {
-  const { supplierId, contractId, now = new Date() } = params;
-  if (!supplierId && !contractId) return [];
-
-  let query = db
-    .from(TABLE)
-    .select('*')
-    .eq('reusable', true)
-    .eq('status', 'completed')
-    .gt('valid_until', now.toISOString().slice(0, 10));
-
-  if (supplierId && contractId) {
-    query = query.or(`supplier_id.eq.${supplierId},contract_id.eq.${contractId}`);
-  } else if (supplierId) {
-    query = query.eq('supplier_id', supplierId);
-  } else if (contractId) {
-    query = query.eq('contract_id', contractId);
-  }
-
-  const { data, error } = await query;
-  if (error) throw error;
-  return (data ?? []).map(mapDbToRiskAssessment);
 }

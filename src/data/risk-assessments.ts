@@ -322,20 +322,3 @@ export const riskAssessments: RiskAssessment[] = [
 export function getRiskAssessment(id: string): RiskAssessment | undefined {
   return riskAssessments.find((r) => r.id === id);
 }
-
-export function findMatchingRiskAssessments(params: {
-  supplierId?: string;
-  contractId?: string;
-  now?: Date;
-}): RiskAssessment[] {
-  const { supplierId, contractId, now = new Date() } = params;
-  if (!supplierId && !contractId) return [];
-  return riskAssessments.filter((ra) => {
-    if (!ra.reusable) return false;
-    if (ra.status !== 'completed') return false;
-    if (new Date(ra.validUntil) <= now) return false;
-    if (supplierId && ra.supplierId === supplierId) return true;
-    if (contractId && ra.contractId === contractId) return true;
-    return false;
-  });
-}

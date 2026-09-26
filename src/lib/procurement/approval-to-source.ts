@@ -15,9 +15,9 @@
 // Early exits (catalogue order, direct transact against a contract) do not
 // enter sourcing, so they require no approval-to-source gate.
 
-import type { RiskTier } from './risk-segmentation';
-import { riskTierRank } from './risk-segmentation';
-import { DEFAULT_POLICY_CONFIG, getActivePolicyConfig, type PolicyConfig } from './policy-config';
+import type { RiskTier } from './risk-segmentation.js';
+import { riskTierRank } from './risk-segmentation.js';
+import { DEFAULT_POLICY_CONFIG, getActivePolicyConfig, type PolicyConfig } from './policy-config.js';
 
 export type ApprovalTier = 'none' | 'light' | 'full';
 

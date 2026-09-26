@@ -7,8 +7,8 @@
 // authored. Standardised; reads contracts (own store today) supplied by the
 // caller, so it works the same when a live contract source is wired in.
 
-import type { Contract } from '@/data/types';
-import { DEFAULT_POLICY_CONFIG, getActivePolicyConfig, type PolicyConfig } from './policy-config';
+import type { Contract } from '../../data/types.js';
+import { DEFAULT_POLICY_CONFIG, getActivePolicyConfig, type PolicyConfig } from './policy-config.js';
 
 export type ContractKind = 'transactable' | 'framework' | 'expiring';
 export type SecondCheckRecommendation = 'transact' | 'author-sow' | 'renew' | 'new-contract';

@@ -28,19 +28,20 @@ export { createRequestConnector } from './own-store/request-connector';
 export { createPurchaseOrderConnector } from './own-store/purchase-order-connector';
 export { createInvoiceConnector } from './own-store/invoice-connector';
 export { createRiskAssessmentConnector } from './own-store/risk-assessment-connector';
+export { createSharedConnectors, type SharedConnectors } from './shared-connectors';
+export { findReusableRiskAssessments, type ReusableAssessmentQuery } from './reusable-assessments';
 export { createCatalogueItemConnector } from './own-store/catalogue-item-connector';
 export { createPaymentConnector } from './own-store/payment-connector';
 export { createTicketConnector } from './own-store/ticket-connector';
 export { createSourcingEventConnector } from './own-store/sourcing-event-connector';
 export { useSourceObject, useSourceList, useSourceData, useSourceDatum } from './hooks';
 
+import { db } from '@/lib/db-client';
 import { registerConnector } from './registry';
-import { createSupplierConnector } from './own-store/supplier-connector';
-import { createContractConnector } from './own-store/contract-connector';
+import { createSharedConnectors } from './shared-connectors';
 import { createRequestConnector } from './own-store/request-connector';
 import { createPurchaseOrderConnector } from './own-store/purchase-order-connector';
 import { createInvoiceConnector } from './own-store/invoice-connector';
-import { createRiskAssessmentConnector } from './own-store/risk-assessment-connector';
 import { createCatalogueItemConnector } from './own-store/catalogue-item-connector';
 import { createPaymentConnector } from './own-store/payment-connector';
 import { createTicketConnector } from './own-store/ticket-connector';
@@ -55,12 +56,15 @@ let registered = false;
  */
 export function registerDefaultConnectors(): void {
   if (registered) return;
-  registerConnector(createSupplierConnector());
-  registerConnector(createContractConnector());
+  // The three the server reads too come from the one factory both sides call,
+  // so a live connector for any of them is swapped once, for both.
+  const shared = createSharedConnectors(db);
+  registerConnector(shared.supplier);
+  registerConnector(shared.contract);
   registerConnector(createRequestConnector());
   registerConnector(createPurchaseOrderConnector());
   registerConnector(createInvoiceConnector());
-  registerConnector(createRiskAssessmentConnector());
+  registerConnector(shared.riskAssessment);
   registerConnector(createCatalogueItemConnector());
   registerConnector(createPaymentConnector());
   registerConnector(createTicketConnector());

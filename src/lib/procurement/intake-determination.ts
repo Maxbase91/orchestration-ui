@@ -17,15 +17,16 @@
 //     same inputs could produce different outputs, which is the one thing a
 //     determination must never do.
 //
-// So: inputs in, determination out, `now` injected. There is deliberately **no
-// `density` or `mode` parameter anywhere in this module**, and
+// So: inputs in, determination out, `now` and the thresholds injected — submit
+// makes the same determination on the server and compares (ADR-0010). There is
+// deliberately **no `density` or `mode` parameter anywhere in this module**, and
 // `tests/integration/mode-equivalence.mjs` asserts that structurally. The
 // Simple/Expert switch has since been removed entirely, but the rule stands on
 // its own: how a screen presents a determination may not reach into how the
 // determination is reached.
 
 import { formatCurrency } from '../format.js';
-import { getActivePolicyConfig, type PolicyConfig } from './policy-config.js';
+import type { PolicyConfig } from './policy-config.js';
 import { isPreferredSupplier, competitiveSourcingCheck, preferredSupplierCheck } from './supplier-preference.js';
 import { inferDataSensitivity } from './demand-signals.js';
 import { determineMateriality, type MaterialityResult } from './materiality.js';
@@ -44,8 +45,15 @@ import { isTriageRequired } from './risk-triage.js';
 import { buyingChannelLabel } from '../routing/evaluate-routing-rules.js';
 import { resolveDemandChannel } from '../routing/demand-channel.js';
 import { selectChainForValue } from '../workflow/approval-bands.js';
-import type { ApprovalChain } from '../db/approval-chains.js';
+import type { ApprovalChain } from '../db/approval-chains-core.js';
 import type { Supplier, Contract, RoutingRule, RiskAssessment, BuyingChannel } from '../../data/types.js';
+
+/**
+ * The agent whose status decides whether the policy checks run (Admin → AI
+ * Agents). One constant for the browser and submit's second decision, which
+ * must read the same agent.
+ */
+export const REQUEST_VALIDATOR_AGENT_ID = 'AI-002';
 
 /** The sections of a service description the risk read looks at. */
 export interface DeterminationServiceDescription {
@@ -98,11 +106,13 @@ export interface IntakeDeterminationInput {
   /** AI-002 Request Validator. Policy checks only run when it is active. */
   validatorAgent?: { name: string; status: string };
   /**
-   * Governed thresholds. Defaults to the active config, which the browser
-   * hydrates on boot — the same seam the sibling decisioning modules use.
-   * Injected explicitly by tests and the simulation panel.
+   * The governed thresholds this demand is decided against. Required, not
+   * defaulted: the default was the browser's boot-time singleton, which nothing
+   * hydrates on a server, so a server caller would have decided on the shipped
+   * numbers without a word. The browser passes the admin's saved values
+   * (`usePolicyConfig`); submit passes the stored row (`api/_policy.ts`).
    */
-  policyConfig?: PolicyConfig;
+  policyConfig: PolicyConfig;
   /** The category's wording for the residual risk questions (service-description template). */
   riskQuestionWording?: Readonly<Record<string, string>>;
 }
@@ -165,6 +175,38 @@ export interface IntakeDetermination {
   triageRequired: boolean;
   /** Why triage is or is not required, in the gate's own words. */
   triageReason: string;
+}
+
+/**
+ * What a request records of its determination: the values submit writes on the
+ * request, and the ones the page sends as what the requester reviewed. One
+ * projection, so the page, the server's row and the comparison between them
+ * (determination-changes.ts) cannot each name their own fields.
+ */
+export interface RecordedDetermination {
+  buyingChannel: BuyingChannel;
+  approvalChain: string | undefined;
+  sourcingType: SourcingType;
+  sourcingTypeReason: string;
+  inherentRiskTier: InherentRiskResult['tier'];
+  materialityTier: MaterialityResult['criticality'];
+  riskAssessmentRequired: boolean;
+  screeningOutcome: ScreeningResult['status'];
+  referralDisposition: ReferralResult['outcome'];
+}
+
+export function recordedDetermination(determination: IntakeDetermination): RecordedDetermination {
+  return {
+    buyingChannel: determination.buyingChannelSlug,
+    approvalChain: determination.approvalChain,
+    sourcingType: determination.sourcingType.type,
+    sourcingTypeReason: determination.sourcingType.reason,
+    inherentRiskTier: determination.inherentRisk.tier,
+    materialityTier: determination.materiality.criticality,
+    riskAssessmentRequired: determination.riskAssessmentRequired,
+    screeningOutcome: determination.screening.status,
+    referralDisposition: determination.referral.outcome,
+  };
 }
 
 /**
@@ -253,7 +295,7 @@ export function evaluateIntakeDetermination(input: IntakeDeterminationInput): In
     miniIrq, contractId, now, suppliers, contracts, matchingRiskAssessments: matches,
     routingRules, approvalChains, validatorAgent,
   } = input;
-  const policy = input.policyConfig ?? getActivePolicyConfig();
+  const policy = input.policyConfig;
 
   const supplierRec = suppliers.find((s) => s.id === supplierId);
   const dataSensitivity = inferDataSensitivity(serviceDescription ?? null);
@@ -286,12 +328,17 @@ export function evaluateIntakeDetermination(input: IntakeDeterminationInput): In
     criticalService: asked.has('criticalService') ? miniIrq.criticalService : undefined,
   };
 
+  // Every helper below is handed this evaluation's policy. Five of them fell
+  // back to the module singleton — the admin's thresholds in the browser, the
+  // shipped defaults on a server — so the same demand could be decided two ways
+  // depending on where it ran, which submit's second decision must never do
+  // (2026-09-26, test:intake-determination).
   const materiality = determineMateriality({
     dataSensitivity,
     riskRating: supplierRec?.riskRating,
     value: estimatedValue,
     criticalService: risk.criticalService,
-  });
+  }, policy);
 
   // Inherent-risk cascade — the demand's risk tier (richer than supplier risk
   // alone), which drives routing and the assessment outcome. The mini-IRQ
@@ -302,7 +349,7 @@ export function evaluateIntakeDetermination(input: IntakeDeterminationInput): In
     value: estimatedValue,
     privilegedAccess: risk.privilegedAccess,
     criticalService: risk.criticalService,
-  });
+  }, policy);
 
   // What the risk questionnaire actually established. A reader of the
   // compliance record has to be able to tell "we asked and they said no" from
@@ -331,7 +378,7 @@ export function evaluateIntakeDetermination(input: IntakeDeterminationInput): In
     privilegedAccess: risk.privilegedAccess ?? false,
     estimatedValue,
     incumbentRelationship,
-  });
+  }, policy);
 
   // Structured reuse decision against the third-party risk register —
   // factors supplier, scope, data class, inherent tier and validity.
@@ -371,7 +418,7 @@ export function evaluateIntakeDetermination(input: IntakeDeterminationInput): In
 
   // Second contract check (after the full description) — surfaces transactable
   // contracts and frameworks/MSAs against the supplier.
-  const secondContractCheck = runSecondContractCheck({ supplierId, category, now, contracts });
+  const secondContractCheck = runSecondContractCheck({ supplierId, category, now, contracts }, policy);
 
   const hasContract = routing.channel === 'framework-call-off' || (supplierRec?.activeContracts ?? 0) > 0;
   const contractType = determineContractType({
@@ -401,7 +448,7 @@ export function evaluateIntakeDetermination(input: IntakeDeterminationInput): In
     material: materiality.material,
     inherentTier: inherentRisk.tier,
     earlyExit: secondContractCheck.recommendation === 'transact',
-  });
+  }, policy);
 
   const validatorActive = validatorAgent?.status === 'active';
   const policyChecks = validatorActive

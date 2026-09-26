@@ -6,11 +6,9 @@
 // and then discarded. Nothing ever created a risk_assessments record — the only
 // way one existed was an admin typing it into the database browser.
 
-import {
-  createRiskAssessment,
-  findMatchingRiskAssessments,
-  updateRiskAssessment,
-} from '@/lib/db/risk-assessments';
+import { createRiskAssessment, updateRiskAssessment } from '@/lib/db/risk-assessments';
+import { findReusableRiskAssessments, requireConnector } from '@/lib/integrations';
+import { isoToday } from '@/lib/procurement/contract-status';
 import type { ProcurementRequest, RiskAssessment, RiskRating } from '@/data/types';
 import {
   inferDataSensitivity,
@@ -38,10 +36,11 @@ export interface RiskStageOutcome {
 /**
  * Ensure a risk assessment exists for a request entering the risk stage.
  *
- * Reuse wins where it applies: `findMatchingRiskAssessments` already filters to
- * `reusable && completed && valid_until > today` for the same supplier or
- * contract, and re-running a live assessment is duplicated work the register
- * exists to prevent. A reused assessment gains the request in its
+ * Reuse wins where it applies: `findReusableRiskAssessments` (through the risk
+ * port) filters to `reusable && completed && valid after today` for the same
+ * supplier or contract — the rule intake and submit read by — and re-running a
+ * live assessment is duplicated work the register exists to prevent. The most
+ * recently assessed is reused. A reused assessment gains the request in its
  * `linkedRequestIds` so the reuse is auditable rather than invisible.
  *
  * Returns null when there is no subject to assess — an assessment must attach to
@@ -59,9 +58,10 @@ export async function ensureRiskAssessment(
 ): Promise<RiskStageOutcome | null> {
   if (!request.supplierId && !request.contractId) return null;
 
-  const matches = await findMatchingRiskAssessments({
+  const matches = await findReusableRiskAssessments(requireConnector<string, RiskAssessment>('risk-assessment'), {
     ...(request.supplierId ? { supplierId: request.supplierId } : {}),
     ...(request.contractId ? { contractId: request.contractId } : {}),
+    today: isoToday(),
   });
 
   if (matches.length > 0) {

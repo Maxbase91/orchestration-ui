@@ -296,7 +296,7 @@ from had nowhere to be seen or corrected.
 | OB-1 | Duplicate-demand search at intake | The compliance record currently has to say no search ran. A real search closes a governance gap rather than documenting it. | M |
 | OB-2 | Service-owner confirmation of risk-assessment reuse (RSK-05) | A reuse decision is proposed and recorded without the owner ever accepting it. | S |
 | OB-3 | Collision-safe request ids and stable idempotency keys | A retry currently gets a new key, defeating replay protection. | S |
-| OB-5 | Server-side reads through the connector ports | `api/_domains/*` and `api/governed-checkout.ts` read with raw SQL because the port layer is browser-shaped (TanStack hooks) with no server factory. | L |
+| OB-5 | Server-side reads through the connector ports | The supplier, contract and risk-assessment ports have a server side (`createSharedConnectors`), which submit's second decision reads through (ADR-0010). `api/governed-checkout.ts` and the other `api/_domains/*` handlers still read with raw SQL; they move onto the shared connectors, adding an object there when a handler needs it. | M |
 | OB-6 | Editable in-flight requests | Once submitted, a requester cannot revise scope without a refer-back. | M |
 | OB-7 | Attachment blob storage | Uploads are extracted to text; the original file is not retained. | M |
 | OB-9 | A duplicate-search, or drop the field | Tracked as OB-1; noted here because `duplicateCheck` is the last compliance field with no producer. | M |

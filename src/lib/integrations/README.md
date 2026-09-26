@@ -19,7 +19,9 @@ Nothing here is specific to any organisation or industry. The upstream
 | `ports.ts` | The `SourceConnector` interface + provenance envelope (`SourceRecord`, `SourceMeta`). |
 | `registry.ts` | Resolve a connector by object type; register/replace implementations. |
 | `own-store/factory.ts` | `createOwnStoreConnector` — builds a connector for any object from own-store reads with uniform filter / search / limit semantics. |
-| `own-store/*-connector.ts` | One own-store connector per object type. |
+| `own-store/*-connector.ts` | One own-store connector per object type. The supplier, contract and risk-assessment ones take the client they read with. |
+| `shared-connectors.ts` | `createSharedConnectors(client)` — the supplier, contract and risk-assessment connectors for either side: the browser registers them with its `/api/db` client, a server handler builds them with its own. The one place a live connector for those three is swapped. |
+| `reusable-assessments.ts` | `findReusableRiskAssessments` — the assessments a demand can reuse, read through the risk port. |
 | `hooks.ts` | `useSourceObject` / `useSourceList` — TanStack Query hooks. |
 | `index.ts` | Public entry point; `registerDefaultConnectors()`. |
 
@@ -99,13 +101,23 @@ The R1 implementation is the private Neon-backed own store. There is one databas
 switch. The read-only `/api/neon-health` dispatcher route reports safe connectivity and
 error classes without exposing connection details.
 
+### On the server
+
+Submit decides a demand again on the server and refuses when the answer differs from the one the
+requester reviewed ([ADR-0010](../../../docs/adr/0010-submit-decides-again.md)). That is only fair
+when both decisions read the same data the same way, so the supplier, its contracts and its reusable
+risk assessments are read on the server through the same connectors: `createSharedConnectors`
+builds them for the server's client (`getDbAdmin()`), with the same read cores
+(`src/lib/db/*-core.ts`) and mapping the browser uses. The server's client JSON-encodes its answers
+as `/api/db` does, so a date is the same ISO string on both sides.
+
 ### Where the ports are bypassed today
 
-Server-side handlers — `api/_domains/*` and `api/governed-checkout.ts` — read with raw SQL rather
-than through these ports, because the layer is browser-shaped (`useSourceData`, TanStack hooks) and
-has no server-side connector factory. That is a **gap**, recorded here rather than argued away: the
-ground rule in AGENTS.md (rule 2) says reads go through the ports, and these do not. Closing it means adding a
-server-side factory that the handlers can call, not adding more direct reads.
+The other server-side handlers — `api/_domains/*` and `api/governed-checkout.ts` — read with raw SQL
+rather than through these ports. That is a **gap**, recorded here rather than argued away: the
+ground rule in AGENTS.md (rule 2) says reads go through the ports, and these do not. Closing it means
+moving them onto the shared connectors (adding an object there when a handler needs it), not adding
+more direct reads.
 
 ## Consumers on the layer
 
@@ -113,11 +125,11 @@ The front-door **catalogue and contract checks** (the conversation page's
 `new-request/conversation/use-route-checks.ts`) and
 client-side assistant lookups read through `useSourceData`/`requireConnector`. (The
 supplier and contract reads in `step-compliance.tsx` went with that step on
-2026-09-26: the Channel page shows the determination, which already has them.) Risk **reuse-matching**
-(`findMatchingRiskAssessments`) and the server-side assistant action path still need
-connector-native implementations — see the layer's status in
-`docs/roadmap/R1_BACKLOG_FIT_GAP.md` (they need, respectively, validity-window query
-support and a server-side connector).
+2026-09-26: the Channel page shows the determination, which already has them.) Risk **reuse-matching** reads through the risk port
+(`findReusableRiskAssessments`, with the connector's `validAfter` filter) for the determination, the
+risk stage and submit's second decision alike — it was a query of its own beside the port. The
+server-side assistant action path still reads with SQL (see the layer's status in
+`docs/roadmap/R1_BACKLOG_FIT_GAP.md`).
 
 ## The live-swap seam
 
@@ -126,7 +138,10 @@ To move an object type from the own store to a live upstream source in R2:
 1. Implement the `SourceConnector<TKey, TRecord>` interface against the live
    source. Set `mode: 'live'` and return the same domain type.
 2. Register it: `registerConnector(createLiveSupplierConnector())` — this
-   replaces the own-store connector for that object.
+   replaces the own-store connector for that object. For the supplier, contract
+   and risk assessment, swap it in `createSharedConnectors` instead, so the
+   server reads the live source too — a browser and a server reading different
+   sources would decide the same demand two ways, and submit would refuse it.
 3. Consumers are unchanged.
 
 The own-store connectors keep a `freshnessTtlSeconds` per object so a live

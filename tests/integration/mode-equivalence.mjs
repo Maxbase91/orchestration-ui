@@ -191,6 +191,7 @@ const determine = (overrides) => evaluateIntakeDetermination({
   miniIrq: { privilegedAccess: false, criticalService: false }, now: '2026-09-01',
   suppliers: DET_SUPPLIERS, contracts: [], matchingRiskAssessments: [], routingRules,
   approvalChains: DET_CHAINS, validatorAgent: { name: 'Request Validator', status: 'active' },
+  policyConfig: DEFAULT_POLICY_CONFIG,
   ...overrides,
 });
 

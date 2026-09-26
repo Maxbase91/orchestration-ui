@@ -27,12 +27,20 @@ that difference deliberate.
 split: `<entity>-core.ts` takes a `NeonCompatibleClient` parameter and uses
 relative `.js` specifiers, and `<entity>.ts` passes the browser singleton to it.
 
-There are four: `approvals-core`, `receipts-core`, `tickets-core`,
-`user-preferences-core`. Only three have a browser-side sibling —
-`receipts-core` has no `receipts.ts` because nothing in the browser needs it
-yet. **That asymmetry is correct.** The split exists so two runtimes can share
-one implementation, not as a naming scheme to apply evenly; adding a
-`receipts.ts` to make the set look tidy would add a module with no caller.
+The writers: `approvals-core`, `receipts-core`, `tickets-core`,
+`user-preferences-core`. The configuration reads a server handler needs:
+`policy-core`, `knowledge-core`, `channel-stage-map-core`. And the reads submit's
+second decision makes exactly as the browser does
+([ADR-0010](../../../docs/adr/0010-submit-decides-again.md)): `suppliers-core`,
+`contracts-core` and `risk-assessments-core` behind the shared connectors, and
+`routing-rules-core`, `approval-chains-core` and `ai-agents-core`, whose browser
+modules read through them — so the two sides cannot run different queries.
+
+Not every core has a browser-side sibling — `receipts-core` has no
+`receipts.ts` because nothing in the browser needs it yet. **That asymmetry is
+correct.** The split exists so two runtimes can share one implementation, not as
+a naming scheme to apply evenly; adding a `receipts.ts` to make the set look
+tidy would add a module with no caller.
 
 ## Known exceptions
 

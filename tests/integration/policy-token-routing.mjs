@@ -8,9 +8,9 @@
 // identical to what the pre-migration literals produced.
 //
 // It also holds the seams that make the indirection safe: a token must never
-// reach evalCondition unresolved, no serverless module may import the evaluator
-// (the config would silently be shipped defaults there), and every rule naming
-// an approval chain must name one that exists.
+// reach evalCondition unresolved, a serverless module decides only on the
+// stored thresholds (a defaulted config would silently be the shipped numbers
+// there), and every rule naming an approval chain must name one that exists.
 import { readFileSync } from 'node:fs';
 import { neon } from '@neondatabase/serverless';
 import { loadEnv } from '../lib/live.mjs';
@@ -110,20 +110,34 @@ if (leaked !== false || errors.length === 0) {
   bad('a token reaching evalCondition is reported', `returned ${leaked}, logged ${errors.length} error(s)`);
 } else ok('a token reaching evalCondition returns false AND logs — not a silent near-miss');
 
-// ── No serverless module may reach the evaluator ───────────────────────────
-console.log('\nThe serverless side cannot evaluate against shipped defaults');
-const apiFiles = read('api/db.ts') && [
-  'api/_domains/intake-submit.ts', 'api/governed-checkout.ts', 'api/workflow-action.ts',
-  'api/chat.ts', 'api/ai.ts',
-];
-const offenders = apiFiles.filter((f) => {
-  try { return /evaluate-routing-rules|demand-channel|intake-determination/.test(read(f)); }
-  catch { return false; }
-});
-if (offenders.length) {
-  bad('no api/ module imports the routing evaluator',
-    `${offenders.join(', ')} — the active policy config is a browser-boot singleton, so a serverless caller would evaluate against shipped defaults`);
-} else ok('no serverless handler imports the routing evaluator');
+// ── The serverless side decides on the stored thresholds ───────────────────
+// This guard used to forbid any api/ module from importing the evaluator: the
+// determination defaulted its thresholds to a browser-boot singleton, so a
+// serverless caller would have decided on the shipped numbers. Submit now
+// decides every demand again on the server (2026-09-26), so the rule is the
+// one that was always meant: the thresholds are an input, never a default,
+// and the one server caller hands it the stored row.
+console.log('\nThe serverless side decides on the stored thresholds, never shipped defaults');
+const determinationSource = read('src/lib/procurement/intake-determination.ts');
+if (!/\bpolicyConfig: PolicyConfig;/.test(determinationSource) || /getActivePolicyConfig/.test(determinationSource)) {
+  bad('the determination takes its thresholds as a required input', 'a default would let a server caller decide on shipped numbers');
+} else ok('the determination takes its thresholds as a required input');
+if (!/config: PolicyConfig,\n\): RoutingMatch/.test(read('src/lib/routing/demand-channel.ts'))) {
+  bad('the channel resolver takes its thresholds as a required input');
+} else ok('the channel resolver takes its thresholds as a required input');
+{
+  const apiFiles = ['api/db.ts', 'api/_determination.ts', 'api/_domains/intake-submit.ts', 'api/governed-checkout.ts',
+    'api/workflow-action.ts', 'api/chat.ts', 'api/ai.ts'];
+  const deciders = apiFiles.filter((f) => /evaluateIntakeDetermination\(|resolveDemandChannel\(|resolveRouting\(/.test(read(f)));
+  const server = read('api/_determination.ts');
+  const submit = read('api/_domains/intake-submit.ts');
+  if (JSON.stringify(deciders) !== JSON.stringify(['api/_determination.ts'])
+    || !/policyConfig: policy,/.test(server)
+    || !/const policy = await loadPolicyConfigWith\(sql\);/.test(submit)
+    || !/determineOnServer\(getDbAdmin\(\), \{[\s\S]*?\}, policy, today\)/.test(submit)) {
+    bad('one server module decides, on the stored row', `deciders: ${deciders.join(', ') || 'none'}`);
+  } else ok('one server module decides, on the stored row');
+}
 
 // ── The editor no longer offers role paths as chains ───────────────────────
 console.log('\nThe rule editor offers real approval chains');

@@ -10,8 +10,8 @@
 // categories (business continuity, data handling, concentration, regulatory
 // exposure, access), not any organisation-specific control set.
 
-import type { DataSensitivity } from './materiality';
-import { DEFAULT_POLICY_CONFIG, getActivePolicyConfig, type PolicyConfig } from './policy-config';
+import type { DataSensitivity } from './materiality.js';
+import { DEFAULT_POLICY_CONFIG, getActivePolicyConfig, type PolicyConfig } from './policy-config.js';
 
 export type OpRiskRating = 'low' | 'medium' | 'high';
 

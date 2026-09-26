@@ -575,11 +575,17 @@ demand, the chosen supplier, the contracts and the configuration. The Channel pa
 submit; submit stores it on the request and as the request's compliance record, both shown on the
 Compliance tab (§4.6).
 
-**Known defect:** the determination runs only in the browser. Submit stores the buying channel,
-the approval chain, the determination and the compliance record as the browser sends them. The
-server checks that the channel exists and that required details — and a reason for a supplier off
-the preferred list — are present, then places the request by its channel; it recomputes none of
-it.
+**Submit decides again.** The server works the determination out once more when the requester
+submits, from what is stored at that moment — the supplier, its contracts, its reusable risk
+assessments, the routing rules, the approval chains and the thresholds in force — and compares it
+with what the Channel page showed. When anything the page showed differs — the channel, the
+approval chain, sourcing type, a risk or materiality tier, whether a risk assessment is needed,
+screening, the disposition, the SRA outcome, a policy check's result, the assessments that can be
+reused, vendor onboarding or the risk questions asked — nothing is created. The page stays open,
+says what changed ("A risk assessment is now required", "The buying channel is now …"), and shows
+the new answer; the requester reviews it and submits again. Otherwise the request and its compliance
+record carry the server's determination (fixed 2026-09-26: submit stored what the browser sent, so a
+page left open while a supplier's screening or a threshold changed decided the record).
 
 **Buying channel.** *Catalogue* when the requester orders a catalogue item (§4.5); *framework
 call-off* when the contract check finds a contract that covers the demand at or below the direct

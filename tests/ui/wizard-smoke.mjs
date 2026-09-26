@@ -613,6 +613,43 @@ try {
     download ? download.suggestedFilename() : 'no download');
   await shot('channel-request-workings');
 
+  // 5′. Submit decides the demand again on the server (2026-09-26). When its
+  //     answer differs from what was reviewed it refuses, writes nothing and
+  //     says what changed; the page stays here and fetches what the server
+  //     decided on, so the requester reviews that.
+  {
+    let submitted = null;
+    const refetched = [];
+    await page.route('**/api/intake-submit', async (route) => {
+      submitted = JSON.parse(route.request().postData() || '{}');
+      await route.fulfill({
+        status: 409, contentType: 'application/json',
+        body: JSON.stringify({
+          error: 'This request was decided again when you submitted it, and the answer has changed. Review the Channel page and submit again.',
+          code: 'determination_changed',
+          changes: ['A risk assessment is no longer required.'],
+        }),
+      });
+    });
+    const spy = (request) => {
+      if (submitted && request.url().endsWith('/api/db')) refetched.push(request.postDataJSON()?.table);
+    };
+    page.on('request', spy);
+    await page.getByRole('button', { name: 'Submit the request' }).click();
+    await page.getByText('What you reviewed has changed').first().waitFor({ timeout: 10000 }).catch(() => {});
+    await page.waitForTimeout(800);
+    check('a refused submit says what changed',
+      (await page.getByText('A risk assessment is no longer required.').count()) > 0);
+    check('…and keeps the requester on the Channel page', await stageList.isVisible());
+    check('…having sent what was reviewed, with the risk answers it was decided on',
+      Boolean(submitted?.compliance?.policyChecks) && typeof submitted?.riskAnswers === 'object'
+        && submitted?.request?.buyingChannel === submitted?.buyingChannel, JSON.stringify(Object.keys(submitted ?? {})));
+    check('…and fetches what the server decided on again',
+      ['routing_rules', 'approval_chains', 'suppliers_with_derived'].every((table) => refetched.includes(table)), refetched.join(','));
+    page.off('request', spy);
+    await page.unroute('**/api/intake-submit');
+  }
+
   // 5a. What the panel says from the first answer: who and where, and the
   //     service description building as it is asked — auto-composed, with NO
   //     manual "Generate SOW" button.

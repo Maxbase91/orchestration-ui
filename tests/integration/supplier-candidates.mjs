@@ -12,6 +12,7 @@
 // thing. Candidates are a sourcing input, not a determination input.
 
 import assert from 'node:assert/strict';
+import { DEFAULT_POLICY_CONFIG } from '../../src/lib/procurement/policy-config.ts';
 import { readFileSync } from 'node:fs';
 import { evaluateIntakeDetermination } from '../../src/lib/procurement/intake-determination.ts';
 import { INITIAL_INTAKE_DATA } from '../../src/features/requests/new-request/intake-form-data.ts';
@@ -34,6 +35,7 @@ const determinationFor = (supplierId) => evaluateIntakeDetermination({
   miniIrq: {}, now: '2026-09-01', suppliers: SUPPLIERS, contracts: [],
   matchingRiskAssessments: [], routingRules, approvalChains: [],
   validatorAgent: { name: 'Request Validator', status: 'active' },
+  policyConfig: DEFAULT_POLICY_CONFIG,
 });
 
 console.log('\nThe form carries a preferred supplier, alternates, and an intent');

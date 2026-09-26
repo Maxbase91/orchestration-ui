@@ -98,8 +98,11 @@ if (before !== 'procurement-led' || after !== 'business-led') {
 
 // ── Ordering is explicit, not alphabetical luck ────────────────────────────
 console.log('\nEvaluation order is explicit');
-const ruleSource = readFileSync(new URL('src/lib/db/routing-rules.ts', ROOT), 'utf8');
-if (!/\.order\('priority'\)/.test(ruleSource)) {
+// The one read both sides run — the browser's module and submit's second
+// decision read through routing-rules-core.ts (2026-09-26).
+const ruleSource = readFileSync(new URL('src/lib/db/routing-rules-core.ts', ROOT), 'utf8');
+if (!/\.order\('priority'\)/.test(ruleSource)
+  || !/listRoutingRulesWith\(db\)/.test(readFileSync(new URL('src/lib/db/routing-rules.ts', ROOT), 'utf8'))) {
   bad('rules are read in priority order',
     "ordering by id alone means one admin rule named after RR-9xx shadows every specific rule");
 } else ok('rules are read priority-first');

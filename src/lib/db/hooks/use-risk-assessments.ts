@@ -6,15 +6,18 @@ import {
   createRiskAssessment,
   updateRiskAssessment,
   deleteRiskAssessment,
-  findMatchingRiskAssessments,
 } from '../risk-assessments';
+import { findReusableRiskAssessments, requireConnector } from '@/lib/integrations';
+import { isoToday } from '@/lib/procurement/contract-status';
 
 const KEYS = {
   all: ['risk-assessments'] as const,
   list: () => ['risk-assessments', 'list'] as const,
   detail: (id: string) => ['risk-assessments', 'detail', id] as const,
-  matching: (supplierId?: string, contractId?: string) =>
-    ['risk-assessments', 'matching', supplierId ?? '', contractId ?? ''] as const,
+  // Under 'risk-assessments', so saving an assessment refreshes what can be
+  // reused; the day is in the key, so a page left open overnight asks again.
+  matching: (supplierId: string | undefined, contractId: string | undefined, today: string) =>
+    ['risk-assessments', 'matching', supplierId ?? '', contractId ?? '', today] as const,
 };
 
 export function useRiskAssessments() {
@@ -32,10 +35,17 @@ export function useRiskAssessment(id: string | undefined) {
   });
 }
 
+/**
+ * The assessments a demand can reuse, read through the risk-assessment port —
+ * the read submit's second decision makes on the server, so both count the
+ * same ones.
+ */
 export function useMatchingRiskAssessments(params: { supplierId?: string; contractId?: string }) {
+  const today = isoToday();
   return useQuery({
-    queryKey: KEYS.matching(params.supplierId, params.contractId),
-    queryFn: () => findMatchingRiskAssessments(params),
+    queryKey: KEYS.matching(params.supplierId, params.contractId, today),
+    queryFn: () => findReusableRiskAssessments(
+      requireConnector<string, RiskAssessment>('risk-assessment'), { ...params, today }),
     enabled: Boolean(params.supplierId || params.contractId),
   });
 }

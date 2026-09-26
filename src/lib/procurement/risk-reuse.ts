@@ -6,9 +6,9 @@
 // (category), data class, inherent risk tier, and validity. Standardised and
 // organisation-agnostic.
 
-import type { RiskAssessment, RiskRating } from '@/data/types';
-import type { DataSensitivity } from './materiality';
-import { determineRiskOutcome, type RiskOutcome, riskTierRank } from './risk-segmentation';
+import type { RiskAssessment, RiskRating } from '../../data/types.js';
+import type { DataSensitivity } from './materiality.js';
+import { determineRiskOutcome, type RiskOutcome, riskTierRank } from './risk-segmentation.js';
 
 const SENSITIVITY_RANK: Record<DataSensitivity, number> = {
   none: 0, low: 1, medium: 2, high: 3, critical: 4,
