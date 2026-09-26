@@ -307,8 +307,11 @@ try {
       break flow4;
     }
     await answerConversation(page, 50000);
-    await page.getByRole('button', { name: /Next/ }).click();   // → review & submit
-    await page.getByText('Approval to source', { exact: true }).waitFor({ timeout: 15000 });
+    await page.getByRole('button', { name: /Next/ }).click();   // → your buying channel
+    // Approval to source is in the Channel page's workings, one click down.
+    await page.getByRole('list', { name: 'Stages' }).waitFor({ timeout: 15000 });
+    await page.getByText('How this was worked out').click();
+    await page.getByText(/Approval to source/i).first().waitFor({ timeout: 15000 });
     const fullGate = await page.getByText('full gate', { exact: true }).count();
     check('admin-edited threshold drives the LIVE determination (50k → full gate)', fullGate > 0, `fullGate=${fullGate}`);
     check('no uncaught errors during config-wiring flow', errors.length === 0, errors[0]);

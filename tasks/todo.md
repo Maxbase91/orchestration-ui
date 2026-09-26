@@ -107,3 +107,38 @@ people submit would not).
 1. [x] `channel-plan.ts` (pure) + `test:channel-plan` — every template × signal combination agrees with the server's landing rule and the engine's walk
 2. [x] `requesterAction` stage field: types, designer, seed + live backfill, Workflow tab column, seed parity
 3. [x] The Channel page (full request + call-off), wizard wiring, retired Review pieces, browser suites, docs
+
+## Phase 4 — the conversation page (plan, 2026-09-26)
+Replaces **Describe, How you'll buy and Details** with one page (Intake artboard):
+the conversation on the left in three phases — *1 · What you need · 2 · How it is
+bought · 3 · What it needs* — and **Your request** on the right. It ends on
+"Buying channel confirmed" → the Channel page (phase 3), where it is submitted.
+Nothing new decides anything: each turn is the engine that decides it today.
+
+| Turn | Engine it reuses |
+|---|---|
+| Your words (or Home's `?q=`) as the first message; "That sounds like *category · code*. Is that right?" (candidates when unsure) | AI-001 / configured keywords (step-category) |
+| "Checked the catalogue — …; checked contracts — …" in one turn | `decideIntakeRoute` + the server contract matcher (step-buy-route) |
+| **One detail decides it** — the matcher's own clarifying question (ADR-0004) | `serverMatch.questions` |
+| Catalogue → "in the catalogue — no request needed", *Order it →* (Door 2 basket) · Contract → *Call it off* / *Not this — raise a new request* · else → "Then this is a new request" + the rule's reason | as today |
+| Call-off: fills what it can from your words and profile, asks the rest | the call-off draft fields (contract-call-off-checkout) |
+| New request: the service-description questions, then the preferred-supplier question (buttons), then the risk questions (Yes/No) | demand-conversation engine, sourcingInvites, residual questions |
+| **Buying channel confirmed** → *See how it will be bought →* | the determination |
+
+**Your request**: Channel · Who and where · What · Supplier · Service description
+(required N of M); each row a provenance dot (*from you / derived / drafted — check
+it / still to come*), one line, edited in place — the conversation reads the edit
+from then on; "N of M known"; the executive summary once written.
+
+**Retires**: step-category, step-buy-route, the Details step (requester-context
+block, details-supplier, the call-off form), the stepper and the wizard footer.
+
+**Decisions (2026-09-26)**
+- Q5 **Inputs only** are edited in place — title, value, dates, who and where,
+  supplier, service description. What the platform decides (channel, category
+  code, catalogue price, contract supplier) changes through the conversation —
+  re-confirm the category, "Not this — raise a new request" — so routing stays
+  governed.
+- Q6 **"N of M known" counts what the route needs**: a new request's key facts
+  plus its required service-description sections; a call-off's details. It
+  reaches M of M exactly when "Buying channel confirmed" appears.
