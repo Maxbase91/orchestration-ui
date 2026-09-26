@@ -31,7 +31,7 @@ check('long pasted brief seeds objective and scope', Boolean(seeded.objective &&
 check('deliverables remain a distinct section', Boolean(seeded.deliverables));
 check('exclusions are distinct from scope in the intake model', /exclusions/.test(readFileSync('src/features/requests/new-request/new-request-page.tsx', 'utf8')) && /id: 'exclusions'/.test(readFileSync('src/lib/procurement/service-description-defaults.ts', 'utf8')));
 check('scope prompt does not combine Included and Excluded questions', !readFileSync('src/lib/procurement/demand-conversation.ts', 'utf8').includes('in scope — and anything explicitly out of scope'));
-check('document context carries into the adaptive chat', readFileSync('src/features/requests/new-request/step-chat-intake.tsx', 'utf8').includes('data.serviceDescription ?? {}'));
+check('document context carries into the adaptive chat', readFileSync('src/features/requests/new-request/conversation/use-service-description-conversation.ts', 'utf8').includes('data.serviceDescription ?? {}'));
 check('requester-facing intake does not render a business justification field', !/label.*Business Justification/.test(readFileSync('src/features/requests/new-request/step-chat-intake.tsx', 'utf8')));
 check('upload API boundary exists', readFileSync('api/_domains/intake-upload.ts', 'utf8').includes('PDF'));
 // The "helpful guidance from similar requests" card is gone, along with its

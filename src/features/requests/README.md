@@ -162,6 +162,13 @@ Assessment that discarded its answers (it is filled at the risk stage it is
 configured for), and a "smart assessment" that re-derived contract coverage
 with its own €25,000 literal.
 
+The service-description conversation's engine — which question comes next,
+what counts as an answer, push back once and offer a draft, give up on a date or
+a budget after two tries, the risk questions as its tail, composing the
+description when it is done — is `new-request/conversation/use-service-description-conversation.ts`.
+It moved out of `step-chat-intake.tsx` unchanged (2026-09-26) so the conversation
+page can run it in its own transcript; `step-chat-intake.tsx` is now its screen.
+
 The conversation step uses the product's `Card` primitives and the documented
 AI visual language (blue-tinted surface, left accent, sparkle, generated-by
 label — `docs/specs/design-document.md` §7.3), rather than the bespoke bordered

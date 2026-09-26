@@ -79,7 +79,7 @@ const handler = read('api/_domains/commodity-match.ts');
 check('the commodity-match endpoint reads the codes from the store',
   /FROM procurement_categories/.test(handler) && /codeBookFromCategories/.test(handler));
 check('the intake screens resolve against the configured book',
-  ['src/features/requests/new-request/step-category.tsx', 'src/features/requests/new-request/step-chat-intake.tsx']
+  ['src/features/requests/new-request/step-category.tsx', 'src/features/requests/new-request/conversation/use-service-description-conversation.ts']
     .every((f) => /useCommodityCodeBook\(\)/.test(read(f))));
 
 const env = loadEnv();

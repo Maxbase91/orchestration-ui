@@ -80,7 +80,8 @@ check('catalogue and call-off keep their own gates',
 console.log('\nThe screens stop promising "later"');
 const context = read('src/features/requests/new-request/components/requester-context-block.tsx');
 check('Charged to no longer says "you can add it later"', !/you can add it later/.test(context) && /needed before you submit/.test(context));
-const chat = read('src/features/requests/new-request/step-chat-intake.tsx');
+// The screen and its engine (the hook it moved into), read as one.
+const chat = read('src/features/requests/new-request/step-chat-intake.tsx') + read('src/features/requests/new-request/conversation/use-service-description-conversation.ts');
 check('the conversation no longer promises to leave the date open', !/leave the need-by date open/.test(chat));
 check('a skipped need-by date can be entered in Key facts', /id="key-facts-need-by"/.test(chat) && /type="date"/.test(chat));
 const page = read('src/features/requests/new-request/new-request-page.tsx');

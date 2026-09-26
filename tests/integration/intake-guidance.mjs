@@ -306,8 +306,10 @@ console.log('\nThe chat is not canned');
 // and discarding the model's phrasing.
 const CONV_SRC = readFileSync(
   join(ROOT, 'src/lib/procurement/demand-conversation.ts'), 'utf8');
+// The conversation's screen and its engine (the hook it moved into), read as one.
 const CHAT_SRC = readFileSync(
-  join(ROOT, 'src/features/requests/new-request/step-chat-intake.tsx'), 'utf8');
+  join(ROOT, 'src/features/requests/new-request/step-chat-intake.tsx'), 'utf8')
+  + readFileSync(join(ROOT, 'src/features/requests/new-request/conversation/use-service-description-conversation.ts'), 'utf8');
 const INTAKE_API_SRC = readFileSync(join(ROOT, 'api/chat-intake.ts'), 'utf8');
 
 // The concatenation that produced "…engagement? run a promptathon to upskill 40

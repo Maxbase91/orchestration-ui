@@ -60,10 +60,10 @@ console.log('\nThe allow-list is the one the chat step applies');
 
 // A guard against the list becoming decorative: the module must be the source
 // the extraction loop consults, not a second copy that drifts from it.
-check('step-chat-intake filters its extraction loop through the shared list', () => {
+check('the intake conversation filters its extraction loop through the shared list', () => {
   const source = readFileSync(
-    new URL('../../src/features/requests/new-request/step-chat-intake.tsx', import.meta.url), 'utf8');
-  assert.ok(source.includes("from './extractable-fields'"), 'it does not import the list');
+    new URL('../../src/features/requests/new-request/conversation/use-service-description-conversation.ts', import.meta.url), 'utf8');
+  assert.ok(source.includes("from '../extractable-fields'"), 'it does not import the list');
   assert.ok(/if \(!EXTRACTABLE_FIELDS\.has\(key\)\) continue;/.test(source),
     'the extraction loop does not skip keys outside the list');
 });
