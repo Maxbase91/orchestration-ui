@@ -574,7 +574,10 @@ export function IntakeConversation(props: IntakeConversationProps) {
       : route === 'new-request' ? { value: `New request · ${channelLabel}`, source: `${confirmed ? 'Confirmed' : 'Routing'} · ${ruleSource}`, settled: confirmed }
         : catalogueOffer ? { value: 'Catalogue order — no request', source: 'Derived', settled: false }
           : contract && checks.canCallOff ? { value: `Call-off · ${contract.title}`, source: 'Proposed · you accept in the conversation', settled: false }
-            : { value: 'Checking the catalogue and contracts', source: 'Derived', settled: false };
+            // The checks are done and a question is open: say what it decides.
+            : asking === 'detail' ? { value: 'Deciding — one detail settles which contract', source: 'Asked now', settled: false }
+              : asking === 'more' ? { value: 'Deciding — the catalogue item was not it', source: 'Asked now', settled: false }
+                : { value: 'Checking the catalogue and contracts', source: 'Derived', settled: false };
 
   // The sections this demand is asked about, or already has text for. The
   // hook's object changes identity every render, so this is computed, not memoised.

@@ -66,30 +66,47 @@ async function describe(page, demand) {
   return conversation;
 }
 
-// A new request's conversation, to "Buying channel confirmed": the queued
-// answers in order, the supplier left to the market, every risk question
-// answered the same way, and a cost centre added in the panel if one is owed.
-async function toConfirmed(page, conversation, answers, { answerRiskYes = false } = {}) {
+// A new request's conversation, to "Buying channel confirmed": the value and a
+// date where those are asked, the scenario's descriptions in order otherwise;
+// the supplier left to the market; every risk question answered the same way;
+// and what submit still needs added on the right.
+async function toConfirmed(page, conversation, [value, ...descriptions], { answerRiskYes = false } = {}) {
   const reply = page.locator('#intake-reply');
+  const panel = page.locator('aside[aria-label="Your request"]');
   const confirmed = conversation.locator('[data-turn="card"]').filter({ hasText: 'Buying channel confirmed' });
-  const queue = [...answers];
-  for (let turn = 0; turn < answers.length + 12; turn++) {
+  const queue = [...descriptions];
+  for (let turn = 0; turn < descriptions.length + 16; turn++) {
     if (await confirmed.count()) return true;
     const market = conversation.getByRole('button', { name: /No — go to market|Not decided yet/ });
     if (await market.count() && await market.last().isEnabled()) { await market.last().click(); await new Promise((r) => setTimeout(r, 900)); continue; }
     const choice = conversation.getByRole('button', { name: answerRiskYes ? 'Yes' : 'No', exact: true });
     if (await choice.count() && await choice.last().isEnabled()) { await choice.last().click(); await new Promise((r) => setTimeout(r, 900)); continue; }
-    if (await conversation.getByText(/needs a cost centre/).count()) {
-      const panel = page.locator('aside[aria-label="Your request"]');
-      await panel.getByRole('button', { name: 'Edit Charged to' }).click();
-      const centre = panel.locator('[data-editing="costCentre"] select');
-      await centre.selectOption(await centre.evaluate((el) => [...el.options].map((o) => o.value).find(Boolean) ?? ''));
-      await panel.getByRole('button', { name: 'Done' }).click();
-      await new Promise((r) => setTimeout(r, 600));
-      continue;
+    const gap = conversation.getByText(/Before the channel can be confirmed/).last();
+    if (await gap.count()) {
+      const owed = await gap.innerText();
+      if (/cost centre/.test(owed) && !/CC-/.test(await panel.locator('[data-row="costCentre"]').innerText())) {
+        await panel.getByRole('button', { name: 'Edit Charged to' }).click();
+        const centre = panel.locator('[data-editing="costCentre"] select');
+        await centre.selectOption(await centre.evaluate((el) => [...el.options].map((o) => o.value).find(Boolean) ?? ''));
+        await panel.getByRole('button', { name: 'Done' }).click();
+        await new Promise((r) => setTimeout(r, 600));
+        continue;
+      }
+      if (/need-by date/.test(owed) && /Not yet known/.test(await panel.locator('[data-row="deliveryDate"]').innerText())) {
+        await panel.getByRole('button', { name: 'Edit Need by' }).click();
+        await panel.locator('[data-editing="deliveryDate"] input').fill('2027-03-31');
+        await panel.getByRole('button', { name: 'Done' }).click();
+        await new Promise((r) => setTimeout(r, 600));
+        continue;
+      }
     }
     if (await reply.isDisabled()) { await new Promise((r) => setTimeout(r, 900)); continue; }
-    await reply.fill(queue.shift() ?? answers[answers.length - 1]);
+    // The question line only: its "Asked because …" line can mention a value
+    // or a date while asking about something else.
+    const q = await conversation.locator('[data-turn="assistant"]').last().locator(':scope > div').first().innerText();
+    await reply.fill(/delivered or started by|need-by|need it by|when do you need/i.test(q) ? '2027-03-31'
+      : /budget|how much|estimated value|cost/i.test(q) ? value
+        : queue.shift() ?? descriptions[descriptions.length - 1]);
     await reply.press('Enter');
     await new Promise((r) => setTimeout(r, 1000));
   }
@@ -98,18 +115,26 @@ async function toConfirmed(page, conversation, answers, { answerRiskYes = false 
 
 // Walk a demand through the conversation to the Channel page. Nothing is
 // submitted: this harness can run against the deployed app.
-async function fullScenario(page, { key, demand, answers, toggleCritical }) {
+async function fullScenario(page, { key, demand, detail, answers, toggleCritical }) {
   log(`\n▶ Front door — ${key}`);
   try {
     const conversation = await describe(page, demand);
-    // A live contract may cover the demand; this scenario is a new request.
-    const raise = conversation.getByRole('button', { name: 'Not this — raise a new request' });
-    await Promise.race([
-      conversation.getByText('Then this is a new request.').waitFor({ timeout: 15000 }),
-      raise.waitFor({ timeout: 15000 }),
-    ]).catch(() => {});
-    if (await raise.count() && await raise.isEnabled()) await raise.click();
-    await conversation.getByText('Then this is a new request.').waitFor({ timeout: 15000 });
+    // Until it is a new request: the one detail a contract match asks for, and
+    // — this scenario being a new request — a live contract's offer declined.
+    const newRequest = conversation.getByText('Then this is a new request.');
+    for (let step = 0; step < 4 && !(await newRequest.count()); step++) {
+      const raise = conversation.getByRole('button', { name: 'Not this — raise a new request' });
+      const asked = conversation.getByText(/^One detail decides it/);
+      await Promise.race([newRequest.waitFor({ timeout: 15000 }), raise.waitFor({ timeout: 15000 }), asked.waitFor({ timeout: 15000 })]).catch(() => {});
+      if (await raise.count() && await raise.isEnabled()) { await raise.click(); continue; }
+      if (await asked.count() && await page.locator('#intake-reply').isEnabled()) {
+        await shot(page, `${key}-0-one-detail`);
+        await page.locator('#intake-reply').fill(detail);
+        await page.locator('#intake-reply').press('Enter');
+        await new Promise((r) => setTimeout(r, 1500));
+      }
+    }
+    await newRequest.waitFor({ timeout: 15000 });
     if (!(await toConfirmed(page, conversation, answers, { answerRiskYes: toggleCritical }))) throw new Error('the channel was never confirmed');
     await shot(page, `${key}-1-conversation`);
     await page.getByRole('button', { name: /See how it will be bought/ }).click();          // → your buying channel
@@ -160,6 +185,8 @@ try {
   // no supplier → dynamic Risk + Vendor onboarding steps on the routing lifecycle.
   await fullScenario(page, {
     key: 'B-promptathon', demand: 'I need consultants for a promptathon',
+    detail: 'a 2-day facilitated promptathon to upskill ~40 staff on AI tooling, in September',
+
     toggleCritical: false,
     answers: ['120000', 'run a 2-day promptathon to upskill 40 staff on AI tooling',
       'in: facilitation, materials and coaching; out: tooling licences',
@@ -172,6 +199,8 @@ try {
   // full approval-to-source gate, critical inherent risk.
   await fullScenario(page, {
     key: 'C-highvalue-critical', demand: 'managed security operations service for the EMEA region',
+    detail: '24x7 managed SOC covering EMEA, multi-year, about €600k, supports a critical service',
+
     toggleCritical: true,
     answers: ['600000', 'stand up a 24x7 managed SOC for the EMEA region',
       'in: monitoring, triage and response; out: remediation tooling',
@@ -183,6 +212,8 @@ try {
   // Scenario D: full request — low value → Fast-Track band (single approver).
   await fullScenario(page, {
     key: 'D-lowvalue', demand: 'a short advisory workshop on procurement strategy',
+    detail: 'a one-day advisory workshop for the procurement team next month, about €6k',
+
     toggleCritical: false,
     answers: ['6000', 'a one-day advisory workshop on procurement strategy',
       'in: one facilitated workshop; out: implementation', 'workshop materials and a short summary',

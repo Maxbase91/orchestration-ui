@@ -114,21 +114,36 @@ async function answerConversation(page, budget) {
     if (await market.count() && await market.last().isEnabled()) { await market.last().click(); await page.waitForTimeout(900); continue; }
     const no = conversation.getByRole('button', { name: 'No', exact: true });
     if (await no.count() && await no.last().isEnabled()) { await no.last().click(); await page.waitForTimeout(900); continue; }
-    if (await conversation.getByText(/needs a cost centre/).count()) {
-      const panel = page.locator('aside[aria-label="Your request"]');
-      await panel.getByRole('button', { name: 'Edit Charged to' }).click();
-      const centre = panel.locator('[data-editing="costCentre"] select');
-      await centre.selectOption(await centre.evaluate((el) => [...el.options].map((o) => o.value).find(Boolean) ?? ''));
-      await panel.getByRole('button', { name: 'Done' }).click();
-      await page.waitForTimeout(900);
-      continue;
+    // What submit still needs is added on the right, where the conversation says it goes.
+    const panel = page.locator('aside[aria-label="Your request"]');
+    const gap = conversation.getByText(/Before the channel can be confirmed/).last();
+    if (await gap.count()) {
+      const owed = await gap.innerText();
+      if (/cost centre/.test(owed) && !/CC-/.test(await panel.locator('[data-row="costCentre"]').innerText())) {
+        await panel.getByRole('button', { name: 'Edit Charged to' }).click();
+        const centre = panel.locator('[data-editing="costCentre"] select');
+        await centre.selectOption(await centre.evaluate((el) => [...el.options].map((o) => o.value).find(Boolean) ?? ''));
+        await panel.getByRole('button', { name: 'Done' }).click();
+        await page.waitForTimeout(900);
+        continue;
+      }
+      if (/need-by date/.test(owed) && /Not yet known/.test(await panel.locator('[data-row="deliveryDate"]').innerText())) {
+        await panel.getByRole('button', { name: 'Edit Need by' }).click();
+        await panel.locator('[data-editing="deliveryDate"] input').fill('2027-03-31');
+        await panel.getByRole('button', { name: 'Done' }).click();
+        await page.waitForTimeout(900);
+        continue;
+      }
     }
     // The input is disabled while the model is still replying. Wait for the
     // reply rather than read the wait as the end of the conversation.
     if (await reply.isDisabled()) { await page.waitForTimeout(1200); continue; }
-    const q = await conversation.locator('[data-turn="assistant"]').last().innerText();
-    await reply.fill(/budget|cost|worth|spend/i.test(q) ? String(budget)
-      : /delivered or started by|need.*by|when/i.test(q) ? '2027-03-31'
+    // The question line only: its "Asked because …" line can say "worth" or
+    // "cost" about something else, and answering the date with a budget made
+    // the conversation give up on the date.
+    const q = await conversation.locator('[data-turn="assistant"]').last().locator(':scope > div').first().innerText();
+    await reply.fill(/delivered or started by|need-by|need it by|when do you need/i.test(q) ? '2027-03-31'
+      : /budget|how much|estimated value|cost/i.test(q) ? String(budget)
       // A real description, not filler: the live model asks again until the
       // objective, scope, deliverables and resources are actually there.
       : 'Objective: replace spreadsheet reporting in finance. Scope: licences for 40 users, implementation and training. '
@@ -185,7 +200,7 @@ try {
     const body = await page.locator('body').innerText();
     const m = body.match(/REQ-\d{4}-\d+/);
     createdReqId = m ? m[0] : null;
-    check('wizard reaches the confirmation screen', body.includes('Request Submitted Successfully'));
+    check('the request reaches the confirmation screen', body.includes('Request Submitted Successfully'));
     check('a request id is shown', Boolean(createdReqId), `id=${createdReqId}`);
     check('no uncaught errors during submit', errors.length === 0, errors[0]);
     await ctx.close();

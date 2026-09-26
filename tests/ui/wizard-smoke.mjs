@@ -167,7 +167,9 @@ try {
       throw new LocalServerlessUnavailable('Local Vite has no serverless API handlers; the catalogue and contract checks are unavailable.');
     }
   }
-  const lastQuestion = async () => conversation.locator('[data-turn="assistant"]').last().innerText();
+  // The question line only — its "Asked because …" line can mention a budget
+  // or a date while asking about something else.
+  const lastQuestion = async () => conversation.locator('[data-turn="assistant"]').last().locator(':scope > div').first().innerText();
   /** Answer whatever is asked in the reply box until `done`, choosing the answer by the question. */
   async function converse(done, answerFor, maxTurns = 20) {
     for (let turn = 0; turn < maxTurns; turn++) {
