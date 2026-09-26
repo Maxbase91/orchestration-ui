@@ -129,6 +129,7 @@
     "test:intake-guidance-ui": "node tests/ui/intake-guidance-ui.mjs",
     "test:request-detail-ui": "node tests/ui/request-detail-e2e.mjs",
     "test:supplier-evidence-ui": "node tests/ui/supplier-evidence-ui.mjs",
+    "test:workflows-board-ui": "node tests/ui/workflows-board-ui.mjs",
     "test:interactions-ui": "node --import tsx/esm tests/ui/interactions-e2e.mjs",
     "test:link-navigation": "node tests/ui/link-navigation-e2e.mjs",
     "test:link-route-integrity": "node tests/integration/link-route-integrity.mjs",

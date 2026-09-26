@@ -52,7 +52,7 @@ that cap (`test:vercel-functions`):
 |---|---|
 | `api/db.ts` | The data boundary: reads and writes allowlisted relations; refuses an unfiltered `DELETE` or `UPDATE`. Also dispatches the low-volume handlers in `api/_domains/` through `?domain=` |
 | `api/governed-checkout.ts` | Catalogue baskets and contract call-offs: recomputes the decision from stored data and commits request → requisition → lines → conditional internal PO atomically ([ADR-0002](adr/0002-governed-catalogue-checkout.md), [ADR-0009](adr/0009-catalogue-basket.md)) |
-| `api/workflow-action.ts` | Stage actions on a request, through the one transition primitive |
+| `api/workflow-action.ts` | The request page's hand-made moves — refer back, reassign, cancel — each under its own rule; it refuses a stage exit |
 | `api/execute-action.ts` | The assistant's confirmed internal actions — each writes a real record, or says it cannot |
 | `api/chat.ts` | The assistant (the only tool-calling model caller) |
 | `api/ai.ts` | Classification of a demand (AI-001) |
@@ -264,9 +264,12 @@ the defect it catches. The catalogue of suites, and what each covers, is the
 - **Workflow transitions, the sourcing award write-back and approval
   completion** are not yet all transactional and server-owned (R1 hardening,
   [the roadmap](roadmap/R1_BACKLOG_FIT_GAP.md#r1-hardening)). `api/workflow-action.ts`
-  checks that the target stage exists and that the request is not closed, not
-  that this request may go there, so a Kanban drag can move a request past its
-  gates, forms and approvals. Cancel is the one move it owns end to end.
+  makes only refer-back (to an earlier stage of the request's own lifecycle),
+  reassign and cancel, and refuses any other move; the Active Workflows board is
+  view-only (2026-09-26). A stage's **exit** — the stage action, the last
+  approval, an award — is still written from the browser by `transitionStage`
+  over `/api/db`, so its gates, forms and approvals are checked in the page, not
+  on the server.
 - **Intake submit does not decide again.** `intake-submit` checks the buying
   channel against the channel vocabulary, recomputes the preferred-supplier
   override and the submission gaps, and derives the first stage from the stored
@@ -287,5 +290,5 @@ the defect it catches. The catalogue of suites, and what each covers, is the
   but a run that dies midway leaves rows behind; a dedicated test branch would
   close that.
 - **Nine browser suites still assume port 5173** without claiming it, so a
-  second dev server there is tested instead of this app; six already claim
+  second dev server there is tested instead of this app; eight already claim
   their own.

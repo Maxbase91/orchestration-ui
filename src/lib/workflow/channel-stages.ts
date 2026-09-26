@@ -249,6 +249,33 @@ export function nextStageAfter(
 }
 
 /**
+ * Where a person can send a request back for rework: the stages before a
+ * purchase order — once a PO exists, backing out is a commercial process, not a
+ * referral. Risk Assessment and Vendor Onboarding are not among them: the
+ * workflow enters those when intake or the award calls for them, with the
+ * assessment or supplier record they work on, and a referral would put a
+ * request there without one.
+ */
+export const REFER_BACK_STAGES: readonly RequestStatus[] = ['intake', 'validation', 'approval', 'sourcing', 'contracting'];
+
+/**
+ * The stages a request may be referred back to from where it is: the rework
+ * points its own channel runs before its current stage. The refer-back dialog
+ * offers these and api/workflow-action.ts refuses anything else — it took any
+ * stage, a later one included, so "refer back" could move a request forward.
+ */
+export function referBackTargets(
+  map: ChannelStageMap,
+  channel: string | undefined,
+  stage: string,
+): RequestStatus[] {
+  const stages = getStagesForChannel(map, channel);
+  const idx = stages.indexOf(stage as RequestStatus);
+  if (idx <= 0) return [];
+  return stages.slice(0, idx).filter((candidate) => REFER_BACK_STAGES.includes(candidate));
+}
+
+/**
  * The stage a request enters when intake completes.
  *
  * The server used to write a constant `validation` for every channel, so a

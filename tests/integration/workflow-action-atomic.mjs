@@ -76,25 +76,28 @@ await sql.query(
   `INSERT INTO requests (id, title, description, category, status, priority, value, currency,
      requestor_id, owner_id, buying_channel, cost_centre, refer_back_count, days_in_stage,
      is_overdue, created_at, updated_at, workflow_template_id, sla_deadline)
-   VALUES ($1,$2,$3,'services','validation','medium',1000,'EUR',$4,$4,'procurement-led','CC-TEST',0,0,false,$5,$5,'WF-001',$6)`,
+   VALUES ($1,$2,$3,'services','approval','medium',1000,'EUR',$4,$4,'procurement-led','CC-TEST',0,0,false,$5,$5,'WF-001',$6)`,
   [requestId, `Workflow atomicity ${suffix}`, 'Automated workflow-action verification', owner.id, now, STALE_DEADLINE],
 );
 await sql.query(
   'INSERT INTO stage_history (request_id, stage, entered_at, owner_id, action) VALUES ($1, $2, $3, $4, $5)',
-  [requestId, 'validation', now, owner.id, 'submitted'],
+  [requestId, 'approval', now, owner.id, 'advanced'],
 );
 
 try {
-  console.log('\nA stage transition commits the request and its history together');
+  console.log('\nA refer-back commits the request and its history together');
 
-  const advanced = await invoke({ requestId, action: 'advanced', newStatus: 'approval', notes: 'moving on' });
-  check('the transition succeeds', () => {
-    if (advanced.statusCode !== 200) throw new Error(`status ${advanced.statusCode}: ${JSON.stringify(advanced.body)}`);
+  const referred = await invoke({ requestId, action: 'referred-back', newStatus: 'validation', notes: 'incomplete: missing cost centre' });
+  check('the refer-back succeeds', () => {
+    if (referred.statusCode !== 200) throw new Error(`status ${referred.statusCode}: ${JSON.stringify(referred.body)}`);
   });
 
-  const afterAdvance = await sql.query('SELECT status, days_in_stage FROM requests WHERE id = $1', [requestId]);
-  check('the request moved to the new stage', () => {
-    if (afterAdvance[0]?.status !== 'approval') throw new Error(`status is ${afterAdvance[0]?.status}`);
+  const afterReferral = await sql.query('SELECT status, days_in_stage, refer_back_count FROM requests WHERE id = $1', [requestId]);
+  check('the request moved back to the earlier stage', () => {
+    if (afterReferral[0]?.status !== 'validation') throw new Error(`status is ${afterReferral[0]?.status}`);
+  });
+  check('the refer-back count went up', () => {
+    if (Number(afterReferral[0]?.refer_back_count) !== 1) throw new Error(`count is ${afterReferral[0]?.refer_back_count}`);
   });
 
   const history = await sql.query(
@@ -102,13 +105,13 @@ try {
     [requestId],
   );
   check('the previous stage was closed', () => {
-    const previous = history.find((row) => row.stage === 'validation');
-    if (!previous) throw new Error('no validation row');
-    if (!previous.completed_at) throw new Error('validation row left open');
+    const previous = history.find((row) => row.stage === 'approval');
+    if (!previous) throw new Error('no approval row');
+    if (!previous.completed_at) throw new Error('approval row left open');
   });
   check('the new stage was recorded', () => {
-    const entered = history.find((row) => row.stage === 'approval' && row.action === 'advanced');
-    if (!entered) throw new Error(`no approval row in ${JSON.stringify(history)}`);
+    const entered = history.find((row) => row.stage === 'validation' && row.action === 'referred-back');
+    if (!entered) throw new Error(`no validation row in ${JSON.stringify(history)}`);
   });
 
   console.log('\nThe SLA clock belongs to the stage the request is in');
@@ -118,33 +121,33 @@ try {
   // local zone and hands back an instant shifted by that offset — an hour here,
   // five in New York. That is a real defect and a wide one (33 naive-timestamp
   // columns across 20 tables, all written as UTC ISO strings), but it is not
-  // this commit's, and asserting through the shift would bake it in. The text
+  // this suite's, and asserting through the shift would bake it in. The text
   // is what was stored, which is what "which node's SLA was read" needs.
-  const afterAdvanceSla = await sql.query(
+  const afterReferralSla = await sql.query(
     'SELECT sla_deadline::text AS stored FROM requests WHERE id = $1', [requestId]);
-  const advancedDeadline = afterAdvanceSla[0]?.stored;
+  const referredDeadline = afterReferralSla[0]?.stored;
   const storedMs = (text) => (text ? Date.parse(`${text.replace(' ', 'T')}Z`) : null);
-  check('the previous stage\u2019s deadline does not survive the move', () => {
-    if (storedMs(advancedDeadline) === Date.parse(STALE_DEADLINE)) {
-      throw new Error('still the validation deadline');
+  check('the previous stage’s deadline does not survive the move', () => {
+    if (storedMs(referredDeadline) === Date.parse(STALE_DEADLINE)) {
+      throw new Error('still the approval deadline');
     }
   });
-  check('the new stage\u2019s own SLA was written', () => {
-    // WF-001's Approval node allows 5 working days. Computed here from the same
-    // helper the handler uses, so the assertion is about which NODE was read,
-    // not a second implementation of business-day arithmetic.
-    if (!advancedDeadline) throw new Error('no deadline written');
-    const expected = addBusinessDays(new Date(), 5).getTime();
+  check('the new stage’s own SLA was written', () => {
+    // WF-001's Validation node allows 3 working days. Computed here from the
+    // same helper the handler uses, so the assertion is about which NODE was
+    // read, not a second implementation of business-day arithmetic.
+    if (!referredDeadline) throw new Error('no deadline written');
+    const expected = addBusinessDays(new Date(), 3).getTime();
     // A minute of slack: the handler stamps its own `now`, a moment before this.
-    if (Math.abs(storedMs(advancedDeadline) - expected) > 60_000) {
-      throw new Error(`${advancedDeadline} is not ~5 working days out`);
+    if (Math.abs(storedMs(referredDeadline) - expected) > 60_000) {
+      throw new Error(`${referredDeadline} is not ~3 working days out`);
     }
   });
 
   console.log('\nAn owner change is recorded even though the stage does not move');
 
   const reassigned = await invoke({
-    requestId, action: 'reassigned', newStatus: 'approval', ownerId: delegate.id, notes: 'covering',
+    requestId, action: 'reassigned', newStatus: 'validation', ownerId: delegate.id, notes: 'covering',
   });
   check('the reassignment succeeds', () => {
     if (reassigned.statusCode !== 200) throw new Error(`status ${reassigned.statusCode}`);
@@ -176,7 +179,7 @@ try {
 
   const [{ n: historyBefore }] = await sql.query(
     'SELECT count(*)::int AS n FROM stage_history WHERE request_id = $1', [requestId]);
-  const noop = await invoke({ requestId, action: 'advanced', newStatus: 'approval' });
+  const noop = await invoke({ requestId, action: 'reassigned', newStatus: 'validation', ownerId: delegate.id });
   check('the no-op call succeeds', () => {
     if (noop.statusCode !== 200) throw new Error(`status ${noop.statusCode}`);
   });
@@ -186,39 +189,42 @@ try {
     if (historyAfter !== historyBefore) throw new Error(`history grew ${historyBefore} -> ${historyAfter}`);
   });
 
-  console.log('\nEvery action label the app actually sends is accepted');
+  console.log('\nOnly the three moves the request page makes are accepted');
 
-  // Derived from the callers, not invented. An earlier guess at this vocabulary
-  // omitted kanban-move and would have 422'd every drag on the board — the app
-  // writes 25 distinct labels, so the handler validates types, not vocabulary.
-  for (const [label, nextStatus] of [['kanban-move', 'sourcing'], ['reassigned', 'sourcing'], ['referred-back', 'validation']]) {
-    const result = await invoke({ requestId, action: label, newStatus: nextStatus, ownerId: owner.id });
-    check(`${label} is accepted`, () => {
-      if (result.statusCode !== 200) throw new Error(`status ${result.statusCode}: ${JSON.stringify(result.body)}`);
+  // The Active Workflows board sent `kanban-move` to any stage, and the handler
+  // took any label: a drop moved a request past its gates, blocking forms,
+  // onboarding checks and approvals (2026-09-26). The board is view-only now,
+  // and a stage exit belongs to the request's stage action.
+  for (const label of ['kanban-move', 'advanced', 'approved']) {
+    const refused = await invoke({ requestId, action: label, newStatus: 'sourcing' });
+    check(`"${label}" is refused`, () => {
+      if (refused.statusCode !== 400) throw new Error(`status ${refused.statusCode}`);
+      if (refused.body?.code !== 'unsupported_action') throw new Error(`code ${refused.body?.code}`);
     });
   }
-
-  console.log('\nA stage with no SLA clears the clock rather than inheriting one');
-
-  // WF-001's Completed node is an `end` node and sets no `slaDays`. Nothing is
-  // due, so the honest value is NULL — and NULL is a value the handler must
-  // WRITE. Leaving the column alone here is the original defect in its purest
-  // form: a finished request with a live countdown.
-  const completed = await invoke({ requestId, action: 'advanced', newStatus: 'completed' });
-  check('the transition to a stage without an SLA succeeds', () => {
-    if (completed.statusCode !== 200) throw new Error(`status ${completed.statusCode}`);
+  const forward = await invoke({ requestId, action: 'referred-back', newStatus: 'sourcing', notes: 'not back at all' });
+  check('a "refer-back" to a later stage is refused', () => {
+    if (forward.statusCode !== 400) throw new Error(`status ${forward.statusCode}`);
+    if (forward.body?.code !== 'invalid_move') throw new Error(`code ${forward.body?.code}`);
   });
-  const afterCompleted = await sql.query('SELECT sla_deadline FROM requests WHERE id = $1', [requestId]);
-  check('the deadline was cleared, not carried forward', () => {
-    if (afterCompleted[0]?.sla_deadline != null) {
-      throw new Error(`deadline is ${afterCompleted[0].sla_deadline}`);
-    }
+  const movingReassign = await invoke({ requestId, action: 'reassigned', newStatus: 'approval', ownerId: owner.id });
+  check('a "reassignment" that changes the stage is refused', () => {
+    if (movingReassign.statusCode !== 400) throw new Error(`status ${movingReassign.statusCode}`);
+    if (movingReassign.body?.code !== 'invalid_move') throw new Error(`code ${movingReassign.body?.code}`);
+  });
+  const sneakCancel = await invoke({ requestId, action: 'referred-back', newStatus: 'cancelled', notes: 'x' });
+  check('only Cancel reaches cancelled', () => {
+    if (sneakCancel.statusCode !== 400) throw new Error(`status ${sneakCancel.statusCode}`);
+  });
+  const [afterRefusals] = await sql.query('SELECT status FROM requests WHERE id = $1', [requestId]);
+  check('none of them moved the request', () => {
+    if (afterRefusals?.status !== 'validation') throw new Error(`status is ${afterRefusals?.status}`);
   });
 
   console.log('\nA rejected request changes nothing');
 
   const before = await sql.query('SELECT status FROM requests WHERE id = $1', [requestId]);
-  const missing = await invoke({ requestId: `${requestId}-nope`, action: 'advanced', newStatus: 'sourcing' });
+  const missing = await invoke({ requestId: `${requestId}-nope`, action: 'reassigned', newStatus: 'validation', ownerId: owner.id });
   check('an unknown request is a 404, not a 500', () => {
     if (missing.statusCode !== 404) throw new Error(`status ${missing.statusCode}`);
     if (missing.body?.code !== 'request_not_found') throw new Error(`code ${missing.body?.code}`);
@@ -302,7 +308,7 @@ try {
     if ((instance?.current_node_ids ?? []).length !== 0) throw new Error('still on a node');
   });
 
-  const moved = await invoke({ requestId: cancelId, action: 'kanban-move', newStatus: 'sourcing' });
+  const moved = await invoke({ requestId: cancelId, action: 'referred-back', newStatus: 'intake', notes: 'reopen' });
   check('a cancelled request cannot be moved again', () => {
     if (moved.statusCode !== 409) throw new Error(`status ${moved.statusCode}`);
     if (moved.body?.code !== 'request_closed') throw new Error(`code ${moved.body?.code}`);

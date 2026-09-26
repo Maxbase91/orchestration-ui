@@ -88,6 +88,21 @@ FR02-10 · Decision node edge labels are evaluated as conditions:
 | `end` | Set status `completed`, mark instance `completed` |
 | `error` | Set status `referred-back`, suspend |
 
+### Who moves a stage
+
+FR02-11 · **A stage is left through the request page.** Its exit — the stage action, the last
+approval, an award, a goods receipt — goes through `transitionStage`
+(`src/lib/workflow/transition.ts`) once the page has checked the role, blocking forms, onboarding
+gates and approvals. The Active Workflows board is view-only (2026-09-26): a card opens the request
+(`test:workflows-board-ui`).
+FR02-12 · **`api/workflow-action.ts` makes three moves and refuses every other** (400
+`unsupported_action`): *refer back* — to a stage the request's channel runs before its current one,
+among Intake, Validation, Approval, Sourcing and Contracting (`referBackTargets`, which the
+refer-back dialog offers too); *reassign* — a new owner, the same stage; *cancel* — with a reason.
+A target outside those rules is 400 `invalid_move`. It used to move a request to any existing stage
+for any action label, which is how a drag on the board passed every gate (`test:workflow-atomic`,
+`test:e2e`).
+
 ---
 
 ## SLA & Bottlenecks
@@ -118,7 +133,7 @@ staleness window. Requests past their deadline appear in the "Stuck Requests" pa
 
 ## Views
 
-FR02-30 · **Kanban**: columns = active stages; cards show request ID, value, owner, days in stage; overdue highlighted.
+FR02-30 · **Kanban**: columns = active stages; cards show request ID, value, owner, days in stage; overdue highlighted. View-only: a card opens the request, and nothing on the board moves a stage (FR02-11).
 FR02-31 · **Table**: sortable by stage, value, owner, days in stage; filterable by stage, priority.
 FR02-32 · **Timeline**: horizontal bars per request across stage columns; red bar segments exceed SLA.
 FR02-33 · **Workflow Monitor**: per-request stage history; integration badges (SAP Ariba, Coupa etc.); bottleneck heatmap.

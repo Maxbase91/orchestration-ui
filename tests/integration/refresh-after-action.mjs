@@ -45,7 +45,8 @@ const SURFACES = [
   ['reassign', 'src/features/requests/request-detail/components/reassign-dialog.tsx'],
   ['refer back', 'src/features/requests/request-detail/components/refer-back-dialog.tsx'],
   ['escalate', 'src/features/requests/request-detail/components/escalate-dialog.tsx'],
-  ['kanban drag', 'src/features/workflows/kanban-view.tsx'],
+  // The Active Workflows board is not here: it is view-only since 2026-09-26
+  // and moves nothing, so it has nothing to refresh (test:workflows-board-ui).
 ];
 for (const [label, path] of SURFACES) {
   check(`${label} refreshes the whole set`, () => {

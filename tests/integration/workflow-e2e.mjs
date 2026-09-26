@@ -198,94 +198,40 @@ async function scenarioWorkflowTemplateAttached() {
   );
 }
 
-async function scenarioApproveFlow() {
-  // Seed request directly in the approval stage (UI arrives here via
-  // intake→validation→approval transitions; those use the same API, so
-  // we short-circuit to the interesting step).
+async function scenarioStageExitsRefused() {
+  // The endpoint used to move a request to any stage for any action label —
+  // approve, reject, a whole lifecycle — which is how the Active Workflows board
+  // moved requests past their gates, forms and approvals (2026-09-26). Stage
+  // exits belong to the request's stage action and the workflow engine; the
+  // endpoint takes only refer-back, reassign and cancel.
   const { id } = await createTestRequest({ status: 'approval' });
-
-  const resp = await callWorkflowAction({
-    requestId: id,
-    action: 'approved',
-    newStatus: 'sourcing',
-  });
-  assert(resp.status === 200, 'approve: API 200 OK', `status=${resp.status} body=${JSON.stringify(resp.body)}`);
-
+  for (const [action, newStatus] of [['approved', 'sourcing'], ['kanban-move', 'contracting'], ['rejected', 'cancelled']]) {
+    const resp = await callWorkflowAction({ requestId: id, action, newStatus });
+    assert(resp.status === 400, `stage-exit: "${action}" is refused`, `status=${resp.status} body=${JSON.stringify(resp.body)}`);
+  }
   const row = await getRequest(id);
-  assert(row.status === 'sourcing', 'approve: requests.status=sourcing', `status=${row.status}`);
-
-  const history = await getStageHistory(id);
-  const approvalRow = history.find((h) => h.stage === 'approval');
-  const sourcingRow = history.find((h) => h.stage === 'sourcing');
-  assert(!!approvalRow?.completed_at, 'approve: old approval row completed', `completed_at=${approvalRow?.completed_at}`);
-  assert(!!sourcingRow, 'approve: new sourcing stage_history row exists', `sourcingRow=${JSON.stringify(sourcingRow)}`);
-  assert(sourcingRow?.action === 'approved', 'approve: new row action=approved', `action=${sourcingRow?.action}`);
-}
-
-async function scenarioRejectFlow() {
-  const { id } = await createTestRequest({ status: 'approval' });
-
-  const resp = await callWorkflowAction({
-    requestId: id,
-    action: 'rejected',
-    newStatus: 'cancelled',
-  });
-  assert(resp.status === 200, 'reject: API 200 OK', `status=${resp.status}`);
-
-  const row = await getRequest(id);
-  assert(row.status === 'cancelled', 'reject: requests.status=cancelled', `status=${row.status}`);
-
-  const history = await getStageHistory(id);
-  const approvalRow = history.find((h) => h.stage === 'approval');
-  const cancelledRow = history.find((h) => h.stage === 'cancelled');
-  assert(!!approvalRow?.completed_at, 'reject: old approval row completed');
-  assert(!!cancelledRow, 'reject: new cancelled stage_history row exists');
-  assert(cancelledRow?.action === 'rejected', 'reject: new row action=rejected', `action=${cancelledRow?.action}`);
+  assert(row.status === 'approval', 'stage-exit: the request did not move', `status=${row.status}`);
 }
 
 async function scenarioCancelFlow() {
   const { id } = await createTestRequest({ status: 'intake' });
 
+  const noReason = await callWorkflowAction({ requestId: id, action: 'cancelled', newStatus: 'cancelled' });
+  assert(noReason.status === 400 && noReason.body?.code === 'reason_required', 'cancel: a reason is required', `status=${noReason.status}`);
+
   const resp = await callWorkflowAction({
     requestId: id,
     action: 'cancelled',
     newStatus: 'cancelled',
+    notes: 'E2E: the need went away',
   });
-  assert(resp.status === 200, 'cancel: API 200 OK');
+  assert(resp.status === 200, 'cancel: API 200 OK', `status=${resp.status}`);
 
   const row = await getRequest(id);
   assert(row.status === 'cancelled', 'cancel: requests.status=cancelled', `status=${row.status}`);
-}
 
-async function scenarioFullLifecycle() {
-  const { id } = await createTestRequest({ status: 'intake' });
-  const transitions = [
-    ['intake',       'validation',  'validated'],
-    ['validation',   'approval',    'submitted'],
-    ['approval',     'sourcing',    'approved'],
-    ['sourcing',     'contracting', 'sourced'],
-    ['contracting',  'po',          'contracted'],
-    ['po',           'receipt',     'po-issued'],
-    ['receipt',      'invoice',     'received'],
-    ['invoice',      'payment',     'invoiced'],
-    ['payment',      'completed',   'paid'],
-  ];
-
-  for (const [from, to, action] of transitions) {
-    const resp = await callWorkflowAction({ requestId: id, action, newStatus: to });
-    if (resp.status !== 200) {
-      fail(`full-lifecycle: ${from}→${to}`, `HTTP ${resp.status} body=${JSON.stringify(resp.body)}`);
-      return;
-    }
-  }
-
-  const row = await getRequest(id);
-  assert(row.status === 'completed', 'full-lifecycle: ends at completed', `status=${row.status}`);
-
-  const history = await getStageHistory(id);
-  assert(history.length >= 10, 'full-lifecycle: all stages recorded', `count=${history.length}`);
-  const completedPending = history.filter((h) => h.stage !== 'completed' && !h.completed_at);
-  assert(completedPending.length === 0, 'full-lifecycle: all non-terminal rows have completed_at', `pending=${completedPending.length}`);
+  const moved = await callWorkflowAction({ requestId: id, action: 'referred-back', newStatus: 'intake', notes: 'reopen' });
+  assert(moved.status === 409, 'cancel: a cancelled request cannot be moved again', `status=${moved.status}`);
 }
 
 async function scenarioReferBackFlow() {
@@ -415,19 +361,20 @@ async function scenarioApprovalEntryFlow() {
 }
 
 async function scenarioIdempotencyCheck() {
-  // Calling approve twice on the same request: second call should be a no-op
-  // (status already sourcing, no new stage_history row).
-  const { id } = await createTestRequest({ status: 'approval' });
-  await callWorkflowAction({ requestId: id, action: 'approved', newStatus: 'sourcing' });
+  // The same reassignment twice: the second call changes nothing, so it writes
+  // no history row — a handover that did not happen is not recorded.
+  const { id, userId } = await createTestRequest({ status: 'approval' });
+  const { data: otherUser } = await sb.from('users').select('id').neq('id', userId).limit(1).single();
+  await callWorkflowAction({ requestId: id, action: 'reassigned', newStatus: 'approval', ownerId: otherUser.id, notes: 'covering' });
   const firstHistory = await getStageHistory(id);
 
-  const dup = await callWorkflowAction({ requestId: id, action: 'approved', newStatus: 'sourcing' });
-  assert(dup.status === 200, 'idempotency: duplicate approve returns 200');
+  const dup = await callWorkflowAction({ requestId: id, action: 'reassigned', newStatus: 'approval', ownerId: otherUser.id, notes: 'covering' });
+  assert(dup.status === 200, 'idempotency: a repeated reassignment returns 200');
 
   const secondHistory = await getStageHistory(id);
   assert(
     secondHistory.length === firstHistory.length,
-    'idempotency: no duplicate stage_history row on same-status transition',
+    'idempotency: no second history row for the same handover',
     `first=${firstHistory.length} second=${secondHistory.length}`,
   );
 }
@@ -475,10 +422,8 @@ async function main() {
   console.log('Running scenarios...');
   await runScenario('create-request',     scenarioCreateRequest);
   await runScenario('workflow-template-attach', scenarioWorkflowTemplateAttached);
-  await runScenario('approve-flow',       scenarioApproveFlow);
-  await runScenario('reject-flow',        scenarioRejectFlow);
+  await runScenario('stage-exits-refused', scenarioStageExitsRefused);
   await runScenario('cancel-flow',        scenarioCancelFlow);
-  await runScenario('full-lifecycle',     scenarioFullLifecycle);
   await runScenario('idempotency',        scenarioIdempotencyCheck);
   await runScenario('refer-back',         scenarioReferBackFlow);
   await runScenario('escalate',           scenarioEscalateFlow);

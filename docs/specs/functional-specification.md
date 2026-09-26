@@ -427,8 +427,8 @@ of them, and not on the Monitor (§5.2).
 - **Kanban** — a column per stage, with its count and total value. A card shows the id, a priority
   icon, the title, the requester, the value, the owner's initials, days in stage and any open
   hand-over to an upstream system (§13). Its border is red when the stage is overdue and amber
-  at four or more days in stage (fixed in code). Dropping a card on another column moves the
-  request there and records the move, with the new stage's deadline.
+  at four or more days in stage (fixed in code). The board shows where each request is and moves
+  nothing: a card opens the request, where its stage action moves it on (§5.3).
 - **Table** — id, title, requester, category, value, stage, owner, open hand-over, days in stage
   (amber above five, red above ten), SLA status (*Overdue*; *At Risk* at four or more days in
   stage; *On Track*), priority and buying channel. It is searchable and sorts by one column at a
@@ -443,9 +443,9 @@ fixed in code) and *Escalated* (overdue and marked urgent — not the escalation
 and dropdowns for category (a fixed list in code: Goods, Services, Software, Consulting,
 Contingent Labour), priority and stage.
 
-**Known defect:** a Kanban drag checks no role and no gate. Anyone who can open the page can move
-any card to any stage, past approvals, blocking forms (§6.4) and the onboarding gates; the server
-checks only that the stage exists.
+The board is view-only since 2026-09-26. A card dropped on another column used to move the request
+there, checking no role and no gate — past approvals, blocking forms (§6.4) and the onboarding
+gates — and the server now refuses any move but the request page's own (§5.3).
 
 ### 5.2 Workflow Monitor & Bottlenecks
 
@@ -507,11 +507,14 @@ one the request does not move. Only *Cancel request* sets a request to *Cancelle
 
 **More:**
 
-- **Refer back** — to Intake, Validation, Approval, Sourcing or Contracting (a fixed list, whatever
-  the channel), with a coded reason (incomplete information, incorrect category, classification
-  mismatch, risk assessment required, other) and optional text; the refer-back count goes up.
-  Procurement managers, vendor managers, operations leads, administrators, and the requester on
-  their own request.
+- **Refer back** — to a stage the request's channel runs before where it is now: Intake,
+  Validation, Approval, Sourcing or Contracting. Never Risk Assessment or Vendor Onboarding, which
+  the workflow enters itself when intake or the award calls for them. With a coded reason
+  (incomplete information, incorrect category, classification mismatch, risk assessment required,
+  other) and optional text; the refer-back count goes up. When there is no earlier stage the dialog
+  says so. Procurement managers, vendor managers, operations leads, administrators, and the
+  requester on their own request. (Fixed 2026-09-26: the list was the same five stages whatever
+  the channel, so "refer back" could send a request forward or into a stage its channel skips.)
 - **Reassign** — a new owner and a required reason; the stage is kept. Procurement managers,
   operations leads, administrators.
 - **Escalate** — a level (Team Lead, Department Head, VP), an optional urgency and a required
@@ -522,8 +525,11 @@ one the request does not move. Only *Cancel request* sets a request to *Cancelle
   Refer back. The request stops, on the server and in one step: the approvals still waiting are
   **withdrawn** (not rejected — nobody rejected them — and gone from every queue), its workflow
   ends so nothing moves it on, and it has no deadline. A cancelled or completed request cannot be
-  moved to another stage by anything — a drag on the board included (fixed 2026-09-26: Cancel
-  used to move the request on to its next stage, or do nothing, while saying it was cancelled).
+  moved to another stage by anything (fixed 2026-09-26: Cancel used to move the request on to its
+  next stage, or do nothing, while saying it was cancelled).
+
+The server makes these three moves — refer back, reassign and cancel — and refuses any other it is
+asked for, so a stage is left only through the stage's own action, an approval or an award.
 
 **What is recorded.** Stage changes, reassignments and escalations are written to the request's
 stage history — when, the stage, its owner, the action and any reason — and shown on the Activity

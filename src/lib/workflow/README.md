@@ -12,7 +12,7 @@ config plane that is actually read at runtime.
 | `risk-stage.ts` | The conditional risk stage — reuse an existing assessment, else raise a draft |
 | `onboarding-stage.ts` | Vendor onboarding: the light gate (sourcing + risk completion) and the full gate (contracting) |
 | `approver-resolution.ts` | Chain role → directory rep |
-| `channel-stages.ts` | Which stages a channel has — **derived from the workflow templates**, which claim their channels. Replaced `buying-channel-stages.ts`, a code map that disagreed with the templates for every channel |
+| `channel-stages.ts` | Which stages a channel has — **derived from the workflow templates**, which claim their channels. Replaced `buying-channel-stages.ts`, a code map that disagreed with the templates for every channel. Also where a request may be referred back to (`referBackTargets`), which the dialog offers and the server enforces |
 | `stage-labels.ts` | What a stage is called. Was ten copies with five different answers for `po` |
 | `stage-sla.ts` | A stage's SLA in working days, from the template node that owns it. Returns **null**, never a default — replaced `src/lib/db/sla-targets.ts`, whose `resolveSla` answered 5 for any stage nobody had configured |
 | `business-days.ts` | `slaDeadlineFor` / `addBusinessDays` — the one place a deadline is computed, dependency-free so `api/` can use it |
@@ -155,13 +155,30 @@ approvals (`withdrawn` — nobody rejected them) and sets the workflow instance 
 refuses to move a completed or cancelled request anywhere (409
 `request_closed`).
 
+## The board shows; the request page moves
+
+The Active Workflows board was a drag-and-drop board, and a drop posted
+`kanban-move` to `api/workflow-action.ts`, which moved the request to any stage
+that existed — past its role, blocking forms, onboarding gates and approvals
+(found 2026-09-26). The board is view-only now: a card opens the request. The
+endpoint makes the three moves the request page makes by hand, each under its
+own rule — **refer back** to a stage the request's channel runs before its
+current one (`referBackTargets`: Intake, Validation, Approval, Sourcing or
+Contracting, never the conditional Risk Assessment or Vendor Onboarding, which
+the workflow enters with their record), **reassign** within the stage, and
+**cancel** with a reason — and refuses anything else (400 `unsupported_action`,
+`invalid_move`). A stage's exit stays with the stage action, the approvals and
+the award, through `transitionStage`; that it runs in the browser is the gap
+recorded in ARCHITECTURE §10.
+
 ## Tests
 
     npm run test:orchestration     # gates, transitions, resume semantics, owner/SLA, chain banding
     npm run test:onboarding-stage  # the two onboarding gates and the award routing
     npm run test:channel-plan    # the Channel page's stage plan: the server's landing + the engine's walk
     npm run test:approval-chain-persistence # selected chain foreign-key persistence
-    npm run test:e2e             # request → approval, end to end (needs NEON_DATABASE_URL)
+    npm run test:workflow-atomic # the endpoint: one transaction per move, the SLA re-clocked, only its three moves
+    npm run test:e2e             # the same endpoint on the production API (needs NEON_DATABASE_URL)
 
 ## Which template runs which channel
 

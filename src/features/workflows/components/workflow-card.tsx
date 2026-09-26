@@ -1,7 +1,7 @@
-// Draggable request card for the workflow kanban board — one card per request,
-// sortable within/between stage columns via dnd-kit.
-import { useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+// A request's card on the Active Workflows board — one per request, opening the
+// request. The board is view-only (decided 2026-09-26): cards were draggable,
+// and a drop moved the request to any stage past its gates, forms and
+// approvals. A stage moves on the request page, through its stage action.
 import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/lib/format';
 import { useUserLookup, useUsers } from '@/lib/db/hooks/use-users';
@@ -28,20 +28,6 @@ interface WorkflowCardProps {
 }
 
 export function WorkflowCard({ request, onClick }: WorkflowCardProps) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: request.id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
-
   useUsers();
   const lookupUser = useUserLookup();
   const requestor = lookupUser(request.requestorId);
@@ -60,38 +46,35 @@ export function WorkflowCard({ request, onClick }: WorkflowCardProps) {
       : 'border-line';
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      {...attributes}
-      {...listeners}
+    <button
+      type="button"
       onClick={onClick}
+      aria-label={`Open ${request.id}: ${request.title}`}
       className={cn(
-        'rounded-md border bg-card p-3 shadow-sm cursor-grab active:cursor-grabbing',
-        'hover:shadow-md transition-shadow',
+        'w-full rounded-md border bg-card p-3 text-left shadow-sm',
+        'hover:shadow-md transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-solid',
         borderClass,
-        isDragging && 'opacity-50 shadow-lg',
       )}
     >
-      <div className="flex items-start justify-between gap-1">
+      <span className="flex items-start justify-between gap-1">
         <span className="text-[11px] font-mono text-muted-foreground">
           {request.id}
         </span>
         <PriorityIcon className={cn('size-3.5 shrink-0', priority.color)} />
-      </div>
+      </span>
 
-      <p className="mt-1 text-sm font-medium text-ink line-clamp-2 leading-tight">
+      <span className="mt-1 block text-sm font-medium text-ink line-clamp-2 leading-tight">
         {request.title}
-      </p>
+      </span>
 
-      <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+      <span className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
         <span>{requestor?.name ?? 'Unknown'}</span>
         <span className="font-medium text-ink-2">
           {formatCurrency(request.value, request.currency)}
         </span>
-      </div>
+      </span>
 
-      <div className="mt-1.5 flex items-center justify-between text-xs">
+      <span className="mt-1.5 flex items-center justify-between text-xs">
         <span className="text-muted-foreground">
           Owner: {owner?.initials ?? '—'}
         </span>
@@ -107,13 +90,13 @@ export function WorkflowCard({ request, onClick }: WorkflowCardProps) {
         >
           {request.daysInStage}d in stage
         </span>
-      </div>
+      </span>
 
       {activeIntegration && (
-        <div className="mt-2 flex items-center gap-2 flex-wrap">
+        <span className="mt-2 flex items-center gap-2 flex-wrap">
           <SystemIntegrationBadge integration={activeIntegration} compact />
-        </div>
+        </span>
       )}
-    </div>
+    </button>
   );
 }

@@ -131,7 +131,15 @@ check('the model sees a capped recent history, not the whole conversation',
 
 console.log('\nStage transitions and audit attribution');
 const workflow = readFileSync(new URL('api/workflow-action.ts', ROOT), 'utf8');
-check('newStatus is checked against the known stages', /REQUEST_STATUSES\.has\(newStatus\.trim\(\)\)/.test(workflow));
+check('newStatus is checked against the known stages',
+  /const target = newStatus\.trim\(\);/.test(workflow) && /!REQUEST_STATUSES\.has\(target\)/.test(workflow));
+// The endpoint moved a request to any stage for any action label, which is how
+// the board's drag passed every gate (2026-09-26). test:workflow-atomic drives
+// the refusals live; this holds the rule where no database is reachable.
+check('only refer-back, reassign and cancel are accepted',
+  /const ACTIONS = new Set\(\['referred-back', 'reassigned', 'cancelled'\]\);/.test(workflow)
+    && /if \(!ACTIONS\.has\(move\)\)/.test(workflow)
+    && /referBackTargets\(/.test(workflow));
 // The set must match RequestStatus, or a legal transition starts 400ing.
 const declared = readFileSync(new URL('src/data/types.ts', ROOT), 'utf8')
   .match(/export type RequestStatus = ([^;]+);/)[1]

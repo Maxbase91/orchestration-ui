@@ -22,7 +22,7 @@ name. This does not change any browser URL. `test:vercel-functions` guards the c
 | `api/chat.ts` | POST | AI assistant — tool-calling loop, KB search, object lookup, action proposal |
 | `api/chat-intake.ts` | POST | Request intake — NLU extraction (title, category, value, delivery date) |
 | `api/ai.ts` | POST | Context-specific AI responses (approval card, supplier summary, etc.) |
-| `api/workflow-action.ts` | POST | Advance request stage, record stage history |
+| `api/workflow-action.ts` | POST | Refer back, reassign or cancel a request, with its stage history — never a stage exit |
 | `api/governed-checkout.ts` | POST | Server-authoritative catalogue/contract checkout; atomic request → PR → lines → conditional internal PO with replay-safe idempotency |
 | `api/_domains/intake-submit.ts` | POST `/api/intake-submit` | Validate complete adaptive intake and atomically persist request, structured description, compliance, stage history, workflow instance and initial approval entry; server selects the first actionable stage |
 | `api/_domains/contract-match.ts` | POST `/api/contract-match` | Effective-dated, explainable contract-scope matching with clarification questions and safe AI reranking |
@@ -77,9 +77,13 @@ See `api/chat.ts` TOOLS array for full schemas.
 
 `POST /api/workflow-action`
 ```json
-{ "requestId": "REQ-...", "action": "approved|rejected|cancelled|...", "newStatus": "sourcing|..." }
+{ "requestId": "REQ-...", "action": "referred-back|reassigned|cancelled", "newStatus": "intake|...", "ownerId": "u…", "notes": "…" }
 ```
-Updates `requests.status`, inserts to `stage_history`, creates `audit_entries` row.
+Three moves, each under its own rule (FR02-12): `referred-back` to a stage the request's channel runs
+before its current one; `reassigned` with an `ownerId`, keeping the stage; `cancelled` with `notes`
+as the reason. Anything else is 400 `unsupported_action` or `invalid_move`; a closed request is 409
+`request_closed`. The request update and its `stage_history` rows commit in one transaction;
+cancelling also withdraws the undecided approvals and stops the workflow instance.
 
 ---
 

@@ -1,6 +1,9 @@
 // Dialog for sending a request back to an earlier lifecycle stage (e.g. more
 // information needed). Requires a coded reason so referrals are reportable,
-// with optional free text for context.
+// with optional free text for context. It offers only the rework stages the
+// request's own channel runs before where it is (`referBackTargets`), the rule
+// api/workflow-action.ts enforces — a fixed list used to offer later stages
+// and ones the channel skips.
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -24,16 +27,9 @@ import type { ProcurementRequest, RequestStatus } from '@/data/types';
 import { toast } from 'sonner';
 import { apiWorkflowAction } from '@/lib/api';
 import { invalidateRequestViews, queryClient } from '@/lib/query-client';
-
-// Only pre-PO stages are valid return targets — once a PO exists, backing out
-// is a different (commercial) process, not a referral.
-const PREVIOUS_STEPS = [
-  { value: 'intake', label: 'Intake' },
-  { value: 'validation', label: 'Validation' },
-  { value: 'approval', label: 'Approval' },
-  { value: 'sourcing', label: 'Sourcing' },
-  { value: 'contracting', label: 'Contracting' },
-];
+import { useChannelStageMap } from '@/lib/db/hooks/use-channel-stage-map';
+import { referBackTargets } from '@/lib/workflow/channel-stages';
+import { stageLabelShort } from '@/lib/workflow/stage-labels';
 
 const REASONS = [
   { value: 'incomplete', label: 'Incomplete information' },
@@ -54,6 +50,8 @@ export function ReferBackDialog({ open, onOpenChange, request }: ReferBackDialog
   const [reason, setReason] = useState('');
   const [explanation, setExplanation] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const { data: stageMap } = useChannelStageMap();
+  const targets = referBackTargets(stageMap, request.buyingChannel, request.status);
 
   async function handleSubmit() {
     if (!step || !reason) return;
@@ -93,14 +91,17 @@ export function ReferBackDialog({ open, onOpenChange, request }: ReferBackDialog
         <div className="space-y-4 py-2">
           <div className="space-y-2">
             <Label>Return to stage</Label>
-            <Select value={step} onValueChange={setStep}>
+            {targets.length === 0 && (
+              <p className="text-caption text-ink-3">There is no earlier stage to refer this request back to.</p>
+            )}
+            <Select value={step} onValueChange={setStep} disabled={targets.length === 0}>
               <SelectTrigger>
                 <SelectValue placeholder="Select stage..." />
               </SelectTrigger>
               <SelectContent>
-                {PREVIOUS_STEPS.map((s) => (
-                  <SelectItem key={s.value} value={s.value}>
-                    {s.label}
+                {targets.map((target) => (
+                  <SelectItem key={target} value={target}>
+                    {stageLabelShort(target)}
                   </SelectItem>
                 ))}
               </SelectContent>

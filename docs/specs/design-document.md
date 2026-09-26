@@ -190,7 +190,7 @@ Navigation items are filtered by role — each role sees only what's relevant.
 |--------|---------|--------------|
 | Dashboard | 5 role views | KPI cards, charts, action lists |
 | Requests | 10 (the conversation, the Channel page, detail, lists) | Conversation with a live summary panel, tabbed detail, data tables |
-| Workflows | 6 (kanban, table, timeline, monitor) | Drag-and-drop, view toggle, heatmap |
+| Workflows | 6 (kanban, table, timeline, monitor) | View toggle, heatmap; the board is view-only |
 | Approvals | 3 (queue, delegation, detail) | Card-based queue, one-click approve |
 | Tasks | 2 (my, team) | Priority-sorted tables |
 | Pipelines | 2 (demand, sourcing) | Funnel charts, grouped tables |
@@ -296,7 +296,7 @@ The Request Detail page provides full visibility across 8 tabs:
 
 The control tower for procurement operations. Three views of active workflows:
 
-**Kanban Board:** 9 columns (one per stage), drag-and-drop cards between stages. Cards show ID, title, value, days in stage, owner, priority, AI-reviewed badge, active system integration status. SLA-based border colouring (green/amber/red).
+**Kanban Board:** 9 columns (one per stage), view-only — a card is a button that opens its request, and nothing on the board moves a stage (2026-09-26). Cards show ID, title, value, days in stage, owner, priority, AI-reviewed badge, active system integration status. SLA-based border colouring (green/amber/red).
 
 **Table View:** Full sortable/filterable table with all request fields plus System column showing active external system integration.
 
@@ -522,7 +522,7 @@ Integration status grid (SAP, Coupa Risk, Sirion, Email — all with uptime), re
 | Styling | Tailwind CSS 4 | Utility-first CSS |
 | Components | shadcn/ui (20 components) | Accessible UI primitives |
 | Charts | Recharts | Bar, line, pie, area, sparkline charts |
-| Drag & Drop | @dnd-kit | Kanban board, rule reordering |
+| Drag & Drop | @dnd-kit | Dashboard customisation (widget order) |
 | Workflow Canvas | @xyflow/react (React Flow) | Visual workflow designer |
 | State | Zustand | Lightweight store per domain |
 | Icons | lucide-react (60+ icons) | Consistent outlined icon set |

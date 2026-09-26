@@ -50,13 +50,15 @@ or an integrity defect that survives adding authentication.
 | The confirm card rendered the model's `read_back` while `action_type`/`action_params` executed separately. Nothing compared them, and untrusted text reaches the model every turn. | The card's sentence is built by `api/_action-description.ts` from the action and its parameters, with ids resolved to names and the targets listed. An action with no template shows no Confirm button. |
 | `remember_preference` accepted any key and value, and that row is read into the system prompt of every later conversation. | Four allowlisted keys, capped values, rendered as a labelled list marked as data. |
 | Only the purchase-order branch of the assistant was scoped to the caller; `requestor_id` was a model-settable filter. | Requests, POs and invoices scope to requester-or-owner. Suppliers, contracts and risk assessments stay unscoped by design, and a check pins that as a decision. |
-| `workflow-action` wrote any string into `requests.status`. | The stage must exist; a check asserts the guarded set still equals `RequestStatus`. |
+| `workflow-action` wrote any string into `requests.status`. | The stage must exist; a check asserts the guarded set still equals `RequestStatus`. Since 2026-09-26 it also makes only refer-back (to an earlier stage of the request's lifecycle), reassign and cancel, and refuses any other move. |
 | `execute-action` took the actor's name from the request body and reported success on any audit-id collision. | The name is read from the directory; a collision must be the same action by the same actor before success is reported. |
 
 **Known and accepted, not closed.** Authentication (ADR-0003) — every check
 above is scoping and integrity, not authorization. Approval eligibility
-(`canActOnApproval`) is still enforced only in React, and `workflow-action`
-validates that a stage exists, not that this request may enter it next. The
+(`canActOnApproval`) is still enforced only in React, and a stage's exit — the
+stage action, an approval, an award — is written from the browser by
+`transitionStage`, so its gates are checked in the page; `workflow-action` makes
+only refer-back, reassign and cancel. The
 Supabase row-level-security scaffolding has since been removed
 (`npm run backfill:drop-rls`, ADR-0003); `test:schema-drift` fails if a policy
 returns to `db/schema.sql` or to the live database.
@@ -82,7 +84,7 @@ Behaviour that changed and needs re-testing by hand:
 
 | ID | Steps | Expected |
 |----|-------|----------|
-| TC-WFA-01 | Drag a card between columns on the Kanban board | The card moves and stays moved after a refresh. The request's timeline shows the new stage; the previous stage is closed |
+| TC-WFA-01 | Drag a card between columns on the Kanban board | Superseded 2026-09-26: the board is view-only and a drag moves nothing (TC-WF-02). A move's stage history is re-tested through Refer back (TC-WF-REFER) |
 | TC-WFA-02 | Reassign a request from its detail page | Owner changes AND the timeline records the handover. Previously the reassignment was recorded nowhere, because the stage had not moved |
 | TC-WFA-03 | Reassign to the current owner (no change) | Succeeds, and writes no timeline entry — a handover that did not happen is not recorded |
 | TC-AST-01 | Ask the assistant to set an approval delegate, confirm it | Reply names the delegate; Settings shows it; the audit log has the entry. Previously the reply said "Done" and nothing at all was written |
@@ -217,7 +219,8 @@ npm run test:mode-equivalence     # Simple and Expert reach the same governance 
 npm run test:intake-determination # the intake determination, pinned: determinism (`now` is an input), honesty
                                   # (no unrun check is recorded as passed) and one derivation of the buying channel
 npm run test:intake-evidence      # a request never carries a compliance check that did not run
-npm run test:e2e                  # end-to-end request → approval workflow
+npm run test:e2e                  # against the production API: the stage-move endpoint refuses a stage exit, cancels only
+                                  #   with a reason, refers back and reassigns (a repeat records nothing); approval-entry writes
 npm run test:routing              # routing-rule evaluator
 npm run test:routing-rule-integrity # editor ↔ runtime ↔ test-panel parity — every offered field/operator is evaluated, a broken rule is diagnosed
 npm run test:intake               # intake sequence
@@ -286,7 +289,8 @@ npm run test:governed-checkout    # contract/risk/capacity gates and PR/PO routi
 npm run test:catalogue-basket     # a basket is one order per supplier, approved on the basket total the server computes — all or none (ADR-0009)
 npm run test:governed-checkout-atomic # atomic Neon request → PR → lines → conditional PO, replay/conflict/concurrency
 npm run test:checkout-gates       # a governed check cannot be skipped by the failure of its own data read
-npm run test:workflow-atomic      # transitions commit with their stage history, and write the NEW stage's SLA deadline (or NULL) — never the previous stage's
+npm run test:workflow-atomic      # transitions commit with their stage history, and write the NEW stage's SLA deadline (or NULL) — never the previous stage's;
+                                  #   the endpoint makes only refer-back (to an earlier stage), reassign and cancel
 npm run test:execute-action       # a confirmed assistant action writes a real record, or says it cannot
 npm run test:shared-core          # browser and server write tickets/preferences through one implementation
 npm run test:request-id           # request ids come from the database sequence, not Math.random()
@@ -388,10 +392,15 @@ npm run test:request-list-filters # static — the request list's URL filters ro
 npm run test:request-list-ui      # browser smoke — the band's and Requests-by-Stage's links show the rows they
                                   #   counted, filters show as removable chips, priority is written, badges are tokens
 npm run test:request-detail-ui    # browser check on fixtures (no credentials, no network) — the request detail renders, every
-npm run test:supplier-evidence-ui  # browser, stubbed DB (port 5186) — the Risk tab records a screening only with its reference and links only a completed, in-date assessment, neither touching onboarding; the pipeline completes onboarding only on a clear screening and keeps the note; every record is audited
                                   # workflow step opens, and the risk form pre-populates from the service description;
                                   # one filled header action with the rest in More, no "AI-generated" claim, stage names
-                                  # in the type scale, and a failed read is not reported as a removed request
+                                  # in the type scale, Refer back offers only the channel's earlier stages, and a failed
+                                  # read is not reported as a removed request
+npm run test:supplier-evidence-ui # browser, stubbed DB (port 5186) — the Risk tab records a screening only with its reference
+                                  #   and links only a completed, in-date assessment, neither touching onboarding; the pipeline
+                                  #   completes onboarding only on a clear screening and keeps the note; every record is audited
+npm run test:workflows-board-ui   # browser, stubbed DB (port 5185) — the Active Workflows board is view-only: cards sit in
+                                  #   their stage's column, nothing is draggable, a drag sends no stage move, a card opens its request
 npm run test:interactions-ui      # interaction E2E — the conversation to submit, admin save, AI assistant (self-cleaning)
 npm run test:link-route-integrity # static deep-link contract for active request/dashboard destinations
 npm run test:link-navigation      # deployed role-aware link navigation and requester read-only details
@@ -840,7 +849,9 @@ not in a component — because RLS is currently `USING (true)`.
 | TC-PSL-02 | Open a request whose supplier is not yet known | Overview and the intake side panel show **Supplier: Currently unknown**, and the category's preferred suppliers — "invited when sourcing starts" when the channel's workflow has a Sourcing stage, "not needed here" when it does not. The supplier was a dash (`test:request-detail-ui`) |
 | TC-PSL-03 | Create a sourcing event from a request | Every preferred supplier for the request's category is invited, with the named supplier and the shortlist, each once (`test:preferred-suppliers`) |
 | TC-WF-01 | `/workflows` Kanban | Stage columns, value subtotals, quick filters (Stuck>5d/My Action/High value/Escalated), integration badges |
-| TC-WF-02 | Drag a card between stages (permitted) | Moves + persists; audit entry |
+| TC-WF-02 | Try to drag a card to another column on `/workflows` (`npm run test:workflows-board-ui`) | Nothing moves and no request changes: the board is view-only (2026-09-26). Clicking the card opens the request, where its stage action moves it on. A drop used to move the request to any stage, past its gates, forms and approvals |
+| TC-WF-REFER | Refer a request back (`npm run test:workflow-atomic`) | The dialog offers only the stages the request's channel runs before its current one, among Intake, Validation, Approval, Sourcing and Contracting — never a later stage, one the channel skips, Risk Assessment or Vendor Onboarding; with none it says so. The server refuses any other target (400 `invalid_move`), and any move but refer back, reassign and cancel (400 `unsupported_action`) — a board move, an approval or a stage advance posted to `/api/workflow-action` changes nothing. Verified by lifting the allowlist and the refer-back rule — five checks fail |
+| TC-WF-CANCEL | Cancel a request (`npm run test:workflow-atomic`, `npm run test:request-detail-ui`) | The dialog waits for a reason and says what cancelling does; the server refuses a cancellation without one (400 `reason_required`), then in one transaction sets the request *cancelled* with no deadline and the reason in its history, **withdraws** the undecided approvals (a decided one keeps its decision) and stops the workflow instance; a cancelled request cannot be moved again (409 `request_closed`). It used to hand the outcome to the engine, which moved the request ON. Verified by disabling the withdrawal and the closed guard, and by sending Cancel back to the engine — each fails |
 | TC-WF-03 | Table view | Sortable/filterable, System column |
 | TC-WF-04 | Timeline view | Gantt bars per stage |
 | TC-WF-05 | `/workflows/monitor` | Bottleneck bar chart vs SLA, heatmap, AI analysis, stuck table |
@@ -893,6 +904,7 @@ not in a component — because RLS is currently `USING (true)`.
 | TC-SUP-05 | `/suppliers/messages` | Threaded messages; send a message (persists) |
 | TC-SUP-06 | `/suppliers/portal-admin` | Portal admin renders |
 | TC-SUP-07 | Add Supplier | Create persists |
+| TC-SUP-EVIDENCE | Supplier evidence (`npm run test:supplier-evidence`, `npm run test:supplier-evidence-ui`) | *Record screening result* waits for a reference, refuses a date in the future, writes the result with its reference and date and audits it — and leaves onboarding and the SRA alone; *Link a risk assessment* offers only a completed, in-date assessment of this supplier and sets the SRA from it (expiry and id); the pipeline's Complete is withheld until the screening is clear and keeps its note in the audit log; the portal never takes back a completed onboarding. Verified by removing the reference check and the screening block — each fails |
 
 ## Suite PORT — supplier portal (role = Supplier)
 
@@ -914,9 +926,6 @@ not in a component — because RLS is currently `USING (true)`.
 
 | ID | Steps | Expected |
 |---|---|---|
-| TC-WF-CANCEL | Cancel a request (`npm run test:workflow-atomic`, `npm run test:request-detail-ui`) | The dialog waits for a reason and says what cancelling does; the server refuses a cancellation without one (400 `reason_required`), then in one transaction sets the request *cancelled* with no deadline and the reason in its history, **withdraws** the undecided approvals (a decided one keeps its decision) and stops the workflow instance; a cancelled request cannot be moved again (409 `request_closed`). It used to hand the outcome to the engine, which moved the request ON. Verified by disabling the withdrawal and the closed guard, and by sending Cancel back to the engine — each fails |
-| TC-SUP-EVIDENCE | Supplier evidence (`npm run test:supplier-evidence`, `npm run test:supplier-evidence-ui`) | *Record screening result* waits for a reference, refuses a date in the future, writes the result with its reference and date and audits it — and leaves onboarding and the SRA alone; *Link a risk assessment* offers only a completed, in-date assessment of this supplier and sets the SRA from it (expiry and id); the pipeline's Complete is withheld until the screening is clear and keeps its note in the audit log; the portal never takes back a completed onboarding. Verified by removing the reference check and the screening block — each fails |
-| TC-ADM-IDS | A new admin record takes a free id (`npm run test:record-ids`) | Add Form, Add Agent, Add Rule, a new knowledge-base entry and a new sourcing criterion are numbered one past the highest id in use — with FORM-002…006 stored, the next form is FORM-007, not the live FORM-006 its save used to overwrite. Verified by restoring the count-based id |
 | TC-CON-01 | `/contracts` register | Every contract, filters, utilisation. The tabs and the status are the **live** status — a contract recorded active whose end date has passed is under Expired — and the days left show beside one in its renewal window |
 | TC-CON-01b | A contract's status from its dates (`npm run test:contract-status`, `npm run test:derived`) | In force through its end date: *expiring* on its last day and within the renewal window (Decisioning thresholds → contract renewal window), *expired* from the day after, *active* before the window; draft, under review, terminated and a recorded expiry untouched. The view's SQL and `contract-status.ts` give the same answer for eight live fixtures; the SQL's floor equals the shipped default; the checkout accepts a contract late on its last day and refuses it the day after (it used to expire at midnight UTC); a supplier's active contracts leave out one past its end date; writing a contract back writes its **recorded** status, never the date's reading. Verified by restoring the timestamp compare, a floor of 90 and a widget's own 90 days — each fails |
 | TC-CON-02 | Open a contract | Summary/Financial/Obligations/Renewal/Documents/Related; the Renewal tab says where the contract stands against its renewal window (no fixed 90/60/30 timeline) |
@@ -986,6 +995,7 @@ not in a component — because RLS is currently `USING (true)`.
 | TC-ADM-17a | Knowledge base linked to configuration (`npm run test:knowledge-links`, `npm run test:reference-data-ui`) | Every entry is marked **Linked to configuration** or **Policy text only**; expanding one shows it with live figures (change the catalogue auto-approval threshold → the catalogue entry's answer changes). *Insert a figure* adds a reference; a reference naming nothing is flagged and blocks Save. The guard fails if an entry restates a governed amount as a literal outside a line marked *(policy)*, if any reference names nothing, or if the live table is empty (the built-ins were moved in by `backfill:knowledge-base-linked`, fill-only). The rewrite corrected entries that described the platform wrongly: approval bands (now the chains), catalogue auto-approval (€500 → the governed figure), a direct-PO channel, category selection, a separate onboarding request |
 | TC-ADM-18 | `/admin/ai-analytics` | Conversation/answer-quality charts |
 | TC-ADM-19 | `/admin/database` | Entity tabs; edit a row persists; reflects on feature pages |
+| TC-ADM-IDS | A new admin record takes a free id (`npm run test:record-ids`) | Add Form, Add Agent, Add Rule, a new knowledge-base entry and a new sourcing criterion are numbered one past the highest id in use — with FORM-002…006 stored, the next form is FORM-007, not the live FORM-006 its save used to overwrite. Verified by restoring the count-based id |
 | TC-ADM-20 | `/admin/database` → **Sourcing Events** | The tab lists live events (id, title, type, status, category, budget, deadline, request, awarded supplier). Editing status/dates persists and shows on `/sourcing/:id`. Requirements and evaluation criteria render **read-only** with the criteria weight total — the wizard owns them, because it is the only place weights are validated. **Related Items** resolves the originating request and the awarded supplier both ways |
 | TC-ADM-20b | `/admin/database` → **Catalogue Items** | The catalogue is maintained here: list, create, edit (name, description, price, unit, catalogue, supplier, lead time, contract and risk-assessment links, commodity code) and mark an item not orderable, all persisted to `catalogue_items` and shown on the catalogue page and in intake matching. The save and delete hooks existed with no screen using them. A live entity, so `test:config-consumption` requires its create/update/remove branches; `test:admin-editors` round-trips the table; `test:reference-data-ui` opens the tab |
 | TC-ADM-22 | `/admin/service-description` renders (`npm run test:service-description-ui`) | Admin-only route. Four areas render: **Generation prompt**, **Components asked at intake**, **What is generated**, **Reuse in later steps**. The editor never blocks on the read — when the stored row is unreadable it shows the built-in (what generation actually falls back to) with a visible notice, not a spinner |

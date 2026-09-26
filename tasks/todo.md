@@ -158,6 +158,34 @@ block, details-supplier, the call-off form), the stepper and the wizard footer.
 - **B. Required sections** — "Conversation asks what must be covered" (see below).
 - **C. Contract status** — "Derive status from the dates": the read view derives expired/expiring from the end date; the renewal window becomes a Decisioning threshold; every screen reads the derived status; stored rows untouched.
 
+## In progress — the server decides stage moves and submits (2026-09-26, "Continue")
+Decided: the Active Workflows board is **view-only**; submit **refuses** when the
+server's determination differs from what the requester reviewed.
+
+A. **View-only board — done.** Drag-and-drop is gone; a card is a button that
+   opens the request, whose stage action checks role, blocking forms, onboarding
+   gates and approvals. `api/workflow-action.ts` makes only the moves the request
+   page makes through it — `referred-back` to an earlier rework stage of the
+   request's own lifecycle (`referBackTargets`), `reassigned` within the stage,
+   `cancelled` with a reason — and refuses any other (400 `unsupported_action`,
+   `invalid_move`). The refer-back dialog offers the same targets. `test:e2e`'s
+   approve/reject/lifecycle scenarios drove the endpoint as a free stage mover;
+   they became `scenarioStageExitsRefused`. Guards: `test:workflow-atomic`,
+   `test:workflows-board-ui` (new), `test:request-detail-ui` (refer-back
+   targets), `test:assistant-boundary` (static allowlist) — each mutation-checked.
+   Left open, recorded in ARCHITECTURE §10: a stage's exit is still written from
+   the browser by `transitionStage`.
+B. **Submit decides again.** `evaluateIntakeDetermination` threads the given
+   policy through every helper (five read the module singleton — the browser's
+   active config, but shipped defaults on a server). `intake-submit` loads the
+   same inputs from the store, recomputes, compares the channel, approval chain,
+   sourcing type, risk and materiality tiers, risk-assessment flag, screening and
+   disposition with what the browser sent, refuses a difference (409
+   `determination_changed`, nothing written) and stores its own determination
+   and compliance record. The client sends the risk answers explicitly and, on a
+   409, refreshes and shows the Channel page again. Closes the ARCHITECTURE §10
+   gap.
+
 ## Done — audit defects 1–3 (2026-09-26, "Start")
 Decided: the Risk tab **records the evidence** (a screening result with its
 reference and date; a completed, in-date risk assessment linked from the

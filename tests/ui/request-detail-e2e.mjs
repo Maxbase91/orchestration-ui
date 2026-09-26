@@ -242,6 +242,21 @@ try {
   check('the current stage says so to a screen reader',
     (await view.getByRole('button', { name: /Risk Assessment: current stage/ }).count()) === 1);
 
+  // Refer back offers the rework stages this request's channel ran before where
+  // it is — at Risk Assessment, Intake and Validation (2026-09-26). It offered
+  // the same five stages whatever the channel, later ones included, and the
+  // server moved the request wherever the dialog said.
+  await view.getByRole('button', { name: 'More actions' }).click();
+  await view.getByRole('menuitem', { name: 'Refer back' }).click();
+  const referDialog = view.getByRole('dialog');
+  await referDialog.getByRole('combobox').filter({ hasText: 'Select stage' }).click();
+  const offered = await view.getByRole('option').allInnerTexts();
+  check('Refer back offers only the earlier stages of the request’s channel',
+    JSON.stringify(offered.map((o) => o.trim())) === JSON.stringify(['Intake', 'Validation']), offered.join(' | '));
+  await view.keyboard.press('Escape');
+  await view.keyboard.press('Escape');
+  await referDialog.waitFor({ state: 'detached', timeout: 5000 }).catch(() => {});
+
   // Cancel goes to the server, with the reason (2026-09-26). It used to hand
   // 'cancelled' to the workflow engine, which moved the request on to its next
   // stage — or did nothing — while the page said it was cancelled.
