@@ -126,9 +126,12 @@ scope and measurable acceptance criteria for a material engagement, deliverables
 for anything competitively sourced (they become the bid evaluation basis), and
 resources and dependencies at high or critical data sensitivity.
 
-`requiredSectionsFor` drives both the prompt's MUST COVER list and the
-determination screen's gap report, so generation and review cannot disagree
-about what "required" means. The determination **reports** gaps rather than
+`requiredSectionsFor` drives the prompt's MUST COVER list, and the same rule
+rides on the slot that fills each section (`sectionRequiredWhen`), so the
+conversation **asks for and requires** a section before it confirms the channel;
+`requiredSectionIds` (demand-conversation.ts) is the one set the panel, the
+Channel page's gap report and the stored record count. Generation, the
+conversation and review cannot disagree about what "required" means. The determination **reports** gaps rather than
 regenerating: a document that rewrites itself after the requester thought it was
 finished is worse than one that says what is missing.
 

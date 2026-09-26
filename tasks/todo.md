@@ -189,26 +189,11 @@ what the code does; these are the things it now has to say that need a decision.
 
 **White-label** — real company names in UI mock content (sourcing Q&A, portal identity and messages, three-way-match scenarios, bottlenecks feed), a real bank in the portal profile, real supplier names in `api/chat-intake.ts`'s prompt and an example in `api/chat.ts`'s tool description; the seed suppliers are real companies.
 
-## Open — "required sections" means two things (found 2026-09-26)
-The conversation's panel counts the questions that must be answered before the
-channel is confirmed (`requiredSlots`: the floor, the template's `required`,
-slot `requiredWhen`); the Channel page counts the sections generation says this
-demand's description must cover (`sowRequiredSections`, from
-`ConfiguredSection.requiredWhen`, which the determination checks). Both are
-labelled "required", so one demand read "required 4 of 4" then "1 of 1 required
-sections". Recommendation: make the conversation ask what generation will
-require — a section required by the signals makes its slot required — so both
-screens count one set and "Buying channel confirmed" also means the description
-covers what the determination checks. It changes what a material demand is
-asked, so it wants a decision first.
+## Done — "required sections" is one set (2026-09-26, workstream B)
+A section the template's rules make mandatory for a demand makes the question that
+fills it asked and required (`sectionRequiredWhen` on the slot, browser and server);
+`requiredSectionIds` is the one set the panel, the Channel page and the stored
+record count; the question says the section rule is why it is asked.
 
-## Next — documentation boundaries (raised 2026-09-26)
-There is no PRD and no ARCHITECTURE.md; AGENTS.md points to CLAUDE.md. What a
-PRD and an architecture doc would hold is spread across the functional spec,
-requirements 00–14, PRODUCT_BACKLOG, the personas, CLAUDE.md, the README, the
-ADRs and the module READMEs — and one intake change had to be written into nine
-of them. Define one home per fact and make the rest link:
-- **PRD** — what and why: problem, personas, R1 scope in/out, principles, success measures; links to requirements/ for FR detail (the functional spec's role, which it no longer fills reliably)
-- **ARCHITECTURE.md** — how: system context (SPA → /api/db → Neon, the 12-function cap, the LLM helper), the module map, the connector seam, the decision engines, where configuration lives; links to the ADRs
-- **AGENTS.md / CLAUDE.md** — how to work here: ground rules, Definition of Done, conventions; links to the two above rather than restating them
-- **README** — getting started, commands, deployment, the doc map
+## Done — documentation boundaries (2026-09-26, workstream A, `1d68c6c`)
+PRD, ARCHITECTURE, AGENTS.md as the one rulebook, the test catalogue in TEST_PLAYBOOK, and the functional specification checked against the code. What the audit found is under "Open — found by the functional-spec audit" above.

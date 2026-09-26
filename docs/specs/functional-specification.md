@@ -300,7 +300,9 @@ The conversation runs in three phases, in one transcript with one reply box:
    description is asked next (see §4.3), then the supplier (the category's
    preferred suppliers named, "go to market" an explicit answer, a supplier off
    the list asked why), then the one or two risk questions the supplier and the
-   description decide, as Yes/No.
+   description decide, as Yes/No. A section the demand's signals make
+   mandatory (Admin → Service Description, §14.11) is asked for too, and its
+   answer is required; the question says why.
 
 **Known defect:** naming a supplier the directory does not hold adds it to the
 directory at once, as a prospective supplier (§7.1) — before submit, although
@@ -308,7 +310,8 @@ the Home box and the conversation say nothing is created until then.
 
 Beside the conversation, **Your request** fills in as it goes: every value with
 where it came from (from you · derived · drafted — check it · still to come),
-the inputs edited in place, and "N of M known" counting what the route needs.
+the inputs edited in place, and "N of M known" counting what the route needs —
+its required sections the same set the Channel page counts.
 It reaches M of M exactly when **Buying channel confirmed** appears — which it
 does only when submit would accept the request, the conversation having named
 anything still missing (a need-by date, a cost centre) and where to add it.

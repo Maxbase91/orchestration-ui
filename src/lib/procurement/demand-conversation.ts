@@ -8,8 +8,9 @@
 // high-value or specialist engagement is asked the extra slots that matter.
 //
 // Pure + deterministic (no React, no LLM): both the LLM intake endpoint
-// (api/chat-intake.ts) and the offline fallback (step-chat-intake.tsx) consume
-// this so the conversation behaves identically whether or not the LLM is up.
+// (api/chat-intake.ts) and the conversation's offline fallback
+// (use-service-description-conversation.ts) consume this, so it behaves
+// identically whether or not the LLM is up.
 //
 // Requester location and beneficiary are NEVER slots here — they are derived
 // from the requester's profile / a UI control, so the conversation never asks
@@ -17,8 +18,8 @@
 
 import { getActivePolicyConfig, type PolicyConfig } from './policy-config.js';
 import {
-  slotApplies, evaluateSlotCondition,
-  type ConfiguredSlot, type SlotCondition, type SlotConditionContext,
+  slotApplies, evaluateSlotCondition, requiredSectionsFor,
+  type ConfiguredSection, type ConfiguredSlot, type SlotCondition, type SlotConditionContext,
 } from './service-description-config.js';
 import { computeDemandSignals } from './demand-signals.js';
 import type { MiniIrqField, ResidualQuestionId } from './residual-questions.js';
@@ -128,6 +129,21 @@ export interface DemandSlot {
    * exit provisions" saved successfully and governed nothing.
    */
   requiredWhen?: SlotCondition[];
+  /**
+   * The rule under which the service-description SECTION this slot fills is
+   * mandatory — the template's `ConfiguredSection.requiredWhen`, which is also
+   * what generation is told it MUST cover and what the Channel page checks.
+   *
+   * When it holds for this demand the question is asked, whatever `appliesWhen`
+   * says, and its answer is required. The two used to be separate: the
+   * conversation counted its own required questions and the Channel page the
+   * sections generation required, so a material demand read "4 of 4 required"
+   * in one and "1 of 1 required sections" in the other, and could be confirmed
+   * while the determination still found a section missing (2026-09-26).
+   */
+  sectionRequiredWhen?: SlotCondition[];
+  /** That section's label, for the line saying why the section rule asks it. */
+  sectionLabel?: string;
   /**
    * Why this demand is being asked this question, shown to the requester.
    *
@@ -364,9 +380,70 @@ export function fromConfiguredSlot(slot: ConfiguredSlot): DemandSlot {
  * set, so the two agree by construction. `test:service-description-config`
  * asserts that agreement across every category × value combination.
  */
-export function resolveSlots(configured?: ConfiguredSlot[]): DemandSlot[] {
-  if (!configured || configured.length === 0) return ALL_SLOTS;
-  return configured.map(fromConfiguredSlot);
+export function resolveSlots(configured?: ConfiguredSlot[], sections?: ConfiguredSection[]): DemandSlot[] {
+  const base = !configured || configured.length === 0 ? ALL_SLOTS : configured.map(fromConfiguredSlot);
+  return sections?.length ? withSectionRules(base, sections) : base;
+}
+
+/**
+ * Carry each section's mandatory rule onto the slot that asks for it.
+ *
+ * On the slot rather than passed alongside, so every function that decides
+ * what is asked and what is required — the agenda, `requiredSlots`, the gate,
+ * progress, and the server's copy in api/chat-intake.ts — reads the same rule
+ * without a second argument to forget.
+ */
+export function withSectionRules(slots: DemandSlot[], sections: ConfiguredSection[]): DemandSlot[] {
+  return slots.map((slot) => {
+    if (slot.target.kind !== 'sow') return slot;
+    const section = sections.find((s) => s.id === slot.target.field);
+    if (!section?.requiredWhen?.length) return slot;
+    return { ...slot, sectionRequiredWhen: section.requiredWhen, sectionLabel: section.label };
+  });
+}
+
+/** Does the section rule make this slot's answer mandatory for this demand? */
+function sectionRequires(slot: DemandSlot, signals: SlotConditionContext, config: PolicyConfig): boolean {
+  return Boolean(slot.sectionRequiredWhen?.length)
+    && slot.sectionRequiredWhen!.every((c) => evaluateSlotCondition(c, signals, config));
+}
+
+/** The demand's own reading of a signal, in words, for the "asked because" line. */
+function signalPhrase(field: SlotCondition['field'], signals: SlotConditionContext): string | null {
+  const value = signals[field];
+  if (value === undefined || value === '') return null;
+  switch (field) {
+    case 'materiality': return `its materiality is ${value}`;
+    case 'riskTier': return `its inherent risk is ${value}`;
+    case 'dataSensitivity': return `its data sensitivity is ${value}`;
+    case 'sourcingType': return `it goes to ${value} sourcing`;
+    case 'category': return `it is ${value}`;
+    case 'value': return `its value is €${Number(value).toLocaleString('en-IE')}`;
+    default: return null;
+  }
+}
+
+/**
+ * Why a question is asked. When the section rule is what makes it mandatory,
+ * that is the reason given — "the description must cover Acceptance Criteria
+ * for this demand: its materiality is important" — because a question that
+ * appears for some demands and not others has to say why, and a configured
+ * `why` explains the slot's own condition, not the section's.
+ */
+export function slotWhy(
+  slot: DemandSlot,
+  ctx: DemandConversationContext,
+  config: PolicyConfig = getActivePolicyConfig(),
+): string | undefined {
+  const signals = slotConditionContext(ctx, config);
+  if (!sectionRequires(slot, signals, config)) return slot.why;
+  const label = (slot.sectionLabel ?? String(slot.target.field)).toLowerCase();
+  const reasons = [...new Set((slot.sectionRequiredWhen ?? [])
+    .map((c) => signalPhrase(c.field, signals))
+    .filter((r): r is string => Boolean(r)))];
+  return reasons.length
+    ? `Asked because the description must cover ${label} for this demand: ${reasons.join(' and ')}.`
+    : `Asked because the description must cover ${label} for this demand.`;
 }
 
 function isSlotFilled(slot: DemandSlot, ctx: DemandConversationContext): boolean {
@@ -409,7 +486,12 @@ export function applicableSlots(
   slots: DemandSlot[] = ALL_SLOTS,
 ): DemandSlot[] {
   const signals = slotConditionContext(ctx, config);
-  return slots.filter((slot) => !slot.appliesWhen || slot.appliesWhen(ctx, config, signals));
+  // A section the signals make mandatory is asked for, whether or not the
+  // slot's own condition would have asked it: a requirement nobody is asked to
+  // meet is only discovered as a gap after the channel was confirmed.
+  return slots.filter((slot) => !slot.appliesWhen
+    || slot.appliesWhen(ctx, config, signals)
+    || sectionRequires(slot, signals, config));
 }
 
 /**
@@ -488,11 +570,11 @@ export function determineNextQuestion(
   ctx: DemandConversationContext,
   config: PolicyConfig = getActivePolicyConfig(),
   slots: DemandSlot[] = ALL_SLOTS,
-): { slot: DemandSlot; prompt: string; example?: string } | null {
+): { slot: DemandSlot; prompt: string; example?: string; why?: string } | null {
   const agenda = buildAgenda(ctx, config, slots);
   if (agenda.length === 0) return null;
   const slot = agenda[0];
-  return { slot, prompt: slot.prompt, example: slot.example?.(ctx)?.trim() || undefined };
+  return { slot, prompt: slot.prompt, example: slot.example?.(ctx)?.trim() || undefined, why: slotWhy(slot, ctx, config) };
 }
 
 /** Complete when nothing applicable is left to ask (required + triggered). */
@@ -544,7 +626,38 @@ export function requiredSlots(
       || s.required
       || (s.requiredWhen?.length
         ? s.requiredWhen.every((c) => evaluateSlotCondition(c, signals, config))
-        : false));
+        : false)
+      // The section rule: what generation must cover and the Channel page
+      // checks is also what the conversation requires before confirming.
+      || sectionRequires(s, signals, config));
+}
+
+/**
+ * The service-description sections this demand must cover — one set, read by
+ * the conversation's panel, the Channel page and the request it submits.
+ *
+ * The sections its required questions fill, plus any section the template's
+ * rules make mandatory that no question asks (an `asked: false` section, which
+ * generation writes and the Channel page checks). The panel used to count the
+ * first half and the Channel page the second, from different sources.
+ */
+export function requiredSectionIds(
+  ctx: DemandConversationContext,
+  slots: DemandSlot[],
+  sections: ConfiguredSection[],
+  config: PolicyConfig = getActivePolicyConfig(),
+): string[] {
+  const asked = requiredSlots(ctx, slots, config)
+    .filter((s) => s.target.kind === 'sow')
+    .map((s) => String(s.target.field));
+  // The same rule generation's MUST COVER list is built from.
+  const byRule = requiredSectionsFor(sections, slotConditionContext(ctx, config), config);
+  // In template order, so every screen lists them the same way round.
+  const wanted = new Set([...asked, ...byRule]);
+  return [
+    ...sections.map((s) => s.id).filter((id) => wanted.has(id)),
+    ...[...wanted].filter((id) => !sections.some((s) => s.id === id)),
+  ];
 }
 
 export function outstandingRequiredSlots(

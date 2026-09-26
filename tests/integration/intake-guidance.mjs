@@ -326,7 +326,9 @@ console.log('\nEvery question says what the answer is used for');
   check('the serialised template and the in-code slots agree on every reason',
     disagreeing.length === 0, disagreeing.map((slot) => slot.id).join(', '));
   check('the chat renders the reason with the question', /why=\{message\.why\}/.test(PAGE_SRC) && /Asked because/.test(TURNS_SRC));
-  check('the reason travels with the question it explains', /why: next\.slot\.why/.test(CHAT_SRC));
+  // `next.why` is the engine's reason for THIS question — the slot's own, or the
+  // section rule's when that is what made it mandatory (determineNextQuestion).
+  check('the reason travels with the question it explains', /why: next\.why/.test(CHAT_SRC) && !/why: next\.slot\.why/.test(CHAT_SRC));
 }
 
 console.log('\nA question with a parser behind it cannot loop forever');

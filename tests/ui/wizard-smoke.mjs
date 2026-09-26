@@ -125,6 +125,23 @@ try {
       body: JSON.stringify(payload.basket ? { orders } : orders[0]),
     });
   });
+  // Generation writes the description up from the captured answers. This
+  // answers with those answers as the sections, so the Channel page's summary —
+  // and its count of required sections — renders as it does when deployed.
+  await context.route('**/api/generate-sow', async (route) => {
+    const payload = JSON.parse(route.request().postData() || '{}');
+    const sections = payload.capturedAnswers ?? {};
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        sections,
+        narrative: Object.values(sections).filter((v) => typeof v === 'string' && v.trim()).join(' '),
+        qualityScore: 80,
+        qualityChecks: [],
+      }),
+    });
+  });
   page = await context.newPage();
 
   const consoleErrors = [];
@@ -505,6 +522,9 @@ try {
   }
   await confirmedCard.waitFor({ timeout: 10000 });
   check('the conversation, a date and a cost centre confirm the channel', (await confirmedCard.count()) === 1);
+  // The panel's required sections, to hold the Channel page to the same set.
+  // Case-insensitive: innerText applies the eyebrows' uppercase transform.
+  const panelRequiredSections = Number(((await panel.innerText()).match(/Service description · required \d+ of (\d+)/i) ?? [])[1] ?? NaN);
 
   // 5. The Channel page — how it will be bought, stage by stage, and what is
   //    being submitted (Intake Prototype, 2026-09-26). It replaced Review &
@@ -519,6 +539,18 @@ try {
   const stageRow = (stage) => stageList.locator(`li[data-stage="${stage}"]`);
   check('the channel leads in the words its template sets',
     (await channelPane.getByRole('heading', { name: 'Procurement runs a sourcing exercise' }).count()) === 1);
+  // One set of required sections (2026-09-26): the panel counted the questions
+  // the conversation required and the Channel page the sections generation
+  // required, so one demand read "4 of 4" and then "1 of 1 required sections".
+  {
+    const summary = page.getByText(/of \d+ required sections/i).first();
+    const channelRequired = await summary.count()
+      ? Number(((await summary.innerText()).match(/of (\d+) required sections/i) ?? [])[1] ?? NaN)
+      : NaN;
+    check('the Channel page counts the required sections the panel did',
+      panelRequiredSections > 0 && channelRequired === panelRequiredSections,
+      `panel ${panelRequiredSections}, Channel page ${channelRequired}`);
+  }
   const stageOrder = await stageList.locator('li').evaluateAll((items) => items.map((li) => li.dataset.stage));
   check('every stage of the channel\'s template is listed, in the order the graph reaches them',
     stageOrder.join(',') === 'intake,validation,risk,onboarding,approval,sourcing,contracting,po,receipt,invoice,payment', stageOrder.join(','));

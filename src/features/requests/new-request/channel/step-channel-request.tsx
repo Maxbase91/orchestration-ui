@@ -35,6 +35,8 @@ interface StepChannelRequestProps {
   preferredSupplierIds: readonly string[];
   /** The category's service-description sections, in template order. */
   sections: Array<{ id: string; label: string }>;
+  /** The sections this demand must cover — the conversation's set (`requiredSectionIds`). */
+  requiredSections: readonly string[];
   costCentres: Array<{ id: string; label: string }>;
   requester: { id: string; name: string };
   onBack: () => void;
@@ -87,8 +89,8 @@ export function StepChannelRequest(props: StepChannelRequestProps) {
 
   const sd = sectionValuesOf(formData.serviceDescription);
   const labelOf = (id: string) => props.sections.find((s) => s.id === id)?.label ?? id;
-  const required = formData.sowRequiredSections ?? [];
-  const missing = gapsAgainstFinal(required, sd).map(labelOf);
+  const required = props.requiredSections;
+  const missing = gapsAgainstFinal([...required], sd).map(labelOf);
   const checks = requestChecks({
     determination: d,
     approvers: approvers ?? null,

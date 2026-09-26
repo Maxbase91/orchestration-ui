@@ -234,6 +234,86 @@ check('progress counts the risk question in its denominator',
   conversationProgress(described, undefined, withRisk).total
     > conversationProgress(described, undefined, resolveSlots()).total);
 
+// ── A section the signals make mandatory is asked, and required ────────────
+// The conversation counted its own required questions and the Channel page the
+// sections generation required, from two sources: a material demand read "4 of
+// 4 required" on one screen and "1 of 1 required sections" on the other, and
+// could be confirmed while the determination still found a section missing.
+// The section's rule now travels on the slot that fills it (2026-09-26).
+console.log('\nA section the signals make mandatory is asked, and required');
+
+const { applicableSlots, requiredSlots, requiredSectionIds } =
+  await import('../../src/lib/procurement/demand-conversation.ts');
+const { DEFAULT_SECTIONS } = await import('../../src/lib/procurement/service-description-defaults.ts');
+
+const sectioned = resolveSlots(undefined, DEFAULT_SECTIONS);
+// Goods at €50k asks neither acceptance criteria (not an outcome category) nor
+// dependencies (below the continuity value) on the slots' own conditions — but
+// personal data makes the data sensitivity high and the demand material, and
+// the default template requires both sections then.
+const sensitive = {
+  category: 'goods', title: 'Laptops for the payroll team', estimatedValue: 50_000, deliveryDate: '2027-01-15',
+  sow: {
+    objective: 'Equip the payroll team', scope: 'Laptops for staff handling employee data and personal data',
+    deliverables: 'Forty laptops', resources: 'The vendor delivery team',
+  },
+};
+const ids = (slots) => slots.map((s) => s.id);
+
+check('each section rule rides on the slot that fills it',
+  ['scope', 'deliverables', 'resources', 'acceptanceCriteria', 'dependencies']
+    .every((id) => sectioned.find((s) => s.id === id)?.sectionRequiredWhen?.length)
+  && !sectioned.find((s) => s.id === 'objective')?.sectionRequiredWhen);
+check('without the sections, the slots\' own conditions leave both unasked',
+  !ids(applicableSlots(sensitive, undefined, resolveSlots())).includes('acceptanceCriteria')
+  && !ids(applicableSlots(sensitive, undefined, resolveSlots())).includes('dependencies'));
+check('with them, both are asked',
+  ids(applicableSlots(sensitive, undefined, sectioned)).includes('acceptanceCriteria')
+  && ids(applicableSlots(sensitive, undefined, sectioned)).includes('dependencies'));
+check('and both are required',
+  ids(requiredSlots(sensitive, sectioned)).includes('acceptanceCriteria')
+  && ids(requiredSlots(sensitive, sectioned)).includes('dependencies'));
+check('the floor cannot be met while one is unanswered',
+  !requiredSlotsFilled(sensitive, sectioned));
+check('answering them meets it',
+  requiredSlotsFilled({ ...sensitive, sow: { ...sensitive.sow, exclusions: 'Software', acceptanceCriteria: 'Imaged and asset-tagged', dependencies: 'Identity team enrolment' } }, sectioned));
+const askedForCriteria = determineNextQuestion({ ...sensitive, sow: { ...sensitive.sow, exclusions: 'Software' } }, undefined, sectioned);
+check('the question says the section rule is why it is asked',
+  askedForCriteria?.slot.id === 'acceptanceCriteria'
+  && /must cover acceptance criteria/.test(askedForCriteria?.why ?? '')
+  && /materiality is important/.test(askedForCriteria?.why ?? ''),
+  askedForCriteria?.why);
+
+// Nothing sensitive ("payroll" alone reads as high), and below every value rule.
+const plain = { ...sensitive, sow: { ...sensitive.sow, objective: 'Equip the marketing team', scope: 'Laptops for the marketing team', resources: 'Public website content editors' } };
+check('a demand the rules do not reach is asked exactly as before',
+  JSON.stringify(ids(applicableSlots(plain, undefined, sectioned)))
+    === JSON.stringify(ids(applicableSlots(plain, undefined, resolveSlots()))));
+
+// One set for every screen: the required questions' sections, plus any section
+// the rules make mandatory that no question asks (generation writes those).
+check('the required sections are the required questions\' sections, in template order',
+  JSON.stringify(requiredSectionIds(sensitive, sectioned, DEFAULT_SECTIONS))
+    === JSON.stringify(['objective', 'scope', 'deliverables', 'resources', 'acceptanceCriteria', 'dependencies']));
+const withInferred = DEFAULT_SECTIONS.map((s) => (s.id === 'location'
+  ? { ...s, requiredWhen: [{ field: 'dataSensitivity', operator: 'in', value: 'high,critical' }] }
+  : s));
+check('a mandatory section no question asks is still in the set',
+  requiredSectionIds(sensitive, resolveSlots(undefined, withInferred), withInferred).includes('location')
+  && !ids(requiredSlots(sensitive, resolveSlots(undefined, withInferred))).includes('location'));
+
+// The three places that must read the one set, not a copy of it.
+const { readFileSync } = await import('node:fs');
+const read = (f) => readFileSync(new URL(`../../${f}`, import.meta.url), 'utf8');
+check('the server conversation resolves its slots with the sections',
+  /resolveSlots\(template\.slots,\s*template\.sections\)/.test(read('api/chat-intake.ts')));
+check('the panel and the page count the set with requiredSectionIds',
+  /requiredSectionIds\(/.test(read('src/features/requests/new-request/conversation/intake-conversation.tsx'))
+  && /requiredSectionIds\(/.test(read('src/features/requests/new-request/new-request-page.tsx')));
+check('the Channel page reads the set it is given, not generation\'s reply',
+  /props\.requiredSections/.test(read('src/features/requests/new-request/channel/step-channel-request.tsx'))
+  && !/sowRequiredSections/.test(read('src/features/requests/new-request/channel/step-channel-request.tsx')));
+
 console.log('');
 if (failures) { console.error(`FAILED: ${failures} check(s)`); process.exitCode = 1; }
 else console.log('All demand-conversation checks passed.');

@@ -99,7 +99,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     getServiceDescriptionTemplate(category),
     loadPolicyConfig(),
   ]);
-  const slots = resolveSlots(template.slots);
+  // With the sections, as in the browser: a section the demand's signals make
+  // mandatory is asked for here too, so the two paths ask the same questions.
+  const slots = resolveSlots(template.slots, template.sections);
 
   // The engine decides what to ask next from everything captured so far.
   const ctx = contextFrom(category ?? 'goods', (extractedSoFar ?? {}) as Record<string, unknown>);

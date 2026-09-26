@@ -61,7 +61,7 @@ export type IntakeRoute = 'describing' | 'catalogue' | 'call-off' | 'new-request
 export interface SectionState {
   id: string;
   label: string;
-  /** Mandatory for this demand (the engine's `requiredSlots`). */
+  /** Mandatory for this demand — in `requiredSectionIds`, the set the Channel page counts too. */
   required: boolean;
   text: string;
   capture?: SectionCapture;

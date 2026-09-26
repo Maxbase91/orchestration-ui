@@ -37,6 +37,9 @@ import { buildCallOff } from './call-off';
 import { IntakeConversation } from './conversation/intake-conversation';
 import type { ContractCallOffDraft } from './conversation/call-off-agenda';
 import { useServiceDescriptionTemplate } from '@/lib/db/hooks/use-service-description-templates';
+import { DEFAULT_SECTIONS } from '@/lib/procurement/service-description-defaults';
+import { requiredSectionIds, resolveSlots } from '@/lib/procurement/demand-conversation';
+import { conversationContext } from './conversation/conversation-rules';
 import { getProcurementProfile } from '@/lib/db/procurement-profiles';
 import { useProcurementProfile } from '@/lib/db/hooks/use-procurement-profile';
 import { buyingChannelLabel } from '@/lib/routing/evaluate-routing-rules';
@@ -163,6 +166,15 @@ export function NewRequestPage() {
   const isCallOff = formData.preCheckOutcome === 'contract';
   const preferredSupplierIds = usePreferredSupplierIds(formData.category);
   const { data: sdTemplate } = useServiceDescriptionTemplate(formData.category);
+  // The sections this demand must cover — the set the conversation requires
+  // before it confirms the channel — for the Channel page's check and the
+  // record submit writes. Computed from the request as it stands, so an edit
+  // after the description was written (a new value, a new section) counts.
+  const requiredSections = useMemo(() => {
+    const sections = sdTemplate?.sections ?? DEFAULT_SECTIONS;
+    const ctx = conversationContext(formData.category, formData, formData.serviceDescription ?? {});
+    return requiredSectionIds(ctx, resolveSlots(sdTemplate?.slots, sections), sections);
+  }, [sdTemplate, formData]);
 
   // A call-off's details, held here rather than in the conversation so the
   // Channel page and submit read the same draft the conversation fills.
@@ -245,7 +257,7 @@ export function NewRequestPage() {
           ...(formData.sowQualityScore != null ? { qualityScore: formData.sowQualityScore } : {}),
           ...(formData.sowQualityChecks ? { qualityChecks: formData.sowQualityChecks } : {}),
           ...(formData.sowSignals ? { signals: formData.sowSignals } : {}),
-          ...(formData.sowRequiredSections ? { requiredSections: formData.sowRequiredSections } : {}),
+          requiredSections,
           ...(sow.captureFlags ? { captureFlags: sow.captureFlags } : {}),
         } : undefined,
         // The record is derived from the determination's structured fields,
@@ -424,6 +436,7 @@ export function NewRequestPage() {
                 suppliers={suppliers}
                 preferredSupplierIds={preferredSupplierIds}
                 sections={sdTemplate?.sections ?? []}
+                requiredSections={requiredSections}
                 costCentres={allCostCentres}
                 requester={{ id: currentUser.id, name: currentUser.name }}
                 onBack={backToConversation}

@@ -1,6 +1,6 @@
-// The conversation page's rules that are not presentation: when the
-// conversation is through, when the buying channel is confirmed, and what a
-// long description is called.
+// The conversation page's rules that are not presentation: the engine's
+// context from the request, when the conversation is through, when the buying
+// channel is confirmed, and what a long description is called.
 //
 // Pure, with relative imports, so a node test drives them beside request-rows —
 // the panel's "N of M known" and this confirmation must agree.
@@ -9,6 +9,36 @@ import {
   type DemandConversationContext, type DemandSlot,
 } from '../../../../lib/procurement/demand-conversation.js';
 import type { SubmissionGap } from '../../../../lib/procurement/submission-requirements.js';
+import type { ServiceDescription } from '../intake-form-data.js';
+
+/**
+ * The engine's context from the request as it stands: what it decides the
+ * next question, completeness and the required sections from.
+ *
+ * Here rather than in the conversation hook, so the Channel page builds the
+ * context the same way when it counts the sections this demand must cover —
+ * two builders would be two readings of the same request.
+ */
+export function conversationContext(
+  category: string,
+  data: { title: string; estimatedValue: number; deliveryDate: string },
+  sow: Partial<ServiceDescription>,
+  risk?: DemandConversationContext['risk'],
+): DemandConversationContext {
+  return {
+    category,
+    risk,
+    title: data.title || undefined,
+    estimatedValue: data.estimatedValue || undefined,
+    deliveryDate: data.deliveryDate || undefined,
+    sow: {
+      objective: sow.objective, scope: sow.scope, deliverables: sow.deliverables,
+      exclusions: sow.exclusions,
+      resources: sow.resources, timeline: sow.timeline, acceptanceCriteria: sow.acceptanceCriteria,
+      pricingModel: sow.pricingModel, dependencies: sow.dependencies,
+    },
+  };
+}
 
 /**
  * The conversation is through: nothing left on its agenda, and the mandatory

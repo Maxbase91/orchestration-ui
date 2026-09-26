@@ -71,6 +71,17 @@ before the start). **N of M known** counts what the route needs, and the channel
 row is one of them, so it reaches M of M exactly when the channel is confirmed
 (decided 2026-09-26). A catalogue match is complete as it stands.
 
+**Required sections are one set** (decided 2026-09-26). A section the template's
+rules make mandatory for this demand (`ConfiguredSection.requiredWhen`) travels on
+the slot that fills it (`resolveSlots(slots, sections)` → `sectionRequiredWhen`),
+so the engine asks that question and requires its answer — in the browser and in
+`api/chat-intake.ts` alike. `requiredSectionIds` is the set every screen counts:
+the panel's required section rows, the Channel page's "N of M required sections"
+(computed on the page from the request as it stands, not taken from generation's
+reply) and the `required_sections` submit stores. They used to be two sets — the
+panel's required questions and generation's required sections — so one demand
+read "4 of 4" and then "1 of 1 required sections".
+
 Risk questions are `DemandSlot`s with `answerType: 'yes-no'`, appended at
 runtime by `residual-question-slots.ts` from the determination's
 `residualQuestions`, and answered only with Yes/No — the reply box is disabled

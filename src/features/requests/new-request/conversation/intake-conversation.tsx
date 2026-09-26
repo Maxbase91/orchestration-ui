@@ -40,7 +40,7 @@ import { isPreferredSupplierOverride } from '@/lib/procurement/supplier-preferen
 import { rankSupplierSuggestions } from '@/lib/procurement/supplier-suggestions';
 import { parseAmount } from '@/lib/procurement/policy-answers';
 import { parseDeliveryDate } from '@/lib/parse-delivery-date';
-import { determineNextQuestion, requiredSlots } from '@/lib/procurement/demand-conversation';
+import { determineNextQuestion, requiredSectionIds } from '@/lib/procurement/demand-conversation';
 import { RESIDUAL_QUESTION_LABEL } from '@/lib/procurement/residual-questions';
 import type { IntakeFormData, MiniIrqAnswers, SectionCapture } from '../intake-form-data';
 import { intakeSubmissionGaps } from '../intake-submission-gaps';
@@ -582,11 +582,12 @@ export function IntakeConversation(props: IntakeConversationProps) {
   // The sections this demand is asked about, or already has text for. The
   // hook's object changes identity every render, so this is computed, not memoised.
   const sectionText = (id: string) => String((sd.svcDesc as Record<string, unknown>)[id] ?? '');
-  const requiredSections = new Set<string>(requiredSlots(sd.progressCtx, sd.slots).filter((s) => s.target.kind === 'sow').map((s) => s.target.field));
+  // One set with the Channel page: the sections this demand must cover.
+  const requiredSections = new Set<string>(requiredSectionIds(sd.progressCtx, sd.slots, sd.sections));
   const askedSections = new Set<string>(sd.slots.filter((s) => s.target.kind === 'sow').map((s) => s.target.field));
   const askingNow = route === 'new-request' ? determineNextQuestion(sd.progressCtx, undefined, sd.slots)?.slot : undefined;
   const sections: SectionState[] = route !== 'new-request' ? [] : sd.sections
-    .filter((section) => askedSections.has(section.id) || sectionText(section.id).trim())
+    .filter((section) => askedSections.has(section.id) || requiredSections.has(section.id) || sectionText(section.id).trim())
     .map((section) => ({
       id: section.id,
       label: section.label,

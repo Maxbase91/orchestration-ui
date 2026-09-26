@@ -78,7 +78,6 @@ export interface IntakeFormData {
    */
   sowQualityScore?: number;
   sowQualityChecks?: { section: string; passed: boolean; issue: string | null }[];
-  sowRequiredSections?: string[];
   sowSignals?: Record<string, unknown>;
   /**
    * Whether the supplier was named upstream (extraction, chat match, contract

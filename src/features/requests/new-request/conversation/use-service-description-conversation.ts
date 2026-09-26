@@ -31,7 +31,7 @@ import {
   type DemandConversationContext,
 } from '@/lib/procurement/demand-conversation';
 import { DEFAULT_SECTIONS } from '@/lib/procurement/service-description-defaults';
-import { conversationComplete } from './conversation-rules';
+import { conversationComplete, conversationContext } from './conversation-rules';
 import type {
   MiniIrqAnswers,
   ServiceDescription,
@@ -139,29 +139,6 @@ function choiceFor(slot: DemandSlot | undefined): { choice: { slotId: string; fi
 // the three narrative composers and the duplicate classifier.
 
 
-// Build the dynamic-conversation engine context from the request data + the SOW
-// captured so far. The engine decides the next question and completeness from
-// this — so behaviour is identical whether the LLM is up or we use the fallback.
-function buildContext(
-  category: string,
-  data: ConversationData,
-  sow: Partial<ServiceDescription>,
-  risk?: MiniIrqAnswers,
-): DemandConversationContext {
-  return {
-    category,
-    risk,
-    title: data.title || undefined,
-    estimatedValue: data.estimatedValue || undefined,
-    deliveryDate: data.deliveryDate || undefined,
-    sow: {
-      objective: sow.objective, scope: sow.scope, deliverables: sow.deliverables,
-      exclusions: sow.exclusions,
-      resources: sow.resources, timeline: sow.timeline, acceptanceCriteria: sow.acceptanceCriteria,
-      pricingModel: sow.pricingModel, dependencies: sow.dependencies,
-    },
-  };
-}
 
 /**
  * Deterministic fallback used only when the LLM endpoint is unavailable. Writes
@@ -200,7 +177,7 @@ function localFallbackResponse(
   let warning: string | undefined;
 
   // Which slot is the user answering right now?
-  const answering = determineNextQuestion(buildContext(category, data, svcDesc, risk), undefined, slots)?.slot;
+  const answering = determineNextQuestion(conversationContext(category, data, svcDesc, risk), undefined, slots)?.slot;
   if (answering) {
     if (answering.target.kind === 'request') {
       if (answering.target.field === 'estimatedValue') {
@@ -241,7 +218,7 @@ function localFallbackResponse(
   // Recompute against the just-captured answer to get the next question.
   const nextData = { ...data, ...(extracted as Partial<ConversationData>) };
   const nextSow = { ...svcDesc, ...sowUpdate };
-  const ctx = buildContext(category, nextData, nextSow, risk);
+  const ctx = conversationContext(category, nextData, nextSow, risk);
   const complete = isConversationComplete(ctx, undefined, slots);
 
   if (complete) {
@@ -265,7 +242,7 @@ function localFallbackResponse(
     sow: sowUpdate,
     nextQuestion: next?.prompt ?? '',
     nextSlot: next?.slot,
-    why: next?.slot.why,
+    why: next?.why,
     // Offline the wording is always the engine's, so the example earns its place.
     example: next?.example,
     ...(warning ? { warning } : {}), complete: false,
@@ -367,7 +344,14 @@ export function useServiceDescriptionConversation({ category, data, onUpdate, ri
   // with a `default` row and the built-in template beneath, so an empty table
   // behaves exactly as the hardcoded slot set did.
   const { data: sdTemplate } = useServiceDescriptionTemplate(category);
-  const configuredSlots = useMemo(() => resolveSlots(sdTemplate?.slots), [sdTemplate]);
+  // The sections the panel lists, from the resolved template. `asked: false`
+  // sections (today, `location`) are GENERATED, never captured — listing them
+  // as outstanding was the progress bar's biggest lie.
+  const sections = sdTemplate?.sections ?? DEFAULT_SECTIONS;
+  // The sections come with the slots: a section the template's rules make
+  // mandatory for this demand makes the question that fills it asked and
+  // required, so the conversation and the Channel page count one set.
+  const configuredSlots = useMemo(() => resolveSlots(sdTemplate?.slots, sections), [sdTemplate, sections]);
   /**
    * Slots the requester could not answer, dropped from the agenda.
    *
@@ -469,7 +453,7 @@ export function useServiceDescriptionConversation({ category, data, onUpdate, ri
     openedRef.current = true;
     const next = determineNextQuestion(progressCtx, undefined, slots);
     if (next) {
-      setMessages([{ role: 'assistant', content: next.prompt, why: next.slot.why, example: next.example, ...choiceFor(next.slot) }]);
+      setMessages([{ role: 'assistant', content: next.prompt, why: next.why, example: next.example, ...choiceFor(next.slot) }]);
     }
     // Once, when the conversation starts: re-running would restart it under the
     // requester.
@@ -483,7 +467,7 @@ export function useServiceDescriptionConversation({ category, data, onUpdate, ri
   // on category and value. A requester who had answered everything was told
   // they were 57% done and shown five items that were never going to be asked.
   const progressCtx = useMemo(
-    () => buildContext(category, data, svcDesc, riskAnswers),
+    () => conversationContext(category, data, svcDesc, riskAnswers),
     [category, data, svcDesc, riskAnswers],
   );
   const { total: unifiedTotal, captured: unifiedDone, pct: unifiedPct } = useMemo(
@@ -512,11 +496,6 @@ export function useServiceDescriptionConversation({ category, data, onUpdate, ri
     () => conversationComplete(progressCtx, descriptionSlots),
     [progressCtx, descriptionSlots],
   );
-
-  // The sections the panel lists, from the resolved template. `asked: false`
-  // sections (today, `location`) are GENERATED, never captured — listing them
-  // as outstanding was the progress bar's biggest lie.
-  const sections = sdTemplate?.sections ?? DEFAULT_SECTIONS;
 
   const getFieldValue = (key: string): string => {
     // The "Commodity Code" key-fact shows the specific UNSPSC code + label (the
@@ -573,7 +552,7 @@ export function useServiceDescriptionConversation({ category, data, onUpdate, ri
       // that slot on the agenda, so the requester is asked again rather than
       // moved on with junk recorded. But only once — see `challenged`.
       const askedSlot = determineNextQuestion(
-        buildContext(category, data, svcDesc, riskAnswers), undefined, slots,
+        conversationContext(category, data, svcDesc, riskAnswers), undefined, slots,
       )?.slot;
       const verdict = readVerdict(result.answerVerdict)
         ?? assessAnswer(text, askedSlot);
@@ -680,7 +659,7 @@ export function useServiceDescriptionConversation({ category, data, onUpdate, ri
         estimatedValue: (updates.estimatedValue as number) || data.estimatedValue,
         deliveryDate: (updates.deliveryDate as string) || data.deliveryDate,
       };
-      const ctx = buildContext(category, mergedData, mergedSow, riskAnswers);
+      const ctx = conversationContext(category, mergedData, mergedSow, riskAnswers);
 
       if (conversationComplete(ctx, slots)) {
         setSummary(result.summary ?? 'Service description captured. Ready for supplier identification and compliance.');
@@ -722,7 +701,7 @@ export function useServiceDescriptionConversation({ category, data, onUpdate, ri
             {
               role: 'assistant',
               content: `${hint}${phrased ?? next.prompt}`,
-              why: next.slot.why,
+              why: next.why,
               // A generic example only helps when the wording is generic too.
               example: phrased ? undefined : next.example,
               ...choiceFor(next.slot),
@@ -739,7 +718,7 @@ export function useServiceDescriptionConversation({ category, data, onUpdate, ri
       // grounded in what the requester said, and nothing here can write one, so
       // the challenge names the gap and re-asks instead of inventing prose.
       const offlineSlot = determineNextQuestion(
-        buildContext(category, data, svcDesc, riskAnswers), undefined, slots,
+        conversationContext(category, data, svcDesc, riskAnswers), undefined, slots,
       )?.slot;
       const offlineVerdict = assessAnswer(text, offlineSlot);
       if (offlineSlot && !offlineVerdict.addresses && !challenged.has(offlineSlot.id)) {
@@ -789,7 +768,7 @@ export function useServiceDescriptionConversation({ category, data, onUpdate, ri
       // description, and it says so: falling back to the engine's own next
       // question here asked for the date it had just given up on.
       const remainingSlots = offlineOutcome.skipped ? slots.filter((slot) => slot.id !== offlineField) : slots;
-      const afterAnswer = buildContext(
+      const afterAnswer = conversationContext(
         category, { ...data, ...(fallback.extracted as Partial<ConversationData>) }, { ...svcDesc, ...fallback.sow }, riskAnswers,
       );
       const offlineNext = offlineOutcome.skipped ? determineNextQuestion(afterAnswer, undefined, remainingSlots) : null;
@@ -800,7 +779,7 @@ export function useServiceDescriptionConversation({ category, data, onUpdate, ri
           : {
               role: 'assistant',
               content: `${offlineOutcome.hint}${offlineNext?.prompt ?? fallback.nextQuestion}`,
-              why: offlineNext?.slot.why ?? fallback.why,
+              why: offlineNext?.why ?? fallback.why,
               example: offlineNext?.example ?? fallback.example,
               ...choiceFor(offlineNext?.slot ?? fallback.nextSlot),
             },
@@ -874,7 +853,6 @@ export function useServiceDescriptionConversation({ category, data, onUpdate, ri
         sections: Partial<ServiceDescription>;
         narrative: string;
         qualityScore: number;
-        requiredSections?: string[];
         qualityChecks: { section: string; passed: boolean; issue: string | null }[];
       };
 
@@ -892,10 +870,12 @@ export function useServiceDescriptionConversation({ category, data, onUpdate, ri
       // Persisted at submit. These columns have existed since R6 and were null
       // on every live row, so the quality badge tab-overview renders had never
       // once appeared.
+      // The sections this demand must cover are not taken from generation's
+      // reply: the page computes them from the request as it stands
+      // (`requiredSectionIds`), the same set this conversation requires.
       onUpdate({
         sowQualityScore: result.qualityScore,
         sowQualityChecks: result.qualityChecks,
-        sowRequiredSections: result.requiredSections ?? [],
         sowSignals: signals,
       });
       setQualityChecks(result.qualityChecks);
@@ -931,7 +911,7 @@ export function useServiceDescriptionConversation({ category, data, onUpdate, ri
     setMessages((prev) => {
       const last = prev[prev.length - 1];
       if (last?.role === 'assistant' && last.content === next.prompt) return prev;
-      return [...prev, { role: 'assistant', content: next.prompt, why: next.slot.why, example: next.example, ...choiceFor(next.slot) }];
+      return [...prev, { role: 'assistant', content: next.prompt, why: next.why, example: next.example, ...choiceFor(next.slot) }];
     });
   }, [progressCtx, slots]);
 
@@ -958,7 +938,7 @@ export function useServiceDescriptionConversation({ category, data, onUpdate, ri
       onUpdate({ [slot.target.field]: textValue });
     }
 
-    const nextCtx = buildContext(
+    const nextCtx = conversationContext(
       category,
       slot.target.kind === 'request'
         ? { ...data, [slot.target.field]: textValue }
@@ -970,7 +950,7 @@ export function useServiceDescriptionConversation({ category, data, onUpdate, ri
       ...prev,
       { role: 'user', content: textValue },
       ...(next
-        ? [{ role: 'assistant' as const, content: next.prompt, why: next.slot.why, example: next.example, ...choiceFor(next.slot) }]
+        ? [{ role: 'assistant' as const, content: next.prompt, why: next.why, example: next.example, ...choiceFor(next.slot) }]
         : [{ role: 'assistant' as const, content: buildCompletionMessage(nextCtx, slots) }]),
     ]);
   }, [slots, svcDesc, onUpdate, category, data]);
@@ -986,7 +966,7 @@ export function useServiceDescriptionConversation({ category, data, onUpdate, ri
   const answerRiskQuestion = useCallback((field: MiniIrqField, value: boolean, label: string) => {
     const nextRisk = { ...riskAnswers, [field]: value };
     onUpdate({ miniIrq: nextRisk });
-    const nextCtx = buildContext(category, data, svcDesc, nextRisk);
+    const nextCtx = conversationContext(category, data, svcDesc, nextRisk);
     const next = determineNextQuestion(nextCtx, undefined, slots);
     setMessages((prev) => [
       ...prev,
@@ -995,7 +975,7 @@ export function useServiceDescriptionConversation({ category, data, onUpdate, ri
         ? [{
             role: 'assistant' as const,
             content: next.prompt,
-            why: next.slot.why,
+            why: next.why,
             example: next.example,
             ...choiceFor(next.slot),
           }]
